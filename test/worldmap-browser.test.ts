@@ -1,3 +1,4 @@
+import { assistantInput } from './assistant-runtime-fixture';
 // @vitest-environment jsdom
 import { readFileSync, existsSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
@@ -66,7 +67,7 @@ function mountNative(scale = 1) {
   const frame = document.createElement('iframe'); document.body.append(frame); frames.push(frame);
   const win = frame.contentWindow as Window & typeof globalThis, doc = win.document;
   doc.body.style.zoom = String(scale);
-  const GUI = runInNewContext(`(${guiClass})`, { window: win, document: doc, Event: win.Event,
+  const GUI = runInNewContext(`(${guiClass})`, { ...assistantInput, window: win, document: doc, Event: win.Event,
     MouseMode: { STOP: 1, FREEZE: 2 }, _ensureDeps: () => {}, Common_default$1: commonCss,
     setLastROInnerHTML: (element: HTMLElement, html: string) => { element.innerHTML = html; } });
   // Native prepare/append/focus/key binding remain intact. Asset/renderer services

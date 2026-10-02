@@ -1,3 +1,4 @@
+import { assistantInput } from './assistant-runtime-fixture';
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -55,7 +56,7 @@ interface NativeDialog {
 function nativePrompts(mouse: { intersect: boolean }, session: { FreezeUI: boolean }) {
   const win = document.defaultView!;
   const inputValidate = vi.fn(), made: NativeDialog[] = [];
-  const context = vm.createContext({ window: win, document, Event: win.Event, Mouse: mouse, SessionStorage_default: session,
+  const context = vm.createContext({ ...assistantInput, window: win, document, Event: win.Event, Mouse: mouse, SessionStorage_default: session,
     MouseMode: { FREEZE: 2 }, validate$1: inputValidate,
     getComputedStyle: win.getComputedStyle.bind(win),
     KEYS: { ENTER: 13, SPACE: 32, ESCAPE: 27, getDeepActiveElement: () => document.activeElement },
@@ -126,7 +127,7 @@ function fixture(files = resources()) {
       npc.__active = false; host.remove(); npc.onRemove?.();
     }),
   };
-  const api: NpcMapLinksApi = new Function('NpcBox', 'Thread', 'DB', 'MapRenderer', 'Configs', 'PACKET', 'Network', 'buildPrivateAirshipRequest', 'normalizeLastROTeleportMap', 'UIManager', 'console', 'describeLastroMapLoadFailure', 'setLastROInnerHTML', 'NpcMenu_default', 'InputBox_default', 'showLastroTeleportNotice', 'Mouse', 'SessionStorage_default', `
+  const api: NpcMapLinksApi = new Function('NpcBox', 'Thread', 'DB', 'MapRenderer', 'Configs', 'PACKET', 'Network', 'buildPrivateAirshipRequest', 'normalizeLastROTeleportMap', 'UIManager', 'console', 'describeLastroMapLoadFailure', 'setLastROInnerHTML', 'NpcMenu_default', 'InputBox_default', 'showLastroTeleportNotice', 'Mouse', 'SessionStorage_default', 'addAssistantAwareListener', `
     ${dialogButtonFallback}
     ${installation}
     return NpcBox._lastroMapLinks;
@@ -136,7 +137,7 @@ function fixture(files = resources()) {
     if (manual) pending.push(complete); else queueMicrotask(complete);
   } }, { mapalias: {}, getMapName: label }, state, { get: () => profile }, { CZ: { PRIVATE_AIRSHIP_REQUEST: class {} } },
   { sendPacket: (packet: unknown) => packets.push(packet) }, buildPrivateAirshipRequest, (map: string) => map.replace(/\.gat$/i, ''),
-  { showErrorBox: popup, showPromptBox: showPrompt }, { warn: () => {} }, describeLastroMapLoadFailure, setLastROInnerHTML, menu, input, notice, mouse, session);
+  { showErrorBox: popup, showPromptBox: showPrompt }, { warn: () => {} }, describeLastroMapLoadFailure, setLastROInnerHTML, menu, input, notice, mouse, session, assistantInput.addAssistantAwareListener);
   npc.init?.();
   api.render(content, '(Lv.160) 暗•超魔导师 凯特莉娜 位于地图\n^nMapName^lhz_dun03', text => text);
   const link = content.querySelector('a');

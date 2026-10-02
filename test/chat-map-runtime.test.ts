@@ -1,3 +1,4 @@
+import { assistantInput } from './assistant-runtime-fixture';
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
@@ -36,7 +37,7 @@ function mount(immediate = true, lastro = true, currentMap = 'izlude.gat') {
   const recovered = vi.fn();
   let popup: { _shadow: ShadowRoot; _host: HTMLElement; init?: () => void; onRemove?: () => void; draggable: () => void; append: () => void; remove: () => void };
   const ChatBox: Record<string, unknown> = { tabs: [{}], MAX_MSG: 400, TYPE: { SELF: 1, PUBLIC: 2, ANNOUNCE: 32 }, FILTER: { PUBLIC_CHAT: 1, PUBLIC_LOG: 0 } };
-  const context = {
+  const context = { ...assistantInput,
     document, crypto: globalThis.crypto, queueMicrotask, setLastROInnerHTML, ChatBox,
     _root$18: () => host,
     _messageBuffer: [], _rafScheduled: false, MAX_MSG: 400,

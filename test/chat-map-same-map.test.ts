@@ -1,3 +1,4 @@
+import { assistantInput } from './assistant-runtime-fixture';
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
@@ -97,7 +98,7 @@ function runtimeFixture(dataMap = 'force_map3#100#184') {
   const cancelRoute = vi.fn(() => calls.push('cancel'));
   const nav = { __loaded: true, _host: root, getRoot: () => root, loadMap: vi.fn(), prepare: vi.fn(), append: vi.fn(), ui: { hide: vi.fn() },
     clearPath: vi.fn(), setTargetCoordinatesText: vi.fn(), setTargetCoordinatesBlinking: vi.fn() };
-  const context = vm.createContext({ document, crypto: globalThis.crypto, queueMicrotask, setLastROInnerHTML,
+  const context = vm.createContext({ ...assistantInput, document, crypto: globalThis.crypto, queueMicrotask, setLastROInnerHTML,
     MapRenderer: map, SessionStorage_default: session, Altitude: altitude,
     init_Navigation: vi.fn(), init_SessionStorage: vi.fn(), init_Altitude: vi.fn(),
     LastROTools: { _lastroPanels: { cancelRoute } }, Navigation: nav, Navigation_default: nav, MapPathFinder: {},

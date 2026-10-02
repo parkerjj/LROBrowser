@@ -7,6 +7,7 @@ import { loadClientFonts } from './client-fonts';
 import { installDebugAccessGuard } from './debug-access';
 
 export interface BootstrapOptions {
+  assistantEnabled?: boolean;
   mount: HTMLElement;
   profile: AvailableServerProfile;
   credentials: ClientCredentials;
@@ -56,7 +57,7 @@ export async function bootstrapV2Client(options: BootstrapOptions): Promise<void
     throw new Error('当前页面不支持 Direct TCP。请安装客户端并从 Chrome 的 IWA 应用入口打开，不要直接访问本地开发服务器地址。');
   }
   installDebugAccessGuard(window);
-  globalThis.ROConfig = buildClientConfig(options.profile, options.credentials);
+  globalThis.ROConfig = buildClientConfig(options.profile, options.credentials, { assistantEnabled: options.assistantEnabled });
   globalThis.LastRODirectSocketFactory = options.socketFactory ?? createDirectSocket;
   const mount = options.mount;
   globalThis.LastROLoginRegistration = (phase, nid, username, password) => {
