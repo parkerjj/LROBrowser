@@ -61,6 +61,9 @@ import { patchRuntimeEmoticons } from './lastro-emoticons.mjs';
 import { patchRuntimeItemDrag } from './lastro-item-drag.mjs';
 import { patchRuntimeItemName } from './lastro-item-name.mjs';
 import { patchRuntimeHotkeys } from './lastro-hotkeys.mjs';
+import { patchRuntimeCardDeckHotkeys } from './lastro-card-deck-hotkeys.mjs';
+import { patchRuntimeCardCollection } from './lastro-card-collection.mjs';
+import { patchRuntimePartyState } from './lastro-party-state.mjs';
 import { patchRuntimeTypography } from './lastro-typography.mjs';
 import { patchRuntimeDialogTypography } from './lastro-dialog-typography.mjs';
 import { patchRuntimeNavigationUi } from './lastro-navigation-ui.mjs';
@@ -1029,6 +1032,7 @@ export function patchRuntimeChatMapLinks(source) {
   if (Configs.get("lastroProtocol", false)) {
     const lastroMessage = LastROChatMapLinks.serverMessage(pkt.msg);
     if (lastroMessage !== null) {
+      if (typeof CardConnection2 !== "undefined") CardConnection2?._lastroCardDeck?.onServerNotice(lastroMessage);
       init_Announce();
       Announce_default.append();
       Announce_default.set(LastROChatMapLinks.plainText(lastroMessage), "#FFFF00", { life: 5000 });
@@ -1630,6 +1634,9 @@ ${normalizedSource}`;
   output = patchRuntimeMapLocalization(output);
   output = patchRuntimeStatusTooltips(output);
   output = patchRuntimeHotkeys(output);
+  output = patchRuntimeCardDeckHotkeys(output);
+  output = patchRuntimeCardCollection(output);
+  output = patchRuntimePartyState(output);
   output = patchRuntimeLuaStartup(output);
   output = patchLuaTableCompletion(output);
   output = patchRuntimeUiLayout(output);

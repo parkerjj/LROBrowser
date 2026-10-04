@@ -1,0 +1,31 @@
+export function installLastroCardDeckUI(component: {
+  getRoot(): ParentNode;
+  renderCards(...args: unknown[]): unknown;
+  renderDeck?(...args: unknown[]): DocumentFragment;
+  createCardNode?(entry: { id: number; tab?: number; level?: number; name?: string; state?: number }, options?: object): HTMLElement;
+  cardName?(id: number): string;
+  _data?: { data?: Record<number, { data?: Record<number, { activate?: number }> }> };
+  onRemove?(...args: unknown[]): unknown;
+  setStatus?(message: string): void;
+  _lastroDeckUI?: unknown;
+}, deps: {
+  document: Document;
+  getPresets(): Array<number[] | null>;
+  getNames(): string[];
+  getDraft(index?: number): Array<{ id: number; tab: number; level: number }>;
+  isDirty(index: number): boolean;
+  canEdit(index?: number): boolean;
+  canSave(index?: number): boolean;
+  getAvailableCards(): Array<{ id: number; tab: number; level: number; state: number }>;
+  getCardState(card: { id: number; tab: number; level: number }): number;
+  getCardDefinition(id: number): { id: number; tab: number; level: number } | null;
+  getEquipmentTab?(card: { id: number; tab: number; level: number }): number | null;
+  getSelected(): number;
+  getActivePreset(): number | null;
+  isBusy(): boolean;
+  isActive(cards: number[]): boolean;
+  select(index: number): unknown;
+  save(index: number): unknown;
+  activate(index: number): Promise<boolean> | boolean;
+  rename(index: number, name: string): Promise<boolean>;
+}): { sync(): void };
