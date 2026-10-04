@@ -1,6 +1,27 @@
 import ts from 'typescript';
 
-/* global SessionStorage_default, MapControl, _socket, LastROAdvanceServerTick */
+/* global SessionStorage_default, MapControl, _socket, LastROAdvanceServerTick,
+  StatusState_default, StatusConst_default */
+
+function lastroBodyMovementBlocked(value) {
+  const body = typeof StatusState_default !== 'undefined' ? StatusState_default.BodyState : null;
+  return !!body && (
+    body.STONE > 0 && value === body.STONE
+    || body.FREEZE > 0 && value === body.FREEZE
+    || body.STUN > 0 && value === body.STUN
+    || body.SLEEP > 0 && value === body.SLEEP
+    || body.IMPRISON > 0 && value === body.IMPRISON
+  );
+}
+
+function lastroMovementBlocked(entity) {
+  if (!entity) return false;
+  if (lastroBodyMovementBlocked(entity._bodyState)) return true;
+  const blade = typeof StatusState_default !== 'undefined' ? StatusState_default.OPT3?.BLADESTOP : undefined;
+  if (Number.isInteger(blade) && blade > 0 && (entity._virtue & blade) !== 0) return true;
+  const stop = typeof StatusConst_default !== 'undefined' ? StatusConst_default.STOP : undefined;
+  return Number.isInteger(stop) && stop > 0 && entity._lastroMovementStops?.has(stop) === true;
+}
 
 function lastroCancelMovement(entity, invalidate = true) {
   if (!entity) return;
@@ -99,6 +120,10 @@ export function patchRuntimeMovementSync(source) {
     if (Number.isInteger(this._lastroServerMoveStart) && ((moveStartTime - this._lastroServerMoveStart) | 0) < 0) return;
     this._lastroServerMoveStart = moveStartTime;
   }
+  if (lastroMovementBlocked(this)) {
+    lastroCancelMovement(this);
+    return;
+  }
   this._lastroMovementEpoch = (this._lastroMovementEpoch || 0) + 1;
   delete this._lastroApprovedRoute;
   delete this._lastroApprovedEpoch;
@@ -111,6 +136,10 @@ export function patchRuntimeMovementSync(source) {
     else walkToEdit.text = replaceExact(walkToEdit.text, '    this.headDir = 0;', record + '    this.headDir = 0;');
     body('walkProcess', '', original => {
       let output = replaceExact(original, '  const pos = this.position;', `  if (this === SessionStorage_default.Entity && !lastroCheckMovementConnection()) return;
+  if (lastroMovementBlocked(this)) {
+    if (this.walk?.total || this.walk?.onEnd || this._lastroApprovedRoute) lastroCancelMovement(this);
+    return;
+  }
   const pos = this.position;`);
       const patchedClock = '  const TICK = Date.now();';
       if (output.includes(patchedClock)) output = replaceExact(output, patchedClock, '  const TICK = Number.isFinite(lastroTick) ? lastroTick : Date.now();');
@@ -133,10 +162,10 @@ export function patchRuntimeMovementSync(source) {
     const hitStart = lastroHitStartTick(pkt);
     if (approved && hitStart + pkt.attackMT < approved.walk.tick) return;`);
       output = replaceExact(output, '    function impendingAttack() {\n      if (dstEntity.action !== dstEntity.ACTION.DIE)', `    function impendingAttack() {
-      if (EntityManager.get(dstEntity.GID) !== dstEntity || (self && dstEntity !== SessionStorage_default.Entity) || (dstEntity._lastroMovementEpoch || 0) !== epoch || dstEntity.action === dstEntity.ACTION.DIE) return;
+      if (EntityManager.get(dstEntity.GID) !== dstEntity || (self && dstEntity !== SessionStorage_default.Entity) || (dstEntity._lastroMovementEpoch || 0) !== epoch || dstEntity.action === dstEntity.ACTION.DIE || lastroMovementBlocked(dstEntity)) return;
       if (dstEntity.action !== dstEntity.ACTION.DIE)`);
       output = replaceExact(output, '    function resumeWalk() {', `    function resumeWalk() {
-      if (EntityManager.get(dstEntity.GID) !== dstEntity || (self && dstEntity !== SessionStorage_default.Entity) || (dstEntity._lastroMovementEpoch || 0) !== epoch || dstEntity.action === dstEntity.ACTION.DIE) return;`);
+      if (EntityManager.get(dstEntity.GID) !== dstEntity || (self && dstEntity !== SessionStorage_default.Entity) || (dstEntity._lastroMovementEpoch || 0) !== epoch || dstEntity.action === dstEntity.ACTION.DIE || lastroMovementBlocked(dstEntity)) return;`);
       output = replaceExact(output, 'pkt.attackMT + C_MULTIHIT_DELAY * i', 'Math.max(0, hitStart + pkt.attackMT + C_MULTIHIT_DELAY * i - Date.now())');
       output = replaceExact(output, 'pkt.attackMT + C_MULTIHIT_DELAY * 1.75 * i', 'Math.max(0, hitStart + pkt.attackMT + C_MULTIHIT_DELAY * 1.75 * i - Date.now())');
       return replaceExact(output, `      pkt.attackMT +
@@ -180,10 +209,37 @@ export function patchRuntimeMovementSync(source) {
 }`);
     });
     body('onEntityVanish', 'pkt', original => replaceExact(original, '  const entity = EntityManager.get(pkt.GID);', '  const entity = EntityManager.get(pkt.GID);\n  lastroCancelMovement(entity);'));
+    body('onEntityStatusChange', 'pkt', original => replaceExact(original, '  switch (pkt.index) {', `  const stop = StatusConst_default.STOP;
+  let stopState = pkt.state;
+  if (Number.isInteger(stop) && stop > 0 && pkt.index === stop && stopState === undefined && typeof PACKET !== "undefined") {
+    const enter = PACKET?.ZC?.MSG_STATE_CHANGE3;
+    const enter2 = PACKET?.ZC?.MSG_STATE_CHANGE5;
+    if ((typeof enter === "function" && pkt.constructor === enter)
+        || (typeof enter2 === "function" && pkt.constructor === enter2)) stopState = 1;
+  }
+  if (Number.isInteger(stop) && stop > 0 && pkt.index === stop && (stopState === 1 || stopState === 0)) {
+    if (!entity._lastroMovementStops) entity._lastroMovementStops = new Set();
+    if (stopState === 1) {
+      const active = entity._lastroMovementStops.has(stop);
+      entity._lastroMovementStops.add(stop);
+      if (!active) lastroCancelMovement(entity);
+    } else entity._lastroMovementStops.delete(stop);
+  }
+  switch (pkt.index) {`));
+  });
+  source = patchRegion(source, 'src/Renderer/Entity/EntityState.js', body => {
+    body('updateBodyState', 'value', original => replaceExact(original, '  if (value === this._bodyState) return;', `  if (value === this._bodyState) return;
+  if (lastroBodyMovementBlocked(value)) lastroCancelMovement(this);`));
+    body('updateVirtue', 'value', original => {
+      const first = '  this._virtueColor[0] = 1;\n  this._virtueColor[1] = 1;\n  this._virtueColor[2] = 1;\n  this._virtueColor[3] = 1;';
+      return replaceExact(original, first, `  const blade = StatusState_default.OPT3.BLADESTOP;
+  if (Number.isInteger(blade) && blade > 0 && !(this._virtue & blade) && (value & blade)) lastroCancelMovement(this);
+${first}`);
+    });
   });
   source = patchRegion(source, 'src/Engine/MapEngine.js', body => {
     for (const name of ['onMapChange', 'cleanGameUI']) body(name, name === 'onMapChange' ? 'pkt' : '', original => '{\n  lastroCancelMovement(SessionStorage_default.Entity);' + original.slice(1));
-    body('resetEntityForMapEntry', 'entity,pkt,gid', original => '{\n  lastroCancelMovement(entity);\n  delete entity._lastroServerMoveStart;' + original.slice(1));
+    body('resetEntityForMapEntry', 'entity,pkt,gid', original => '{\n  lastroCancelMovement(entity);\n  delete entity._lastroServerMoveStart;\n  delete entity._lastroMovementStops;' + original.slice(1));
     body('onPong', 'pkt', original => '{\n  SessionStorage_default.ping._lastroUnansweredSince = undefined;' + original.slice(1));
   });
   source = patchRegion(source, 'src/Network/NetworkManager.js', body => {
@@ -193,6 +249,6 @@ export function patchRuntimeMovementSync(source) {
   });
   // The heartbeat lambda is nested in MapEngine initialization.
   if (source.includes('SP.returned = false;')) source = replaceExact(source, 'SP.returned = false;', 'if (SP.returned || !Number.isFinite(SP._lastroUnansweredSince)) SP._lastroUnansweredSince = Date.now();\n                SP.returned = false;');
-  const helpers = [lastroCancelMovement, lastroMovementUnavailable, lastroCheckMovementConnection, lastroCaptureHitRoute, lastroHitStartTick].map(fn => fn.toString()).join('\n');
+  const helpers = [lastroBodyMovementBlocked, lastroMovementBlocked, lastroCancelMovement, lastroMovementUnavailable, lastroCheckMovementConnection, lastroCaptureHitRoute, lastroHitStartTick].map(fn => fn.toString()).join('\n');
   return source.replace(walkMarker, walkMarker + '\n' + helpers);
 }

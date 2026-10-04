@@ -15,6 +15,7 @@ function region(name: string, source = vendor) {
 const base = [
   'src/Renderer/Entity/EntityWalk.js', 'src/Engine/MapEngine/Entity.js',
   'src/Engine/MapEngine/Main.js', 'src/Engine/MapEngine.js', 'src/Network/NetworkManager.js',
+  'src/Renderer/Entity/EntityState.js',
 ].map(name => region(name)).join('\n');
 const synchronized = patchRuntimeEntitySync(base);
 const patched = patchRuntimeMovementSync(synchronized);
@@ -24,6 +25,15 @@ function declaration(source: string, name: string) {
   if (nodes.length !== 1) throw new Error(name);
   return nodes[0]!.getText(file);
 }
+
+const statusConstants = vm.runInNewContext([
+  region('src/DB/Status/StatusConst.js'), region('src/DB/Status/StatusState.js'),
+  'init_StatusState(); ({ statuses: StatusConst_default, states: StatusState_default });',
+].join('\n'), { __esmMin: (callback: () => void) => callback }) as {
+  statuses: Record<string, number>;
+  states: { BodyState: Record<string, number>; HealthState: Record<string, number>;
+    EffectState: Record<string, number>; OPT3: Record<string, number>; Status: Record<string, number> };
+};
 
 interface Walk {
   speed: number; tick: number; prevTick: number; dist: number; index: number; total: number;
@@ -62,6 +72,7 @@ function fixture(source = patched) {
   const cells = new Uint8Array(24 * 24).fill(10);
   const Altitude = {
     width: 24, height: 24, cells, types: { NONE: 1, WALKABLE: 2, WATER: 4, SNIPABLE: 8 },
+    TYPE: { NONE: 1, WALKABLE: 2, WATER: 4, SNIPABLE: 8 },
     getCellHeight: vi.fn((x: number, y: number) => x + y),
     getCellType: vi.fn((x: number, y: number): number | undefined => Altitude.cells[x + y * Altitude.width]),
   };
@@ -104,7 +115,8 @@ function fixture(source = patched) {
     Configs: { get: (name: string, fallback: unknown) => name === 'lastroProtocol' ? true : fallback },
     DB: { getWeaponAction: () => 0 },
     EffectManager: { remove: vi.fn(), spam: vi.fn() },
-    StatusState_default: { EffectState: { INVISIBLE: 1 } }, EffectConst_default: { EF_DEVIL: 1 },
+    StatusState_default: statusConstants.states, StatusConst_default: statusConstants.statuses,
+    EffectConst_default: { EF_DEVIL: 1 },
     StatusProperty_default: { SPEED: 0 },
     HomunInformations_default: { stopAI: vi.fn() }, MercenaryInformations_default: { stopAI: vi.fn() },
     Escape_default: { showDeathMenu: vi.fn() }, haveSiegfriedItem: () => false,
@@ -211,15 +223,17 @@ function fastMovePacket(f: ReturnType<typeof fixture>, x: number, y: number, aid
 }
 
 
-function nativeMovementPacket(f: ReturnType<typeof fixture>, name: 'NOTIFY_PLAYERMOVE' | 'NOTIFY_ACT', bytes: Uint8Array) {
+function nativeMovementPacket(f: ReturnType<typeof fixture>, name: 'NOTIFY_PLAYERMOVE' | 'NOTIFY_ACT' | 'STATE_CHANGE' | 'MSG_STATE_CHANGE' | 'MSG_STATE_CHANGE3' | 'MSG_STATE_CHANGE5' | 'BLADESTOP', bytes: Uint8Array) {
   const start = vendor.indexOf('  PACKET.ZC.' + name + ' = function');
   const sizeStart = vendor.indexOf('  PACKET.ZC.' + name + '.size = ', start);
   const end = vendor.indexOf(';', sizeStart) + 1;
   if (start < 0 || sizeStart < start) throw new Error('Missing native packet ' + name);
   f.context.window = {};
   f.context.init_Struct = () => {}; f.context.init_CodepageManager = () => {};
-  vm.runInContext(region('src/Utils/BinaryReader.js') + '\ninit_BinaryReader(); var MOVEMENT_PACKETS={ZC:{}};'
-    + vendor.slice(start, end).replaceAll('PACKET.ZC', 'MOVEMENT_PACKETS.ZC'), f.context);
+  vm.runInContext(region('src/Utils/BinaryReader.js')
+    + '\ninit_BinaryReader(); var MOVEMENT_PACKETS = globalThis.PACKET || {ZC:{}}; globalThis.PACKET = MOVEMENT_PACKETS;'
+    + '\nif (!MOVEMENT_PACKETS.ZC.' + name + ') { '
+    + vendor.slice(start, end).replaceAll('PACKET.ZC', 'MOVEMENT_PACKETS.ZC') + '\n}', f.context);
   f.context.movementBytes = bytes; f.context.movementPacketName = name;
   return vm.runInContext('(() => { const fp = new BinaryReader(movementBytes); fp.readUShort(); return new MOVEMENT_PACKETS.ZC[movementPacketName](fp, movementBytes.length); })()', f.context);
 }
@@ -241,6 +255,212 @@ function receiveNativeDamageAction(f: ReturnType<typeof fixture>, count = 1) {
   vm.runInContext('onEntityAction(damageActionPacket);', f.context);
   return packet;
 }
+
+interface ControlledEntity extends Entity {
+  bodyState: number; healthState: number; _bodyState: number; _virtue: number;
+  _lastroMovementStops?: Set<number>;
+  lookTo(x: number, y: number): void;
+}
+function controlFixture(source = patched) {
+  const f = fixture(source);
+  const readNow = (f.context.Date as { now(): number }).now;
+  f.context.Date = class extends Date { static now() { return readNow(); } };
+  for (const name of ['init_SoundManager', 'init_StatusState', 'init_MountTable', 'init_AllMountTable', 'init_Emotions']) {
+    f.context[name] = () => {};
+  }
+  f.context.SoundManager = { playPosition: vi.fn(), play: vi.fn() };
+  f.context.StatusIcons_default = { update: vi.fn() };
+  const entity = f.entity as ControlledEntity;
+  Object.assign(entity, { _bodyState: 0, _healthState: 0, _effectState: 0, _virtue: 0,
+    attachments: { add: vi.fn(), remove: vi.fn() }, aura: { load: vi.fn() }, lookTo: vi.fn() });
+  f.context.controlEntity = entity;
+  vm.runInContext('init_EntityState(); Init$1.call(controlEntity);', f.context);
+  const handlers = vm.runInContext('({ option: onEntityOptionChange, status: onEntityStatusChange, blade: onBladeStopPacket })', f.context) as {
+    option(pkt: { AID: number; bodyState: number; healthState: number; effectState: number; isPKModeON: number }): void;
+    status(pkt: { AID: number; index: number; state?: number; RemainMS?: number; TotalMS?: number; val?: number[] }): void;
+    blade(pkt: { srcAID: number; destAID: number; flag: number }): void;
+  };
+  const state = (bodyState: number, healthState = 0) => {
+    const bytes = new Uint8Array(13), view = new DataView(bytes.buffer);
+    view.setUint16(0, 0x0119, true); view.setUint32(2, 123, true);
+    view.setInt16(6, bodyState, true); view.setInt16(8, healthState, true);
+    const packet = nativeMovementPacket(f, 'STATE_CHANGE', bytes) as Parameters<typeof handlers.option>[0];
+    handlers.option(packet); return packet;
+  };
+  const status = (index: number, active: number) => {
+    const bytes = new Uint8Array(9), view = new DataView(bytes.buffer);
+    view.setUint16(0, 0x0196, true); view.setInt16(2, index, true);
+    view.setUint32(4, 123, true); view.setUint8(8, active);
+    const packet = nativeMovementPacket(f, 'MSG_STATE_CHANGE', bytes) as Parameters<typeof handlers.status>[0];
+    handlers.status(packet); return packet;
+  };
+  const loadedStatus = (name: 'MSG_STATE_CHANGE3' | 'MSG_STATE_CHANGE5', index = statusConstants.statuses.STOP!) => {
+    const extended = name === 'MSG_STATE_CHANGE5';
+    const bytes = new Uint8Array(extended ? 28 : 24), view = new DataView(bytes.buffer);
+    view.setUint16(0, extended ? 0x0984 : 0x08ff, true);
+    view.setUint32(2, 123, true); view.setInt16(6, index, true);
+    if (extended) view.setUint32(8, 10000, true);
+    view.setUint32(extended ? 12 : 8, 5000, true);
+    // Native loaded-status packets have no state; val[0] is data, not an on/off flag.
+    const packet = nativeMovementPacket(f, name, bytes) as Parameters<typeof handlers.status>[0];
+    handlers.status(packet); return packet;
+  };
+  const blade = (active: number) => {
+    if (!f.entries.has(456)) {
+      const other = { ...entity, GID: 456, position: new Float32Array([2, 1, 3]) } as ControlledEntity;
+      f.functions.action.call(other); f.functions.walk.call(other);
+      Object.assign(other, { _bodyState: 0, _healthState: 0, _effectState: 0, _virtue: 0 });
+      f.context.controlOther = other; vm.runInContext('Init$1.call(controlOther);', f.context);
+      f.entries.set(456, other);
+    }
+    const bytes = new Uint8Array(14), view = new DataView(bytes.buffer);
+    view.setUint16(0, 0x01d1, true); view.setUint32(2, 123, true); view.setUint32(6, 456, true); view.setInt32(10, active, true);
+    const packet = nativeMovementPacket(f, 'BLADESTOP', bytes) as Parameters<typeof handlers.blade>[0];
+    handlers.blade(packet); return packet;
+  };
+  return { ...f, entity, state, status, loadedStatus, statusPacket: handlers.status, blade };
+}
+
+describe('authoritative control states retire old movement', () => {
+  it('reproduces native movement through stun followed by a server STOP correction', () => {
+    const f = controlFixture(synchronized); beginWalk(f); f.setNow(10100); f.entity.walkProcess();
+    const position = Array.from(f.entity.position), epoch = f.entity._lastroMovementEpoch;
+    expect(f.state(statusConstants.states.BodyState.STUN!)).toMatchObject({ AID: 123, bodyState: 3 });
+    f.setNow(11000); f.entity.walkProcess();
+    expect(f.entity.position[0]).toBeGreaterThan(position[0]! + 5);
+    expect(f.entity._lastroMovementEpoch).toBe(epoch);
+    f.functions.stop({ AID: 123, xPos: 2, yPos: 1 });
+    expect(Array.from(f.entity.position)).toEqual([2, 1, 3]);
+    expect(f.entity.walk.total).toBe(0);
+  });
+
+  it.each(['STONE', 'FREEZE', 'STUN', 'SLEEP', 'IMPRISON'] as const)('retires a %s route at its fractional display position and accepts only a fresh route after recovery', name => {
+    const f = controlFixture(); beginWalk(f); f.setNow(10100); f.entity.walkProcess();
+    const position = Array.from(f.entity.position), epoch = f.entity._lastroMovementEpoch!;
+    const arrived = vi.fn(); f.entity.walk.onEnd = arrived;
+    f.state(statusConstants.states.BodyState[name]!);
+    expect(f.entity._lastroMovementEpoch).toBe(epoch + 1); expect(f.entity.walk.total).toBe(0);
+    expect(f.entity.walk.onEnd).toBeNull(); expect(Array.from(f.entity.position)).toEqual(position);
+    f.setNow(11000); f.entity.walkProcess();
+    expect(f.entity._lastroMovementEpoch).toBe(epoch + 1); expect(Array.from(f.entity.position)).toEqual(position);
+    f.state(0); f.setNow(11100); f.entity.walkProcess();
+    expect(f.entity.walk.total).toBe(0); expect(Array.from(f.entity.position)).toEqual(position);
+    expect(arrived).not.toHaveBeenCalled();
+    f.SessionStorage_default.serverTick = 11100;
+    f.functions.playerMove({ MoveData: [2, 1, 2, 12], moveStartTime: 11100 });
+    f.setNow(11400); f.entity.walkProcess();
+    expect(Array.from(f.entity.position)).toEqual([2, 3, 5]); expect(f.entity.walk.total).toBeGreaterThan(0);
+  });
+
+  it('keeps freeze active when an older multi-hit HURT and recovery timer become due', () => {
+    const f = controlFixture(); beginWalk(f); receiveNativeDamageAction(f, 3);
+    f.setNow(10100); f.entity.walkProcess(); const position = Array.from(f.entity.position);
+    f.state(statusConstants.states.BodyState.FREEZE!);
+    const epoch = f.entity._lastroMovementEpoch;
+    f.flush(10250); f.entity.walkProcess();
+    expect(f.entity.action).toBe(f.entity.ACTION.FREEZE2); expect(Array.from(f.entity.position)).toEqual(position);
+    f.flush(11200); f.entity.walkProcess();
+    expect(f.entity.bodyState).toBe(statusConstants.states.BodyState.FREEZE);
+    expect(f.entity.action).toBe(f.entity.ACTION.FREEZE2); expect(f.entity.walk.total).toBe(0);
+    expect(f.entity._lastroMovementEpoch).toBe(epoch); expect(Array.from(f.entity.position)).toEqual(position);
+    f.state(0); f.setNow(11300); f.entity.walkProcess();
+    expect(f.entity.walk.total).toBe(0); expect(Array.from(f.entity.position)).toEqual(position);
+  });
+
+  it.each(['blade', 'stop'] as const)('preserves overlapping blade stop and explicit STOP when %s is released first', first => {
+    const f = controlFixture(); beginWalk(f); f.setNow(10100); f.entity.walkProcess();
+    const position = Array.from(f.entity.position);
+    expect(f.blade(1)).toMatchObject({ srcAID: 123, destAID: 456, flag: 1 });
+    expect(f.status(statusConstants.statuses.STOP!, 1)).toMatchObject({ index: 95, AID: 123, state: 1 });
+    expect(f.entity.walk.total).toBe(0); expect(Array.from(f.entity.position)).toEqual(position);
+    if (first === 'blade') f.blade(0); else f.status(statusConstants.statuses.STOP!, 0);
+    f.setNow(10200); f.SessionStorage_default.serverTick = 10200;
+    f.functions.playerMove({ MoveData: [2, 1, 2, 12], moveStartTime: 10200 });
+    f.setNow(10500); f.entity.walkProcess();
+    expect(f.entity.walk.total).toBe(0); expect(Array.from(f.entity.position)).toEqual(position);
+    if (first === 'blade') f.status(statusConstants.statuses.STOP!, 0); else f.blade(0);
+    f.setNow(10600); f.entity.walkProcess(); expect(Array.from(f.entity.position)).toEqual(position);
+    f.SessionStorage_default.serverTick = 10600;
+    f.functions.playerMove({ MoveData: [2, 1, 2, 12], moveStartTime: 10600 });
+    f.setNow(10900); f.entity.walkProcess(); expect(Array.from(f.entity.position)).toEqual([2, 3, 5]);
+  });
+
+  it('retains exact authoritative STOP correction after a control cancellation', () => {
+    const f = controlFixture(); beginWalk(f); f.setNow(10100); f.entity.walkProcess();
+    f.state(statusConstants.states.BodyState.STUN!);
+    f.functions.stop({ AID: 123, xPos: 2, yPos: 4 });
+    expect(Array.from(f.entity.position)).toEqual([2, 4, 6]); expect(f.entity.walk.total).toBe(0);
+    f.state(0); f.setNow(11100); f.entity.walkProcess(); expect(Array.from(f.entity.position)).toEqual([2, 4, 6]);
+  });
+
+  it.each(['STONEWAIT', 'BURNING', 'CRYSTALIZE'] as const)('does not infer an unconditional movement stop from %s body state alone', name => {
+    const f = controlFixture(); beginWalk(f); const epoch = f.entity._lastroMovementEpoch;
+    f.state(statusConstants.states.BodyState[name]!); f.setNow(10300); f.entity.walkProcess();
+    expect(Array.from(f.entity.position)).toEqual([3, 1, 4]); expect(f.entity.walk.total).toBeGreaterThan(0);
+    expect(f.entity._lastroMovementEpoch).toBe(epoch);
+  });
+
+  it('keeps poison and endure status separate from a movement stop', () => {
+    const f = controlFixture(); beginWalk(f); const epoch = f.entity._lastroMovementEpoch;
+    f.state(0, statusConstants.states.HealthState.POISON!); f.status(statusConstants.statuses.ENDURE!, 1);
+    f.setNow(10300); f.entity.walkProcess();
+    expect(f.entity.healthState).toBe(statusConstants.states.HealthState.POISON);
+    expect(Array.from(f.entity.position)).toEqual([3, 1, 4]); expect(f.entity.walk.total).toBeGreaterThan(0);
+    expect(f.entity._lastroMovementEpoch).toBe(epoch);
+  });
+
+  it('clears a prior-session explicit STOP when the same entity enters a new map', () => {
+    const f = controlFixture(); beginWalk(f); f.status(statusConstants.statuses.STOP!, 1);
+    expect(f.entity.walk.total).toBe(0);
+    f.functions.mapEntry(f.entity, { xPos: 8, yPos: 8 }, 123);
+    expect(f.entity._lastroMovementStops).toBeUndefined();
+    f.setNow(11000); f.SessionStorage_default.serverTick = 11000;
+    f.functions.playerMove({ MoveData: [8, 8, 8, 12], moveStartTime: 11000 });
+    f.setNow(11300); f.entity.walkProcess(); expect(Array.from(f.entity.position)).toEqual([8, 10, 18]);
+  });
+
+  it.each(['MSG_STATE_CHANGE3', 'MSG_STATE_CHANGE5'] as const)('recognizes real loaded STOP %s without state and releases it only on an explicit off packet', name => {
+    const f = controlFixture(); beginWalk(f); f.setNow(10100); f.entity.walkProcess();
+    const position = Array.from(f.entity.position), epoch = f.entity._lastroMovementEpoch!;
+    const packet = f.loadedStatus(name);
+    expect(packet).not.toHaveProperty('state');
+    expect(packet).toMatchObject({ AID: 123, index: 95, RemainMS: 5000, val: [0, 0, 0] });
+    const constructors = (f.context.PACKET as { ZC: Record<string, { name: string }> }).ZC;
+    expect(packet.constructor).toBe(constructors[name]);
+    expect(f.entity.walk.total).toBe(0); expect(f.entity._lastroMovementEpoch).toBe(epoch + 1);
+    expect(Array.from(f.entity.position)).toEqual(position);
+    f.setNow(10200); f.SessionStorage_default.serverTick = 10200;
+    f.functions.playerMove({ MoveData: [2, 1, 2, 12], moveStartTime: 10200 });
+    f.setNow(10500); f.entity.walkProcess();
+    expect(f.entity.walk.total).toBe(0); expect(Array.from(f.entity.position)).toEqual(position);
+    expect(f.status(statusConstants.statuses.STOP!, 0)).toMatchObject({ index: 95, state: 0 });
+    f.setNow(10600); f.SessionStorage_default.serverTick = 10600;
+    f.functions.playerMove({ MoveData: [2, 1, 2, 12], moveStartTime: 10600 });
+    f.setNow(10900); f.entity.walkProcess();
+    expect(Array.from(f.entity.position)).toEqual([2, 3, 5]); expect(f.entity.walk.total).toBeGreaterThan(0);
+  });
+
+  it('does not treat missing state or a lookalike constructor name as a loaded STOP', () => {
+    const f = controlFixture(); beginWalk(f); const epoch = f.entity._lastroMovementEpoch;
+    // Register the genuine decoder constructors using a non-stopping status.
+    f.loadedStatus('MSG_STATE_CHANGE3', statusConstants.statuses.ENDURE!);
+    f.loadedStatus('MSG_STATE_CHANGE5', statusConstants.statuses.ENDURE!);
+    f.statusPacket({ AID: 123, index: statusConstants.statuses.STOP! });
+    const constructors = (f.context.PACKET as { ZC: Record<string, { name: string }> }).ZC;
+    const lookalikes = [function PACKET_ZC_MSG_STATE_CHANGE3() {}, function PACKET_ZC_MSG_STATE_CHANGE5() {}];
+    for (const constructor of lookalikes) {
+      const name = constructor.name.replace('PACKET_ZC_', '');
+      expect(constructor.name).toBe(constructors[name]!.name);
+      const packet = { AID: 123, index: statusConstants.statuses.STOP!, constructor };
+      f.statusPacket(packet);
+    }
+    expect(f.entity._lastroMovementEpoch).toBe(epoch); expect(f.entity.walk.total).toBeGreaterThan(0);
+    f.setNow(10300); f.entity.walkProcess(); expect(Array.from(f.entity.position)).toEqual([3, 1, 4]);
+    f.SessionStorage_default.serverTick = 10300;
+    f.functions.playerMove({ MoveData: [3, 1, 3, 12], moveStartTime: 10300 });
+    f.setNow(10600); f.entity.walkProcess(); expect(Array.from(f.entity.position)).toEqual([3, 3, 6]);
+  });
+});
 
 describe('authoritative FASTMOVE Body Relocation targets', () => {
   it('reproduces the native empty-route buffer check after decoding a real FASTMOVE packet', () => {
@@ -591,6 +811,94 @@ function moveRequest() {
   const buffer = new ArrayBuffer(5);
   return { constructor: { name: 'PACKET_CZ_REQUEST_MOVE2' }, build: vi.fn(() => ({ buffer, view: new DataView(buffer) })) };
 }
+
+describe('nearby route joins after damage notifications', () => {
+  function receiveNearRoute(f: ReturnType<typeof fixture>, time = 10210) {
+    const bytes = new Uint8Array(12), view = new DataView(bytes.buffer);
+    view.setUint16(0, 0x87, true); view.setUint32(2, time, true);
+    bytes.set([0, 128, 16, 48, 1, 0], 6); // [2,1] -> [12,1]
+    const packet = nativeMovementPacket(f, 'NOTIFY_PLAYERMOVE', bytes) as MovePacket;
+    expect(Array.from(packet.MoveData)).toEqual([2, 1, 12, 1]);
+    f.functions.playerMove(packet);
+    return packet;
+  }
+  function hurtRoute(count = 1) {
+    const f = fixture(); beginWalk(f);
+    f.setNow(10050); f.SessionStorage_default.serverTick = 10050; f.entity.walkProcess();
+    receiveNativeDamageAction(f, count);
+    f.SessionStorage_default.serverTick = 10210; f.flush(10210); f.entity.walkProcess();
+    expect(f.entity.action).toBe(f.entity.ACTION.HURT);
+    expect(f.entity.position[0]).toBeCloseTo(2.4, 5);
+    return f;
+  }
+
+  it.each(['player', 'entity'] as const)('keeps the shown hurt position for a real decoded MOVE via %s and rejoins the server deadline', entry => {
+    const f = hurtRoute(), before = Array.from(f.entity.position);
+    if (entry === 'player') receiveNearRoute(f);
+    else f.functions.move({ GID: 123, MoveData: [2, 1, 12, 1], moveStartTime: 10210 });
+    expect(Array.from(f.entity.position)).toEqual(before);
+    f.flush(10300); f.entity.walkProcess(); expect(f.entity.position[0]).toBeCloseTo(2.76, 5);
+    f.flush(10360); f.entity.walkProcess(); expect(Array.from(f.entity.position)).toEqual([3, 1, 4]);
+    f.flush(10375); f.entity.walkProcess(); expect(f.entity.position[0]).toBeCloseTo(3.1, 5);
+    expect(f.Network.sendPacket).not.toHaveBeenCalled();
+  });
+
+  it('invalidates remaining old multihit animations without canceling the joined route', () => {
+    const f = hurtRoute(3); receiveNearRoute(f);
+    const arrived = vi.fn(); f.entity.walk.onEnd = arrived;
+    f.flush(10560); f.entity.walkProcess(); expect(f.entity.action).toBe(f.entity.ACTION.WALK);
+    expect(f.entity.position[0]).toBeCloseTo(4 + 50 / 150, 5);
+    f.flush(12000); f.entity.walkProcess(); f.entity.walkProcess();
+    expect(Array.from(f.entity.position)).toEqual([12, 1, 13]); expect(arrived).toHaveBeenCalledOnce();
+  });
+
+  it('rejects an older MOVE without disturbing the joined segment or its deadline', () => {
+    const f = hurtRoute(); receiveNearRoute(f); const before = Array.from(f.entity.position);
+    f.functions.playerMove({ MoveData: [1, 1, 12, 1], moveStartTime: 10000 });
+    expect(Array.from(f.entity.position)).toEqual(before);
+    f.flush(10360); f.entity.walkProcess(); expect(f.entity.position[0]).toBe(3);
+  });
+
+  it.each(['stop', 'jump'] as const)('preserves authoritative %s during a join and gives a later first route its exact server origin', kind => {
+    const f = hurtRoute(); receiveNearRoute(f);
+    f.setNow(10240); f.entity.walkProcess(); expect(f.entity.position[0]).toBeCloseTo(2.52, 5);
+    f.functions[kind]({ AID: 123, xPos: 7, yPos: 8 });
+    expect(Array.from(f.entity.position)).toEqual([7, 8, 15]); expect(f.entity.walk.total).toBe(0);
+    f.flush(11000); f.entity.walkProcess(); expect(Array.from(f.entity.position)).toEqual([7, 8, 15]);
+    f.entity.position.set([7.4, 8, 15.4]); f.SessionStorage_default.serverTick = 11000;
+    f.functions.playerMove({ MoveData: [7, 8, 12, 8], moveStartTime: 11000 });
+    expect(Array.from(f.entity.position)).toEqual([7, 8, 15]);
+  });
+
+  it('retains FASTMOVE speed and endpoint semantics after a nearby join', () => {
+    const f = hurtRoute(); receiveNearRoute(f);
+    f.functions.fastMove({ AID: 123, targetXpos: 12, targetYpos: 1 });
+    expect(f.entity.walk.speed).toBe(10);
+    f.flush(10410); f.entity.walkProcess();
+    expect(Array.from(f.entity.position)).toEqual([12, 1, 13]);
+    expect(f.entity.walk.speed).toBe(150); expect(f.entity.walk.total).toBe(0);
+  });
+
+  it('does not preserve a joined display position for a zero-distance server correction', () => {
+    const f = hurtRoute(); receiveNearRoute(f);
+    f.functions.playerMove({ MoveData: [2, 1, 2, 1], moveStartTime: 10210 });
+    expect(Array.from(f.entity.position)).toEqual([2, 1, 3]); expect(f.entity.walk.total).toBe(0);
+    f.flush(11000); f.entity.walkProcess(); expect(Array.from(f.entity.position)).toEqual([2, 1, 3]);
+  });
+
+  it('retires a joined route on control and requires a fresh server origin after recovery', () => {
+    const f = controlFixture(); beginWalk(f);
+    f.setNow(10210); f.SessionStorage_default.serverTick = 10210; f.entity.walkProcess(); receiveNearRoute(f);
+    f.setNow(10270); f.entity.walkProcess(); const before = Array.from(f.entity.position);
+    f.state(statusConstants.states.BodyState.STUN!);
+    expect(f.entity.walk.total).toBe(0); expect(Array.from(f.entity.position)).toEqual(before);
+    f.SessionStorage_default.serverTick = 10300; f.setNow(10300); receiveNearRoute(f, 10300);
+    expect(f.entity.walk.total).toBe(0); expect(Array.from(f.entity.position)).toEqual(before);
+    f.state(0); f.setNow(10500); f.SessionStorage_default.serverTick = 10500; receiveNearRoute(f, 10500);
+    expect(Array.from(f.entity.position)).toEqual([2, 1, 3]);
+    f.setNow(10650); f.entity.walkProcess(); expect(Array.from(f.entity.position)).toEqual([3, 1, 4]);
+  });
+});
 
 describe('movement while the server is silent or disconnected', () => {
   it('sends an unacknowledged move request without starting a speculative local route', () => {
