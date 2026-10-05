@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { auditCoreOwnership, compareRuntimeSources } from '../scripts/check-runtime-consolidation.mjs';
+import { patchRuntimeEntityAppearance } from '../scripts/lastro-entity-appearance.mjs';
 import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 import { buildRuntimePatchFixture } from './helpers/runtime-patch-fixture';
 
@@ -48,6 +49,32 @@ describe('runtime consolidation source helpers', () => {
     }));
     expect(fixture).toContain('function defaultSocketFactory(host, port)');
     expect(fixture).toContain('function initThread()');
+  });
+
+  it('permanent clock route and input compose without retained appearance patches', () => {
+    const vendor = readVendorSource();
+    for (const name of ['LastROServerClockNow', 'LastROResetServerTick', 'LastROInvalidateServerTick', 'LastROAdvanceServerTick']) {
+      expect(extractRuntimeNode(vendor, { region: 'src/Renderer/Renderer.js', kind: 'function', name })).toContain(name);
+    }
+    expect(extractRuntimeNode(vendor, { region: 'src/Core/Events.js', kind: 'function', name: 'LastROEventDueTick' })).toContain('return lastroEventDueTick');
+    expect(extractRuntimeNode(vendor, { region: 'src/Renderer/Entity/EntityWalk.js', kind: 'function', name: 'findLastroServerWalkPath' }))
+      .toContain('const MAX_STEPS = 32, MAX_NODES = 2048');
+    expect(extractRuntimeNode(vendor, { region: 'src/Renderer/Entity/EntityWalk.js', kind: 'function', name: 'lastroCancelMovement' }))
+      .toContain('entity._lastroMovementEpoch = epoch + 1');
+    expect(extractRuntimeNode(vendor, { kind: 'assignment', name: 'refreshLastroGroundInput' }))
+      .toContain('event?.composedPath?.()');
+
+    const retainedAppearanceInput = [
+      'src/Renderer/Entity/EntityAction.js',
+      'src/Renderer/Entity/EntityView.js',
+      'src/DB/Monsters/MonsterTable.js',
+      'src/DB/DBManager.js',
+      'src/Engine/MapEngine/Entity.js',
+    ].map(name => extractVendorRegion(name, vendor)).join('\n');
+    const composed = patchRuntimeEntityAppearance(retainedAppearanceInput);
+    expect(composed).toContain('function applyLastROMercenaryAppearance(pkt)');
+    expect(vendor).not.toContain('function applyLastROMercenaryAppearance(pkt)');
+    expect(vendor).not.toContain('const LastROMonsterAppearanceFallbacks =');
   });
 
   it('rejects missing or duplicated AST owners', () => {
@@ -122,6 +149,7 @@ function LastROAudioRegisterContext() { return 5; }
 installLastROAudioUnlock();
 import { vendor } from './vendor.mjs';
 function runtime() { return LastROWebAudio; }
+function unrelatedRuntimeHelper() { return 6; }
 `;
     const after = `
 import { account } from './account.mjs';
@@ -135,6 +163,7 @@ function LastROAudioUnlock() { return 4; }
 function LastROAudioRegisterContext() { return 5; }
 installLastROAudioUnlock();
 function runtime() { return LastROWebAudio; }
+function unrelatedRuntimeHelper() { return 6; }
 `;
 
     expect(compareRuntimeSources(before, after, { stage: 'audio' }))
@@ -147,6 +176,8 @@ function runtime() { return LastROWebAudio; }
           'call:installLastROAudioUnlock',
         ]),
       });
+    expect(compareRuntimeSources(before, after, { stage: 'sync' }))
+      .toMatchObject({ equal: true, differences: [] });
 
     const changedBody = after.replace('return 5;', 'return 6;');
     const changed = compareRuntimeSources(before, changedBody, { stage: 'audio' });
@@ -177,6 +208,13 @@ function runtime() { return LastROWebAudio; }
       'installLastROAudioUnlock();\nconst LastROWebAudio = installLastROWebAudio();',
     ).replace('installLastROAudioUnlock();\nfunction runtime()', 'function runtime()');
     expect(compareRuntimeSources(before, reorderedInitializers, { stage: 'audio' }).equal).toBe(false);
+
+    const reorderedUnrelatedOwners = after.replace(
+      'function runtime() { return LastROWebAudio; }\nfunction unrelatedRuntimeHelper() { return 6; }',
+      'function unrelatedRuntimeHelper() { return 6; }\nfunction runtime() { return LastROWebAudio; }',
+    );
+    expect(compareRuntimeSources(before, reorderedUnrelatedOwners, { stage: 'sync' }).differences)
+      .toContainEqual(expect.objectContaining({ owner: 'source-file order', kind: 'owner-order' }));
   });
 
   it('rejects retired transform calls instead of accepting no-op', () => {

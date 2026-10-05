@@ -166705,6 +166705,7 @@ function connect(host, port, callback, isZone) {
  * @param Packet
  */
 function sendPacket(Packet) {
+  if (/REQUEST_MOVE2?$/.test(Packet.constructor?.name || "") && !lastroCheckMovementConnection()) return false;
   const traceNavigation =
     globalThis.roNaviDebug?.active &&
     /REQUEST_MOVE2?$|PRIVATE_AIRSHIP_REQUEST$/.test(
@@ -167027,6 +167028,7 @@ function receive(buf) {
             );
           }
           packet.instance = new packet.Struct(fp, offset);
+          if (this === _socket && this.isZone) this._lastroMovementPacketAt = Date.now();
           if (packetDump)
             console.log(
               "%c[Network] Recv:",
@@ -167085,6 +167087,10 @@ function receive(buf) {
  * Server ask to close the socket
  */
 function onClose$9(event) {
+  if (this === _socket && this.isZone && !this.handoffPending) {
+    lastroCancelMovement(SessionStorage_default.Entity);
+    if (typeof MapControl !== "undefined") MapControl._lastroMovementInput?.cancel();
+  }
   if (typeof clearReceiveState === "function") clearReceiveState(this);
   const idx = _sockets.indexOf(this);
   if (this === _socket && !this.handoffPending) {
@@ -167258,6 +167264,8 @@ var init_NetworkManager = __esmMin(() => {
 });
 //#endregion
 //#region src/Core/Events.js
+let lastroEventDueTick;
+function LastROEventDueTick() { return lastroEventDueTick; }
 var _events, _tick$1, _uid, Events;
 var init_Events = __esmMin(() => {
   _events = [];
@@ -167274,7 +167282,7 @@ var init_Events = __esmMin(() => {
      */
     static setTimeout(callback, delay) {
       let i, count;
-      const tick = _tick$1 + delay;
+      const tick = Math.max(_tick$1, Date.now()) + (Number.isFinite(delay) ? Math.max(0, delay) : 0);
       const event = {
         callback,
         tick,
@@ -167309,13 +167317,18 @@ var init_Events = __esmMin(() => {
      * @param {number} game tick
      */
     static process(tick) {
-      let count = _events.length;
-      while (count > 0) {
-        if (_events[0].tick > tick) break;
-        _events.shift().callback();
-        count--;
-      }
       _tick$1 = tick;
+      const cutoff = _uid;
+      let processed = 0;
+      while (_events.length && _events[0].tick <= tick && _events[0].uid < cutoff && processed < 256) {
+        const event = _events.shift();
+        const previousDueTick = lastroEventDueTick;
+        lastroEventDueTick = event.tick;
+        try { event.callback(); }
+        catch (error) { console.error("[Events] callback failed", error); }
+        finally { lastroEventDueTick = previousDueTick; }
+        processed++;
+      }
     }
     /**
      * Delete events from memory
@@ -185457,6 +185470,7 @@ var init_MapPathFinder = __esmMin(() => {
   };
 });
 //#endregion
+// lastro-movement-input-installed
 //#region src/UI/Components/Navigation/Navigation.js
 /**
  * Async image create helper
@@ -186777,6 +186791,7 @@ var init_Navigation = __esmMin(() => {
    * Unified navigation function that handles both same-map and cross-map navigation
    */
   Navigation.navigateTo = function navigateTo(options) {
+    if (typeof MapControl !== "undefined") MapControl?._lastroMovementInput?.cancel();
     globalThis.roNaviDebug?.log("navigate-enter", () => ({ ...options }), 1000);
     const root = Navigation.getRoot();
     const startMap = normalizeMapName(options.startMap);
@@ -226715,6 +226730,7 @@ var init_MapRenderer = __esmMin(() => {
      * @param {string} mapname to load
      */
     static setMap(mapname) {
+      if (typeof MapControl !== "undefined") MapControl?._lastroMovementInput?.cancel();
       if (this.loading) return;
       mapname = mapname.replace(/^(\d{3})(\d@)/, "$2").replace(/^\d{3}#/, "");
       SoundManager.stop();
@@ -227394,6 +227410,27 @@ var init_Camera = __esmMin(() => {
 //#endregion
 //#region src/Renderer/Renderer.js
 var Renderer_exports = /* @__PURE__ */ __exportAll({ default: () => Renderer });
+let lastroServerClockMark;
+let lastroHasServerSample = false;
+function LastROServerClockNow() {
+  return typeof performance !== "undefined" ? performance.now() : Date.now();
+}
+function LastROResetServerTick(tick) {
+  SessionStorage_default.serverTick = tick;
+  lastroHasServerSample = true;
+  lastroServerClockMark = LastROServerClockNow();
+}
+function LastROInvalidateServerTick() {
+  SessionStorage_default.serverTick = 0;
+  lastroHasServerSample = false;
+  lastroServerClockMark = undefined;
+}
+function LastROAdvanceServerTick() {
+  const now = LastROServerClockNow();
+  if (lastroHasServerSample && lastroServerClockMark !== undefined) SessionStorage_default.serverTick += Math.max(0, now - lastroServerClockMark);
+  lastroServerClockMark = now;
+  return SessionStorage_default.serverTick;
+}
 var mat4$9, _requestAnimationFrame, _cancelAnimationFrame, Renderer;
 var init_Renderer = __esmMin(() => {
   init_WebGL();
@@ -227666,7 +227703,7 @@ var init_Renderer = __esmMin(() => {
         this._lastFrameTime = now - (elapsed % interval);
       } else this._lastFrameTime = now;
       const newTick = Date.now();
-      SessionStorage_default.serverTick += newTick - this.tick;
+      LastROAdvanceServerTick();
       this.tick = newTick;
       Events.process(this.tick);
       let i, count;
@@ -275537,6 +275574,19 @@ var init_Trade$1 = __esmMin(() => {
 });
 //#endregion
 //#region src/Controls/EntityControl.js
+// lastro-movement-input-installed
+function lastroCanPassPlayerClick(entity) {
+  return SessionStorage_default.FreezeUI === false
+    && Mouse.state === Mouse.MOUSE_STATE.NORMAL
+    && SessionStorage_default.captchaGetIdOnEntityClick === false
+    && SessionStorage_default.captchaGetIdOnFloorClick === false
+    && SessionStorage_default.TouchTargeting === false
+    && SessionStorage_default.mapState?.isPVP === false
+    && SessionStorage_default.mapState?.isGVG === false
+    && KEYS.SHIFT === false && KEYS.CTRL === false && KEYS.ALT === false
+    && Controls_default.noshift === false
+    && typeof entity.canAttackEntity === 'function' && entity.canAttackEntity() === false;
+}
 /**
  * Export
  */
@@ -275742,6 +275792,7 @@ var init_EntityControl = __esmMin(() => {
         case Entity.TYPE_PC:
           if (SessionStorage_default.captchaGetIdOnEntityClick)
             CaptchaSelector_default.addPlayer(this.GID);
+          if (lastroCanPassPlayerClick(this)) return false;
           return true;
       }
       return false;
@@ -276542,6 +276593,7 @@ var init_EntityLife = __esmMin(() => {
 });
 //#endregion
 //#region src/Renderer/Entity/EntityDisplay.js
+// lastro-monster-hover-hp-installed
 function multiShadow(ctx, text, x, y, offsetX, offsetY, blur) {
   ctx.textBaseline = "top";
   ctx.lineWidth = 1;
@@ -276557,6 +276609,7 @@ function multiShadow(ctx, text, x, y, offsetX, offsetY, blur) {
  */
 function Init$7() {
   this.display = new Display();
+  this.display._lastroEntity = this;
 }
 var vec4$3, _pos$3, _size$3, dpr, procCanvas, procCtx, _isUglyShadow, Display;
 var init_EntityDisplay = __esmMin(() => {
@@ -276722,13 +276775,21 @@ var init_EntityDisplay = __esmMin(() => {
       )
         lines[0] = "[" + this.title_name + "] " + lines[0];
       ctx.font = (Map_default.showname ? "bold " : "") + fontSize + "px Arial";
+      const lastroHpOwner = this._lastroEntity;
+      const lastroHpText = lastroHpOwner && typeof lastroHpOwner.constructor?.TYPE_MOB === "number"
+        && lastroHpOwner.objecttype === lastroHpOwner.constructor.TYPE_MOB
+        && EntityManager.getOverEntity() === lastroHpOwner
+        ? EntityManager._lastroMonsterHoverHp.text(lastroHpOwner) : "";
+      this._lastroMonsterHpText = lastroHpText;
+      let lastroHpWidth = 0;
+      if (lastroHpText) {
+        ctx.save();
+        ctx.font = (Map_default.showname ? "bold " : "") + fontSize * 0.75 + "px Arial";
+        lastroHpWidth = ctx.measureText(lastroHpText).width;
+        ctx.restore();
+      }
       const width =
-        Math.max(
-          ctx.measureText(lines[0]).width,
-          ctx.measureText(lines[1]).width,
-        ) +
-        start_x +
-        5;
+        Math.max(ctx.measureText(lines[0]).width, ctx.measureText(lines[1]).width, lastroHpWidth) + start_x + 5;
       const height = fontSize * 3 * (lines[1].length ? 2 : 1) + paddingTop;
       ctx.canvas.width = width;
       ctx.canvas.height = height;
@@ -276817,6 +276878,28 @@ var init_EntityDisplay = __esmMin(() => {
         ctx.fillText(lines[0], start_x, paddingTop);
         ctx.fillText(lines[1], start_x, fontSize * 1.2 + paddingTop);
       }
+      if (lastroHpText) {
+        const lastroHpY = paddingTop + fontSize * 1.2 * (lines[1].length ? 2 : 1);
+        const lastroHpX = (ctx.canvas.width - lastroHpWidth) / 2;
+        ctx.save();
+        ctx.font = (Map_default.showname ? "bold " : "") + fontSize * 0.75 + "px Arial";
+        ctx.textBaseline = "top";
+        if (!_isUglyShadow) {
+          multiShadow(ctx, lastroHpText, lastroHpX, lastroHpY, 0, -1, 0);
+          multiShadow(ctx, lastroHpText, lastroHpX, lastroHpY, 0, 1, 0);
+          multiShadow(ctx, lastroHpText, lastroHpX, lastroHpY, -1, 0, 0);
+          multiShadow(ctx, lastroHpText, lastroHpX, lastroHpY, 1, 0, 0);
+          ctx.fillStyle = color;
+          ctx.strokeStyle = "black";
+          ctx.strokeText(lastroHpText, lastroHpX, lastroHpY);
+        } else {
+          ctx.fillStyle = "black";
+          ctx.outlineText(lastroHpText, lastroHpX, lastroHpY);
+          ctx.fillStyle = color;
+        }
+        ctx.fillText(lastroHpText, lastroHpX, lastroHpY);
+        ctx.restore();
+      }
     }
     /**
      * Refreshes the display (when player uses /showname)
@@ -276847,6 +276930,16 @@ var init_EntityDisplay = __esmMin(() => {
      * Rendering GUI
      */
     render(matrix) {
+      const lastroOwner = this._lastroEntity;
+      const lastroMonster = lastroOwner && typeof lastroOwner.constructor?.TYPE_MOB === "number"
+        && lastroOwner.objecttype === lastroOwner.constructor.TYPE_MOB;
+      const lastroHpText = lastroMonster && EntityManager.getOverEntity() === lastroOwner
+        ? EntityManager._lastroMonsterHoverHp.text(lastroOwner) : "";
+      if (lastroHpText !== (this._lastroMonsterHpText || "")) {
+        if (lastroMonster) this.update(this.STYLE.MOB);
+        else if (lastroOwner) this.refresh(lastroOwner);
+        else this.update();
+      }
       if (this.gifEmblem) {
         const paddingTop = 5;
         const now = Date.now();
@@ -278527,6 +278620,319 @@ var init_EntityView = __esmMin(() => {
 });
 //#endregion
 //#region src/Renderer/Entity/EntityWalk.js
+function lastroBodyMovementBlocked(value) {
+  const body = typeof StatusState_default !== 'undefined' ? StatusState_default.BodyState : null;
+  return !!body && (
+    body.STONE > 0 && value === body.STONE
+    || body.FREEZE > 0 && value === body.FREEZE
+    || body.STUN > 0 && value === body.STUN
+    || body.SLEEP > 0 && value === body.SLEEP
+    || body.IMPRISON > 0 && value === body.IMPRISON
+  );
+}
+function lastroMovementBlocked(entity) {
+  if (!entity) return false;
+  if (lastroBodyMovementBlocked(entity._bodyState)) return true;
+  const blade = typeof StatusState_default !== 'undefined' ? StatusState_default.OPT3?.BLADESTOP : undefined;
+  if (Number.isInteger(blade) && blade > 0 && (entity._virtue & blade) !== 0) return true;
+  const stop = typeof StatusConst_default !== 'undefined' ? StatusConst_default.STOP : undefined;
+  return Number.isInteger(stop) && stop > 0 && entity._lastroMovementStops?.has(stop) === true;
+}
+function lastroCancelMovement(entity, invalidate = true) {
+  if (!entity) return;
+  const epoch = entity._lastroMovementEpoch || 0;
+  if (invalidate) {
+    entity._lastroMovementEpoch = epoch + 1;
+    delete entity._lastroApprovedRoute;
+    delete entity._lastroApprovedEpoch;
+    delete entity._lastroHitStop;
+  }
+  if (entity.walk) {
+    // Cancellation must not run an arrival callback or a deferred attack.
+    entity.walk.onEnd = null;
+    if (Number.isFinite(entity.walk._lastroNormalSpeed)) {
+      entity.walk.speed = entity.walk._lastroNormalSpeed;
+      delete entity.walk._lastroNormalSpeed;
+    }
+    entity.resetRoute();
+    if (!invalidate) entity._lastroMovementEpoch = epoch;
+  }
+  if (entity === SessionStorage_default.Entity) SessionStorage_default.moveAction = null;
+  if (entity.action === entity.ACTION?.WALK) entity.setAction({ action: entity.ACTION.IDLE, frame: 0, repeat: true, play: true });
+}
+function lastroMovementUnavailable() {
+  if (!SessionStorage_default.Playing || typeof _socket === 'undefined') return false;
+  if (!_socket || !_socket.isZone || !_socket.connected || _socket.handoffPending) return true;
+  const ping = SessionStorage_default.ping;
+  // A whole approved route normally needs no more position packets. Only
+  // known disconnection or a persistently unanswered heartbeat proves a stall.
+  return !!ping && ping.returned === false && Number.isFinite(ping._lastroUnansweredSince)
+    && Date.now() - Math.max(ping._lastroUnansweredSince, _socket._lastroMovementPacketAt || 0) > 45000;
+}
+function lastroCheckMovementConnection() {
+  if (!lastroMovementUnavailable()) return true;
+  const entity = SessionStorage_default.Entity;
+  lastroCancelMovement(entity);
+  if (typeof MapControl !== 'undefined') MapControl._lastroMovementInput?.cancel();
+  return false;
+}
+function lastroCaptureHitRoute(entity) {
+  if (!entity.walk?.total) return null;
+  const copy = Object.create(entity);
+  copy.position = new Float32Array(entity.position);
+  copy.walk = { ...entity.walk, path: new Int16Array(entity.walk.path), pos: new Float32Array(entity.walk.pos), lastPos: new Float32Array(entity.walk.lastPos), onEnd: null };
+  copy.action = entity.ACTION.WALK;
+  copy.setAction = () => {};
+  copy.onWalkEnd = () => {};
+  copy.resetRoute = () => { copy.walk.total = 0; };
+  return copy;
+}
+function lastroHitStartTick(packet) {
+  const now = Date.now();
+  if (typeof LastROAdvanceServerTick === 'function') LastROAdvanceServerTick();
+  const serverTick = SessionStorage_default.serverTick;
+  if (!Number.isInteger(packet.startTime) || packet.startTime < 0 || packet.startTime > 0xffffffff
+      || !Number.isFinite(serverTick) || serverTick === 0) return now;
+  const elapsed = ((serverTick % 0x100000000) - packet.startTime) | 0;
+  // Old or implausible clock samples must not rewind a currently approved path.
+  return elapsed >= 0 && elapsed <= 5000 ? now - elapsed : now;
+}
+function findLastroServerWalkPath(x0, y0, x1, y1, out, altitude) {
+  const MAX_STEPS = 32, MAX_NODES = 2048;
+  const width = altitude?.width, height = altitude?.height;
+  const walkableType = altitude?.TYPE?.WALKABLE;
+  if (!Number.isInteger(width) || width <= 0 || !Number.isInteger(height) || height <= 0
+    || !Number.isInteger(walkableType) || walkableType <= 0
+    || typeof altitude?.getCellType !== 'function' || !(out instanceof Int16Array) || out.length < 4) return 0;
+  const valid = (x, y) => Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0
+    && x < width && y < height && x <= 32767 && y <= 32767;
+  const cells = new Map();
+  const walkable = (x, y) => {
+    if (!valid(x, y)) return false;
+    const key = x + ',' + y;
+    if (cells.has(key)) return cells.get(key);
+    let value;
+    try { value = altitude.getCellType(x, y); } catch { value = undefined; }
+    const result = Number.isInteger(value) && (value & walkableType) !== 0;
+    cells.set(key, result);
+    return result;
+  };
+  if (!walkable(x0, y0) || !walkable(x1, y1) || x0 === x1 && y0 === y1) return 0;
+  const limit = Math.min(MAX_STEPS, (out.length >> 1) - 1);
+  const remainingSteps = (x, y) => Math.max(Math.abs(x1 - x), Math.abs(y1 - y));
+  const estimate = (x, y) => {
+    const dx = Math.abs(x1 - x), dy = Math.abs(y1 - y);
+    return 14 * Math.min(dx, dy) + 10 * Math.abs(dx - dy);
+  };
+  if (remainingSteps(x0, y0) > limit) return 0;
+  const heap = [], best = new Map();
+  let allocated = 0, sequence = 0;
+  const before = (a, b) => a.f < b.f || a.f === b.f && a.sequence < b.sequence;
+  const push = node => {
+    heap.push(node);
+    let index = heap.length - 1;
+    while (index > 0) {
+      const parent = (index - 1) >> 1;
+      if (!before(heap[index], heap[parent])) break;
+      [heap[index], heap[parent]] = [heap[parent], heap[index]];
+      index = parent;
+    }
+  };
+  const pop = () => {
+    const first = heap[0], last = heap.pop();
+    if (heap.length) {
+      heap[0] = last;
+      let index = 0;
+      while (true) {
+        const left = index * 2 + 1;
+        if (left >= heap.length) break;
+        const right = left + 1;
+        const next = right < heap.length && before(heap[right], heap[left]) ? right : left;
+        if (!before(heap[next], heap[index])) break;
+        [heap[next], heap[index]] = [heap[index], heap[next]];
+        index = next;
+      }
+    }
+    return first;
+  };
+  const add = (x, y, steps, cost, parent) => {
+    const key = x + ',' + y, previous = best.get(key) || [];
+    if (steps + remainingSteps(x, y) > limit
+      || previous.some(node => node.steps <= steps && node.cost <= cost)) return true;
+    if (++allocated > MAX_NODES) return false;
+    // A cheaper arrival using more steps must not discard a route that can
+    // still reach the target within the buffer's step limit.
+    const labels = previous.filter(node => {
+      if (steps <= node.steps && cost <= node.cost) node.active = false;
+      return node.active;
+    });
+    const node = { x, y, steps, cost, f: cost + estimate(x, y), parent, sequence: sequence++, active: true };
+    labels.push(node);
+    best.set(key, labels);
+    push(node);
+    return true;
+  };
+  add(x0, y0, 0, 0, null);
+  // Match native costs and neighbor order, retaining FIFO at equal priorities.
+  const directions = [[0, 1], [-1, 0], [0, -1], [1, 0], [-1, 1], [-1, -1], [1, -1], [1, 1]];
+  while (heap.length) {
+    const node = pop();
+    if (!node.active) continue;
+    if (node.x === x1 && node.y === y1) {
+      const path = [];
+      for (let current = node; current; current = current.parent) path.push(current.x, current.y);
+      // Do not touch the caller's buffer until the complete bounded path exists.
+      for (let index = 0, end = path.length - 2; index < path.length; index += 2, end -= 2) {
+        out[index] = path[end]; out[index + 1] = path[end + 1];
+      }
+      return path.length >> 1;
+    }
+    for (const [dx, dy] of directions) {
+      const x = node.x + dx, y = node.y + dy;
+      if (!walkable(x, y) || dx && dy && (!walkable(node.x + dx, node.y) || !walkable(node.x, node.y + dy))) continue;
+      if (!add(x, y, node.steps + 1, node.cost + (dx && dy ? 14 : 10), node)) return 0;
+    }
+  }
+  return 0;
+}
+function lastroRouteJoinActive(walk, index) {
+  return !!walk && walk._lastroJoinIndex === index
+    && Number.isFinite(walk._lastroJoinEndTick)
+    && walk._lastroJoinEndTick > walk.tick
+    && Number.isFinite(walk._lastroJoinServerTick)
+    && Number.isFinite(walk._lastroJoinServerX)
+    && Number.isFinite(walk._lastroJoinServerY)
+    && walk._lastroJoinSpeed === walk.speed
+    && walk._lastroNormalSpeed === undefined;
+}
+function lastroClearRouteJoin(walk, restoreServer = false) {
+  if (!walk) return;
+  if (restoreServer && walk._lastroJoinIndex === walk.index
+    && Number.isFinite(walk._lastroJoinServerTick)
+    && Number.isFinite(walk._lastroJoinServerX)
+    && Number.isFinite(walk._lastroJoinServerY)) {
+    walk.pos[0] = walk._lastroJoinServerX;
+    walk.pos[1] = walk._lastroJoinServerY;
+    walk.tick = walk._lastroJoinServerTick;
+  }
+  delete walk._lastroJoinIndex;
+  delete walk._lastroJoinEndTick;
+  delete walk._lastroJoinSpeed;
+  delete walk._lastroJoinServerTick;
+  delete walk._lastroJoinServerX;
+  delete walk._lastroJoinServerY;
+}
+function lastroCaptureRouteJoin(entity) {
+  const walk = entity.walk;
+  if (entity !== SessionStorage_default.Entity || !walk
+    || !Number.isInteger(walk.index) || walk.index < 2 || walk.index % 2
+    || !Number.isInteger(walk.total) || walk.index >= walk.total || walk.total > walk.path.length
+    || !Number.isFinite(walk.speed) || walk.speed <= 0 || walk._lastroNormalSpeed !== undefined
+    || (walk._lastroJoinIndex !== undefined && !lastroRouteJoinActive(walk, walk.index))
+    || entity.action === entity.ACTION.SIT || entity.action === entity.ACTION.DIE
+    || entity.action === entity.ACTION.FREEZE || entity.action === entity.ACTION.FREEZE2
+    || (entity.action !== entity.ACTION.WALK && !Configs.get('lastroProtocol', false))) return null;
+  const values = [entity.position[0], entity.position[1], entity.position[2], walk.pos[0], walk.pos[1]];
+  if (!values.every(Number.isFinite)) return null;
+  const distance = lastroProjectWalkDistance(walk, Date.now());
+  if (!Number.isFinite(distance)) return null;
+  return {
+    x: values[0], y: values[1], z: values[2], startX: values[3], startY: values[4],
+    targetX: walk.path[walk.index], targetY: walk.path[walk.index + 1], speed: walk.speed, distance,
+    walk, position: entity.position, action: entity.action, epoch: entity._lastroMovementEpoch,
+  };
+}
+function lastroJoinServerRoute(entity, previous) {
+  if (!previous || entity !== SessionStorage_default.Entity
+    || (typeof MapRenderer !== 'undefined' && MapRenderer.loading)) return;
+  const walk = entity.walk, index = walk.index;
+  if (!Number.isInteger(index) || index < 2 || index % 2 || index >= walk.total
+    || walk.speed !== previous.speed || walk._lastroNormalSpeed !== undefined) return;
+  const startX = walk.pos[0], startY = walk.pos[1];
+  const nextX = walk.path[index], nextY = walk.path[index + 1];
+  const dx = nextX - startX, dy = nextY - startY, lengthSquared = dx * dx + dy * dy;
+  // Only join the same adjacent GAT segment. Turns and distant corrections
+  // retain the authoritative position calculated from the new server route.
+  if (![startX, startY, nextX, nextY].every(Number.isInteger)
+    || Math.abs(dx) > 1 || Math.abs(dy) > 1 || lengthSquared === 0
+    || previous.targetX !== nextX || previous.targetY !== nextY) return;
+  const walkableType = Altitude.TYPE?.WALKABLE;
+  if (!Number.isInteger(walkableType) || walkableType <= 0
+    || !Number.isInteger(Altitude.width) || !Number.isInteger(Altitude.height)) return;
+  const walkable = (x, y) => {
+    if (x < 0 || y < 0 || x >= Altitude.width || y >= Altitude.height) return false;
+    const cellType = Altitude.getCellType(x, y);
+    return Number.isInteger(cellType) && (cellType & walkableType) !== 0;
+  };
+  try {
+    if (!walkable(startX, startY) || !walkable(nextX, nextY)
+      || (dx && dy && (!walkable(nextX, startY) || !walkable(startX, nextY)))) return;
+  } catch { return; }
+  const oldDx = nextX - previous.startX, oldDy = nextY - previous.startY;
+  if (oldDx * dx + oldDy * dy <= 0 || Math.abs(oldDx * dy - oldDy * dx) > 0.0001) return;
+  const offsetX = previous.x - startX, offsetY = previous.y - startY;
+  const progress = (offsetX * dx + offsetY * dy) / lengthSquared;
+  const serverProgress = ((entity.position[0] - startX) * dx + (entity.position[1] - startY) * dy) / lengthSquared;
+  if (!Number.isFinite(progress) || !Number.isFinite(serverProgress)
+    || Math.abs(offsetX * dy - offsetY * dx) > 0.0001
+    || progress <= 0 || progress >= 1 || progress <= serverProgress + 0.0001) return;
+  const endTick = walk.tick + walk.speed * Math.sqrt(lengthSquared);
+  const nowTick = walk.prevTick;
+  if (!Number.isFinite(nowTick) || !Number.isFinite(endTick) || endTick <= nowTick) return;
+  walk._lastroJoinIndex = index;
+  walk._lastroJoinEndTick = endTick;
+  walk._lastroJoinSpeed = walk.speed;
+  walk._lastroJoinServerTick = walk.tick;
+  walk._lastroJoinServerX = startX;
+  walk._lastroJoinServerY = startY;
+  entity.position[0] = previous.x;
+  entity.position[1] = previous.y;
+  entity.position[2] = previous.z;
+  walk.pos.set(entity.position);
+  walk.lastPos.set(entity.position);
+  walk.tick = walk.prevTick = nowTick;
+  walk.dist = previous.distance;
+}
+function lastroProjectWalkDistance(walk, tick) {
+  if (!walk || !Number.isFinite(tick) || !Number.isFinite(walk.dist) || !Number.isFinite(walk.speed)) return;
+  const path = walk.path, total = walk.total;
+  let index = walk.index;
+  if (!path || !Number.isInteger(index) || !Number.isInteger(total) || index % 2 || index < 2 || index >= total
+    || total % 2 || total > path.length) return;
+  const joined = lastroRouteJoinActive(walk, index);
+  const restoreServer = !joined && walk._lastroJoinIndex === index
+    && Number.isFinite(walk._lastroJoinServerTick)
+    && Number.isFinite(walk._lastroJoinServerX) && Number.isFinite(walk._lastroJoinServerY);
+  let startX = restoreServer ? walk._lastroJoinServerX : walk.pos[0];
+  let startY = restoreServer ? walk._lastroJoinServerY : walk.pos[1];
+  let lastX = walk.lastPos[0], lastY = walk.lastPos[1];
+  let nextX = path[index], nextY = path[index + 1];
+  let dx = nextX - startX, dy = nextY - startY;
+  let duration = Math.sqrt(dx * dx + dy * dy);
+  duration = duration > 0 ? walk.speed * duration : walk.speed;
+  if (!duration || duration < 1) duration = 1;
+  let start = (restoreServer ? walk._lastroJoinServerTick : walk.tick) || tick;
+  let end = joined ? walk._lastroJoinEndTick : start + duration;
+  let distance = 0;
+  while (index < total - 2 && tick >= end) {
+    dx = nextX - lastX; dy = nextY - lastY;
+    distance += Math.sqrt(dx * dx + dy * dy);
+    startX = lastX = nextX; startY = lastY = nextY;
+    index += 2;
+    nextX = path[index]; nextY = path[index + 1];
+    dx = nextX - startX; dy = nextY - startY;
+    duration = Math.sqrt(dx * dx + dy * dy);
+    duration = duration > 0 ? walk.speed * duration : walk.speed;
+    if (!duration || duration < 1) duration = 1;
+    start = end; end = start + duration;
+  }
+  const progress = Math.min(Math.max((tick - start) / Math.max(end - start, 1), 0), 1);
+  dx = startX + (nextX - startX) * progress - lastX;
+  dy = startY + (nextY - startY) * progress - lastY;
+  distance += Math.sqrt(dx * dx + dy * dy);
+  const projected = walk.dist + distance;
+  return Number.isFinite(projected) ? projected : undefined;
+}
 /**
  * Estimate total walk duration for a path, in ms.
  * `total` is the number of coordinate entries in `path` (walk.total).
@@ -278555,23 +278961,18 @@ function estimatePathDuration(path, total, baseSpeed, startPos) {
  * the walk based on latency.
  */
 function computeWalkStartTick(nowTick, moveStartTime, pathDuration, maxClamp) {
-  if (
-    !moveStartTime ||
-    !SessionStorage_default ||
-    !SessionStorage_default.serverTick
-  )
-    return nowTick;
-  let elapsed = SessionStorage_default.serverTick - moveStartTime;
-  if (!isFinite(elapsed) || elapsed <= 0) return nowTick;
-  if (pathDuration && pathDuration > 0) {
-    if (elapsed > pathDuration * 4) return nowTick;
-    elapsed = Math.min(
-      elapsed,
-      typeof maxClamp === "number" ? maxClamp : pathDuration,
-    );
-  } else
-    elapsed = Math.min(elapsed, typeof maxClamp === "number" ? maxClamp : 1e3);
-  return nowTick - elapsed;
+  if (typeof LastROAdvanceServerTick === "function") LastROAdvanceServerTick();
+  if (!Number.isInteger(moveStartTime) || moveStartTime < 0 || moveStartTime > 0xffffffff ||
+      !SessionStorage_default || !Number.isFinite(SessionStorage_default.serverTick) ||
+      SessionStorage_default.serverTick === 0) return nowTick;
+  // Packet timestamps wrap at uint32; the sampled server clock can be continuous.
+  let elapsed = (SessionStorage_default.serverTick - moveStartTime) % 0x100000000;
+  if (elapsed > 0x7fffffff) elapsed -= 0x100000000;
+  if (elapsed < -0x80000000) elapsed += 0x100000000;
+  if (!Number.isFinite(elapsed) || elapsed <= 0) return nowTick;
+  const duration = Number.isFinite(pathDuration) && pathDuration > 0 ? pathDuration : 1000;
+  const limit = Number.isFinite(maxClamp) && maxClamp >= 0 ? Math.min(maxClamp, duration) : duration;
+  return nowTick - Math.min(elapsed, limit);
 }
 /**
  * WalkStructure — pathfinding movement controller for entity walking
@@ -278593,7 +278994,7 @@ function WalkStructure() {
   this.tick = 0;
   this.prevTick = 0;
   this.dist = 0;
-  this.path = new Int16Array(PathFinding_default.MAX_WALKPATH * 2);
+  this.path = new Int16Array((PathFinding_default.MAX_WALKPATH + 1) * 2);
   this.pos = /* @__PURE__ */ new Float32Array(3);
   this.lastPos = /* @__PURE__ */ new Float32Array(3);
   this.onEnd = null;
@@ -278774,12 +279175,43 @@ function walkToNonWalkableGround(
  * @param {number} range optional
  */
 function walkTo(from_x, from_y, to_x, to_y, range, moveStartTime) {
-  if (from_x === to_x && from_y === to_y) return;
+  if (Number.isInteger(moveStartTime) && moveStartTime >= 0 && moveStartTime <= 0xffffffff) {
+    if (Number.isInteger(this._lastroServerMoveStart) && ((moveStartTime - this._lastroServerMoveStart) | 0) < 0) return;
+    this._lastroServerMoveStart = moveStartTime;
+  }
+  if (lastroMovementBlocked(this)) {
+    lastroCancelMovement(this);
+    return;
+  }
+  this._lastroMovementEpoch = (this._lastroMovementEpoch || 0) + 1;
+  delete this._lastroApprovedRoute;
+  delete this._lastroApprovedEpoch;
+  delete this._lastroHitStop;
+  const serverMove = Number.isInteger(moveStartTime) && moveStartTime >= 0 && moveStartTime <= 0xffffffff;
+  if (from_x === to_x && from_y === to_y) {
+    if (serverMove) {
+      this.resetRoute();
+      this.position[0] = from_x;
+      this.position[1] = from_y;
+      this.position[2] = Altitude.getCellHeight(from_x, from_y);
+      if (this.action === this.ACTION.WALK) this.setAction({ action: this.ACTION.IDLE, frame: 0, repeat: true, play: true });
+    }
+    return;
+  }
   const hadRoute = this.walk && this.walk.total > 0;
   const wasWalkingAction = this.action === this.ACTION.WALK;
+  const continuedDistance = serverMove && hadRoute && wasWalkingAction
+    ? lastroProjectWalkDistance(this.walk, Date.now()) : undefined;
+  let previousJoin = serverMove && hadRoute ? lastroCaptureRouteJoin(this) : null;
   this.resetRoute(hadRoute);
+  // Native onEnd callbacks may synchronously change the player or its state.
+  if (previousJoin && (this !== SessionStorage_default.Entity || this.walk !== previousJoin.walk
+    || this.position !== previousJoin.position || this.action !== previousJoin.action
+    || this._lastroMovementEpoch !== previousJoin.epoch
+    || this.position[0] !== previousJoin.x || this.position[1] !== previousJoin.y
+    || this.position[2] !== previousJoin.z)) previousJoin = null;
   const path = this.walk.path;
-  const total = PathFinding_default.search(
+  let total = PathFinding_default.search(
     from_x | 0,
     from_y | 0,
     to_x | 0,
@@ -278787,12 +279219,25 @@ function walkTo(from_x, from_y, to_x, to_y, range, moveStartTime) {
     range || 0,
     path,
   );
+  if (serverMove && (!total || total * 2 > path.length) && !range
+    && (typeof MapRenderer === "undefined" || !MapRenderer.loading)) {
+    total = findLastroServerWalkPath(from_x, from_y, to_x, to_y, path, Altitude);
+  }
+  // A declared route must fit the buffer before interpolation reads it.
+  if (total * 2 > path.length) total = 0;
   this.walk.index = 2;
   this.walk.total = total * 2;
   if (total) {
+    if (serverMove) {
+      // Interpolate along the server's GAT path, never a shortcut from a stale display position.
+      this.position[0] = from_x | 0;
+      this.position[1] = from_y | 0;
+      this.position[2] = Altitude.getCellHeight(this.position[0], this.position[1]);
+    }
     this.walk.pos.set(this.position);
     const nowTick = Date.now();
-    this.walk.tick = this.walk.prevTick = nowTick;
+    const duration = estimatePathDuration(this.walk.path, this.walk.total, this.walk.speed, this.position);
+    this.walk.tick = this.walk.prevTick = computeWalkStartTick(nowTick, moveStartTime, duration);
     if (!hadRoute) this.walk.dist = 0;
     this.walk.lastPos.set(this.position);
     if (this.walk.total >= 2) {
@@ -278804,6 +279249,8 @@ function walkTo(from_x, from_y, to_x, to_y, range, moveStartTime) {
       );
       this.direction = quantizeDir(initDir1);
     }
+    this._lastroApprovedRoute = lastroCaptureHitRoute(this);
+    this._lastroApprovedEpoch = this._lastroMovementEpoch;
     this.headDir = 0;
     if (!wasWalkingAction)
       this.setAction({
@@ -278812,27 +279259,29 @@ function walkTo(from_x, from_y, to_x, to_y, range, moveStartTime) {
         repeat: true,
         play: true,
       });
+    if (serverMove) {
+      this.walkProcess();
+      lastroJoinServerRoute(this, previousJoin);
+    }
+    if (serverMove && this.walk.total > 0 && Number.isFinite(continuedDistance)) this.walk.dist = continuedDistance;
   }
 }
 /**
  * Process walking
  */
-function walkProcess() {
+function walkProcess(lastroTick) {
+  if (this === SessionStorage_default.Entity && !lastroCheckMovementConnection()) return;
+  if (lastroMovementBlocked(this)) {
+    if (this.walk?.total || this.walk?.onEnd || this._lastroApprovedRoute) lastroCancelMovement(this);
+    return;
+  }
   const pos = this.position;
   const walk = this.walk;
   const path = walk.path;
   let index = walk.index;
   const total = walk.total;
-  const wallTick = Date.now();
-  // A blocked main thread must not make every entity consume seconds of
-  // route time in one render callback.  Keep a small bounded catch-up window;
-  // subsequent frames advance the remaining route at a controlled rate.
-  const MAX_WALK_CATCHUP_DELTA = 100;
-  const WALK_STALL_THRESHOLD = 250;
-  const TICK =
-    walk.prevTick && wallTick - walk.prevTick > WALK_STALL_THRESHOLD
-      ? walk.prevTick + MAX_WALK_CATCHUP_DELTA
-      : wallTick;
+  if (walk._lastroJoinIndex !== undefined && !lastroRouteJoinActive(walk, index)) lastroClearRouteJoin(walk, true);
+  const TICK = Number.isFinite(lastroTick) ? lastroTick : Date.now();
   const falconGliding = 5;
   const advanceLastROAction =
     Configs.get("lastroProtocol", false) &&
@@ -278933,7 +279382,8 @@ function walkProcess() {
     let dy = nextY - startY;
     let speed = getSegmentDuration(dx, dy, walk.speed);
     let segmentStart = walk.tick || TICK;
-    let segmentEnd = segmentStart + speed;
+    const joinedIndex = lastroRouteJoinActive(walk, index) ? index : -1;
+    let segmentEnd = joinedIndex === index ? walk._lastroJoinEndTick : segmentStart + speed;
     let traveledDist = 0;
     if (
       walk.prevTick &&
@@ -278956,6 +279406,7 @@ function walkProcess() {
       walk.lastPos[0] = nextX;
       walk.lastPos[1] = nextY;
       index += 2;
+      if (walk._lastroJoinIndex !== undefined) lastroClearRouteJoin(walk);
       nextX = path[index + 0];
       nextY = path[index + 1];
       dx = nextX - startX;
@@ -278998,8 +279449,8 @@ function walkProcess() {
           this.direction = quantizeDir(contDir);
         }
       } else {
-        const segDx = Math.round(nextX - startX);
-        const segDy = Math.round(nextY - startY);
+        const segDx = Math.round(nextX - (joinedIndex === index ? path[index - 2] : startX));
+        const segDy = Math.round(nextY - (joinedIndex === index ? path[index - 1] : startY));
         const dirRow = DIRECTION$1[segDx + 1];
         if (dirRow && typeof dirRow[segDy + 1] !== "undefined")
           this.direction = dirRow[segDy + 1];
@@ -279078,10 +279529,11 @@ function entitiesWalkProcess() {
   }
 }
 function resetRoute(keepDistance) {
+  lastroClearRouteJoin(this.walk);
   this.walk.tick = 0;
   this.walk.prevTick = 0;
   if (!keepDistance) this.walk.dist = 0;
-  this.walk.path = new Int16Array(PathFinding_default.MAX_WALKPATH * 2);
+  this.walk.path = new Int16Array((PathFinding_default.MAX_WALKPATH + 1) * 2);
   this.walk.lastPos[0] = 0;
   this.walk.lastPos[1] = 0;
   this.walk.lastPos[2] = 0;
@@ -280319,6 +280771,8 @@ function getOpt3(state) {
   return (this.virtue & value) !== 0;
 }
 function updateVirtue(value) {
+  const blade = StatusState_default.OPT3.BLADESTOP;
+  if (Number.isInteger(blade) && blade > 0 && !(this._virtue & blade) && (value & blade)) lastroCancelMovement(this);
   this._virtueColor[0] = 1;
   this._virtueColor[1] = 1;
   this._virtueColor[2] = 1;
@@ -280383,6 +280837,7 @@ function updateVirtue(value) {
  */
 function updateBodyState(value) {
   if (value === this._bodyState) return;
+  if (lastroBodyMovementBlocked(value)) lastroCancelMovement(this);
   this._bodyStateColor[0] = 1;
   this._bodyStateColor[1] = 1;
   this._bodyStateColor[2] = 1;
@@ -281804,6 +282259,7 @@ var init_Entity$1 = __esmMin(() => {
 });
 //#endregion
 //#region src/Renderer/EntityManager.js
+// lastro-monster-hover-hp-installed
 var EntityManager_exports = /* @__PURE__ */ __exportAll({
   default: () => EntityManager,
 });
@@ -281913,6 +282369,7 @@ function addEntity(entity) {
  * Clean up entities from list
  */
 function free() {
+  EntityManager._lastroMonsterHoverHp.clear();
   _list.forEach((entity) => {
     releaseGr2(entity);
     entity.clean();
@@ -281930,6 +282387,7 @@ function free() {
  * @param {number} gid
  */
 function removeGID(gid) {
+  EntityManager._lastroMonsterHoverHp.remove(gid);
   _gidMap.delete(gid);
 }
 /**
@@ -281937,6 +282395,7 @@ function removeGID(gid) {
  * @param {number} gid
  */
 function removeEntity(gid) {
+  EntityManager._lastroMonsterHoverHp.remove(gid);
   const entity = _gidMap.get(gid);
   if (entity) {
     releaseGr2(entity);
@@ -282314,6 +282773,133 @@ var init_EntityManager = __esmMin(() => {
     pendingTransformations,
     storePendingTransform,
   };
+  EntityManager._lastroMonsterHoverHp = (function createLastroMonsterHoverHp({ getEntity, getLife, now = () => Date.now() }) {
+  const marker = Symbol('lastro-monster-hover-hp');
+  let states = new WeakMap(), epoch = 0, sample = 0;
+  const unknown = '';
+  function monster(entity) {
+    return !!entity && typeof entity.constructor?.TYPE_MOB === 'number'
+      && entity.objecttype === entity.constructor.TYPE_MOB;
+  }
+  function valid(hp, maxhp) {
+    return Number.isSafeInteger(hp) && hp >= 0 && Number.isSafeInteger(maxhp)
+      && maxhp > 0 && hp <= maxhp;
+  }
+  function compact(value) {
+    const divisor = value >= 1e9 ? 1e9 : value >= 1e6 ? 1e6 : value >= 1e3 ? 1e3 : 1;
+    if (divisor === 1) return String(value);
+    // Divide by an integer before rounding, so 1005 consistently becomes 1.01k.
+    const rounded = Math.round(value / (divisor / 100)) / 100;
+    return rounded.toFixed(2).replace(/\.?0+$/, '')
+      + (divisor === 1e9 ? 'b' : divisor === 1e6 ? 'm' : 'k');
+  }
+  function snapshot(hp, maxhp) {
+    return { hp, maxhp, text: compact(hp) + ' / ' + compact(maxhp) };
+  }
+  function estimate(previous, percent) {
+    // Only a complete server HP pair establishes a trusted maximum. Native
+    // Life fields may contain the normalized percentage pair (e.g. 25/100).
+    const known = valid(previous?.hp, previous?.maxhp);
+    return known ? compact(Math.round(previous.maxhp * (percent / 100)))
+      + ' / ' + compact(previous.maxhp) : '';
+  }
+  function percentage(previous, units) {
+    const percent = units * 5;
+    return { ...previous, percent, serverAt: now(), serverOrder: ++sample,
+      serverText: estimate(previous, percent) };
+  }
+  function name(entity, rawName) {
+    if (!monster(entity) || getEntity(entity.GID) !== entity || typeof rawName !== 'string') return;
+    const match = rawName.match(/\bHP\s*[:：]\s*(\d+(?:\.\d+)?)\s*%/i);
+    if (!match) return;
+    const percent = Number(match[1]);
+    if (!Number.isFinite(percent) || percent < 0 || percent > 100) return;
+    const previous = states.get(entity);
+    states.set(entity, { ...previous, namePercent: percent, nameOrder: ++sample,
+      nameText: estimate(previous, percent) });
+  }
+  function cache(gid) {
+    const value = getLife(gid);
+    return value && typeof value === 'object' ? value : null;
+  }
+  function remove(gid) {
+    const entity = getEntity(gid), life = cache(gid);
+    if (entity) states.delete(entity);
+    if (life) delete life[marker];
+  }
+  function update(gid, hp, maxhp) {
+    if (!valid(hp, maxhp)) { remove(gid); return; }
+    const entity = getEntity(gid), life = cache(gid);
+    if (entity && !monster(entity)) { remove(gid); return; }
+    const previous = entity && states.get(entity);
+    const value = previous?.percent === undefined && previous?.namePercent === undefined
+      && previous?.hp === hp && previous.maxhp === maxhp
+      ? previous : snapshot(hp, maxhp);
+    if (entity) {
+      states.set(entity, value);
+      if (life) delete life[marker];
+    } else if (life) life[marker] = { epoch, owner: null, value };
+  }
+  function tiny(gid, units) {
+    const entity = getEntity(gid);
+    if (entity && !monster(entity)) { remove(gid); return; }
+    // HP_INFO_TINY encodes five-percent steps. An invalid sample cannot
+    // replace a confirmed value or become a fake absolute HP pair.
+    if (!Number.isInteger(units) || units < 0 || units > 20) return;
+    const life = cache(gid);
+    if (entity) {
+      states.set(entity, percentage(states.get(entity), units));
+      if (life) delete life[marker];
+    } else if (life) {
+      const pending = life[marker];
+      const previous = pending?.epoch === epoch && pending.owner === null ? pending.value : undefined;
+      life[marker] = { epoch, owner: null, value: percentage(previous, units) };
+    }
+  }
+  function spawn(entity, packet) {
+    if (!monster(entity)) { if (entity) remove(entity.GID); return; }
+    const gid = entity.GID, life = cache(gid);
+    if (valid(packet?.hp, packet?.maxhp)) {
+      const previous = states.get(entity);
+      const value = previous?.percent === undefined && previous?.namePercent === undefined
+        && previous?.hp === packet.hp && previous.maxhp === packet.maxhp
+        ? previous : snapshot(packet.hp, packet.maxhp);
+      states.set(entity, value);
+      if (life) delete life[marker];
+      return;
+    }
+    const unreported = packet?.hp === undefined && packet?.maxhp === undefined
+      || packet?.hp === -1 && packet?.maxhp === -1;
+    if (!unreported) {
+      states.delete(entity);
+      if (life) delete life[marker];
+      return;
+    }
+    const pending = life?.[marker];
+    if (pending?.epoch === epoch && pending.owner === null) {
+      states.set(entity, pending.value);
+      delete life[marker];
+    }
+  }
+  function clear() { states = new WeakMap(); epoch++; }
+  function text(entity) {
+    if (!monster(entity)) return '';
+    if (getEntity(entity.GID) !== entity) return unknown;
+    const value = states.get(entity);
+    if (!value) return unknown;
+    const server = value.percent !== undefined, named = value.namePercent !== undefined;
+    // A newer name is a fallback only after two seconds without a Tiny update.
+    // Keep the last server sample when the cached name predates it. No polling
+    // or timer is needed: the existing hover render reads this selection.
+    if (named && (!server || value.nameOrder > value.serverOrder && now() - value.serverAt >= 2000))
+      return value.nameText;
+    return server ? value.serverText : value.text || unknown;
+  }
+  return { update, tiny, name, spawn, remove, clear, text };
+})({
+    getEntity: gid => EntityManager.get(gid),
+    getLife: gid => EntityManager.getLife(gid),
+  });
   /**
    * Get access to manager from Entity object
    */
@@ -288865,12 +289451,38 @@ var init_ScreenShot = __esmMin(() => {
   });
 });
 //#endregion
+// lastro-movement-input-installed
+const refreshLastroGroundInput = function refreshLastroGroundInput(event, { mouse, canvas, ready, pick, getHeight, refreshEntity, onError }) {
+  const action = event?.which || (event?.button === 2 ? 3 : 1);
+  const ground = event?.composedPath?.().includes(canvas) || event?.target === canvas;
+  if (action !== 1 || !canvas || !ground || !ready || mouse.state === mouse.MOUSE_STATE.USESKILL) return false;
+  if (Number.isFinite(event.pageX) && Number.isFinite(event.pageY)) {
+    mouse.screen.x = event.pageX; mouse.screen.y = event.pageY;
+  }
+  mouse.intersect = true;
+  const point = new Int16Array(2);
+  try {
+    if (!pick(point)) {
+      mouse.world.x = mouse.world.y = mouse.world.z = -1;
+      refreshEntity?.();
+      return false;
+    }
+    mouse.world.x = point[0]; mouse.world.y = point[1]; mouse.world.z = getHeight(point[0], point[1]);
+    refreshEntity?.();
+    return true;
+  } catch (error) {
+    mouse.world.x = mouse.world.y = mouse.world.z = -1;
+    try { onError?.(error); } catch { /* An input diagnostic must not break the event chain. */ }
+    return false;
+  }
+};
 //#region src/Controls/MapControl.js
 /**
  * Stop the camera rotation when the right button is released, even if the
  * release happens over a UI element that swallows the bubbling mouseup event.
  */
 function onMouseUpCapture(event) {
+  if ((event.which || (event.button === 2 ? 3 : 1)) === 1) MapControl._lastroMovementInput?.stop();
   if (event.which !== 3 || !Camera.action.active) return;
   Cursor.setType(Cursor.ACTION.DEFAULT);
   Camera.rotate(false);
@@ -288880,11 +289492,21 @@ function onMouseUpCapture(event) {
  */
 function onMouseDown(event) {
   const action = (event && event.which) || 1;
+  if (action === 1) MapControl._lastroMovementInput?.cancel();
   if (
     Mouse.state === Mouse.MOUSE_STATE.USESKILL &&
     SkillTargetSelection_default.onMapMouseDown(event)
   )
     return;
+  refreshLastroGroundInput(event, {
+    mouse: Mouse, canvas: Renderer.canvas,
+    ready: !MapRenderer.loading && !!MapRenderer.currentMap && !!SessionStorage_default.Entity && !SessionStorage_default.FreezeUI
+      && Altitude.width > 0 && Altitude.height > 0 && !!Camera.modelView && !!Camera.projection,
+    pick: out => Altitude.intersect(Camera.modelView, Camera.projection, out),
+    getHeight: (x, y) => Altitude.getCellHeight(x, y),
+    refreshEntity: () => EntityManager.setOverEntity(EntityManager.intersect()),
+    onError: error => console.warn("[LastRO] Ground picker recovered from an error", error),
+  });
   if (!Mouse.intersect) return;
   const entityFocus = EntityManager.getFocusEntity();
   const entityOver = EntityManager.getOverEntity();
@@ -289189,6 +289811,8 @@ var init_MapControl = __esmMin(() => {
      * Initializing the controller
      */
     static init() {
+      window.addEventListener("blur", () => MapControl._lastroMovementInput?.cancel());
+      document.addEventListener("visibilitychange", () => { if (document.hidden) MapControl._lastroMovementInput?.cancel(); });
       Mobile.init();
       Mobile.onTouchStart = onMouseDown.bind(this);
       Mobile.onTouchEnd = onMouseUp.bind(this);
@@ -301506,6 +302130,7 @@ var init_AttackEffectTable = __esmMin(() => {
 });
 //#endregion
 //#region src/Engine/MapEngine/Entity.js
+// lastro-monster-hover-hp-installed
 /**
  * Spam an entity on the map
  * Generic packet handler
@@ -301545,6 +302170,7 @@ function onEntitySpam(pkt) {
       }
     }
   }
+  EntityManager._lastroMonsterHoverHp.spawn(entity, pkt);
   if (
     pkt.effectState & StatusState_default.EffectState.FALCON &&
     DB.isHunter(pkt.job)
@@ -301661,6 +302287,7 @@ function onEntitySpam(pkt) {
  */
 function onEntityVanish(pkt) {
   const entity = EntityManager.get(pkt.GID);
+  lastroCancelMovement(entity);
   if (entity) {
     if (
       entity.objecttype === Entity.TYPE_PC &&
@@ -301732,20 +302359,12 @@ function onEntityVanish(pkt) {
     }
     if (pkt.GID === SessionStorage_default.Entity.GID && pkt.type === 1)
       Escape_default.showDeathMenu(haveSiegfriedItem());
-    const deathDelay =
-      pkt.type === Entity.VT.DEAD &&
-      entity.objecttype !== Entity.TYPE_PC &&
-      entity._deathSyncTick > Renderer.tick
-        ? entity._deathSyncTick - Renderer.tick + C_DEATH_SYNC_OFFSET
-        : 0;
-    EntityManager.removeGID(pkt.GID);
-    const playDeath = () => {
-      entity.remove(pkt.type);
-    };
-    if (deathDelay > 0) {
-      entity._deathSyncTick = 0;
-      Events.setTimeout(playDeath, deathDelay);
-    } else playDeath();
+    // A server DEAD notification wins over pending hit/attack animations.
+    entity._deathSyncTick = 0;
+    // Dead players remain addressable for resurrection and departure packets.
+    if (pkt.type !== Entity.VT.DEAD || entity.objecttype !== Entity.TYPE_PC)
+      EntityManager.removeGID(pkt.GID);
+    entity.remove(pkt.type);
   }
 }
 /**
@@ -301783,6 +302402,7 @@ function onEntityStopMove(pkt) {
       y: pkt.yPos,
     });
   if (entity) {
+    lastroCancelMovement(entity);
     if (entity.action === entity.ACTION.WALK)
       entity.setAction({
         action: entity.ACTION.IDLE,
@@ -301804,6 +302424,7 @@ function onEntityStopMove(pkt) {
 function onEntityJump(pkt) {
   const entity = EntityManager.get(pkt.AID);
   if (entity) {
+    lastroCancelMovement(entity);
     entity.position[0] = pkt.xPos;
     entity.position[1] = pkt.yPos;
     entity.position[2] = Altitude.getCellHeight(pkt.xPos, pkt.yPos);
@@ -301817,18 +302438,45 @@ function onEntityJump(pkt) {
 function onEntityFastMove(pkt) {
   const entity = EntityManager.get(pkt.AID);
   if (entity) {
+    const x = pkt.targetXpos, y = pkt.targetYpos;
+    if (MapRenderer.loading || !Number.isInteger(Altitude.width) || !Number.isInteger(Altitude.height)
+      || Altitude.width <= 0 || Altitude.height <= 0 || !Number.isInteger(x) || !Number.isInteger(y)
+      || x < 0 || y < 0 || x >= Altitude.width || y >= Altitude.height) return;
+    let height;
+    try {
+      if (!Number.isFinite(Altitude.getCellType(x, y))) return;
+      height = Altitude.getCellHeight(x, y);
+    } catch { return; }
+    if (!Number.isFinite(height)) return;
+    // FASTMOVE is an authoritative Body Relocation target. A missing walking
+    // route must not discard that target or install a speed override forever.
+    if ((entity.position[0] === x && entity.position[1] === y)
+      || !Number.isFinite(entity.position[0]) || !Number.isFinite(entity.position[1])) {
+      lastroCancelMovement(entity);
+      entity.position[0] = x; entity.position[1] = y; entity.position[2] = height;
+      return;
+    }
     entity.walkTo(
       entity.position[0],
       entity.position[1],
       pkt.targetXpos,
       pkt.targetYpos,
     );
-    if (entity.walk.path.length) {
+    const walk = entity.walk;
+    if (Number.isInteger(walk.total) && walk.total >= 4 && walk.total % 2 === 0
+      && walk.total <= walk.path.length && walk.path[walk.total - 2] === x && walk.path[walk.total - 1] === y) {
       const speed = entity.walk.speed;
+      entity.walk._lastroNormalSpeed = speed;
       entity.walk.speed = 10;
+      entity._lastroApprovedRoute = lastroCaptureHitRoute(entity);
+      entity._lastroApprovedEpoch = entity._lastroMovementEpoch;
       entity.walk.onEnd = function onWalkEnd() {
         entity.walk.speed = speed;
+        delete entity.walk._lastroNormalSpeed;
       };
+    } else {
+      lastroCancelMovement(entity);
+      entity.position[0] = x; entity.position[1] = y; entity.position[2] = height;
     }
   }
 }
@@ -302323,6 +302971,7 @@ function onEntityIdentity(pkt) {
     entity.display.guild_name = pkt.GName || "";
     entity.display.guild_rank = pkt.RName || "";
     entity.display.load = entity.display.TYPE.COMPLETE;
+    EntityManager._lastroMonsterHoverHp.name(entity, pkt.CName);
     if (entity.GUID)
       GuildEngine.requestGuildEmblem(entity.GUID, entity.GEmblemVer);
     else if (pkt.GID)
@@ -302385,6 +303034,7 @@ function onEntityLifeUpdate(pkt) {
     entity.life.update();
     entity.life.display = true;
   }
+  EntityManager._lastroMonsterHoverHp.update(pkt.AID, pkt.hp, pkt.maxhp);
 }
 /**
  * Update entity's life (Tiny)
@@ -302404,6 +303054,7 @@ function onEntityLifeUpdateTiny(pkt) {
     entity.life.update();
     entity.life.display = true;
   }
+  EntityManager._lastroMonsterHoverHp.tiny(pkt.GID, pkt.hp);
 }
 /**
  * Shows notification effect for quests and events
@@ -303103,6 +303754,22 @@ function onEntityStatusChange(pkt) {
       clanEmblems[pkt.AID] = pkt.index - StatusConst_default.SWORDCLAN + 1;
     return;
   }
+  const stop = StatusConst_default.STOP;
+  let stopState = pkt.state;
+  if (Number.isInteger(stop) && stop > 0 && pkt.index === stop && stopState === undefined && typeof PACKET !== "undefined") {
+    const enter = PACKET?.ZC?.MSG_STATE_CHANGE3;
+    const enter2 = PACKET?.ZC?.MSG_STATE_CHANGE5;
+    if ((typeof enter === "function" && pkt.constructor === enter)
+        || (typeof enter2 === "function" && pkt.constructor === enter2)) stopState = 1;
+  }
+  if (Number.isInteger(stop) && stop > 0 && pkt.index === stop && (stopState === 1 || stopState === 0)) {
+    if (!entity._lastroMovementStops) entity._lastroMovementStops = new Set();
+    if (stopState === 1) {
+      const active = entity._lastroMovementStops.has(stop);
+      entity._lastroMovementStops.add(stop);
+      if (!active) lastroCancelMovement(entity);
+    } else entity._lastroMovementStops.delete(stop);
+  }
   switch (pkt.index) {
     case StatusConst_default.CLAIRVOYANCE:
       if (entity === SessionStorage_default.Entity) {
@@ -303734,9 +304401,19 @@ function onEntityWillBeHitSub(pkt, dstEntity) {
     (pkt.damage > 0 || pkt.leftDamage > 0) &&
     pkt.action !== 4 &&
     pkt.action !== 9 &&
-    pkt.action !== 11
+    pkt.action !== 11 &&
+    pkt.action !== 14 &&
+    pkt.attackedMT > 0
   ) {
     const count = pkt.count || 1;
+    const epoch = dstEntity._lastroMovementEpoch || 0;
+    const self = dstEntity === SessionStorage_default.Entity;
+    // A speed change makes the old route sample unsafe for rejecting a hit
+    // that predates the currently approved movement.
+    const saved = dstEntity._lastroApprovedRoute;
+    const approved = dstEntity._lastroApprovedEpoch === epoch && saved?.walk.speed === dstEntity.walk?.speed ? saved : null;
+    const hitStart = lastroHitStartTick(pkt);
+    if (approved && hitStart + pkt.attackMT < approved.walk.tick) return;
     const lastHitDelay =
       pkt.attackMT +
       C_MULTIHIT_DELAY * (pkt.leftDamage ? 1.75 : 1) * (count - 1);
@@ -303745,6 +304422,7 @@ function onEntityWillBeHitSub(pkt, dstEntity) {
       Renderer.tick + lastHitDelay,
     );
     function impendingAttack() {
+      if (EntityManager.get(dstEntity.GID) !== dstEntity || (self && dstEntity !== SessionStorage_default.Entity) || (dstEntity._lastroMovementEpoch || 0) !== epoch || dstEntity.action === dstEntity.ACTION.DIE || lastroMovementBlocked(dstEntity)) return;
       if (dstEntity.action !== dstEntity.ACTION.DIE)
         dstEntity.setAction({
           action: dstEntity.ACTION.HURT,
@@ -303761,6 +304439,7 @@ function onEntityWillBeHitSub(pkt, dstEntity) {
         });
     }
     function resumeWalk() {
+      if (EntityManager.get(dstEntity.GID) !== dstEntity || (self && dstEntity !== SessionStorage_default.Entity) || (dstEntity._lastroMovementEpoch || 0) !== epoch || dstEntity.action === dstEntity.ACTION.DIE || lastroMovementBlocked(dstEntity)) return;
       if (
         dstEntity.action !== dstEntity.ACTION.DIE &&
         EntityManager.getFocusEntity() &&
@@ -303775,18 +304454,16 @@ function onEntityWillBeHitSub(pkt, dstEntity) {
     }
     for (let i = 0; i < count; i++) {
       if (pkt.damage)
-        Events.setTimeout(impendingAttack, pkt.attackMT + C_MULTIHIT_DELAY * i);
+        Events.setTimeout(impendingAttack, Math.max(0, hitStart + pkt.attackMT + C_MULTIHIT_DELAY * i - Date.now()));
       if (pkt.leftDamage)
         Events.setTimeout(
           impendingAttack,
-          pkt.attackMT + C_MULTIHIT_DELAY * 1.75 * i,
+          Math.max(0, hitStart + pkt.attackMT + C_MULTIHIT_DELAY * 1.75 * i - Date.now()),
         );
     }
     Events.setTimeout(
       resumeWalk,
-      pkt.attackMT +
-        C_MULTIHIT_DELAY * (pkt.leftDamage ? 1.75 : 1) * (count - 1) +
-        pkt.attackedMT,
+      Math.max(0, hitStart + lastHitDelay + pkt.attackedMT - Date.now()),
     );
   }
 }
@@ -313899,11 +314576,12 @@ var init_LastROProtocol = __esmMin(() => {
  * TODO: check the time ?
  */
 function onPong(pkt) {
+  SessionStorage_default.ping._lastroUnansweredSince = undefined;
   const SP = SessionStorage_default.ping;
   SP.returned = true;
-  SP.pongTime = SP.pingTime;
-  SP.value = 0;
-  SessionStorage_default.serverTick = pkt.time;
+  SP.pongTime = Date.now();
+  SP.value = Number.isFinite(SP.lastroSentAt) ? Math.max(0, SP.pongTime - SP.lastroSentAt) : 0;
+  LastROResetServerTick(pkt.time);
 }
 /**
  * Ping from server?
@@ -314027,6 +314705,7 @@ function onLastROSecondCheck(pkt) {
  * @param {object} pkt - PACKET.ZC.ACCEPT_ENTER
  */
 function onConnectionAccepted$2(pkt) {
+  if (Number.isInteger(pkt.startTime) && pkt.startTime >= 0 && pkt.startTime <= 0xffffffff) LastROResetServerTick(pkt.startTime);
   SessionStorage_default.Entity.onWalkEnd = onWalkEnd;
   if ("sex" in pkt && pkt.sex < 2) SessionStorage_default.Entity.sex = pkt.sex;
   SessionStorage_default.petId = 0;
@@ -314091,6 +314770,9 @@ function onConnectionRefused$2(pkt) {
  * reused player entity at the server-provided entry cell.
  */
 function resetEntityForMapEntry(entity, pkt, gid) {
+  lastroCancelMovement(entity);
+  delete entity._lastroServerMoveStart;
+  delete entity._lastroMovementStops;
   if (entity.walk) entity.walk.onEnd = null;
   if (typeof entity.resetRoute === "function") entity.resetRoute();
   entity.set({
@@ -314104,6 +314786,8 @@ function resetEntityForMapEntry(entity, pkt, gid) {
  * @param {object} pkt - PACKET.ZC.NPCACK_MAPMOVE
  */
 function onMapChange(pkt) {
+  lastroCancelMovement(SessionStorage_default.Entity);
+  MapControl._lastroMovementInput?.cancel();
   MapRenderer.onLoad = () => {
     resetEntityForMapEntry(
       SessionStorage_default.Entity,
@@ -314254,6 +314938,9 @@ function onServerChange(pkt) {
  * Components that were never prepared have no root element to clean.
  */
 function cleanGameUI() {
+  lastroCancelMovement(SessionStorage_default.Entity);
+  MapControl._lastroMovementInput?.cancel();
+  LastROInvalidateServerTick();
   WhisperBox.clearAll();
   const tasks = [
     [BasicInfoController, "remove"],
@@ -314503,13 +315190,23 @@ function onRemoveOption() {
  * Ask to move
  */
 function onRequestWalk() {
-  Events.clearTimeout(_walkTimer);
-  if (Navigation_default?.clear) Navigation_default.clear();
+  const player = SessionStorage_default.Entity;
+  if (MapRenderer.loading || SessionStorage_default.FreezeUI || !player?.position
+      || !Number.isFinite(player.position[0]) || !Number.isFinite(player.position[1])) {
+    MapControl._lastroMovementInput?.cancel();
+    return false;
+  }
   if (
     SessionStorage_default.Entity.action ===
       SessionStorage_default.Entity.ACTION.SIT ||
     KEYS.SHIFT
   ) {
+    MapControl._lastroMovementInput?.cancel();
+    if (typeof LastROTools !== "undefined") {
+      LastROTools?._lastroPanels?.cancelRoute();
+      LastROTools?._lastroQuestRoute?.cancel();
+    }
+    if (Navigation_default?.clear) Navigation_default.clear();
     SessionStorage_default.Entity.lookTo(Mouse.world.x, Mouse.world.y);
     let pkt;
     if (PacketVerManager_default.value >= 20180307)
@@ -314520,38 +315217,32 @@ function onRequestWalk() {
     Network.sendPacket(pkt);
     return;
   }
-  walkIntervalProcess();
+  return MapControl._lastroMovementInput.request();
 }
 /**
  * Stop moving
  */
-function onRequestStopWalk() {
-  Events.clearTimeout(_walkTimer);
-}
+function onRequestStopWalk() { MapControl._lastroMovementInput?.stop(); }
 /**
  * Moving function
  */
-function walkIntervalProcess() {
-  if (_walkLastTick + 200 > Renderer.tick) return;
-  const isWalkable = Mouse.world.x > -1 && Mouse.world.y > -1;
-  const isCurrentPos =
-    Math.round(SessionStorage_default.Entity.position[0]) === Mouse.world.x &&
-    Math.round(SessionStorage_default.Entity.position[1]) === Mouse.world.y;
-  if (isWalkable && !isCurrentPos) {
+function walkIntervalProcess(target) {
+  const position = SessionStorage_default.Entity.position;
+  if (Math.round(position[0]) === target.x && Math.round(position[1]) === target.y) return false;
+
     if (Navigation_default?.clear) Navigation_default.clear();
     let pkt;
     if (PacketVerManager_default.value >= 20180307)
       pkt = new PACKET.CZ.REQUEST_MOVE2();
     else pkt = new PACKET.CZ.REQUEST_MOVE();
-    if (!checkFreeCell(Mouse.world.x, Mouse.world.y, 9, pkt.dest)) {
-      pkt.dest[0] = Mouse.world.x;
-      pkt.dest[1] = Mouse.world.y;
+    if (!checkFreeCell(target.x, target.y, 9, pkt.dest)) {
+      if (!(Altitude.getCellType(target.x, target.y) & Altitude.TYPE.WALKABLE)) return false;
+      pkt.dest[0] = target.x;
+      pkt.dest[1] = target.y;
     }
     Network.sendPacket(pkt);
-  }
-  Events.clearTimeout(_walkTimer);
-  _walkTimer = Events.setTimeout(walkIntervalProcess, 500);
-  _walkLastTick = +Renderer.tick;
+
+  return true;
 }
 /**
  * Search free cells around a position
@@ -314565,10 +315256,11 @@ function checkFreeCell(x, y, range, out) {
   let _x, _y, r;
   const d_x = SessionStorage_default.Entity.position[0] < x ? -1 : 1;
   const d_y = SessionStorage_default.Entity.position[1] < y ? -1 : 1;
+  const occupied = { cells: null };
   for (r = 0; r <= range; ++r)
     for (_x = -r; _x <= r; ++_x)
       for (_y = -r; _y <= r; ++_y)
-        if (isFreeCell(x + _x * d_x, y + _y * d_y)) {
+        if (isFreeCell(x + _x * d_x, y + _y * d_y, occupied)) {
           out[0] = x + _x * d_x;
           out[1] = y + _y * d_y;
           return true;
@@ -314582,23 +315274,21 @@ function checkFreeCell(x, y, range, out) {
  * @param {number} y
  * @param {returns} is free
  */
-function isFreeCell(x, y) {
+function isFreeCell(x, y, occupied) {
   if (!(Altitude.getCellType(x, y) & Altitude.TYPE.WALKABLE)) return false;
-  let free = true;
-  EntityManager.forEach(function (entity) {
-    if (
-      entity.objecttype != entity.constructor.TYPE_EFFECT &&
-      entity.objecttype != entity.constructor.TYPE_UNIT &&
-      entity.objecttype != entity.constructor.TYPE_TRAP &&
-      Math.round(entity.position[0]) === x &&
-      Math.round(entity.position[1]) === y
-    ) {
-      free = false;
-      return false;
-    }
-    return true;
-  });
-  return free;
+  if (!occupied.cells) {
+    const cells = new Set();
+    EntityManager.forEach(function (entity) {
+      if (entity.objecttype != entity.constructor.TYPE_EFFECT
+        && entity.objecttype != entity.constructor.TYPE_UNIT
+        && entity.objecttype != entity.constructor.TYPE_TRAP) {
+        cells.add(Math.round(entity.position[0]) + "," + Math.round(entity.position[1]));
+      }
+      return true;
+    });
+    occupied.cells = cells;
+  }
+  return !occupied.cells.has(x + "," + y);
 }
 /**
  * If the character moved to attack, once it finished to move ask to attack
@@ -314921,6 +315611,7 @@ var init_MapEngine = __esmMin(() => {
             UIManager.showErrorBox(DB.getMessage(1));
             return;
           }
+          LastROInvalidateServerTick();
           let pkt;
           const useDebugLegacyMapEnter = shouldUseDebugLegacyMapEnter({
             debug: Configs.get("debug", false),
@@ -314973,6 +315664,8 @@ var init_MapEngine = __esmMin(() => {
                     "[Network] The server did not answer the previous PING!",
                   );
                 SP.pingTime = ping.clientTime;
+                SP.lastroSentAt = Date.now();
+                if (SP.returned || !Number.isFinite(SP._lastroUnansweredSince)) SP._lastroUnansweredSince = Date.now();
                 SP.returned = false;
                 Network.sendPacket(ping);
               },
@@ -315005,6 +315698,110 @@ var init_MapEngine = __esmMin(() => {
         _isInitialised = true;
         bindGameplayHandlers();
         MapControl.init();
+        // lastro-movement-input-installed
+        MapControl._lastroMovementInput = (function createLastroMovementInput({ getTarget, getContext, canMove, sendMove, onManualMove,
+  onError, clock = globalThis, now = () => globalThis.performance.now() }) {
+  let held = false, pending = null, pendingTimer, repeatTimer, generation = 0;
+  let lastSent = -Infinity;
+  const interval = 200, repeatInterval = 500;
+
+  function report(error) { try { onError?.(error); } catch { /* Input cleanup must continue. */ } }
+  function cancel() {
+    generation++;
+    held = false; pending = null;
+    if (pendingTimer !== undefined) clock.clearTimeout(pendingTimer);
+    if (repeatTimer !== undefined) clock.clearTimeout(repeatTimer);
+    pendingTimer = repeatTimer = undefined;
+  }
+  function stop() {
+    held = false;
+    if (repeatTimer !== undefined) clock.clearTimeout(repeatTimer);
+    repeatTimer = undefined;
+  }
+  function point() {
+    const value = getTarget();
+    if (!value || !Number.isInteger(value.x) || !Number.isInteger(value.y)
+      || value.x < 0 || value.y < 0 || value.x > 65535 || value.y > 65535) return null;
+    return { x: value.x, y: value.y };
+  }
+  function current(input) {
+    const context = getContext();
+    return input.generation === generation && !!context?.map && !!context.player
+      && context.map === input.context.map && context.player === input.context.player && canMove(input.target, input.phase);
+  }
+  function repeat(input) {
+    if (!held || input.generation !== generation) return;
+    repeatTimer = clock.setTimeout(() => {
+      repeatTimer = undefined;
+      if (!held || input.generation !== generation) return;
+      try {
+        const repeating = { ...input, phase: 'repeat' };
+        if (!current(repeating)) { cancel(); return; }
+        const target = point();
+        if (!target) {
+          repeat(repeating);
+          return;
+        }
+        submit({ ...repeating, target });
+      } catch (error) { cancel(); report(error); }
+    }, repeatInterval);
+  }
+  function submit(input) {
+    if (!current(input)) { cancel(); return false; }
+    const remaining = interval - (now() - lastSent);
+    if (remaining > 0) {
+      pending = { ...input, phase: 'pending' };
+      if (pendingTimer !== undefined) clock.clearTimeout(pendingTimer);
+      pendingTimer = clock.setTimeout(() => {
+        pendingTimer = undefined;
+        const next = pending; pending = null;
+        if (!next) return;
+        try { submit(next); } catch (error) { cancel(); report(error); }
+      }, remaining);
+      return true;
+    }
+    pending = null;
+    if (sendMove(input.target) !== false) lastSent = now();
+    repeat(input);
+    return true;
+  }
+  function request() {
+    try {
+      const target = point(), context = getContext();
+      if (!context?.map || !context.player) { cancel(); return false; }
+      if (!target) { stop(); return false; }
+      if (!canMove(target, 'request')) { cancel(); return false; }
+      cancel();
+      const input = { target, context: { ...context }, generation, phase: 'request' };
+      onManualMove?.();
+      if (!current(input)) return false;
+      held = true;
+      return submit(input);
+    } catch (error) { cancel(); report(error); return false; }
+  }
+  return { request, stop, cancel };
+})({
+          clock: globalThis, now: () => globalThis.performance.now(),
+          getTarget: () => ({ x: Mouse.world.x, y: Mouse.world.y }),
+          getContext: () => ({ map: MapRenderer.loading ? "" : MapRenderer.currentMap, player: SessionStorage_default.Entity }),
+          canMove: (target, phase) => {
+            const player = SessionStorage_default.Entity;
+            return !MapRenderer.loading && (phase === "pending" || Mouse.intersect) && !SessionStorage_default.FreezeUI
+              && Mouse.state !== Mouse.MOUSE_STATE.USESKILL && !KEYS.SHIFT
+              && !!player?.position && Number.isFinite(player.position[0]) && Number.isFinite(player.position[1])
+              && player.action !== player.ACTION.SIT && !(player.ACTION.DIE !== undefined && player.action === player.ACTION.DIE)
+              && target.x < Altitude.width && target.y < Altitude.height;
+          },
+          sendMove: walkIntervalProcess,
+          onManualMove: () => {
+    if (typeof LastROTools !== "undefined") {
+      LastROTools?._lastroPanels?.cancelRoute();
+      LastROTools?._lastroQuestRoute?.cancel();
+    }
+    if (Navigation_default?.clear) Navigation_default.clear();
+          },
+          onError: error => console.warn("[LastRO] Movement input recovered from an error", error),
+        });
         MapControl.onRequestWalk = onRequestWalk;
         MapControl.onRequestStopWalk = onRequestStopWalk;
         MapControl.onRequestDropItem = onDropItem;

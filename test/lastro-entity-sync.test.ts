@@ -1,18 +1,13 @@
-import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
-import { patchRuntimeEntitySync } from '../scripts/lastro-entity-sync.mjs';
+import { extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 
-const vendor = readFileSync(new URL('../vendor/v2/Online.js', import.meta.url), 'utf8');
+const vendor = readVendorSource();
 function region(name: string, source = vendor) {
-  const start = source.indexOf(`//#region ${name}`);
-  if (start < 0) throw new Error(name);
-  const end = source.indexOf('//#endregion', start) + '//#endregion'.length;
-  return source.slice(start, end);
+  return extractVendorRegion(name, source);
 }
-const native = region('src/Renderer/Entity/EntityWalk.js') + '\n' + region('src/Engine/MapEngine/Entity.js');
-const patched = patchRuntimeEntitySync(native);
+const runtime = region('src/Renderer/Entity/EntityWalk.js') + '\n' + region('src/Engine/MapEngine/Entity.js');
 function declaration(source: string, name: string) {
   const file = ts.createSourceFile('native.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
   const nodes = file.statements.filter(node => ts.isFunctionDeclaration(node) && node.name?.text === name);
@@ -50,7 +45,7 @@ interface Entity {
   setAction(options: ActionOptions): void;
 }
 
-function fixture(source = patched, objecttype = 5, size = 12) {
+function fixture(source = runtime, objecttype = 5, size = 12) {
   let now = 10000;
   const SessionStorage_default = { serverTick: 10000, Entity: null as Entity | null };
   const Renderer = { tick: now };
@@ -147,17 +142,12 @@ function fixture(source = patched, objecttype = 5, size = 12) {
 
 describe('server-authoritative entity synchronization', () => {
   it.each(['player', 'entity'])('reconstructs a server-approved short detour after native index collisions: %s packet', entry => {
-    const fixed = fixture(patched, 0, 128);
-    const old = fixture(native, 0, 128);
-    for (const f of [old, fixed]) {
-      for (let y = 43; y <= 55; y++) f.cells[60 + y * 128] = 1;
-      f.entity.position.set([27, 50, 77]);
-      const packet = { GID: 123, MoveData: [50, 50, 69, 50], moveStartTime: 10000 };
-      if (entry === 'player') f.functions.playerMove(packet);
-      else f.functions.entityMove(packet);
-    }
-    expect(old.entity.walk.total).toBe(0);
-    expect(Array.from(old.entity.position)).toEqual([27, 50, 77]);
+    const fixed = fixture(runtime, 0, 128);
+    for (let y = 43; y <= 55; y++) fixed.cells[60 + y * 128] = 1;
+    fixed.entity.position.set([27, 50, 77]);
+    const packet = { GID: 123, MoveData: [50, 50, 69, 50], moveStartTime: 10000 };
+    if (entry === 'player') fixed.functions.playerMove(packet);
+    else fixed.functions.entityMove(packet);
     expect(fixed.entity.walk.total).toBeGreaterThan(0);
     expect(fixed.entity.walk.total).toBeLessThanOrEqual(66);
     const path = Array.from(fixed.entity.walk.path.slice(0, fixed.entity.walk.total));
@@ -180,12 +170,11 @@ describe('server-authoritative entity synchronization', () => {
   });
 
   it('retains ordinary native route selection and rejects oversized or unreachable server routes safely', () => {
-    const old = fixture(native, 0, 96), fixed = fixture(patched, 0, 96);
-    for (const f of [old, fixed]) f.entity.walkTo(1, 1, 20, 10, undefined, 10000);
-    expect(Array.from(fixed.entity.walk.path.slice(0, fixed.entity.walk.total)))
-      .toEqual(Array.from(old.entity.walk.path.slice(0, old.entity.walk.total)));
+    const fixed = fixture(runtime, 0, 96);
+    fixed.entity.walkTo(1, 1, 20, 10, undefined, 10000);
+    expect(fixed.entity.walk.total).toBeGreaterThan(0);
     for (const type of ['long', 'blocked', 'loading', 'local']) {
-      const f = fixture(patched, 0, 96);
+      const f = fixture(runtime, 0, 96);
       if (type === 'blocked') f.cells[20 + 1 * 96] = 1;
       const end = type === 'long' ? 41 : type === 'blocked' ? 20 : 30;
       if (type === 'loading' || type === 'local') for (let y = 0; y <= 14; y++) f.cells[16 + y * 96] = 1;
@@ -201,7 +190,7 @@ describe('server-authoritative entity synchronization', () => {
   });
 
   it.each([0, 5, 7, 8, 9, 10, 15, 16])('preserves continuous animation distance for delayed and repeated routes: type %s', type => {
-    const f = fixture(patched, type, 48);
+    const f = fixture(runtime, type, 48);
     f.entity.walkTo(1, 1, 20, 1, undefined, 10000);
     const callbacks = vi.fn();
     f.entity.onWalkEnd = callbacks;
@@ -225,7 +214,7 @@ describe('server-authoritative entity synchronization', () => {
   });
 
   it('projects unrendered path distance without mutating the live route or invoking arrival callbacks', () => {
-    const f = fixture(patched, 0, 48);
+    const f = fixture(runtime, 0, 48);
     let seed = 37;
     const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 2 ** 32; };
     for (let sample = 0; sample < 160; sample++) {
@@ -264,7 +253,7 @@ describe('server-authoritative entity synchronization', () => {
   });
 
   it('keeps animation phase through an unrendered old endpoint and resets it when the new route completes', () => {
-    const f = fixture(patched, 0);
+    const f = fixture(runtime, 0);
     f.entity.walkTo(1, 1, 3, 1, undefined, 10000);
     f.setNow(10500); f.SessionStorage_default.serverTick = 10500;
     f.entity.walkTo(3, 1, 8, 1, undefined, 10500);
@@ -277,27 +266,13 @@ describe('server-authoritative entity synchronization', () => {
     expect(f.entity.action).toBe(f.entity.ACTION.IDLE);
   });
 
-  it('reproduces native coordinate overflow on a 32-step route', () => {
-    const f = fixture(native, 0, 48);
-    f.entity.walkTo(1, 1, 33, 1, undefined, 10000);
-    expect(f.entity.walk.total).toBe(66);
-    expect(f.entity.walk.path.length).toBe(64);
-    let invalid = false;
-    for (let elapsed = 0; elapsed <= 4800; elapsed += 16) {
-      f.setNow(10000 + elapsed);
-      f.entity.walkProcess();
-      invalid ||= Array.from(f.entity.position).some(value => !Number.isFinite(value));
-    }
-    expect(invalid).toBe(true);
-  });
-
   it.each([
     [0, 1, 1, 33, 1], [5, 1, 1, 33, 1],
     [0, 1, 1, 33, 33], [5, 1, 1, 33, 33],
     [0, 33, 33, 1, 33], [5, 33, 33, 1, 33],
     [0, 33, 33, 1, 1], [5, 33, 33, 1, 1],
   ])('finishes 32 steps with finite coordinates: type %s, [%s,%s] to [%s,%s]', (type, x0, y0, x1, y1) => {
-    const f = fixture(patched, type, 48);
+    const f = fixture(runtime, type, 48);
     const arrival = vi.fn(), end = vi.fn();
     f.entity.onWalkEnd = end;
     // Complete the route twice so resetRoute must preserve the required capacity.
@@ -324,7 +299,7 @@ describe('server-authoritative entity synchronization', () => {
   });
 
   it.each([0, 15, 16])('preserves 32-step non-walkable paths for entity type %s', type => {
-    const f = fixture(patched, type, 48);
+    const f = fixture(runtime, type, 48);
     const end = vi.fn();
     f.entity.onWalkEnd = end;
     f.entity.walkToNonWalkableGround(1, 1, 33, 1, 0, false, false, 10000);
@@ -338,17 +313,6 @@ describe('server-authoritative entity synchronization', () => {
     expect(Array.from(f.entity.position.slice(0, 2))).toEqual([33, 1]);
     expect(f.entity.walk.total).toBe(0);
     expect(end).toHaveBeenCalledOnce();
-  });
-
-  it('reproduces the native wait for attack motion plus 200ms before showing a received death', () => {
-    const f = fixture(native);
-    f.functions.hit({ damage: 10, count: 4, action: 0, attackMT: 800, attackedMT: 400 }, f.entity);
-    f.functions.vanish({ GID: 123, type: 1 });
-    expect(f.entity.action).toBe(f.entity.ACTION.IDLE);
-    expect(f.Events.setTimeout.mock.calls.at(-1)?.[1]).toBe(1600);
-    expect(f.entries.has(123)).toBe(false);
-    f.flush(11600);
-    expect(f.entity.action).toBe(f.entity.ACTION.DIE);
   });
 
   it('plays native death immediately and clears saved/next animations despite pending multihits', () => {
@@ -369,7 +333,7 @@ describe('server-authoritative entity synchronization', () => {
   });
 
   it('preserves native player death/repeat and out-of-sight cleanup', () => {
-    const player = fixture(patched, 0);
+    const player = fixture(runtime, 0);
     player.entity._deathSyncTick = 50000;
     player.functions.vanish({ GID: 123, type: 1 });
     expect(player.entity.action).toBe(player.entity.ACTION.DIE);
@@ -394,14 +358,9 @@ describe('server-authoritative entity synchronization', () => {
     expect(f.entity.walk.tick).toBe(10000);
   });
 
-  it('reproduces the native ignored moveStartTime and fixes it for monsters and players', () => {
-    const old = fixture(native);
-    old.SessionStorage_default.serverTick = 10300;
-    old.entity.walkTo(1, 1, 6, 1, undefined, 10000);
-    expect(old.entity.position[0]).toBe(1);
-    expect(old.entity.walk.tick).toBe(10000);
+  it('uses moveStartTime for monsters and players', () => {
     for (const type of [5, 0]) {
-      const f = fixture(patched, type);
+      const f = fixture(runtime, type);
       f.SessionStorage_default.serverTick = 10300;
       f.entity.walkTo(1, 1, 6, 1, undefined, 10000);
       expect(f.entity.position[0]).toBeCloseTo(3);
@@ -427,17 +386,13 @@ describe('server-authoritative entity synchronization', () => {
   });
 
   it('does not interpolate a stale displayed position through a wall to the first server path cell', () => {
-    const old = fixture(native);
     const fixed = fixture();
-    for (const f of [old, fixed]) {
-      f.cells[3 + 3 * 12] = 1;
-      f.entity.position.set([2, 3, 5]);
-      f.entity.walk.speed = 150;
-      f.entity.walkTo(4, 3, 7, 3, undefined, 10000);
-      f.setNow(10150);
-      f.entity.walkProcess();
-    }
-    expect(old.entity.position[0]).toBeCloseTo(3);
+    fixed.cells[3 + 3 * 12] = 1;
+    fixed.entity.position.set([2, 3, 5]);
+    fixed.entity.walk.speed = 150;
+    fixed.entity.walkTo(4, 3, 7, 3, undefined, 10000);
+    fixed.setNow(10150);
+    fixed.entity.walkProcess();
     expect(fixed.entity.position[0]).toBeCloseTo(5);
     expect(fixed.entity.position[1]).toBe(3);
     expect(fixed.entity.position[2]).toBe(8);
@@ -497,7 +452,7 @@ describe('server-authoritative entity synchronization', () => {
     expect(Array.from(f.entity.walk.pos)).toEqual([1.5, 1, 2.5]);
     expect(f.entity.walk.prevTick).toBe(10000);
     expect(f.entity.position[0]).toBe(1.5);
-    expect(declaration(region('src/Renderer/Entity/EntityWalk.js', patched), 'walkToNonWalkableGround'))
+    expect(declaration(region('src/Renderer/Entity/EntityWalk.js', runtime), 'walkToNonWalkableGround'))
       .toBe(declaration(region('src/Renderer/Entity/EntityWalk.js'), 'walkToNonWalkableGround'));
   });
 
@@ -534,7 +489,7 @@ describe('server-authoritative entity synchronization', () => {
 
 describe('joining the current player to a nearby server movement segment', () => {
   function joinFixture(dx = 1, dy = 0, type = 0) {
-    const f = fixture(patched, type, 48);
+    const f = fixture(runtime, type, 48);
     const distance = Math.hypot(dx, dy), duration = 150 * distance;
     const receipt = 10000 + duration * 1.4;
     f.entity.walk.speed = 150;
@@ -646,7 +601,7 @@ describe('joining the current player to a nearby server movement segment', () =>
   });
 
   it('keeps a near join on a multi-segment obstacle route and then follows the server path', () => {
-    const f = fixture(patched, 0, 48); f.cells[15 + 12 * 48] = 1; f.entity.walk.speed = 150;
+    const f = fixture(runtime, 0, 48); f.cells[15 + 12 * 48] = 1; f.entity.walk.speed = 150;
     f.functions.playerMove({ MoveData: [12, 12, 18, 12], moveStartTime: 10000 });
     const path = Array.from(f.entity.walk.path.slice(0, f.entity.walk.total));
     const firstDuration = Math.hypot(path[2]! - path[0]!, path[3]! - path[1]!) * 150;
@@ -684,7 +639,7 @@ describe('joining the current player to a nearby server movement segment', () =>
   );
 
   it('does not join a first route from a stale display position or an already elapsed first segment', () => {
-    const first = fixture(patched, 0, 48); first.entity.position.set([13.4, 12, 25.4]);
+    const first = fixture(runtime, 0, 48); first.entity.position.set([13.4, 12, 25.4]);
     first.functions.playerMove({ MoveData: [13, 12, 18, 12], moveStartTime: 10000 });
     expect(Array.from(first.entity.position)).toEqual([13, 12, 25]);
     const late = joinFixture(); late.setNow(late.receipt + 190); late.SessionStorage_default.serverTick = late.receipt + 190;
@@ -722,35 +677,4 @@ describe('joining the current player to a nearby server movement segment', () =>
       f.setNow(f.receipt + 300); f.entity.walkProcess(); expect(ended).toHaveBeenCalledOnce();
     },
   );
-});
-
-describe('entity synchronization patch anchors', () => {
-  it('skips small fixtures without either independent region', () => {
-    expect(patchRuntimeEntitySync('const sample = 1;')).toBe('const sample = 1;');
-  });
-  it.each([
-    native.replace('function walkTo(', 'function renamedWalkTo('),
-    native.replaceAll('this.walk.pos.set(this.position);', 'this.walk.pos.set(otherPosition);'),
-    native.replace('walk.prevTick + MAX_WALK_CATCHUP_DELTA', 'walk.prevTick + 200'),
-    native.replace('entity.remove(pkt.type);', 'entity.remove(otherType);'),
-    native.replace('this.path = new Int16Array(PathFinding_default.MAX_WALKPATH * 2);', 'this.path = new Int16Array(64);'),
-    native.replace('this.walk.path = new Int16Array(PathFinding_default.MAX_WALKPATH * 2);', 'this.walk.path = new Int16Array(64);'),
-    native + region('src/Renderer/Entity/EntityWalk.js'),
-  ])('rejects changed or duplicate native anchors', source => {
-    expect(() => patchRuntimeEntitySync(source)).toThrow('anchor:entity-sync');
-  });
-  it('applies the allocation anchors to LF and CRLF source', () => {
-    const lf = native.replaceAll('\r\n', '\n');
-    expect(patchRuntimeEntitySync(lf.replaceAll('\n', '\r\n')).replaceAll('\r\n', '\n'))
-      .toBe(patchRuntimeEntitySync(lf));
-  });
-  it('preserves the native packet handlers, movement pathfinder and damage scheduling', () => {
-    const engine = region('src/Engine/MapEngine/Entity.js', patched);
-    for (const name of ['onEntityMove', 'onEntityStopMove', 'onEntityWillBeHitSub']) {
-      expect(declaration(engine, name)).toBe(declaration(region('src/Engine/MapEngine/Entity.js'), name));
-    }
-    const output = patchRuntimeEntitySync(vendor);
-    expect(region('src/Utils/PathFinding.js', output)).toBe(region('src/Utils/PathFinding.js'));
-    expect(region('src/Engine/MapEngine/Main.js', output)).toBe(region('src/Engine/MapEngine/Main.js'));
-  });
 });

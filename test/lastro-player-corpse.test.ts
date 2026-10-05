@@ -1,14 +1,11 @@
-import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
-import { patchRuntimeEntitySync } from '../scripts/lastro-entity-sync.mjs';
+import { extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 
-const vendor = readFileSync(new URL('../vendor/v2/Online.js', import.meta.url), 'utf8');
+const vendor = readVendorSource();
 function region(name: string) {
-  const start = vendor.indexOf(`//#region ${name}`), end = vendor.indexOf('//#endregion', start);
-  if (start < 0 || end < 0) throw new Error(name);
-  return vendor.slice(start, end + '//#endregion'.length);
+  return extractVendorRegion(name, vendor);
 }
 // Parse each small native module once; never parse the entire runtime per case.
 const parsed = new Map<string, ts.SourceFile>();
@@ -23,7 +20,7 @@ function declaration(name: string, fn: string, source?: string) {
   return matches[0]!.getText(ast);
 }
 const engineName = 'src/Engine/MapEngine/Entity.js';
-const patchedEngine = patchRuntimeEntitySync(region(engineName));
+const runtimeEngine = region(engineName);
 const entityAst = file('src/Renderer/Entity/Entity.js');
 let entityClass: ts.ClassExpression | undefined;
 const prototypes: string[] = [];
@@ -47,6 +44,10 @@ const actionName = 'src/Renderer/Entity/EntityAction.js';
 const actionCode = ['Action', 'Animation', 'setAction', 'Init$10'].map(name => declaration(actionName, name)).join('\n');
 const managerCode = region('src/Renderer/EntityManager.js');
 const handlerCode = ['onEntitySpam', 'onEntityResurect'].map(name => declaration(engineName, name)).join('\n');
+const movementCancelCode = declaration('src/Renderer/Entity/EntityWalk.js', 'lastroCancelMovement');
+const routeMethodCode = ['lastroClearRouteJoin', 'resetRoute']
+  .map(name => declaration('src/Renderer/Entity/EntityWalk.js', name)).join('\n');
+const walkStructureCode = declaration('src/Renderer/Entity/EntityWalk.js', 'WalkStructure');
 
 interface CorpseEntity {
   GID: number; objecttype: number; action: number; ACTION: Record<string, number>;
@@ -54,7 +55,7 @@ interface CorpseEntity {
   animation: { repeat: boolean }; render: ReturnType<typeof vi.fn>;
   set(packet: Record<string, unknown>): void; remove(type: number): void; clean(): void;
 }
-function fixture(native = false) {
+function fixture() {
   let now = 10000;
   const component = () => ({ clean: vi.fn(), free: vi.fn(), remove: vi.fn(), load: vi.fn(),
     update: vi.fn(), hp: -1, hp_max: -1 });
@@ -81,6 +82,7 @@ function fixture(native = false) {
     Events: { setTimeout: vi.fn() }, C_DEATH_SYNC_OFFSET: 200, haveSiegfriedItem: () => false,
     KEYS: { SHIFT: false }, Mouse: { screen: { x: 0, y: 0 } },
     PACKET: { ZC: new Proxy({}, { get: () => function NativePacket() {} }) }, clanEmblems: {},
+    PathFinding_default: { MAX_WALKPATH: 32 },
   });
   vm.runInContext(`
 ${actionCode}
@@ -88,18 +90,22 @@ class Entity {
   ${staticFields.join('\n')}
   constructor(packet) {
     this.position = new Float32Array([0,0,0]); this.depth=0; this.gr2Model=null;
-    this.files={shadow:{spr:'shadow.spr',act:'shadow.act'}}; this.walk={speed:150};
+    this.files={shadow:{spr:'shadow.spr',act:'shadow.act'}}; this.walk=new WalkStructure();
     this._job=1002; this._sex=0; this.sound=component();
     for (const key of ['life','emblem','display','dialog','cast','room','attachments','animations','aura','dropEffect']) this[key]=component();
     this.render=mockFn(); Init$10.call(this); if (packet) this.set(packet);
   }
-  ${methods.join('\n')}
+${methods.join('\n')}
 }
+${walkStructureCode}
 ${prototypes.join('\n')}
+${routeMethodCode}
+Entity.prototype.resetRoute = resetRoute;
 ${managerCode}
 init_EntityManager();
+${movementCancelCode}
 ${handlerCode}
-${declaration(native ? engineName : 'patched/MapEngine/Entity.js', 'onEntityVanish', native ? undefined : patchedEngine)}
+${declaration(engineName, 'onEntityVanish', runtimeEngine)}
 `, context);
   const handlers = vm.runInContext('({ vanish:onEntityVanish, resurrect:onEntityResurect, spawn:onEntitySpam })', context) as {
     vanish(packet: { GID: number; type: number }): void;
@@ -127,21 +133,6 @@ ${declaration(native ? engineName : 'patched/MapEngine/Entity.js', 'onEntityVani
 }
 
 describe('native player corpse lifecycle with the real entity manager', () => {
-  it('reproduces a remote corpse orphaned from lookup while remaining rendered after resurrection and departure', () => {
-    const f = fixture(true); f.handlers.vanish({ GID: 123, type: 1 });
-    expect(f.manager.get(123)).toBeNull(); expect(f.list()).toContain(f.other);
-    f.handlers.resurrect({ AID: 123 }); f.handlers.vanish({ GID: 123, type: 0 });
-    f.advance(100000); expect(f.other.action).toBe(f.other.ACTION.DIE); expect(f.other.remove_tick).toBe(0);
-    expect(f.list()).toContain(f.other); expect(f.other.render).toHaveBeenCalledOnce();
-  });
-
-  it('reproduces a second rendered actor when the native orphaned GID enters again', () => {
-    const f = fixture(true); f.handlers.vanish({ GID: 123, type: 1 }); f.respawn();
-    const copies = f.list().filter(entity => entity.GID === 123);
-    expect(copies).toHaveLength(2); expect(f.manager.get(123)).not.toBe(f.other);
-    f.advance(20000); expect(copies[0]!.render).toHaveBeenCalledOnce(); expect(copies[1]!.render).toHaveBeenCalledOnce();
-  });
-
   it('retains the remote dead player for server lifecycle packets without adding a corpse expiration', () => {
     const f = fixture(); f.manager.storeLife(123, { hp: 100, hp_max: 100 });
     f.handlers.vanish({ GID: 123, type: 1 });

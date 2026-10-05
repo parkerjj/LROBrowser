@@ -331,12 +331,13 @@ export function compareRuntimeSources(before, after, options) {
 
   const beforeStatements = keyedStatements(beforeFile);
   const afterStatements = keyedStatements(afterFile);
+  const audioOwners = new Set(audioRelocatableOwners);
+  const ownerBase = owner => owner.replace(/#\d+$/, '');
+  const beforeAudio = beforeStatements.filter(statement => audioOwners.has(ownerBase(statement.owner)));
+  const afterAudio = afterStatements.filter(statement => audioOwners.has(ownerBase(statement.owner)));
+  const hasAudioOwners = beforeAudio.length > 0 || afterAudio.length > 0;
   let relocatedOwners = [];
-  if (options.stage === 'audio') {
-    const audioOwners = new Set(audioRelocatableOwners);
-    const ownerBase = owner => owner.replace(/#\d+$/, '');
-    const beforeAudio = beforeStatements.filter(statement => audioOwners.has(ownerBase(statement.owner)));
-    const afterAudio = afterStatements.filter(statement => audioOwners.has(ownerBase(statement.owner)));
+  if (hasAudioOwners) {
     for (const owner of audioRelocatableOwners) {
       const beforeMatches = beforeAudio.filter(statement => ownerBase(statement.owner) === owner);
       const afterMatches = afterAudio.filter(statement => ownerBase(statement.owner) === owner);
@@ -390,7 +391,7 @@ export function compareRuntimeSources(before, after, options) {
     const afterIndexByOwner = new Map(afterAudio.map(statement => [ownerBase(statement.owner), statement.index]));
     relocatedOwners = audioRelocatableOwners.filter(owner => beforeIndexByOwner.get(owner) !== afterIndexByOwner.get(owner));
   }
-  const relocatedSet = options.stage === 'audio' ? new Set(audioRelocatableOwners) : new Set();
+  const relocatedSet = hasAudioOwners ? audioOwners : new Set();
   const beforeCompared = beforeStatements.filter(statement => !relocatedSet.has(statement.owner.replace(/#\d+$/, '')));
   const afterCompared = afterStatements.filter(statement => !relocatedSet.has(statement.owner.replace(/#\d+$/, '')));
   const beforeByOwner = new Map(beforeCompared.map(statement => [statement.owner, statement]));
@@ -420,7 +421,7 @@ export function compareRuntimeSources(before, after, options) {
       differences.push({ owner: statement.owner, kind: 'added-owner', detail: 'new top-level AST owner was added' });
     }
   }
-  return { equal: differences.length === 0, differences, ...(options.stage === 'audio' ? { relocatedOwners } : {}) };
+  return { equal: differences.length === 0, differences, relocatedOwners };
 }
 
 function parseArguments(args) {

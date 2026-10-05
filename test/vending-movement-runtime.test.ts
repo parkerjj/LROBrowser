@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { patchRuntimeMovementInput } from '../scripts/lastro-movement-input.mjs';
 import { patchRuntimeVendingMovement } from '../scripts/lastro-vending-movement.mjs';
+import { extractRuntimeNode } from './helpers/vendor-runtime';
 
 const native = readFileSync('vendor/v2/Online.js', 'utf8');
 function region(source: string, path: string) {
@@ -19,6 +19,8 @@ const paths = [
   'src/Engine/MapEngine/Store.js',
 ];
 const focused = paths.map(path => region(native, path) + '\n//#endregion').join('\n');
+const movementHelpers = ['lastroMovementUnavailable', 'lastroCancelMovement', 'lastroCheckMovementConnection']
+  .map(name => extractRuntimeNode(native, { region: 'src/Renderer/Entity/EntityWalk.js', kind: 'function', name })).join('\n');
 const patched = patchRuntimeVendingMovement(focused);
 function declarations(source: string) {
   const file = ts.createSourceFile('Native.js', source, ts.ScriptTarget.Latest, true), functions = new Map<string, string>(), assignments = new Map<string, string>();
@@ -70,6 +72,7 @@ function fixture(fixed = true) {
     EntityManager: { get: () => null }, packetDump: false, _socket: { isZone: false }, send,
     __esmMin: (init: () => void) => init, init_CodepageManager: () => {}, recordBuild: build,
   });
+  vm.runInContext(movementHelpers, context);
   vm.runInContext(region(native, 'src/Utils/BinaryWriter.js') + '\ninit_BinaryWriter();\n' + [
     'PACKET.CZ.REQUEST_MOVE', 'PACKET.CZ.REQUEST_MOVE.prototype.build', 'PACKET.CZ.REQUEST_MOVE2', 'PACKET.CZ.REQUEST_MOVE2.prototype.build',
   ].map(name => packetSources.assignments.get(name)).join('\n') + `
@@ -189,8 +192,8 @@ describe('native player-store shopping movement', () => {
     for (const path of ['src/UI/Components/Vending/Vending.js', 'src/UI/Components/VendingShop/VendingShop.js', 'src/Renderer/Entity/EntityWalk.js', 'src/Engine/MapEngine/Entity.js'])
       expect(patchRuntimeVendingMovement(region(native, path) + '\n//#endregion')).toBe(region(native, path) + '\n//#endregion');
   });
-  it('applies after the existing movement input patch and rejects patch drift or duplicate installation', () => {
-    expect(() => patchRuntimeVendingMovement(patchRuntimeMovementInput(focused))).not.toThrow();
+  it('applies after permanent movement input and rejects vending drift or duplicate installation', () => {
+    expect(patchRuntimeVendingMovement(focused)).toBe(patched);
     expect(() => patchRuntimeVendingMovement(patched)).toThrow('anchor:vending-movement:already-installed');
     expect(() => patchRuntimeVendingMovement(focused.replace('NpcStore.mouseMode = GUIComponent.MouseMode.FREEZE;', 'NpcStore.mouseMode = 1;'))).toThrow('anchor:vending-movement:store-lifecycle');
     expect(() => patchRuntimeVendingMovement(focused.replace('function move$1(', 'function driftMove('))).toThrow('anchor:vending-movement:');

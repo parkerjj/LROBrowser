@@ -3,8 +3,12 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
 import { LASTRO_MONSTER_APPEARANCES, LASTRO_MERCENARY_APPEARANCES, patchRuntimeEntityAppearance } from '../scripts/lastro-entity-appearance.mjs';
+import { extractRuntimeNode } from './helpers/vendor-runtime';
 
 const vendor = readFileSync('vendor/v2/Online.js', 'utf8'), patched = patchRuntimeEntityAppearance(vendor);
+const hoverHpInitialization = extractRuntimeNode(vendor, {
+  region: 'src/Renderer/EntityManager.js', kind: 'assignment', name: 'EntityManager._lastroMonsterHoverHp',
+});
 const paths = { actions: 'src/Renderer/Entity/EntityAction.js', view: 'src/Renderer/Entity/EntityView.js', table: 'src/DB/Monsters/MonsterTable.js', db: 'src/DB/DBManager.js', engine: 'src/Engine/MapEngine/Entity.js' };
 function region(name: string, source = patched) {
   const start = source.indexOf('//#region ' + name), end = source.indexOf('//#endregion', start);
@@ -87,6 +91,7 @@ function fixture(lastro = true, source = patched) {
     Damage: { add: vi.fn(), TYPE: { CRIT: 1, COMBO: 2, COMBO_FINAL: 4 } }, onEntityWillBeHitSub: vi.fn(), controller: { isGroupMember: () => false },
     ChatBox_default: { addText: vi.fn(), TYPE: {}, FILTER: {} },
   });
+  vm.runInContext(`var getEntity = EntityManager.get, getLife = EntityManager.getLife; ${hoverHpInitialization};`, context);
   vm.runInContext(region(paths.table, source) + '\ninit_MonsterTable();', context);
   vm.runInContext([
     declaration(region(paths.db, source), 'applyLastROPetJobOverrides'), declaration(region(paths.db, source), 'mergeJobNameTable'),

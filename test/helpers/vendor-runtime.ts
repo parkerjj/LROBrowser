@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, URL as NodeURL } from 'node:url';
 import ts from 'typescript';
 
-const vendorPath = fileURLToPath(new URL('../../vendor/v2/Online.js', import.meta.url));
+const vendorPath = fileURLToPath(new NodeURL('../../vendor/v2/Online.js', import.meta.url));
 
 export function readVendorSource(): string {
   return readFileSync(vendorPath, 'utf8');
@@ -60,9 +60,13 @@ export function extractRuntimeNode(source: string, selector: RuntimeNodeSelector
         matches.push(node);
       }
     } else if (selector.kind === 'assignment'
-      && ts.isBinaryExpression(node)
-      && node.operatorToken.kind === ts.SyntaxKind.EqualsToken
-      && node.left.getText(file) === selector.name) {
+      && ((ts.isBinaryExpression(node)
+        && node.operatorToken.kind === ts.SyntaxKind.EqualsToken
+        && node.left.getText(file) === selector.name)
+        || (ts.isVariableDeclaration(node)
+          && ts.isIdentifier(node.name)
+          && node.name.text === selector.name
+          && node.initializer !== undefined))) {
       matches.push(node);
     }
     ts.forEachChild(node, visit);
