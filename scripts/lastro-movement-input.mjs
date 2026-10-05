@@ -1,11 +1,31 @@
 import ts from 'typescript';
+import { selectLastroMovementTarget as targetSelectorSource } from './lastro-movement-target.mjs';
+
+/* global SessionStorage_default, KEYS, Controls_default, Mouse */
+
+function lastroCanPassPlayerClick(entity) {
+  return SessionStorage_default.FreezeUI === false
+    && Mouse.state === Mouse.MOUSE_STATE.NORMAL
+    && SessionStorage_default.captchaGetIdOnEntityClick === false
+    && SessionStorage_default.captchaGetIdOnFloorClick === false
+    && SessionStorage_default.TouchTargeting === false
+    && SessionStorage_default.mapState?.isPVP === false
+    && SessionStorage_default.mapState?.isGVG === false
+    && KEYS.SHIFT === false && KEYS.CTRL === false && KEYS.ALT === false
+    && Controls_default.noshift === false
+    && typeof entity.canAttackEntity === 'function' && entity.canAttackEntity() === false;
+}
 
 // All callbacks are explicit because this factory is serialized into MapEngine.
-export function createLastroMovementInput({ getTarget, getContext, canMove, sendMove, onManualMove,
-  onError, clock = globalThis, now = () => globalThis.performance.now() }) {
+export function createLastroMovementInput({ getTarget, getContext, canMove, sendMove, getApprovedTarget, onManualMove,
+  onError, retargetInterval = 200, clock = globalThis, now = () => globalThis.performance.now() }) {
   let held = false, pending = null, pendingTimer, repeatTimer, generation = 0;
-  let lastSent = -Infinity;
+  let lastSent = -Infinity, lastTarget = null, lastContext = null;
   const interval = 200, repeatInterval = 500;
+  const changeInterval = Number.isFinite(retargetInterval) && retargetInterval > 0 ? Math.max(100, retargetInterval) : interval;
+  const floodInterval = Math.min(interval, changeInterval);
+  const sameTarget = (a, b) => !!a && !!b && a.x === b.x && a.y === b.y;
+  const sameContext = (a, b) => !!a && !!b && a.map === b.map && a.player === b.player;
 
   function report(error) { try { onError?.(error); } catch { /* Input cleanup must continue. */ } }
   function cancel() {
@@ -37,7 +57,7 @@ export function createLastroMovementInput({ getTarget, getContext, canMove, send
       repeatTimer = undefined;
       if (!held || input.generation !== generation) return;
       try {
-        const repeating = { ...input, phase: 'repeat' };
+        const repeating = { ...input, phase: 'repeat', retry: true };
         if (!current(repeating)) { cancel(); return; }
         const target = point();
         if (!target) {
@@ -50,7 +70,19 @@ export function createLastroMovementInput({ getTarget, getContext, canMove, send
   }
   function submit(input) {
     if (!current(input)) { cancel(); return false; }
-    const remaining = interval - (now() - lastSent);
+    // The approved walk can still describe an earlier destination while the
+    // latest successful send is awaiting acknowledgement. Returning to that
+    // earlier destination must supersede the in-flight command rather than
+    // disappear as a duplicate. Failed sends never change this comparison.
+    const newerCommand = sameContext(lastContext, input.context) && !sameTarget(lastTarget, input.target);
+    if (!input.retry && !newerCommand && sameTarget(getApprovedTarget?.(), input.target)) {
+      pending = null;
+      repeat(input);
+      return true;
+    }
+    const spacing = !sameContext(lastContext, input.context) ? floodInterval
+      : sameTarget(lastTarget, input.target) ? interval : changeInterval;
+    const remaining = spacing - (now() - lastSent);
     if (remaining > 0) {
       pending = { ...input, phase: 'pending' };
       if (pendingTimer !== undefined) clock.clearTimeout(pendingTimer);
@@ -63,7 +95,11 @@ export function createLastroMovementInput({ getTarget, getContext, canMove, send
       return true;
     }
     pending = null;
-    if (sendMove(input.target) !== false) lastSent = now();
+    if (sendMove(input.target) !== false) {
+      lastSent = now();
+      lastTarget = { ...input.target };
+      lastContext = { ...input.context };
+    }
     repeat(input);
     return true;
   }
@@ -140,6 +176,7 @@ function patchRegion(source, path, mutate) {
 
 export function patchRuntimeMovementInput(source) {
   source = patchRegion(source, 'src/Engine/MapEngine.js', ({ file, edits, find, fn }) => {
+    edits.push({ start: file.text.indexOf('\n') + 1, text: targetSelectorSource.toString() + '\n' });
     const walk = fn('onRequestWalk'), stop = fn('onRequestStopWalk'), interval = fn('walkIntervalProcess');
     if (walk.parameters.length || stop.parameters.length || interval.parameters.length) fail();
     const direction = walk.body.statements.filter(ts.isIfStatement).find(node => node.expression.getText(file).includes('ACTION.SIT'));
@@ -167,21 +204,85 @@ export function patchRuntimeMovementInput(source) {
 }` });
     edits.push({ start: stop.body.getStart(file), end: stop.body.end, text: '{ MapControl._lastroMovementInput?.stop(); }' });
     edits.push({ start: interval.parameters.pos, text: 'target' });
-    const sendText = send.thenStatement.getText(file).replace(/Mouse\.world\.x/g, 'target.x').replace(/Mouse\.world\.y/g, 'target.y')
-      .replace(/if \(!checkFreeCell\(target\.x, target\.y, 9, pkt\.dest\)\) \{\s*pkt\.dest\[0\] = target\.x;\s*pkt\.dest\[1\] = target\.y;\s*\}/,
-        'if (!checkFreeCell(target.x, target.y, 9, pkt.dest)) return false;');
-    if (sendText.includes('pkt.dest[0] = target.x')) fail();
+    const sendBody = send.thenStatement.getText(file).replace(/Mouse\.world\.x/g, 'target.x').replace(/Mouse\.world\.y/g, 'target.y');
+    const fallback = /if \(!checkFreeCell\(target\.x, target\.y, 9, pkt\.dest\)\) \{\s*pkt\.dest\[0\] = target\.x;\s*pkt\.dest\[1\] = target\.y;\s*\}/g;
+    if (sendBody.match(fallback)?.length !== 1) fail();
+    // Occupancy prefers an empty cell; it must not reject walkable crowded ground.
+    if (sendBody.split('Network.sendPacket(pkt);').length !== 2) fail();
+    const sendText = sendBody.replace(fallback, `const player = SessionStorage_default.Entity, walk = player.walk;
+    let originX = Math.round(player.position[0]), originY = Math.round(player.position[1]);
+    const index = walk?.index, total = walk?.total, path = walk?.path;
+    if (Number.isInteger(index) && index >= 2 && index % 2 === 0 && Number.isInteger(total)
+      && total >= 4 && total <= 66 && total % 2 === 0 && index < total && path?.length >= total
+      && Number.isInteger(path[index]) && Number.isInteger(path[index + 1])
+      && path[index] >= 0 && path[index + 1] >= 0
+      && path[index] < Altitude.width && path[index + 1] < Altitude.height
+      && path[index] <= 32767 && path[index + 1] <= 32767) {
+      originX = path[index]; originY = path[index + 1];
+    }
+    if (typeof Configs !== "undefined" && Configs.get("lastroProtocol", false)
+      && typeof selectLastroMovementTarget === "function" && typeof findLastroPredictedServerPath === "function"
+      && Math.max(Math.abs(target.x - originX), Math.abs(target.y - originY)) <= 32) {
+      const occupied = { cells: null };
+      const selected = selectLastroMovementTarget({ position: player.position, walk, target, range: 9,
+        altitude: Altitude, occupied: (x, y) => !isFreeCell(x, y, occupied), findPath: findLastroPredictedServerPath });
+      if (!selected || !(walk?.total > 0) && Math.round(player.position[0]) === selected.x && Math.round(player.position[1]) === selected.y) return false;
+      pkt.dest[0] = selected.x; pkt.dest[1] = selected.y;
+    } else if (!checkFreeCell(target.x, target.y, 9, pkt.dest)) {
+      if (!(Altitude.getCellType(target.x, target.y) & Altitude.TYPE.WALKABLE)) return false;
+      pkt.dest[0] = target.x;
+      pkt.dest[1] = target.y;
+    }`).replace('Network.sendPacket(pkt);', 'if (Network.sendPacket(pkt) === false) return false;');
+    const freeCell = fn('checkFreeCell'), cell = fn('isFreeCell');
+    const occupancy = 'entity.objecttype != entity.constructor.TYPE_EFFECT && entity.objecttype != entity.constructor.TYPE_UNIT && entity.objecttype != entity.constructor.TYPE_TRAP && Math.round(entity.position[0]) === x && Math.round(entity.position[1]) === y';
+    const checks = find(node => ts.isIfStatement(node) && node.expression.getText(file).replace(/\s/g, '') === occupancy.replace(/\s/g, ''));
+    const candidate = find(node => ts.isCallExpression(node) && node.expression.getText(file) === 'isFreeCell');
+    const loops = freeCell.body.statements.filter(ts.isForStatement);
+    const walkable = cell.body.statements[0];
+    if (freeCell.parameters.map(node => node.name.getText(file)).join(',') !== 'x,y,range,out'
+      || cell.parameters.map(node => node.name.getText(file)).join(',') !== 'x,y'
+      || checks.length !== 1 || candidate.length !== 1 || loops.length !== 1
+      || candidate[0].getText(file) !== 'isFreeCell(x + _x * d_x, y + _y * d_y)'
+      || !walkable || !ts.isIfStatement(walkable)
+      || walkable.getText(file).replace(/\s/g, '') !== 'if(!(Altitude.getCellType(x,y)&Altitude.TYPE.WALKABLE))returnfalse;') fail();
+    // Keep native cell order and exclusions, but scan the crowd only once per request.
+    edits.push({ start: loops[0].getStart(file), text: 'const occupied = { cells: null };\n  ' });
+    edits.push({ start: candidate[0].arguments.end, text: ', occupied' });
+    edits.push({ start: cell.parameters.end, text: ', occupied' });
+    edits.push({ start: cell.body.getStart(file), end: cell.body.end, text: `{
+  ${walkable.getText(file)}
+  if (!occupied.cells) {
+    const cells = new Set();
+    EntityManager.forEach(function (entity) {
+      if (entity.objecttype != entity.constructor.TYPE_EFFECT
+        && entity.objecttype != entity.constructor.TYPE_UNIT
+        && entity.objecttype != entity.constructor.TYPE_TRAP) {
+        cells.add(Math.round(entity.position[0]) + "," + Math.round(entity.position[1]));
+      }
+      return true;
+    });
+    occupied.cells = cells;
+  }
+  return !occupied.cells.has(x + "," + y);
+}` });
     edits.push({ start: interval.body.getStart(file), end: interval.body.end, text: `{
   const position = SessionStorage_default.Entity.position;
-  if (Math.round(position[0]) === target.x && Math.round(position[1]) === target.y) return false;
+  if (!(SessionStorage_default.Entity.walk?.total > 0) && Math.round(position[0]) === target.x && Math.round(position[1]) === target.y) return false;
   ${sendText.slice(1, -1)}
   return true;
 }` });
     edits.push({ start: binds[0].parent.getStart(file), text: `// lastro-movement-input-installed
         MapControl._lastroMovementInput = (${createLastroMovementInput.toString()})({
-          clock: Events, now: () => globalThis.performance.now(),
+          clock: globalThis, now: () => globalThis.performance.now(),
+          retargetInterval: typeof Configs !== "undefined" && Configs.get("lastroProtocol", false) ? 100 : 200,
           getTarget: () => ({ x: Mouse.world.x, y: Mouse.world.y }),
           getContext: () => ({ map: MapRenderer.loading ? "" : MapRenderer.currentMap, player: SessionStorage_default.Entity }),
+          getApprovedTarget: () => {
+            if (typeof Configs === "undefined" || !Configs.get("lastroProtocol", false)) return null;
+            const walk = SessionStorage_default.Entity?.walk, total = walk?.total;
+            return Number.isInteger(total) && total >= 4 && total <= walk.path?.length
+              ? { x: walk.path[total - 2], y: walk.path[total - 1] } : null;
+          },
           canMove: (target, phase) => {
             const player = SessionStorage_default.Entity;
             return !MapRenderer.loading && (phase === "pending" || Mouse.intersect) && !SessionStorage_default.FreezeUI
@@ -226,6 +327,45 @@ export function patchRuntimeMovementInput(source) {
     edits.push({ start: init[0].body.getStart(file) + 1, text: `
       window.addEventListener("blur", () => MapControl._lastroMovementInput?.cancel());
       document.addEventListener("visibilitychange", () => { if (document.hidden) MapControl._lastroMovementInput?.cancel(); });` });
+  });
+  source = patchRegion(source, 'src/Controls/EntityControl.js', ({ file, edits, find }) => {
+    if (file.parseDiagnostics.length) fail();
+    const classes = find(node => ts.isClassExpression(node)
+      && ts.isBinaryExpression(node.parent) && node.parent.left.getText(file) === 'EntityControl');
+    if (classes.length !== 1) fail();
+    const method = name => {
+      const matches = classes[0].members.filter(node => ts.isMethodDeclaration(node)
+        && node.name.getText(file) === name);
+      if (matches.length !== 1 || !matches[0].body || matches[0].parameters.length
+        || !matches[0].modifiers?.some(node => node.kind === ts.SyntaxKind.StaticKeyword)) fail();
+      return matches[0];
+    };
+    const down = method('onMouseDown'), focus = method('onFocus');
+    const branch = (owner, name) => {
+      const switches = owner.body.statements.filter(ts.isSwitchStatement);
+      if (switches.length !== 1 || switches[0].expression.getText(file) !== 'this.objecttype') fail();
+      const matches = switches[0].caseBlock.clauses.filter(node => ts.isCaseClause(node)
+        && node.expression.getText(file) === 'Entity.' + name);
+      if (matches.length !== 1) fail();
+      return matches[0];
+    };
+    const pc = branch(down, 'TYPE_PC'), focusPC = branch(focus, 'TYPE_PC');
+    const element = branch(focus, 'TYPE_ELEM'), hom = branch(focus, 'TYPE_HOM');
+    const captcha = pc.statements[0], stop = pc.statements[1];
+    const expected = 'if(SessionStorage_default.captchaGetIdOnEntityClick)CaptchaSelector_default.addPlayer(this.GID);';
+    const nativeFocus = 'if(KEYS.SHIFT===false&&Controls_default.noshift===false&&!this.canAttackEntity()){if(!Camera.action.active)Cursor.setType(Cursor.ACTION.DEFAULT);if(!SessionStorage_default.TouchTargeting&&!SessionStorage_default.autoFollow)break;}';
+    if (down.body.statements[0]?.getText(file).replace(/\s/g, '') !== 'constEntity=this.constructor;'
+      || pc.statements.length !== 2 || !captcha || !ts.isIfStatement(captcha)
+      || captcha.getText(file).replace(/\s/g, '') !== expected
+      || !stop || !ts.isReturnStatement(stop) || stop.expression?.kind !== ts.SyntaxKind.TrueKeyword
+      || focusPC.statements.length || element.statements.length
+      || hom.statements[0]?.getText(file).replace(/\s/g, '') !== nativeFocus) fail();
+    method('canAttackEntity');
+    const eol = file.text.includes('\r\n') ? '\r\n' : '\n';
+    edits.push({ start: file.text.indexOf('\n') + 1,
+      text: ('// lastro-movement-input-installed\n' + lastroCanPassPlayerClick.toString() + '\n').replace(/\n/g, eol) });
+    // Native onFocus can then let an ordinary noncombat click reach walking.
+    edits.push({ start: stop.getStart(file), text: 'if (lastroCanPassPlayerClick(this)) return false;' + eol + '          ' });
   });
   source = patchRegion(source, 'src/Renderer/MapRenderer.js', ({ edits, find }) => {
     const setMap = find(node => ts.isMethodDeclaration(node) && node.name.getText() === 'setMap');

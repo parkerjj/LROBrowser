@@ -52,8 +52,9 @@ function fixture(source: string, fail: 'card-prepare' | 'tools-append' | null = 
   const session = { Entity: { life, effectState: 0, position: [0, 0], job: 1, aura: { free() {}, load() {} }, walk: {}, display: {}, set() {}, resetRoute() {} },
     AID: 1, GID: 2, Sex: 0, AuthCode: 3, pet: { friendly: 0 }, ping: {}, Playing: false };
   const connections: Array<(success: boolean) => void> = [];
+  const resetMovementSession = vi.fn();
   const context = vm.createContext({
-    window: { ROConfig: config }, document: {}, console, Object, Number, String, Date, Map,
+    window: { ROConfig: config }, document: {}, console, Object, Number, String, Date, Map, Math: Object.create(Math),
     __esmMin: (init: () => void) => init, __exportAll: (value: unknown) => value,
     PACKET: { ZC: packetNamespace, CZ: packetNamespace },
     SessionStorage_default: session, PacketVerManager_default: { value: 20211103 },
@@ -71,6 +72,7 @@ function fixture(source: string, fail: 'card-prepare' | 'tools-append' | null = 
     applyLegacyMapEnterFields() {}, applyDebugMapEnterFields() {}, shouldSendMapTimeSync: () => false,
     refreshLastROAutomationSelects() {}, showLastroTeleportNotice() {}, lastroCancelMovement() {}, resetEntityForMapEntry() {},
     LastROInvalidateServerTick() {}, LastROResetServerTick() {},
+    lastroResetMovementSession: resetMovementSession,
   });
   const engine = region(source, 'src/Engine/MapEngine.js');
   const registers = [
@@ -114,7 +116,7 @@ function fixture(source: string, fail: 'card-prepare' | 'tools-append' | null = 
     + region(source, 'src/DB/Status/StatusProperty.js') + '\ninit_StatusProperty();\n'
     + shoppingLifecycle + '\n' + engine.replaceAll('import.meta.url', '"isolated-app://synthetic/runtime/Online.js"') + '\n' + registers
     + '\ninit_MapEngine();', context);
-  return { context, timeline, hooks, components, session, connections, lifecycleFailure,
+  return { context, timeline, hooks, components, session, connections, lifecycleFailure, resetMovementSession,
     start: () => vm.runInContext('MapEngine.init(0, 5121, "fixture.gat");', context),
     mapLoaded: () => vm.runInContext('onMapChange({xPos:1,yPos:2,mapName:"fixture.gat"}); MapRenderer.onLoad();', context) };
 }
@@ -147,12 +149,15 @@ describe.each([['native', native], ['prepared', prepared]])('%s map initializati
 
   it('sends actor-ready only after the real map-load callback finishes mounting game UI', () => {
     const f = fixture(source); f.start(); f.mapLoaded();
+    if (_kind === 'prepared') expect(f.resetMovementSession).toHaveBeenCalledExactlyOnceWith(f.session.Entity, 'map-entry');
+    else expect(f.resetMovementSession).not.toHaveBeenCalled();
     expect(f.timeline).toContain('entity'); expect(f.timeline).toContain('send:NOTIFY_ACTORINIT');
     expect(f.timeline.indexOf('append:LastROTools')).toBeLessThan(f.timeline.indexOf('send:NOTIFY_ACTORINIT'));
   });
 
   it('keeps a map-load panel failure visible and does not pretend the actor-ready handshake completed', () => {
     const f = fixture(source, 'tools-append'); f.start(); expect(() => f.mapLoaded()).toThrow(f.lifecycleFailure);
+    if (_kind === 'prepared') expect(f.resetMovementSession).toHaveBeenCalledExactlyOnceWith(f.session.Entity, 'map-entry');
     expect(f.timeline).toContain('entity'); expect(f.timeline).not.toContain('send:NOTIFY_ACTORINIT');
     expect(f.hooks.has('PAR_CHANGE')).toBe(true);
   });

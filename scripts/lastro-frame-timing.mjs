@@ -42,35 +42,101 @@ var _events, _tick$1, _uid, Events;`, 'event-context');
   output = patchRegion(output, 'src/Renderer/Renderer.js', region => {
     region = replaceOne(region, 'var mat4$9, _requestAnimationFrame, _cancelAnimationFrame, Renderer;', `let lastroServerClockMark;
 let lastroHasServerSample = false;
+let lastroServerClockCorrection = 0;
+let lastroServerClockSample;
 function LastROServerClockNow() {
   return typeof performance !== "undefined" ? performance.now() : Date.now();
 }
+function LastROClearServerClockProbe() {
+  const ping = SessionStorage_default.ping;
+  if (!ping) return;
+  ping.returned = true;
+  ping.value = 0;
+  delete ping.lastroSentAt;
+  delete ping.lastroSentMono;
+  delete ping._lastroUnansweredSince;
+}
 function LastROResetServerTick(tick) {
+  if (!Number.isInteger(tick) || tick < 0 || tick > 0xffffffff) return false;
   SessionStorage_default.serverTick = tick;
   lastroHasServerSample = true;
   lastroServerClockMark = LastROServerClockNow();
+  lastroServerClockCorrection = 0;
+  lastroServerClockSample = { tick, mono: lastroServerClockMark };
+  LastROClearServerClockProbe();
+  return true;
 }
 function LastROInvalidateServerTick() {
   SessionStorage_default.serverTick = 0;
   lastroHasServerSample = false;
   lastroServerClockMark = undefined;
+  lastroServerClockCorrection = 0;
+  lastroServerClockSample = undefined;
+  LastROClearServerClockProbe();
 }
-function LastROAdvanceServerTick() {
-  const now = LastROServerClockNow();
-  if (lastroHasServerSample && lastroServerClockMark !== undefined) SessionStorage_default.serverTick += Math.max(0, now - lastroServerClockMark);
-  lastroServerClockMark = now;
+function LastROAdvanceServerTick(now = LastROServerClockNow()) {
+  if (!Number.isFinite(now)) return SessionStorage_default.serverTick;
+  if (lastroHasServerSample && lastroServerClockMark !== undefined) {
+    const elapsed = Math.max(0, now - lastroServerClockMark);
+    // Correct phase through a small speed change. Frequent pongs must never
+    // rewind the timeline or jump an approved walk ahead between frames.
+    const correction = Math.sign(lastroServerClockCorrection)
+      * Math.min(Math.abs(lastroServerClockCorrection), elapsed * 0.1);
+    SessionStorage_default.serverTick += elapsed + correction;
+    lastroServerClockCorrection -= correction;
+  }
+  lastroServerClockMark = Math.max(lastroServerClockMark ?? now, now);
   return SessionStorage_default.serverTick;
+}
+function LastROSampleServerTick(tick, sentMono, receivedMono = LastROServerClockNow()) {
+  if (!Number.isInteger(tick) || tick < 0 || tick > 0xffffffff
+      || !Number.isFinite(sentMono) || !Number.isFinite(receivedMono)) return false;
+  const rtt = receivedMono - sentMono;
+  if (rtt < 0 || rtt > 2000) return false;
+  const oneWay = Math.min(rtt / 2, 250);
+  if (!lastroHasServerSample) {
+    SessionStorage_default.serverTick = tick + oneWay;
+    lastroHasServerSample = true;
+    lastroServerClockMark = receivedMono;
+    lastroServerClockCorrection = 0;
+    lastroServerClockSample = { tick, mono: receivedMono };
+    return true;
+  }
+  const current = LastROAdvanceServerTick(receivedMono);
+  if (lastroServerClockSample) {
+    const progression = (tick - lastroServerClockSample.tick) | 0;
+    if (progression < 0 || receivedMono < lastroServerClockSample.mono) return false;
+  }
+  // Unwrap the uint32 sample around the continuous local server timeline.
+  let error = tick - current % 0x100000000;
+  if (error >= 0x80000000) error -= 0x100000000;
+  if (error < -0x80000000) error += 0x100000000;
+  error += oneWay;
+  // A late reply or implausible server clock cannot install a huge drift.
+  if (!Number.isFinite(error) || Math.abs(error) > 2000) return false;
+  lastroServerClockCorrection = error;
+  lastroServerClockSample = { tick, mono: receivedMono };
+  return true;
 }
 var mat4$9, _requestAnimationFrame, _cancelAnimationFrame, Renderer;`, 'server-clock');
     return replaceOne(region, 'SessionStorage_default.serverTick += newTick - this.tick;', 'LastROAdvanceServerTick();', 'render-clock');
   });
   return patchRegion(output, 'src/Engine/MapEngine.js', region => {
-    region = replaceOne(region, `  SP.pongTime = SP.pingTime;
+    region = replaceOne(region, `  SP.returned = true;
+  SP.pongTime = SP.pingTime;
   SP.value = 0;
-  SessionStorage_default.serverTick = pkt.time;`, `  SP.pongTime = Date.now();
-  SP.value = Number.isFinite(SP.lastroSentAt) ? Math.max(0, SP.pongTime - SP.lastroSentAt) : 0;
-  LastROResetServerTick(pkt.time);`, 'pong-clock');
-    region = replaceOne(region, '                SP.pingTime = ping.clientTime;', '                SP.pingTime = ping.clientTime;\n                SP.lastroSentAt = Date.now();', 'ping-clock');
+  SessionStorage_default.serverTick = pkt.time;`, `  const receivedMono = LastROServerClockNow();
+  const sentMono = SP.returned === false ? SP.lastroSentMono : undefined;
+  const rtt = receivedMono - sentMono;
+  if (Number.isFinite(rtt) && rtt >= 0 && rtt <= 2000) {
+    SP.value = rtt;
+    LastROSampleServerTick(pkt.time, sentMono, receivedMono);
+  }
+  SP.returned = true;
+  SP.pongTime = Date.now();
+  delete SP.lastroSentAt;
+  delete SP.lastroSentMono;`, 'pong-clock');
+    region = replaceOne(region, '                SP.pingTime = ping.clientTime;', '                SP.pingTime = ping.clientTime;\n                SP.lastroSentAt = Date.now();\n                SP.lastroSentMono = LastROServerClockNow();', 'ping-clock');
     region = replaceOne(region, 'function onConnectionAccepted$2(pkt) {', `function onConnectionAccepted$2(pkt) {
   if (Number.isInteger(pkt.startTime) && pkt.startTime >= 0 && pkt.startTime <= 0xffffffff) LastROResetServerTick(pkt.startTime);`, 'entry-clock-sample');
     region = replaceOne(region, `          if (!success) {

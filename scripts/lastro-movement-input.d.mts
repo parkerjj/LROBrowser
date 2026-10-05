@@ -5,8 +5,10 @@ export function createLastroMovementInput(deps: {
   getContext: () => MovementInputContext | null | undefined;
   canMove: (target: MovementInputTarget, phase: 'request' | 'pending' | 'repeat') => boolean;
   sendMove: (target: MovementInputTarget) => boolean | void;
+  getApprovedTarget?: () => MovementInputTarget | null | undefined;
   onManualMove?: () => void;
   onError?: (error: unknown) => void;
+  retargetInterval?: number;
   now?: () => number;
   clock?: { setTimeout: (callback: () => void, ms: number) => unknown; clearTimeout: (timer: unknown) => void; };
 }): { request(): boolean; stop(): void; cancel(): void; };
