@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "fixtures": [
+    {
+      "path": "vendor/v2/Online.js",
+      "sourceCommit": "b56169ac7c760ae28f60958c9e8bc8e83db239b5",
+      "sourceSha256": "9d8cbd73b52dc37b25d136d7c21ea59f157dc3dedffdd9d31bfc5d2e9f8f5b7b",
+      "regionOrSymbol": "patchWebAudioPlayback(vendor): installLastROWebAudio, src/Audio/SoundManager.js, src/Audio/BGM.js",
+      "fixtureSha256": "4805eb498f722b12c9f67008effbedc0a9244689aee15b455437be8ece74f0cd",
+      "transformPath": "scripts/patch-v2-runtime.mjs",
+      "transformSha256": "2cb25838b7633807b6d91195ecffdca03d760b200f8a725c388b68f8fda89002"
+    },
+    {
+      "path": "vendor/v2/Online.js",
+      "sourceCommit": "b56169ac7c760ae28f60958c9e8bc8e83db239b5",
+      "sourceSha256": "9d8cbd73b52dc37b25d136d7c21ea59f157dc3dedffdd9d31bfc5d2e9f8f5b7b",
+      "regionOrSymbol": [
+        "src/DB/Emotions.js",
+        "src/Utils/BinaryWriter.js",
+        "src/UI/Components/ChatBox/ChatBox.html?raw",
+        "src/UI/Components/ShortCuts/ShortCuts.html?raw",
+        "src/UI/Components/Emoticons/Emoticons.html?raw",
+        "src/UI/Components/Emoticons/Emoticons.css?raw",
+        "src/UI/Components/Emoticons/Emoticons.js"
+      ],
+      "fixtureSha256": "4b18a0c55377cc9dac443257ac21c0312d2a5a1725ae9ff0ce5a778b48101fc7"
+    },
+    {
+      "path": "vendor/v2/Online.js",
+      "sourceCommit": "b56169ac7c760ae28f60958c9e8bc8e83db239b5",
+      "sourceSha256": "9d8cbd73b52dc37b25d136d7c21ea59f157dc3dedffdd9d31bfc5d2e9f8f5b7b",
+      "regionOrSymbol": [
+        "src/Engine/MapEngine/Group.js",
+        "src/UI/Components/MiniMap/MiniMapCommon.js"
+      ],
+      "fixtureSha256": "52dda4b294958ae0b57384ebea22b702f3906d460a3af1f6b8c7fa7e54713ed9"
+    },
+    {
+      "path": "vendor/v2/Online.js",
+      "sourceCommit": "b56169ac7c760ae28f60958c9e8bc8e83db239b5",
+      "sourceSha256": "9d8cbd73b52dc37b25d136d7c21ea59f157dc3dedffdd9d31bfc5d2e9f8f5b7b",
+      "regionOrSymbol": [
+        "src/Preferences/Map.js",
+        "src/Controls/ProcessCommand.js",
+        "src/Renderer/Entity/EntityRoom.js"
+      ],
+      "fixtureSha256": "44c857e0cfc69926dfd4d36b63b320608d892a23421178cf661045723b6e53f4"
+    }
+  ]
+}
