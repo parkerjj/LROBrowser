@@ -34,6 +34,7 @@ export interface RuntimeSourceDifference {
 export interface RuntimeSourceComparison {
   equal: boolean;
   differences: RuntimeSourceDifference[];
+  relocatedOwners?: string[];
 }
 
 export declare function auditCoreOwnership(input: CoreOwnershipInput): string[];

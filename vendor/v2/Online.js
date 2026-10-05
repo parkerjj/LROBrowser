@@ -76,6 +76,249 @@ import {
   GuildEmblemRequestQueue,
   loadGuildEmblemForPacketVersion,
 } from "./lastro-guild-emblem-request.mjs?build=20260923-v2-legacy-guild-emblem-1";
+function installLastROWebAudio() {
+  return (function installLastroTimedWebAudio({ timingFactory, AudioContextCtor, registerContext, fetchAudio, document, host, now, wallNow, soundEnabled }) {
+  const stateKey = '__lastroWebAudio';
+  if (host[stateKey]) return host[stateKey];
+  let context, unlocked = false, bgm = null, bgmGeneration = 0, bgmVolume = 1;
+  const buffers = new Map(), bgmPositions = new Map(), activeSounds = new Map();
+  const timing = timingFactory({ now, wallNow, available: () => !document.hidden && context?.state === 'running' && soundEnabled() });
+
+  const getContext = () => {
+    if (!AudioContextCtor) throw new Error('Web Audio API is unavailable');
+    if (!context) {
+      context = registerContext(new AudioContextCtor());
+      context.addEventListener?.('statechange', () => { if (context.state !== 'running') stopSound(); });
+      if (unlocked && context.state === 'suspended') void context.resume().catch(() => {});
+    }
+    return context;
+  };
+  const resume = () => {
+    unlocked = true;
+    if (context?.state === 'suspended') void context.resume().catch(() => {});
+  };
+  const decode = (key, url) => {
+    const existing = buffers.get(key);
+    if (existing) return existing;
+    const promise = fetchAudio(url).then(response => {
+      if (!response.ok) throw new Error('Audio request failed: ' + response.status);
+      return response.arrayBuffer();
+    }).then(bytes => getContext().decodeAudioData(bytes));
+    buffers.set(key, promise);
+    void promise.catch(() => { if (buffers.get(key) === promise) buffers.delete(key); });
+    return promise;
+  };
+  const disconnect = node => {
+    try { node.stop(); } catch { /* It may have already ended. */ }
+    try { node.disconnect(); } catch { /* A stopped node may already be disconnected. */ }
+  };
+  const stopBgm = () => {
+    bgmGeneration++;
+    if (!bgm) return 0;
+    const ctx = getContext(), elapsed = Math.max(0, ctx.currentTime - bgm.startedAt);
+    const offset = bgm.buffer.duration ? (bgm.offset + elapsed) % bgm.buffer.duration : 0;
+    bgmPositions.set(bgm.filename, offset); disconnect(bgm.source);
+    try { bgm.gain.disconnect(); } catch { /* Preserve saved position. */ }
+    bgm = null;
+    return offset;
+  };
+  const playBgm = async (filename, url, volume, requestedOffset = 0, isCurrent = () => true) => {
+    bgmVolume = Math.max(0, Math.min(1, volume));
+    const generation = ++bgmGeneration, buffer = await decode('bgm:' + filename, url);
+    if (generation !== bgmGeneration || !isCurrent()) return false;
+    if (bgm?.filename === filename) return true;
+    stopBgm();
+    const ctx = getContext(), source = ctx.createBufferSource(), gain = ctx.createGain();
+    const offset = bgmPositions.get(filename) ?? requestedOffset;
+    source.buffer = buffer; source.loop = true; source.connect(gain); gain.connect(ctx.destination);
+    gain.gain.value = bgmVolume; source.start(0, offset);
+    bgm = { filename, source, gain, buffer, offset, startedAt: ctx.currentTime };
+    return true;
+  };
+  const requestSound = (filename, dueTick) => {
+    if (document.hidden || !soundEnabled()) return null;
+    getContext();
+    return timing.capture(filename, dueTick);
+  };
+  const playSound = async (filename, url, volume, request = requestSound(filename)) => {
+    if (!request || request.filename !== filename || !timing.current(request)) { timing.release(request); return; }
+    let buffer;
+    try { buffer = await decode('sound:' + filename, url); }
+    catch (error) { timing.release(request); throw error; }
+    if (!timing.start(request)) return;
+    const ctx = getContext();
+    let source, gain, item, entry;
+    const finish = () => {
+      if (item?.ended) return;
+      if (item) item.ended = true;
+      timing.release(request);
+      if (entry && item) {
+        entry.delete(item);
+        if (!entry.size && activeSounds.get(filename) === entry) activeSounds.delete(filename);
+      }
+      try { source?.disconnect(); gain?.disconnect(); } catch { /* Keep other voices usable. */ }
+    };
+    try {
+      source = ctx.createBufferSource(); gain = ctx.createGain();
+      entry = activeSounds.get(filename) || new Set(); activeSounds.set(filename, entry);
+      item = { source, gain, baseVolume: volume, finish, ended: false }; entry.add(item);
+      source.buffer = buffer; source.connect(gain); gain.connect(ctx.destination);
+      gain.gain.value = Math.max(0, Math.min(1, volume));
+      source.addEventListener('ended', finish, { once: true }); source.start();
+    } catch (error) { finish(); throw error; }
+  };
+  const stopSound = filename => {
+    timing.cancel(filename);
+    const entries = filename ? [activeSounds.get(filename)] : [...activeSounds.values()];
+    for (const entry of entries) {
+      if (!entry) continue;
+      for (const item of [...entry]) { disconnect(item.source); item.finish(); }
+    }
+  };
+  const setBgmVolume = volume => {
+    bgmVolume = Math.max(0, Math.min(1, volume));
+    if (bgm) bgm.gain.gain.value = bgmVolume;
+  };
+  const setSoundVolume = volume => {
+    for (const entry of activeSounds.values()) for (const item of entry) item.gain.gain.value = Math.max(0, Math.min(1, item.baseVolume * volume));
+  };
+  const state = { getContext, decode, playBgm, stopBgm, requestSound, isSoundCurrent: timing.current,
+    playSound, stopSound, setBgmVolume, setSoundVolume };
+  for (const event of ['pointerdown', 'keydown', 'touchstart', 'click']) document.addEventListener(event, resume, { capture: true, passive: true });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) stopSound(); });
+  document.defaultView?.addEventListener('pagehide', () => stopSound());
+  host[stateKey] = state;
+  return state;
+})({
+    timingFactory: (function createLastroSoundTiming({ now, wallNow, available }) {
+  const records = new WeakMap(), pending = new Set(), files = new Map();
+  let generation = 0, voices = 0;
+  const maxAge = 500, minGap = 100;
+
+  function current(token) {
+    const record = token && records.get(token);
+    return !!record && record.phase === 'pending' && record.generation === generation
+      && record.file.generation === record.fileGeneration && available()
+      && now() - record.started <= maxAge;
+  }
+
+  function release(token) {
+    const record = token && records.get(token);
+    if (!record || record.phase === 'ended') return;
+    pending.delete(token);
+    if (record.phase === 'playing') { voices--; record.file.voices--; }
+    record.phase = 'ended';
+  }
+
+  function capture(filename, dueTick) {
+    if (!available() || typeof filename !== 'string' || !filename) return null;
+    const overdue = Number.isFinite(dueTick) ? Math.max(0, wallNow() - dueTick) : 0;
+    if (overdue > maxAge) return null;
+    for (const token of pending) if (!current(token)) release(token);
+    if (pending.size >= 32) return null;
+    const stamp = now();
+    let file = files.get(filename);
+    if (!file) { file = { generation: 0, requested: -Infinity, played: -Infinity, voices: 0 }; files.set(filename, file); }
+    if (stamp - file.requested < minGap) return null;
+    file.requested = stamp;
+    const token = Object.freeze({ filename });
+    records.set(token, { file, generation, fileGeneration: file.generation, started: stamp - overdue, phase: 'pending' });
+    pending.add(token);
+    return token;
+  }
+
+  function start(token) {
+    if (!current(token)) { release(token); return false; }
+    const record = records.get(token), stamp = now();
+    if (voices >= 32 || record.file.voices >= 10 || stamp - record.file.played < minGap) {
+      release(token); return false;
+    }
+    pending.delete(token);
+    record.file.played = stamp;
+    record.phase = 'playing'; record.file.voices++; voices++;
+    return true;
+  }
+
+  function cancel(filename) {
+    if (filename) { const file = files.get(filename); if (file) { file.generation++; file.requested = -Infinity; file.played = -Infinity; } }
+    else { generation++; files.clear(); }
+    for (const token of pending) if (!filename || token.filename === filename) release(token);
+  }
+
+  return { capture, current, start, release, cancel };
+}),
+    AudioContextCtor: globalThis.AudioContext || globalThis.webkitAudioContext,
+    registerContext: LastROAudioRegisterContext,
+    fetchAudio: url => fetch(url), document, host: globalThis,
+    now: () => performance.now(), wallNow: () => Date.now(),
+    soundEnabled: () => typeof Audio_default === "undefined" || !Audio_default?.Sound
+      || (Audio_default.Sound.play !== false && Audio_default.Sound.volume > 0),
+  });
+}
+const LastROWebAudio = installLastROWebAudio();
+function installLastROAudioUnlock() {
+	const stateKey = "__lastroAudioUnlock";
+	if (globalThis[stateKey]) return globalThis[stateKey];
+	let unlocked = false;
+	let pendingBgm;
+	const audioContexts = new Set();
+	const resumeAudioContexts = () => {
+		for (const context of audioContexts) {
+			if (!context || typeof context.resume !== "function") continue;
+			const promise = context.resume();
+			if (promise && typeof promise.catch === "function") promise.catch(() => {});
+		}
+	};
+	const retryBgm = () => {
+		const audio = pendingBgm;
+		pendingBgm = undefined;
+		if (!audio || typeof audio.play !== "function") return;
+		const promise = audio.play();
+		if (promise && typeof promise.catch === "function") promise.catch((error) => {
+			if (error?.name === "NotAllowedError") pendingBgm = audio;
+		});
+	};
+	const unlock = () => {
+		unlocked = true;
+		resumeAudioContexts();
+		retryBgm();
+	};
+	const registerContext = (context) => {
+		if (!context || typeof context.resume !== "function") return context;
+		audioContexts.add(context);
+		if (unlocked && context.state === "suspended") {
+			const promise = context.resume();
+			if (promise && typeof promise.catch === "function") promise.catch(() => {});
+		}
+		return context;
+	};
+	const state = {
+		unlock,
+		registerContext,
+		play(audio, retryOnUnlock = false) {
+			const promise = audio.play();
+			if (promise && typeof promise.catch === "function") promise.catch((error) => {
+				if (error?.name === "NotAllowedError" && retryOnUnlock && !unlocked) pendingBgm = audio;
+			});
+			return promise;
+		},
+	};
+	for (const event of ["pointerdown", "keydown", "touchstart", "click"])
+		document.addEventListener(event, unlock, { capture: true, passive: true });
+	globalThis[stateKey] = state;
+	return state;
+}
+function LastROAudioPlay(audio, retryOnUnlock) {
+	return installLastROAudioUnlock().play(audio, retryOnUnlock);
+}
+function LastROAudioUnlock() {
+	installLastROAudioUnlock().unlock();
+}
+function LastROAudioRegisterContext(context) {
+	return installLastROAudioUnlock().registerContext(context);
+}
+installLastROAudioUnlock();
+
 
 /*
  * Build with RONW Builder [MrUnzO] ([external reference removed])
@@ -11621,6 +11864,10 @@ var init_MemoryManager = __esmMin(() => {
   _cleanIndex = 0;
   _filesToClean = [];
   MemoryManager = class MemoryManager {
+    static discardFailedMusic(filename) {
+      const item = _memory[filename];
+      if (item?.complete && !item.data) delete _memory[filename];
+    }
     /**
      * Get back data from memory
      *
@@ -167659,119 +167906,74 @@ var init_BGM = __esmMin(() => {
   init_Audio();
   _playToken = 0;
   BGM = class BGM {
-    static filename = null;
-    static volume = Audio_default.BGM.volume;
-    static extension = "mp3";
-    static isInit = false;
-    static audio = document.createElement("audio");
-    static cache = {
-      filename: null,
-      currentTime: 0,
-    };
-    /**
-     * Initialize player
-     * Fixed a known bug
-     */
-    static init() {
-      if (BGM.isInit) return;
-      BGM.isInit = true;
-      if (typeof BGM.audio.loop === "boolean") {
-        BGM.audio.loop = true;
-        return;
-      }
-      BGM.audio.addEventListener(
-        "ended",
-        () => {
-          BGM.audio.currentTime = 0;
-          if (BGM.cache.filename === BGM.filename) BGM.cache.currentTime = 0;
-          BGM.audio.play();
-        },
-        false,
-      );
-    }
-    /**
-     * Test audio extension from a list to see what format the browser can read
-     *
-     * @param {Array} extensions list
-     */
-    static setAvailableExtensions(extensions) {
-      let i, count;
-      const audio = BGM.audio;
-      if (!extensions || !extensions.length) extensions = ["mp3"];
-      for (i = 0, count = extensions.length; i < count; ++i)
-        if (audio.canPlayType(`audio/${extensions[i]}`).replace(/no/i, "")) {
-          BGM.extension = extensions[i];
-          BGM.init();
-          return;
-        }
-    }
-    /**
-     * Play the audio file specify
-     *
-     * @param {string} filename
-     */
-    static play(filename) {
-      if (!filename) return;
-      if (filename.match(/bgm/i)) {
-        filename = filename.match(/\w+\.mp3/i)?.toString();
-        if (!filename) return;
-      }
-      if (BGM.filename === filename && BGM.audio && !BGM.audio.paused) return;
-      if (BGM.filename && BGM.audio) {
-        BGM.cache.filename = BGM.filename;
-        BGM.cache.currentTime = BGM.audio.currentTime;
-      }
-      BGM.filename = filename;
-      const myToken = ++_playToken;
-      if (Audio_default.BGM.play)
-        Client.loadFile(`BGM/${filename}`, (url) => {
-          if (myToken !== _playToken) return;
-          BGM.load(url);
-        });
-    }
-    /**
-     * Load the audio file
-     *
-     * @param {string} url (HTTP / DATA URI or BLOB)
-     */
-    static load(url) {
-      if (!Audio_default.BGM.play) return;
-      if (!url.match(/^(blob|data):/))
-        url = url.replace(/mp3$/i, BGM.extension);
-      const targetTime =
-        BGM.cache.filename === BGM.filename ? BGM.cache.currentTime : 0;
-      BGM.audio.src = url;
-      BGM.audio.volume = BGM.volume;
-      BGM.audio.currentTime = targetTime;
-      const playPromise = BGM.audio.play();
-      if (playPromise)
-        playPromise.catch((err) => {
-          if (err.name !== "AbortError") console.warn("Failed to play:", err);
-        });
-    }
-    /**
-     * Stop the BGM
-     */
-    static stop() {
-      _playToken++;
-      if (BGM.audio) {
-        BGM.cache.filename = BGM.filename;
-        BGM.cache.currentTime = BGM.audio.currentTime;
-        BGM.audio.pause();
-      }
-    }
-    /**
-     * Change the volume of the BGM
-     *
-     * @param {number} volume
-     */
-    static setVolume(volume) {
-      BGM.volume = volume;
-      Audio_default.BGM.volume = volume;
-      Audio_default.save();
-      BGM.audio.volume = volume;
-    }
-  };
+		static filename = null;
+		static volume = Audio_default.BGM.volume;
+		static extension = "mp3";
+		static isInit = false;
+		static stopped = true;
+		static cache = { filename: null, currentTime: 0 };
+		static init() { BGM.isInit = true; }
+		static setAvailableExtensions(extensions) {
+			if (extensions?.length) BGM.extension = extensions[0];
+			BGM.init();
+		}
+		static play(filename) {
+			if (!filename) return;
+			if (filename.match(/bgm/i)) {
+				filename = filename.match(/\w+\.mp3/i)?.toString();
+				if (!filename) return;
+			}
+			if (!Audio_default.BGM.play) {
+				BGM.stop();
+				BGM.filename = filename;
+				return;
+			}
+			if (BGM.filename === filename && !BGM.stopped) return;
+			if (BGM.filename && !BGM.stopped) BGM.cache.filename = BGM.filename;
+			BGM.filename = filename;
+			BGM.stopped = false;
+			const myToken = ++_playToken;
+			const onError = (error) => {
+				MemoryManager.discardFailedMusic("BGM/" + filename);
+				if (myToken !== _playToken) return;
+				BGM.stopped = true;
+				console.warn("Failed to load BGM:", filename, error);
+			};
+			try {
+				Client.loadFile("BGM/" + filename, (url) => {
+					if (myToken !== _playToken || BGM.stopped) return;
+					if (!Audio_default.BGM.play) { BGM.stopped = true; return; }
+					if (BGM.filename === filename && !BGM.stopped) BGM.load(url);
+				}, onError);
+			} catch (error) { onError(error); }
+		}
+		static load(url) {
+			if (!Audio_default.BGM.play || !BGM.filename || BGM.stopped) return;
+			const filename = BGM.filename;
+			const myToken = _playToken;
+			const targetTime = BGM.cache.filename === filename ? BGM.cache.currentTime : 0;
+			const isCurrent = () => myToken === _playToken && !BGM.stopped && Audio_default.BGM.play && BGM.filename === filename;
+			void LastROWebAudio.playBgm(filename, url, BGM.volume, targetTime, isCurrent).then((started) => {
+				if (myToken === _playToken && !started) BGM.stopped = true;
+			}).catch((error) => {
+				if (myToken !== _playToken) return;
+				BGM.stopped = true;
+				console.warn("Failed to play BGM:", filename, error);
+			});
+		}
+		static stop() {
+			_playToken++;
+			BGM.cache.filename = BGM.filename;
+			BGM.cache.currentTime = LastROWebAudio.stopBgm();
+			BGM.stopped = true;
+		}
+		static setVolume(volume) {
+			BGM.volume = Math.max(0, Math.min(1, volume));
+			Audio_default.BGM.volume = BGM.volume;
+			Audio_default.save();
+			LastROWebAudio.setBgmVolume(BGM.volume);
+		}
+	};
 });
 //#endregion
 //#region src/Renderer/Map/GridSelector.vs?raw
@@ -227941,7 +228143,7 @@ var init_RainWeather = __esmMin(() => {
       try {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         if (AudioContext) {
-          this.audioCtx = new AudioContext();
+          this.audioCtx = LastROAudioRegisterContext(new AudioContext());
           this.initRainSound();
         }
       } catch (e) {
@@ -285064,146 +285266,33 @@ var init_SoundManager = __esmMin(() => {
   mediaPlayerCount = 0;
   _playGen = 0;
   SoundManager = class SoundManager {
-    /**
-     * @var {float} sound volume
-     *
-     */
-    static volume = Audio_default.Sound.volume;
-    /**
-     * Play a wav sound
-     *
-     * @param {string} filename
-     * @param {optional|number} vol (volume)
-     */
-    static play(filename, vol) {
-      let volume;
-      if (vol) volume = vol * this.volume;
-      else volume = this.volume;
-      if (volume <= 0 || !Audio_default.Sound.play) return;
-      if (!(filename in _sounds)) {
-        _sounds[filename] = {};
-        _sounds[filename].instances = [];
-        _sounds[filename].lastTick = 0;
-      }
-      const sound = getSoundFromCache(filename);
-      if (sound) {
-        sound.volume = Math.min(volume, 1);
-        sound._volume = volume;
-        const playPromise = sound.play();
-        if (playPromise)
-          playPromise.catch((err) => {
-            if (err.name === "NotSupportedError" || err.name === "AbortError") {
-              const idx = _sounds[filename]?.instances.indexOf(sound);
-              if (idx !== void 0 && idx !== -1)
-                _sounds[filename].instances.splice(idx, 1);
-              sound.remove();
-              mediaPlayerCount--;
-              SoundManager.play(filename, vol);
-              return;
-            }
-            console.warn("Failed to play sound:", err);
-          });
-        _sounds[filename].instances.push(sound);
-        _sounds[filename].lastTick = Date.now();
-        return;
-      }
-      const myGen = _playGen;
-      Client.loadFile(`data/wav/${filename}`, (url) => {
-        if (myGen !== _playGen || !(filename in _sounds)) return;
-        if (
-          _sounds[filename].lastTick > Date.now() - C_SAME_SOUND_DELAY ||
-          _sounds[filename].instances.length >
-            balancedMax(C_MAX_SOUND_INSTANCES)
-        )
-          return;
-        const audio = document.createElement("audio");
-        mediaPlayerCount++;
-        audio.filename = filename;
-        audio.src = url;
-        audio.volume = Math.min(volume, 1);
-        audio._volume = volume;
-        audio.addEventListener("error", onSoundError, false);
-        audio.addEventListener("ended", onSoundEnded, false);
-        audio.play().catch((err) => {
-          if (err.name !== "AbortError")
-            console.warn("Failed to play sound:", err);
-        });
-        _sounds[filename].instances.push(audio);
-        _sounds[filename].lastTick = Date.now();
-      });
-    }
-    /**
-     * Play a wav sound with calculated position for volume
-     *
-     * @param {string} filename
-     * @param {optional|number} vol (volume)
-     */
-    static playPosition(filename, srcPosition) {
-      const dist = Math.floor(
-        gl_matrix_default.vec2.dist(
-          srcPosition,
-          SessionStorage_default.Entity.position,
-        ),
-      );
-      const vol = Math.max(1 - Math.abs(((dist - 1) * 0.99) / 24 + 0.01), 0.1);
-      SoundManager.play(filename, vol);
-    }
-    /**
-     * Stop a specify sound, or all sounds.
-     *
-     * @param {optional|string} filename to stop
-     */
-    static stop(filename) {
-      if (filename) {
-        if (filename in _sounds) {
-          while (_sounds[filename].instances.length > 0) {
-            const s = _sounds[filename].instances.shift();
-            s.pause();
-            s.remove();
-            mediaPlayerCount--;
-          }
-          delete _sounds[filename];
-        }
-        return;
-      }
-      _playGen++;
-      Object.keys(_sounds).forEach((key) => {
-        while (_sounds[key].instances.length > 0) {
-          const s = _sounds[key].instances.shift();
-          s.pause();
-          s.remove();
-          mediaPlayerCount--;
-        }
-        delete _sounds[key];
-      });
-      Object.keys(_cache).forEach((key) => {
-        _cache[key].instances.forEach((s) => {
-          if (s.cleanupHandle) clearTimeout(s.cleanupHandle);
-          s.remove();
-          mediaPlayerCount--;
-        });
-        delete _cache[key];
-      });
-      MemoryManager.search(/\.wav$/).forEach((key) => {
-        MemoryManager.remove(key);
-      });
-    }
-    /**
-     * Change volume of all sounds
-     *
-     * @param {number} volume
-     */
-    static setVolume(volume) {
-      this.volume = Math.min(volume, 1);
-      Audio_default.Sound.volume = this.volume;
-      Audio_default.save();
-      Object.keys(_sounds).forEach((key) => {
-        _sounds[key].instances.forEach((sound) => {
-          sound.volume = Math.min(sound._volume * this.volume, 1);
-        });
-      });
-    }
-  };
+		static volume = Audio_default.Sound.volume;
+		static play(filename, vol) {
+			const volume = (vol === undefined ? 1 : vol) * this.volume;
+			if (volume <= 0 || !Audio_default.Sound.play || !filename) return;
+			const eventDueTick = typeof LastROEventDueTick === "function" ? LastROEventDueTick() : undefined;
+        const renderTick = typeof Renderer !== "undefined" ? Renderer?.tick : undefined;
+        const overdueRender = SessionStorage_default.Playing && Number.isFinite(renderTick) && Date.now() - renderTick > 500;
+        const request = LastROWebAudio.requestSound(filename, overdueRender ? renderTick : eventDueTick);
+        if (!request) return;
+        Client.loadFile("data/wav/" + filename, (url) => {
+          if (!LastROWebAudio.isSoundCurrent(request)) return;
+				void LastROWebAudio.playSound(filename, url, volume, request).catch((error) => console.warn("Failed to play sound:", error));
+			});
+		}
+		static playPosition(filename, srcPosition) {
+			const dist = Math.floor(gl_matrix_default.vec2.dist(srcPosition, SessionStorage_default.Entity.position));
+			const vol = Math.max(1 - Math.abs((dist - 1) * .99 / 24 + .01), .1);
+			SoundManager.play(filename, vol);
+		}
+		static stop(filename) { LastROWebAudio.stopSound(filename); }
+		static setVolume(volume) {
+			this.volume = Math.max(0, Math.min(1, volume));
+			Audio_default.Sound.volume = this.volume;
+			Audio_default.save();
+			LastROWebAudio.setSoundVolume(this.volume);
+		}
+	};
 });
 //#endregion
 //#region src/UI/Components/MobileUI/MobileUI.html?raw

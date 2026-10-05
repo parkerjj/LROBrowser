@@ -9,6 +9,16 @@ const stages = new Set([
   'audio', 'sync', 'gameplay', 'receive', 'packet', 'localization',
   'ui-layout', 'ui-state', 'worldmap', 'final',
 ]);
+const audioRelocatableOwners = [
+  'function:installLastROWebAudio',
+  'variable:LastROWebAudio',
+  'function:installLastROAudioUnlock',
+  'function:LastROAudioPlay',
+  'function:LastROAudioUnlock',
+  'function:LastROAudioRegisterContext',
+  'call:installLastROAudioUnlock',
+];
+const audioSideEffectOwners = ['variable:LastROWebAudio', 'call:installLastROAudioUnlock'];
 const stringKinds = new Map([
   [ts.SyntaxKind.StringLiteral, 'string'],
   [ts.SyntaxKind.NoSubstitutionTemplateLiteral, 'string'],
@@ -25,6 +35,7 @@ const retiredTransforms = [
   { module: './lastro-localization.mjs', imported: 'patchRuntimeMapLocalization', local: 'patchRuntimeMapLocalization', callOwner: 'patchV2Runtime' },
   { module: './lastro-localization.mjs', imported: 'patchRuntimeStatusTooltips', local: 'patchRuntimeStatusTooltips', callOwner: 'patchV2Runtime' },
   { module: './lastro-localization.mjs', imported: 'assertRuntimeLocalizationMount', local: 'assertRuntimeLocalizationMount', callOwner: 'patchV2Runtime' },
+  { module: './lastro-audio-timing.mjs', imported: 'patchRuntimeAudioTiming', local: 'patchRuntimeAudioTiming', callOwner: 'patchV2Runtime' },
   { module: './lastro-skill-localization.mjs', imported: 'SKILL_DESCRIPTION_OVERRIDES', local: 'SKILL_DESCRIPTION_OVERRIDES', callOwner: 'patchV2Runtime' },
   { module: './lastro-skill-localization.mjs', imported: 'SKILL_NAME_OVERRIDES', local: 'SKILL_NAME_OVERRIDES', callOwner: 'patchV2Runtime' },
   { module: './lastro-npc-dialog-buttons.mjs', imported: 'patchRuntimeNpcDialogButtons', local: 'patchRuntimeNpcDialogButtons', callOwner: 'patchV2Runtime' },
@@ -32,7 +43,6 @@ const retiredTransforms = [
   { module: './lastro-shop-titles.mjs', imported: 'patchRuntimeShopTitles', local: 'patchRuntimeShopTitles', callOwner: 'patchV2Runtime' },
   { module: './lastro-monster-hover-hp.mjs', imported: 'patchRuntimeMonsterHoverHp', local: 'patchRuntimeMonsterHoverHp', callOwner: 'patchV2Runtime' },
   { module: './lastro-frame-timing.mjs', imported: 'patchRuntimeFrameTiming', local: 'patchRuntimeFrameTiming', callOwner: 'patchV2Runtime' },
-  { module: './lastro-audio-timing.mjs', imported: 'patchRuntimeAudioTiming', local: 'patchRuntimeAudioTiming', callOwner: 'patchV2Runtime' },
   { module: './lastro-entity-sync.mjs', imported: 'patchRuntimeEntitySync', local: 'patchRuntimeEntitySync', callOwner: 'patchV2Runtime' },
   { module: './lastro-equipment-animation.mjs', imported: 'patchRuntimeEquipmentAnimation', local: 'patchRuntimeEquipmentAnimation', callOwner: 'patchV2Runtime' },
   { module: './lastro-equipment-cart.mjs', imported: 'patchRuntimeEquipmentCart', local: 'patchRuntimeEquipmentCart', callOwner: 'patchV2Runtime' },
@@ -267,7 +277,7 @@ function keyedStatements(file) {
     const occurrence = (occurrences.get(baseOwner) ?? 0) + 1;
     occurrences.set(baseOwner, occurrence);
     const owner = occurrence === 1 ? baseOwner : `${baseOwner}#${occurrence}`;
-    return { owner, tokens: tokenizeStatement(statement, file, owner) };
+    return { owner, index, statement, tokens: tokenizeStatement(statement, file, owner) };
   });
 }
 
@@ -321,11 +331,73 @@ export function compareRuntimeSources(before, after, options) {
 
   const beforeStatements = keyedStatements(beforeFile);
   const afterStatements = keyedStatements(afterFile);
-  const beforeByOwner = new Map(beforeStatements.map(statement => [statement.owner, statement]));
-  const afterByOwner = new Map(afterStatements.map(statement => [statement.owner, statement]));
+  let relocatedOwners = [];
+  if (options.stage === 'audio') {
+    const audioOwners = new Set(audioRelocatableOwners);
+    const ownerBase = owner => owner.replace(/#\d+$/, '');
+    const beforeAudio = beforeStatements.filter(statement => audioOwners.has(ownerBase(statement.owner)));
+    const afterAudio = afterStatements.filter(statement => audioOwners.has(ownerBase(statement.owner)));
+    for (const owner of audioRelocatableOwners) {
+      const beforeMatches = beforeAudio.filter(statement => ownerBase(statement.owner) === owner);
+      const afterMatches = afterAudio.filter(statement => ownerBase(statement.owner) === owner);
+      if (beforeMatches.length !== 1 || afterMatches.length !== 1) {
+        differences.push({
+          owner,
+          kind: 'audio-owner-count',
+          detail: `expected exactly one declaration before and after; found ${beforeMatches.length} before and ${afterMatches.length} after`,
+        });
+        continue;
+      }
+      const difference = compareOwnerTokens(beforeMatches[0].tokens, afterMatches[0].tokens, owner);
+      if (difference) differences.push(difference);
+    }
+
+    const beforeOrder = beforeAudio.map(statement => ownerBase(statement.owner));
+    const afterOrder = afterAudio.map(statement => ownerBase(statement.owner));
+    if (beforeOrder.length === audioRelocatableOwners.length && afterOrder.length === audioRelocatableOwners.length
+      && (beforeOrder.some((owner, index) => owner !== afterOrder[index])
+        || beforeOrder.some((owner, index) => owner !== audioRelocatableOwners[index]))) {
+      differences.push({
+        owner: 'audio initialization order',
+        kind: 'audio-relocation-order',
+        detail: `expected [${audioRelocatableOwners.join(', ')}]; found before [${beforeOrder.join(', ')}], after [${afterOrder.join(', ')}]`,
+      });
+    }
+    const beforeEffects = beforeAudio.filter(statement => audioSideEffectOwners.includes(ownerBase(statement.owner)));
+    const afterEffects = afterAudio.filter(statement => audioSideEffectOwners.includes(ownerBase(statement.owner)));
+    if (beforeEffects.map(statement => ownerBase(statement.owner)).join(',') !== audioSideEffectOwners.join(',')
+      || afterEffects.map(statement => ownerBase(statement.owner)).join(',') !== audioSideEffectOwners.join(',')) {
+      differences.push({
+        owner: 'audio effective initializers',
+        kind: 'audio-initializer-order',
+        detail: 'Web Audio installation must run once before the unlock listener installation',
+      });
+    }
+
+    const lastImportIndex = afterFile.statements.reduce((last, statement, index) =>
+      ts.isImportDeclaration(statement) ? index : last, -1);
+    const afterIndexes = afterAudio.map(statement => statement.index);
+    if (afterIndexes.length !== audioRelocatableOwners.length
+      || afterIndexes[0] !== lastImportIndex + 1
+      || afterIndexes.some((index, position) => position > 0 && index !== afterIndexes[position - 1] + 1)) {
+      differences.push({
+        owner: 'audio declaration placement',
+        kind: 'audio-relocation-placement',
+        detail: 'audio declarations and their singleton initializers must form one block immediately after the final import',
+      });
+    }
+    const beforeIndexByOwner = new Map(beforeAudio.map(statement => [ownerBase(statement.owner), statement.index]));
+    const afterIndexByOwner = new Map(afterAudio.map(statement => [ownerBase(statement.owner), statement.index]));
+    relocatedOwners = audioRelocatableOwners.filter(owner => beforeIndexByOwner.get(owner) !== afterIndexByOwner.get(owner));
+  }
+  const relocatedSet = options.stage === 'audio' ? new Set(audioRelocatableOwners) : new Set();
+  const beforeCompared = beforeStatements.filter(statement => !relocatedSet.has(statement.owner.replace(/#\d+$/, '')));
+  const afterCompared = afterStatements.filter(statement => !relocatedSet.has(statement.owner.replace(/#\d+$/, '')));
+  const beforeByOwner = new Map(beforeCompared.map(statement => [statement.owner, statement]));
+  const afterByOwner = new Map(afterCompared.map(statement => [statement.owner, statement]));
   const common = new Set([...beforeByOwner.keys()].filter(owner => afterByOwner.has(owner)));
-  const beforeOrder = beforeStatements.map(statement => statement.owner).filter(owner => common.has(owner));
-  const afterOrder = afterStatements.map(statement => statement.owner).filter(owner => common.has(owner));
+  const beforeOrder = beforeCompared.map(statement => statement.owner).filter(owner => common.has(owner));
+  const afterOrder = afterCompared.map(statement => statement.owner).filter(owner => common.has(owner));
   if (beforeOrder.some((owner, index) => owner !== afterOrder[index])) {
     differences.push({
       owner: 'source-file order',
@@ -334,7 +406,7 @@ export function compareRuntimeSources(before, after, options) {
     });
   }
 
-  for (const statement of beforeStatements) {
+  for (const statement of beforeCompared) {
     if (!afterByOwner.has(statement.owner)) {
       differences.push({ owner: statement.owner, kind: 'removed-owner', detail: 'top-level AST owner is absent after the change' });
       continue;
@@ -343,12 +415,12 @@ export function compareRuntimeSources(before, after, options) {
     const difference = compareOwnerTokens(statement.tokens, afterStatement.tokens, statement.owner);
     if (difference) differences.push(difference);
   }
-  for (const statement of afterStatements) {
+  for (const statement of afterCompared) {
     if (!beforeByOwner.has(statement.owner)) {
       differences.push({ owner: statement.owner, kind: 'added-owner', detail: 'new top-level AST owner was added' });
     }
   }
-  return { equal: differences.length === 0, differences };
+  return { equal: differences.length === 0, differences, ...(options.stage === 'audio' ? { relocatedOwners } : {}) };
 }
 
 function parseArguments(args) {

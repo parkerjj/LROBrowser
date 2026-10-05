@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { auditCoreOwnership, compareRuntimeSources } from '../scripts/check-runtime-consolidation.mjs';
 import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
+import { buildRuntimePatchFixture } from './helpers/runtime-patch-fixture';
 
 const layoutRetirement = {
   module: './lastro-ui-layout.mjs',
@@ -23,6 +24,30 @@ describe('runtime consolidation source helpers', () => {
   it('reads the current vendor source for unique region extraction', () => {
     const source = readVendorSource();
     expect(extractVendorRegion('src/Audio/BGM.js', source)).toContain('//#region src/Audio/BGM.js');
+  });
+
+  it('builds residual patch fixtures from the current vendor core owners', () => {
+    const vendor = readVendorSource();
+    const fixture = buildRuntimePatchFixture(vendor);
+    for (const region of [
+      'src/Core/MemoryItem.js',
+      'src/Core/MemoryManager.js',
+      'src/Core/Preferences.js',
+      'src/Audio/BGM.js',
+      'src/Audio/SoundManager.js',
+      'src/Renderer/Effects/RainWeather.js',
+      'src/UI/Common.css?raw',
+      'src/UI/Components/WorldMap/WorldMap.js',
+    ]) {
+      expect(fixture).toContain(extractVendorRegion(region, vendor));
+    }
+    expect(fixture).toContain(extractRuntimeNode(vendor, {
+      region: 'src/Renderer/MapRenderer.js',
+      kind: 'function',
+      name: 'onMapComplete',
+    }));
+    expect(fixture).toContain('function defaultSocketFactory(host, port)');
+    expect(fixture).toContain('function initThread()');
   });
 
   it('rejects missing or duplicated AST owners', () => {
@@ -82,6 +107,76 @@ describe('runtime consolidation source helpers', () => {
       expect.objectContaining({ owner: 'function:render', kind: 'literal' }),
     ]);
     expect(comparison.differences[0]?.detail).toContain('blue');
+  });
+
+  it('allows only token-identical audio declarations to move after imports', () => {
+    const before = `
+function installLastROWebAudio() { return 1; }
+const LastROWebAudio = installLastROWebAudio();
+import { account } from './account.mjs';
+function workerPolicy() { return account; }
+function installLastROAudioUnlock() { return 2; }
+function LastROAudioPlay() { return 3; }
+function LastROAudioUnlock() { return 4; }
+function LastROAudioRegisterContext() { return 5; }
+installLastROAudioUnlock();
+import { vendor } from './vendor.mjs';
+function runtime() { return LastROWebAudio; }
+`;
+    const after = `
+import { account } from './account.mjs';
+function workerPolicy() { return account; }
+import { vendor } from './vendor.mjs';
+function installLastROWebAudio() { return 1; }
+const LastROWebAudio = installLastROWebAudio();
+function installLastROAudioUnlock() { return 2; }
+function LastROAudioPlay() { return 3; }
+function LastROAudioUnlock() { return 4; }
+function LastROAudioRegisterContext() { return 5; }
+installLastROAudioUnlock();
+function runtime() { return LastROWebAudio; }
+`;
+
+    expect(compareRuntimeSources(before, after, { stage: 'audio' }))
+      .toMatchObject({
+        equal: true,
+        differences: [],
+        relocatedOwners: expect.arrayContaining([
+          'function:installLastROWebAudio',
+          'variable:LastROWebAudio',
+          'call:installLastROAudioUnlock',
+        ]),
+      });
+
+    const changedBody = after.replace('return 5;', 'return 6;');
+    const changed = compareRuntimeSources(before, changedBody, { stage: 'audio' });
+    expect(changed.equal).toBe(false);
+    expect(changed.differences).toEqual([
+      expect.objectContaining({ owner: 'function:LastROAudioRegisterContext' }),
+    ]);
+
+    const duplicate = after.replace(
+      'function runtime() { return LastROWebAudio; }',
+      'function LastROAudioRegisterContext() { return 5; }\nfunction runtime() { return LastROWebAudio; }',
+    );
+    expect(compareRuntimeSources(before, duplicate, { stage: 'audio' }).differences)
+      .toContainEqual(expect.objectContaining({
+        owner: 'function:LastROAudioRegisterContext',
+        kind: 'audio-owner-count',
+      }));
+
+    const interleaved = after.replace(
+      'const LastROWebAudio = installLastROWebAudio();',
+      'function interleavedRuntimeOwner() {}\nconst LastROWebAudio = installLastROWebAudio();',
+    );
+    expect(compareRuntimeSources(before, interleaved, { stage: 'audio' }).differences)
+      .toContainEqual(expect.objectContaining({ kind: 'audio-relocation-placement' }));
+
+    const reorderedInitializers = after.replace(
+      'const LastROWebAudio = installLastROWebAudio();',
+      'installLastROAudioUnlock();\nconst LastROWebAudio = installLastROWebAudio();',
+    ).replace('installLastROAudioUnlock();\nfunction runtime()', 'function runtime()');
+    expect(compareRuntimeSources(before, reorderedInitializers, { stage: 'audio' }).equal).toBe(false);
   });
 
   it('rejects retired transform calls instead of accepting no-op', () => {
