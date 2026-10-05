@@ -1,4 +1,152 @@
 import ts from 'typescript';
+import { findLastroServerWalkPath } from './lastro-server-walk.mjs';
+
+/* global SessionStorage_default, Configs, MapRenderer, Altitude */
+
+function lastroRouteJoinActive(walk, index) {
+  return !!walk && walk._lastroJoinIndex === index
+    && Number.isFinite(walk._lastroJoinEndTick)
+    && walk._lastroJoinEndTick > walk.tick
+    && Number.isFinite(walk._lastroJoinServerTick)
+    && Number.isFinite(walk._lastroJoinServerX)
+    && Number.isFinite(walk._lastroJoinServerY)
+    && walk._lastroJoinSpeed === walk.speed
+    && walk._lastroNormalSpeed === undefined;
+}
+
+function lastroClearRouteJoin(walk, restoreServer = false) {
+  if (!walk) return;
+  if (restoreServer && walk._lastroJoinIndex === walk.index
+    && Number.isFinite(walk._lastroJoinServerTick)
+    && Number.isFinite(walk._lastroJoinServerX)
+    && Number.isFinite(walk._lastroJoinServerY)) {
+    walk.pos[0] = walk._lastroJoinServerX;
+    walk.pos[1] = walk._lastroJoinServerY;
+    walk.tick = walk._lastroJoinServerTick;
+  }
+  delete walk._lastroJoinIndex;
+  delete walk._lastroJoinEndTick;
+  delete walk._lastroJoinSpeed;
+  delete walk._lastroJoinServerTick;
+  delete walk._lastroJoinServerX;
+  delete walk._lastroJoinServerY;
+}
+
+function lastroCaptureRouteJoin(entity) {
+  const walk = entity.walk;
+  if (entity !== SessionStorage_default.Entity || !walk
+    || !Number.isInteger(walk.index) || walk.index < 2 || walk.index % 2
+    || !Number.isInteger(walk.total) || walk.index >= walk.total || walk.total > walk.path.length
+    || !Number.isFinite(walk.speed) || walk.speed <= 0 || walk._lastroNormalSpeed !== undefined
+    || (walk._lastroJoinIndex !== undefined && !lastroRouteJoinActive(walk, walk.index))
+    || entity.action === entity.ACTION.SIT || entity.action === entity.ACTION.DIE
+    || entity.action === entity.ACTION.FREEZE || entity.action === entity.ACTION.FREEZE2
+    || (entity.action !== entity.ACTION.WALK && !Configs.get('lastroProtocol', false))) return null;
+  const values = [entity.position[0], entity.position[1], entity.position[2], walk.pos[0], walk.pos[1]];
+  if (!values.every(Number.isFinite)) return null;
+  const distance = lastroProjectWalkDistance(walk, Date.now());
+  if (!Number.isFinite(distance)) return null;
+  return {
+    x: values[0], y: values[1], z: values[2], startX: values[3], startY: values[4],
+    targetX: walk.path[walk.index], targetY: walk.path[walk.index + 1], speed: walk.speed, distance,
+    walk, position: entity.position, action: entity.action, epoch: entity._lastroMovementEpoch,
+  };
+}
+
+function lastroJoinServerRoute(entity, previous) {
+  if (!previous || entity !== SessionStorage_default.Entity
+    || (typeof MapRenderer !== 'undefined' && MapRenderer.loading)) return;
+  const walk = entity.walk, index = walk.index;
+  if (!Number.isInteger(index) || index < 2 || index % 2 || index >= walk.total
+    || walk.speed !== previous.speed || walk._lastroNormalSpeed !== undefined) return;
+  const startX = walk.pos[0], startY = walk.pos[1];
+  const nextX = walk.path[index], nextY = walk.path[index + 1];
+  const dx = nextX - startX, dy = nextY - startY, lengthSquared = dx * dx + dy * dy;
+  // Only join the same adjacent GAT segment. Turns and distant corrections
+  // retain the authoritative position calculated from the new server route.
+  if (![startX, startY, nextX, nextY].every(Number.isInteger)
+    || Math.abs(dx) > 1 || Math.abs(dy) > 1 || lengthSquared === 0
+    || previous.targetX !== nextX || previous.targetY !== nextY) return;
+  const walkableType = Altitude.TYPE?.WALKABLE;
+  if (!Number.isInteger(walkableType) || walkableType <= 0
+    || !Number.isInteger(Altitude.width) || !Number.isInteger(Altitude.height)) return;
+  const walkable = (x, y) => {
+    if (x < 0 || y < 0 || x >= Altitude.width || y >= Altitude.height) return false;
+    const cellType = Altitude.getCellType(x, y);
+    return Number.isInteger(cellType) && (cellType & walkableType) !== 0;
+  };
+  try {
+    if (!walkable(startX, startY) || !walkable(nextX, nextY)
+      || (dx && dy && (!walkable(nextX, startY) || !walkable(startX, nextY)))) return;
+  } catch { return; }
+  const oldDx = nextX - previous.startX, oldDy = nextY - previous.startY;
+  if (oldDx * dx + oldDy * dy <= 0 || Math.abs(oldDx * dy - oldDy * dx) > 0.0001) return;
+  const offsetX = previous.x - startX, offsetY = previous.y - startY;
+  const progress = (offsetX * dx + offsetY * dy) / lengthSquared;
+  const serverProgress = ((entity.position[0] - startX) * dx + (entity.position[1] - startY) * dy) / lengthSquared;
+  if (!Number.isFinite(progress) || !Number.isFinite(serverProgress)
+    || Math.abs(offsetX * dy - offsetY * dx) > 0.0001
+    || progress <= 0 || progress >= 1 || progress <= serverProgress + 0.0001) return;
+  const endTick = walk.tick + walk.speed * Math.sqrt(lengthSquared);
+  const nowTick = walk.prevTick;
+  if (!Number.isFinite(nowTick) || !Number.isFinite(endTick) || endTick <= nowTick) return;
+  walk._lastroJoinIndex = index;
+  walk._lastroJoinEndTick = endTick;
+  walk._lastroJoinSpeed = walk.speed;
+  walk._lastroJoinServerTick = walk.tick;
+  walk._lastroJoinServerX = startX;
+  walk._lastroJoinServerY = startY;
+  entity.position[0] = previous.x;
+  entity.position[1] = previous.y;
+  entity.position[2] = previous.z;
+  walk.pos.set(entity.position);
+  walk.lastPos.set(entity.position);
+  walk.tick = walk.prevTick = nowTick;
+  walk.dist = previous.distance;
+}
+
+// Project only the unrendered distance. Replacing a route must not replay its
+// historical catch-up distance in the walk animation or allocate another route.
+function lastroProjectWalkDistance(walk, tick) {
+  if (!walk || !Number.isFinite(tick) || !Number.isFinite(walk.dist) || !Number.isFinite(walk.speed)) return;
+  const path = walk.path, total = walk.total;
+  let index = walk.index;
+  if (!path || !Number.isInteger(index) || !Number.isInteger(total) || index % 2 || index < 2 || index >= total
+    || total % 2 || total > path.length) return;
+  const joined = lastroRouteJoinActive(walk, index);
+  const restoreServer = !joined && walk._lastroJoinIndex === index
+    && Number.isFinite(walk._lastroJoinServerTick)
+    && Number.isFinite(walk._lastroJoinServerX) && Number.isFinite(walk._lastroJoinServerY);
+  let startX = restoreServer ? walk._lastroJoinServerX : walk.pos[0];
+  let startY = restoreServer ? walk._lastroJoinServerY : walk.pos[1];
+  let lastX = walk.lastPos[0], lastY = walk.lastPos[1];
+  let nextX = path[index], nextY = path[index + 1];
+  let dx = nextX - startX, dy = nextY - startY;
+  let duration = Math.sqrt(dx * dx + dy * dy);
+  duration = duration > 0 ? walk.speed * duration : walk.speed;
+  if (!duration || duration < 1) duration = 1;
+  let start = (restoreServer ? walk._lastroJoinServerTick : walk.tick) || tick;
+  let end = joined ? walk._lastroJoinEndTick : start + duration;
+  let distance = 0;
+  while (index < total - 2 && tick >= end) {
+    dx = nextX - lastX; dy = nextY - lastY;
+    distance += Math.sqrt(dx * dx + dy * dy);
+    startX = lastX = nextX; startY = lastY = nextY;
+    index += 2;
+    nextX = path[index]; nextY = path[index + 1];
+    dx = nextX - startX; dy = nextY - startY;
+    duration = Math.sqrt(dx * dx + dy * dy);
+    duration = duration > 0 ? walk.speed * duration : walk.speed;
+    if (!duration || duration < 1) duration = 1;
+    start = end; end = start + duration;
+  }
+  const progress = Math.min(Math.max((tick - start) / Math.max(end - start, 1), 0), 1);
+  dx = startX + (nextX - startX) * progress - lastX;
+  dy = startY + (nextY - startY) * progress - lastY;
+  distance += Math.sqrt(dx * dx + dy * dy);
+  const projected = walk.dist + distance;
+  return Number.isFinite(projected) ? projected : undefined;
+}
 
 function replaceExact(source, needle, replacement) {
   if (source.split(needle).length !== 2) throw new Error('anchor:entity-sync');
@@ -30,6 +178,15 @@ function patchRegion(source, name, patch) {
 
 export function patchRuntimeEntitySync(source) {
   source = patchRegion(source, 'src/Renderer/Entity/EntityWalk.js', body => {
+    // Paths include the starting cell followed by up to MAX_WALKPATH steps.
+    for (const [name, parameters] of [['WalkStructure', ''], ['resetRoute', 'keepDistance']]) {
+      body(name, parameters, original => {
+        const output = replaceExact(original,
+          'new Int16Array(PathFinding_default.MAX_WALKPATH * 2)',
+          'new Int16Array((PathFinding_default.MAX_WALKPATH + 1) * 2)');
+        return name === 'resetRoute' ? '{\n  lastroClearRouteJoin(this.walk);' + output.slice(1) : output;
+      });
+    }
     body('computeWalkStartTick', 'nowTick,moveStartTime,pathDuration,maxClamp', original => {
       // Reject a changed native clock contract rather than patching a different helper.
       replaceExact(original, 'let elapsed = SessionStorage_default.serverTick - moveStartTime;', '');
@@ -69,12 +226,34 @@ export function patchRuntimeEntitySync(source) {
     this.walk.pos.set(this.position);`);
       output = replaceExact(output, 'this.walk.tick = this.walk.prevTick = nowTick;', `const duration = estimatePathDuration(this.walk.path, this.walk.total, this.walk.speed, this.position);
     this.walk.tick = this.walk.prevTick = computeWalkStartTick(nowTick, moveStartTime, duration);`);
+      output = replaceExact(output, '  this.resetRoute(hadRoute);', `  const continuedDistance = serverMove && hadRoute && wasWalkingAction
+    ? lastroProjectWalkDistance(this.walk, Date.now()) : undefined;
+  let previousJoin = serverMove && hadRoute ? lastroCaptureRouteJoin(this) : null;
+  this.resetRoute(hadRoute);
+  // Native onEnd callbacks may synchronously change the player or its state.
+  if (previousJoin && (this !== SessionStorage_default.Entity || this.walk !== previousJoin.walk
+    || this.position !== previousJoin.position || this.action !== previousJoin.action
+    || this._lastroMovementEpoch !== previousJoin.epoch
+    || this.position[0] !== previousJoin.x || this.position[1] !== previousJoin.y
+    || this.position[2] !== previousJoin.z)) previousJoin = null;`);
+      output = replaceExact(output, '  const total = PathFinding_default.search(', '  let total = PathFinding_default.search(');
+      output = replaceExact(output, '  this.walk.index = 2;', `  if (serverMove && (!total || total * 2 > path.length) && !range
+    && (typeof MapRenderer === "undefined" || !MapRenderer.loading)) {
+    total = findLastroServerWalkPath(from_x, from_y, to_x, to_y, path, Altitude);
+  }
+  // A declared route must fit the buffer before interpolation reads it.
+  if (total * 2 > path.length) total = 0;
+  this.walk.index = 2;`);
       output = replaceExact(output, `        play: true,
       });
   }
 }`, `        play: true,
       });
-    if (serverMove) this.walkProcess();
+    if (serverMove) {
+      this.walkProcess();
+      lastroJoinServerRoute(this, previousJoin);
+    }
+    if (serverMove && this.walk.total > 0 && Number.isFinite(continuedDistance)) this.walk.dist = continuedDistance;
   }
 }`);
       return output;
@@ -84,9 +263,20 @@ export function patchRuntimeEntitySync(source) {
       const end = original.indexOf('  const falconGliding = 5;');
       if (start < 0 || end <= start || !original.slice(start, end).includes('walk.prevTick + MAX_WALK_CATCHUP_DELTA')) throw new Error('anchor:entity-sync');
       // Resume at the server timeline after a stall; do not accelerate 100ms per frame.
-      return original.slice(0, start) + '  const TICK = Date.now();\n' + original.slice(end);
+      let output = original.slice(0, start) + `  if (walk._lastroJoinIndex !== undefined && !lastroRouteJoinActive(walk, index)) lastroClearRouteJoin(walk, true);
+  const TICK = Date.now();
+` + original.slice(end);
+      output = replaceExact(output, '    let segmentEnd = segmentStart + speed;', `    const joinedIndex = lastroRouteJoinActive(walk, index) ? index : -1;
+    let segmentEnd = joinedIndex === index ? walk._lastroJoinEndTick : segmentStart + speed;`);
+      output = replaceExact(output, '      index += 2;', '      index += 2;\n      if (walk._lastroJoinIndex !== undefined) lastroClearRouteJoin(walk);');
+      output = replaceExact(output, '        const segDx = Math.round(nextX - startX);', '        const segDx = Math.round(nextX - (joinedIndex === index ? path[index - 2] : startX));');
+      return replaceExact(output, '        const segDy = Math.round(nextY - startY);', '        const segDy = Math.round(nextY - (joinedIndex === index ? path[index - 1] : startY));');
     });
   });
+  const marker = '//#region src/Renderer/Entity/EntityWalk.js';
+  if (source.includes(marker)) source = source.replace(marker, marker + '\n'
+    + [findLastroServerWalkPath, lastroRouteJoinActive, lastroClearRouteJoin, lastroCaptureRouteJoin,
+      lastroJoinServerRoute, lastroProjectWalkDistance].map(fn => fn.toString()).join('\n'));
   return patchRegion(source, 'src/Engine/MapEngine/Entity.js', body => {
     body('onEntityVanish', 'pkt', original => {
       const start = original.indexOf('    const deathDelay =');
@@ -97,7 +287,9 @@ export function patchRuntimeEntitySync(source) {
         || !old.includes('entity.remove(pkt.type);')) throw new Error('anchor:entity-sync');
       return original.slice(0, start) + `    // A server DEAD notification wins over pending hit/attack animations.
     entity._deathSyncTick = 0;
-    EntityManager.removeGID(pkt.GID);
+    // Dead players remain addressable for resurrection and departure packets.
+    if (pkt.type !== Entity.VT.DEAD || entity.objecttype !== Entity.TYPE_PC)
+      EntityManager.removeGID(pkt.GID);
     entity.remove(pkt.type);` + original.slice(end + '    } else playDeath();'.length);
     });
   });

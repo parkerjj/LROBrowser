@@ -26,6 +26,8 @@ import { patchRuntimeNpcMapLinks } from './lastro-npc-map-links.mjs';
 import { patchRuntimeNpcDialogButtons } from './lastro-npc-dialog-buttons.mjs';
 import { patchRuntimeAutolootSettings } from './lastro-autoloot-settings.mjs';
 import { patchRuntimeVendingMovement } from './lastro-vending-movement.mjs';
+import { patchRuntimeShopTitles } from './lastro-shop-titles.mjs';
+import { patchRuntimeMonsterHoverHp } from './lastro-monster-hover-hp.mjs';
 import { patchRuntimeAchievementLinks } from './lastro-achievement-links.mjs';
 import { patchRuntimeTeleportFeedback } from './lastro-teleport-feedback.mjs';
 import { patchRuntimeFrameTiming } from './lastro-frame-timing.mjs';
@@ -33,7 +35,11 @@ import { patchRuntimeAudioTiming } from './lastro-audio-timing.mjs';
 import { patchRuntimeEntitySync } from './lastro-entity-sync.mjs';
 import { patchRuntimeEntityAppearance } from './lastro-entity-appearance.mjs';
 import { patchRuntimeEquipmentAnimation } from './lastro-equipment-animation.mjs';
-import { patchRuntimeEquipmentCatalog, patchRuntimeEquipmentView } from './lastro-equipment-view.mjs';
+import { patchRuntimeEquipmentCart } from './lastro-equipment-cart.mjs';
+import { patchRuntimeManualSkill } from './lastro-manual-skill.mjs';
+import { patchRuntimeSkillCooldown } from './lastro-skill-cooldown.mjs';
+import { patchRuntimeEquipmentAppearance, patchRuntimeEquipmentCatalog, patchRuntimeEquipmentView } from './lastro-equipment-view.mjs';
+import { patchRuntimeWeaponViewFallback } from './lastro-weapon-view-fallback.mjs';
 import { patchRuntimeTeleportFade } from './lastro-teleport-fade.mjs';
 import { patchRuntimeMovementInput } from './lastro-movement-input.mjs';
 import { patchRuntimeMovementSync } from './lastro-movement-sync.mjs';
@@ -41,6 +47,7 @@ import { installLastroToolsPanels } from './lastro-tools-panels.mjs';
 import { LASTRO_TOOLS_CSS } from './lastro-tools-style.mjs';
 import { captureLastroShortcutEntry, installLastroShortcutEntry } from './lastro-shortcut-entry.mjs';
 import { installLastroShortcutSettings } from './lastro-shortcut-settings.mjs';
+import { installLastroTeleportSettings } from './lastro-teleport-settings.mjs';
 import { patchRuntimeMail } from './lastro-mail.mjs';
 import { patchPetDialogueDecoding } from './patch-pet-dialogue.mjs';
 import { patchRuntimeUiText } from './lastro-ui-text.mjs';
@@ -50,9 +57,13 @@ import { patchRuntimeUiState } from './lastro-ui-state.mjs';
 import { patchRuntimeStoreScroll } from './lastro-store-scroll.mjs';
 import { patchRuntimeStorageCount } from './lastro-storage-count.mjs';
 import { patchRuntimeUiInput } from './lastro-ui-input.mjs';
+import { patchRuntimeEmoticons } from './lastro-emoticons.mjs';
 import { patchRuntimeItemDrag } from './lastro-item-drag.mjs';
 import { patchRuntimeItemName } from './lastro-item-name.mjs';
 import { patchRuntimeHotkeys } from './lastro-hotkeys.mjs';
+import { patchRuntimeCardDeckHotkeys } from './lastro-card-deck-hotkeys.mjs';
+import { patchRuntimeCardCollection } from './lastro-card-collection.mjs';
+import { patchRuntimePartyState } from './lastro-party-state.mjs';
 import { patchRuntimeTypography } from './lastro-typography.mjs';
 import { patchRuntimeDialogTypography } from './lastro-dialog-typography.mjs';
 import { patchRuntimeNavigationUi } from './lastro-navigation-ui.mjs';
@@ -416,6 +427,7 @@ var init_WorldMap = __esmMin(() => {
   init_Thread(); init_Configs();
   const lastroWorldMapPreflight = (${createLastroTeleportPreflight.toString()})({
     getMap: () => MapRenderer.loading ? "" : normalizeLastROTeleportMap(MapRenderer.currentMap),
+    getProfile: () => String(Configs.get("lastroNid", 0)) + ":" + String(Configs.get("clientVer", 0)),
     loadFile: ${teleportResourceLoaderCode()},
   });
   const lastroWorldMapTeleport = (${createLastroWorldMapTeleport.toString()})({
@@ -424,6 +436,7 @@ var init_WorldMap = __esmMin(() => {
     getProfile: () => String(Configs.get("lastroNid", 0)) + ":" + String(Configs.get("clientVer", 0)),
     onSameMap: () => showLastroTeleportNotice("已在目标地图。"),
     showPrompt: (message, yes, no) => UIManager.showPromptBox(message, "ok", "cancel", yes, no),
+    shouldConfirmTeleport: () => typeof getLastroTeleportConfirmationEnabled !== "function" || getLastroTeleportConfirmationEnabled(),
     send: mapname => {
       if (!PACKET.CZ.PRIVATE_AIRSHIP_REQUEST) throw new Error("当前客户端不支持传送");
       const pkt = new PACKET.CZ.PRIVATE_AIRSHIP_REQUEST();
@@ -1019,6 +1032,7 @@ export function patchRuntimeChatMapLinks(source) {
   if (Configs.get("lastroProtocol", false)) {
     const lastroMessage = LastROChatMapLinks.serverMessage(pkt.msg);
     if (lastroMessage !== null) {
+      if (typeof CardConnection2 !== "undefined") CardConnection2?._lastroCardDeck?.onServerNotice(lastroMessage);
       init_Announce();
       Announce_default.append();
       Announce_default.set(LastROChatMapLinks.plainText(lastroMessage), "#FFFF00", { life: 5000 });
@@ -1079,6 +1093,7 @@ export function patchRuntimeChatMapLinks(source) {
   return `const LastROChatMapLinks = (${createLastroChatMapLinks.toString()})({
   setHtml: (parent, html) => setLastROInnerHTML(parent, html),
   showPrompt: (message, yes, no) => UIManager.showPromptBox(message, "ok", "cancel", yes, no),
+  shouldConfirmTeleport: () => typeof getLastroTeleportConfirmationEnabled !== "function" || getLastroTeleportConfirmationEnabled(),
   getMap: () => typeof MapRenderer !== "undefined" && !MapRenderer.loading ? normalizeLastROTeleportMap(MapRenderer.currentMap) : "",
   canTeleport: () => !!PACKET?.CZ?.PRIVATE_AIRSHIP_REQUEST && typeof MapRenderer !== "undefined" && !MapRenderer.loading && !!normalizeLastROTeleportMap(MapRenderer.currentMap),
   navigate: target => {
@@ -1217,6 +1232,7 @@ export function patchRuntimeToolsPanels(source) {
   });
   const lastroRoutePreflight = (${createLastroTeleportPreflight.toString()})({
     getMap: () => MapRenderer.loading ? "" : normalizeLastROTeleportMap(MapRenderer.currentMap),
+    getProfile: () => String(Configs.get("lastroNid", 0)) + ":" + String(Configs.get("clientVer", 0)),
     loadFile: ${teleportResourceLoaderCode()},
   });
   const lastroVerifiedRouteRequest = (${createLastroVerifiedTeleportRequest.toString()})({
@@ -1242,6 +1258,7 @@ export function patchRuntimeToolsPanels(source) {
     routeMapChanged: () => lastroRouteNavigation.onMapChanged(),
     cancelRoute: () => lastroVerifiedRouteRequest.cancel(),
     showPrompt: (message, yes, no) => UIManager.showPromptBox(message, "ok", "cancel", yes, no),
+    shouldConfirmTeleport: () => typeof getLastroTeleportConfirmationEnabled !== "function" || getLastroTeleportConfirmationEnabled(),
     getPresetRoutes: () => {
       const catalog = LastROTeleportPresets.profiles[Configs.get("clientVer", 0)];
       return catalog ? { ...catalog, custom: { ...LastROTeleportPresets.upstreamCustomRoutes, ...catalog.custom } } : {};
@@ -1297,6 +1314,12 @@ export function patchRuntimeShortcutSettings(source) {
     getEnabled: getLastroShortcutEntryEnabled,
     setEnabled: setLastroShortcutEntryEnabled,
     onError: () => UIManager.showErrorBox("快捷入口设置保存失败，请重试。"),
+  });
+  (${installLastroTeleportSettings.toString()})(GraphicsOption, {
+    document: globalThis.document,
+    getEnabled: getLastroTeleportConfirmationEnabled,
+    setEnabled: setLastroTeleportConfirmationEnabled,
+    onError: () => UIManager.showErrorBox("传送确认设置保存失败，请重试。"),
   });\n  `;
   const anchor = statement.getStart(file);
   const preference = `let lastroShortcutEntryPreferences;
@@ -1318,6 +1341,26 @@ async function setLastroShortcutEntryEnabled(enabled) {
   if (typeof next.save !== "function" || await next.save.call(next) === false) throw new Error("Shortcut preference was not saved");
   preferences.enabled = next.enabled;
   if (typeof LastROTools !== "undefined") LastROTools?._lastroShortcutEntry?.setEnabled(next.enabled);
+  return true;
+}
+let lastroTeleportConfirmationPreferences;
+function getLastroTeleportConfirmationPreferences() {
+  init_Preferences$1();
+  if (!lastroTeleportConfirmationPreferences) {
+    const defaults = { _key: "LastROTeleportConfirmation", _version: 1, enabled: true };
+    try { lastroTeleportConfirmationPreferences = Preferences.get("LastROTeleportConfirmation", defaults, 1); }
+    catch { lastroTeleportConfirmationPreferences = { ...defaults, save() { return Preferences.save(this); } }; }
+  }
+  return lastroTeleportConfirmationPreferences;
+}
+function getLastroTeleportConfirmationEnabled() {
+  return getLastroTeleportConfirmationPreferences().enabled !== false;
+}
+async function setLastroTeleportConfirmationEnabled(enabled) {
+  const preferences = getLastroTeleportConfirmationPreferences();
+  const next = { ...preferences, enabled: enabled === true };
+  if (typeof next.save !== "function" || await next.save.call(next) === false) throw new Error("Teleport confirmation preference was not saved");
+  preferences.enabled = next.enabled;
   return true;
 }\n`;
   return preference + source.slice(0, anchor) + install + source.slice(anchor);
@@ -1463,10 +1506,16 @@ ${normalizedSource}`;
   output = patchRuntimeAudioTiming(output);
   output = patchRuntimeFrameTiming(output);
   output = patchRuntimeEntitySync(output);
+  output = patchRuntimeMonsterHoverHp(output);
   output = patchRuntimeEntityAppearance(output);
   output = patchRuntimeEquipmentCatalog(output);
+  output = patchRuntimeWeaponViewFallback(output);
   output = patchRuntimeEquipmentView(output);
+  output = patchRuntimeEquipmentAppearance(output);
   output = patchRuntimeEquipmentAnimation(output);
+  output = patchRuntimeEquipmentCart(output);
+  output = patchRuntimeManualSkill(output);
+  output = patchRuntimeSkillCooldown(output);
   output = patchRuntimeMovementInput(output);
   output = patchRuntimeMovementSync(output);
   output = patchRuntimeLastROItemLayouts(output);
@@ -1585,6 +1634,9 @@ ${normalizedSource}`;
   output = patchRuntimeMapLocalization(output);
   output = patchRuntimeStatusTooltips(output);
   output = patchRuntimeHotkeys(output);
+  output = patchRuntimeCardDeckHotkeys(output);
+  output = patchRuntimeCardCollection(output);
+  output = patchRuntimePartyState(output);
   output = patchRuntimeLuaStartup(output);
   output = patchLuaTableCompletion(output);
   output = patchRuntimeUiLayout(output);
@@ -1597,6 +1649,7 @@ ${normalizedSource}`;
   output = patchRuntimeNpcMapLinks(output, teleportResourceLoaderCode());
   output = patchRuntimeNpcDialogButtons(output);
   output = patchRuntimeVendingMovement(output);
+  output = patchRuntimeShopTitles(output);
   output = patchRuntimeAchievementLinks(output, teleportResourceLoaderCode());
   output = patchRuntimeTeleportFeedback(output);
   output = patchRuntimeAutolootSettings(output);
@@ -1610,6 +1663,7 @@ ${normalizedSource}`;
   output = patchRuntimeItemName(output);
   output = patchRuntimeUiState(output);
   output = patchRuntimeUiInput(output);
+  output = patchRuntimeEmoticons(output);
   output = patchRuntimeItemDrag(output);
   output = patchMapLoadFailureRecovery(output);
   output = patchRuntimeTeleportFade(output);

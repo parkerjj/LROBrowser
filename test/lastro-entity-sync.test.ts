@@ -40,22 +40,25 @@ interface ActionOptions {
 }
 interface Entity {
   GID: number; objecttype: number; ACTION: Record<string, number>; action: number;
-  position: Float32Array; walk: Walk;
+  position: Float32Array; walk: Walk; direction: number; _lastroMovementEpoch?: number;
   animation: { next: ActionOptions | false; save: ActionOptions | false; repeat: boolean; delay: number };
   _deathSyncTick: number; remove_tick: number; remove_delay: number;
   onWalkEnd: () => void;
   walkTo(x0: number, y0: number, x1: number, y1: number, range?: number, start?: number): void;
+  walkToNonWalkableGround(x0: number, y0: number, x1: number, y1: number, range?: number, overshoot?: boolean, attacking?: boolean, start?: number): void;
   walkProcess(): void; resetRoute(keepDistance?: boolean): void; remove(type: number): void;
   setAction(options: ActionOptions): void;
 }
 
-function fixture(source = patched, objecttype = 5) {
+function fixture(source = patched, objecttype = 5, size = 12) {
   let now = 10000;
   const SessionStorage_default = { serverTick: 10000, Entity: null as Entity | null };
   const Renderer = { tick: now };
-  const cells = new Uint8Array(12 * 12).fill(10);
+  const cells = new Uint8Array(size * size).fill(10);
   const Altitude = {
-    width: 12, height: 12, cells, types: { NONE: 1, WALKABLE: 2, WATER: 4, SNIPABLE: 8 },
+    width: size, height: size, cells, types: { NONE: 1, WALKABLE: 2, WATER: 4, SNIPABLE: 8 },
+    TYPE: { NONE: 1, WALKABLE: 2, WATER: 4, SNIPABLE: 8 },
+    getCellType: (x: number, y: number) => cells[x + y * size],
     getCellHeight: vi.fn((x: number, y: number) => x + y),
   };
   const timers: { callback: () => void; due: number }[] = [];
@@ -74,7 +77,8 @@ function fixture(source = patched, objecttype = 5) {
   };
   const LastROAdvanceServerTick = vi.fn(() => SessionStorage_default.serverTick);
   const context = vm.createContext({
-    Date: { now: () => now }, console, Float32Array, Int16Array, Uint32Array, Uint16Array, Uint8Array,
+    Date: class extends Date { static now() { return now; } },
+    console: { warn: vi.fn(), trace: vi.fn(), error: vi.fn() }, Float32Array, Int16Array, Uint32Array, Uint16Array, Uint8Array,
     __esmMin: (init: () => void) => { let loaded = false; return () => { if (!loaded) { loaded = true; init(); } }; },
     init_PathFinding: () => {}, init_Altitude: () => {},
     init_SessionStorage: () => {}, init_DBManager: () => {},
@@ -97,16 +101,23 @@ function fixture(source = patched, objecttype = 5) {
   vm.runInContext([
     declaration(action, 'Action'), declaration(action, 'Animation'), declaration(action, 'setAction'), declaration(action, 'Init$10'),
     walk,
+    declaration(region('src/Engine/MapEngine/Main.js'), 'onPlayerMove'),
+    declaration(engine, 'onEntityMove'),
     declaration(engine, 'onEntityVanish'), declaration(engine, 'onEntityWillBeHitSub'),
     'init_EntityWalk();',
   ].join('\n'), context);
   const functions = vm.runInContext(`({
     action: Init$10, walk: Init$4, compute: computeWalkStartTick,
+    project: typeof lastroProjectWalkDistance === 'function' ? lastroProjectWalkDistance : undefined,
     vanish: onEntityVanish, hit: onEntityWillBeHitSub,
+    playerMove: onPlayerMove, entityMove: onEntityMove,
     methods: {${entityMethod('remove')}, ${entityMethod('clean')}}
   })`, context) as {
     action(this: Entity): void; walk(this: Entity): void;
     compute(now: number, start: unknown, duration: number, limit?: number): number;
+    project?: (walk: Walk, tick: number) => number | undefined;
+    playerMove(pkt: { MoveData: number[]; moveStartTime: number }): void;
+    entityMove(pkt: { GID: number; MoveData: number[]; moveStartTime: number }): void;
     vanish(pkt: { GID: number; type: number }): void;
     hit(pkt: { damage: number; leftDamage?: number; count?: number; action: number; attackMT: number; attackedMT: number }, entity: Entity): void;
     methods: Record<string, unknown>;
@@ -135,6 +146,200 @@ function fixture(source = patched, objecttype = 5) {
 }
 
 describe('server-authoritative entity synchronization', () => {
+  it.each(['player', 'entity'])('reconstructs a server-approved short detour after native index collisions: %s packet', entry => {
+    const fixed = fixture(patched, 0, 128);
+    const old = fixture(native, 0, 128);
+    for (const f of [old, fixed]) {
+      for (let y = 43; y <= 55; y++) f.cells[60 + y * 128] = 1;
+      f.entity.position.set([27, 50, 77]);
+      const packet = { GID: 123, MoveData: [50, 50, 69, 50], moveStartTime: 10000 };
+      if (entry === 'player') f.functions.playerMove(packet);
+      else f.functions.entityMove(packet);
+    }
+    expect(old.entity.walk.total).toBe(0);
+    expect(Array.from(old.entity.position)).toEqual([27, 50, 77]);
+    expect(fixed.entity.walk.total).toBeGreaterThan(0);
+    expect(fixed.entity.walk.total).toBeLessThanOrEqual(66);
+    const path = Array.from(fixed.entity.walk.path.slice(0, fixed.entity.walk.total));
+    for (let i = 0; i < path.length; i += 2) {
+      expect(fixed.cells[path[i]! + path[i + 1]! * 128]! & 2).not.toBe(0);
+      if (i >= 2 && path[i] !== path[i - 2] && path[i + 1] !== path[i - 1]) {
+        expect(fixed.cells[path[i]! + path[i - 1]! * 128]! & 2).not.toBe(0);
+        expect(fixed.cells[path[i - 2]! + path[i + 1]! * 128]! & 2).not.toBe(0);
+      }
+    }
+    const arrived = vi.fn(); fixed.entity.walk.onEnd = arrived;
+    const action = vi.spyOn(fixed.entity, 'setAction');
+    for (let elapsed = 16; elapsed <= 7000; elapsed += 16) {
+      fixed.setNow(10000 + elapsed); fixed.entity.walkProcess();
+      expect(Array.from(fixed.entity.position).every(Number.isFinite)).toBe(true);
+    }
+    expect(Array.from(fixed.entity.position)).toEqual([69, 50, 119]);
+    expect(arrived).toHaveBeenCalledOnce();
+    expect(action.mock.calls.filter(([option]) => option.action === fixed.entity.ACTION.IDLE)).toHaveLength(1);
+  });
+
+  it('retains ordinary native route selection and rejects oversized or unreachable server routes safely', () => {
+    const old = fixture(native, 0, 96), fixed = fixture(patched, 0, 96);
+    for (const f of [old, fixed]) f.entity.walkTo(1, 1, 20, 10, undefined, 10000);
+    expect(Array.from(fixed.entity.walk.path.slice(0, fixed.entity.walk.total)))
+      .toEqual(Array.from(old.entity.walk.path.slice(0, old.entity.walk.total)));
+    for (const type of ['long', 'blocked', 'loading', 'local']) {
+      const f = fixture(patched, 0, 96);
+      if (type === 'blocked') f.cells[20 + 1 * 96] = 1;
+      const end = type === 'long' ? 41 : type === 'blocked' ? 20 : 30;
+      if (type === 'loading' || type === 'local') for (let y = 0; y <= 14; y++) f.cells[16 + y * 96] = 1;
+      if (type === 'loading') {
+        // An unavailable cell accessor prevents use of a stale map.
+        f.Altitude.getCellType = () => undefined;
+      }
+      f.entity.walkTo(1, 1, end, 1, undefined, type === 'local' ? undefined : 10000);
+      expect(f.entity.walk.total).toBe(0);
+      f.setNow(20000); f.entity.walkProcess();
+      expect(Array.from(f.entity.position).every(Number.isFinite)).toBe(true);
+    }
+  });
+
+  it.each([0, 5, 7, 8, 9, 10, 15, 16])('preserves continuous animation distance for delayed and repeated routes: type %s', type => {
+    const f = fixture(patched, type, 48);
+    f.entity.walkTo(1, 1, 20, 1, undefined, 10000);
+    const callbacks = vi.fn();
+    f.entity.onWalkEnd = callbacks;
+    for (let step = 1; step <= 8; step++) {
+      const receipt = 10000 + step * 150 + 85;
+      f.setNow(receipt);
+      f.SessionStorage_default.serverTick = receipt;
+      // A packet arrives between render frames. The previous route has not
+      // been processed to this time before replacement.
+      f.entity.walkTo(1 + step, 1, 20, 1, undefined, 10000 + step * 150);
+      expect(f.entity.walk.dist).toBeCloseTo((receipt - 10000) / 150, 4);
+      expect(f.entity.position[0]).toBeCloseTo(1 + (receipt - 10000) / 150, 4);
+      expect(f.entity.action).toBe(f.entity.ACTION.WALK);
+    }
+    const priorDistance = f.entity.walk.dist;
+    const priorPosition = Array.from(f.entity.position);
+    f.entity.walkTo(9, 1, 20, 1, undefined, 11200);
+    expect(f.entity.walk.dist).toBeCloseTo(priorDistance, 5);
+    expect(Array.from(f.entity.position)).toEqual(priorPosition);
+    expect(callbacks).not.toHaveBeenCalled();
+  });
+
+  it('projects unrendered path distance without mutating the live route or invoking arrival callbacks', () => {
+    const f = fixture(patched, 0, 48);
+    let seed = 37;
+    const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 2 ** 32; };
+    for (let sample = 0; sample < 160; sample++) {
+      f.entity.resetRoute();
+      f.entity.position.set([1, 1, 2]);
+      f.entity.setAction({ action: f.entity.ACTION.IDLE!, repeat: true, play: true });
+      f.entity.walk.speed = 100 + Math.floor(random() * 150);
+      f.setNow(10000); f.SessionStorage_default.serverTick = 10000;
+      f.entity.walkTo(1, 1, 3 + Math.floor(random() * 22), 2 + Math.floor(random() * 15), undefined, 10000);
+      f.setNow(10000 + Math.floor(random() * 100));
+      f.entity.walkProcess();
+      if (sample % 3 === 0) f.entity.walk.speed = 50 + Math.floor(random() * 250);
+      const tick = 10100 + Math.floor(random() * 7000);
+      const live = f.entity.walk;
+      const before = {
+        ...live, path: Array.from(live.path), pos: Array.from(live.pos), lastPos: Array.from(live.lastPos),
+        position: Array.from(f.entity.position),
+      };
+      const arrived = vi.fn();
+      const reference = Object.assign({}, f.entity, {
+        position: new Float32Array(f.entity.position),
+        walk: { ...live, path: new Int16Array(live.path), pos: new Float32Array(live.pos), lastPos: new Float32Array(live.lastPos), onEnd: null },
+        setAction: () => {}, onWalkEnd: arrived,
+        resetRoute() { this.walk.total = 0; },
+      });
+      f.setNow(tick);
+      reference.walkProcess();
+      expect(f.functions.project!(live, tick)).toBeCloseTo(reference.walk.dist, 9);
+      expect({
+        ...live, path: Array.from(live.path), pos: Array.from(live.pos), lastPos: Array.from(live.lastPos),
+        position: Array.from(f.entity.position),
+      }).toEqual(before);
+      // Only the separate reference may finish; projection has no callback.
+      expect(f.entity.walk.onEnd).toBe(before.onEnd);
+    }
+  });
+
+  it('keeps animation phase through an unrendered old endpoint and resets it when the new route completes', () => {
+    const f = fixture(patched, 0);
+    f.entity.walkTo(1, 1, 3, 1, undefined, 10000);
+    f.setNow(10500); f.SessionStorage_default.serverTick = 10500;
+    f.entity.walkTo(3, 1, 8, 1, undefined, 10500);
+    expect(f.entity.walk.dist).toBeCloseTo(2);
+    expect(f.entity.position[0]).toBe(3);
+    f.setNow(11300);
+    f.entity.walkProcess();
+    expect(f.entity.walk.total).toBe(0);
+    expect(f.entity.walk.dist).toBe(0);
+    expect(f.entity.action).toBe(f.entity.ACTION.IDLE);
+  });
+
+  it('reproduces native coordinate overflow on a 32-step route', () => {
+    const f = fixture(native, 0, 48);
+    f.entity.walkTo(1, 1, 33, 1, undefined, 10000);
+    expect(f.entity.walk.total).toBe(66);
+    expect(f.entity.walk.path.length).toBe(64);
+    let invalid = false;
+    for (let elapsed = 0; elapsed <= 4800; elapsed += 16) {
+      f.setNow(10000 + elapsed);
+      f.entity.walkProcess();
+      invalid ||= Array.from(f.entity.position).some(value => !Number.isFinite(value));
+    }
+    expect(invalid).toBe(true);
+  });
+
+  it.each([
+    [0, 1, 1, 33, 1], [5, 1, 1, 33, 1],
+    [0, 1, 1, 33, 33], [5, 1, 1, 33, 33],
+    [0, 33, 33, 1, 33], [5, 33, 33, 1, 33],
+    [0, 33, 33, 1, 1], [5, 33, 33, 1, 1],
+  ])('finishes 32 steps with finite coordinates: type %s, [%s,%s] to [%s,%s]', (type, x0, y0, x1, y1) => {
+    const f = fixture(patched, type, 48);
+    const arrival = vi.fn(), end = vi.fn();
+    f.entity.onWalkEnd = end;
+    // Complete the route twice so resetRoute must preserve the required capacity.
+    for (const start of [10000, 20000]) {
+      f.setNow(start);
+      f.SessionStorage_default.serverTick = start;
+      f.entity.walkTo(x0, y0, x1, y1, undefined, start);
+      expect(f.entity.walk.total).toBe(66);
+      expect(f.entity.walk.path.length).toBeGreaterThanOrEqual(f.entity.walk.total);
+      expect(Array.from(f.entity.walk.path.slice(64, 66))).toEqual([x1, y1]);
+      f.entity.walk.onEnd = arrival;
+      for (let elapsed = 0; elapsed <= 7008; elapsed += 16) {
+        f.setNow(start + elapsed);
+        f.entity.walkProcess();
+        expect([...f.entity.position, ...f.entity.walk.lastPos, f.entity.walk.dist]
+          .every(Number.isFinite)).toBe(true);
+      }
+      expect(Array.from(f.entity.position)).toEqual([x1, y1, x1 + y1]);
+      expect(f.entity.walk.total).toBe(0);
+      expect(f.entity.action).toBe(f.entity.ACTION.IDLE);
+    }
+    expect(arrival).toHaveBeenCalledTimes(2);
+    expect(end).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([0, 15, 16])('preserves 32-step non-walkable paths for entity type %s', type => {
+    const f = fixture(patched, type, 48);
+    const end = vi.fn();
+    f.entity.onWalkEnd = end;
+    f.entity.walkToNonWalkableGround(1, 1, 33, 1, 0, false, false, 10000);
+    expect(f.entity.walk.total).toBe(66);
+    expect(f.entity.walk.path.length).toBeGreaterThanOrEqual(f.entity.walk.total);
+    for (let elapsed = 0; elapsed <= 5008; elapsed += 16) {
+      f.setNow(10000 + elapsed);
+      f.entity.walkProcess();
+      expect(Array.from(f.entity.position).every(Number.isFinite)).toBe(true);
+    }
+    expect(Array.from(f.entity.position.slice(0, 2))).toEqual([33, 1]);
+    expect(f.entity.walk.total).toBe(0);
+    expect(end).toHaveBeenCalledOnce();
+  });
+
   it('reproduces the native wait for attack motion plus 200ms before showing a received death', () => {
     const f = fixture(native);
     f.functions.hit({ damage: 10, count: 4, action: 0, attackMT: 800, attackedMT: 400 }, f.entity);
@@ -327,6 +532,198 @@ describe('server-authoritative entity synchronization', () => {
   });
 });
 
+describe('joining the current player to a nearby server movement segment', () => {
+  function joinFixture(dx = 1, dy = 0, type = 0) {
+    const f = fixture(patched, type, 48);
+    const distance = Math.hypot(dx, dy), duration = 150 * distance;
+    const receipt = 10000 + duration * 1.4;
+    f.entity.walk.speed = 150;
+    f.entity.walkTo(12, 12, 12 + dx * 6, 12 + dy * 6, undefined, 10000);
+    f.setNow(receipt); f.SessionStorage_default.serverTick = receipt;
+    f.entity.walkProcess();
+    return { ...f, dx, dy, duration, receipt,
+      from: [12 + dx, 12 + dy] as const, to: [12 + dx * 6, 12 + dy * 6] as const };
+  }
+  function receive(f: ReturnType<typeof joinFixture>, start = Math.round(f.receipt)) {
+    f.functions.playerMove({ MoveData: [...f.from, ...f.to], moveStartTime: start });
+  }
+
+  it.each([[1, 0], [0, 1], [-1, 0], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]])(
+    'keeps the displayed position for direction [%s,%s] and reaches the next cell at the server deadline', (dx, dy) => {
+      const f = joinFixture(dx!, dy!);
+      // Packet ticks are integers; make the local clock agree with the packet start.
+      f.receipt = Math.round(f.receipt); f.setNow(f.receipt); f.SessionStorage_default.serverTick = f.receipt;
+      f.entity.walkProcess();
+      const before = Array.from(f.entity.position);
+      receive(f);
+      expect(Array.from(f.entity.position)).toEqual(before);
+      const midpoint = f.receipt + f.duration / 2;
+      f.setNow(midpoint); f.entity.walkProcess();
+      expect(f.entity.position[0]).toBeCloseTo((before[0]! + 12 + dx! * 2) / 2, 5);
+      expect(f.entity.position[1]).toBeCloseTo((before[1]! + 12 + dy! * 2) / 2, 5);
+      f.setNow(f.receipt + f.duration); f.entity.walkProcess();
+      expect(f.entity.position[0]).toBeCloseTo(12 + dx! * 2, 5);
+      expect(f.entity.position[1]).toBeCloseTo(12 + dy! * 2, 5);
+      f.setNow(f.receipt + f.duration * 1.5); f.entity.walkProcess();
+      expect(f.entity.position[0]).toBeCloseTo(12 + dx! * 2.5, 5);
+      expect(f.entity.position[1]).toBeCloseTo(12 + dy! * 2.5, 5);
+    },
+  );
+
+  it.each(['WALK', 'HURT', 'ATTACK', 'SKILL'] as const)('joins generically while the player has a %s animation', action => {
+    const f = joinFixture();
+    f.entity.setAction({ action: f.entity.ACTION[action]!, play: true });
+    const before = Array.from(f.entity.position);
+    receive(f);
+    expect(Array.from(f.entity.position)).toEqual(before);
+    f.setNow(f.receipt + 75); f.entity.walkProcess();
+    expect(f.entity.position[0]).toBeCloseTo(13.7, 5);
+    f.setNow(f.receipt + 150); f.entity.walkProcess();
+    expect(f.entity.position[0]).toBe(14);
+  });
+
+  it('does not reach the first cell early or replay the join when the same MOVE arrives again', () => {
+    const f = joinFixture(); receive(f);
+    f.setNow(f.receipt + 60); f.SessionStorage_default.serverTick = f.receipt + 60; f.entity.walkProcess();
+    const beforeRepeat = Array.from(f.entity.position);
+    receive(f);
+    expect(Array.from(f.entity.position)).toEqual(beforeRepeat);
+    f.setNow(f.receipt + 90); f.entity.walkProcess();
+    expect(f.entity.position[0]).toBeLessThan(14);
+    f.setNow(f.receipt + 150); f.entity.walkProcess(); expect(f.entity.position[0]).toBe(14);
+    f.setNow(f.receipt + 300); f.entity.walkProcess(); expect(f.entity.position[0]).toBe(15);
+  });
+
+  it.each([90, 240])('returns to the server timeline after the speed changes to %s during a join', speed => {
+    const f = joinFixture(); receive(f);
+    f.setNow(f.receipt + 30); f.entity.walkProcess(); expect(f.entity.position[0]).toBeCloseTo(13.52, 5);
+    f.entity.walk.speed = speed;
+    f.setNow(f.receipt + speed); f.entity.walkProcess(); expect(f.entity.position[0]).toBe(14);
+    f.setNow(f.receipt + speed * 2); f.entity.walkProcess(); expect(f.entity.position[0]).toBe(15);
+  });
+
+  it.each([0.6, 0.9])('keeps an interior lead of %s of a cell without changing direction', fraction => {
+    for (const [dx, dy] of [[1, 0], [1, 1]]) {
+      const f = joinFixture(dx!, dy!);
+      f.receipt = Math.round(10000 + f.duration * (1 + fraction));
+      f.setNow(f.receipt); f.SessionStorage_default.serverTick = f.receipt; f.entity.walkProcess();
+      const before = Array.from(f.entity.position), direction = f.entity.direction;
+      receive(f); expect(Array.from(f.entity.position)).toEqual(before); expect(f.entity.direction).toBe(direction);
+      f.setNow(f.receipt + f.duration / 2); f.entity.walkProcess(); expect(f.entity.direction).toBe(direction);
+      f.setNow(f.receipt + f.duration); f.entity.walkProcess();
+      expect(f.entity.position[0]).toBeCloseTo(12 + dx! * 2, 5);
+      expect(f.entity.position[1]).toBeCloseTo(12 + dy! * 2, 5);
+      expect(f.entity.direction).toBe(direction);
+    }
+  });
+
+  it.each([[1, 0], [1, 1]])('keeps canonical direction after a delayed [%s,%s] MOVE has already passed its first path node', (dx, dy) => {
+    const f = joinFixture(dx!, dy!);
+    f.receipt = Math.round(10000 + f.duration * 1.9);
+    f.setNow(f.receipt); f.SessionStorage_default.serverTick = f.receipt; f.entity.walkProcess();
+    const before = Array.from(f.entity.position), direction = f.entity.direction;
+    const start = f.receipt - Math.ceil(f.duration);
+    f.functions.playerMove({ MoveData: [12, 12, ...f.to], moveStartTime: start });
+    expect(f.entity.walk.index).toBeGreaterThan(2);
+    expect(Array.from(f.entity.position)).toEqual(before); expect(f.entity.direction).toBe(direction);
+    const deadline = start + 2 * f.duration;
+    f.setNow((f.receipt + deadline) / 2); f.entity.walkProcess(); expect(f.entity.direction).toBe(direction);
+    f.setNow(deadline); f.entity.walkProcess();
+    expect(f.entity.position[0]).toBeCloseTo(12 + dx! * 2, 5);
+    expect(f.entity.position[1]).toBeCloseTo(12 + dy! * 2, 5); expect(f.entity.direction).toBe(direction);
+  });
+
+  it('catches up after a slow frame and invokes each route endpoint callback only once', () => {
+    const f = joinFixture(); receive(f);
+    const arrived = vi.fn(), ended = vi.fn(); f.entity.walk.onEnd = arrived; f.entity.onWalkEnd = ended;
+    f.setNow(f.receipt + 425); f.entity.walkProcess();
+    expect(f.entity.position[0]).toBeCloseTo(15 + 125 / 150, 5);
+    f.setNow(f.receipt + 1000); f.entity.walkProcess(); f.entity.walkProcess();
+    expect(Array.from(f.entity.position)).toEqual([18, 12, 30]); expect(f.entity.walk.total).toBe(0);
+    expect(arrived).toHaveBeenCalledOnce(); expect(ended).toHaveBeenCalledOnce();
+    f.setNow(f.receipt + 2000); f.entity.walkProcess();
+    expect(Array.from(f.entity.position)).toEqual([18, 12, 30]); expect(arrived).toHaveBeenCalledOnce();
+  });
+
+  it('keeps a near join on a multi-segment obstacle route and then follows the server path', () => {
+    const f = fixture(patched, 0, 48); f.cells[15 + 12 * 48] = 1; f.entity.walk.speed = 150;
+    f.functions.playerMove({ MoveData: [12, 12, 18, 12], moveStartTime: 10000 });
+    const path = Array.from(f.entity.walk.path.slice(0, f.entity.walk.total));
+    const firstDuration = Math.hypot(path[2]! - path[0]!, path[3]! - path[1]!) * 150;
+    const secondDuration = Math.hypot(path[4]! - path[2]!, path[5]! - path[3]!) * 150;
+    const receipt = Math.round(10000 + firstDuration + secondDuration * 0.4);
+    f.setNow(receipt); f.SessionStorage_default.serverTick = receipt; f.entity.walkProcess();
+    const before = Array.from(f.entity.position), start = receipt - Math.ceil(firstDuration);
+    f.functions.playerMove({ MoveData: [12, 12, 18, 12], moveStartTime: start });
+    expect(Array.from(f.entity.position)).toEqual(before);
+    f.setNow(start + firstDuration + secondDuration); f.entity.walkProcess();
+    expect(Array.from(f.entity.position)).toEqual([path[4], path[5], path[4]! + path[5]!]);
+    const arrived = vi.fn(); f.entity.walk.onEnd = arrived;
+    for (let time = Math.ceil(start + firstDuration + secondDuration) + 16; time < receipt + 3000; time += 16) {
+      f.setNow(time); f.entity.walkProcess();
+      const x = Math.round(f.entity.position[0]!), y = Math.round(f.entity.position[1]!);
+      expect(f.cells[x + y * 48]! & 2).not.toBe(0);
+    }
+    expect(Array.from(f.entity.position)).toEqual([18, 12, 30]); expect(arrived).toHaveBeenCalledOnce();
+  });
+
+  it.each(['far', 'turn', 'behind', 'wall', 'finished', 'other-player', 'monster', 'npc'] as const)(
+    'keeps authoritative correction for the unsafe %s case', kind => {
+      const f = joinFixture(1, 0, kind === 'monster' ? 5 : kind === 'npc' ? 6 : 0);
+      let packet = { GID: 123, MoveData: [...f.from, ...f.to], moveStartTime: f.receipt };
+      if (kind === 'far') packet = { ...packet, MoveData: [10, 12, 18, 12] };
+      if (kind === 'turn') packet = { ...packet, MoveData: [13, 12, 13, 18] };
+      if (kind === 'behind') packet = { ...packet, MoveData: [14, 12, 18, 12] };
+      if (kind === 'wall') f.cells[13 + 12 * 48] = 1;
+      if (kind === 'finished') f.entity.resetRoute();
+      if (kind === 'other-player') f.SessionStorage_default.Entity = { GID: 999 } as Entity;
+      f.functions.entityMove(packet);
+      expect(f.entity.position[0]).toBe(packet.MoveData[0]);
+      expect(f.entity.position[1]).toBe(packet.MoveData[1]);
+    },
+  );
+
+  it('does not join a first route from a stale display position or an already elapsed first segment', () => {
+    const first = fixture(patched, 0, 48); first.entity.position.set([13.4, 12, 25.4]);
+    first.functions.playerMove({ MoveData: [13, 12, 18, 12], moveStartTime: 10000 });
+    expect(Array.from(first.entity.position)).toEqual([13, 12, 25]);
+    const late = joinFixture(); late.setNow(late.receipt + 190); late.SessionStorage_default.serverTick = late.receipt + 190;
+    receive(late);
+    expect(late.entity.position[0]).toBeCloseTo(14 + 40 / 150, 5);
+  });
+
+  it('retains a nearby join when the replaced route has an ordinary callback without state changes', () => {
+    const f = joinFixture(), before = Array.from(f.entity.position), ended = vi.fn();
+    f.entity.walk.onEnd = ended;
+    receive(f);
+    expect(ended).toHaveBeenCalledOnce(); expect(Array.from(f.entity.position)).toEqual(before);
+    expect(f.entity.walk.onEnd).toBeNull();
+    f.setNow(f.receipt + 150); f.entity.walkProcess(); expect(f.entity.position[0]).toBe(14);
+  });
+
+  it.each(['position', 'position-object', 'freeze', 'walk', 'character', 'epoch'] as const)(
+    'does not restore an old display sample when the route callback changes %s', change => {
+      const f = joinFixture(), previousWalk = f.entity.walk;
+      const ended = vi.fn(() => {
+        if (change === 'position') f.entity.position.set([20, 20, 40]);
+        if (change === 'position-object') f.entity.position = new Float32Array(f.entity.position);
+        if (change === 'freeze') f.entity.setAction({ action: f.entity.ACTION.FREEZE!, play: true });
+        if (change === 'walk') f.entity.walk = { ...f.entity.walk,
+          path: new Int16Array(f.entity.walk.path), pos: new Float32Array(f.entity.walk.pos),
+          lastPos: new Float32Array(f.entity.walk.lastPos) };
+        if (change === 'character') f.SessionStorage_default.Entity = { GID: 999, position: new Float32Array([30, 30, 60]) } as Entity;
+        if (change === 'epoch') f.entity._lastroMovementEpoch = (f.entity._lastroMovementEpoch || 0) + 1;
+      });
+      f.entity.walk.onEnd = ended; receive(f);
+      expect(ended).toHaveBeenCalledOnce(); expect(f.entity.position[0]).toBe(13); expect(f.entity.position[1]).toBe(12);
+      if (change === 'freeze') expect(f.entity.action).toBe(f.entity.ACTION.FREEZE);
+      if (change === 'walk') expect(f.entity.walk).not.toBe(previousWalk);
+      if (change === 'character') expect(Array.from(f.SessionStorage_default.Entity!.position)).toEqual([30, 30, 60]);
+      f.setNow(f.receipt + 300); f.entity.walkProcess(); expect(ended).toHaveBeenCalledOnce();
+    },
+  );
+});
+
 describe('entity synchronization patch anchors', () => {
   it('skips small fixtures without either independent region', () => {
     expect(patchRuntimeEntitySync('const sample = 1;')).toBe('const sample = 1;');
@@ -336,9 +733,16 @@ describe('entity synchronization patch anchors', () => {
     native.replaceAll('this.walk.pos.set(this.position);', 'this.walk.pos.set(otherPosition);'),
     native.replace('walk.prevTick + MAX_WALK_CATCHUP_DELTA', 'walk.prevTick + 200'),
     native.replace('entity.remove(pkt.type);', 'entity.remove(otherType);'),
+    native.replace('this.path = new Int16Array(PathFinding_default.MAX_WALKPATH * 2);', 'this.path = new Int16Array(64);'),
+    native.replace('this.walk.path = new Int16Array(PathFinding_default.MAX_WALKPATH * 2);', 'this.walk.path = new Int16Array(64);'),
     native + region('src/Renderer/Entity/EntityWalk.js'),
   ])('rejects changed or duplicate native anchors', source => {
     expect(() => patchRuntimeEntitySync(source)).toThrow('anchor:entity-sync');
+  });
+  it('applies the allocation anchors to LF and CRLF source', () => {
+    const lf = native.replaceAll('\r\n', '\n');
+    expect(patchRuntimeEntitySync(lf.replaceAll('\n', '\r\n')).replaceAll('\r\n', '\n'))
+      .toBe(patchRuntimeEntitySync(lf));
   });
   it('preserves the native packet handlers, movement pathfinder and damage scheduling', () => {
     const engine = region('src/Engine/MapEngine/Entity.js', patched);
