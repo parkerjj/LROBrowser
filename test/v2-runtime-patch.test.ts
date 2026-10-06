@@ -5,13 +5,92 @@ import { patchGuildEmblemRequestCallbacks, patchLegacyScriptSinks, patchLuaJsonE
 import { buildClientConfig } from '../src/runtime/client-config';
 import { LASTRO_SERVER_PROFILES } from '../src/servers/server-profiles';
 import { createLastroUiMessages } from '../scripts/lastro-display-localization.mjs';
-import { readVendorSource } from './helpers/vendor-runtime';
+import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 import { buildRuntimePatchFixture } from './helpers/runtime-patch-fixture';
 
 const profile = LASTRO_SERVER_PROFILES[0];
 if (!profile || profile.availability !== 'available') throw new Error('missing fixture profile');
 
 describe('V2 runtime patch', () => {
+  it('prepare never applies permanent transforms twice', () => {
+    const source = buildRuntimePatchFixture(readVendorSource());
+    const first = patchV2Runtime(source), second = patchV2Runtime(source);
+    expect(second).toBe(first);
+    const ast = ts.createSourceFile('fixture-final.js', second, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+    const definitions = new Map<string, number>();
+    let unlocks = 0;
+    const visit = (node: ts.Node) => {
+      if ((ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node)) && node.name) {
+        definitions.set(node.name.text, (definitions.get(node.name.text) ?? 0) + 1);
+      }
+      if (ts.isExpressionStatement(node) && node.parent === ast && ts.isCallExpression(node.expression)
+        && node.expression.expression.getText(ast) === 'installLastROAudioUnlock') unlocks++;
+      ts.forEachChild(node, visit);
+    };
+    visit(ast);
+    for (const name of ['installLastROWebAudio', 'installLastroTimedWebAudio', 'createLastroSoundTiming',
+      'installLastROAudioUnlock', 'LastROAudioPlay', 'LastROAudioUnlock', 'LastROAudioRegisterContext',
+      'createWorldMapIndex', 'installLastroWorldMap', 'createMonsterPortraitLoader',
+      'resolveLastroMapResourceName', 'describeLastroMapLoadFailure', 'lastroUiWindowAppend']) {
+      expect(definitions.get(name), name).toBe(1);
+    }
+    expect(unlocks).toBe(1);
+    expect(() => patchV2Runtime(first)).toThrow('anchor:');
+    for (const path of ['src/Core/MemoryItem.js', 'src/Core/MemoryManager.js', 'src/Core/Preferences.js',
+      'src/Audio/BGM.js', 'src/Audio/SoundManager.js', 'src/Renderer/Effects/RainWeather.js', 'src/UI/Common.css?raw']) {
+      expect(extractVendorRegion(path, source)).toBe(extractVendorRegion(path));
+    }
+    for (const name of ['onMapComplete', 'onMapChange', 'cleanGameUI']) {
+      const region = name === 'onMapComplete' ? 'src/Renderer/MapRenderer.js' : 'src/Engine/MapEngine.js';
+      const vendorOwner = extractRuntimeNode(extractVendorRegion(region), { kind: 'function', name });
+      expect(extractRuntimeNode(source, { kind: 'function', name })).toBe(vendorOwner);
+    }
+  }, 30000);
+
+  it('final runtime has one core factory and keeps modular product transforms', async () => {
+    const runtime = await readFile('generated/runtime/Online.js', 'utf8');
+    const runtimeFile = ts.createSourceFile('final-runtime.js', runtime, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+    const factoryCounts = new Map<string, number>();
+    const collectFactories = (node: ts.Node) => {
+      if ((ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node)) && node.name) {
+        factoryCounts.set(node.name.text, (factoryCounts.get(node.name.text) ?? 0) + 1);
+      }
+      ts.forEachChild(node, collectFactories);
+    };
+    collectFactories(runtimeFile);
+    for (const name of ['createWorldMapIndex', 'installLastroWorldMap', 'createMonsterPortraitLoader', 'installLastroToolsPanels',
+      'installLastroShortcutSettings', 'installLastroTeleportSettings']) {
+      expect(factoryCounts.get(name), name).toBe(1);
+    }
+    const worldMap = extractVendorRegion('src/UI/Components/WorldMap/WorldMap.js', runtime);
+    for (const name of ['createLastroTeleportPreflight', 'createLastroWorldMapTeleport']) {
+      expect(extractRuntimeNode(worldMap, { kind: 'function', name })).toContain('function ' + name);
+    }
+    const file = ts.createSourceFile('worldmap-final.js', worldMap, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+    const actionBindings: ts.CallExpression[] = [];
+    const visit = (node: ts.Node) => {
+      if (ts.isCallExpression(node) && node.expression.getText(file) === 'Object.assign'
+        && node.arguments[0]?.getText(file) === 'lastroWorldMapActions') actionBindings.push(node);
+      ts.forEachChild(node, visit);
+    };
+    visit(file);
+    expect(actionBindings).toHaveLength(1);
+    const actions = actionBindings[0]!.arguments[1];
+    expect(actions && ts.isObjectLiteralExpression(actions)).toBe(true);
+    expect((actions as ts.ObjectLiteralExpression).properties.map(property => property.name?.getText(file)))
+      .toEqual(['navigate', 'teleport', 'cancelTeleport']);
+  }, 30000);
+
+  it('retained transforms reject malformed source after core retirement', () => {
+    const source = buildRuntimePatchFixture(readVendorSource());
+    const initialization = '\troInitSpinner.add();\n\tPlugins.init();\n\tGameEngine.init();';
+    expect(source.split(initialization)).toHaveLength(2);
+    expect(() => patchV2Runtime(source.replace(initialization, 'missingProductInitialization();'))).toThrow('anchor:');
+    expect(() => patchRuntimeWorldMapProductActions(source.replace('const lastroWorldMapActions = {};', 'const lastroWorldMapActions = null;')))
+      .toThrow('anchor:worldmap-product-actions');
+    expect(() => patchRuntimeToolsPanels(source.replace('UIManager.addComponent(LastROTools);', ''))).toThrow('anchor:lastro-tools-panels');
+    expect(() => patchRuntimeChatMapLinks(source.replace('function requestChatMapTeleport(link) { return false; }', ''))).toThrow('anchor:chat-map-links');
+  }, 30000);
   it.each([
     'function cleanGameUI() {}',
     'UIManager.addComponent(LastROTools); function cleanGameUI() {}',
@@ -209,7 +288,7 @@ end`;
     expect(patched).toContain('const retainedRuntime = 1;');
     expect(patched).not.toContain('?build=');
     expect(patched).not.toMatch(/WebSocket|wss?:\/\/|socketProxy|electronAPI|NodeSocket/i);
-  });
+  }, 20000);
 
   it('fails closed when an anchored region drifts', () => {
     expect(() => patchV2Runtime('function defaultSocketFactory(host, port) {}')).toThrow(/anchor|function/);

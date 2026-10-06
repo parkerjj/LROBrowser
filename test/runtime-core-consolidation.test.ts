@@ -2,7 +2,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import { describe, expect, it } from 'vitest';
 import ts from 'typescript';
-import { auditCoreOwnership, compareRuntimeSources } from '../scripts/check-runtime-consolidation.mjs';
+import { auditCoreOwnership, compareRuntimeSources, permanentRuntimeModules } from '../scripts/check-runtime-consolidation.mjs';
+import type { PermanentRuntimeOwner } from '../scripts/check-runtime-consolidation.mjs';
 import * as displayLocalization from '../scripts/lastro-display-localization.mjs';
 import { patchRuntimeEntityAppearance } from '../scripts/lastro-entity-appearance.mjs';
 import { patchRuntimeEquipmentAppearance, patchRuntimeEquipmentCatalog, patchRuntimeEquipmentView } from '../scripts/lastro-equipment-view.mjs';
@@ -11,6 +12,169 @@ import { buildRuntimePatchFixture } from './helpers/runtime-patch-fixture';
 import { extractWorldMapFixture } from '../scripts/extract-worldmap-fixture.mjs';
 import { initializeWorldMap } from './helpers/worldmap-runtime';
 import { buildWorldMapComparisonPair, mutateNpcResolverLoader } from './helpers/worldmap-comparison';
+
+describe('complete final core ownership gates', () => {
+  const worldMapFileUrl = new URL('../scripts/lastro-worldmap.mjs', import.meta.url).href;
+  const patcherSource = readFileSync('scripts/patch-v2-runtime.mjs', 'utf8');
+  const prepareSource = readFileSync('scripts/prepare-runtime.mjs', 'utf8');
+  const patcherDeclarationsSource = readFileSync('scripts/patch-v2-runtime.d.mts', 'utf8');
+  const finalAudit = (overrides: Record<string, unknown> = {}) => auditCoreOwnership({
+    vendorSource: '', patcherSource, prepareSource, patcherDeclarationsSource,
+    retiredTransforms: [], retiredHostExports: [], strictCoreAudit: true, ...overrides,
+  });
+
+  it('audits all 31 permanent modules with the fixed 40 retirements and 12 relocations', async () => {
+    const checker = await import('../scripts/check-runtime-consolidation.mjs');
+    const modules = (checker as unknown as { permanentRuntimeModules?: { module: string }[] }).permanentRuntimeModules;
+    expect(modules).toBeDefined();
+    expect(modules?.map(row => row.module).sort()).toEqual([
+      'network-receive-recovery', 'frame-timing', 'audio-timing', 'entity-sync', 'movement-input',
+      'movement-sync', 'equipment-animation', 'equipment-cart', 'weapon-view-fallback', 'manual-skill',
+      'skill-cooldown', 'party-state', 'monster-hover-hp', 'vending-movement', 'item-drag', 'ui-layout',
+      'ui-input', 'ui-state', 'store-scroll', 'storage-count', 'basic-info', 'dialog-typography',
+      'typography', 'navigation-ui', 'npc-dialog-buttons', 'mail', 'shop-titles', 'map-resource-name',
+      'map-load-diagnostic', 'worldmap', 'monster-portrait',
+    ].map(name => './lastro-' + name + '.mjs').sort());
+    expect(finalAudit({ vendorSource: readVendorSource() })).toEqual([]);
+  }, 30000);
+
+  it.each(['patchWebAudioPlayback', 'patchRuntimePreferencesSave', 'patchRuntimeWorldMap', 'patchMapLoadFailureRecovery'])(
+    'rejects reintroduced retired host API %s without requiring a vendor wrapper', name => {
+      const definition = 'export function ' + name + '(source) { return source; }';
+      expect(finalAudit({ patcherSource: patcherSource + '\n' + definition }).some(message => message.includes('retired host transform ' + name))).toBe(true);
+      expect(finalAudit({ patcherSource: patcherSource + '\n' + name + '(source);' }).some(message => message.includes('retired host transform ' + name))).toBe(true);
+      expect(finalAudit({ patcherDeclarationsSource: patcherDeclarationsSource + '\nexport function ' + name + '(source: string): string;' }).some(message => message.includes('retired host transform ' + name))).toBe(true);
+      expect(finalAudit({ patcherSource: "import * as host from './unknown.mjs'; const copy = host['" + name + "']; function patchV2Runtime(source) { return copy(source); }" })
+        .some(message => message.includes('retired host transform ' + name))).toBe(true);
+    }, 30000);
+
+  it.each(['createWorldMapIndex', 'createMonsterPortraitLoader', 'installLastroWorldMap', 'createLastroSoundTiming'])(
+    'rejects missing or duplicate actual embedded factory %s', name => {
+      const vendorSource = readVendorSource();
+      const node = extractRuntimeNode(vendorSource, { kind: 'function', name });
+      const renamed = node.replace('function ' + name, 'function missingPermanentFactory');
+      expect(finalAudit({ vendorSource: vendorSource.replace(node, renamed) }).some(message => message.includes('permanent owner') && message.includes(name))).toBe(true);
+      expect(finalAudit({ vendorSource: vendorSource + '\nconst duplicateFactory = (' + node + ');' }).some(message => message.includes('permanent owner') && message.includes(name))).toBe(true);
+    }, 30000);
+
+  it.each([
+    'function patchV2Runtime(source) { const output = `function resolveLastroMapResourceName() {}\n${source}`; return output; }',
+    'function patchV2Runtime(source) { return "function createWorldMapIndex() {}" + source; }',
+    'function patchV2Runtime(source) { return `${source}\nconst installer = function installLastroWorldMap() {};`; }',
+    'function patchV2Runtime(source) { return "function " + "createMonsterPortraitLoader() {}" + source; }',
+  ])('rejects permanent definitions reinjected from decoded local code strings', patcher => {
+    expect(finalAudit({ patcherSource: patcher }).some(message => message.includes('core reinjection'))).toBe(true);
+  }, 30000);
+
+  it('strict final ownership cannot suppress the fixed display gates through scoped options', () => {
+    expect(finalAudit({
+      patcherSource: patcherSource + '\nfunction patchRuntimeSkillLocalization(source) { return source; }',
+      relocatedBindings: [], coordinatorBindings: [], forbiddenHostDefinitions: [],
+    }).some(message => message.includes('moved coordinator patchRuntimeSkillLocalization'))).toBe(true);
+  });
+
+  it.each([
+    "import { createWorldMapIndex as mirror } from './lastro-worldmap.mjs'; const again = mirror; function patchV2Runtime(source) { return again.toString() + source; }",
+    "import * as mirror from './lastro-monster-portrait.mjs'; function patchV2Runtime(source) { return mirror.createMonsterPortraitLoader.toString() + source; }",
+    "import { sampleLastroCostumeLoop as mirror } from './lastro-costume-loop.mjs'; function patchV2Runtime(source) { return mirror.toString() + source; }",
+    "import * as mirror from './unknown.mjs'; function patchV2Runtime(source) { return mirror.createMonsterPortraitLoader.toString() + source; }",
+    "import * as mirror from './lastro-worldmap.mjs?ownership-probe'; function patchV2Runtime(source) { return mirror.createWorldMapIndex.toString() + source; }",
+    "import * as mirror from './lastro-worldmap.mjs#ownership-probe'; function patchV2Runtime(source) { return mirror.createWorldMapIndex.toString() + source; }",
+    "import * as mirror from './temp/../lastro-worldmap.mjs'; function patchV2Runtime(source) { return mirror.createWorldMapIndex.toString() + source; }",
+    `import * as mirror from '${worldMapFileUrl}'; function patchV2Runtime(source) { return mirror.createWorldMapIndex.toString() + source; }`,
+    "import * as mirror from './unknown.mjs'; const { createWorldMapIndex: copy } = mirror; const again = copy; function patchV2Runtime(source) { return again.toString() + source; }",
+    "import * as mirror from './unknown.mjs'; const { createWorldMapIndex } = mirror; function patchV2Runtime(source) { return createWorldMapIndex.toString() + source; }",
+    "import * as mirror from './unknown.mjs'; function patchV2Runtime(source) { return mirror['createWorldMapIndex'].toString() + source; }",
+    'function patchV2Runtime(source) { const mirror = resolveLastroMapResourceName; const again = mirror; return again.toString() + source; }',
+  ])('rejects aliases of permanent mirror serialization', patcher => {
+    expect(finalAudit({ patcherSource: patcher }).some(message => message.includes('core reinjection'))).toBe(true);
+  }, 30000);
+
+  it.each([
+    "import * as mirror from './lastro-worldmap.mjs?ownership-probe';",
+    "import * as mirror from './lastro-worldmap.mjs#ownership-probe';",
+    "import * as mirror from './temp/../lastro-worldmap.mjs';",
+    "import * as mirror from './%6castro-worldmap.mjs';",
+    `import * as mirror from '${worldMapFileUrl}';`,
+    "const mirror = require('./lastro-worldmap.mjs');",
+    "import { createRequire } from 'node:module'; const load = createRequire(import.meta.url); const { WORLD_MAP_HTML } = load('./lastro-worldmap.mjs');",
+    "import { createRequire as make } from 'node:module'; const creator = make; const load = creator(import.meta.url); const alias = load; alias('./lastro-worldmap.mjs?ownership-probe');",
+    "import * as nodeModule from 'node:module'; const load = nodeModule.createRequire(import.meta.url); load('./lastro-monster-portrait.mjs');",
+    "import * as nodeModule from 'module'; const { createRequire: make } = nodeModule; const load = make(import.meta.url); load('./lastro-map-resource-name.mjs');",
+    "import { createRequire } from 'node:module'; createRequire(import.meta.url)('./lastro-map-load-diagnostic.mjs');",
+  ])('rejects equivalent core module paths and actual runtime loaders', statement => {
+    expect(finalAudit({ patcherSource: statement + '\nfunction patchV2Runtime(source) { return source; }' })
+      .some(message => message.includes('core reinjection'))).toBe(true);
+  }, 30000);
+
+  it('keeps permanent ownership enforcement on prepare as well as the orchestrator', () => {
+    expect(finalAudit({ prepareSource: prepareSource + '\nconst copy = describeLastroMapLoadFailure; copy.toString();' })
+      .some(message => message.includes('core reinjection') && message.includes('prepare-runtime'))).toBe(true);
+  }, 30000);
+
+  it.each([
+    'function serializeProduct(createWorldMapIndex) { return createWorldMapIndex.toString(); } function patchV2Runtime(source) { return source; }',
+    'function serializeProduct({ createWorldMapIndex: copy }) { return copy.toString(); } function patchV2Runtime(source) { return source; }',
+    "import * as product from './unknown-product.mjs'; function patchV2Runtime(source) { return product.installLastroToolsPanels.toString() + source; }",
+    "import * as metadata from './unknown.mjs'; const { createWorldMapIndex: value } = metadata; function patchV2Runtime(source) { return source + typeof value; }",
+    "function productLogger(path) { return path; } function patchV2Runtime(source) { productLogger('./lastro-worldmap.mjs'); return source; }",
+    "function loadProduct(require) { return require('./lastro-worldmap.mjs'); } function patchV2Runtime(source) { return source; }",
+    "import { createRequire as make } from './unknown-product.mjs'; const load = make(import.meta.url); function patchV2Runtime(source) { load('./lastro-worldmap.mjs'); return source; }",
+  ])('permits distinct local parameters and product serialization', patcher => {
+    expect(finalAudit({ patcherSource: patcher }).filter(message => message.includes('core reinjection'))).toEqual([]);
+  }, 30000);
+});
+
+describe('every permanent module owner', () => {
+  const source = readVendorSource();
+  const file = ts.createSourceFile('actual-vendor.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const candidates = new Map<string, ts.Node[]>();
+  const collect = (node: ts.Node) => {
+    let key: string | undefined;
+    if ((ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node)) && node.name) key = 'function:' + node.name.text;
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) key = 'variable:' + node.name.text;
+    if (ts.isMethodDeclaration(node)) key = 'method:' + node.name.getText(file);
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken) key = 'assignment:' + node.left.getText(file);
+    if (ts.isCallExpression(node)) key = 'call:' + node.expression.getText(file);
+    if (ts.isClassExpression(node) || ts.isClassDeclaration(node)) key = 'class:' + (node.name?.text
+      ?? (ts.isBinaryExpression(node.parent) ? node.parent.left.getText(file) : undefined));
+    if (key) candidates.set(key, [...(candidates.get(key) ?? []), node]);
+    ts.forEachChild(node, collect);
+  };
+  collect(file);
+
+  function actualOwner(owner: PermanentRuntimeOwner): string {
+    const region = owner.region ? extractVendorRegion(owner.region, source) : undefined;
+    const start = region ? source.indexOf(region) : 0, end = region ? start + region.length : source.length;
+    const nodes = (candidates.get(owner.kind + ':' + owner.name) ?? []).filter(node => {
+      if (node.getStart(file) < start || node.end > end) return false;
+      if (owner.topLevel && node.parent !== file && node.parent?.parent !== file) return false;
+      return true;
+    });
+    expect(nodes).toHaveLength(1);
+    const node = nodes[0]!;
+    if (ts.isFunctionExpression(node)) return `const factory = (${node.getText(file)});`;
+    if (ts.isVariableDeclaration(node)) return `var ${node.getText(file)};`;
+    if (ts.isMethodDeclaration(node)) return `class Owner { ${node.getText(file)} }`;
+    if (ts.isClassExpression(node) && ts.isBinaryExpression(node.parent)) return node.parent.getText(file) + ';';
+    return node.getText(file) + ';';
+  }
+
+  it.each(permanentRuntimeModules.flatMap(module => module.owners.map(owner => ({ module: module.module, owner }))))(
+    '$module rejects missing or duplicate $owner.kind:$owner.name from its actual vendor node', ({ module, owner }) => {
+      const actual = actualOwner(owner);
+      const wrap = (text: string) => owner.region ? `//#region ${owner.region}\n${text}\n//#endregion` : text;
+      const check = (vendorSource: string) => auditCoreOwnership({
+        vendorSource, patcherSource: 'function patchV2Runtime(source) { return source; }', prepareSource: '',
+        retiredTransforms: [], retiredHostExports: [], permanentModules: [{ module, owners: [owner] }],
+      });
+      expect(check(wrap(actual))).toEqual([]);
+      expect(check(wrap(actual.replace(owner.name, 'missingPermanentOwner')))
+        .some(message => message.includes('permanent owner') && message.includes(owner.name))).toBe(true);
+      expect(check(wrap(actual + '\n' + actual))
+        .some(message => message.includes('permanent owner') && message.includes(owner.name))).toBe(true);
+    });
+});
 
 describe('permanent WorldMap core and product seam', () => {
   it('normal patching imports no core mirrors and retires full WorldMap/failure APIs', async () => {

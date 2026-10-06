@@ -100,8 +100,239 @@ const displayCoordinatorBindings = [
 ];
 const relocatedCoordinatorNames = ['patchRuntimeLocalization', 'patchRuntimeJobLocalization', 'patchRuntimeSkillLocalization'];
 
+// Fixed specification matrix. Existing bundle owners may still be edited by
+// retained product/diagnostic transforms; only migrated definitions are host-protected.
+export const permanentRuntimeModules = [
+  { module: './lastro-network-receive-recovery.mjs', owners: [
+    { kind: 'function', name: 'receive', protectHost: false },
+    { kind: 'function', name: 'onClose$9', protectHost: false },
+  ] },
+  { module: './lastro-frame-timing.mjs', owners: [
+    { kind: 'function', name: 'LastROServerClockNow', protectHost: true },
+    { kind: 'function', name: 'LastROResetServerTick', protectHost: true },
+    { kind: 'function', name: 'LastROInvalidateServerTick', protectHost: true },
+    { kind: 'function', name: 'LastROAdvanceServerTick', protectHost: true },
+    { kind: 'function', name: 'LastROEventDueTick', protectHost: true },
+    { kind: 'variable', name: 'lastroEventDueTick', protectHost: true },
+    { kind: 'variable', name: 'lastroServerClockMark', protectHost: true },
+    { kind: 'variable', name: 'lastroHasServerSample', protectHost: true },
+    { kind: 'variable', name: 'init_Events', protectHost: false },
+    { kind: 'variable', name: 'init_Renderer', protectHost: false },
+  ] },
+  { module: './lastro-audio-timing.mjs', owners: [
+    { kind: 'function', name: 'installLastROWebAudio', protectHost: true },
+    { kind: 'function', name: 'installLastroTimedWebAudio', protectHost: true },
+    { kind: 'function', name: 'createLastroSoundTiming', protectHost: true },
+    { kind: 'function', name: 'installLastROAudioUnlock', protectHost: true },
+    { kind: 'function', name: 'LastROAudioPlay', protectHost: true },
+    { kind: 'function', name: 'LastROAudioUnlock', protectHost: true },
+    { kind: 'function', name: 'LastROAudioRegisterContext', protectHost: true },
+    { kind: 'variable', name: 'LastROWebAudio', protectHost: true },
+    { kind: 'variable', name: 'init_MemoryManager', protectHost: false },
+    { kind: 'variable', name: 'init_MemoryItem', protectHost: false },
+    { kind: 'variable', name: 'init_BGM', protectHost: false },
+    { kind: 'variable', name: 'init_SoundManager', protectHost: false },
+    { kind: 'variable', name: 'init_RainWeather', protectHost: false },
+    { kind: 'call', name: 'installLastROAudioUnlock', topLevel: true },
+  ] },
+  { module: './lastro-entity-sync.mjs', owners: [
+    { kind: 'function', name: 'findLastroServerWalkPath', protectHost: true },
+    { kind: 'function', name: 'lastroRouteJoinActive', protectHost: true },
+    { kind: 'function', name: 'lastroClearRouteJoin', protectHost: true },
+    { kind: 'function', name: 'lastroCaptureRouteJoin', protectHost: true },
+    { kind: 'function', name: 'lastroJoinServerRoute', protectHost: true },
+    { kind: 'function', name: 'lastroProjectWalkDistance', protectHost: true },
+    { kind: 'function', name: 'WalkStructure', protectHost: false },
+    { kind: 'function', name: 'walkTo', protectHost: false },
+    { kind: 'function', name: 'walkProcess', protectHost: false },
+    { kind: 'function', name: 'resetRoute', protectHost: false },
+    { kind: 'function', name: 'computeWalkStartTick', protectHost: false },
+  ] },
+  { module: './lastro-movement-input.mjs', owners: [
+    { kind: 'function', name: 'lastroCanPassPlayerClick', protectHost: true },
+    { kind: 'function', name: 'createLastroMovementInput', protectHost: true },
+    { kind: 'function', name: 'refreshLastroGroundInput', protectHost: true },
+    { kind: 'function', name: 'onMouseUpCapture', protectHost: false },
+    { kind: 'function', name: 'onMouseDown', protectHost: false },
+    { kind: 'variable', name: 'init_MapControl', protectHost: false },
+  ] },
+  { module: './lastro-movement-sync.mjs', owners: [
+    { kind: 'function', name: 'lastroBodyMovementBlocked', protectHost: true },
+    { kind: 'function', name: 'lastroMovementBlocked', protectHost: true },
+    { kind: 'function', name: 'lastroCancelMovement', protectHost: true },
+    { kind: 'function', name: 'lastroMovementUnavailable', protectHost: true },
+    { kind: 'function', name: 'lastroCheckMovementConnection', protectHost: true },
+    { kind: 'function', name: 'lastroCaptureHitRoute', protectHost: true },
+    { kind: 'function', name: 'lastroHitStartTick', protectHost: true },
+  ] },
+  { module: './lastro-equipment-animation.mjs', owners: [
+    { kind: 'function', name: 'lastroBeginEquipmentFrame', protectHost: true },
+    { kind: 'function', name: 'lastroEndEquipmentFrame', protectHost: true },
+    { kind: 'function', name: 'sampleLastroCostumeLoop', protectHost: true },
+    { kind: 'variable', name: 'init_EntityRender', protectHost: false },
+  ] },
+  { module: './lastro-equipment-cart.mjs', owners: [
+    { kind: 'function', name: 'createEquipment', protectHost: false },
+    { kind: 'function', name: 'onEntityStatusChange', protectHost: false },
+    { kind: 'function', name: 'updateAttachmentButtons', protectHost: true },
+  ] },
+  { module: './lastro-weapon-view-fallback.mjs', owners: [
+    { kind: 'function', name: 'UpdateGeneric', protectHost: false },
+    { kind: 'variable', name: 'init_DBManager', protectHost: false },
+    { kind: 'method', name: 'getWeaponFallbackViewID', region: 'src/DB/DBManager.js', protectHost: true },
+  ] },
+  { module: './lastro-manual-skill.mjs', owners: [
+    { kind: 'function', name: 'onUseSkill', protectHost: false },
+    { kind: 'function', name: 'moveCharacter', protectHost: false },
+    { kind: 'variable', name: 'init_Skill', protectHost: false },
+  ] },
+  { module: './lastro-skill-cooldown.mjs', owners: [
+    { kind: 'function', name: 'setDelayOnIndex', protectHost: false },
+    { kind: 'variable', name: 'init_ShortCut', protectHost: false },
+  ] },
+  { module: './lastro-party-state.mjs', owners: [
+    { kind: 'function', name: 'createLastroPartyState', protectHost: true },
+    { kind: 'function', name: 'onPartyCreate', protectHost: false },
+    { kind: 'function', name: 'onPartyIsAlive', protectHost: false },
+    { kind: 'function', name: 'onPartyList', protectHost: false },
+    { kind: 'function', name: 'onPartyMemberJoin', protectHost: false },
+    { kind: 'function', name: 'onPartyMemberLeave', protectHost: false },
+    { kind: 'function', name: 'onMemberLifeUpdate', protectHost: false },
+    { kind: 'function', name: 'onMemberMove$1', protectHost: false },
+    { kind: 'variable', name: '_lastroPartyState', protectHost: true },
+  ] },
+  { module: './lastro-monster-hover-hp.mjs', owners: [
+    { kind: 'function', name: 'createLastroMonsterHoverHp', protectHost: true },
+    { kind: 'variable', name: 'init_EntityManager', protectHost: false },
+  ] },
+  { module: './lastro-vending-movement.mjs', owners: [
+    { kind: 'function', name: 'lastroVendingShoppingActive', protectHost: true },
+    { kind: 'function', name: 'lastroSetVendingShopping', protectHost: true },
+    { kind: 'function', name: 'lastroInstallVendingRemoval', protectHost: true },
+    { kind: 'function', name: 'lastroCloseVendingShopping', protectHost: true },
+    { kind: 'function', name: 'onRequestWalk', protectHost: false },
+    { kind: 'function', name: 'cleanGameUI', protectHost: false },
+    { kind: 'function', name: 'onMapChange', protectHost: false },
+  ] },
+  { module: './lastro-item-drag.mjs', owners: [
+    { kind: 'function', name: 'installLastroItemDrag', protectHost: true },
+  ] },
+  { module: './lastro-ui-layout.mjs', owners: [
+    { kind: 'variable', name: 'init_CashShop$2', protectHost: false },
+    { kind: 'variable', name: 'init_EntityRoom$2', protectHost: false },
+    { kind: 'variable', name: 'init_EntitySignboard$1', protectHost: false },
+    { kind: 'variable', name: 'init_ChatRoomCreate$1', protectHost: false },
+    { kind: 'variable', name: 'init_CartItems$1', protectHost: false },
+    { kind: 'variable', name: 'init_Storage$3', protectHost: false },
+    { kind: 'variable', name: 'init_SkillListV2$1', protectHost: false },
+  ] },
+  { module: './lastro-ui-input.mjs', owners: [
+    { kind: 'function', name: 'lastroUiInputFrame', protectHost: true },
+    { kind: 'function', name: 'lastroUiLogicalPointer', protectHost: true },
+    { kind: 'function', name: 'lastroUiDragBounds', protectHost: true },
+    { kind: 'function', name: 'bindMouseEvents', protectHost: false },
+    { kind: 'variable', name: 'init_GUIComponent', protectHost: false },
+  ] },
+  { module: './lastro-ui-state.mjs', owners: [
+    { kind: 'function', name: 'lastroUiWindowAppend', protectHost: true },
+    { kind: 'function', name: 'lastroBindNestedWindowState', protectHost: true },
+    { kind: 'function', name: 'selfSave', protectHost: false },
+    { kind: 'function', name: 'StorageFilter', protectHost: false },
+    { kind: 'variable', name: 'init_Preferences$1', protectHost: false },
+  ] },
+  { module: './lastro-store-scroll.mjs', owners: [
+    { kind: 'function', name: 'installLastroStoreScroll', protectHost: true },
+    { kind: 'variable', name: 'init_NpcStore', protectHost: false },
+  ] },
+  { module: './lastro-storage-count.mjs', owners: [
+    { kind: 'function', name: 'createStorage', protectHost: false },
+    { kind: 'variable', name: 'init_StorageFilter', protectHost: false },
+    { kind: 'assignment', name: 'StorageFilter.prototype.addItem', region: 'src/UI/Components/Storage/StorageV3/StorageFilter.js' },
+    { kind: 'assignment', name: 'StorageFilter.prototype.removeItem', region: 'src/UI/Components/Storage/StorageV3/StorageFilter.js' },
+  ] },
+  { module: './lastro-basic-info.mjs', owners: [
+    { kind: 'variable', name: 'init_BasicInfoV1$1', protectHost: false },
+    { kind: 'variable', name: 'init_BasicInfoV1$2', protectHost: false },
+    { kind: 'variable', name: 'init_BasicInfoV3$1', protectHost: false },
+    { kind: 'variable', name: 'init_BasicInfoV3$2', protectHost: false },
+    { kind: 'variable', name: 'init_BasicInfoV4$1', protectHost: false },
+    { kind: 'variable', name: 'init_BasicInfoV4$2', protectHost: false },
+    { kind: 'variable', name: 'init_BasicInfoV5$1', protectHost: false },
+    { kind: 'variable', name: 'init_BasicInfoV5$2', protectHost: false },
+  ] },
+  { module: './lastro-dialog-typography.mjs', owners: [
+    { kind: 'variable', name: 'init_EntityDialog', protectHost: false },
+    { kind: 'class', name: 'Dialog', region: 'src/Renderer/Entity/EntityDialog.js' },
+  ] },
+  { module: './lastro-typography.mjs', owners: [
+    { kind: 'variable', name: 'init_Common$1', protectHost: false },
+    { kind: 'variable', name: 'init_ChatBox', protectHost: false },
+    { kind: 'variable', name: 'init_ChatBox$1', protectHost: false },
+    { kind: 'variable', name: 'init_ItemInfo$1', protectHost: false },
+    { kind: 'variable', name: 'init_ChatRoomCreate$1', protectHost: false },
+    { kind: 'variable', name: 'init_CashShop$2', protectHost: false },
+    { kind: 'variable', name: 'init_EntitySignboard$1', protectHost: false },
+    { kind: 'variable', name: 'init_LastROTools$1', protectHost: false },
+    { kind: 'variable', name: 'init_Storage$3', protectHost: false },
+    { kind: 'variable', name: 'init_SkillListV2$1', protectHost: false },
+    { kind: 'variable', name: 'init_InventoryV0$1', protectHost: false },
+    { kind: 'variable', name: 'init_InventoryV1$1', protectHost: false },
+    { kind: 'variable', name: 'init_InventoryV2$1', protectHost: false },
+    { kind: 'variable', name: 'init_InventoryV3$1', protectHost: false },
+  ] },
+  { module: './lastro-navigation-ui.mjs', owners: [
+    { kind: 'function', name: 'getNavigationDockPosition', protectHost: true },
+    { kind: 'function', name: 'dockLastroNavigation', protectHost: true },
+    { kind: 'function', name: 'createMiniMap', protectHost: false },
+    { kind: 'variable', name: 'init_Navigation', protectHost: false },
+  ] },
+  { module: './lastro-npc-dialog-buttons.mjs', owners: [
+    { kind: 'function', name: 'installLastroNpcDialogButtonFallback', protectHost: true },
+    { kind: 'variable', name: 'init_NpcBox', protectHost: false },
+  ] },
+  { module: './lastro-mail.mjs', owners: [
+    { kind: 'function', name: 'onClickClose$1', protectHost: false },
+    { kind: 'function', name: 'onClickSend', protectHost: false },
+    { kind: 'variable', name: 'escapeMailText', protectHost: true },
+    { kind: 'variable', name: 'init_Rodex$1', protectHost: false },
+    { kind: 'variable', name: 'init_Rodex$2', protectHost: false },
+    { kind: 'variable', name: 'init_Rodex$3', protectHost: false },
+    { kind: 'variable', name: 'init_WriteRodex', protectHost: false },
+    { kind: 'variable', name: 'init_WriteRodex$1', protectHost: false },
+    { kind: 'variable', name: 'init_WriteRodex$2', protectHost: false },
+    { kind: 'variable', name: 'init_ReadRodex$1', protectHost: false },
+    { kind: 'variable', name: 'init_ReadRodex$2', protectHost: false },
+  ] },
+  { module: './lastro-shop-titles.mjs', owners: [
+    { kind: 'function', name: 'lastroSetShopTitleVisibility', protectHost: true },
+    { kind: 'variable', name: 'init_Map', protectHost: false },
+    { kind: 'variable', name: 'init_ProcessCommand', protectHost: false },
+    { kind: 'variable', name: 'init_EntityRoom', protectHost: false },
+    { kind: 'variable', name: 'init_EntityRoom$2', protectHost: false },
+  ] },
+  { module: './lastro-map-resource-name.mjs', owners: [
+    { kind: 'function', name: 'resolveLastroMapResourceName', protectHost: true },
+  ] },
+  { module: './lastro-map-load-diagnostic.mjs', owners: [
+    { kind: 'function', name: 'describeLastroMapLoadFailure', protectHost: true },
+    { kind: 'function', name: 'onMapComplete', protectHost: false },
+  ] },
+  { module: './lastro-worldmap.mjs', owners: [
+    { kind: 'function', name: 'createWorldMapIndex', protectHost: true },
+    { kind: 'function', name: 'installLastroWorldMap', protectHost: true },
+    { kind: 'variable', name: 'init_WorldMap', protectHost: false },
+    { kind: 'variable', name: 'lastroWorldMapActions', protectHost: true },
+  ] },
+  { module: './lastro-monster-portrait.mjs', owners: [
+    { kind: 'function', name: 'createMonsterPortraitLoader', protectHost: true },
+  ] },
+];
+const retiredHostTransforms = ["patchWebAudioPlayback","patchRuntimePreferencesSave","patchRuntimeWorldMap","patchMapLoadFailureRecovery"];
+const reusableCoreModules = ['./lastro-server-walk.mjs', './lastro-costume-loop.mjs'];
+
 function parseSource(source, fileName) {
-  return ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  return ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true,
+    fileName.endsWith('.d.mts') ? ts.ScriptKind.TS : ts.ScriptKind.JS);
 }
 
 function diagnosticsFor(fileName, file) {
@@ -224,24 +455,280 @@ function exactImportCount(file, expected) {
   return count;
 }
 
+function runtimeDefinitionIndex(file) {
+  const definitions = new Map();
+  visit(file, node => {
+    let key;
+    if ((ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node)) && node.name) key = `function:${node.name.text}`;
+    else if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) key = `variable:${node.name.text}`;
+    else if (ts.isMethodDeclaration(node)) key = `method:${node.name.getText(file)}`;
+    else if (ts.isClassDeclaration(node) || ts.isClassExpression(node)) {
+      const assigned = ts.isBinaryExpression(node.parent) ? node.parent.left.getText(file)
+        : ts.isVariableDeclaration(node.parent) ? node.parent.name.getText(file) : undefined;
+      key = `class:${node.name?.text ?? assigned}`;
+    } else if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
+      key = `assignment:${node.left.getText(file)}`;
+    } else if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) key = `call:${node.expression.text}`;
+    if (key) definitions.set(key, [...(definitions.get(key) ?? []), node]);
+  });
+  return definitions;
+}
+
+function runtimeRegionRanges(file) {
+  const ranges = new Map();
+  for (const match of file.text.matchAll(/^\/\/#region ([^\r\n]+)\r?\n/gm)) {
+    const end = file.text.indexOf('//#endregion', match.index + match[0].length);
+    const range = { start: match.index, end };
+    ranges.set(match[1], [...(ranges.get(match[1]) ?? []), range]);
+  }
+  return ranges;
+}
+
+// Decoded source fragments, including strings concatenated across literals and
+// template tails, may define a factory even without a direct host declaration.
+function serializedCodeText(node) {
+  if (ts.isStringLiteralLike(node)) return node.text;
+  if (ts.isTemplateExpression(node)) {
+    return node.head.text + node.templateSpans.map(span =>
+      (serializedCodeText(span.expression) ?? '__lastro_value__') + span.literal.text).join('');
+  }
+  if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+    const left = serializedCodeText(node.left), right = serializedCodeText(node.right);
+    if (left !== undefined || right !== undefined) return (left ?? '__lastro_value__') + (right ?? '__lastro_value__');
+  }
+  return undefined;
+}
+
+function auditPermanentOwners(vendor, modules, diagnostics) {
+  const definitions = runtimeDefinitionIndex(vendor), ranges = runtimeRegionRanges(vendor);
+  for (const module of modules) {
+    for (const owner of module.owners) {
+      const region = owner.region ? ranges.get(owner.region) ?? [] : undefined;
+      const matches = (definitions.get(`${owner.kind}:${owner.name}`) ?? []).filter(node => {
+        if (region && (region.length !== 1 || node.getStart(vendor) < region[0].start || node.end > region[0].end)) return false;
+        if (owner.topLevel && node.parent !== vendor && node.parent?.parent !== vendor) return false;
+        return true;
+      });
+      if (matches.length !== 1) {
+        diagnostics.push(`permanent owner ${module.module}#${owner.kind}:${owner.name}: expected exactly one vendor definition; found ${matches.length}`);
+      }
+    }
+  }
+}
+
+function canonicalHostModule(specifier, fileName) {
+  if (!specifier.startsWith('.') && !specifier.startsWith('file:')) return undefined;
+  try {
+    const url = new URL(specifier, new URL(fileName, new URL('../', import.meta.url)));
+    url.search = ''; url.hash = '';
+    return fileURLToPath(url);
+  } catch {
+    return undefined;
+  }
+}
+
+function auditHostCoreBoundaries(files, modules, forbiddenTransforms, transforms, diagnostics) {
+  const protectedNames = new Set(modules.flatMap(module => module.owners.filter(owner => owner.protectHost).map(owner => owner.name)));
+  const forbiddenNames = new Set([...protectedNames, ...forbiddenTransforms]);
+  const coreModules = new Set([...modules.map(module => module.module), ...reusableCoreModules,
+    ...transforms.map(transform => transform.module)].map(module => canonicalHostModule(module, 'scripts/patch-v2-runtime.mjs')));
+  const compiler = ts.createCompilerHost({ allowJs: true, noResolve: true, noLib: true });
+  const byName = new Map(files.map(file => [file.fileName, file]));
+  compiler.getSourceFile = name => byName.get(name);
+  const checker = ts.createProgram([...byName.keys()], { allowJs: true, noResolve: true, noLib: true }, compiler).getTypeChecker();
+  for (const file of files) {
+    const isCoreModule = specifier => coreModules.has(canonicalHostModule(specifier, file.fileName));
+    const bindingContainer = node => {
+      let parent = node.parent;
+      while (parent && (ts.isObjectBindingPattern(parent) || ts.isArrayBindingPattern(parent) || ts.isBindingElement(parent))) parent = parent.parent;
+      return parent;
+    };
+    const memberName = node => ts.isIdentifier(node) || ts.isStringLiteralLike(node) ? node.text
+      : ts.isComputedPropertyName(node) && ts.isStringLiteralLike(node.expression) ? node.expression.text : undefined;
+    const importSource = node => {
+      for (let parent = node.parent; parent; parent = parent.parent) {
+        if (ts.isImportDeclaration(parent)) return parent.moduleSpecifier.text;
+      }
+      return undefined;
+    };
+    const isNodeModule = name => name === 'node:module' || name === 'module';
+    // Track only Node's module loader and its lexical aliases; ordinary functions
+    // receiving a string that happens to name a core module remain legal.
+    const loaderValue = (node, seen = new Set()) => {
+      if (!node || seen.has(node)) return undefined;
+      seen.add(node);
+      if (ts.isParenthesizedExpression(node)) return loaderValue(node.expression, seen);
+      if (ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) {
+        const name = memberName(ts.isPropertyAccessExpression(node) ? node.name : node.argumentExpression);
+        return name === 'createRequire' && loaderValue(node.expression, seen) === 'node-module' ? 'creator' : undefined;
+      }
+      if (ts.isCallExpression(node)) {
+        const callee = loaderValue(node.expression, seen);
+        if (callee === 'creator') return 'loader';
+        if (callee === 'loader' && node.arguments[0] && ts.isStringLiteralLike(node.arguments[0])
+            && isNodeModule(node.arguments[0].text)) return 'node-module';
+        return undefined;
+      }
+      if (!ts.isIdentifier(node)) return undefined;
+      const declarations = checker.getSymbolAtLocation(node)?.declarations ?? [];
+      if (!declarations.length) return node.text === 'require' ? 'loader' : undefined;
+      for (const declaration of declarations) {
+        if (ts.isNamespaceImport(declaration) && isNodeModule(importSource(declaration))) return 'node-module';
+        if (ts.isImportSpecifier(declaration) && isNodeModule(importSource(declaration))
+            && (declaration.propertyName?.text ?? declaration.name.text) === 'createRequire') return 'creator';
+        if (ts.isVariableDeclaration(declaration)) {
+          const value = loaderValue(declaration.initializer, seen);
+          if (value) return value;
+        }
+        if (ts.isBindingElement(declaration)) {
+          const container = bindingContainer(declaration);
+          if (memberName(declaration.propertyName ?? declaration.name) === 'createRequire'
+              && ts.isVariableDeclaration(container) && loaderValue(container.initializer, seen) === 'node-module') return 'creator';
+        }
+      }
+      return undefined;
+    };
+    const coreValue = (node, seen = new Set()) => {
+      if (!node || seen.has(node)) return undefined;
+      seen.add(node);
+      if (ts.isParenthesizedExpression(node) || ts.isAwaitExpression(node)) return coreValue(node.expression, seen);
+      if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword || loaderValue(node.expression) === 'loader')
+          && node.arguments[0] && ts.isStringLiteralLike(node.arguments[0])) return { namespace: true };
+      if (ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) {
+        const receiver = coreValue(node.expression, seen);
+        const name = memberName(ts.isPropertyAccessExpression(node) ? node.name : node.argumentExpression);
+        return receiver?.namespace && forbiddenNames.has(name) ? { name } : undefined;
+      }
+      if (!ts.isIdentifier(node)) return undefined;
+      const symbol = checker.getSymbolAtLocation(node);
+      const declarations = symbol?.declarations ?? [];
+      if (!declarations.length) return forbiddenNames.has(node.text) ? { name: node.text } : undefined;
+      for (const declaration of declarations) {
+        if (ts.isNamespaceImport(declaration)) return { namespace: true };
+        if (ts.isImportSpecifier(declaration) && forbiddenNames.has(declaration.propertyName?.text ?? declaration.name.text)) {
+          return { name: declaration.propertyName?.text ?? declaration.name.text };
+        }
+        if (ts.isVariableDeclaration(declaration)) {
+          const value = coreValue(declaration.initializer, seen);
+          if (value) return value;
+        }
+        if (ts.isBindingElement(declaration)) {
+          const container = bindingContainer(declaration);
+          const receiver = ts.isVariableDeclaration(container) ? coreValue(container.initializer, seen) : undefined;
+          const name = memberName(declaration.propertyName ?? declaration.name);
+          if (receiver?.namespace && forbiddenNames.has(name)) return { name };
+        }
+      }
+      return undefined;
+    };
+    const definitionDiagnostics = (candidate, serialized) => {
+      for (const [key, nodes] of runtimeDefinitionIndex(candidate)) {
+        const name = key.slice(key.indexOf(':') + 1);
+        if (!forbiddenNames.has(name) || key.startsWith('call:')) continue;
+        const prefix = forbiddenTransforms.includes(name) ? `retired host transform ${name}` : `core reinjection ${name}`;
+        diagnostics.push(`${prefix}: ${file.fileName} contains ${nodes.length} ${serialized ? 'serialized ' : ''}definition(s)`);
+      }
+    };
+    definitionDiagnostics(file, false);
+    visit(file, node => {
+      if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier && ts.isStringLiteralLike(node.moduleSpecifier)) {
+        if (isCoreModule(node.moduleSpecifier.text)) diagnostics.push(`core reinjection: ${file.fileName} references permanent/retired module ${node.moduleSpecifier.text}`);
+        if (ts.isImportDeclaration(node)) {
+          for (const binding of importedBindings(node)) {
+            if (forbiddenNames.has(binding.imported)) {
+              const prefix = forbiddenTransforms.includes(binding.imported) ? `retired host transform ${binding.imported}` : `core reinjection ${binding.imported}`;
+              diagnostics.push(`${prefix}: ${file.fileName} imports binding as ${binding.local}`);
+            }
+          }
+        }
+      }
+      if (ts.isExportSpecifier(node)) {
+        for (const name of [node.name.text, node.propertyName?.text]) {
+          if (forbiddenNames.has(name)) diagnostics.push(`${forbiddenTransforms.includes(name) ? 'retired host transform' : 'core reinjection'} ${name}: ${file.fileName} forwarding export`);
+        }
+      }
+      if (ts.isIdentifier(node) && forbiddenNames.has(node.text)) {
+        const symbol = checker.getSymbolAtLocation(node);
+        const declarations = symbol?.declarations ?? [];
+        // A distinct local parameter is not the permanent runtime binding.
+        const locallyBound = declarations.length > 0 && declarations.every(declaration =>
+          ts.isParameter(declaration) || (ts.isBindingElement(declaration) && ts.isParameter(bindingContainer(declaration))));
+        const destructuredMember = declarations.length > 0 && declarations.every(declaration =>
+          ts.isBindingElement(declaration) && ts.isVariableDeclaration(bindingContainer(declaration)));
+        const isKey = (ts.isPropertyAccessExpression(node.parent) && node.parent.name === node)
+          || ((ts.isPropertyAssignment(node.parent) || ts.isMethodDeclaration(node.parent)) && node.parent.name === node)
+          || (ts.isBindingElement(node.parent) && node.parent.propertyName === node && protectedNames.has(node.text));
+        if ((forbiddenTransforms.includes(node.text) || (!locallyBound && !destructuredMember)) && !isKey) {
+          const prefix = forbiddenTransforms.includes(node.text) ? `retired host transform ${node.text}` : `core reinjection ${node.text}`;
+          diagnostics.push(`${prefix}: ${file.fileName} retains a host binding/reference`);
+        }
+      }
+      const text = serializedCodeText(node);
+      if (text !== undefined && [...forbiddenNames].some(name => text.includes(name))) {
+        definitionDiagnostics(parseSource(text, 'serialized-core.js'), true);
+      }
+      if (ts.isCallExpression(node)) {
+        const callee = coreValue(node.expression);
+        if (forbiddenTransforms.includes(callee?.name)) diagnostics.push(`retired host transform ${callee.name}: ${file.fileName} retains a host call`);
+      }
+      if (ts.isCallExpression(node) && (ts.isPropertyAccessExpression(node.expression) || ts.isElementAccessExpression(node.expression))) {
+        const name = memberName(ts.isPropertyAccessExpression(node.expression) ? node.expression.name : node.expression.argumentExpression);
+        if (name === 'toString') {
+          const value = coreValue(node.expression.expression);
+          if (value?.name) diagnostics.push(`core reinjection ${value.name}: ${file.fileName} serializes a permanent binding`);
+        }
+      }
+      if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword
+          && node.arguments[0] && ts.isStringLiteralLike(node.arguments[0]) && isCoreModule(node.arguments[0].text)) {
+        diagnostics.push(`core reinjection: ${file.fileName} dynamically imports ${node.arguments[0].text}`);
+      }
+      if (ts.isCallExpression(node) && loaderValue(node.expression) === 'loader'
+          && node.arguments[0] && ts.isStringLiteralLike(node.arguments[0]) && isCoreModule(node.arguments[0].text)) {
+        diagnostics.push(`core reinjection: ${file.fileName} loads permanent/retired module ${node.arguments[0].text}`);
+      }
+    });
+  }
+}
+
 export function auditCoreOwnership({
   vendorSource,
   patcherSource,
   prepareSource,
-  retiredTransforms,
-  retiredHostExports,
+  retiredTransforms: requestedRetirements = [],
+  retiredHostExports = [],
+  patcherDeclarationsSource,
+  permanentModules = [],
+  forbiddenHostTransforms = [],
+  strictCoreAudit = false,
   relocatedBindings: relocationMappings = relocatedBindings,
   coordinatorBindings: movedCoordinatorBindings = displayCoordinatorBindings,
   forbiddenHostDefinitions: forbiddenDefinitions = relocatedCoordinatorNames,
   strictRelocationAudit = false,
 }) {
   const diagnostics = [];
+  const transforms = strictCoreAudit ? retiredTransforms : requestedRetirements;
+  const modules = strictCoreAudit ? permanentRuntimeModules : permanentModules;
+  const hostTransforms = strictCoreAudit ? retiredHostTransforms : forbiddenHostTransforms;
+  strictRelocationAudit ||= strictCoreAudit;
+  if (strictCoreAudit) {
+    relocationMappings = relocatedBindings;
+    movedCoordinatorBindings = displayCoordinatorBindings;
+    forbiddenDefinitions = relocatedCoordinatorNames;
+  }
   const vendor = parseSource(vendorSource, 'vendor/v2/Online.js');
   const patcher = parseSource(patcherSource, 'scripts/patch-v2-runtime.mjs');
   const prepare = parseSource(prepareSource, 'scripts/prepare-runtime.mjs');
   diagnostics.push(...diagnosticsFor('vendor/v2/Online.js', vendor));
   diagnostics.push(...diagnosticsFor('scripts/patch-v2-runtime.mjs', patcher));
   diagnostics.push(...diagnosticsFor('scripts/prepare-runtime.mjs', prepare));
+  const declarations = patcherDeclarationsSource === undefined ? undefined
+    : parseSource(patcherDeclarationsSource, 'scripts/patch-v2-runtime.d.mts');
+  if (declarations) diagnostics.push(...diagnosticsFor(declarations.fileName, declarations));
+  if (strictCoreAudit && !declarations) diagnostics.push('final core audit requires patcher declarations source');
+  if (modules.length || hostTransforms.length) {
+    auditPermanentOwners(vendor, modules, diagnostics);
+    auditHostCoreBoundaries([patcher, prepare, ...(declarations ? [declarations] : [])], modules, hostTransforms, transforms, diagnostics);
+  }
 
   const vendorDefinitions = topLevelDefinitions(vendor);
   const patcherDefinitions = topLevelDefinitions(patcher);
@@ -279,13 +766,13 @@ export function auditCoreOwnership({
     }
   }
 
-  const retiredModuleSources = new Set(retiredTransforms.map(transform => transform.module));
+  const retiredModuleSources = new Set(transforms.map(transform => transform.module));
   for (const statement of patcher.statements) {
     if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)
         || !retiredModuleSources.has(statement.moduleSpecifier.text)) continue;
     for (const binding of importedBindings(statement)) {
       if (binding.imported === '*') continue;
-      if (!retiredTransforms.some(transform => transform.module === statement.moduleSpecifier.text
+      if (!transforms.some(transform => transform.module === statement.moduleSpecifier.text
           && transform.imported === binding.imported)) {
         diagnostics.push(`retired import ${statement.moduleSpecifier.text}#${binding.imported} as ${binding.local} remains`);
       }
@@ -295,7 +782,7 @@ export function auditCoreOwnership({
     const count = exactImportCount(patcher, expected);
     const matchingRetirement = relocationMappings.find(binding => binding.module === expected.module
       && binding.imported === expected.imported && binding.local === expected.local
-      && retiredTransforms.some(retired => retired.module === binding.retiredModule
+      && transforms.some(retired => retired.module === binding.retiredModule
         && retired.imported === binding.retiredExport));
     const callCount = expected.callOwner ? callsInOwner(patcher, expected.callOwner, expected.local) : null;
     const required = strictRelocationAudit || Boolean(matchingRetirement)
@@ -329,7 +816,7 @@ export function auditCoreOwnership({
     }
   }
 
-  for (const retired of retiredTransforms) {
+  for (const retired of transforms) {
     const expectedModule = retired.module;
     const namedImports = [];
     const namespaceImports = [];
@@ -380,7 +867,7 @@ export function auditCoreOwnership({
   if (forbiddenPrepareReference) {
     diagnostics.push(`prepare references migration tooling: ${forbiddenPrepareReference}`);
   }
-  return diagnostics;
+  return [...new Set(diagnostics)];
 }
 
 function statementOwner(statement, file, index) {
@@ -798,14 +1285,15 @@ async function cli(args) {
   const values = parseArguments(args);
   if (values.has('--check-final')) {
     if (values.size !== 1) throw new Error('--check-final cannot be combined with comparison flags');
-    const [vendorSource, patcherSource, prepareSource] = await Promise.all([
+    const [vendorSource, patcherSource, prepareSource, patcherDeclarationsSource] = await Promise.all([
       readFile(path.join(repo, 'vendor/v2/Online.js'), 'utf8'),
       readFile(path.join(repo, 'scripts/patch-v2-runtime.mjs'), 'utf8'),
       readFile(path.join(repo, 'scripts/prepare-runtime.mjs'), 'utf8'),
+      readFile(path.join(repo, 'scripts/patch-v2-runtime.d.mts'), 'utf8'),
     ]);
     const diagnostics = auditCoreOwnership({
-      vendorSource, patcherSource, prepareSource, retiredTransforms,
-      retiredHostExports: ['resolveLastroMapResourceName', 'describeLastroMapLoadFailure'],
+      vendorSource, patcherSource, prepareSource, patcherDeclarationsSource,
+      strictCoreAudit: true,
       relocatedBindings,
       coordinatorBindings: displayCoordinatorBindings,
       forbiddenHostDefinitions: [...relocatedCoordinatorNames, 'patchRuntimeWorldMap', 'patchMapLoadFailureRecovery'],
@@ -822,7 +1310,15 @@ async function cli(args) {
         if (error?.code !== 'ENOENT') throw error;
       }
     }
-    process.stdout.write(`${JSON.stringify({ ok: diagnostics.length === 0, retiredTransforms: retiredTransforms.length, diagnostics }, null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify({
+      ok: diagnostics.length === 0,
+      retiredTransforms: retiredTransforms.length,
+      relocatedBindings: relocatedBindings.length,
+      permanentModules: permanentRuntimeModules.length,
+      permanentOwners: permanentRuntimeModules.reduce((count, module) => count + module.owners.length, 0),
+      retiredHostTransforms: retiredHostTransforms.length,
+      diagnostics,
+    }, null, 2)}\n`);
     if (diagnostics.length) process.exitCode = 1;
     return;
   }

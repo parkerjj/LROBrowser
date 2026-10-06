@@ -44,7 +44,28 @@ export interface CoreOwnershipInput {
   coordinatorBindings?: RuntimeCoordinatorBinding[];
   forbiddenHostDefinitions?: string[];
   strictRelocationAudit?: boolean;
+  patcherDeclarationsSource?: string;
+  permanentModules?: PermanentRuntimeModule[];
+  forbiddenHostTransforms?: string[];
+  /** Enables the fixed31 owners, fixed40 retirements, fixed12 display mappings and retired host APIs. */
+  strictCoreAudit?: boolean;
 }
+
+export interface PermanentRuntimeOwner {
+  kind: 'function' | 'variable' | 'class' | 'method' | 'assignment' | 'call';
+  name: string;
+  region?: string;
+  topLevel?: boolean;
+  /** New permanent helpers/state cannot be host-defined; existing bundle owners remain editable. */
+  protectHost?: boolean;
+}
+
+export interface PermanentRuntimeModule {
+  module: string;
+  owners: PermanentRuntimeOwner[];
+}
+
+export declare const permanentRuntimeModules: PermanentRuntimeModule[];
 
 export interface RuntimeSourceDifference {
   owner: string;
