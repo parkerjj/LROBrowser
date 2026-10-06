@@ -3,8 +3,8 @@ import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
 import { BUNDLED_SKILL_NAMES, readSkillSource } from '../scripts/lastro-skill-data.mjs';
-import { patchLuaTableCompletion, patchRuntimeSkillLocalization } from '../scripts/patch-v2-runtime.mjs';
-import { createLastroUiMessages } from '../scripts/lastro-ui-messages.mjs';
+import { patchLuaTableCompletion } from '../scripts/patch-v2-runtime.mjs';
+import { createLastroUiMessages, patchRuntimeSkillLocalization } from '../scripts/lastro-display-localization.mjs';
 
 const source = readFileSync('generated/runtime/Online.js', 'utf8');
 const ast = ts.createSourceFile('Online.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);

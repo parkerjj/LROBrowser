@@ -6,6 +6,8 @@ import { fileURLToPath, URL } from 'node:url';
 import { parseArgs } from 'node:util';
 import process from 'node:process';
 import ts from 'typescript';
+import { patchRuntimeLocalization, patchRuntimeMapLocalization, patchRuntimeStatusTooltips, assertRuntimeLocalizationMount, patchRuntimeUiText, patchRuntimeUiMessages, patchRuntimeEmoticons, patchRuntimeItemName } from './lastro-display-localization.mjs';
+
 import { patchRuntimeNavigation, patchRuntimePluginLoader, patchRuntimePlainTextSinks } from './patch-csp-runtime.mjs';
 import { patchRuntimeCredentialSecurity } from './lastro-credential-security.mjs';
 import { patchRuntimeLastROItemLayouts } from './lastro-item-packet-layouts.mjs';
@@ -13,9 +15,9 @@ import { patchRuntimeCharacterSwitch, patchRuntimeNetworkHandoffCleanup } from '
 import { patchRuntimeNetworkDiagnostics } from './lastro-network-diagnostics.mjs';
 import { patchRuntimeLuaStartup } from './lastro-lua-startup.mjs';
 import { patchRuntimeDebugAccess } from './lastro-debug-access.mjs';
-import { JOB_NAME_OVERRIDES, MESSAGE_FALLBACKS, RUNTIME_TEXT_REPLACEMENTS, patchRuntimeMapLocalization, patchRuntimeStatusTooltips, assertRuntimeLocalizationMount } from './lastro-localization.mjs';
-import jobNameAliases from './lastro-job-name-aliases.json' with { type: 'json' };
-import { SKILL_DESCRIPTION_OVERRIDES, SKILL_NAME_OVERRIDES } from './lastro-skill-localization.mjs';
+
+
+
 import { ITEM_OBTAIN_CSS } from './lastro-loot-style.mjs';
 import { installLastroLootList } from './lastro-loot-list.mjs';
 import { createWorldMapIndex, installLastroWorldMap, WORLD_MAP_HTML, WORLD_MAP_CSS } from './lastro-worldmap.mjs';
@@ -37,16 +39,16 @@ import { installLastroShortcutSettings } from './lastro-shortcut-settings.mjs';
 import { installLastroTeleportSettings } from './lastro-teleport-settings.mjs';
 import { patchRuntimeMail } from './lastro-mail.mjs';
 import { patchPetDialogueDecoding } from './patch-pet-dialogue.mjs';
-import { patchRuntimeUiText } from './lastro-ui-text.mjs';
-import { patchRuntimeUiMessages } from './lastro-ui-messages.mjs';
+
+
 import { patchRuntimeUiLayout as patchScopedUiLayout } from './lastro-ui-layout.mjs';
 import { patchRuntimeUiState } from './lastro-ui-state.mjs';
 import { patchRuntimeStoreScroll } from './lastro-store-scroll.mjs';
 import { patchRuntimeStorageCount } from './lastro-storage-count.mjs';
 import { patchRuntimeUiInput } from './lastro-ui-input.mjs';
-import { patchRuntimeEmoticons } from './lastro-emoticons.mjs';
+
 import { patchRuntimeItemDrag } from './lastro-item-drag.mjs';
-import { patchRuntimeItemName } from './lastro-item-name.mjs';
+
 import { patchRuntimeHotkeys } from './lastro-hotkeys.mjs';
 import { patchRuntimeCardDeckHotkeys } from './lastro-card-deck-hotkeys.mjs';
 import { patchRuntimeCardCollection } from './lastro-card-collection.mjs';
@@ -160,115 +162,11 @@ function patchLoginRegistrationHook(source) {
   return source.slice(0, node.body.getStart(file)) + body + source.slice(node.body.end);
 }
 
-export function patchRuntimeJobLocalization(source) {
-  // JobNameTable, PalNameTable and WeaponJobTable contain asset basenames,
-  // not UI labels. Never translate these or bodies/weapons/palettes disappear.
-  let replacements = 0;
-  const output = source.replace(/\/\/#region src\/UI\/[^\r\n]+\r?\n[\s\S]*?\/\/#endregion/g, region =>
-    region.replace(/MonsterTable_default\[([^\]\r\n]+)\]/g, (_match, id) => {
-      replacements++; return `lastroJobDisplayName(${id})`;
-    }));
-  if (replacements !== 9) fail('anchor:job-display-lookups');
-  const labels = { ...JOB_NAME_OVERRIDES };
-  function resolveLabel(key, seen = new Set()) {
-    if (Object.hasOwn(labels, key)) return labels[key];
-    const target = jobNameAliases[key];
-    if (typeof target !== 'string' || seen.has(key)) fail('localization:job-alias:' + key);
-    const label = resolveLabel(target, new Set([...seen, key]));
-    return labels[key] = key.endsWith('_B') && !target.endsWith('_B') ? '宝宝' + label : label;
-  }
-  for (const key of Object.keys(jobNameAliases)) resolveLabel(key);
-  return `/* LASTRO Chinese job-name overlay: display only, never resource paths. */
-const lastroJobLabels = ${JSON.stringify(labels)};
-let lastroJobLabelsById;
-function lastroJobDisplayName(id) {
-  if (!lastroJobLabelsById) {
-    init_JobConst();
-    lastroJobLabelsById = Object.create(null);
-    for (const [key, label] of Object.entries(lastroJobLabels)) {
-      const job = JobConst_default[key];
-      if (Number.isFinite(job)) lastroJobLabelsById[job] = label;
-    }
-  }
-  return lastroJobLabelsById[id] ?? MonsterTable_default[id];
-}
-` + output;
-}
 
-function patchRuntimeLocalization(source) {
-  let output = source;
-  const hasLocalizationAnchors = output.includes('JobNameTable')
-    || output.includes('function loadSkillInfoList(filename')
-    || RUNTIME_TEXT_REPLACEMENTS.some(([from, to]) => output.includes(from) || output.includes(to))
-    || /DB\.getMessage\(\s*\d+\s*,\s*"/.test(output);
-  if (!hasLocalizationAnchors) return output;
 
-  if (output.includes('JobNameTable')) output = patchRuntimeJobLocalization(output);
 
-  for (const [from, to] of RUNTIME_TEXT_REPLACEMENTS) {
-    const occurrences = count(output, from);
-    if (occurrences > 0) output = output.replaceAll(from, to);
-  }
 
-  output = output.replace(/DB\.getMessage\(\s*(\d+)\s*,\s*"[^"]*"/g, (match, messageId) => {
-    const fallback = MESSAGE_FALLBACKS[messageId];
-    return fallback === undefined ? match : `DB.getMessage(${messageId}, ${JSON.stringify(fallback)}`;
-  });
-  // ui-text calls DB.getMessage again when mounted. Translate known English
-  // table values as well as the HTML fallback, without changing Chinese data.
-  if (output.includes('static getMessage(id, defaultText)')) {
-    const labels = Object.fromEntries(RUNTIME_TEXT_REPLACEMENTS
-      .filter(([from, to]) => /^>[^<>]+<$/.test(from) && /^>[^<>]+<$/.test(to))
-      .map(([from, to]) => [from.slice(1, -1), to.slice(1, -1)]));
-    const anchor = '      return MsgStringTable[id];';
-    output = `const lastroUiMessages = ${JSON.stringify(labels)};\n` + replaceOnce(output, anchor, '      const text = MsgStringTable[id];\n      return Object.prototype.hasOwnProperty.call(lastroUiMessages, text) ? lastroUiMessages[text] : text;');
-  }
-  output = patchRuntimeSkillLocalization(output);
-  return output;
-}
 
-export function patchRuntimeSkillLocalization(source) {
-  if (!source.includes('SkillInfo')) return source;
-  if (!source.includes('function loadSkillInfoList(filename') || !source.includes('main_skillInfoList()'))
-    fail('anchor:skill-loader');
-
-  let output = source;
-  // Localize built-in fallbacks too: the Lua file may fail or omit a skill.
-  output = output.replace(/(SkillInfo\[SkillConst_default\.([A-Z0-9_]+)\]\s*=\s*\{\s*Name:\s*"[^"]*",\s*SkillName:\s*)"[^"]*"/g,
-    (match, prefix, key) => SKILL_NAME_OVERRIDES[key] ? prefix + JSON.stringify(SKILL_NAME_OVERRIDES[key]) : match);
-  const skillNameEntries = Object.entries(SKILL_NAME_OVERRIDES);
-  if (skillNameEntries.length > 0) {
-    const skillNameOverlay = [
-      '        /* LASTRO Chinese skill-name overlay */',
-      `        const lastroSkillNameOverrides = ${JSON.stringify(Object.fromEntries(skillNameEntries))};`,
-      '        for (const [skillName, localizedName] of Object.entries(lastroSkillNameOverrides)) {',
-      '          const skillId = SkillConst_default[skillName];',
-      '          if (Number.isFinite(skillId) && SkillInfo[skillId]) SkillInfo[skillId].SkillName = localizedName;',
-      '        }',
-    ].join('\n');
-    const skillNameAnchor = '      } catch (error) {\n        console.error("[loadSkillInfoList] Error: ", error);';
-    if (count(output, skillNameAnchor) !== 1) fail('anchor:skill-name-overlay');
-    output = output.replace(skillNameAnchor, `${skillNameOverlay}\n${skillNameAnchor}`);
-  }
-
-  const skillDescriptionEntries = Object.entries(SKILL_DESCRIPTION_OVERRIDES);
-  if (skillDescriptionEntries.length > 0) {
-    const skillDescriptionOverlay = [
-      '              /* LASTRO Chinese skill-description overlay */',
-      `              const lastroSkillDescriptionOverrides = ${JSON.stringify(Object.fromEntries(skillDescriptionEntries))};`,
-      '              for (const [skillName, description] of Object.entries(lastroSkillDescriptionOverrides)) {',
-      '                const skillId = SkillConst_default[skillName];',
-      '                if (Number.isFinite(skillId)) SkillDescription[skillId] = description;',
-      '              }',
-    ].join('\n');
-    const skillDescriptionAnchor = '              SkillDescription = _json;';
-    if (count(output, skillDescriptionAnchor) !== 1) fail('anchor:skill-description-overlay');
-    output = output.replace(skillDescriptionAnchor, `${skillDescriptionAnchor}\n${skillDescriptionOverlay}`);
-  }
-  // Learned skill packets may retain an English name; prefer the local DB.
-  output = output.replaceAll('skill.SkillName || info?.SkillName || info?.Name', 'info?.SkillName || skill.SkillName || info?.Name');
-  return output;
-}
 
 export function patchLuaTableCompletion(source) {
   if (!source.includes('function loadLuaTable(')) return source;

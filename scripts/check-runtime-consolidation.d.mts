@@ -17,12 +17,33 @@ export interface RetiredRuntimeTransform {
   callOwner: string;
 }
 
+export interface RelocatedRuntimeBinding {
+  retiredModule: string;
+  retiredExport: string;
+  module: string;
+  imported: string;
+  local: string;
+  callOwner?: string;
+  patcherImport?: boolean;
+}
+
+export interface RuntimeCoordinatorBinding {
+  module: string;
+  imported: string;
+  local: string;
+  callOwner: string;
+}
+
 export interface CoreOwnershipInput {
   vendorSource: string;
   patcherSource: string;
   prepareSource: string;
   retiredTransforms: RetiredRuntimeTransform[];
   retiredHostExports: string[];
+  relocatedBindings?: RelocatedRuntimeBinding[];
+  coordinatorBindings?: RuntimeCoordinatorBinding[];
+  forbiddenHostDefinitions?: string[];
+  strictRelocationAudit?: boolean;
 }
 
 export interface RuntimeSourceDifference {

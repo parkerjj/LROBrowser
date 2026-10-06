@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { patchGuildEmblemRequestCallbacks, patchLegacyScriptSinks, patchLuaJsonEscapes, patchNpcMenuBlankArea, patchTrustedTypesDomWrites, patchV2Runtime, patchRuntimeWorldMap, patchRuntimeChatMapLinks, patchRuntimeToolsPanels } from '../scripts/patch-v2-runtime.mjs';
 import { buildClientConfig } from '../src/runtime/client-config';
 import { LASTRO_SERVER_PROFILES } from '../src/servers/server-profiles';
-import { createLastroUiMessages } from '../scripts/lastro-ui-messages.mjs';
+import { createLastroUiMessages } from '../scripts/lastro-display-localization.mjs';
 import { readVendorSource } from './helpers/vendor-runtime';
 import { buildRuntimePatchFixture } from './helpers/runtime-patch-fixture';
 

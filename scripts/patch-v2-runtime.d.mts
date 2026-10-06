@@ -6,8 +6,6 @@ export function patchLuaJsonEscapes(source: string): string;
 export function patchAchievementClaimButton(source: string): string;
 export function patchV2Runtime(source: string): string;
 export function patchLuaTableCompletion(source: string): string;
-export function patchRuntimeSkillLocalization(source: string): string;
-export function patchRuntimeJobLocalization(source: string): string;
 export function patchRuntimeWorldMap(source: string): string;
 export function patchRuntimeChatMapLinks(source: string): string;
 export function patchNavigationPendingTargets(source: string): string;

@@ -69,6 +69,25 @@ const retiredTransforms = [
   { module: './lastro-basic-info.mjs', imported: 'patchRuntimeBasicInfoLayout', local: 'patchRuntimeBasicInfoLayout', callOwner: 'patchV2Runtime' },
 ];
 
+const relocatedBindings = [
+  { retiredModule: './lastro-localization.mjs', retiredExport: 'JOB_NAME_OVERRIDES', module: './lastro-display-localization.mjs', imported: 'JOB_NAME_OVERRIDES', local: 'JOB_NAME_OVERRIDES', patcherImport: false },
+  { retiredModule: './lastro-localization.mjs', retiredExport: 'MESSAGE_FALLBACKS', module: './lastro-display-localization.mjs', imported: 'MESSAGE_FALLBACKS', local: 'MESSAGE_FALLBACKS', patcherImport: false },
+  { retiredModule: './lastro-localization.mjs', retiredExport: 'RUNTIME_TEXT_REPLACEMENTS', module: './lastro-display-localization.mjs', imported: 'RUNTIME_TEXT_REPLACEMENTS', local: 'RUNTIME_TEXT_REPLACEMENTS', patcherImport: false },
+  { retiredModule: './lastro-localization.mjs', retiredExport: 'patchRuntimeMapLocalization', module: './lastro-display-localization.mjs', imported: 'patchRuntimeMapLocalization', local: 'patchRuntimeMapLocalization', callOwner: 'patchV2Runtime', patcherImport: true },
+  { retiredModule: './lastro-localization.mjs', retiredExport: 'patchRuntimeStatusTooltips', module: './lastro-display-localization.mjs', imported: 'patchRuntimeStatusTooltips', local: 'patchRuntimeStatusTooltips', callOwner: 'patchV2Runtime', patcherImport: true },
+  { retiredModule: './lastro-localization.mjs', retiredExport: 'assertRuntimeLocalizationMount', module: './lastro-display-localization.mjs', imported: 'assertRuntimeLocalizationMount', local: 'assertRuntimeLocalizationMount', callOwner: 'patchV2Runtime', patcherImport: true },
+  { retiredModule: './lastro-skill-localization.mjs', retiredExport: 'SKILL_DESCRIPTION_OVERRIDES', module: './lastro-display-localization.mjs', imported: 'SKILL_DESCRIPTION_OVERRIDES', local: 'SKILL_DESCRIPTION_OVERRIDES', patcherImport: false },
+  { retiredModule: './lastro-skill-localization.mjs', retiredExport: 'SKILL_NAME_OVERRIDES', module: './lastro-display-localization.mjs', imported: 'SKILL_NAME_OVERRIDES', local: 'SKILL_NAME_OVERRIDES', patcherImport: false },
+  { retiredModule: './lastro-ui-text.mjs', retiredExport: 'patchRuntimeUiText', module: './lastro-display-localization.mjs', imported: 'patchRuntimeUiText', local: 'patchRuntimeUiText', callOwner: 'patchV2Runtime', patcherImport: true },
+  { retiredModule: './lastro-ui-messages.mjs', retiredExport: 'patchRuntimeUiMessages', module: './lastro-display-localization.mjs', imported: 'patchRuntimeUiMessages', local: 'patchRuntimeUiMessages', callOwner: 'patchV2Runtime', patcherImport: true },
+  { retiredModule: './lastro-emoticons.mjs', retiredExport: 'patchRuntimeEmoticons', module: './lastro-display-localization.mjs', imported: 'patchRuntimeEmoticons', local: 'patchRuntimeEmoticons', callOwner: 'patchV2Runtime', patcherImport: true },
+  { retiredModule: './lastro-item-name.mjs', retiredExport: 'patchRuntimeItemName', module: './lastro-display-localization.mjs', imported: 'patchRuntimeItemName', local: 'patchRuntimeItemName', callOwner: 'patchV2Runtime', patcherImport: true },
+];
+const displayCoordinatorBindings = [
+  { module: './lastro-display-localization.mjs', imported: 'patchRuntimeLocalization', local: 'patchRuntimeLocalization', callOwner: 'patchV2Runtime' },
+];
+const relocatedCoordinatorNames = ['patchRuntimeLocalization', 'patchRuntimeJobLocalization', 'patchRuntimeSkillLocalization'];
+
 function parseSource(source, fileName) {
   return ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
 }
@@ -165,7 +184,45 @@ function containsMigrationToolReference(file) {
 }
 
 /** Audit permanent bundle ownership and retired build-time transform boundaries. */
-export function auditCoreOwnership({ vendorSource, patcherSource, prepareSource, retiredTransforms, retiredHostExports }) {
+function ownerHasLocalBinding(file, ownerName, localName) {
+  const owners = file.statements.filter(statement =>
+    ts.isFunctionDeclaration(statement) && statement.name?.text === ownerName);
+  if (owners.length !== 1) return false;
+  let found = false;
+  visit(owners[0], node => {
+    if (found) return;
+    if ((ts.isParameter(node) || ts.isVariableDeclaration(node) || ts.isFunctionDeclaration(node)
+        || ts.isClassDeclaration(node) || ts.isBindingElement(node))
+        && ts.isIdentifier(node.name) && node.name.text === localName) found = true;
+    if (ts.isCatchClause(node) && node.variableDeclaration?.name && ts.isIdentifier(node.variableDeclaration.name)
+        && node.variableDeclaration.name.text === localName) found = true;
+  });
+  return found;
+}
+
+function exactImportCount(file, expected) {
+  let count = 0;
+  for (const statement of file.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)
+        || statement.moduleSpecifier.text !== expected.module) continue;
+    for (const binding of importedBindings(statement)) {
+      if (binding.imported === expected.imported && binding.local === expected.local) count++;
+    }
+  }
+  return count;
+}
+
+export function auditCoreOwnership({
+  vendorSource,
+  patcherSource,
+  prepareSource,
+  retiredTransforms,
+  retiredHostExports,
+  relocatedBindings: relocationMappings = relocatedBindings,
+  coordinatorBindings: movedCoordinatorBindings = displayCoordinatorBindings,
+  forbiddenHostDefinitions: forbiddenDefinitions = relocatedCoordinatorNames,
+  strictRelocationAudit = false,
+}) {
   const diagnostics = [];
   const vendor = parseSource(vendorSource, 'vendor/v2/Online.js');
   const patcher = parseSource(patcherSource, 'scripts/patch-v2-runtime.mjs');
@@ -185,6 +242,78 @@ export function auditCoreOwnership({ vendorSource, patcherSource, prepareSource,
     const hostCount = (patcherDefinitions.get(name)?.length ?? 0) + (generatedDefinitions.get(name)?.length ?? 0);
     if (hostCount > 0) {
       diagnostics.push(`retired host export ${name}: found ${hostCount} top-level patcher definition(s)`);
+    }
+  }
+
+  const allowedDisplayImports = [
+    ...relocationMappings.filter(binding => binding.patcherImport),
+    ...movedCoordinatorBindings,
+  ];
+  for (const statement of patcher.statements) {
+    if (ts.isImportDeclaration(statement) && ts.isStringLiteral(statement.moduleSpecifier)
+        && statement.moduleSpecifier.text === './lastro-display-localization.mjs') {
+      const bindings = importedBindings(statement);
+      if (bindings.length === 0) diagnostics.push('retired side-effect import ./lastro-display-localization.mjs remains');
+      if (bindings.some(binding => binding.imported === '*')) {
+        diagnostics.push('retired namespace import ./lastro-display-localization.mjs remains');
+      }
+      for (const binding of bindings) {
+        const expected = allowedDisplayImports.filter(candidate =>
+          candidate.imported === binding.imported && candidate.local === binding.local);
+        if (expected.length !== 1 || statement.importClause?.isTypeOnly) {
+          diagnostics.push(`unknown display import binding ./lastro-display-localization.mjs#${binding.imported} as ${binding.local}`);
+        }
+      }
+    }
+  }
+
+  const retiredModuleSources = new Set(retiredTransforms.map(transform => transform.module));
+  for (const statement of patcher.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)
+        || !retiredModuleSources.has(statement.moduleSpecifier.text)) continue;
+    for (const binding of importedBindings(statement)) {
+      if (binding.imported === '*') continue;
+      if (!retiredTransforms.some(transform => transform.module === statement.moduleSpecifier.text
+          && transform.imported === binding.imported)) {
+        diagnostics.push(`retired import ${statement.moduleSpecifier.text}#${binding.imported} as ${binding.local} remains`);
+      }
+    }
+  }
+  for (const expected of allowedDisplayImports) {
+    const count = exactImportCount(patcher, expected);
+    const matchingRetirement = relocationMappings.find(binding => binding.module === expected.module
+      && binding.imported === expected.imported && binding.local === expected.local
+      && retiredTransforms.some(retired => retired.module === binding.retiredModule
+        && retired.imported === binding.retiredExport));
+    const callCount = expected.callOwner ? callsInOwner(patcher, expected.callOwner, expected.local) : null;
+    const required = strictRelocationAudit || Boolean(matchingRetirement)
+      || count > 0 || Boolean(callCount && callCount.count > 0);
+    if (required && count !== 1) {
+      diagnostics.push(`display import binding ${expected.module}#${expected.imported} as ${expected.local}: expected exactly once; found ${count}`);
+    }
+    if (expected.callOwner && required) {
+      const calls = callCount;
+      if (calls.ownerCount !== 1) {
+        diagnostics.push(`display call owner ${expected.callOwner}: expected exactly one top-level function; found ${calls.ownerCount}`);
+      } else if (calls.count !== 1) {
+        diagnostics.push(`display call ${expected.local} in ${expected.callOwner}: expected exactly once; found ${calls.count}`);
+      }
+      if (ownerHasLocalBinding(patcher, expected.callOwner, expected.local)) {
+        diagnostics.push(`display import binding shadowed by owner-local ${expected.local}`);
+      }
+    }
+  }
+  for (const name of forbiddenDefinitions) {
+    const count = (patcherDefinitions.get(name)?.length ?? 0) + (generatedDefinitions.get(name)?.length ?? 0);
+    if (count > 0) diagnostics.push(`moved coordinator ${name}: found ${count} patcher definition(s); forwarding is forbidden`);
+  }
+  for (const statement of patcher.statements) {
+    if (!ts.isExportDeclaration(statement)) continue;
+    const exports = statement.exportClause && ts.isNamedExports(statement.exportClause)
+      ? statement.exportClause.elements.map(element => element.name.text)
+      : forbiddenDefinitions;
+    for (const name of exports) {
+      if (forbiddenDefinitions.includes(name)) diagnostics.push(`moved coordinator ${name}: patcher forwarding export is forbidden`);
     }
   }
 
@@ -220,12 +349,16 @@ export function auditCoreOwnership({ vendorSource, patcherSource, prepareSource,
       }
     }
 
+    const mapping = relocationMappings.find(binding => binding.retiredModule === expectedModule
+      && binding.retiredExport === retired.imported && binding.local === retired.local && binding.patcherImport);
+    const validRelocation = Boolean(mapping && exactImportCount(patcher, mapping) === 1
+      && !ownerHasLocalBinding(patcher, retired.callOwner, mapping.local));
     const aliases = new Set([retired.local, ...namedImports.map(binding => binding.local)]);
     for (const alias of aliases) {
       const calls = callsInOwner(patcher, retired.callOwner, alias);
       if (calls.ownerCount !== 1) {
         diagnostics.push(`retired call owner ${retired.callOwner}: expected exactly one top-level function; found ${calls.ownerCount}`);
-      } else if (calls.count > 0) {
+      } else if (calls.count > 0 && !(validRelocation && alias === mapping.local && namedImports.length === 0)) {
         diagnostics.push(`retired call ${alias} in ${retired.callOwner}: found ${calls.count}`);
       }
     }
@@ -454,6 +587,10 @@ async function cli(args) {
     ]);
     const diagnostics = auditCoreOwnership({
       vendorSource, patcherSource, prepareSource, retiredTransforms, retiredHostExports: [],
+      relocatedBindings,
+      coordinatorBindings: displayCoordinatorBindings,
+      forbiddenHostDefinitions: relocatedCoordinatorNames,
+      strictRelocationAudit: true,
     });
     for (const module of new Set(retiredTransforms.map(transform => transform.module))) {
       const modulePath = path.resolve(repo, 'scripts', module);

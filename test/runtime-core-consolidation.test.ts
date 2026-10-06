@@ -1,7 +1,9 @@
 import { existsSync, readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
 import { describe, expect, it } from 'vitest';
 import ts from 'typescript';
 import { auditCoreOwnership, compareRuntimeSources } from '../scripts/check-runtime-consolidation.mjs';
+import * as displayLocalization from '../scripts/lastro-display-localization.mjs';
 import { patchRuntimeEntityAppearance } from '../scripts/lastro-entity-appearance.mjs';
 import { patchRuntimeEquipmentAppearance, patchRuntimeEquipmentCatalog, patchRuntimeEquipmentView } from '../scripts/lastro-equipment-view.mjs';
 import { patchRuntimeUiState } from '../scripts/lastro-ui-state.mjs';
@@ -15,17 +17,48 @@ const layoutRetirement = {
   callOwner: 'patchV2Runtime',
 };
 
-function audit(patcherSource: string, retiredTransforms = [layoutRetirement]) {
+function audit(patcherSource: string, retiredTransforms = [layoutRetirement], ownership: Record<string, unknown> = {}) {
   return auditCoreOwnership({
     vendorSource: 'function permanentCore() {}',
     patcherSource,
     prepareSource: "import './patch-v2-runtime.mjs';",
     retiredTransforms,
     retiredHostExports: [],
+    ...ownership,
   });
 }
 
 describe('runtime consolidation source helpers', () => {
+  it('keeps combined localization exports and self-contained serialized factory inputs', () => {
+    for (const name of [
+      'patchRuntimeMapLocalization', 'patchRuntimeStatusTooltips', 'patchRuntimeUiText',
+      'patchRuntimeUiMessages', 'patchRuntimeEmoticons', 'patchRuntimeItemName',
+      'createLastroMapLocalization', 'createLastroUiMessages', 'setLastroStatusTooltip',
+      'assertRuntimeLocalizationMount', 'JOB_NAME_OVERRIDES', 'RUNTIME_TEXT_REPLACEMENTS',
+      'MESSAGE_FALLBACKS', 'MAP_NAME_OVERRIDES', 'MAP_TITLE_OVERRIDES',
+      'SKILL_NAME_OVERRIDES', 'SKILL_DESCRIPTION_OVERRIDES', 'UI_MESSAGE_OVERRIDES',
+      'patchRuntimeLocalization', 'patchRuntimeJobLocalization', 'patchRuntimeSkillLocalization',
+    ]) expect(displayLocalization[name as keyof typeof displayLocalization]).toBeDefined();
+
+    const source = readFileSync('vendor/v2/Online.js', 'utf8');
+    const output = displayLocalization.patchRuntimeMapLocalization(source);
+    const ast = ts.createSourceFile('localized.js', output, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+    let expression = '';
+    function visit(node: ts.Node) {
+      if (ts.isVariableDeclaration(node) && node.name.getText(ast) === 'LastROMapLocalization' && node.initializer) {
+        expression = node.initializer.getText(ast);
+      }
+      ts.forEachChild(node, visit);
+    }
+    visit(ast);
+    expect(expression).not.toBe('');
+    const runtimeFactory = runInNewContext(expression) as ReturnType<typeof displayLocalization.createLastroMapLocalization>;
+    const [mapId, mapName] = Object.entries(displayLocalization.MAP_NAME_OVERRIDES)[0]!;
+    expect(runtimeFactory.resolveName(mapId, mapName)).toBe(mapName);
+    expect(runtimeFactory.resolveName('unknown-map', 'Prontera')).toBe(displayLocalization.MAP_TITLE_OVERRIDES.Prontera);
+    expect(() => runInNewContext(`(${displayLocalization.createLastroMapLocalization.toString()})()`)).toThrow();
+  });
+
   it('resolves the packet layout transform only from its renamed module', async () => {
     const previousModule = new URL(`../scripts/${['lastro', 'network', 'security'].join('-')}.mjs`, import.meta.url);
     expect(existsSync(previousModule)).toBe(false);
@@ -307,6 +340,20 @@ function patchV2Runtime(source) {
     expect(audit(namespaceImport).some(message => message.includes('retired namespace import'))).toBe(true);
   });
 
+  it('keeps the shared ownership audit compatible with scoped core checks', () => {
+    const diagnostics = auditCoreOwnership({
+      vendorSource: 'function permanentCore() {}',
+      patcherSource: readFileSync(new URL('../scripts/patch-v2-runtime.mjs', import.meta.url), 'utf8'),
+      prepareSource: readFileSync(new URL('../scripts/prepare-runtime.mjs', import.meta.url), 'utf8'),
+      retiredTransforms: [
+        { module: './lastro-network-receive-recovery.mjs', imported: 'patchRuntimeNetworkFramingRecovery', local: 'patchRuntimeNetworkFramingRecovery', callOwner: 'patchV2Runtime' },
+        { module: './lastro-network-receive-recovery.mjs', imported: 'patchRuntimeNetworkCloseDrain', local: 'patchRuntimeNetworkCloseDrain', callOwner: 'patchV2Runtime' },
+      ],
+      retiredHostExports: [],
+    });
+    expect(diagnostics).toEqual([]);
+  });
+
   it('distinguishes retired scoped layout import from retained local product layout', () => {
     const patcher = `
 import { patchRuntimeUiLayout as patchScopedUiLayout } from './lastro-ui-layout.mjs';
@@ -322,6 +369,57 @@ function patchRuntimeUiLayout(source) { return source + ':product'; }
 function patchV2Runtime(source) { return source; }
 const productSource = patchRuntimeUiLayout('bundle');`;
     expect(audit(retainedProductOnly)).toEqual([]);
+  });
+
+  it('accepts only the exact relocated localization binding and rejects stale ownership', () => {
+    const retired = {
+      module: './lastro-ui-text.mjs',
+      imported: 'patchRuntimeUiText',
+      local: 'patchRuntimeUiText',
+      callOwner: 'patchV2Runtime',
+    };
+    const relocated = {
+      retiredModule: retired.module,
+      retiredExport: retired.imported,
+      module: './lastro-display-localization.mjs',
+      imported: retired.imported,
+      local: retired.local,
+      callOwner: retired.callOwner,
+      patcherImport: true,
+    };
+    const ownership = {
+      relocatedBindings: [relocated],
+      coordinatorBindings: [],
+      forbiddenHostDefinitions: [],
+    };
+    const valid = `
+import { patchRuntimeUiText } from './lastro-display-localization.mjs';
+function patchV2Runtime(source) { return patchRuntimeUiText(source); }`;
+    expect(audit(valid, [retired], ownership)).toEqual([]);
+
+    const oldImport = `
+import { patchRuntimeUiText } from './lastro-ui-text.mjs';
+function patchV2Runtime(source) { return patchRuntimeUiText(source); }`;
+    expect(audit(oldImport, [retired], ownership).some(message => message.includes('retired import'))).toBe(true);
+
+    const orphanCall = 'function patchV2Runtime(source) { return patchRuntimeUiText(source); }';
+    expect(audit(orphanCall, [retired], ownership).some(message => message.includes('retired call'))).toBe(true);
+
+    const unknownSource = `
+import { patchRuntimeUiText } from './unknown-localization.mjs';
+function patchV2Runtime(source) { return patchRuntimeUiText(source); }`;
+    const unknownDiagnostics = audit(unknownSource, [retired], ownership);
+    expect(unknownDiagnostics.some(message => message.includes('expected exactly once'))).toBe(true);
+    expect(unknownDiagnostics.some(message => message.includes('retired call'))).toBe(true);
+
+    const shadowedImport = `
+import { patchRuntimeUiText } from './lastro-display-localization.mjs';
+function patchV2Runtime(source) {
+  const patchRuntimeUiText = value => value;
+  return patchRuntimeUiText(source);
+}`;
+    expect(audit(shadowedImport, [retired], ownership)
+      .some(message => message.includes('shadowed by owner-local'))).toBe(true);
   });
 
   it('checks permanent top-level owners and keeps migration tooling out of prepare', () => {
