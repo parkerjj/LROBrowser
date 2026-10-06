@@ -142,7 +142,10 @@ async function main() {
   const worker = patchResourceWorker(await readFile(path.join(input, 'ThreadEventHandler.js'), 'utf8'));
   const handler = patchResourceHandler(await readFile(path.join(input, 'LastROThreadEventHandler.js'), 'utf8'));
   await mkdir(output, { recursive: true });
-  await build({ entryPoints: ['src/resources/runtime-resource-loader.ts'], bundle: true, format: 'iife',
+  const resourceLoaderEntry = process.env.LASTRO_BUILD_TARGET === 'web'
+    ? 'src/resources/runtime-resource-loader-web.ts'
+    : 'src/resources/runtime-resource-loader.ts';
+  await build({ entryPoints: [resourceLoaderEntry], bundle: true, format: 'iife',
     globalName: 'LastROResources', target: 'es2022', outfile: path.join(output, 'lastro-resource-loader.js') });
   await writeFile(path.join(output, 'ThreadEventHandler.js'), worker);
   await writeFile(path.join(output, 'LastROThreadEventHandler.js'), handler);
