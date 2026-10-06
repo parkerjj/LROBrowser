@@ -1,5 +1,7 @@
 # LastRO runtime patch consolidation — independent final review
 
+**Latest status (2026-10-07): scoped re-review PASS at `04da13f9508e534233c495cef5cf632ad88d5ada`; F1/F2 closed. See [scoped re-review](#scoped-re-review-after-f1f2-repair--2026-10-07). The initial Changes Requested verdict below is retained as review history.**
+
 Review performed: 2026-10-06–2026-10-07. Reviewer: fresh independent `gpt-6.1-sol` / `high` agent. Review is read-only except this report; no child agents, code edits, index/build refresh, installation, deployment, signature, push or merge.
 
 ## Verdict
@@ -146,3 +148,80 @@ Independent current-file checks reproduced:
 No signed/installed IWA login, combat, live Direct TCP session, GPU/WebGL rendering, audio output, visual inspection or performance benchmark was executed. Unit/source/package evidence cannot verify those outcomes. Task 5's reconstructed report cannot reproduce the missing original report bytes/cause; Task 14's complete verbose build stdout is unavailable, although exit/final summary and actual package bytes/manifest were retained. Read-only verification initially used one wrong test filename and one wrong raw JSON filename; corrected paths were inspected, no source/build mutation occurred, and those ENOENT results are not test failures.
 
 After a serial fix, scoped re-review should check F1's complete ten-file inventory, exact ordinary path/follower/240-sample controls and provenance against old source, ensure fixed-side extraction remains actual vendor/generated, review the focused test evidence and F2's corrected identity. If only tests/fixtures/docs change and production hashes remain pinned, no unchanged build/IWA/full ownership rerun is needed for review. Integration remains withheld because of F1 until that evidence closes the finding; F2 should be corrected in the same minimal batch.
+
+
+## Scoped re-review after F1/F2 repair — 2026-10-07
+
+**Spec compliance: PASS. Code quality: PASS. F1: CLOSED. F2: CLOSED. Ready for integration: YES within the approved scope.** No open Critical, Important or Minor finding remains. This is a review conclusion, not an executed merge/deployment or a claim of real-game smoke/performance validation.
+
+### Pinned boundary and independence
+
+Reviewed the complete `11557d150f3942fa451c91dc7bddd4434c9dd801..04da13f9508e534233c495cef5cf632ad88d5ada` fix: **22 paths, 771 insertions, 68 deletions**. HEAD was `04da13f9508e534233c495cef5cf632ad88d5ada` and worktree clean before this report update. The previous whole-range `ffbb99f681d474500bbffd536c7bfdc0855752ad..b17a473417451d1b91f4ef656deae2dd2c232b54` review and initial Changes Requested history remain above. The original reviewer text was SHA-256 `79015a82d088018b91e9c1acd79659cdeda9931da6d0a59f786870fb2e9f4a9f` before this entry/status note; it was unchanged by the fix commit. Only the latest-status note and this appendix were added by the reviewer.
+
+Same independent `gpt-6.1-sol/high` reviewer, no child agents. Global/repository/RTK rules and the scoped brief were read, CodeGraph used first, then actual files/Git objects. No production/test/index/build/HEAD change, install, deployment, push or merge was performed. The original code-review skill workflow continues. Sources: `final-re-review-brief.md`, fix report, finding-to-test-fixture mapping, self-reviews, hash-proof, mutant evidence and controller verification under `generated/runtime-consolidation/`, plus their actual source/raw JSON/logs. These ignored artifacts corroborate the durable report rather than substitute for source review.
+
+The 22 paths comprise ten affected suites, eight bounded native fixtures, provenance metadata, the seven-line historical read helper, one provenance/extraction test and the implementation report. Production code, the checker/registries, config, existing six fixture files and original review text were not changed by the fix.
+
+### F1 closure: all 22 historical controls and exact preservation contracts
+
+Read the complete ten-suite fix diff and checked its current-side assertions against the prior current suites. Old controls execute pinned upstream owners; repaired sides still extract actual `vendor/v2/Online.js` or existing generated/product-composition source. No retired core patch or hand-written repaired function was restored. All 22 original case titles were independently matched against the original BASE Git objects and their exact current locations:
+
+| IDs | Current source/case locations | Closure evidence |
+| --- | --- | --- |
+| R01–R05 | `test/lastro-entity-sync.test.ts:149`, `:281`, `:344`, `:398`, `:430` | Both detour packets' old zero path/position; total66/buffer64/nonfinite overflow; delayed death/timer/lookup/DIE; ignored timestamp; wall crossing controls restored. Actual corrected-route/death/timestamp/wall assertions remain. |
+| R06–R10 | `test/lastro-equipment-animation.test.ts:135`, `:145`, `:160`, `:208`, `:285` | Old final-frame0, body/head action split, robe5/2 draw order, multiple sampled frames and speed-dependent cosmetic frames restored. Actual permanent rendering/cadence assertions remain. |
+| R11 | `test/lastro-equipment-cart.test.ts:146` | Both old buttons remain CSS-hidden despite hasCart for all five versions; fixed state/lifecycle assertions remain. Correction to the initial inventory's “versions 0/4” shorthand: the original/current `versions` table covers all five Equipment variants. |
+| R12 | `test/lastro-manual-skill.test.ts:132` | Old amotionTick2000/zero sends across direct, keyboard, mouse and list input; actual correct one-send packet checks remain. |
+| R13–R15 | `test/lastro-movement-input.test.ts:229`, `:322`, `:481` | Lost second click, native1330 scans and friendly-PC consumed-click controls restored; actual second-click, one-scan/fallback and friendly/protected interactions remain. |
+| R16–R17 | `test/lastro-movement-sync.test.ts:329`, `:484` | Native movement-through-stun/epoch/STOP and decoded FASTMOVE empty-route/buffer66/speed10/position controls restored with explicit actual dependency bindings. Actual control/relocation suites remain. |
+| R18–R19 | `test/lastro-player-corpse.test.ts:138`, `:146` | Native orphaned lookup/retained corpse/resurrection/departure and two rendered same-GID actors restored. Actual same-entity resurrection/removal/re-entry assertions remain. |
+| R20 | `test/lastro-skill-cooldown.test.ts:93` | Old overlay/Delay6000/no callback at 3000/8000ms restored; actual live deadline/expired clearing checks remain. |
+| R21 | `test/lastro-weapon-view-fallback.test.ts:122` | Native initial request parity and requested→requested failure retry restored; actual requested→base/files/weapon assertions remain. Retained catalog/view adapters are still host product composition. |
+| R22 | `test/vending-movement-runtime.test.ts:127` | Old final-send build/send bypass after shared FreezeUI clears restored; actual shopping guard/lifecycle/packet checks remain. |
+
+The three weakened checks are now substantive:
+
+- `test/lastro-entity-sync.test.ts:182` compares the complete ordinary-route coordinate arrays from upstream/current under identical inputs, and retains current `total > 0`, plus all rejection scenarios.
+- `test/lastro-entity-sync.test.ts:501` compares actual current `walkToNonWalkableGround` with the distinct pinned upstream declaration. Actual follower execution cases remain. Both sources happen to have the same body, as required; neither side is a read of the same current declaration.
+- `test/lastro-movement-input.test.ts:275` performs all **240** exact `{found,out}` comparisons, including false results and candidate order, against distinct upstream/current functions. No unsuccessful-result `continue` exists in this restored matrix. The separate successful-cell validity matrix remains as additional coverage.
+
+### Native source provenance and the bounded stun adaptation
+
+Independently re-extracted every one of the eight new fixtures using the recorded source selections and TypeScript AST uniqueness checks, then reproduced the exact serialized JSON bytes. All source/fixture hashes matched. Total **176,830 bytes** across eight fixtures, all from pinned native Git source `b56169ac7c760ae28f60958c9e8bc8e83db239b5`, vendor SHA-256 `9d8cbd73b52dc37b25d136d7c21ea59f157dc3dedffdd9d31bfc5d2e9f8f5b7b`. Original six provenance entries and fixture bytes remain unchanged. The helper reads bounded JSON; the provenance test actually extracts the recorded owners from Git and demands exact fixture bytes. This provides an independent control against invented upstream code or an embedded repaired intermediate.
+
+Entity/walk/action fixtures are shared across entity, animation and corpse suites. Movement-sync's historical owners are explicit original `walkProcess`, EntityState, `onEntityOptionChange` or FASTMOVE handler, bound to actual permanent route/packet dependencies. They are not a stored patched bundle. The native function has the original >250ms stall/100ms catch-up cap, so the original single 900ms jump would mix the stall cap with the stun contract. The solely approved adaptation uses equal 16ms steps for native/current through exactly 11000. Source inspection confirms original advance>5, unchanged native epoch, exact `[2,1,3]` STOP/total0 remain; current position stays frozen, epoch increments and total0. This is a sound sandbox timing control and adds no production exception. FASTMOVE preserves the original decoded target, buffer66, total0, speed10 and unchanged-position assertions with the actual permanent route dependency.
+
+### Mutant and executed-gate evidence
+
+Independently rebuilt all three temporary mutant test sources from the final/pre-closure source plus their exact recorded insertions; original and mutant SHA-256 values matched the evidence. Raw JSON for each shows exactly one failed assertion with the intended case identity and concrete unequal results:
+
+| Mutant | Observed assertion failure |
+| --- | --- |
+| One ordinary-route coordinate changed | Complete path equality rejects `[1,1,3,2,…]` versus upstream `[1,1,2,2,…]`. |
+| Candidate search returns false for every request | Exact matrix rejects `{found:false,out:[-1,-1]}` versus `{found:true,out:[30,40]}`. |
+| Candidate x traversal reversed | Exact matrix rejects legal but differently selected `[29,41]` versus upstream `[31,40]`. |
+
+Original test bytes were restored, and current bytes were independently hash-checked. These failure records prove the repaired assertions exercise route/result/order behavior, not just source shape. The reviewer did not repeat mutations on disk.
+
+Read the fresh raw results: ten affected suites **624/624**; three provenance/source suites **317/317**; full suite **164 files, 4609/4609**, success, zero failed/pending and no unhandled section in the retained full log. Lint/typecheck exit0 is recorded by the worker/controller with their logs; fix-range `git diff --check` was independently rerun and exited0. No unchanged production build/IWA gate was repeated.
+
+The complete full run does **not** correspond byte-for-byte to final entity-suite source: its SHA-256 was `888bc2954adce9204074bf263393ae770f04bf0afc21898fd9832d73d814edec`; final is `d1b23d521087970df63d330fc7525878060535ec6cb2c30c65744b9207f1f3e4`. Independently removing only the subsequently restored `expect(fixed.entity.walk.total).toBeGreaterThan(0);` at the ordinary-route case reproduces the former hash exactly. All other recorded test/fixture/helper/provenance full-run hashes match final bytes. Final entity raw JSON then proves **83/83** passed on the final entity bytes. This is sufficient assertion-only scoped closure; no post-closure full rerun is claimed.
+
+### F2 closure and preserved production evidence
+
+Implementation report line10 now correctly distinguishes **13,385,917 source bytes** for owned vendor hash `2eb4725e…` from **14,924,181 prepared bytes** for hash `8f3b3636…`. Its correction history explicitly records the initial self-review miss and the limitation of Task13's late forty-consumer title audit. It preserves the initial independent Changes Requested outcome, pending re-review at fix delivery, all twelve rulings and manual/evidence limitations. F2 is closed.
+
+Independently recomputed **450/450** frozen path hashes, including production/scripts/config, the six prior fixtures, vendor, four prepared/packaged copies and both manifests; zero mismatch. The fixed retirement/display/owner contracts are unchanged. Original Node29-entry/152-case and Task14 build/IWA/localization/ownership/final-comparison evidence therefore retain their original production boundary. The earlier independent505/505 executable byte/hash check and identical manifest/package identities remain applicable. No Direct TCP/TCPSocket, two-passive-origin or IndexedDB account-flow change was introduced.
+
+### Considered and set aside in this repair scope
+
+1. Merely restoring case titles without assertions: full diff/source inspection confirms each R01–R22's actual old expected outcome and all surviving fixed-side expectations; not an open issue.
+2. A repaired upstream fixture or patched intermediate: exact native Git/AST-to-JSON byte reproduction and shared bounded owners reject that concern. Retained equipment-view adapters remain legitimate existing product composition, not the retired weapon fallback fix.
+3. False-result skips or unconstrained candidate order: restored240-sample equality includes both successes/failures; all-false and wrong-order actual mutants fail. The additional successful-cell validity case does not replace equality.
+4. Reintroducing the stall cap makes stun advance assertion fail or weakens it: equal16ms cadence avoids the unrelated stall cap, preserves original >5/epoch/STOP contract and compares the current gated counterpart under the same clock. No weakened threshold/source edit is used.
+5. Synthetic handler duplication within a sandbox: only the selected original guilty handlers replace their actual counterpart for the old-side control; explicit dependencies and current default paths retain actual permanent implementations. No runtime reinjection occurs.
+6. Full-run/final-source mismatch: the exact single restored assertion and83-case final rerun close the changed byte boundary; the full4609 run is described as pre-closure, not silently relabeled final.
+7. Old fixture/provenance, production/package or first-review history drift: independently checked hashes/first-six metadata and the complete22-path diff show none. This appendix/status note are the only reviewer edits.
+8. Additional runtime/build/security proof demand after test/docs-only repair: unchanged450-path/hash evidence carries the existing gate results; repeating unchanged broad production checks would add no new assurance for this closure.
+
+All twelve original ruling judgments and twenty-nine original set-aside assessments remain valid. Real installed/signed IWA login/combat/live Direct TCP/GPU/audio/visual/performance validation remains unperformed; Task5 reconstructed-report and Task14 truncated raw-output limitations remain explicit. Those are unchanged evidence boundaries, not new blockers under the approved scope. The scoped repair closes F1/F2 without expanding runtime scope, and the independent review now permits integration.

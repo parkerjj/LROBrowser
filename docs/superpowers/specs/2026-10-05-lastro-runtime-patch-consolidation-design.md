@@ -1,6 +1,6 @@
 # LastRO 运行时补丁收敛设计
 
-日期：2026-10-05。状态：用户已确认设计并授权实施；Task 1–13 已完成，Task 14 build/package gates 已通过，独立最终 review 待完成。
+日期：2026-10-05。状态：用户已确认设计并授权实施；Task 1–14 已完成，build/package gates 与独立最终 review 均通过，F1/F2 已关闭（2026-10-07）。
 
 历史起草说明：本文件最初创建时的状态为“待用户审核”，且只定义设计、不修改运行时代码；该记录适用于 2026-10-05 的起草阶段。后续批准与实施结果记录在 implementation plan 和报告中，不改写本 spec 当时的设计依据。
 
@@ -396,3 +396,7 @@ rtk git diff --check
 上述第 13 节保留为 spec 起草时的阶段说明。用户随后确认了 spec 和 plan 并授权实施；截至本记录，Task 1–13 完成，Task 14 的构建、IWA、localization、final ownership 与 manifest gates 通过，独立全分支最终 review 仍待 controller 执行。最终实现与长期证据见 [implementation report](../reports/2026-10-05-lastro-runtime-patch-consolidation.md)。
 
 实施期间保留原始批准设计和计划的历史内容。针对 WorldMap 初始化，执行裁决保留 vendor 原有全部 12 个 client-module initializer 调用及顺序；不采用早期讨论的 7/5 拆分，因为它会重排既有 bundle client dependencies，而产品 actions 已通过独立 seam 注入。该裁决不扩大产品逻辑进入核心的范围；精确 owner、无 I/O 初始化约束及代价见 implementation report 的 Ruling 12。
+
+## 最终闭环（2026-10-07）
+
+上述 2026-10-06 记录保留当时状态。独立全分支 review 指出 F1 行为对照测试迁移缺失及 F2 源码字节标注问题；统一修复提交 `04da13f9508e534233c495cef5cf632ad88d5ada` 后，同一独立 GPT 6.1 Sol reviewer 定向复审 **PASS**，两项 finding 均关闭。31 个永久模块、packet-layout 重命名、六源 display 合并及保留产品边界已完成；完整结果、12 项裁决和测试/打包/实战未测边界见 [implementation report](../reports/2026-10-05-lastro-runtime-patch-consolidation.md) 与 [final review](../reports/2026-10-06-lastro-runtime-patch-consolidation-final-review.md#scoped-re-review-after-f1f2-repair--2026-10-07)。

@@ -43,7 +43,7 @@
 
 ## 构建所有权更新（2026-10-06）
 
-上表保留 2026-09-25 当时的任务状态，不代表当前迁移进度。Task 1–13 已完成；Task 14 的 build、IWA、localization、final ownership 和 manifest checks 均通过，独立最终 review 仍待完成。详细决策、模块矩阵与证据见 [LastRO runtime patch consolidation report](../superpowers/reports/2026-10-05-lastro-runtime-patch-consolidation.md)。
+上表保留 2026-09-25 当时的任务状态，不代表当前迁移进度。截至 2026-10-07，Task 1–14 已完成；build、IWA、localization、final ownership 和 manifest checks 均通过。独立全分支 review 的 F1/F2 经统一修复并定向复审关闭，最终 spec/quality PASS。详细决策、模块矩阵、源码/打包身份与实战未测边界见 [LastRO runtime patch consolidation report](../superpowers/reports/2026-10-05-lastro-runtime-patch-consolidation.md)；保留原审查及闭环历史的 [final review](../superpowers/reports/2026-10-06-lastro-runtime-patch-consolidation-final-review.md#scoped-re-review-after-f1f2-repair--2026-10-07) 固定审核提交 `04da13f9508e534233c495cef5cf632ad88d5ada`。这些文档状态更新没有改动可执行包字节或审核来源哈希。
 
 当前 `vendor/v2/Online.js` SHA-256 为 `2eb4725e97e188c377614ac2db0b35bb78d1050f95f4dded05c08406b16e7116`；这是迁移后仓库拥有的 runtime source。`config/v2-allowlist.json` 中已审核上游导入源 SHA-256 `5525839d71144032bc6f836c40f3ea1bf58db3e672ac8f4becfdd84cdfbc9e3c` 仍保持不变，二者代表不同来源阶段，不可互换。正常 `prepare:runtime` 从 vendor source 与剩余 host-side residual pipeline 生成 505 个 runtime files；IWA executable manifest 同样列出 505 项，`Online.js` 的 packaged hash/bytes 与 prepared output 相符。没有新增 runtime asset root 或改动来源 allowlist。
 

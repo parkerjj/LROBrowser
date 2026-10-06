@@ -1,7 +1,7 @@
 # LastRO runtime patch consolidation implementation report
 
-Date: 2026-10-06  
-Status: implementation and Task 14 build/audit gates complete; F1/F2 review corrections are implemented, with scoped independent re-review pending.
+Date: 2026-10-06; completed 2026-10-07.
+Status: implementation and build/audit gates complete; independent whole-range review plus scoped repair review PASS. F1/F2 are closed; no open finding remains within the approved scope.
 
 ## Result and source identity
 
@@ -165,7 +165,7 @@ The Task 5 scratch report was found absent during that task's final checks, afte
 
 ## Final review F1/F2 corrections (2026-10-07)
 
-The independent whole-branch review requested changes for F1 (prior behavioral controls removed or weakened) and F2 (vendor/prepared byte counts confused). F1 is a design §10.1 test-preservation defect; no production correctness or security defect was found. Passing broad gates did not replace the missing controls. Task 9's nine retired anchor/formatting cases did not authorize these behavior deletions. The original review artifact remains unchanged.
+The independent whole-branch review requested changes for F1 (prior behavioral controls removed or weakened) and F2 (vendor/prepared byte counts confused). F1 is a design §10.1 test-preservation defect; no production correctness or security defect was found. Passing broad gates did not replace the missing controls. Task 9's nine retired anchor/formatting cases did not authorize these behavior deletions. The original review text was unchanged by the fix; the reviewer subsequently added a latest-status note and scoped closure without rewriting that history.
 
 A fresh serial actual `gpt-6.1-sol/max` worker repaired the findings from clean base `11557d150f3942fa451c91dc7bddd4434c9dd801`, with no child agents. The user had authorized upgrades when Luna was insufficient; the earlier migration lost behavior contracts, so exact reconstruction across ten historical/current suites used the stronger worker. Fixed-side tests still execute actual vendor/generated owners and existing retained product adapters. No retired transform, full bundle, copied repaired implementation, production edit or new runtime exception was added.
 
@@ -221,7 +221,7 @@ All **450/450** checkpointed production/script/source/config, original-fixture a
 
 F1/F2 spec-compliance self-review: **PASS**. Checked each of the 22 restored controls against its pinned BASE assertions, the three exact-preservation contracts, every surviving current-side assertion, bounded actual-source provenance, F2's distinct source sizes, final validation scope and pending-review status. No retired transform or new behavior exception was added.
 
-F1/F2 code-quality self-review: **PASS**. Checked native-owner extraction/binding and uniqueness, shared entity fixtures, clock/dependency composition, exact failure/order coverage, intentional mutant rejection and restoration, fixture byte reproduction, and the test/docs-only diff. Scoped independent re-review remains **PENDING**.
+F1/F2 code-quality self-review: **PASS**. Checked native-owner extraction/binding and uniqueness, shared entity fixtures, clock/dependency composition, exact failure/order coverage, intentional mutant rejection and restoration, fixture byte reproduction, and the test/docs-only diff. Scoped independent re-review was **PENDING** at fix delivery; its subsequent **PASS** and F1/F2 closure are recorded in the final status below.
 
 ## Task 14 build, package and manifest evidence
 
@@ -258,4 +258,8 @@ If this consolidation must be rolled back, revert the paired migration changes t
 
 Task 14 spec-compliance self-review: **PASS**. The requested build/package/localization/final-source gates pass, all 38 dispositions and 12 rulings are recorded, hashes and upstream-reviewed provenance remain distinct, and no generated asset or config change is tracked.  
 Task 14 code-quality self-review: **PASS**. The docs preserve historical decision records, distinguish evidence from interpretation, state the reconstructed Task 5 report limitation, and avoid claiming real-IWA smoke coverage.  
-Independent whole-branch final review: **CHANGES REQUESTED** at `11557d150f3942fa451c91dc7bddd4434c9dd801`, with F1 behavioral-test preservation and F2 source-byte labeling findings. Serial corrections are recorded above; scoped independent re-review remains **PENDING**. No review-related plan checkbox is marked complete by the fix worker.
+Initial independent whole-branch final review: **CHANGES REQUESTED**, recorded at `11557d150f3942fa451c91dc7bddd4434c9dd801`, with F1 behavioral-test preservation and F2 source-byte labeling findings. The serial fix worker left review-related plan checkboxes pending at its delivery.
+
+Scoped independent re-review at `04da13f9508e534233c495cef5cf632ad88d5ada`: **spec compliance PASS; code quality PASS; F1/F2 CLOSED; ready for integration within the approved scope**. The same independent `gpt-6.1-sol/high` reviewer checked all 22 fix paths, every historical control, exact preservation contracts, Git/AST fixture reproduction, three mutant failures and 450 unchanged path hashes. The whole-range review and scoped closure are retained in the [independent final review report](2026-10-06-lastro-runtime-patch-consolidation-final-review.md#scoped-re-review-after-f1f2-repair--2026-10-07).
+
+The controller independently read the 164-file/4,609-case full results and the exact final entity-source hash; the sole post-full restored assertion was closed by the final 83-case entity run, without claiming a post-closure full rerun. Vendor, four runtime copies and both manifests reproduced their seven pinned byte/hash identities. Subsequent delivery edits only update these documents and plan status; no production source, package/config or test change follows the reviewed commit. Generated/dist/release/index outputs remain untracked. All twelve rulings and the unverified real-IWA/performance boundaries above remain applicable. Changes are local on `codex/runtime-patch-consolidation`; no push, merge, signing or deployment was performed.

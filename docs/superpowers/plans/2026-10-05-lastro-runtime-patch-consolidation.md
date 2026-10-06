@@ -289,9 +289,11 @@ scratch 固定在本仓库忽略的 `generated/runtime-consolidation/`，ledger�
 - [x] 保持allowlist reviewedSha256的导入来源语义；inventory仍18个生产源入口/现有vendorregressions（未新增runtime文件则数量不变），必要时只更新Online capability描述/证据。新ownedvendorhash写报告，不覆盖reviewedsourcehash。
 - [x] 写长期报告：音频必要闭包、worldmapactionseam、helperdualmaintenance、source refresh复核规则、rollback配对文件、fixtureprovenance、完整模块处置与generated未提交的状态；记录性能/视觉实际未验证的边界，不宣称已登录实战。
 - [x] Task 14 spec-compliance 与 code-quality 自审核均已记录；独立最终 review 仍由 controller 负责。
-- [ ] task自审核结束后生成全分支reviewpackage（baseline到全部本任务HEAD），dispatch指定FinalReview模型。要求检查spec范围、patch顺序/helper自包含、retiredcall、保留产品、安全/账号/manifest、测试入口和允许差异证据。worker不得自行派发reviewer。
-- [ ] reviewer有实质findings时，派发**一个**LunaMax fixworker修复完整清单，跑受影响checks；6.1Sol scopedre-review验证修复diff/未关闭findings。不能把真实load-bearing错误以“review已完成”标记done；留存裁决和未验证项并向用户说明。
-- [ ] finalreview通过后提交报告/必要文档修正；执行 `rtk git status --short`、`rtk proxy git ls-files generated dist release .codegraph`，预期本任务未新增tracked生成物；交付用户决定如何整合，不自动push/merge。
+- [x] task自审核结束后生成全分支reviewpackage（baseline到全部本任务HEAD），dispatch指定FinalReview模型。要求检查spec范围、patch顺序/helper自包含、retiredcall、保留产品、安全/账号/manifest、测试入口和允许差异证据。worker不得自行派发reviewer。
+- [x] reviewer有实质findings时，派发**一个**LunaMax fixworker修复完整清单，跑受影响checks；6.1Sol scopedre-review验证修复diff/未关闭findings。不能把真实load-bearing错误以“review已完成”标记done；留存裁决和未验证项并向用户说明。
+- [x] finalreview通过后提交报告/必要文档修正；执行 `rtk git status --short`、`rtk proxy git ls-files generated dist release .codegraph`，预期本任务未新增tracked生成物；交付用户决定如何整合，不自动push/merge。
+
+执行闭环（2026-10-07）：用户后续明确授权适当升级模型，因此统一 F1/F2 fixworker 实际采用 `gpt-6.1-sol/max`，无 children，未并行写同一 checkout；最终仍由独立 `gpt-6.1-sol/high` 审核。原全分支审查与 `04da13f9508e534233c495cef5cf632ad88d5ada` 上的定向复审共同覆盖本次实现，F1/F2 均关闭，spec/quality **PASS**。最终文档提交只更新证据与状态，不再改生产或测试源码；完整记录见 [implementation report](../reports/2026-10-05-lastro-runtime-patch-consolidation.md) 和 [final review](../reports/2026-10-06-lastro-runtime-patch-consolidation-final-review.md#scoped-re-review-after-f1f2-repair--2026-10-07)。
 
 **Expected evidence:** build/audit均exit0、executables清单hash匹配、来源字段未误改、runtime deterministic、所有38文件有去向、finalreview报告无未关闭的影响正确性/安全的finding。任一条件未满足则任务未完成。
 
