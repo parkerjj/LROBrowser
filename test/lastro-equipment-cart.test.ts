@@ -3,7 +3,6 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { patchRuntimeEquipmentCart } from '../scripts/lastro-equipment-cart.mjs';
 import { setLastROInnerHTML } from '../src/runtime/lastro-trusted-dom.mjs';
 
 const native = readFileSync('vendor/v2/Online.js', 'utf8');
@@ -47,15 +46,9 @@ function configuration(version: number) {
     && ts.isCallExpression(node.parent) && node.parent.expression.getText() === 'createEquipment');
 }
 const common = region(native, commonPath);
-const patched = patchRuntimeEquipmentCart(native);
-const patchedCommon = region(patched, commonPath);
 const helpers = parse(common).statements.filter(ts.isFunctionDeclaration)
   .filter(node => node.name?.text !== 'createEquipment').map(node => node.getText()).join('\n');
-const factories = new Map([common, patchedCommon].map(source => [source,
-  nodeText(source, node => ts.isFunctionDeclaration(node) && node.name?.text === 'createEquipment'),
-]));
-const nativeUpdate = nodeText(common,
-  node => ts.isFunctionDeclaration(node) && node.name?.text === 'updateAttachmentButtons');
+const factory = nodeText(common, node => ts.isFunctionDeclaration(node) && node.name?.text === 'createEquipment');
 const handler = nodeText(region(native, 'src/Engine/MapEngine/Entity.js'),
   node => ts.isFunctionDeclaration(node) && node.name?.text === 'onEntityStatusChange');
 const stateDefinitions = ['src/DB/Status/StatusConst.js', 'src/DB/Status/StatusState.js', 'src/DB/Items/EquipmentLocation.js']
@@ -76,7 +69,7 @@ interface Actor {
   GID: number; hasCart: boolean | number; effectState: number; CartNum?: number;
   effectColor: Float32Array; ACTION: { IDLE: number }; renderEntity: ReturnType<typeof vi.fn>;
 }
-function fixture(version: number, source = patchedCommon) {
+function fixture(version: number) {
   let frame: (() => void) | undefined;
   const entity: Actor = {
     GID: 123, hasCart: false, effectState: 0,
@@ -119,7 +112,7 @@ function fixture(version: number, source = patchedCommon) {
     [`EquipmentV${version}_default$1`]: styles.get(version), [`EquipmentV${version}_default$2`]: templates.get(version),
   });
   vm.runInContext(`${stateDefinitions}\ninit_StatusConst(); init_StatusState(); init_EquipmentLocation();
-    ${helpers}\n${factories.get(source)}\n${handler}
+    ${helpers}\n${factory}\n${handler}
     var equipment = createEquipment(${configurations.get(version)});`, context);
   const component = context.equipment as Equipment;
   setLastROInnerHTML(component.getRoot(), component.render());
@@ -148,12 +141,7 @@ function fixture(version: number, source = patchedCommon) {
 afterEach(() => { vi.restoreAllMocks(); document.body.replaceChildren(); document.head.querySelectorAll('style').forEach(style => style.remove()); });
 
 describe('native equipment cart buttons, CSS and render lifecycle', () => {
-  it.each(versions)('reproduces the CSS-hidden native button and repairs EquipmentV%i', version => {
-    const old = fixture(version, common);
-    old.entity.hasCart = true; old.frame();
-    expect(old.cart.style.display).toBe(''); expect(old.display(old.cart)).toBe('none');
-    expect(old.remove.style.display).toBe(''); expect(old.display(old.remove)).toBe('none');
-    old.component._host.remove();
+  it.each(versions)('keeps the cart buttons synchronized with EquipmentV%i state', version => {
     const current = fixture(version);
     current.frame();
     expect(current.display(current.cart)).toBe('none'); expect(current.display(current.remove)).toBe('none');
@@ -203,41 +191,5 @@ describe('native equipment cart buttons, CSS and render lifecycle', () => {
     f.remove.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); expect(f.sent).toHaveBeenCalledTimes(1);
     // Original onCartItems gate checks strict false; this patch does not alter it.
     f.entity.hasCart = false; f.frame(); f.cart.click(); expect(f.cartHost.style.display).toBe('none');
-  });
-});
-
-describe('equipment cart patch boundaries', () => {
-  const minimal = '//#region ' + commonPath + '\nfunction fixture() {\n' + nativeUpdate + '\n}\n//#endregion';
-  it('changes exactly the two show assignments and leaves all other bundle bytes intact', () => {
-    expect(patched).toBe(native
-      .replace('if (removeOpt) removeOpt.style.display = "";', 'if (removeOpt) removeOpt.style.display = "block";')
-      .replace('if (cartBtn) cartBtn.style.display = "";', 'if (cartBtn) cartBtn.style.display = "block";'));
-    for (const version of versions) for (const kind of ['html', 'css'] as const) {
-      const path = `src/UI/Components/Equipment/EquipmentV${version}/EquipmentV${version}.${kind}?raw`;
-      expect(region(patched, path)).toBe(region(native, path));
-    }
-  });
-  it.each(['LF', 'CRLF'])('supports consistent %s line endings without rewriting them', ending => {
-    const source = minimal.replace(/\r?\n/g, ending === 'LF' ? '\n' : '\r\n');
-    expect(patchRuntimeEquipmentCart(source)).toBe(source
-      .replace('removeOpt.style.display = ""', 'removeOpt.style.display = "block"')
-      .replace('cartBtn.style.display = ""', 'cartBtn.style.display = "block"'));
-  });
-  it('does not touch unrelated fragments', () => {
-    const source = 'function updateAttachmentButtons() { cartBtn.style.display = ""; }';
-    expect(patchRuntimeEquipmentCart(source)).toBe(source);
-  });
-  it.each([
-    ['missing function', (source: string) => source.replace('function updateAttachmentButtons()', 'function renamed()')],
-    ['missing cart show', (source: string) => source.replace('cartBtn.style.display = ""', 'cartBtn.hidden = false')],
-    ['missing remove show', (source: string) => source.replace('removeOpt.style.display = ""', 'removeOpt.hidden = false')],
-    ['duplicate cart show', (source: string) => source.replace('cartBtn.style.display = "";', 'cartBtn.style.display = ""; cartBtn.style.display = "";')],
-    ['duplicate function', (source: string) => source.replace('\n}\n//#endregion', '\n' + nativeUpdate + '\n}\n//#endregion')],
-    ['duplicate region', (source: string) => source + '\n' + source],
-    ['missing region end', (source: string) => source.replace('//#endregion', '')],
-    ['mixed newlines', (source: string) => source.replace(/\r?\n/g, '\n').replace('\n', '\r\n')],
-    ['already patched', (source: string) => patchRuntimeEquipmentCart(source)],
-  ] as const)('fails closed for %s', (_label, mutate) => {
-    expect(() => patchRuntimeEquipmentCart(mutate(minimal))).toThrow('anchor:equipment-cart:');
   });
 });

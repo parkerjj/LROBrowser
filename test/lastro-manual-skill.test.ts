@@ -2,7 +2,6 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
-import { patchRuntimeManualSkill } from '../scripts/lastro-manual-skill.mjs';
 
 const vendor = readFileSync('vendor/v2/Online.js', 'utf8');
 const path = 'src/Engine/MapEngine/Skill.js';
@@ -26,7 +25,7 @@ function assignment(source: string, name: string) {
   return one(source, (node, file) => ts.isBinaryExpression(node)
     && node.operatorToken.kind === ts.SyntaxKind.EqualsToken && node.left.getText(file) === name);
 }
-const native = region(vendor, path), patched = patchRuntimeManualSkill(native);
+const native = region(vendor, path);
 const engine = region(vendor, 'src/Engine/MapEngine/Entity.js');
 const shortcut = region(vendor, 'src/UI/Components/ShortCut/ShortCut.js');
 const skillList = region(vendor, 'src/UI/Components/SkillList/SkillListCommon.js');
@@ -52,7 +51,7 @@ interface SkillUI {
   useSkill(skill: Skill, level?: number): void;
   getSkillById(id: number): Skill | undefined;
 }
-function fixture(source = patched, version = 20260901) {
+function fixture(source = native, version = 20260901) {
   const createActor = (GID: number): Actor => ({ GID, position: [2, 3], amotionTick: 0,
     isOverWeight: false, objecttype: 0, action: 0, ACTION: { DIE: 1, SIT: 2 },
     dialog: { set: vi.fn() }, setAction: vi.fn() });
@@ -128,16 +127,13 @@ function fixture(source = patched, version = 20260901) {
 }
 
 describe('manual skill requests use server timing rather than visual attack locks', () => {
-  it.each(['direct', 'keyboard', 'mouse', 'list'] as const)('reproduces and repairs %s target input after a native skill notification', via => {
-    const old = fixture(native); old.attack(); old.Renderer.tick = 1600; old.targetInput(19, via);
-    expect(old.player.amotionTick).toBe(2000); expect(old.send).not.toHaveBeenCalled();
+  it.each(['direct', 'keyboard', 'mouse', 'list'] as const)('allows %s target input after a native skill notification', via => {
     const current = fixture(); current.attack(); current.Renderer.tick = 1600; current.targetInput(19, via);
     expect(current.player.amotionTick).toBe(2000);
     expect(current.send).toHaveBeenCalledOnce();
     expect(current.send.mock.calls[0]![0]).toMatchObject({ kind: 'CZ.USE_SKILL2', SKID: 19, selectedLevel: 3, targetID: current.target.GID });
   });
   it('repairs the native mouse ground-target path before the animation lock expires', () => {
-    const old = fixture(native); old.attack(); old.groundInput(); expect(old.send).not.toHaveBeenCalled();
     const current = fixture(); current.attack(); current.groundInput();
     expect(current.send.mock.calls[0]![0]).toMatchObject({ kind: 'CZ.USE_SKILL_TOGROUND3', SKID: 89, xPos: 6, yPos: 7 });
   });
@@ -150,7 +146,7 @@ describe('manual skill requests use server timing rather than visual attack lock
     expect(f.send.mock.calls[0]![0]).toMatchObject({ SKID: 28, selectedLevel: 5, targetID: f.player.GID });
   });
   it.each([20100101, 20180307, 20190904])('keeps version %i targeted and ground packet selection', version => {
-    const f = fixture(patched, version); f.attack(); f.targetInput(); f.groundInput();
+    const f = fixture(native, version); f.attack(); f.targetInput(); f.groundInput();
     expect(f.send.mock.calls.map(call => call[0].kind)).toEqual([
       version < 20180307 ? 'CZ.USE_SKILL' : 'CZ.USE_SKILL2',
       version < 20180307 ? 'CZ.USE_SKILL_TOGROUND' : version < 20190904 ? 'CZ.USE_SKILL_TOGROUND2' : 'CZ.USE_SKILL_TOGROUND3',
@@ -193,48 +189,5 @@ describe('manual skill requests use server timing rather than visual attack lock
     const f = fixture(); f.attack(); f.skill(19, 1, 0); f.ui.useSkillID(19);
     f.skill(28, 0, 5); f.ui.useSkillID(28);
     expect(f.send).not.toHaveBeenCalled(); expect(f.selector.append).not.toHaveBeenCalled();
-  });
-});
-
-describe('manual skill patch anchors and scope', () => {
-  const guard = 'if (entity && entity.amotionTick > Renderer.tick) return;';
-  const insertion = ' && entity !== SessionStorage_default.Entity';
-  it('changes exactly the two player checks and leaves every other bundle byte intact', () => {
-    expect(patchRuntimeManualSkill(vendor)).toBe(vendor.replaceAll(guard, 'if (entity' + insertion + ' && entity.amotionTick > Renderer.tick) return;'));
-    for (const name of ['src/Engine/MapEngine/Entity.js', 'src/Renderer/Renderer.js',
-      'src/UI/Components/ShortCut/ShortCut.js', 'src/UI/Components/SkillTargetSelection/SkillTargetSelection.js'])
-      expect(region(patchRuntimeManualSkill(vendor), name)).toBe(region(vendor, name));
-  });
-  it.each(['LF', 'CRLF'])('preserves consistent %s line endings', ending => {
-    const source = native.replace(/\r?\n/g, ending === 'LF' ? '\n' : '\r\n');
-    expect(patchRuntimeManualSkill(source).replaceAll(insertion, '')).toBe(source);
-  });
-  it.each(['function unrelated(){}', region(vendor, 'src/UI/Components/SkillList/SkillListCommon.js'),
-    region(vendor, 'src/UI/Components/SkillTargetSelection/SkillTargetSelection.js')])('leaves a partial bundle without the skill engine unchanged', source => {
-    expect(patchRuntimeManualSkill(source)).toBe(source);
-  });
-  it.each([
-    ['duplicate region', native + '\n' + native],
-    ['different region with matching prefix', native.replace(path, path + '?raw')],
-    ['unterminated region', native.replace('//#endregion', '')],
-    ['nested region', native.replace('function onUseSkill', '//#region injected\nfunction onUseSkill')],
-    ['missing target function', native.replace('function onUseSkill(', 'function changedUseSkill(')],
-    ['duplicate target function', native.replace('//#endregion', declaration(native, 'onUseSkill') + '\n//#endregion')],
-    ['missing ground function', native.replace('function onUseSkillToPos(', 'function changedGround(')],
-    ['duplicate ground function', native.replace('//#endregion', 'var duplicate = ' + one(native, node => ts.isFunctionExpression(node) && node.name?.text === 'onUseSkillToPos') + ';\n//#endregion')],
-    ['missing guard', native.replace(guard, '')], ['duplicate guard', native.replace(guard, guard + '\n' + guard)],
-    ['changed comparison', native.replace('entity.amotionTick > Renderer.tick', 'entity.amotionTick >= Renderer.tick')],
-    ['changed return', native.replace(guard, guard.replace('return;', 'return true;'))],
-    ['changed owner', native.replace('var init_Skill =', 'var changedInit =')],
-    ['changed parameters', native.replace('onUseSkill(id, level, targetID)', 'onUseSkill(id, level)')],
-    ['already patched', patched], ['mixed newlines', native.replace(/\r?\n/g, '\n').replace('\n', '\r\n')],
-    ['bare CR', native.replace(/\r?\n/g, '\n').replace('\n', '\r')], ['invalid syntax', native.replace(guard, 'if (')],
-  ])('fails closed for %s', (_label, source) => { expect(() => patchRuntimeManualSkill(source!)).toThrow('anchor:manual-skill:'); });
-  it('rejects a guard nested in a different block', () => {
-    expect(() => patchRuntimeManualSkill(native.replace(guard, '{ ' + guard + ' }'))).toThrow('anchor:manual-skill:guard-action');
-  });
-  it('does not substitute a matching condition in an unrelated function', () => {
-    const source = native.replace(guard, '') + '\nfunction unrelated(entity) { ' + guard + ' }';
-    expect(() => patchRuntimeManualSkill(source)).toThrow('anchor:manual-skill:onUseSkill-guard');
   });
 });

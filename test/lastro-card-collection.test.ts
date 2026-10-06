@@ -1,14 +1,17 @@
 // @vitest-environment jsdom
-import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { patchRuntimeCardCollection } from '../scripts/lastro-card-collection.mjs';
+import { patchRuntimeItemDrag } from '../scripts/lastro-item-drag.mjs';
+import { extractRuntimeNode, readVendorSource } from './helpers/vendor-runtime';
 
 const paths = ['src/UI/Components/CardConnection/CardConnection2', 'src/Engine/MapEngine.js',
   'src/Network/NetworkManager.js', 'src/Engine/MapEngine/Main.js'];
-const native = readFileSync('vendor/v2/Online.js', 'utf8');
+const native = readVendorSource();
 const patched = patchRuntimeCardCollection(native);
+const closeShopping = extractRuntimeNode(native, { kind: 'function', name: 'lastroCloseVendingShopping' });
+const cancelMovement = extractRuntimeNode(native, { kind: 'function', name: 'lastroCancelMovement' });
 function region(source: string, path: string) {
   const marker = '//#region ' + path;
   const start = source.indexOf(marker), end = source.indexOf('//#endregion', start);
@@ -48,8 +51,8 @@ var init_CardConnection2 = __esmMin(() => {
 });
 //#endregion
 //#region src/Engine/MapEngine.js
-function onMapChange(pkt) { nativeEvents.push(pkt); }
-function cleanGameUI() { nativeEvents.push('clean'); }
+function onMapChange(pkt) { lastroCloseVendingShopping(); nativeEvents.push(pkt); }
+function cleanGameUI() { lastroCloseVendingShopping(); nativeEvents.push('clean'); }
 //#endregion
 //#region src/Network/NetworkManager.js
 function onClose$9(event) { nativeEvents.push(event); }
@@ -122,6 +125,22 @@ describe('card collection runtime integration boundaries', () => {
     expect(() => patchRuntimeCardCollection(patchRuntimeCardCollection(mini))).toThrow('anchor:card-collection:already-patched');
   });
 
+  it('places card invalidation after the unique permanent vending-close call in both lifecycle owners', () => {
+    const residual = patchRuntimeItemDrag(patched);
+    const actualMap = parse(region(residual, paths[1]!).text);
+    for (const [name, closed] of [['onMapChange', 'false'], ['cleanGameUI', 'true']] as const) {
+      const body = declaration(actualMap, name).body!;
+      const statements = body.statements.map(statement => statement.getText(actualMap).replace(/\s+/g, ' ').trim());
+      const dragIndex = statements.indexOf('document._lastroItemDrag?.cancel();');
+      const closeIndex = statements.indexOf('lastroCloseVendingShopping();');
+      const cardIndex = statements.indexOf(`if (typeof CardConnection2 !== "undefined") CardConnection2?._lastroCardDeck?.invalidate(${closed});`);
+      expect(dragIndex).toBeGreaterThanOrEqual(0);
+      expect(dragIndex).toBeLessThan(closeIndex);
+      expect(closeIndex).toBeLessThan(cardIndex);
+      expect(statements.filter(statement => statement === 'lastroCloseVendingShopping();')).toHaveLength(1);
+    }
+  });
+
   it.each(paths)('rejects missing, truncated and duplicated region anchors for %s', path => {
     const part = region(mini, path);
     const missing = mini.slice(0, part.start) + mini.slice(part.end);
@@ -139,6 +158,17 @@ describe('card collection runtime integration boundaries', () => {
     const duplicate = mini.slice(0, part.end - '//#endregion'.length) + `function ${name}() {}\n`
       + mini.slice(part.end - '//#endregion'.length);
     expect(() => patchRuntimeCardCollection(duplicate)).toThrow(/anchor:card-collection:/);
+  });
+
+  it.each(['onMapChange', 'cleanGameUI'])('rejects missing and duplicate permanent close statements in %s', name => {
+    const functionStart = mini.indexOf(`function ${name}(`);
+    const bodyStart = mini.indexOf('{', functionStart);
+    const bodyEnd = mini.indexOf('}', bodyStart);
+    const body = mini.slice(bodyStart, bodyEnd + 1);
+    const withoutClose = mini.slice(0, bodyStart) + body.replace(' lastroCloseVendingShopping();', '') + mini.slice(bodyEnd + 1);
+    expect(() => patchRuntimeCardCollection(withoutClose)).toThrow(`anchor:card-collection:${name}:vending-close`);
+    const duplicate = mini.slice(0, bodyStart) + body.replace(' lastroCloseVendingShopping();', ' lastroCloseVendingShopping(); lastroCloseVendingShopping();') + mini.slice(bodyEnd + 1);
+    expect(() => patchRuntimeCardCollection(duplicate)).toThrow(`anchor:card-collection:${name}:vending-close`);
   });
 
   it('rejects missing or ambiguous component assignments and a region label that merely shares the prefix', () => {
@@ -205,19 +235,27 @@ describe('card preset teardown and character isolation in emitted native code', 
   it('cancels pending work first on map changes, and clears readiness on native game UI cleanup', () => {
     const change = declaration(mapFile, 'onMapChange');
     const clean = declaration(mapFile, 'cleanGameUI');
-    expect(change.body?.statements[0]?.getText(mapFile)).toContain('invalidate(false)');
-    expect(clean.body?.statements[0]?.getText(mapFile)).toContain('invalidate(true)');
-    const invalidate = vi.fn(), removed = vi.fn(), cleaned = vi.fn(), whisper = vi.fn();
+    const changeStatements = change.body!.statements.map(statement => statement.getText(mapFile));
+    const cleanStatements = clean.body!.statements.map(statement => statement.getText(mapFile));
+    const changeCloseIndex = changeStatements.indexOf('lastroCloseVendingShopping();');
+    const cleanCloseIndex = cleanStatements.indexOf('lastroCloseVendingShopping();');
+    expect(changeStatements[changeCloseIndex + 1]).toContain('invalidate(false)');
+    expect(cleanStatements[cleanCloseIndex + 1]).toContain('invalidate(true)');
+    const invalidate = vi.fn(), removed = vi.fn(), cleaned = vi.fn(), whisper = vi.fn(), cancelInput = vi.fn(), invalidateTick = vi.fn();
     const component = { __loaded: true, remove: removed, clean: cleaned };
     const context = vm.createContext({
+      SessionStorage_default: { Entity: null, moveAction: { pending: true } },
       CardConnection2: { _lastroCardDeck: { invalidate } },
+      MapControl: { _lastroMovementInput: { cancel: cancelInput } }, LastROInvalidateServerTick: invalidateTick,
       WhisperBox: { clearAll: whisper },
       BasicInfoController: component, PlayerViewEquipController: component,
       StatusIcons_default: component, ChatBox_default: component, ShortCut_default: component,
       Controller$3: component, controller: component, CashShop_default: component,
     });
+    vm.runInContext(closeShopping + '\n' + cancelMovement, context);
     vm.runInContext(clean.getText(mapFile) + '\ncleanGameUI();', context);
     expect(invalidate).toHaveBeenCalledExactlyOnceWith(true);
+    expect(cancelInput).toHaveBeenCalledOnce(); expect(invalidateTick).toHaveBeenCalledOnce();
     expect(whisper).toHaveBeenCalledOnce();
     expect(removed).toHaveBeenCalledTimes(2);
     expect(cleaned).toHaveBeenCalledTimes(6);
@@ -226,12 +264,15 @@ describe('card preset teardown and character isolation in emitted native code', 
 
   it('invalidates only the current zone socket while preserving native disconnect cleanup', () => {
     const close = declaration(networkFile, 'onClose$9');
-    const invalidate = vi.fn(), receive = vi.fn(), warning = vi.fn();
+    const invalidate = vi.fn(), receive = vi.fn(), warning = vi.fn(), cancelInput = vi.fn();
     const context = vm.createContext({
+      SessionStorage_default: { Entity: { walk: null, action: 0, ACTION: { WALK: 1 } }, moveAction: { pending: true } },
       CardConnection2: { _lastroCardDeck: { invalidate } },
+      MapControl: { _lastroMovementInput: { cancel: cancelInput } },
       clearReceiveState: receive, console: { warn: warning },
       isObserverMode: () => true, Configs: {}, clearInterval: vi.fn(),
     });
+    vm.runInContext(cancelMovement, context);
     // The disconnect-popup branch is deliberately skipped in this observer
     // fixture; replace only its module URL so the native function can run in VM.
     vm.runInContext(close.getText(networkFile).replace('import.meta.url', '"native-fixture"')
@@ -248,7 +289,9 @@ describe('card preset teardown and character isolation in emitted native code', 
       expect(context._sockets).toHaveLength(0);
     }
     expect(receive).toHaveBeenCalledTimes(3);
+    expect(cancelInput).toHaveBeenCalledOnce();
     expect(warning).toHaveBeenCalledTimes(2);
+    expect((context.SessionStorage_default as { moveAction: unknown }).moveAction).toBeNull();
     delete context.CardConnection2;
     context._socket = current; context._sockets = [current];
     expect(() => invoke.call(current, {})).not.toThrow();

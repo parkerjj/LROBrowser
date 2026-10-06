@@ -1,9 +1,15 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
-import { createLastroPartyState } from '../scripts/lastro-party-state.mjs';
+import { extractRuntimeNode, readVendorSource } from './helpers/vendor-runtime';
 
 const types = { TYPE_PC: 0, TYPE_DISGUISED: 1, TYPE_MOB: 5, TYPE_NPC: 6, TYPE_PET: 7, TYPE_MER: 8 };
+const partyFactorySource = extractRuntimeNode(readVendorSource(), {
+  region: 'src/Engine/MapEngine/Group.js',
+  kind: 'function',
+  name: 'createLastroPartyState',
+});
+const createLastroPartyState = new Function(`return (${partyFactorySource});`)();
 interface LifeData { hp?: number; hp_max?: number; sp?: number; sp_max?: number; hunger?: number; hunger_max?: number; }
 interface Life extends LifeData { hp: number; hp_max: number; display: boolean; canvas: HTMLCanvasElement; remove: Mock<() => void>; update(): void; }
 interface Actor { GID: number; AID: number; objecttype: number; constructor: typeof types; life: Life; }

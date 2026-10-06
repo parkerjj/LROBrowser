@@ -72,6 +72,16 @@ export function buildRuntimePatchFixture(vendorSource: string): string {
     kind: 'function',
     name: 'onMapComplete',
   });
+  const onMapChange = extractRuntimeNode(vendorSource, {
+    region: 'src/Engine/MapEngine.js',
+    kind: 'function',
+    name: 'onMapChange',
+  });
+  const cleanGameUI = extractRuntimeNode(vendorSource, {
+    region: 'src/Engine/MapEngine.js',
+    kind: 'function',
+    name: 'cleanGameUI',
+  });
   const audioPrelude = buildRuntimeAudioPrelude(vendorSource);
 
   return [
@@ -99,7 +109,8 @@ export function buildRuntimePatchFixture(vendorSource: string): string {
     'Navigation.navigateTo = function navigateTo(options) { _finalTargetData = {map: options.endMap}; this.waitForMapData(function () { this.findPath(); }); };',
     'var MapRenderer = class MapRenderer { static setMap(mapname) { UIManager.removeComponents(); } };',
     mapFailure,
-    'function cleanGameUI() {}',
+    onMapChange,
+    cleanGameUI,
     'function onGlobalAnnounce(pkt) { Announce_default.set(pkt.msg, "#FFFF00"); }',
     'function onPlayerMessage(pkt) { ChatBox_default.addText(pkt.msg); }',
     'function onEntityTalkColor(pkt) { ChatBox_default.addText(pkt.msg); }',

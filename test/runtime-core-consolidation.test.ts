@@ -1,6 +1,10 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import ts from 'typescript';
 import { auditCoreOwnership, compareRuntimeSources } from '../scripts/check-runtime-consolidation.mjs';
 import { patchRuntimeEntityAppearance } from '../scripts/lastro-entity-appearance.mjs';
+import { patchRuntimeEquipmentAppearance, patchRuntimeEquipmentCatalog, patchRuntimeEquipmentView } from '../scripts/lastro-equipment-view.mjs';
+import { patchRuntimeUiState } from '../scripts/lastro-ui-state.mjs';
 import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 import { buildRuntimePatchFixture } from './helpers/runtime-patch-fixture';
 
@@ -47,6 +51,13 @@ describe('runtime consolidation source helpers', () => {
       kind: 'function',
       name: 'onMapComplete',
     }));
+    for (const name of ['onMapChange', 'cleanGameUI']) {
+      expect(fixture).toContain(extractRuntimeNode(vendor, {
+        region: 'src/Engine/MapEngine.js',
+        kind: 'function',
+        name,
+      }));
+    }
     expect(fixture).toContain('function defaultSocketFactory(host, port)');
     expect(fixture).toContain('function initThread()');
   });
@@ -75,6 +86,54 @@ describe('runtime consolidation source helpers', () => {
     expect(composed).toContain('function applyLastROMercenaryAppearance(pkt)');
     expect(vendor).not.toContain('function applyLastROMercenaryAppearance(pkt)');
     expect(vendor).not.toContain('const LastROMonsterAppearanceFallbacks =');
+  });
+
+  it('permanent weapon fallback composes with retained equipment catalog, view and appearance transforms', () => {
+    const vendor = readVendorSource();
+    const composed = patchRuntimeEquipmentAppearance(
+      patchRuntimeEquipmentView(patchRuntimeEquipmentCatalog(vendor)),
+    );
+    const db = extractRuntimeNode(composed, {
+      region: 'src/DB/DBManager.js',
+      kind: 'class',
+      name: 'DB',
+    });
+    expect(db).toContain('getWeaponFallbackViewID');
+  });
+
+  it('permanent cooldown survives the retained ui-state Shortcut append wrapping', () => {
+    const vendor = readVendorSource();
+    const wrapped = patchRuntimeUiState(vendor);
+    const append = extractRuntimeNode(wrapped, {
+      region: 'src/UI/Components/ShortCut/ShortCut.js',
+      kind: 'assignment',
+      name: 'ShortCut.onAppend',
+    });
+    expect(wrapped).toContain('function lastroUiWindowAppend(');
+    expect(append).toContain('return lastroUiWindowAppend(this, _preferences$19, () => {');
+    expect(append).toContain('_lastroCooldownDuration');
+  });
+
+  it('keeps every costume-loop helper token identical to its retained module', () => {
+    const embedded = extractRuntimeNode(readVendorSource(), {
+      region: 'src/Renderer/Entity/EntityRender.js',
+      kind: 'function',
+      name: 'sampleLastroCostumeLoop',
+    });
+    const retained = extractRuntimeNode(readFileSync('scripts/lastro-costume-loop.mjs', 'utf8'), {
+      kind: 'function',
+      name: 'sampleLastroCostumeLoop',
+    });
+    const tokens = (source: string) => {
+      const scanner = ts.createScanner(ts.ScriptTarget.Latest, true, ts.LanguageVariant.Standard, source);
+      const result: string[] = [];
+      for (let token = scanner.scan(); token !== ts.SyntaxKind.EndOfFileToken; token = scanner.scan())
+        result.push(`${token}:${scanner.getTokenText()}`);
+      return result;
+    };
+    const moduleTokens = tokens(retained);
+    expect(moduleTokens[0]).toBe(`${ts.SyntaxKind.ExportKeyword}:export`);
+    expect(moduleTokens.slice(1)).toEqual(tokens(embedded));
   });
 
   it('rejects missing or duplicated AST owners', () => {

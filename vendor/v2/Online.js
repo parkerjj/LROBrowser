@@ -166608,6 +166608,7 @@ var init_NodeSocket = __esmMin(() => {
 });
 //#endregion
 //#region src/Network/NetworkManager.js
+// lastro-vending-movement-installed
 /**
  * Default socket factory - creates NodeSocket or legacy transport based on environment.
  * Custom factories can call this as a fallback.
@@ -166705,6 +166706,12 @@ function connect(host, port, callback, isZone) {
  * @param Packet
  */
 function sendPacket(Packet) {
+  if ((Packet.constructor === PACKET.CZ.REQUEST_MOVE || Packet.constructor === PACKET.CZ.REQUEST_MOVE2)
+      && lastroVendingShoppingActive()) {
+    SessionStorage_default.FreezeUI = true;
+    Mouse.intersect = false;
+    return false;
+  }
   if (/REQUEST_MOVE2?$/.test(Packet.constructor?.name || "") && !lastroCheckMovementConnection()) return false;
   const traceNavigation =
     globalThis.roNaviDebug?.active &&
@@ -184906,6 +184913,8 @@ function createMiniMap({
         break;
       }
   };
+  MiniMap.clearPartyMemberMarks = function () { _party.length = 0; };
+
   /**
    * Add a guild mark to minimap
    *
@@ -185472,6 +185481,7 @@ var init_MapPathFinder = __esmMin(() => {
 //#endregion
 // lastro-movement-input-installed
 //#region src/UI/Components/Navigation/Navigation.js
+// lastro-vending-movement-installed
 /**
  * Async image create helper
  */
@@ -185671,6 +185681,7 @@ function isNavigationTargetReached(position, target) {
  * Request server-side movement for the current Navigation path segment
  */
 function requestNavigationMove(path, target) {
+  if (lastroVendingShoppingActive()) return false;
   const entity = SessionStorage_default.Entity;
   const blocked = (reason) => {
     globalThis.roNaviDebug?.log(
@@ -209868,10 +209879,10 @@ function createEquipment({
         const removeOpt = root.querySelector(".removeOption");
         const cartBtn = root.querySelector(".cartitems");
         if (_lastState & HasAttachmentState || _hasCart) {
-          if (removeOpt) removeOpt.style.display = "";
+          if (removeOpt) removeOpt.style.display = "block";
         } else if (removeOpt) removeOpt.style.display = "none";
         if (_lastState & HasCartState || _hasCart) {
-          if (cartBtn) cartBtn.style.display = "";
+          if (cartBtn) cartBtn.style.display = "block";
         } else if (cartBtn) cartBtn.style.display = "none";
       }
     }
@@ -212010,6 +212021,7 @@ var init_ChatRoom$1 = __esmMin(() => {
 });
 //#endregion
 //#region src/Engine/MapEngine/Group.js
+var _lastroPartyState;
 /**
  * Get answer from party creation
  *
@@ -212040,6 +212052,7 @@ function onPartyCreate(pkt) {
         if (entity.life && entity.life.display) memberData.life = entity.life;
       }
       controller.getUI().setParty(_partyName, [memberData]);
+      _lastroPartyState.setRoster([memberData]);
       break;
     }
     case 1:
@@ -212070,6 +212083,8 @@ function onPartyCreate(pkt) {
  * @param {object} pkt - PACKET.ZC.GROUP_ISALIVE
  */
 function onPartyIsAlive(pkt) {
+  if (!_lastroPartyState.canUpdate(pkt.AID)) return;
+
   controller.getUI().updateMemberDead(pkt.AID, pkt.isDead);
 }
 /**
@@ -212078,6 +212093,12 @@ function onPartyIsAlive(pkt) {
  * @param {object} pkt - PACKET.ZC.GROUP_LIST
  */
 function onPartyList(pkt) {
+  if (!_lastroPartyState.setRoster(pkt.groupInfo)) return;
+  if (!pkt.groupInfo.length) {
+    controller.getUI().removePartyMember(SessionStorage_default.AID, SessionStorage_default.Entity?.display?.name || "");
+    return;
+  }
+
   let entity;
   SessionStorage_default.hasParty = true;
   const count = pkt.groupInfo.length;
@@ -212092,7 +212113,7 @@ function onPartyList(pkt) {
     }
   }
   controller.getUI().setParty(pkt.groupName, pkt.groupInfo);
-  WorldMap_default.updatePartyMembers(pkt);
+
 }
 /**
  * Update a member in party
@@ -212100,6 +212121,8 @@ function onPartyList(pkt) {
  * @param {object} pkt - PACKET.ZC.ADD_MEMBER_TO_GROUP
  */
 function onPartyMemberJoin(pkt) {
+  if (!_lastroPartyState.join(pkt)) return;
+
   const entity = EntityManager.get(pkt.AID);
   if (entity) {
     if (entity.life.display) pkt.life = entity.life;
@@ -212119,6 +212142,8 @@ function onPartyMemberJoin(pkt) {
  * @param {object} pkt - PACKET.ZC.DELETE_MEMBER_FROM_GROUP
  */
 function onPartyMemberLeave(pkt) {
+  if (![0, 1, 2, 3].includes(pkt.result)) return;
+
   switch (pkt.result) {
     case 0:
     case 1:
@@ -212140,6 +212165,7 @@ function onPartyMemberLeave(pkt) {
   }
   if (SessionStorage_default.AID === pkt.AID)
     SessionStorage_default.hasParty = false;
+  _lastroPartyState.leave(pkt.AID);
   controller.getUI().removePartyMember(pkt.AID, pkt.characterName);
 }
 /**
@@ -212148,7 +212174,9 @@ function onPartyMemberLeave(pkt) {
  * @param {object} pkt - PACKET.ZC.NOTIFY_HP_TO_GROUPM
  */
 function onMemberLifeUpdate(pkt) {
-  EntityManager.storeLife(pkt.AID, {
+  if (!_lastroPartyState.canUpdate(pkt.AID)) return;
+
+  _lastroPartyState.storeLife(pkt.AID, {
     hp: pkt.hp,
     hp_max: pkt.maxhp,
   });
@@ -212183,6 +212211,8 @@ function onMemberTalk$1(pkt) {
  * @param {object} pkt - PACKET.ZC.NOTIFY_POSITION_TO_GROUPM
  */
 function onMemberMove$1(pkt) {
+  if (!_lastroPartyState.canUpdate(pkt.AID)) return;
+
   if (pkt.xPos < 0 || pkt.yPos < 0)
     Controller$5.getUI().removePartyMemberMark(pkt.AID);
   else Controller$5.getUI().addPartyMemberMark(pkt.AID, pkt.xPos, pkt.yPos);
@@ -212324,6 +212354,109 @@ var init_Group = __esmMin(() => {
      * Initialize engine
      */
     static init() {
+      /* lastro-party-state */
+      // Group has a native initialization cycle through EntityManager. Install only once the engine is ready.
+      _lastroPartyState ||= (function createLastroPartyState({ session, entityManager, getMiniMaps, worldMap }) {
+  let identity;
+  const members = new Map(), ownedLife = new Map();
+  const nativeStoreLife = entityManager.storeLife;
+  const validAid = aid => Number.isInteger(aid) && aid > 0 && aid <= 0xffffffff;
+  const miniMaps = () => [...new Set(getMiniMaps().filter(Boolean))];
+  const isPlayer = entity => entity && (entity.objecttype === entity.constructor.TYPE_PC
+    || entity.constructor.TYPE_DISGUISED !== undefined && entity.objecttype === entity.constructor.TYPE_DISGUISED);
+  const refreshWorldMap = () => worldMap.updatePartyMembers({ groupInfo: [...members.values()] });
+  function releaseLife(aid) {
+    const owner = ownedLife.get(aid); ownedLife.delete(aid);
+    if (!owner || aid === session.AID) return;
+    const entity = entityManager.get(aid);
+    if (entity === session.Entity || entity && !isPlayer(entity)) return;
+    const cache = entityManager.getLife(aid);
+    const ownedCache = cache === owner.cache && cache?.hp === owner.hp && cache?.hp_max === owner.hp_max;
+    if (ownedCache) {
+      delete cache.hp; delete cache.hp_max;
+      if (!Object.keys(cache).length) entityManager.removeLife(aid);
+    }
+    if (entity?.life && entity.life.hp === owner.hp && entity.life.hp_max === owner.hp_max
+      && (entity === owner.entity || ownedCache)) {
+      entity.life.hp = -1; entity.life.hp_max = -1; entity.life.remove();
+    }
+  }
+  function clearAll() {
+    for (const aid of members.keys()) releaseLife(aid);
+    members.clear(); ownedLife.clear();
+    for (const map of miniMaps()) map.clearPartyMemberMarks();
+    refreshWorldMap();
+  }
+  function synchronize() {
+    const next = [session.AID, session.GID, session.Entity];
+    if (identity && next.some((value, index) => value !== identity[index])) clearAll();
+    identity = next;
+  }
+  // Independent HP packets keep their native result and revoke party ownership.
+  // SP/hunger-only writes do not replace the source of the cached HP fields.
+  entityManager.storeLife = function (aid, data) {
+    synchronize();
+    const result = nativeStoreLife.call(this, aid, data);
+    if (data.hp !== undefined || data.hp_max !== undefined) ownedLife.delete(aid);
+    return result;
+  };
+  function remove(aid) {
+    releaseLife(aid); members.delete(aid);
+    for (const map of miniMaps()) map.removePartyMemberMark(aid);
+  }
+  const api = {
+    setRoster(roster) {
+      synchronize();
+      if (!Array.isArray(roster) || roster.some(member => !validAid(member?.AID))) return false;
+      const next = new Map(roster.map(member => [member.AID, { ...member }]));
+      for (const [aid, previous] of members) {
+        if (!next.has(aid) || previous.characterName !== next.get(aid).characterName) remove(aid);
+      }
+      members.clear(); for (const [aid, member] of next) members.set(aid, member);
+      session.hasParty = members.size > 0;
+      if (!session.hasParty) {
+        session.isPartyLeader = false;
+        for (const map of miniMaps()) map.clearPartyMemberMarks();
+      }
+      refreshWorldMap(); return true;
+    },
+    join(member) {
+      synchronize();
+      if (!validAid(member?.AID)) return false;
+      const self = member.AID === session.AID;
+      if (!self && !session.hasParty) return false;
+      if (self && !session.hasParty) clearAll();
+      const previous = members.get(member.AID);
+      if (previous && previous.characterName !== member.characterName) remove(member.AID);
+      members.set(member.AID, { ...previous, ...member });
+      if (self) session.hasParty = true;
+      refreshWorldMap(); return true;
+    },
+    leave(aid) {
+      synchronize();
+      if (!validAid(aid)) return;
+      if (aid === session.AID) {
+        clearAll(); session.hasParty = false; session.isPartyLeader = false;
+      } else if (members.has(aid)) { remove(aid); refreshWorldMap(); }
+    },
+    canUpdate(aid) { synchronize(); return session.hasParty === true && members.has(aid); },
+    storeLife(aid, data) {
+      if (!api.canUpdate(aid)) return;
+      nativeStoreLife.call(entityManager, aid, data);
+      const entity = entityManager.get(aid);
+      if (aid !== session.AID && entity !== session.Entity && (!entity || isPlayer(entity))) {
+        ownedLife.set(aid, { entity, cache: entityManager.getLife(aid), hp: data.hp, hp_max: data.hp_max });
+      }
+    },
+    reset() { synchronize(); clearAll(); session.hasParty = false; session.isPartyLeader = false; },
+  };
+  return api;
+})({
+        session: SessionStorage_default, entityManager: EntityManager,
+        getMiniMaps: () => [MiniMap_default, MiniMapV2_default, Controller$5.getUI()], worldMap: WorldMap_default
+      });
+      _lastroPartyState.reset();
+
       Network.hookPacket(PACKET.ZC.NOTIFY_HP_TO_GROUPM, onMemberLifeUpdate);
       Network.hookPacket(PACKET.ZC.NOTIFY_HP_TO_GROUPM_R2, onMemberLifeUpdate);
       Network.hookPacket(PACKET.ZC.NOTIFY_CHAT_PARTY, onMemberTalk$1);
@@ -223659,17 +223792,30 @@ function onResize$3(event) {
  * @param {number} index of the icon
  * @param {number} delay in ms
  */
-function setDelayOnIndex(index, delay) {
+function setDelayOnIndex(index, delay, resume = false) {
   if (!_list$1[index]) return;
-  if (_list$1[index].Delay && _list$1[index].Delay >= Renderer.tick + delay)
-    return;
-  _list$1[index].Delay = Renderer.tick + delay;
+  const now = Date.now();
+  if (!resume) {
+    if (_list$1[index].Delay && _list$1[index].Delay >= now + delay) return;
+    _list$1[index].Delay = now + delay;
+    _list$1[index]._lastroCooldownDuration = delay;
+  }
+  const expired = resume && _list$1[index].Delay <= now;
+  if (expired) {
+    _list$1[index].Delay = 0;
+    _list$1[index]._lastroCooldownDuration = 0;
+    if (_activeAnimations.has(index)) {
+      cancelAnimationFrame(_activeAnimations.get(index));
+      _activeAnimations.delete(index);
+    }
+  }
   const ui = ShortCut.getRoot().querySelector(
     `.container[data-index="${index}"]`,
   );
   if (!ui) return;
   const existing = ui.querySelector(".cooldown-overlay");
   if (existing) existing.remove();
+  if (expired) return;
   const overlay = document.createElement("div");
   overlay.className = "cooldown-overlay";
   const icon = ui.querySelector(".icon");
@@ -223691,7 +223837,7 @@ function setDelayOnIndex(index, delay) {
       }
       return;
     }
-    const now = Renderer.tick;
+    const now = Date.now();
     const remaining = _list$1[index].Delay - now;
     if (remaining <= 0 || !_list$1[index].Delay) {
       overlay.remove();
@@ -224155,6 +224301,9 @@ var init_ShortCut = __esmMin(() => {
     this.magnet.RIGHT = _preferences$19.magnet_right;
     Controller$4.getUI().onUpdateSkill = onUpdateSkill;
     updateEmptySlotTooltips();
+    _list$1.forEach((element, index) => {
+      if (element && element.Delay) setDelayOnIndex(index, element._lastroCooldownDuration, true);
+    });
   };
   /**
    * When removed, clean up
@@ -224747,7 +224896,9 @@ var init_JoystickTargetService = __esmMin(() => {
 });
 //#endregion
 //#region src/UI/Components/JoystickUI/JoystickCharacterControl.js
+// lastro-vending-movement-installed
 function move$1(x, y) {
+  if (lastroVendingShoppingActive()) return false;
   const player = SessionStorage_default.Entity;
   if (!player) return;
   direction$1[0] = x;
@@ -273395,6 +273546,15 @@ var init_DBManager = __esmMin(() => {
         return ItemTable_default[id].ClassNum;
       return DB.getWeaponType(id);
     }
+    /* lastro-weapon-view-fallback */
+    static getWeaponFallbackViewID(id) {
+      const view = DB.getWeaponViewID(id);
+      if (Object.prototype.hasOwnProperty.call(WeaponTypeExpansion, view)) {
+        const base = WeaponTypeExpansion[view];
+        if (Number.isInteger(base) && base >= 0 && base < WeaponType_default.MAX) return base;
+      }
+      return view;
+    }
     /**
      * @return {number} weapon action frame
      * @param {number} id weapon
@@ -276181,6 +276341,7 @@ function setAction(option) {
         : option.action;
     this.action = newAction;
     anim.tick = Date.now() + 0;
+    anim._lastroEquipmentFinished = false;
     anim.delay = 0;
     anim.frame = option.frame || 0;
     anim.speed = option.speed || false;
@@ -278548,7 +278709,7 @@ function Init$5() {
     get: function () {
       return this._weapon;
     },
-    set: UpdateGeneric("weapon", "getWeaponPath", "getWeaponViewID"),
+    set: UpdateGeneric("weapon", "getWeaponPath", "getWeaponFallbackViewID"),
   });
   Object.defineProperty(this, "shield", {
     get: function () {
@@ -279607,6 +279768,113 @@ var init_EntityWalk = __esmMin(() => {
 });
 //#endregion
 //#region src/Renderer/Entity/EntityRender.js
+function lastroBeginEquipmentFrame(entity, tick, client, camera, calculate) {
+  const previous = entity._lastroEquipmentFrame;
+  const frame = { previous, tick, action: entity.action, animation: { ...entity.animation }, bodyAction: null, bodyFrame: null, anchor: [0, 0], completed: null };
+  entity._lastroEquipmentFrame = frame;
+  try {
+    const body = entity.files.body;
+    const act = body?.act && client.loadFile(body.act);
+    if (body?.spr && client.loadFile(body.spr) && act?.actions?.length) {
+      const direction = (camera.direction + entity.direction + 8) % 8;
+      frame.bodyAction = act.actions[(frame.action * 8 + direction) % act.actions.length];
+      if (frame.bodyAction?.animations?.length) {
+        frame.bodyFrame = calculate(entity, frame.bodyAction, 'body', tick - frame.animation.tick);
+        const anchor = frame.bodyAction.animations[frame.bodyFrame]?.pos?.[0];
+        if (anchor) frame.anchor = [anchor.x, anchor.y];
+      }
+    }
+    return frame;
+  } catch (error) {
+    entity._lastroEquipmentFrame = previous;
+    throw error;
+  }
+}
+function lastroEndEquipmentFrame(entity, frame) {
+  entity._lastroEquipmentFrame = frame.previous;
+  if (frame.completed && entity.action === frame.action && entity.animation.tick === frame.animation.tick) {
+    entity.animation.frame = frame.completed.frame;
+    entity.animation.play = false;
+    entity.animation._lastroEquipmentFinished = true;
+    if (frame.completed.next) entity.setAction(frame.completed.next);
+  }
+}
+function sampleLastroCostumeLoop(entity, act, currentAction, direction, tick) {
+  const composite = entity?._lastroEquipmentFrame;
+  const action = composite?.action ?? entity?.action;
+  const animation = composite?.animation ?? entity?.animation;
+  const actions = entity?.ACTION;
+  if (!entity || !act || !actions || !animation || !Number.isFinite(tick) ||
+      action === actions.DIE || (animation.play === false && !animation._lastroEquipmentFinished) ||
+      !Array.isArray(act.actions) || !act.actions.length || !Number.isInteger(direction) || direction < 0 || direction > 7) return null;
+
+  const cache = sampleLastroCostumeLoop.cache || (sampleLastroCostumeLoop.cache = {
+    acts: new WeakMap(), entities: new WeakMap(),
+  });
+  let metadata = cache.acts.get(act);
+  if (!metadata) {
+    metadata = { groups: new WeakMap(), matches: new WeakMap() };
+    cache.acts.set(act, metadata);
+  }
+
+  function groups(entry, split) {
+    if (!entry || !Array.isArray(entry.animations) || !Number.isFinite(entry.delay) || entry.delay <= 0) return null;
+    let cached = metadata.groups.get(entry);
+    if (!cached) { cached = new Map(); metadata.groups.set(entry, cached); }
+    if (cached.has(split)) return cached.get(split);
+    const count = entry.animations.length / split;
+    let result = null;
+    if (Number.isInteger(count) && count >= 2) {
+      result = [];
+      for (let group = 0; group < split; group++) {
+        const frames = entry.animations.slice(group * count, (group + 1) * count);
+        const anchor = frames[0]?.pos;
+        const validAnchor = Array.isArray(anchor) && anchor.length && anchor.every(point => Number.isFinite(point?.x) && Number.isFinite(point?.y));
+        const anchorKey = validAnchor ? JSON.stringify(anchor) : null;
+        const signatures = [];
+        let valid = !!validAnchor;
+        for (const frame of frames) {
+          // Animation sound events belong to the original action timeline. Only
+          // silent loops can be sampled independently without inventing events.
+          if (frame?.sound !== -1 || !Array.isArray(frame.layers) || !frame.layers.length ||
+              !frame.layers.every(layer => Number.isInteger(layer?.index) && Array.isArray(layer.pos) && layer.pos.length >= 2 && layer.pos.every(Number.isFinite)) ||
+              JSON.stringify(frame.pos) !== anchorKey) { valid = false; break; }
+          signatures.push(JSON.stringify(frame.layers));
+        }
+        result.push(valid && new Set(signatures).size >= 2 ? { frames, anchor, signatures, keys: new Set(signatures) } : null);
+      }
+    }
+    cached.set(split, result);
+    return result;
+  }
+
+  const idle = act.actions[(actions.IDLE * 8 + direction) % act.actions.length];
+  const canonical = groups(idle, 3);
+  const isHeadTurn = action === actions.IDLE || action === actions.SIT;
+  const candidates = groups(currentAction, isHeadTurn ? 3 : 1);
+  const head = Math.max(0, Math.min(2, Number.isInteger(entity.headDir) ? entity.headDir : 0));
+  const current = candidates?.[isHeadTurn ? head : 0];
+  if (!canonical || !current || currentAction.delay !== idle.delay) return null;
+
+  let matches = metadata.matches.get(currentAction);
+  if (!matches) { matches = new Map(); metadata.matches.set(currentAction, matches); }
+  const key = direction * 4 + (isHeadTurn ? head : 3);
+  let match = matches.get(key);
+  if (match === undefined) {
+    const choices = isHeadTurn ? [canonical[head]] : canonical;
+    const loop = choices.find(candidate => candidate && current.signatures.every(signature => candidate.keys.has(signature)));
+    match = loop ? loop.frames.map(frame => ({ ...frame, pos: current.anchor })) : null;
+    matches.set(key, match);
+  }
+  if (!match) return null;
+
+  let clocks = cache.entities.get(entity);
+  if (!clocks) { clocks = new WeakMap(); cache.entities.set(entity, clocks); }
+  let start = clocks.get(act);
+  if (start === undefined) { start = tick; clocks.set(act, start); }
+  const index = Math.floor(Math.max(0, tick - start) / idle.delay) % match.length;
+  return { animation: match[index], index };
+}
 /**
  * Render an Entity
  *
@@ -279798,13 +280066,14 @@ function renderSecondBody(
  * @returns {number} delay
  */
 function getAnimationDelay(type, entity, act) {
-  if (type === "body" && entity.action === entity.ACTION.WALK)
+  const action = entity._lastroEquipmentFrame?.action ?? entity.action;
+  if (type === "body" && action === entity.ACTION.WALK)
     return (act.delay / 150) * entity.walk.speed;
   if (
-    entity.action === entity.ACTION.ATTACK ||
-    entity.action === entity.ACTION.ATTACK1 ||
-    entity.action === entity.ACTION.ATTACK2 ||
-    entity.action === entity.ACTION.ATTACK3
+    action === entity.ACTION.ATTACK ||
+    action === entity.ACTION.ATTACK1 ||
+    action === entity.ACTION.ATTACK2 ||
+    action === entity.ACTION.ATTACK3
   )
     return entity.attack_speed / act.animations.length;
   return act.delay;
@@ -279815,8 +280084,9 @@ function getAnimationDelay(type, entity, act) {
 function calcAnimation(entity, act, type, tick) {
   if (type === "shadow" || type === "cartshadow") return 0;
   const ACTION = entity.ACTION;
-  const action = entity.action;
-  const animation = entity.animation;
+  const frame = entity._lastroEquipmentFrame;
+  const action = frame?.action ?? entity.action;
+  const animation = frame?.animation ?? entity.animation;
   let animCount = act.animations.length;
   const animSize = animCount;
   const animLastIndex = animSize - 1;
@@ -279846,6 +280116,7 @@ function calcAnimation(entity, act, type, tick) {
     headDir = entity.headDir <= animLastIndex ? entity.headDir : animLastIndex;
   }
   if (animation.play === false) {
+    if (animation._lastroEquipmentFinished) return Math.max(animSize - 1, 0);
     anim += animCount * headDir;
     anim += animation.frame;
     anim %= animSize;
@@ -279853,26 +280124,15 @@ function calcAnimation(entity, act, type, tick) {
   }
   if (
     action === ACTION.WALK &&
+    type !== "head" &&
     entity.walk &&
     entity.objecttype !== entity.constructor.TYPE_FALCON
   ) {
     let motionCount = animCount || 1;
     if (animation.length) motionCount = animation.length;
     motionCount = Math.max(motionCount, 1);
-    const motionSpeed = Math.max(act.delay || 1, 1);
-    let phase;
-    const nowTick = Date.now();
-    if (
-      !(
-        entity.walk._motionPhaseTick === nowTick &&
-        typeof entity.walk._motionPhase === "number"
-      ) ||
-      type === "body"
-    ) {
-      phase = (entity.walk.dist * WALK_DIST_TO_MOTION) / motionSpeed;
-      entity.walk._motionPhase = phase;
-      entity.walk._motionPhaseTick = nowTick;
-    } else phase = entity.walk._motionPhase;
+    const motionSpeed = Math.max((frame?.bodyAction || act).delay || 1, 1);
+    const phase = (entity.walk.dist * WALK_DIST_TO_MOTION) / motionSpeed;
     let motion = Math.floor(phase);
     motion %= motionCount;
     motion += motionCount * headDir;
@@ -279889,16 +280149,21 @@ function calcAnimation(entity, act, type, tick) {
     anim %= animSize;
     return anim;
   }
-  anim = Math.min((tick / delay) | 0, animCount || animCount - 1);
+  anim = Math.min(Math.max((tick / delay) | 0, 0), Math.max(animCount - 1, 0));
   anim %= animCount;
   anim += animCount * headDir;
   anim += animation.frame;
   anim %= animSize;
   const lastFrame = animation.frame + animSize - 1;
   if (type === "body" && anim >= lastFrame) {
-    animation.frame = anim = lastFrame;
-    animation.play = false;
-    if (animation.next) entity.setAction(animation.next);
+    anim = lastFrame;
+    if (frame) frame.completed = { frame: lastFrame, next: animation.next };
+    else {
+      animation.frame = lastFrame;
+      animation.play = false;
+      animation._lastroEquipmentFinished = true;
+      if (animation.next) entity.setAction(animation.next);
+    }
   }
   return Math.min(anim, animSize - 1);
 }
@@ -280133,6 +280398,8 @@ var init_EntityRender = __esmMin(() => {
       if (animation.save && animation.delay < Date.now())
         this.setAction(animation.save);
       if (this.gr2) return;
+      const lastroFrame = lastroBeginEquipmentFrame(this, Date.now(), Client, Camera, calcAnimation);
+      try {
       const action = this.action < 0 ? this.ACTION.IDLE : this.action;
       const direction = (Camera.direction + this.direction + 8) % 8;
       const behind = direction > 1 && direction < 6;
@@ -280354,6 +280621,7 @@ var init_EntityRender = __esmMin(() => {
           });
       }
       SpriteRenderer.zIndex = 1;
+      } finally { lastroEndEquipmentFrame(this, lastroFrame); }
     };
   })();
   renderElement = (function renderElementClosure() {
@@ -280365,33 +280633,37 @@ var init_EntityRender = __esmMin(() => {
       const act = Client.loadFile(files.act);
       if (!spr || !act || !act.actions || !act.actions.length) return;
       const pal = (files.pal && Client.loadFile(files.pal)) || spr;
+      const frame = entity._lastroEquipmentFrame;
       const action =
         act.actions[
-          (entity.action * 8 +
+          ((frame?.action ?? entity.action) * 8 +
             ((Camera.direction + entity.direction + 8) % 8)) %
             act.actions.length
         ];
       if (!action || !action.animations || !action.animations.length) return;
-      const animation_id = calcAnimation(
+      const costumeLoop = type === "head" && files !== entity.files.head
+        ? sampleLastroCostumeLoop(entity, act, action, (Camera.direction + entity.direction + 8) % 8, frame?.tick ?? Date.now())
+        : null;
+      const animation_id = costumeLoop ? costumeLoop.index : type === "body" && frame?.bodyFrame !== null && frame?.bodyFrame !== undefined ? frame.bodyFrame : calcAnimation(
         entity,
         action,
         type,
-        Date.now() - entity.animation.tick,
+        (frame?.tick ?? Date.now()) - (frame?.animation ?? entity.animation).tick,
       );
-      const animation = action.animations[animation_id];
+      const animation = costumeLoop?.animation || action.animations[animation_id];
       if (!animation || !animation.layers) return;
       const layers = animation.layers;
       if (animation.sound > -1)
         entity.sound.play(
           act.sounds[animation.sound],
-          entity.action,
+          frame?.action ?? entity.action,
           animation_id,
         );
       _position[0] = 0;
       _position[1] = 0;
       if (animation.pos.length && !is_main) {
-        _position[0] = position[0] - animation.pos[0].x;
-        _position[1] = position[1] - animation.pos[0].y;
+        _position[0] = (frame?.anchor[0] ?? position[0]) - animation.pos[0].x;
+        _position[1] = (frame?.anchor[1] ?? position[1]) - animation.pos[0].y;
       }
       if (type === "cart" || type === "cartshadow")
         switch ((Camera.direction + entity.direction + 8) % 8) {
@@ -280479,7 +280751,7 @@ var init_EntityRender = __esmMin(() => {
           type,
           isBlendModeOne,
         );
-      if (is_main && animation.pos.length) {
+      if (type === "body" && animation.pos.length) {
         position[0] = animation.pos[0].x;
         position[1] = animation.pos[0].y;
       }
@@ -285896,6 +286168,7 @@ var init_MobileUI$1 = __esmMin(() => {
 });
 //#endregion
 //#region src/UI/Components/MobileUI/MobileUI.js
+// lastro-vending-movement-installed
 /**
  * Helper to bind click+touchstart on an element
  */
@@ -286414,6 +286687,7 @@ function stopMovement() {
  * @param {number} tileSize - The size of each tile in the game world
  */
 function moveCharacter(x, y, tileSize) {
+  if (lastroVendingShoppingActive()) return false;
   const player = SessionStorage_default.Entity;
   if (!player) return;
   direction[0] = x;
@@ -289477,6 +289751,7 @@ const refreshLastroGroundInput = function refreshLastroGroundInput(event, { mous
   }
 };
 //#region src/Controls/MapControl.js
+// lastro-vending-movement-installed
 /**
  * Stop the camera rotation when the right button is released, even if the
  * release happens over a UI element that swallows the bubbling mouseup event.
@@ -289491,6 +289766,7 @@ function onMouseUpCapture(event) {
  * What to do when clicking on the map ?
  */
 function onMouseDown(event) {
+  if ((event.which || (event.button === 2 ? 3 : 1)) === 1 && lastroVendingShoppingActive()) return false;
   const action = (event && event.which) || 1;
   if (action === 1) MapControl._lastroMovementInput?.cancel();
   if (
@@ -308997,7 +309273,7 @@ function onUseSkill(id, level, targetID) {
   if (isHomun) entity = EntityManager.get(SessionStorage_default.homunId);
   else if (isMerc) entity = EntityManager.get(SessionStorage_default.mercId);
   else entity = SessionStorage_default.Entity;
-  if (entity && entity.amotionTick > Renderer.tick) return;
+  if (entity && entity !== SessionStorage_default.Entity && entity.amotionTick > Renderer.tick) return;
   const target = EntityManager.get(targetID) || entity;
   const skill = Controller$4.getUI().getSkillById(id);
   const out = [];
@@ -309257,7 +309533,7 @@ var init_Skill = __esmMin(() => {
         return true;
       }
     }
-    if (entity && entity.amotionTick > Renderer.tick) return;
+    if (entity && entity !== SessionStorage_default.Entity && entity.amotionTick > Renderer.tick) return;
     const pos = entity.position;
     const skill = Controller$4.getUI().getSkillById(id);
     const out = [];
@@ -310770,6 +311046,57 @@ var init_NpcStore$1 = __esmMin(() => {
 });
 //#endregion
 //#region src/UI/Components/NpcStore/NpcStore.js
+// lastro-vending-movement-installed
+
+function lastroVendingShoppingActive() {
+  return typeof NpcStore !== 'undefined' && !!NpcStore?._lastroVendingShopping
+    && NpcStore.__active && !!NpcStore._host?.isConnected && NpcStore._host.style.display !== 'none';
+}
+function lastroSetVendingShopping(component, type) {
+  const shopping = type === component.Type.VENDING_STORE || type === component.Type.BUYING_STORE;
+  const entering = shopping && !component._lastroVendingShopping;
+  component._lastroVendingShopping = shopping;
+  if (!entering || !component.__active || !component._host?.isConnected) return;
+  // Reuse the store's native FREEZE mode and retire movement queued before it opened.
+  SessionStorage_default.FreezeUI = true;
+  Mouse.intersect = false;
+  SessionStorage_default.moveAction = null;
+  SessionStorage_default.autoFollow = false;
+  if (typeof MapControl !== 'undefined') MapControl?._lastroMovementInput?.cancel();
+  if (typeof Events !== 'undefined' && typeof _walkTimer !== 'undefined') Events.clearTimeout(_walkTimer);
+  if (typeof Navigation_default !== 'undefined' && Navigation_default?.__loaded) Navigation_default.clear();
+  if (typeof LastROTools !== 'undefined') {
+    LastROTools?._lastroPanels?.cancelRoute();
+    LastROTools?._lastroQuestRoute?.cancel();
+  }
+  if (typeof stopMovement === 'function') stopMovement();
+}
+function lastroInstallVendingRemoval(component) {
+  const remove = component.remove;
+  component.remove = function (...args) {
+    const shopping = this._lastroVendingShopping;
+    try { return remove.apply(this, args); }
+    finally {
+      this._lastroVendingShopping = false;
+      if (shopping) {
+        // Native remove() clears a shared boolean even when another frozen UI remains.
+        const frozen = Object.values(UIManager.components).some(other => other !== this && other.__active
+          && other.mouseMode === GUIComponent.MouseMode.FREEZE && other._host?.isConnected)
+          // Native WinPopup clones are deliberately absent from the manager's registry.
+          || Array.from(document.body.children).some(host => host !== this._host && host.style.display !== 'none'
+            && !!host.shadowRoot?.querySelector('#win_popup'));
+        SessionStorage_default.FreezeUI = frozen;
+        Mouse.intersect = !frozen;
+      }
+    }
+  };
+}
+function lastroCloseVendingShopping() {
+  if (typeof NpcStore === 'undefined' || !NpcStore?._lastroVendingShopping) return;
+  // A map/session transition has already ended the old server-side store interaction.
+  NpcStore.setClosePacketSent(true);
+  NpcStore.remove();
+}
 /**
  * Make a sub-window element draggable by its handle
  */
@@ -311462,6 +311789,7 @@ var init_NpcStore = __esmMin(() => {
    * Released movement and save preferences
    */
   NpcStore.onRemove = function onRemove() {
+    this._lastroVendingShopping = false;
     const root = NpcStore.getRoot();
     const InputWindow = root.querySelector(".InputWindow");
     const OutputWindow = root.querySelector(".OutputWindow");
@@ -311574,6 +311902,7 @@ var init_NpcStore = __esmMin(() => {
         _showAll(root, ".WinBuy");
     }
     _type = type;
+    lastroSetVendingShopping(this, type);
     const currentPref = getCurrentPref();
     const InputWindow = root.querySelector(".InputWindow");
     const OutputWindow = root.querySelector(".OutputWindow");
@@ -311982,6 +312311,7 @@ var init_NpcStore = __esmMin(() => {
   NpcStore.setClosePacketSent = function (bool) {
     _closePacketSent = bool;
   };
+  lastroInstallVendingRemoval(NpcStore);
   NpcStore_default = UIManager.addComponent(NpcStore);
 });
 //#endregion
@@ -314571,6 +314901,7 @@ var init_LastROProtocol = __esmMin(() => {
 });
 //#endregion
 //#region src/Engine/MapEngine.js
+// lastro-vending-movement-installed
 /**
  * Pong from server
  * TODO: check the time ?
@@ -314786,6 +315117,7 @@ function resetEntityForMapEntry(entity, pkt, gid) {
  * @param {object} pkt - PACKET.ZC.NPCACK_MAPMOVE
  */
 function onMapChange(pkt) {
+  lastroCloseVendingShopping();
   lastroCancelMovement(SessionStorage_default.Entity);
   MapControl._lastroMovementInput?.cancel();
   MapRenderer.onLoad = () => {
@@ -314938,6 +315270,7 @@ function onServerChange(pkt) {
  * Components that were never prepared have no root element to clean.
  */
 function cleanGameUI() {
+  lastroCloseVendingShopping();
   lastroCancelMovement(SessionStorage_default.Entity);
   MapControl._lastroMovementInput?.cancel();
   LastROInvalidateServerTick();
@@ -315190,6 +315523,7 @@ function onRemoveOption() {
  * Ask to move
  */
 function onRequestWalk() {
+  if (lastroVendingShoppingActive()) return false;
   const player = SessionStorage_default.Entity;
   if (MapRenderer.loading || SessionStorage_default.FreezeUI || !player?.position
       || !Number.isFinite(player.position[0]) || !Number.isFinite(player.position[1])) {
