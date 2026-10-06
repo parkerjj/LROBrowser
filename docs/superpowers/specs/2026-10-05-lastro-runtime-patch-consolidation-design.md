@@ -1,6 +1,8 @@
 # LastRO 运行时补丁收敛设计
 
-日期：2026-10-05。状态：待用户审核。本文件只定义迁移设计；当前阶段不修改运行时代码，也不创建 implementation plan。用户确认本 spec 后，才编写 plan、进行独立 subagent 只读 review，并再次交用户审核。
+日期：2026-10-05。状态：用户已确认设计并授权实施；Task 1–13 已完成，Task 14 build/package gates 已通过，独立最终 review 待完成。
+
+历史起草说明：本文件最初创建时的状态为“待用户审核”，且只定义设计、不修改运行时代码；该记录适用于 2026-10-05 的起草阶段。后续批准与实施结果记录在 implementation plan 和报告中，不改写本 spec 当时的设计依据。
 
 ## 1. 目标与边界
 
@@ -388,3 +390,9 @@ rtk git diff --check
 自审检查：用户指定 31 个永久模块、1 个重命名模块、6 个合并模块以及保留产品范围均有矩阵条目；helper/preview 边界、audio 依赖、Preferences 覆盖、WorldMap 混合注入和真实测试名称均有处理；没有将 appearance/catalog、账号或传送实现扩入核心；没有待定占位步骤。
 
 用户确认本 spec 后，implementation plan 将按基线冻结、迁移机制、核心批次、packet 重命名、localization 合并、UI/资源合入、orchestrator 清理、测试、build/audit/manifest 分阶段给出 exact files/functions/dependencies/commands/pass-fail evidence/guards。plan 完成后必须交独立 subagent 只读 review，修正发现的问题，再同时交付 spec、plan、review 结论和修正记录。用户审核计划通过后，下一阶段才执行代码迁移。
+
+## 实施状态与历史裁决说明（2026-10-06）
+
+上述第 13 节保留为 spec 起草时的阶段说明。用户随后确认了 spec 和 plan 并授权实施；截至本记录，Task 1–13 完成，Task 14 的构建、IWA、localization、final ownership 与 manifest gates 通过，独立全分支最终 review 仍待 controller 执行。最终实现与长期证据见 [implementation report](../reports/2026-10-05-lastro-runtime-patch-consolidation.md)。
+
+实施期间保留原始批准设计和计划的历史内容。针对 WorldMap 初始化，执行裁决保留 vendor 原有全部 12 个 client-module initializer 调用及顺序；不采用早期讨论的 7/5 拆分，因为它会重排既有 bundle client dependencies，而产品 actions 已通过独立 seam 注入。该裁决不扩大产品逻辑进入核心的范围；精确 owner、无 I/O 初始化约束及代价见 implementation report 的 Ruling 12。

@@ -27,7 +27,7 @@
 
 本机测试许可状态见 [许可证核查记录](third-party-licenses.md)。`generated`、`dist` 和 `release` 都是被忽略的生成目录；可复现的源文件、模块、回归测试、字体和核心资源均在仓库内管理。
 
-## 当前执行状态
+## 执行状态记录（截至 2026-09-25 的历史快照）
 
 | 任务 | 状态 | 本地提交 |
 | --- | --- | --- |
@@ -40,3 +40,11 @@
 使用 Node 24.11.0 与仓库内 `.tools/node_modules/.bin/pnpm` 12.4.2。当前 shell 默认的 Node 22 / pnpm 12.6.0 不符合项目要求。固定版本、依赖锁和 pnpm 工作区配置已纳入 Task 1 提交。
 
 仅有基础页面预览，尚无可登录客户端或可安装的签名 IWA。manifest 不含 `update_manifest_url`。没有创建签名密钥、生产身份、GitHub workflow、公网更新清单或 Surge 部署，也没有向远程推送。
+
+## 构建所有权更新（2026-10-06）
+
+上表保留 2026-09-25 当时的任务状态，不代表当前迁移进度。Task 1–13 已完成；Task 14 的 build、IWA、localization、final ownership 和 manifest checks 均通过，独立最终 review 仍待完成。详细决策、模块矩阵与证据见 [LastRO runtime patch consolidation report](../superpowers/reports/2026-10-05-lastro-runtime-patch-consolidation.md)。
+
+当前 `vendor/v2/Online.js` SHA-256 为 `2eb4725e97e188c377614ac2db0b35bb78d1050f95f4dded05c08406b16e7116`；这是迁移后仓库拥有的 runtime source。`config/v2-allowlist.json` 中已审核上游导入源 SHA-256 `5525839d71144032bc6f836c40f3ea1bf58db3e672ac8f4becfdd84cdfbc9e3c` 仍保持不变，二者代表不同来源阶段，不可互换。正常 `prepare:runtime` 从 vendor source 与剩余 host-side residual pipeline 生成 505 个 runtime files；IWA executable manifest 同样列出 505 项，`Online.js` 的 packaged hash/bytes 与 prepared output 相符。没有新增 runtime asset root 或改动来源 allowlist。
+
+实现保留 vendor 为唯一核心源码；固定矩阵中的 27 个旧 patch modules/声明与 40 个退休 transform records 已退出常规 build path，四个可复用 MJS source 保持 host-only。31 个永久模块 owner 由 final checker 审核。合并后的显示模块和其余产品功能也仍是 host-only build/test inputs。生成的 `generated/` 和 `dist/` 文件仅作本地 build evidence，不纳入版本控制。上游来源更新前仍须按迁移报告核对 owned runtime regions；不得以导入审核 hash 替换 owned vendor hash，也不得用新的 upstream snapshot 静默覆盖永久修复。
