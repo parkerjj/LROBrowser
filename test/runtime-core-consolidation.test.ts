@@ -16,6 +16,14 @@ const layoutRetirement = {
   local: 'patchScopedUiLayout',
   callOwner: 'patchV2Runtime',
 };
+const task9Retirements = [
+  { module: './lastro-typography.mjs', imported: 'patchRuntimeTypography', local: 'patchRuntimeTypography', callOwner: 'patchV2Runtime' },
+  { module: './lastro-dialog-typography.mjs', imported: 'patchRuntimeDialogTypography', local: 'patchRuntimeDialogTypography', callOwner: 'patchV2Runtime' },
+  layoutRetirement,
+  { module: './lastro-basic-info.mjs', imported: 'patchRuntimeBasicInfoLayout', local: 'patchRuntimeBasicInfoLayout', callOwner: 'patchV2Runtime' },
+  { module: './lastro-mail.mjs', imported: 'patchRuntimeMail', local: 'patchRuntimeMail', callOwner: 'patchV2Runtime' },
+  { module: './lastro-shop-titles.mjs', imported: 'patchRuntimeShopTitles', local: 'patchRuntimeShopTitles', callOwner: 'patchV2Runtime' },
+];
 
 function audit(patcherSource: string, retiredTransforms = [layoutRetirement], ownership: Record<string, unknown> = {}) {
   return auditCoreOwnership({
@@ -352,6 +360,20 @@ function patchV2Runtime(source) {
       retiredHostExports: [],
     });
     expect(diagnostics).toEqual([]);
+  });
+
+  it('retires the six permanent UI transforms while retaining the product layout', () => {
+    const patcherSource = readFileSync(new URL('../scripts/patch-v2-runtime.mjs', import.meta.url), 'utf8');
+    const diagnostics = auditCoreOwnership({
+      vendorSource: readVendorSource(),
+      patcherSource,
+      prepareSource: readFileSync(new URL('../scripts/prepare-runtime.mjs', import.meta.url), 'utf8'),
+      retiredTransforms: task9Retirements,
+      retiredHostExports: [],
+    });
+    expect(diagnostics).toEqual([]);
+    expect(patcherSource).toContain('output = patchRuntimeUiLayout(output);');
+    expect(patcherSource).not.toContain('patchScopedUiLayout');
   });
 
   it('distinguishes retired scoped layout import from retained local product layout', () => {

@@ -1,16 +1,13 @@
 // @vitest-environment jsdom
-import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { patchRuntimeShopTitles } from '../scripts/lastro-shop-titles.mjs';
+import { extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 
-const vendor = readFileSync('vendor/v2/Online.js', 'utf8');
+const vendor = readVendorSource();
 const paths = ['src/Preferences/Map.js', 'src/Controls/ProcessCommand.js', 'src/Renderer/Entity/EntityRoom.js'];
 function region(source: string, name: string) {
-  const start = source.indexOf('//#region ' + name), end = source.indexOf('//#endregion', start);
-  if (start < 0 || end < start) throw new Error('Missing native region: ' + name);
-  return source.slice(start, end + '//#endregion'.length);
+  return extractVendorRegion(name, source);
 }
 const focused = paths.map(name => region(vendor, name)).join('\n');
 const parse = (source: string) => ts.createSourceFile('Native.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
@@ -84,7 +81,7 @@ type SavedPreferences = Record<string, PreferenceRecord>;
 const fixtures: Array<{ dispose(): void }> = [];
 afterEach(() => { for (const fixture of fixtures.splice(0)) fixture.dispose(); vi.restoreAllMocks(); document.body.replaceChildren(); });
 
-function runtime(source = patchRuntimeShopTitles(focused), saved: SavedPreferences = {}) {
+function runtime(source = focused, saved: SavedPreferences = {}) {
   const messages = vi.fn(), send = vi.fn(), save = vi.fn(), projection = vi.fn(), history = vi.fn(), ordinaryTalk = vi.fn();
   const callbacks: Array<() => void> = [], entities: Array<{ room: Room }> = [];
   const manager = { components: {} as Record<string, Component>, addComponent(component: Component & { name: string }) {
@@ -161,14 +158,15 @@ const display = (room: Room) => room.node!._host.style.display;
 describe('native /showshop command and shop title visibility', () => {
   it('reproduces the unregistered upstream command through real ChatBox.submit without a server packet', () => {
     const f = runtime(focused); f.command('/showshop');
-    expect(f.messages).toHaveBeenCalledWith('message:95', 1, 0);
-    expect(f.send).not.toHaveBeenCalled(); expect(f.ordinaryTalk).not.toHaveBeenCalled(); expect(f.save).not.toHaveBeenCalled();
+    expect(f.messages).toHaveBeenCalledWith('商店标题：隐藏', 1, 0);
+    expect(f.send).not.toHaveBeenCalled(); expect(f.ordinaryTalk).not.toHaveBeenCalled(); expect(f.save).toHaveBeenCalledExactlyOnceWith('Map');
     expect(f.history).toHaveBeenCalledWith('/showshop');
   });
   it('defaults to visible and registers only showshop while retaining native aliases and other commands', () => {
-    const original = runtime(focused), f = runtime(); expect(f.map().showshop).toBe(true);
-    expect(Object.keys(f.context.CommandStore as object).filter(key => key !== 'showshop')).toEqual(Object.keys(original.context.CommandStore as object));
-    expect(f.context.aliases).toEqual(original.context.aliases);
+    const f = runtime(); expect(f.map().showshop).toBe(true);
+    const commands = Object.keys(f.context.CommandStore as object);
+    expect(commands.filter(key => key === 'showshop')).toHaveLength(1);
+    expect(commands).toEqual(expect.arrayContaining(['showname', 'sound', 'bgm', 'effect', 'mineffect', 'miss']));
     f.command('/commands'); expect(f.messages.mock.calls.flat().join(' ')).toContain('/showshop');
     f.command('/nc'); expect(f.save).toHaveBeenCalledWith('Controls');
     f.command('/ho'); expect(Array.from(new Uint8Array(f.send.mock.calls.at(-1)![0].build().buffer))).toEqual([0xbf, 0, 2]);
@@ -264,28 +262,5 @@ describe('native /showshop command and shop title visibility', () => {
     const f = runtime(), room = f.create(1); f.flushIcon(); const node = room.node!;
     f.command('/showshop off'); expect(room.node).toBe(node); expect(node.__active).toBe(true); expect(node._host.isConnected).toBe(true);
     expect(room.display).toBe(true); expect(f.send).not.toHaveBeenCalled();
-  });
-});
-
-describe('shop title patch boundary', () => {
-  it('changes only the three intended regions of the complete production snapshot', () => {
-    const full = patchRuntimeShopTitles(vendor);
-    const mask = (source: string) => paths.reduce((text, name) => text.replace(region(text, name), '/* intended ' + name + ' */'), source);
-    expect(mask(full)).toBe(mask(vendor));
-    expect(full).toContain('refreshShopTitleVisibility');
-    for (const name of paths) expect(region(full, name)).toBe(region(patchRuntimeShopTitles(focused), name));
-  });
-  it('accepts LF and CRLF region input without changing runtime behavior', () => {
-    for (const source of [focused.replace(/\r\n/g, '\n'), focused.replace(/\r?\n/g, '\r\n')]) {
-      const f = runtime(patchRuntimeShopTitles(source)); f.command('/showshop off'); const room = f.create(1); f.flushIcon();
-      expect(display(room)).toBe('none'); f.command('/showshop on'); expect(display(room)).toBe('');
-    }
-  });
-  it('leaves unrelated partial source untouched and rejects duplicated native regions', () => {
-    expect(patchRuntimeShopTitles('const untouched = 1;')).toBe('const untouched = 1;');
-    expect(() => patchRuntimeShopTitles(focused + '\n' + region(vendor, paths[0]!))).toThrow('anchor:shop-titles:');
-  });
-  it('rejects a changed native command registry rather than silently installing into an unknown context', () => {
-    expect(() => patchRuntimeShopTitles(focused.replace('  CommandStore = {', '  CommandStoreChanged = {'))).toThrow('anchor:shop-titles:');
   });
 });

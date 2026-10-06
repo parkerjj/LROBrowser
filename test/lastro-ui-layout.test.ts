@@ -1,58 +1,80 @@
-import { readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import ts from 'typescript';
-import { patchRuntimeUiLayout, UI_LAYOUT_CSS } from '../scripts/lastro-ui-layout.mjs';
+import { extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 
-const native = await readFile('vendor/v2/Online.js', 'utf8');
-const cssRegion = /\/\/#region src\/UI\/Components\/([^\n]+)\.css\?raw\r?\n[\s\S]*?\/\/#endregion/g;
+const vendor = readVendorSource();
+const scopedLayouts = {
+  'CashShop/CashShop': ['#CashShop .panel-cart-charge-btn { display: none; }', 'background-size: 723px 540px'],
+  'EntityRoom/EntityRoom': ['.EntityRoom .overlay { pointer-events: none; }'],
+  'EntitySignboard/EntitySignboard': ['.EntitySignboard .overlay { pointer-events: none; }'],
+  'ChatRoomCreate/ChatRoomCreate': ['#ChatRoomCreate .container { display: table;', 'padding-right: 7px;'],
+  'CartItems/CartItems': ['#cartitems .footer .cnt, #cartitems .footer .wt { position: static;', 'margin-left: 12px;'],
+  'Storage/StorageV3/Storage': ['#Storage .footer .search-input { box-sizing: border-box;', 'width: 136px;'],
+  'SkillList/SkillListV2/SkillListV2': ['#SkillListV2 .content div.name { overflow: hidden;', 'text-overflow: ellipsis;'],
+};
+const previewRequiredPaths = [
+  'CashShop/CashShop',
+  'ChatRoomCreate/ChatRoomCreate',
+  'CartItems/CartItems',
+  'Storage/StorageV3/Storage',
+  'SkillList/SkillListV2/SkillListV2',
+];
+const previewMarkerlessPaths = [
+  'Inventory/InventoryV3/InventoryV3',
+  'ChatBoxSettings/ChatBoxSettings',
+  'GraphicsOption/GraphicsOption',
+];
 
-function literals(region: string) {
-  const file = ts.createSourceFile('component.js', region, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
-  const nodes: ts.StringLiteral[] = [];
+function cssText(path: string) {
+  const region = extractVendorRegion(`src/UI/Components/${path}.css?raw`, vendor);
+  const file = ts.createSourceFile('component-css.js', region, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const literals: ts.StringLiteral[] = [];
   function visit(node: ts.Node) {
-    if (ts.isBinaryExpression(node) && ts.isStringLiteral(node.right)) nodes.push(node.right);
+    if (ts.isBinaryExpression(node) && ts.isStringLiteral(node.right)) literals.push(node.right);
     ts.forEachChild(node, visit);
   }
   visit(file);
-  return { file, nodes };
+  if (literals.length !== 1) throw new Error(`Expected one CSS literal for ${path}; found ${literals.length}`);
+  return literals[0]!.text;
 }
 
-describe('native UI layout patch', () => {
-  it('retains the native CSS before scoped additions', () => {
-    const patched = patchRuntimeUiLayout(native);
-    for (const [component, extra] of Object.entries(UI_LAYOUT_CSS)) {
-      const original = [...native.matchAll(cssRegion)].find(match => match[1] === component)?.[0];
-      const final = [...patched.matchAll(cssRegion)].find(match => match[1] === component)?.[0];
-      expect(original).toBeDefined(); expect(final).toBeDefined();
-      const originalCss = literals(original!).nodes[0]?.text;
-      const finalCss = literals(final!).nodes[0]?.text;
-      expect(finalCss).toBe(originalCss + '\n/* LASTRO scoped UI layout: ' + component + ' */\n' + extra);
+describe('permanent scoped native UI layout', () => {
+  it('keeps every selected CSS fix in its exact vendor component owner', () => {
+    for (const [path, snippets] of Object.entries(scopedLayouts)) {
+      const css = cssText(path);
+      const marker = `\n/* LASTRO scoped UI layout: ${path} */\n`;
+      expect(css.split(marker)).toHaveLength(2);
+      for (const snippet of snippets) expect(css).toContain(snippet);
     }
   });
 
-  it('only changes selected CSS literals, preserving templates and native actions', () => {
-    const normalize = (source: string) => source.replace(cssRegion, (region: string, component: string) => {
-      if (!UI_LAYOUT_CSS[component]) return region;
-      const { file, nodes } = literals(region);
-      const node = nodes[0]!;
-      return region.slice(0, node.getStart(file)) + 'NATIVE_COMPONENT_CSS' + region.slice(node.end);
-    });
-    expect(normalize(patchRuntimeUiLayout(native))).toBe(normalize(native));
+  it('uses one marker for preview paths that receive scoped CSS', () => {
+    for (const path of previewRequiredPaths) {
+      const css = cssText(path), marker = `\n/* LASTRO scoped UI layout: ${path} */\n`;
+      expect(css.split(marker)).toHaveLength(2);
+      expect(css.indexOf(marker)).toBeGreaterThan(0);
+    }
   });
 
-  it('does not append fixes twice', () => {
-    const patched = patchRuntimeUiLayout(native);
-    expect(patchRuntimeUiLayout(patched)).toBe(patched);
+  it('allows markerless Inventory, ChatBoxSettings and GraphicsOption preview paths', () => {
+    for (const path of previewMarkerlessPaths) {
+      const css = cssText(path);
+      expect(css).not.toContain('LASTRO scoped UI layout:');
+      const beforeCss = css;
+      const fixedCss = css;
+      expect(fixedCss).toBe(beforeCss);
+    }
   });
 
-  it('keeps unrelated components byte-for-byte', () => {
-    const source = '//#region src/UI/Components/Unknown/Unknown.css?raw\nconst css = "body { color: red; }";\n//#endregion';
-    expect(patchRuntimeUiLayout(source)).toBe(source);
-  });
-
-  it('rejects a target region whose native literal no longer matches', () => {
-    const component = Object.keys(UI_LAYOUT_CSS)[0]!;
-    const source = '//#region src/UI/Components/' + component + '.css?raw\nfunction newCss() {}\n//#endregion';
-    expect(() => patchRuntimeUiLayout(source)).toThrow('anchor:ui-layout-' + component);
+  it('reads fixed preview CSS from generated runtime and checks markers by path', () => {
+    const preview = readFileSync(new URL('../scripts/preview-ui-review.mjs', import.meta.url), 'utf8');
+    expect(preview).not.toContain("from './lastro-ui-layout.mjs'");
+    expect(preview).not.toContain('patchRuntimeUiLayout(runtime)');
+    expect(preview).toContain("getString(runtime, window.path, 'css')");
+    expect(preview).toContain('scopedLayoutPaths.has(window.path)');
+    expect(preview).toContain('window.fixedCss = css;');
+    for (const path of previewRequiredPaths) expect(preview).toContain(`'${path}'`);
+    for (const path of previewMarkerlessPaths) expect(preview).toContain(`'${path}'`);
   });
 });

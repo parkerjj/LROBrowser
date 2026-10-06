@@ -1,19 +1,15 @@
 // @vitest-environment jsdom
-import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { patchRuntimeBasicInfoLayout } from '../scripts/lastro-basic-info.mjs';
 import { setLastROInnerHTML } from '../src/runtime/lastro-trusted-dom.mjs';
+import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 
-const native = readFileSync('vendor/v2/Online.js', 'utf8');
-const patched = patchRuntimeBasicInfoLayout(native);
+const native = readVendorSource();
+const patched = native;
 const versions = [1, 3, 4, 5];
 function region(source: string, path: string) {
-  const marker = '//#region src/UI/Components/BasicInfo/' + path;
-  const start = source.indexOf(marker), end = source.indexOf('//#endregion', start);
-  if (start < 0 || end < start) throw new Error('Missing native BasicInfo fixture: ' + path);
-  return source.slice(start, end + '//#endregion'.length);
+  return extractVendorRegion('src/UI/Components/BasicInfo/' + path, source);
 }
 function parseRegion(source: string, version: number, kind: string) {
   return ts.createSourceFile('BasicInfo.js', region(source, `BasicInfoV${version}/BasicInfoV${version}.${kind}`), ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
@@ -28,9 +24,9 @@ function template(source: string, version: number, kind: 'html' | 'css') {
   visit(ast); if (literals.length !== 1) throw new Error('Changed native BasicInfo string');
   return literals[0]!.text;
 }
-const commonAst = ts.createSourceFile('BasicInfoCommon.js', region(native, 'BasicInfoCommon.js'), ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
-const factory = commonAst.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'createBasicInfo')?.getText(commonAst);
-if (!factory) throw new Error('Missing native BasicInfo factory');
+const factory = extractRuntimeNode(native, {
+  region: 'src/UI/Components/BasicInfo/BasicInfoCommon.js', kind: 'function', name: 'createBasicInfo',
+});
 function configSource(version: number) {
   const ast = parseRegion(native, version, 'js');
   const calls: ts.CallExpression[] = [];
@@ -42,7 +38,6 @@ function configSource(version: number) {
   return calls[0]!.arguments[0]!.getText(ast);
 }
 const configurations = new Map(versions.map(version => [version, configSource(version)]));
-const originalTemplates = new Map(versions.map(version => [version, template(native, version, 'html')]));
 const templates = new Map(versions.map(version => [version, template(patched, version, 'html')]));
 const styles = new Map(versions.map(version => [version, template(patched, version, 'css')]));
 function fragment(html: string) {
@@ -113,21 +108,24 @@ function fixture(version: number, reduce = false) {
 afterEach(() => document.body.replaceChildren());
 
 describe('scoped native BasicInfo layout', () => {
-  it('leaves V0 and all executable update, toolbar and event code byte-for-byte', () => {
-    for (const kind of ['html?raw', 'css?raw', 'js']) expect(region(patched, `BasicInfoV0/BasicInfoV0.${kind}`)).toBe(region(native, `BasicInfoV0/BasicInfoV0.${kind}`));
-    const normalize = (source: string) => source.replace(/\/\/#region src\/UI\/Components\/BasicInfo\/BasicInfoV([1345])\/BasicInfoV\1\.(?:html|css)\?raw\r?\n[\s\S]*?\/\/#endregion/g, (_region, version) => `BASIC_INFO_TEMPLATE_${version}`);
-    expect(normalize(patched)).toBe(normalize(native));
+  it('contains permanent HTML/CSS layout for versions 1, 3, 4 and 5 only', () => {
+    for (const version of versions) {
+      expect(template(native, version, 'html')).toContain('<!-- lastro-basic-info-layout -->');
+      expect(template(native, version, 'css')).toContain('/* lastro-basic-info-layout */');
+    }
+    expect(template(native, 0, 'html')).not.toContain('lastro-basic-info-layout');
+    expect(template(native, 0, 'css')).not.toContain('lastro-basic-info-layout');
   });
 
   it.each(versions)('preserves every real-time field and original native artwork/control for V%s', version => {
-    const before = fragment(originalTemplates.get(version)!), after = fragment(templates.get(version)!);
+    const after = fragment(templates.get(version)!);
     const fields = ['name_value', 'job_value', 'blvl_value', 'jlvl_value', 'hp_value', 'hp_max_value', 'hp_perc', 'sp_value', 'sp_max_value', 'sp_perc', 'bexp_value', 'bexp', 'jexp', 'weight_value', 'weight_total', 'weight', 'zeny_value'];
     if (version === 5) fields.push('ap_value', 'ap_max_value', 'ap_perc', 'ap_bar');
-    for (const field of fields) expect(after.querySelectorAll('.' + field).length).toBe(before.querySelectorAll('.' + field).length);
-    expect(after.querySelector(`#BasicInfoV${version}`)?.getAttribute('data-background')).toBe(before.querySelector(`#BasicInfoV${version}`)?.getAttribute('data-background'));
-    expect(after.querySelector('.topbar')?.outerHTML).toBe(before.querySelector('.topbar')?.outerHTML);
-    expect(after.querySelector('.buttons')?.outerHTML).toBe(before.querySelector('.buttons')?.outerHTML);
-    expect([...after.querySelectorAll('.toggle_btns')].map(node => node.outerHTML)).toEqual([...before.querySelectorAll('.toggle_btns')].map(node => node.outerHTML));
+    for (const field of fields) expect(after.querySelectorAll('.' + field).length).toBeGreaterThan(0);
+    expect(after.querySelector(`#BasicInfoV${version}`)?.getAttribute('data-background')).toBeTruthy();
+    expect(after.querySelector('.topbar')).not.toBeNull();
+    expect(after.querySelector('.buttons')).not.toBeNull();
+    expect(after.querySelectorAll('.toggle_btns').length).toBeGreaterThan(0);
     expect(text(after.querySelector('.large .blvl'))).toBe('BaseLv.'); expect(text(after.querySelector('.large .jlvl'))).toBe('JobLv.');
   });
 
@@ -227,8 +225,8 @@ describe('real BasicInfo factory updates with the patched markup', () => {
     f.component.update('hp', 55, 100); f.component.update('sp', 12, 80); f.component.update('ap', 7, 10); f.component.update('bexp', 18, 100);
     const inner = f.root.querySelector<HTMLElement>('#BasicInfoV5')!;
     const style = document.createElement('style'); style.textContent = styles.get(5)!;
-    // jsdom does not apply shadow styles. Move the actual native DOM into its
-    // document stylesheet scope; use the CSS emitted by the production patch.
+      // jsdom does not apply shadow styles. Move the actual vendor DOM into its
+      // document stylesheet scope.
     document.head.append(style); document.body.append(inner);
     try {
       const base = window.getComputedStyle(inner), fontSize = parseFloat(base.fontSize);
@@ -247,40 +245,5 @@ describe('real BasicInfo factory updates with the patched markup', () => {
       expect(text(inner.querySelector('.small .line4'))).toMatch(/AP 7\s*\/\s*10/);
       expect(window.getComputedStyle(inner.querySelector('.large')!).display).toBe('none');
     } finally { style.remove(); }
-  });
-});
-
-describe('BasicInfo patch anchor boundaries', () => {
-  it('skips fragments without any supported BasicInfo template', () => {
-    const other = 'const unrelated = "BasicInfoV4";\n//#region src/UI/Components/Other/Other.html?raw\nconst html = "<div>Other</div>";\n//#endregion';
-    expect(patchRuntimeBasicInfoLayout(other)).toBe(other);
-  });
-
-  it.each(['html', 'css'])('accepts a valid standalone %s region without requiring other layouts', kind => {
-    const source = region(native, `BasicInfoV4/BasicInfoV4.${kind}?raw`);
-    const output = patchRuntimeBasicInfoLayout(source); expect(output).not.toBe(source);
-    expect(template(output, 4, kind as 'html' | 'css')).toBe(kind === 'html' ? templates.get(4) : styles.get(4));
-  });
-
-  it.each(['html', 'css'])('rejects missing, duplicated and changed %s region/literal anchors', kind => {
-    const source = region(native, `BasicInfoV4/BasicInfoV4.${kind}?raw`), name = 'BasicInfoV4_default$' + (kind === 'html' ? 2 : 1);
-    for (const changed of [
-      source.replace('//#endregion', ''), source + '\n' + source,
-      source.replace(name + ' =', 'renamed_upstream ='),
-      source.replace('//#endregion', `\n${name} = "extra";\n//#endregion`),
-    ]) expect(() => patchRuntimeBasicInfoLayout(changed)).toThrow('anchor:basic-info-layout');
-  });
-
-  it.each(['blvl', 'jlvl', 'line2', 'extra'])('rejects a changed or duplicated native %s content block', field => {
-    const html = originalTemplates.get(4)!;
-    const marker = `class="${field}"`;
-    for (const changed of [html.replace(marker, 'class="upstream_changed"'), html.replace(marker, marker + '></div><div ' + marker)]) {
-      const source = '//#region src/UI/Components/BasicInfo/BasicInfoV4/BasicInfoV4.html?raw\nBasicInfoV4_default$2 = ' + JSON.stringify(changed) + ';\n//#endregion';
-      expect(() => patchRuntimeBasicInfoLayout(source)).toThrow('anchor:basic-info-layout');
-    }
-  });
-
-  it('rejects duplicate application rather than accumulating conflicting CSS or markup', () => {
-    expect(() => patchRuntimeBasicInfoLayout(patched)).toThrow('anchor:basic-info-layout');
   });
 });
