@@ -3,9 +3,8 @@ import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
-import { assertRuntimeLocalizationMount, createLastroMapLocalization, patchRuntimeMapLocalization } from '../scripts/lastro-localization.mjs';
-import { patchRuntimeJobLocalization, patchRuntimeSkillLocalization, patchV2Runtime } from '../scripts/patch-v2-runtime.mjs';
-import { patchRuntimeItemName } from '../scripts/lastro-item-name.mjs';
+import { assertRuntimeLocalizationMount, createLastroMapLocalization, patchRuntimeJobLocalization, patchRuntimeMapLocalization, patchRuntimeSkillLocalization, patchRuntimeItemName } from '../scripts/lastro-display-localization.mjs';
+import { patchV2Runtime } from '../scripts/patch-v2-runtime.mjs';
 
 const vendor = readFileSync('vendor/v2/Online.js', 'utf8');
 const { JSDOM } = createRequire(import.meta.url)('jsdom') as { JSDOM: new (html: string) => { window: { document: Document } } };

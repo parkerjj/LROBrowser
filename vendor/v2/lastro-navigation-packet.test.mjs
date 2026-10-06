@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import vm from "node:vm";
+import { extractRuntimeNode } from "../../test/helpers/vendor-runtime.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ONLINE_PATH = join(HERE, "Online.js");
@@ -38,7 +39,7 @@ function loadHelper(packetVersion, position, sentPackets, diagnostics) {
         "SessionStorage_default",
         "Network",
         "globalThis",
-        `return (${functionSource});`
+        `${extractRuntimeNode(source, { kind: 'function', name: 'lastroVendingShoppingActive' })}\nreturn (${functionSource});`
       )(
         { CZ: { REQUEST_MOVE2: RequestMove2, REQUEST_MOVE: RequestMove } },
         { value: packetVersion },
@@ -379,7 +380,7 @@ test("Navigation waits for the server movement to finish before sending another 
     if (source[index] === "}" && --depth === 0) {
       const requestMove = new Function(
         "PACKET", "PacketVerManager_default", "SessionStorage_default", "Network",
-        `return (${source.slice(functionIndex, index + 1)});`
+        `${extractRuntimeNode(source, { kind: 'function', name: 'lastroVendingShoppingActive' })}\nreturn (${source.slice(functionIndex, index + 1)});`
       )(
         { CZ: { REQUEST_MOVE2: RequestMove2, REQUEST_MOVE: RequestMove } },
         { value: 20240101 },
@@ -397,11 +398,7 @@ test("Navigation waits for the server movement to finish before sending another 
 
 test("LastRO entity walking keeps grid pathfinding enabled", () => {
   const source = readFileSync(ONLINE_PATH, "utf8");
-  const start = source.indexOf("function walkTo(from_x, from_y, to_x, to_y, range, moveStartTime)");
-  assert.notEqual(start, -1, "Entity walk function was not found");
-  const end = source.indexOf("function walkProcess()", start);
-  assert.notEqual(end, -1, "Entity walk function boundary was not found");
-  const walkSource = source.slice(start, end);
+  const walkSource = extractRuntimeNode(source, { region: 'src/Renderer/Entity/EntityWalk.js', kind: 'function', name: 'walkTo' });
 
   assert.match(walkSource, /PathFinding_default\.search\(/);
   assert.doesNotMatch(walkSource, /lastroProtocol/);

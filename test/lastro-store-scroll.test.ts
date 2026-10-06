@@ -1,17 +1,14 @@
 // @vitest-environment jsdom
-import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { installLastroStoreScroll, patchRuntimeStoreScroll, type StoreScrollApi } from '../scripts/lastro-store-scroll.mjs';
+import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 
-const vendor = readFileSync('vendor/v2/Online.js', 'utf8');
-function region(source: string, path: string) {
-  const start = source.indexOf('//#region ' + path), end = source.indexOf('//#endregion', start);
-  if (start < 0 || end < 0) throw new Error('Missing native region: ' + path);
-  return source.slice(start, end + '//#endregion'.length);
-}
-const native = region(vendor, 'src/UI/Components/NpcStore/NpcStore.js'), patched = patchRuntimeStoreScroll(native);
+const vendor = readVendorSource();
+const native = extractVendorRegion('src/UI/Components/NpcStore/NpcStore.js', vendor);
+const patched = native;
+const storeHelpers = ['lastroSetVendingShopping', 'installLastroStoreScroll', 'lastroBindNestedWindowState']
+  .map(name => extractRuntimeNode(vendor, { kind: 'function', name })).join('\n');
 function extract(source: string) {
   const file = ts.createSourceFile('NpcStore.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS), assignments = new Map<string, string>(), functions: string[] = [];
   const names = new Set(['installLastroStoreScroll', 'addItem', 'resize', 'getCurrentPref', '_escapeHTML', '_hideAll', '_showAll', 'formatStoreItemName', 'prettyZeny', 'onDragStart']);
@@ -26,7 +23,7 @@ function extract(source: string) {
   return { code: functions.join('\n') + '\n' + methods.join('\n'), addItem: functions.find(fn => fn.startsWith('function addItem(')) };
 }
 const parts = extract(patched);
-const htmlFile = ts.createSourceFile('NpcStore.html.js', region(vendor, 'src/UI/Components/NpcStore/NpcStore.html?raw'), ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+const htmlFile = ts.createSourceFile('NpcStore.html.js', extractVendorRegion('src/UI/Components/NpcStore/NpcStore.html?raw', vendor), ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
 let html = '';
 function extractHtml(node: ts.Node) { if (ts.isBinaryExpression(node) && ts.isStringLiteral(node.right)) html = node.right.text; ts.forEachChild(node, extractHtml); }
 extractHtml(htmlFile);
@@ -34,11 +31,19 @@ const frames: HTMLIFrameElement[] = [];
 afterEach(() => { frames.splice(0).forEach(frame => frame.remove()); });
 
 interface Item { index: number; ITID: number; count: number; price: number; IsIdentified?: boolean; total_weight?: number; }
+interface StoreScrollApi {
+  stop(): void;
+  refresh(content: HTMLElement | null): void;
+  reveal(content: HTMLElement | null, index: string | number): void;
+}
 interface Store {
   _host: HTMLElement; _lastroStoreScroll?: StoreScrollApi; getRoot(): HTMLElement;
   onAppend(): void; onRemove(): void; setType(type: number): void; setList(items: Item[]): void;
   calculateCost(): number; calculateWeight(): number;
 }
+const installLastroStoreScroll = vm.runInNewContext(`${extractRuntimeNode(vendor, {
+  kind: 'function', name: 'installLastroStoreScroll',
+})}\ninstallLastroStoreScroll`) as (component: Store) => StoreScrollApi;
 type PreviewWindow = Window & typeof globalThis & { _OBJ_DRAG_?: unknown };
 function mount({ scale = 1 }: { scale?: number } = {}) {
   const frame = document.createElement('iframe'); document.body.append(frame); frames.push(frame);
@@ -85,7 +90,8 @@ function mount({ scale = 1 }: { scale?: number } = {}) {
     ChatBox_default: { addText: messages, TYPE: { ERROR: 1 }, FILTER: { PUBLIC_LOG: 1 } }, Network: { sendPacket: send },
     getItemCountUnit: () => '个', console,
   });
-  vm.runInContext(parts.code, context); component.setType(0); component.onAppend();
+  vm.runInContext(storeHelpers + '\n' + parts.code, context);
+  component.setType(0); component.onAppend();
   const input = root.querySelector<HTMLElement>('.InputWindow .content')!, output = root.querySelector<HTMLElement>('.OutputWindow .content')!, available = root.querySelector<HTMLElement>('.AvailableItemsWindow .content')!;
   for (const content of [input, output, available]) content.style.height = '64px';
   const api = component._lastroStoreScroll!;
@@ -247,7 +253,9 @@ describe('native store drag edge auto-scroll', () => {
     if (action === 'setType') f.component.setType(0);
     expect(f.drag(f.input).defaultPrevented).toBe(false); expect(f.raf.size).toBe(0);
   });
-  it('rejects duplicate installation patches instead of accumulating drag listeners', () => {
-    expect(() => patchRuntimeStoreScroll(patched)).toThrow('anchor:store-scroll:installed');
+  it('keeps the permanent store-scroll installer at native append and transfer owners', () => {
+    expect(extractRuntimeNode(vendor, { kind: 'function', name: 'installLastroStoreScroll' })).toContain('requestAnimationFrame');
+    expect(patched).toContain('installLastroStoreScroll(this)');
+    expect(patched).toContain('lastroScroll.reveal(toContent, index)');
   });
 });

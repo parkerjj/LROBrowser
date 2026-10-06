@@ -1,19 +1,30 @@
 // @vitest-environment jsdom
-import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { installLastroItemDrag } from '../scripts/lastro-item-drag.mjs';
-import { installLastroStoreScroll } from '../scripts/lastro-store-scroll.mjs';
+import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 
-const vendor = readFileSync('vendor/v2/Online.js', 'utf8');
+const vendor = readVendorSource();
+type ItemDragInstaller = (options: {
+  document: Document;
+  mouse: { screen: { x: number; y: number }; state?: number; MOUSE_STATE?: { USESKILL: number } };
+  cursor: { x: number; y: number; freeze?: boolean; blockMagnetism?: boolean; ACTION?: { DEFAULT: number };
+    setType?: (type: number) => void; getActualType?: () => number };
+  isEnabled: () => boolean;
+}) => { cancel(): void; destroy(): void; active(): boolean };
+type StoreScrollInstaller = (component: { _host: HTMLElement; getRoot(): ShadowRoot | HTMLElement;
+  _lastroStoreScroll?: { stop(): void; refresh(content: HTMLElement | null): void; reveal(content: HTMLElement | null, index: string | number): void } }) => {
+  stop(): void; refresh(content: HTMLElement | null): void; reveal(content: HTMLElement | null, index: string | number): void;
+};
+const installLastroItemDrag = vm.runInNewContext('(' + extractRuntimeNode(vendor,
+  { kind: 'function', name: 'installLastroItemDrag' }) + ')') as ItemDragInstaller;
+const installLastroStoreScroll = vm.runInNewContext('(' + extractRuntimeNode(vendor,
+  { kind: 'function', name: 'installLastroStoreScroll' }) + ')') as StoreScrollInstaller;
 const live: Array<{ destroy(): void }> = [];
 const frames: HTMLIFrameElement[] = [];
 afterEach(() => { live.splice(0).forEach(api => api.destroy()); frames.splice(0).forEach(frame => frame.remove()); });
 function tree(path: string) {
-  const start = vendor.indexOf('//#region ' + path), end = vendor.indexOf('//#endregion', start);
-  if (start < 0 || end < 0) throw new Error('Missing native region: ' + path);
-  return ts.createSourceFile(path, vendor.slice(start, end), ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  return ts.createSourceFile(path, extractVendorRegion(path, vendor), ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
 }
 function functions(path: string, names: string[]) {
   const file = tree(path), found = new Map<string, string>();

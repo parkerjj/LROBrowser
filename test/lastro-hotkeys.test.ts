@@ -4,6 +4,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { patchRuntimeHotkeys } from '../scripts/lastro-hotkeys.mjs';
+import { extractRuntimeNode } from './helpers/vendor-runtime';
 
 const source = readFileSync('vendor/v2/Online.js', 'utf8');
 const patched = patchRuntimeHotkeys(source);
@@ -39,7 +40,7 @@ function fixtureSource(text: string) {
   const helper = text.includes('function lastroHotkeyId(')
     ? text.slice(text.indexOf('function lastroHotkeyId('), text.indexOf('//#region src/Controls/KeyEventHandler.js')) : '';
   const chat = region(text, 'src/UI/Components/ChatBox/ChatBox.js');
-  return helper + [
+  return extractRuntimeNode(source, { kind: 'function', name: 'lastroUiWindowAppend' }) + '\n' + helper + [
     'src/Controls/KeyEventHandler.js', 'src/Preferences/ShortCutControls.js', 'src/Controls/BattleMode.js',
     'src/UI/Components/ShortCutOption/ShortCutOption.html?raw', 'src/UI/Components/ShortCutOption/ShortCutOption.js',
   ].map(name => region(text, name)).join('\n') + '\n' + assignment(chat, 'ChatBox.processBattleMode') + '\n' + assignment(chat, 'ChatBox.onKeyDown') +

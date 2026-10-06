@@ -1,19 +1,16 @@
 // @vitest-environment jsdom
-import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { patchRuntimeStorageCount } from '../scripts/lastro-storage-count.mjs';
+import { extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 
-const vendor = readFileSync('vendor/v2/Online.js', 'utf8');
+const vendor = readVendorSource();
 function region(path: string) {
-  const start = vendor.indexOf('//#region ' + path), end = vendor.indexOf('//#endregion', start);
-  if (start < 0 || end < 0) throw new Error('Missing native region: ' + path);
-  return vendor.slice(start, end + '//#endregion'.length);
+  return extractVendorRegion(path, vendor);
 }
 const native = region('src/UI/Components/Storage/StorageCommon.js') + '\n'
   + region('src/UI/Components/Storage/StorageV3/StorageFilter.js');
-const patched = patchRuntimeStorageCount(native);
+const patched = native;
 function runtime(source: string) {
   const file = ts.createSourceFile('Storage.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
   const statements: string[] = [];
@@ -194,10 +191,8 @@ describe('native storage quantity updates across search and category windows', (
     for (const ui of [f.storage, f.search(), f.category()]) expect(f.counts(ui)).toEqual([]);
   });
 
-  it('rejects changed or duplicated patch anchors and leaves unrelated fixtures untouched', () => {
-    expect(patchRuntimeStorageCount('const unrelated = true;')).toBe('const unrelated = true;');
-    expect(() => patchRuntimeStorageCount(native.replace('items.slice(0)', 'items.slice(1)'))).toThrow('anchor:storage-count:filter-copy');
-    expect(() => patchRuntimeStorageCount(native.replace('Component.addItem =', 'Component.renamedAddItem ='))).toThrow('anchor:storage-count:add-item');
-    expect(() => patchRuntimeStorageCount(native + native)).toThrow('anchor:storage-count:region');
+  it('keeps the permanent record-copy and confirmed-transfer behavior', () => {
+    expect(patched).toContain('items.map((item) => ({ ...item }))');
+    expect(patched).toContain('Component.onSearch()');
   });
 });

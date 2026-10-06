@@ -1,17 +1,16 @@
 // @vitest-environment jsdom
-import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { patchRuntimeUiInput } from '../scripts/lastro-ui-input.mjs';
-import { lastroUiWindowAppend } from '../scripts/lastro-ui-state.mjs';
+import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 
-const source = readFileSync('vendor/v2/Online.js', 'utf8');
-const patched = patchRuntimeUiInput(source);
+const source = readVendorSource();
+const patched = source;
+const lastroUiWindowAppend = runInNewContext(`${extractRuntimeNode(source, {
+  kind: 'function', name: 'lastroUiWindowAppend',
+})}\nlastroUiWindowAppend`) as (...args: unknown[]) => unknown;
 function region(text: string, path: string) {
-  const start = text.indexOf('//#region ' + path), end = text.indexOf('//#endregion', start);
-  if (start < 0 || end < 0) throw new Error('Missing native region: ' + path);
-  return text.slice(start, end);
+  return extractVendorRegion(path, text);
 }
 function find(text: string, predicate: (node: ts.Node, file: ts.SourceFile) => boolean) {
   const file = ts.createSourceFile('fixture.js', text, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS), matches: ts.Node[] = [];
@@ -20,7 +19,8 @@ function find(text: string, predicate: (node: ts.Node, file: ts.SourceFile) => b
   if (matches.length !== 1) throw new Error('Invalid native fixture anchor');
   return { node: matches[0]!, file };
 }
-const helperSource = patched.slice(patched.indexOf('// lastro-ui-input-installed'), patched.indexOf('//#region src/UI/GUIComponent.js'));
+const helperSource = ['lastroUiInputFrame', 'lastroUiLogicalPointer', 'lastroUiDragBounds']
+  .map(name => extractRuntimeNode(patched, { kind: 'function', name })).join('\n');
 const dragMethod = find(region(patched, 'src/UI/GUIComponent.js'), (node, file) => ts.isMethodDeclaration(node) && node.name.getText(file) === 'draggable');
 const frames: HTMLIFrameElement[] = [];
 afterEach(() => { frames.splice(0).forEach(frame => frame.remove()); vi.restoreAllMocks(); });
@@ -262,14 +262,9 @@ describe('real native resize corners', () => {
   });
 });
 
-describe('strict scaled UI patch anchors', () => {
-  it('leaves unrelated small fixtures unchanged and rejects duplicate installation', () => {
-    expect(patchRuntimeUiInput('const untouched = 1;')).toBe('const untouched = 1;');
-    expect(() => patchRuntimeUiInput(patched)).toThrow('already-installed');
-  });
-  it('rejects drift or missing target functions in an existing native region', () => {
-    expect(() => patchRuntimeUiInput(source.replace('const x = host.offsetLeft - Mouse.screen.x;', 'const x = host.offsetLeft + Mouse.screen.x;'))).toThrow('drag-origin');
-    expect(() => patchRuntimeUiInput('//#region src/UI/GUIComponent.js\nclass GUIComponent {}\n//#endregion')).toThrow('draggable');
-    expect(() => patchRuntimeUiInput('//#region src/UI/Components/CartItems/CartItems.js\nconst drift = 1;\n//#endregion')).toThrow('CartItems/CartItems');
+describe('permanent scaled UI helpers', () => {
+  it('keeps one actual logical-input frame helper and native drag implementation', () => {
+    expect(extractRuntimeNode(patched, { kind: 'function', name: 'lastroUiInputFrame' })).toContain('effectiveX');
+    expect(dragMethod.node.getText(dragMethod.file)).toContain('lastroUiLogicalPointer');
   });
 });

@@ -192,6 +192,34 @@ export function patchRuntimeHotkeys(source) {
     if (replaceWhich) text = text.replace(/\bevent\.which\b/g, 'keyId');
     edit(region, body.getStart(region.file), body.end, '{' + prefix + text.slice(1));
   }
+  function addShortcutAppendPrefix(region, fn, prefix) {
+    if (!ts.isBlock(fn.body) || fn.parameters.length !== 0 || fn.asteriskToken || fn.modifiers?.length) {
+      throw new Error('anchor:hotkeys:append-body');
+    }
+    const returns = fn.body.statements.filter(ts.isReturnStatement);
+    if (returns.length) {
+      const returned = returns[0];
+      if (returns.length !== 1 || fn.body.statements.length !== 1 || !returned.expression
+        || !ts.isCallExpression(returned.expression) || returned.expression.questionDotToken
+        || returned.expression.expression.getText(region.file) !== 'lastroUiWindowAppend'
+        || returned.expression.arguments.length !== 4
+        || returned.expression.arguments[0]?.getText(region.file) !== 'this'
+        || returned.expression.arguments[1]?.getText(region.file) !== '_preferences$31') {
+        throw new Error('anchor:hotkeys:append-ui-state');
+      }
+      const [append, snapshot] = returned.expression.arguments.slice(2);
+      const zeroArgumentBlockArrow = node => ts.isArrowFunction(node) && node.parameters.length === 0
+        && !node.modifiers?.length && ts.isBlock(node.body);
+      if (!zeroArgumentBlockArrow(append) || !zeroArgumentBlockArrow(snapshot)
+        || snapshot.body.statements.map(node => node.getText(region.file)).join('\n')
+          !== '_preferences$31.x = parseInt(this._host.style.left, 10);\n_preferences$31.y = parseInt(this._host.style.top, 10);') {
+        throw new Error('anchor:hotkeys:append-ui-state');
+      }
+      edit(region, append.body.getStart(region.file) + 1, append.body.getStart(region.file) + 1, prefix);
+      return;
+    }
+    addFunctionPrefix(region, fn, prefix);
+  }
   addFunctionPrefix(option, assignment(option, 'ShortCutOption.onKeyDown'), capturePrefix, true);
   const captureStart = one(option, node => ts.isBinaryExpression(node) && node.left.getText(option.file) === 'ShortCutOption.isCapturing' &&
     node.right.kind === ts.SyntaxKind.TrueKeyword, 'recorder-cell');
@@ -203,7 +231,7 @@ export function patchRuntimeHotkeys(source) {
     addFunctionPrefix(option, fn, stopCapture);
   }
   addFunctionPrefix(option, assignment(option, 'ShortCutOption.onRemove'), '\n    cancelSettings();\n');
-  addFunctionPrefix(option, assignment(option, 'ShortCutOption.onAppend'), '\n    cancelSettings();\n');
+  addShortcutAppendPrefix(option, assignment(option, 'ShortCutOption.onAppend'), '\n    cancelSettings();\n');
 
   const chatKeys = assignment(chat, 'ChatBox.onKeyDown');
   addFunctionPrefix(chat, chatKeys, dispatchPrefix, true, true);

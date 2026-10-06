@@ -1,23 +1,30 @@
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { describe, expect, it, vi } from 'vitest';
-import { patchWebAudioPlayback } from '../scripts/patch-v2-runtime.mjs';
-import { patchRuntimeAudioTiming } from '../scripts/lastro-audio-timing.mjs';
+import { buildRuntimeAudioPrelude } from './helpers/runtime-patch-fixture';
+import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 
-const native = readFileSync('vendor/v2/Online.js', 'utf8');
-const original = patchWebAudioPlayback(native), patched = patchRuntimeAudioTiming(original);
-function region(source: string, name: string) {
-  const start = source.indexOf('//#region ' + name), end = source.indexOf('//#endregion', start);
-  if (start < 0 || end < start) throw new Error('Missing native audio region: ' + name);
-  return source.slice(start, end);
-}
-function installer(source: string) {
-  const start = source.indexOf('function installLastROWebAudio() {');
-  const marker = 'const LastROWebAudio = installLastROWebAudio();', end = source.indexOf(marker, start);
-  if (start < 0 || end < start) throw new Error('Missing actual Web Audio installer');
-  return source.slice(start, end + marker.length);
-}
+const vendor = readVendorSource();
+const preTimingAudio = JSON.parse(readFileSync('test/fixtures/runtime-consolidation/audio-pre-timing.json', 'utf8'))
+  .regions as Record<string, string>;
 
+const actualAudioPrelude = buildRuntimeAudioPrelude(vendor).join('\n');
+
+describe('permanent vendor audio ownership', () => {
+  it('has one unlock installation and a timed installer that evicts failed decodes', () => {
+    const vendor = readVendorSource();
+    const unlock = extractRuntimeNode(vendor, { kind: 'function', name: 'installLastROAudioUnlock' });
+    const installer = extractRuntimeNode(vendor, { kind: 'function', name: 'installLastROWebAudio' });
+    const unlockCalls = [...vendor.matchAll(/installLastROAudioUnlock\(\);/g)];
+
+    expect(unlockCalls).toHaveLength(1);
+    expect(unlock).toContain('pointerdown');
+    expect(unlock).toContain('registerContext');
+    expect(installer).toContain('timingFactory');
+    expect(installer).toContain('if (buffers.get(key) === promise) buffers.delete(key)');
+    expect(installer).toContain('timing.release(request)');
+  }, 30_000);
+});
 interface BufferValue { duration: number; }
 interface SoundManagerApi { play(filename: string, volume?: number): void; stop(filename?: string): void; }
 interface BgmApi { play(filename: string): void; stop(): void; setVolume(volume: number): void; cache: { currentTime: number }; }
@@ -35,12 +42,14 @@ function fixture(options: { old?: boolean; manualClient?: boolean; suspended?: b
   const clientJobs: Array<{ path: string; complete(): void }> = [];
   const decodes: Array<ReturnType<typeof deferred<BufferValue>>> = [];
   const sources: Source[] = [], gains: Array<{ gain: { value: number }; connect: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn> }> = [];
+  const contexts: AudioContextMock[] = [];
   class Source extends EventTarget {
     buffer: BufferValue | null = null;
     loop = false;
     connect = vi.fn(); disconnect = vi.fn(); start = vi.fn(); stop = vi.fn();
   }
   class AudioContextMock extends EventTarget {
+    constructor() { super(); contexts.push(this); }
     state = options.suspended ? 'suspended' : 'running';
     currentTime = 0; destination = {};
     resume = vi.fn(async () => this.changeState('running'));
@@ -49,7 +58,6 @@ function fixture(options: { old?: boolean; manualClient?: boolean; suspended?: b
     createGain = vi.fn(() => { const gain = { gain: { value: 1 }, connect: vi.fn(), disconnect: vi.fn() }; gains.push(gain); return gain; });
     changeState(state: string) { this.state = state; this.dispatchEvent(new Event('statechange')); }
   }
-  const contexts: AudioContextMock[] = [];
   const Client = { loadFile: vi.fn((path: string, callback: (url: string) => void) => {
     const job = { path, complete: () => callback('data:audio/' + path) }; clientJobs.push(job);
     if (!options.manualClient) job.complete();
@@ -60,7 +68,7 @@ function fixture(options: { old?: boolean; manualClient?: boolean; suspended?: b
   const renderer = { tick: wall };
   const session = { Playing: options.playing ?? false, Entity: { position: [0, 0] } };
   const context = vm.createContext({ document, Event, EventTarget, performance: { now: () => time }, Date: { now: () => wall },
-    AudioContext: AudioContextMock, LastROAudioRegisterContext: (audio: AudioContextMock) => { contexts.push(audio); return audio; },
+    AudioContext: AudioContextMock, LastROAudioRegisterContext: (audio: AudioContextMock) => audio,
     fetch: fetchAudio, Client, Audio_default: preferences,
     LastROEventDueTick: () => due,
     console: { warn: warnings },
@@ -68,9 +76,11 @@ function fixture(options: { old?: boolean; manualClient?: boolean; suspended?: b
     __esmMin: (fn: () => void) => fn,
     gl_matrix_default: { vec2: { dist: () => 0 } }, SessionStorage_default: session, Renderer: renderer,
   });
-  const source = options.old ? original : patched;
-  vm.runInContext(installer(source) + '\n' + region(source, 'src/Audio/SoundManager.js') + '\n'
-    + region(source, 'src/Audio/BGM.js') + '\ninit_SoundManager(); init_BGM();', context);
+  const prelude = options.old ? preTimingAudio.installer : actualAudioPrelude;
+  const soundManagerSource = options.old ? preTimingAudio['src/Audio/SoundManager.js'] : extractVendorRegion('src/Audio/SoundManager.js', vendor);
+  const bgmSource = options.old ? preTimingAudio['src/Audio/BGM.js'] : extractVendorRegion('src/Audio/BGM.js', vendor);
+  if (!prelude || !soundManagerSource || !bgmSource) throw new Error('Missing bounded or permanent audio test source');
+  vm.runInContext(prelude + '\n' + soundManagerSource + '\n' + bgmSource + '\ninit_SoundManager(); init_BGM();', context);
   const sound = context.SoundManager as SoundManagerApi, bgm = context.BGM as BgmApi;
   return { sound, bgm, document, contexts, decodes, clientJobs, Client, fetchAudio, preferences, sources, gains, warnings, renderer, session,
     advance: (delta: number) => { time += delta; wall += delta; }, setWall: (value: number) => { wall = value; },
@@ -93,6 +103,13 @@ describe('action sound timing through real patched SoundManager and Web Audio', 
     const f = fixture({ manualClient: true }); f.sound.play('skill.wav'); f.advance(501); f.clientJobs[0]!.complete(); await settle();
     expect(f.fetchAudio).not.toHaveBeenCalled(); expect(f.sources).toHaveLength(0);
     f.sound.play('skill.wav'); f.clientJobs[1]!.complete(); await f.decode(); expect(f.sources).toHaveLength(1);
+  });
+
+  it('enforces the 100 ms per-file request gap at its boundary', async () => {
+    const f = fixture(); f.sound.play('hit.wav'); await f.decode();
+    f.advance(99); f.sound.play('hit.wav'); await settle(); expect(f.Client.loadFile).toHaveBeenCalledOnce();
+    f.advance(1); f.sound.play('hit.wav'); await settle();
+    expect(f.Client.loadFile).toHaveBeenCalledTimes(2); expect(f.sources).toHaveLength(2);
   });
 
   it('drops late decoded sounds while retaining their decoded buffer for the next fresh action', async () => {
@@ -246,27 +263,5 @@ describe('BGM remains music rather than an expiring effect', () => {
   it('preserves generation protection when newer map music finishes decoding first', async () => {
     const f = fixture(); f.bgm.play('01.mp3'); await settle(); f.bgm.play('02.mp3'); await settle();
     await f.decode(1); await f.decode(0); expect(f.sources).toHaveLength(1); expect(f.sources[0]?.loop).toBe(true);
-  });
-});
-
-describe('actual runtime audio patch anchors', () => {
-  it('keeps Renderer, Events, effect scheduling and sound position formulas untouched', () => {
-    for (const name of ['src/Core/Events.js', 'src/Renderer/Renderer.js', 'src/Renderer/EffectManager.js']) {
-      expect(region(patched, name)).toBe(region(original, name));
-    }
-    expect(region(patched, 'src/Audio/SoundManager.js')).toContain('gl_matrix_default.vec2.dist(srcPosition, SessionStorage_default.Entity.position)');
-  });
-
-  it('requires the Web Audio patch first and rejects double installation', () => {
-    expect(() => patchRuntimeAudioTiming(native)).toThrow('anchor:audio-timing:web-audio');
-    expect(() => patchRuntimeAudioTiming(patched)).toThrow('anchor:audio-timing:installer-drift');
-  });
-
-  it.each([
-    ['const buffer = await decode("sound:" + filename, url);', 'installer-drift'],
-    ['Client.loadFile("data/wav/" + filename, (url) => {', 'sound-load'],
-    ['if (BGM.filename === filename) BGM.load(url);', 'bgm-load-callback'],
-  ])('rejects drift at %s', (anchor, error) => {
-    expect(() => patchRuntimeAudioTiming(original.replace(anchor, ''))).toThrow('anchor:audio-timing:' + error);
   });
 });

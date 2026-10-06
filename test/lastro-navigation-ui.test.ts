@@ -1,24 +1,21 @@
-import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getNavigationDockPosition, patchRuntimeNavigationUi } from '../scripts/lastro-navigation-ui.mjs';
 import { patchNavigationPendingTargets } from '../scripts/patch-v2-runtime.mjs';
+import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 
 const { JSDOM } = createRequire(import.meta.url)('jsdom') as { JSDOM: new(html: string, options: { url: string }) => { window: Window & typeof globalThis } };
 const { document, HTMLCanvasElement, MouseEvent } = new JSDOM('<!doctype html><body></body>', { url: 'http://127.0.0.1/' }).window;
 
-const vendor = readFileSync(new URL('../vendor/v2/Online.js', import.meta.url), 'utf8');
+const vendor = readVendorSource();
 function region(source: string, path: string) {
-  const start = source.indexOf(`//#region ${path}`), end = source.indexOf('//#endregion', start);
-  if (start < 0 || end < 0) throw new Error(`Missing ${path}`);
-  return source.slice(start, end + '//#endregion'.length);
+  return extractVendorRegion(path, source);
 }
 const navigationPath = 'src/UI/Components/Navigation/Navigation.js';
 const minimapPath = 'src/UI/Components/MiniMap/MiniMapCommon.js';
 const native = region(vendor, navigationPath) + '\n' + region(vendor, minimapPath);
-const patched = patchRuntimeNavigationUi(patchNavigationPendingTargets(native));
+const patched = patchNavigationPendingTargets(native);
 const file = ts.createSourceFile('Navigation.js', patched, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
 const methodNames = new Set(['init', 'onAppend', 'onRemove', 'show', 'hide', 'navigateTo', 'waitForMapData', 'clear', 'clearPath', 'findPath', 'renderCanvas']);
 const functions: string[] = [];
@@ -32,8 +29,17 @@ function extract(node: ts.Node) {
   ts.forEachChild(node, extract);
 }
 extract(file);
-const helpers = file.statements.filter(node => ts.isVariableStatement(node)
-  && node.declarationList.declarations.some(decl => ['getNavigationDockPosition', 'dockLastroNavigation'].includes(decl.name.getText(file)))).map(node => node.getText(file));
+const helpers = ['getNavigationDockPosition', 'dockLastroNavigation']
+  .map(name => `const ${extractRuntimeNode(vendor, { kind: 'assignment', name })};`);
+const navigationHelperSource = helpers.join('\n');
+const navigationHelpers = runInNewContext(`${navigationHelperSource}\n({ getNavigationDockPosition, dockLastroNavigation })`, {
+  document, window: document.defaultView,
+  getComputedStyle: (element: Element) => document.defaultView!.getComputedStyle(element),
+}) as {
+  getNavigationDockPosition: (minimap: { left: number; right: number; top: number }, navigation: { width: number; height: number }, viewport: { width: number; height: number }) => { left: number; top: number };
+  dockLastroNavigation: (...args: unknown[]) => unknown;
+};
+const { getNavigationDockPosition } = navigationHelpers;
 const htmlFile = ts.createSourceFile('Navigation.html.js', region(vendor, 'src/UI/Components/Navigation/Navigation.html?raw'), ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
 let html = '';
 function extractHtml(node: ts.Node) {
@@ -228,24 +234,11 @@ describe('actual MiniMapCommon click handler', () => {
   });
 });
 
-describe('navigation UI pinned anchors', () => {
-  it('skips fixtures without either optional component', () => {
-    expect(patchRuntimeNavigationUi('const tiny = 1;')).toBe('const tiny = 1;');
-  });
-  it.each([
-    native.replace('Navigation.navigateTo =', 'Navigation.changedNavigateTo ='),
-    native.replace('Navigation.show =', 'Navigation.changedShow ='),
-    native.replace('Navigation.hide =', 'Navigation.changedHide ='),
-    native.replace('Navigation.onRemove =', 'Navigation.changedOnRemove ='),
-    native.replace('MiniMap.init =', 'MiniMap.changedInit ='),
-    native.replace('_ctx = root.querySelector("canvas").getContext("2d");', '_ctx = null;'),
-    native + region(vendor, navigationPath),
-    patched,
-  ])('rejects missing, changed, duplicate or already patched native anchors', source => {
-    expect(() => patchRuntimeNavigationUi(source)).toThrow('anchor:navigation-ui');
-  });
-  it('preserves pending-target guard semantics in either pipeline order', () => {
-    expect(patchNavigationPendingTargets(patchRuntimeNavigationUi(native))).toContain('lastroNavigationWaitingTarget');
+describe('permanent navigation UI owners', () => {
+  it('keeps both actual docking helpers and pending-target guard semantics', () => {
+    expect(helpers).toHaveLength(2);
+    expect(navigationHelpers.getNavigationDockPosition).toBeTypeOf('function');
+    expect(navigationHelpers.dockLastroNavigation).toBeTypeOf('function');
     expect(patched).toContain('if (_finalTargetData !== lastroNavigationPendingTarget) return;');
   });
 });

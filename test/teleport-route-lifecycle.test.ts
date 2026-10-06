@@ -1,15 +1,19 @@
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { patchRuntimeToolsPanels, patchRuntimeWorldMap } from '../scripts/patch-v2-runtime.mjs';
-import { describeLastroMapLoadFailure } from '../scripts/lastro-map-load-diagnostic.mjs';
+import { patchRuntimeToolsPanels, patchRuntimeWorldMapProductActions } from '../scripts/patch-v2-runtime.mjs';
+import { runInNewContext } from 'node:vm';
+import { extractRuntimeNode } from './helpers/vendor-runtime';
 import { MemoryResourceCache } from '../src/resources/resource-cache';
 import { resolvePassiveResource } from '../src/resources/resource-resolver';
 import { mapBinaryFixture } from './map-binary-fixture';
 
 const { buildPrivateAirshipRequest } = await import(new URL('../vendor/v2/lastro-v1-migration.mjs', import.meta.url).href);
 const vendor = readFileSync('vendor/v2/Online.js', 'utf8');
-const toolsRuntime = patchRuntimeToolsPanels(vendor), worldRuntime = patchRuntimeWorldMap(vendor);
+const native = vendor;
+const describeLastroMapLoadFailure = runInNewContext(`(${extractRuntimeNode(native, { kind: 'function', name: 'describeLastroMapLoadFailure' })})`);
+const resolveLastroMapResourceName = runInNewContext(`(${extractRuntimeNode(native, { kind: 'function', name: 'resolveLastroMapResourceName' })})`);
+const toolsRuntime = patchRuntimeToolsPanels(vendor), worldRuntime = patchRuntimeWorldMapProductActions(vendor);
 const toolsStart = toolsRuntime.indexOf('const lastroSendRouteTeleport =');
 const toolsInstallation = toolsRuntime.slice(toolsStart, toolsRuntime.indexOf('(function installLastroToolsPanels', toolsStart));
 const worldStart = worldRuntime.indexOf('const lastroWorldMapPreflight =');
@@ -161,15 +165,15 @@ function fixture() {
   const network = { sendPacket: (packet: { mapname: string; type: number }) => packets.push(packet) };
   const packet = { CZ: { PRIVATE_AIRSHIP_REQUEST: class {} } }, configs = { get: () => 5 }, db = { mapalias: {} };
   const normalize = (map: string) => map.replace(/\.gat$/i, '').toLowerCase();
-  const world = new Function('Thread', 'DB', 'MapRenderer', 'Configs', 'PACKET', 'Network', 'buildPrivateAirshipRequest', 'normalizeLastROTeleportMap', 'UIManager', 'console', 'describeLastroMapLoadFailure', 'GUIComponent', `
-    let WorldMap;
+  const world = new Function('Thread', 'DB', 'MapRenderer', 'Configs', 'PACKET', 'Network', 'buildPrivateAirshipRequest', 'normalizeLastROTeleportMap', 'UIManager', 'console', 'describeLastroMapLoadFailure', 'resolveLastroMapResourceName', `
+    const WorldMap = {}; const lastroWorldMapActions = {};
     ${worldInstallation}
     return { api: lastroWorldMapTeleport, component: WorldMap };
-  `)(thread, db, state, configs, packet, network, buildPrivateAirshipRequest, normalize, uiManager, { warn() {} }, describeLastroMapLoadFailure, class {});
-  const route = new Function('Thread', 'MapRenderer', 'SessionStorage_default', 'PACKET', 'Network', 'Configs', 'Navigation_default', 'LastROTools', 'normalizeLastROTeleportMap', 'buildPrivateAirshipRequest', 'DB', 'console', 'WorldMap_default', `
+  `)(thread, db, state, configs, packet, network, buildPrivateAirshipRequest, normalize, uiManager, { warn() {} }, describeLastroMapLoadFailure, resolveLastroMapResourceName);
+  const route = new Function('Thread', 'MapRenderer', 'SessionStorage_default', 'PACKET', 'Network', 'Configs', 'Navigation_default', 'LastROTools', 'normalizeLastROTeleportMap', 'buildPrivateAirshipRequest', 'DB', 'console', 'WorldMap_default', 'resolveLastroMapResourceName', `
     ${toolsInstallation}
     return { api: lastroVerifiedRouteRequest, navigation: lastroRouteNavigation };
-  `)(thread, state, { Entity: actor }, packet, network, configs, navigation, tools, normalize, buildPrivateAirshipRequest, db, { warn() {} }, world.component);
+  `)(thread, state, { Entity: actor }, packet, network, configs, navigation, tools, normalize, buildPrivateAirshipRequest, db, { warn() {} }, world.component, resolveLastroMapResourceName);
   tools._lastroPanels.cancelRoute = () => route.api.cancel();
   const installActions = new Function('MapRenderer', 'SessionStorage_default', 'Navigation_default', 'LastROTools', 'normalizeLastROTeleportMap', 'showLastroTeleportNotice', 'lastroWorldMapTeleport', `return ${worldActions};`);
   const actions = installActions(state, { Entity: actor }, navigation, tools, normalize, vi.fn(), world.api);

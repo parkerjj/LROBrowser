@@ -3,8 +3,9 @@ import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
 import { BUNDLED_SKILL_NAMES, readSkillSource } from '../scripts/lastro-skill-data.mjs';
-import { patchLuaTableCompletion, patchRuntimeSkillLocalization } from '../scripts/patch-v2-runtime.mjs';
-import { createLastroUiMessages } from '../scripts/lastro-ui-messages.mjs';
+import { patchLuaTableCompletion } from '../scripts/patch-v2-runtime.mjs';
+import { createLastroUiMessages, patchRuntimeLocalization, patchRuntimeSkillLocalization } from '../scripts/lastro-display-localization.mjs';
+import { extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 
 const source = readFileSync('generated/runtime/Online.js', 'utf8');
 const ast = ts.createSourceFile('Online.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
@@ -117,4 +118,30 @@ describe('localization behavior', () => {
     expect(getMessage(4)).toBe('Base Job');
     expect(getMessage(99, '缺省中文')).toBe('缺省中文');
   });
+
+  it('keeps permanent BasicInfo and Mail literals intact when early localization runs', () => {
+    const vendor = readVendorSource();
+    const localized = patchRuntimeLocalization(vendor);
+    const basicInfoPath = 'src/UI/Components/BasicInfo/BasicInfoV1/BasicInfoV1.html?raw';
+    const basicInfo = extractVendorRegion(basicInfoPath, vendor);
+    const localizedBasicInfo = extractVendorRegion(basicInfoPath, localized);
+    const writeRodex = extractVendorRegion('src/UI/Components/Rodex/WriteRodex.js', vendor);
+    const localizedWriteRodex = extractVendorRegion('src/UI/Components/Rodex/WriteRodex.js', localized);
+
+    expect(basicInfo).toContain('lastro-basic-info-layout');
+    expect(basicInfo).toContain('data-text=\\"238\\"');
+    expect(basicInfo).toContain('Basic Information');
+    expect(localizedBasicInfo).toContain('lastro-basic-info-layout');
+    expect(localizedBasicInfo).toContain('data-text=\\"238\\"');
+    expect(localizedBasicInfo).toContain('基本信息');
+    expect(localizedBasicInfo).not.toContain('Basic Information');
+    expect(writeRodex).toContain('"Mail"');
+    expect(writeRodex).toContain('"邮件标题不能为空。"');
+    expect(writeRodex).toContain('"0 / 2000"');
+    expect(writeRodex).not.toContain('DB.getMessage(3575)');
+    expect(localizedWriteRodex).toContain('"Mail"');
+    expect(localizedWriteRodex).toContain('"邮件标题不能为空。"');
+    expect(localizedWriteRodex).toContain('"0 / 2000"');
+    expect(localizedWriteRodex).not.toContain('DB.getMessage(3575)');
+  }, 30_000);
 });

@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { patchRuntimeMovementInput } from '../scripts/lastro-movement-input.mjs';
-import { patchRuntimeVendingMovement } from '../scripts/lastro-vending-movement.mjs';
+import { extractRuntimeNode } from './helpers/vendor-runtime';
+import { readHistoricalRuntime } from './helpers/historical-runtime';
 
 const native = readFileSync('vendor/v2/Online.js', 'utf8');
 function region(source: string, path: string) {
@@ -19,7 +19,12 @@ const paths = [
   'src/Engine/MapEngine/Store.js',
 ];
 const focused = paths.map(path => region(native, path) + '\n//#endregion').join('\n');
-const patched = patchRuntimeVendingMovement(focused);
+const movementHelpers = ['lastroMovementUnavailable', 'lastroCancelMovement', 'lastroCheckMovementConnection']
+  .map(name => extractRuntimeNode(native, { region: 'src/Renderer/Entity/EntityWalk.js', kind: 'function', name })).join('\n');
+const vendingHelpers = ['lastroVendingShoppingActive', 'lastroSetVendingShopping', 'lastroInstallVendingRemoval', 'lastroCloseVendingShopping']
+  .map(name => extractRuntimeNode(native, { region: 'src/UI/Components/NpcStore/NpcStore.js', kind: 'function', name })).join('\n');
+const uiHelpers = ['installLastroStoreScroll', 'lastroBindNestedWindowState', 'lastroUiInputFrame', 'lastroUiLogicalPointer', 'lastroUiDragBounds']
+  .map(name => extractRuntimeNode(native, { kind: 'function', name })).join('\n');
 function declarations(source: string) {
   const file = ts.createSourceFile('Native.js', source, ts.ScriptTarget.Latest, true), functions = new Map<string, string>(), assignments = new Map<string, string>();
   let gui = '', html = '';
@@ -36,7 +41,8 @@ function declarations(source: string) {
 }
 const common = declarations(region(native, 'src/UI/GUIComponent.js') + '\n' + region(native, 'src/UI/Components/NpcStore/NpcStore.html?raw'));
 const packetSources = declarations(region(native, 'src/Network/PacketStructure.js'));
-const sources = { original: declarations(focused), fixed: declarations(patched) };
+const sources = { actual: declarations(focused) };
+const upstreamSendPacket = readHistoricalRuntime('vending-send-upstream').sendPacket!;
 afterEach(() => { document.body.replaceChildren(); });
 
 interface Component {
@@ -47,7 +53,7 @@ interface Component {
   setClosePacketSent(value: boolean): void; setList(list: unknown[]): void;
 }
 function fixture(fixed = true) {
-  const parts = fixed ? sources.fixed : sources.original;
+  const parts = sources.actual;
   const session = { FreezeUI: false, Entity: { position: [10, 20], __navigationMovePending: undefined as unknown }, moveAction: {} as unknown, autoFollow: true };
   const mouse = { intersect: true, screen: {}, world: { x: 15, y: 25 } };
   const send = vi.fn(), cancelInput = vi.fn(), clearRoute = vi.fn(() => { session.Entity.__navigationMovePending = null; }), cancelRoute = vi.fn(), cancelQuest = vi.fn(), stopMobile = vi.fn();
@@ -70,6 +76,7 @@ function fixture(fixed = true) {
     EntityManager: { get: () => null }, packetDump: false, _socket: { isZone: false }, send,
     __esmMin: (init: () => void) => init, init_CodepageManager: () => {}, recordBuild: build,
   });
+  vm.runInContext(movementHelpers + '\n' + uiHelpers, context);
   vm.runInContext(region(native, 'src/Utils/BinaryWriter.js') + '\ninit_BinaryWriter();\n' + [
     'PACKET.CZ.REQUEST_MOVE', 'PACKET.CZ.REQUEST_MOVE.prototype.build', 'PACKET.CZ.REQUEST_MOVE2', 'PACKET.CZ.REQUEST_MOVE2.prototype.build',
   ].map(name => packetSources.assignments.get(name)).join('\n') + `
@@ -87,11 +94,10 @@ function fixture(fixed = true) {
   (context.UIManager as { components: Record<string, Component> }).components.NpcStore = component;
   const assignments = ['NpcStore.Type', 'initialPreferences', '_preferences$2', 'NpcStore.mouseMode', 'NpcStore.onAppend', 'NpcStore.setType', 'NpcStore.onRemove', 'NpcStore.onKeyDown', 'NpcStore.setClosePacketSent'];
   const functions = ['getCurrentPref', '_hideAll', '_showAll', 'resize', 'onVendingStoreList', 'onBuyingStoreList', 'sendPacket'];
-  const helpers = ['lastroVendingShoppingActive', 'lastroSetVendingShopping', 'lastroInstallVendingRemoval', 'lastroCloseVendingShopping'];
   vm.runInContext(`var _input=[], _output=[], _type=0, _closePacketSent=false, NpcStore_default=NpcStore;
-    ${functions.map(name => parts.functions.get(name)).join('\n')}
+    ${functions.map(name => !fixed && name === 'sendPacket' ? upstreamSendPacket : parts.functions.get(name)).join('\n')}
     ${assignments.map(name => parts.assignments.get(name)).join('\n')}
-    ${fixed ? helpers.map(name => parts.functions.get(name)).join('\n') + '\nlastroInstallVendingRemoval(NpcStore);' : ''}
+    ${vendingHelpers}\nlastroInstallVendingRemoval(NpcStore);
     Network.sendPacket=sendPacket;
   `, context);
   const open = (type = component.Type.VENDING_STORE) => {
@@ -102,13 +108,17 @@ function fixture(fixed = true) {
   };
   const sendPacket = (kind: keyof typeof packets = 'REQUEST_MOVE2') => (context.Network as { sendPacket(packet: unknown): boolean | undefined }).sendPacket(packet(kind));
   const entry = (path: string, name: string, args = '') => {
-    const fn = declarations(region(fixed ? patched : focused, path)).functions.get(name)!;
+    const fn = declarations(region(focused, path)).functions.get(name)!;
     vm.runInContext(fn + '\n' + name + '(' + args + ');', context);
   };
   const transition = (name: 'onMapChange' | 'cleanGameUI') => {
     const code = parts.functions.get(name)!, file = ts.createSourceFile('Entry.js', code, ts.ScriptTarget.Latest, true);
     const fn = file.statements[0] as ts.FunctionDeclaration;
-    vm.runInContext(fn.body!.statements[0]!.getText(file), context);
+    const closeStatements = fn.body!.statements.filter(statement => ts.isExpressionStatement(statement)
+      && ts.isCallExpression(statement.expression) && statement.expression.expression.getText(file) === 'lastroCloseVendingShopping');
+    if (closeStatements.length !== 1) throw new Error('Missing unique native vending transition');
+    const closeIndex = fn.body!.statements.indexOf(closeStatements[0]!);
+    vm.runInContext(fn.body!.statements.slice(0, closeIndex + 1).map(statement => statement.getText(file)).join('\n'), context);
   };
   return { context, component, session, mouse, send, build, close, open, sendPacket, entry, transition, cancelInput, clearRoute, cancelRoute, cancelQuest, stopMobile, eventCancel };
 }
@@ -118,6 +128,12 @@ describe('native player-store shopping movement', () => {
     const f = fixture(false); f.open(); expect(f.session.FreezeUI).toBe(true);
     f.session.FreezeUI = false; f.mouse.intersect = true;
     f.sendPacket(); expect(f.build).toHaveBeenCalledOnce(); expect(f.send).toHaveBeenCalledOnce();
+  });
+
+  it('retains the final movement-send guard after a nested frozen window releases shared flags', () => {
+    const f = fixture(); f.open(); expect(f.session.FreezeUI).toBe(true);
+    f.session.FreezeUI = false; f.mouse.intersect = true;
+    expect(f.sendPacket()).toBe(false); expect(f.build).not.toHaveBeenCalled(); expect(f.send).not.toHaveBeenCalled();
   });
   it.each([2, 3])('locks real player store type %i, cancels queued movement and preserves server coordinates', type => {
     const f = fixture(); f.open(type);
@@ -149,7 +165,7 @@ describe('native player-store shopping movement', () => {
     expect(f.build).toHaveBeenCalledTimes(2); expect(f.send).toHaveBeenCalledTimes(2);
   });
   it.each(['REQUEST_MOVE', 'REQUEST_MOVE2'] as const)('keeps native %s BinaryWriter bytes unchanged after closing shopping', kind => {
-    const baseline = fixture(false); baseline.sendPacket(kind);
+    const baseline = fixture(); baseline.sendPacket(kind);
     const f = fixture(); f.open(); f.sendPacket(kind); expect(f.send).not.toHaveBeenCalled();
     f.component.remove(); f.sendPacket(kind);
     const expected = Array.from(new Uint8Array(baseline.send.mock.calls[0]![0] as ArrayBuffer));
@@ -184,15 +200,5 @@ describe('native player-store shopping movement', () => {
     const f = fixture(); f.component.append(); f.component.setType(0); f.sendPacket();
     expect(f.cancelInput).not.toHaveBeenCalled(); expect(f.send).toHaveBeenCalledOnce();
     f.component.remove(); f.component.setType(2); f.sendPacket(); expect(f.send).toHaveBeenCalledTimes(2);
-  });
-  it('preserves merchant configuration/own inventory and authoritative entity movement', () => {
-    for (const path of ['src/UI/Components/Vending/Vending.js', 'src/UI/Components/VendingShop/VendingShop.js', 'src/Renderer/Entity/EntityWalk.js', 'src/Engine/MapEngine/Entity.js'])
-      expect(patchRuntimeVendingMovement(region(native, path) + '\n//#endregion')).toBe(region(native, path) + '\n//#endregion');
-  });
-  it('applies after the existing movement input patch and rejects patch drift or duplicate installation', () => {
-    expect(() => patchRuntimeVendingMovement(patchRuntimeMovementInput(focused))).not.toThrow();
-    expect(() => patchRuntimeVendingMovement(patched)).toThrow('anchor:vending-movement:already-installed');
-    expect(() => patchRuntimeVendingMovement(focused.replace('NpcStore.mouseMode = GUIComponent.MouseMode.FREEZE;', 'NpcStore.mouseMode = 1;'))).toThrow('anchor:vending-movement:store-lifecycle');
-    expect(() => patchRuntimeVendingMovement(focused.replace('function move$1(', 'function driftMove('))).toThrow('anchor:vending-movement:');
   });
 });

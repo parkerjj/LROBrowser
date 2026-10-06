@@ -2,7 +2,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import console from 'node:console';
 import ts from 'typescript';
-import { patchRuntimeUiLayout } from './lastro-ui-layout.mjs';
 import { cacheNativeUiAssets, NATIVE_BMP_PREVIEW_SOURCE } from './preview-native-ui-assets.mjs';
 
 const runtime = await readFile('generated/runtime/Online.js', 'utf8');
@@ -36,6 +35,13 @@ const windows = [
   { name: 'GraphicsOption', label: '图像设置 · 基本', path: 'GraphicsOption/GraphicsOption', width: 460, height: 300, natural: true },
   { name: 'GraphicsOptionAdvanced', label: '图像设置 · 高级', path: 'GraphicsOption/GraphicsOption', width: 520, height: 620, natural: true },
 ];
+const scopedLayoutPaths = new Set([
+  'CashShop/CashShop',
+  'ChatRoomCreate/ChatRoomCreate',
+  'CartItems/CartItems',
+  'Storage/StorageV3/Storage',
+  'SkillList/SkillListV2/SkillListV2',
+]);
 function getString(text, path, extension) {
   const region = new RegExp('//#region src/UI/Components/' + path + '\\.' + extension + '\\?raw\\r?\\n[\\s\\S]*?//#endregion').exec(text)?.[0];
   if (!region) throw new Error('Missing native region: ' + path + '.' + extension);
@@ -46,13 +52,22 @@ function getString(text, path, extension) {
   if (result == null) throw new Error('Missing native literal');
   return result;
 }
-const patched = patchRuntimeUiLayout(runtime);
 const assets = new Set(['item/mg_firebolt.bmp', 'item/al_heal.bmp', 'item/wz_jupitel.bmp', 'item/wz_earthspike.bmp', 'item/wz_meteor.bmp', 'item/wz_frostnova.bmp', 'item/mg_firewall.bmp', 'item/wz_stormgust.bmp', 'item/wz_heavendrive.bmp', 'item/hw_magicpower.bmp', 'basic_interface/arw_left.bmp', 'basic_interface/arw_right.bmp']);
 for (const window of windows) {
   window.html = getString(runtime, window.path, 'html');
-  // Keep a before/after comparison after prepare has integrated the same fix.
-  window.css = getString(runtime, window.path, 'css').split('\n/* LASTRO scoped UI layout: ')[0];
-  window.fixedCss = getString(patched, window.path, 'css');
+  const css = getString(runtime, window.path, 'css');
+  const markers = [...css.matchAll(/\/\* LASTRO scoped UI layout: ([^*]+) \*\//g)];
+  if (scopedLayoutPaths.has(window.path)) {
+    if (markers.length !== 1 || markers[0]?.[1] !== window.path) throw new Error('Invalid scoped layout marker: ' + window.path);
+    const markerStart = css.indexOf('\n/* LASTRO scoped UI layout: ' + window.path + ' */');
+    if (markerStart < 0) throw new Error('Invalid scoped layout marker: ' + window.path);
+    // Keep a before/after comparison while using permanent CSS from generated runtime.
+    window.css = css.slice(0, markerStart);
+  } else {
+    if (markers.length) throw new Error('Unexpected scoped layout marker: ' + window.path);
+    window.css = css;
+  }
+  window.fixedCss = css;
   for (const match of window.html.matchAll(/(?:data-(?:background|hover|down|active)|bg|hover|down|src)="([^";]+\.bmp)"/g)) assets.add(match[1]);
   for (const match of window.html.matchAll(/data-preload="([^"]+)"/g)) for (const asset of match[1].split(';')) assets.add(asset);
 }

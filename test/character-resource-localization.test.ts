@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
-import { patchRuntimeJobLocalization } from '../scripts/patch-v2-runtime.mjs';
+import { patchRuntimeJobLocalization } from '../scripts/lastro-display-localization.mjs';
 import { patchRuntimeEquipmentCatalog } from '../scripts/lastro-equipment-view.mjs';
 
 const original = readFileSync('vendor/v2/Online.js', 'utf8');
@@ -15,6 +15,11 @@ function nativeRegion(source: string, path: string) {
   const start = source.indexOf('//#region ' + path), end = source.indexOf('//#endregion', start);
   if (start < 0 || end < start) throw new Error('Missing native region ' + path);
   return source.slice(start, end);
+}
+function appendUiCode(source: string, path: string, code: string) {
+  const start = source.indexOf('//#region ' + path), end = source.indexOf('//#endregion', start);
+  if (start < 0 || end < start) throw new Error('Missing UI region ' + path);
+  return source.slice(0, end) + code + source.slice(end);
 }
 function region(source: string, name: string) {
   const start = source.indexOf('//#region src/DB/Jobs/' + name + '.js');
@@ -136,6 +141,18 @@ describe('character resource names survive Chinese UI localization', () => {
     expect(display(1002)).toBe('PORING'); expect(monsters[0]).toBe('Novice');
     expect(packaged.match(/lastroJobDisplayName\(info\.job\)/g)).toHaveLength(2);
   });
+  it('localization sees permanent UI literals without translating resource basenames', () => {
+    const localized = patchRuntimeJobLocalization(original);
+    expect(localized).toContain('lastroJobDisplayName(job)');
+    expect(localized).toContain('lastroJobDisplayName(member.Job)');
+    for (const path of [
+      'src/DB/Jobs/JobNameTable.js',
+      'src/DB/Jobs/PalNameTable.js',
+      'src/DB/Jobs/WeaponJobTable.js',
+    ]) {
+      expect(nativeRegion(localized, path), path).toBe(nativeRegion(original, path));
+    }
+  });
   it.each([[4010, '超魔导师'], [4023, '宝宝初心者'], [4061, '咒术师']] as const)('resolves exact names and explicit job aliases for %i even after an English monster table reload', (job, label) => {
     const { display, monsters } = displayFixture(), resourceName = monsters[job];
     expect(display(job)).toBe(label);
@@ -158,4 +175,53 @@ describe('character resource names survive Chinese UI localization', () => {
   it('fails visibly if upstream job display sites change', () => {
     expect(() => patchRuntimeJobLocalization(original.replace('MonsterTable_default[info.job]', 'changedJobDisplay(info.job)'))).toThrow('anchor:job-display-lookups');
   });
+  it('rejects a duplicate display owner and any unowned MonsterTable lookup', () => {
+    const partyFriends = 'src/UI/Components/PartyFriends/PartyFriendsCommon.js';
+    const duplicateOwner = appendUiCode(original, partyFriends,
+      '\nComponent.renderPartyMember = function renderPartyMember() {};\n');
+    expect(() => patchRuntimeJobLocalization(duplicateOwner)).toThrow('anchor:job-display-lookups');
+    const unknownLookup = appendUiCode(original, partyFriends, '\nconst unreviewedJob = MonsterTable_default[17];\n');
+    expect(() => patchRuntimeJobLocalization(unknownLookup)).toThrow('anchor:job-display-lookups');
+    const captchaReceiverChanged = original.replace('_aidInformation.push({', 'other.push({');
+    expect(captchaReceiverChanged).not.toBe(original);
+    expect(() => patchRuntimeJobLocalization(captchaReceiverChanged)).toThrow('anchor:job-display-lookups');
+    const captchaContainerChanged = original.replace('_aidInformation.push({', 'other._aidInformation.push({');
+    expect(captchaContainerChanged).not.toBe(original);
+    expect(() => patchRuntimeJobLocalization(captchaContainerChanged)).toThrow('anchor:job-display-lookups');
+  });
+  it('preserves only the exact WorldMap portrait resource guard', () => {
+    const worldMap = 'src/UI/Components/WorldMap/WorldMap.js';
+    const source = nativeRegion(original, worldMap);
+    const file = ts.createSourceFile('WorldMap.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+    const calls: ts.CallExpression[] = [];
+    function visit(node: ts.Node) {
+      if (ts.isCallExpression(node) && ts.isParenthesizedExpression(node.expression)
+          && ts.isFunctionExpression(node.expression.expression) && node.expression.expression.name?.text === 'createMonsterPortraitLoader') calls.push(node);
+      ts.forEachChild(node, visit);
+    }
+    visit(file);
+    expect(calls).toHaveLength(1);
+    const call = calls[0]!, guard = call.getText(file);
+    const output = patchRuntimeJobLocalization(original);
+    expect(nativeRegion(output, worldMap)).toContain(guard);
+    const localized = ts.createSourceFile('localized.js', output, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+    let displayCalls = 0;
+    function countDisplay(node: ts.Node) {
+      if (ts.isCallExpression(node) && node.expression.getText(localized) === 'lastroJobDisplayName') displayCalls++;
+      ts.forEachChild(node, countDisplay);
+    }
+    countDisplay(localized);
+    expect(displayCalls).toBe(9);
+    const condition = 'MonsterTable_default[id] ? DB.getBodyPath(id, 0) : null';
+    for (const changed of [
+      guard.replace(condition, 'null'),
+      guard.replace('MonsterTable_default[id]', 'MonsterTable_default[id + 1]'),
+      guard.replace('function createMonsterPortraitLoader', 'function renamedPortraitFactory'),
+      guard.replace('DB.getBodyPath(id, 0)', 'DB.getBodyPath(id, 1)'),
+    ]) {
+      expect(changed).not.toBe(guard);
+      expect(() => patchRuntimeJobLocalization(original.replace(guard, changed))).toThrow('anchor:job-display-lookups');
+    }
+    expect(() => patchRuntimeJobLocalization(appendUiCode(original, worldMap, '\n' + guard + ';\n'))).toThrow('anchor:job-display-lookups');
+  }, 30_000);
 });

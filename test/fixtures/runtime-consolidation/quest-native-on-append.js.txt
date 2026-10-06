@@ -1,0 +1,46 @@
+function onAppend() {
+    if (renewLayout) {
+      this._host.style.left = `${Math.min(Math.max(0, _preferences.x), Renderer.width - 381)}px`;
+      this._host.style.top = `${Math.min(Math.max(0, _preferences.y), Renderer.height - 466)}px`;
+      const root = Quest.getRoot();
+      const checkbox_background = _preferences.showwindow
+        ? "checkbox_on"
+        : "checkbox_off";
+      Client.loadFile(
+        `${DB.INTERFACE_PATH}renew_questui/${checkbox_background}.bmp`,
+        (data) => {
+          const el = root.querySelector(".toggle-quest-image");
+          if (el) el.style.backgroundImage = `url(${data})`;
+        },
+      );
+      Client.loadFile(
+        `${DB.INTERFACE_PATH}renew_questui/bg_quest1.bmp`,
+        (data) => {
+          const el = root.querySelector(".titlebar");
+          if (el) el.style.backgroundImage = `url(${data})`;
+        },
+      );
+      if (!_preferences.show) this.ui.hide();
+      // Quest packets can arrive while the component is prepared but detached.
+      // Rebuild the visible list after the host is appended so those packets are
+      // reflected when the user opens the full quest window.
+      if (Object.keys(_questList).length > 0) Quest.setQuestList(_questList);
+      questWindow.append();
+    } else {
+      _index = -1;
+      this._host.style.left = `${Math.min(Math.max(0, _preferences.x), Renderer.width - 350)}px`;
+      this._host.style.top = `${Math.min(Math.max(0, _preferences.y), Renderer.height - 250)}px`;
+      const root = Quest.getRoot();
+      Client.loadFile(
+        `${DB.INTERFACE_PATH}basic_interface/tab_que_01.bmp`,
+        (data) => {
+          const el = root.querySelector(".quest-menu");
+          if (el) el.style.backgroundImage = `url(${data})`;
+        },
+      );
+      root.querySelector("#active-quest-list").style.display = "block";
+      root.querySelector("#inactive-quest-list").style.display = "none";
+      root.querySelector("#all-quest-list").style.display = "none";
+      if (!_preferences.show) this.ui.hide();
+    }
+  }

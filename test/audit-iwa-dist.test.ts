@@ -53,6 +53,33 @@ describe('IWA distribution audit', () => {
     } finally { await rm(root, { recursive: true, force: true }); }
   });
 
+  it('accepts the official WSS relay while preserving the passive resource origins', async () => {
+    const root = await fixture();
+    try {
+      await runtime(root, 'new WebSocket("wss://port.lastro.cn/45.248.10.247:26569");');
+      await expect(auditDist(root, path.join(root, 'report.json'))).resolves.toBeDefined();
+      await runtime(root, 'fetch("https://port.lastro.cn/data.bin");');
+      await expect(auditDist(root, path.join(root, 'report.json'))).rejects.toThrow('unapproved remote origins');
+    } finally { await rm(root, { recursive: true, force: true }); }
+  });
+
+  it('can audit a distribution again when its report contains the WSS CSP directive', async () => {
+    const root = await fixture();
+    try {
+      const reportPath = path.join(root, 'report.json');
+      await auditDist(root, reportPath);
+      await expect(auditDist(root, reportPath)).resolves.toBeDefined();
+    } finally { await rm(root, { recursive: true, force: true }); }
+  });
+
+  it.each(['ws://port.lastro.cn/', 'wss://evil.invalid/', 'wss://port.lastro.cn:26569/'])('rejects an unapproved socket origin %s', async url => {
+    const root = await fixture();
+    try {
+      await runtime(root, `new WebSocket(${JSON.stringify(url)});`);
+      await expect(auditDist(root, path.join(root, 'report.json'))).rejects.toThrow('unapproved remote origins');
+    } finally { await rm(root, { recursive: true, force: true }); }
+  });
+
   it('rejects protocol handlers that cannot receive the launched URL', async () => {
     const root = await fixture();
     try {

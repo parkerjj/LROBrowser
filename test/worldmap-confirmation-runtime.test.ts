@@ -5,31 +5,16 @@ import { pathToFileURL } from 'node:url';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { describeLastroMapLoadFailure } from '../scripts/lastro-map-load-diagnostic.mjs';
-import { createLastroWorldMapTeleport } from '../scripts/lastro-worldmap-teleport.mjs';
-import { createLastroTeleportPreflight } from '../scripts/lastro-teleport-preflight.mjs';
-import { resolveLastroMapResourceName } from '../scripts/lastro-map-resource-name.mjs';
-import { createWorldMapIndex, installLastroWorldMap, WORLD_MAP_HTML, WORLD_MAP_CSS } from '../scripts/lastro-worldmap.mjs';
-import worldMapLayout from '../scripts/lastro-worldmap-layout.json';
+import { extractRuntimeNode } from './helpers/vendor-runtime';
 import { setLastROInnerHTML } from '../src/runtime/lastro-trusted-dom.mjs';
 import { mapBinaryFixture } from './map-binary-fixture';
 
 const native = readFileSync('vendor/v2/Online.js', 'utf8');
-// Extract the actual build-time patch declaration without loading unrelated
-// skill-data readers into a browser URL environment.
-const patcher = readFileSync('scripts/patch-v2-runtime.mjs', 'utf8');
-const declaration = (name: string) => nodeText(patcher, node => ts.isFunctionDeclaration(node) && node.name?.text === name).replace(/^export\s+/, '');
-const portrait = nodeText(readFileSync('scripts/lastro-monster-portrait.mjs', 'utf8'), node => ts.isFunctionDeclaration(node) && node.name?.text === 'createMonsterPortraitLoader');
-const createMonsterPortraitLoader = vm.runInNewContext(`(${portrait.replace(/^export\s+/, '')})`);
-const resourceLoader = vm.runInNewContext(`(${declaration('teleportResourceLoaderCode')})`, { resolveLastroMapResourceName });
-const patchRuntimeWorldMap = vm.runInNewContext(`(${declaration('patchRuntimeWorldMap')})`, {
-  createLastroWorldMapTeleport, createLastroTeleportPreflight, createWorldMapIndex, installLastroWorldMap,
-  WORLD_MAP_HTML, WORLD_MAP_CSS, createMonsterPortraitLoader, worldMapLayout,
-  teleportResourceLoaderCode: resourceLoader, fail: (code: string) => { throw new Error(code); },
-}) as (source: string) => string;
-const runtime = patchRuntimeWorldMap(native);
+const describeLastroMapLoadFailure = vm.runInNewContext(`(${extractRuntimeNode(native, { kind: 'function', name: 'describeLastroMapLoadFailure' })})`);
+const resolveLastroMapResourceName = vm.runInNewContext(`(${extractRuntimeNode(native, { kind: 'function', name: 'resolveLastroMapResourceName' })})`);
+const runtime = readFileSync('generated/runtime/Online.js', 'utf8');
 const begin = runtime.indexOf('const lastroWorldMapPreflight =');
-const installation = runtime.slice(begin, runtime.indexOf('WorldMap = new GUIComponent', begin));
+const installation = runtime.slice(begin, runtime.indexOf('WorldMap._lastroTeleport =', begin));
 if (begin < 0 || !installation) throw new Error('Missing world map confirmation integration');
 const { buildPrivateAirshipRequest } = await import(pathToFileURL(resolve('vendor/v2/lastro-v1-migration.mjs')).href);
 
@@ -102,7 +87,7 @@ function fixture() {
     ui.NativeUI.showPromptBox(message, yes, no, () => { events.push('yes'); onYes(); }, () => { events.push('no'); onNo(); }));
   const popup = vi.fn(), state = { currentMap: 'izlude.gat', loading: false };
   let profile = 5;
-  const api = new Function('Thread', 'DB', 'MapRenderer', 'Configs', 'PACKET', 'Network', 'buildPrivateAirshipRequest', 'normalizeLastROTeleportMap', 'UIManager', 'console', 'describeLastroMapLoadFailure', `
+  const api = new Function('Thread', 'DB', 'MapRenderer', 'Configs', 'PACKET', 'Network', 'buildPrivateAirshipRequest', 'normalizeLastROTeleportMap', 'UIManager', 'console', 'describeLastroMapLoadFailure', 'resolveLastroMapResourceName', `
     ${installation}
     return lastroWorldMapTeleport;
   `)({ send: (type: string, input: { filename: string }, callback: (bytes: ArrayBuffer | null, error?: string) => void) => {
@@ -110,7 +95,7 @@ function fixture() {
     queueMicrotask(() => callback(files[input.filename] ?? null, files[input.filename] ? undefined : 'http-404'));
   } }, { mapalias: {} }, state, { get: () => profile }, { CZ: { PRIVATE_AIRSHIP_REQUEST: class {} } },
   { sendPacket: (packet: unknown) => packets.push(packet) }, buildPrivateAirshipRequest, (map: string) => map.replace(/\.gat$/i, ''),
-  { showErrorBox: popup, showPromptBox: showPrompt }, { warn: () => {} }, describeLastroMapLoadFailure) as TeleportApi;
+  { showErrorBox: popup, showPromptBox: showPrompt }, { warn: () => {} }, describeLastroMapLoadFailure, resolveLastroMapResourceName) as TeleportApi;
   const button = (name: 'ok' | 'cancel', index = prompts.length - 1) => {
     const node = prompts[index]?._shadow.querySelector<HTMLButtonElement>(`[data-background="btn_${name}.bmp"]`);
     if (!node) throw new Error('Missing native confirmation button'); return node;

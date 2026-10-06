@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { describeLastroMapLoadFailure } from '../scripts/lastro-map-load-diagnostic.mjs';
-import { patchMapLoadFailureRecovery } from '../scripts/patch-v2-runtime.mjs';
+import { extractRuntimeNode } from './helpers/vendor-runtime';
 
 const source = readFileSync('vendor/v2/Online.js', 'utf8');
-const runtime = patchMapLoadFailureRecovery(source);
+const runtime = source;
+const diagnostic = extractRuntimeNode(source, { kind: 'function', name: 'describeLastroMapLoadFailure' });
 const file = ts.createSourceFile('Online.js', runtime, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
 let callback = '';
 function visit(node: ts.Node) {
@@ -28,7 +28,7 @@ function fixture() {
     const registerPostProcessModules = ()=>{}, JoystickUI_default = {onRestore:()=>{}};
     const Background = {remove: callback=>callback()};
     let MapRenderer;
-    ${describeLastroMapLoadFailure.toString()}
+    ${diagnostic}
     ${callback}
     return (state,success,error)=>{MapRenderer=state;return onMapComplete.call(state,success,error)};
   `)({ getMap: () => null }, { _lastroPanels: { cancelRoute: cancel } }, { close }, { error }, { showErrorBox: popup }, mouse, { play: bgm });
@@ -82,12 +82,11 @@ describe('map load failure recovery', () => {
     expect(f.mouse.intersect).toBe(true);
   });
 
-  it.each(['', 'function onMapComplete(success,error){}', 'function onMapComplete(success,error){if(!success){return;}}',
-    'function onMapComplete(success,error){if(!success){UIManager.showErrorBox(error)}}function onMapComplete(success,error){}'])('rejects changed or missing anchors', input => {
-    expect(() => patchMapLoadFailureRecovery(input)).toThrow('anchor:map-load-failure');
-  });
-
-  it('rejects applying recovery twice', () => {
-    expect(() => patchMapLoadFailureRecovery(runtime)).toThrow('anchor:map-load-failure');
-  });
+  it('requires one actual permanent failure callback and diagnostic helper', () => {
+    for (const name of ['onMapComplete', 'describeLastroMapLoadFailure']) {
+      expect(() => extractRuntimeNode('', { kind: 'function', name })).toThrow('Expected exactly one');
+      const node = extractRuntimeNode(source, { kind: 'function', name });
+      expect(() => extractRuntimeNode(source + '\n' + node, { kind: 'function', name })).toThrow('found 2');
+    }
+  }, 30_000);
 });

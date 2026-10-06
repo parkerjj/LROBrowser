@@ -1,14 +1,11 @@
-import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
-import { patchRuntimeDialogTypography } from '../scripts/lastro-dialog-typography.mjs';
+import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 
-const vendor = readFileSync(new URL('../vendor/v2/Online.js', import.meta.url), 'utf8');
-const start = vendor.indexOf('//#region src/Renderer/Entity/EntityDialog.js');
-const end = vendor.indexOf('//#endregion', start) + '//#endregion'.length;
-const native = vendor.slice(start, end);
-const patched = patchRuntimeDialogTypography(native);
+const vendor = readVendorSource();
+const dialogRegion = 'src/Renderer/Entity/EntityDialog.js';
+const native = extractVendorRegion(dialogRegion, vendor);
+const patched = extractRuntimeNode(vendor, { region: dialogRegion, kind: 'class', name: 'Dialog' });
 
 interface Dialog {
   text: string;
@@ -20,13 +17,7 @@ interface Dialog {
 }
 
 function fixture(dpr = 1) {
-  const file = ts.createSourceFile('EntityDialog.js', patched, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
-  let classText = '';
-  function visit(node: ts.Node) {
-    if (ts.isClassExpression(node) && ts.isBinaryExpression(node.parent) && node.parent.left.getText(file) === 'Dialog') classText = node.getText(file);
-    ts.forEachChild(node, visit);
-  }
-  visit(file);
+  const classText = patched;
   const fontAtMeasurement: string[] = [];
   const ctx = {
     font: '10px sans-serif',
@@ -73,6 +64,11 @@ function fixture(dpr = 1) {
 }
 
 describe('native entity chat bubble typography', () => {
+  it('uses the permanently migrated Dialog class from its unique vendor owner', () => {
+    expect(native).toContain('const dialogDpr = window.devicePixelRatio || 1;');
+    expect(patched).toContain('ctx.setTransform(dialogDpr, 0, 0, dialogDpr, 0, 0);');
+  });
+
   it.each([1, 1.25, 1.5, 2])('keeps CSS size and position while rendering at DPR %s', dpr => {
     const f = fixture(dpr);
     f.dialog.set('你好', '#94bdf7');
@@ -148,21 +144,4 @@ describe('native entity chat bubble typography', () => {
     expect(f.dialog.display).toBe(false);
   });
 
-  it('changes only the entity dialog renderer, leaving numeric and name canvas fonts intact', () => {
-    const before = 'const numericCanvasFont = "12px Arial";\n';
-    const after = '\nconst nameCanvasFont = "bold 24px Arial";';
-    expect(patchRuntimeDialogTypography(before + native + after)).toBe(before + patched + after);
-    expect(patchRuntimeDialogTypography(before + after)).toBe(before + after);
-  });
-
-  it.each([
-    native.replace('ctx.font = "12px Arial";', 'ctx.font = "13px Arial";'),
-    native.replace('ctx.canvas.width = 14 + width;', 'ctx.canvas.width = 20 + width;'),
-    native.replace('((_pos$2[1] - canvas.height - 2) | 0)', '((_pos$2[1] - canvas.height - 3) | 0)'),
-    native.replace('render(matrix) {', 'render(other) {'),
-    native + '\n' + native,
-    patched,
-  ])('rejects renderer anchor drift or duplicate patching', input => {
-    expect(() => patchRuntimeDialogTypography(input)).toThrow('anchor:dialog-typography');
-  });
 });
