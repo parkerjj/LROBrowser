@@ -7,8 +7,12 @@ import { patchRuntimeAchievementLinks, type AchievementLinkComponent, type Achie
 import { resolveLastroMapResourceName } from '../scripts/lastro-map-resource-name.mjs';
 import { describeLastroMapLoadFailure } from '../scripts/lastro-map-load-diagnostic.mjs';
 import { mapBinaryFixture } from './map-binary-fixture';
+import { extractRuntimeNode } from './helpers/vendor-runtime';
 
 const native = readFileSync('vendor/v2/Online.js', 'utf8');
+const lastroUiWindowAppend = vm.runInNewContext(`${extractRuntimeNode(native, {
+  kind: 'function', name: 'lastroUiWindowAppend',
+})}\nlastroUiWindowAppend`) as (...args: unknown[]) => unknown;
 const lua = new TextDecoder('gbk').decode(readFileSync('vendor/core/System/achievement_list_cn2_06.lua'));
 function region(source: string, name: string) {
   const start = source.indexOf('//#region ' + name), end = source.indexOf('//#endregion', start);
@@ -89,7 +93,7 @@ function fixture(options: { files?: Record<string, ArrayBuffer | null>; label?: 
   const state = { currentMap: 'izlude.gat', loading: false };
   const preference = { x: 100, y: 100, save: vi.fn() };
   let manual = false, profile = 5;
-  const context = vm.createContext({ window: win, document: doc, Event: win.Event, console: { warn() {}, error() {} },
+  const context = vm.createContext({ window: win, document: doc, Event: win.Event, lastroUiWindowAppend, console: { warn() {}, error() {} },
     ArrayBuffer, DataView, Uint8Array, queueMicrotask, setTimeout, clearTimeout, Mouse: mouse, MouseMode: { FREEZE: 2 }, SessionStorage_default: session,
     MapRenderer: state, Configs: { get: () => profile },
     normalizeLastROTeleportMap: (map: string) => map.trim().toLowerCase().replace(/\.(gat|rsw)$/i, ''),

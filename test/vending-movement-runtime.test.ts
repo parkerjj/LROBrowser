@@ -22,6 +22,8 @@ const movementHelpers = ['lastroMovementUnavailable', 'lastroCancelMovement', 'l
   .map(name => extractRuntimeNode(native, { region: 'src/Renderer/Entity/EntityWalk.js', kind: 'function', name })).join('\n');
 const vendingHelpers = ['lastroVendingShoppingActive', 'lastroSetVendingShopping', 'lastroInstallVendingRemoval', 'lastroCloseVendingShopping']
   .map(name => extractRuntimeNode(native, { region: 'src/UI/Components/NpcStore/NpcStore.js', kind: 'function', name })).join('\n');
+const uiHelpers = ['installLastroStoreScroll', 'lastroBindNestedWindowState', 'lastroUiInputFrame', 'lastroUiLogicalPointer', 'lastroUiDragBounds']
+  .map(name => extractRuntimeNode(native, { kind: 'function', name })).join('\n');
 function declarations(source: string) {
   const file = ts.createSourceFile('Native.js', source, ts.ScriptTarget.Latest, true), functions = new Map<string, string>(), assignments = new Map<string, string>();
   let gui = '', html = '';
@@ -72,7 +74,7 @@ function fixture() {
     EntityManager: { get: () => null }, packetDump: false, _socket: { isZone: false }, send,
     __esmMin: (init: () => void) => init, init_CodepageManager: () => {}, recordBuild: build,
   });
-  vm.runInContext(movementHelpers, context);
+  vm.runInContext(movementHelpers + '\n' + uiHelpers, context);
   vm.runInContext(region(native, 'src/Utils/BinaryWriter.js') + '\ninit_BinaryWriter();\n' + [
     'PACKET.CZ.REQUEST_MOVE', 'PACKET.CZ.REQUEST_MOVE.prototype.build', 'PACKET.CZ.REQUEST_MOVE2', 'PACKET.CZ.REQUEST_MOVE2.prototype.build',
   ].map(name => packetSources.assignments.get(name)).join('\n') + `
@@ -110,7 +112,11 @@ function fixture() {
   const transition = (name: 'onMapChange' | 'cleanGameUI') => {
     const code = parts.functions.get(name)!, file = ts.createSourceFile('Entry.js', code, ts.ScriptTarget.Latest, true);
     const fn = file.statements[0] as ts.FunctionDeclaration;
-    vm.runInContext(fn.body!.statements[0]!.getText(file), context);
+    const closeStatements = fn.body!.statements.filter(statement => ts.isExpressionStatement(statement)
+      && ts.isCallExpression(statement.expression) && statement.expression.expression.getText(file) === 'lastroCloseVendingShopping');
+    if (closeStatements.length !== 1) throw new Error('Missing unique native vending transition');
+    const closeIndex = fn.body!.statements.indexOf(closeStatements[0]!);
+    vm.runInContext(fn.body!.statements.slice(0, closeIndex + 1).map(statement => statement.getText(file)).join('\n'), context);
   };
   return { context, component, session, mouse, send, build, close, open, sendPacket, entry, transition, cancelInput, clearRoute, cancelRoute, cancelQuest, stopMobile, eventCancel };
 }

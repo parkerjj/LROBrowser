@@ -1,15 +1,15 @@
 // @vitest-environment jsdom
-import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { lastroUiWindowAppend, patchRuntimeUiState } from '../scripts/lastro-ui-state.mjs';
+import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 
 const path = 'src/UI/Components/ShortCut/ShortCut.js';
-const marker = '//#region ' + path;
-const source = readFileSync('vendor/v2/Online.js', 'utf8');
-const begin = source.indexOf(marker), end = source.indexOf('//#endregion', begin);
-const native = source.slice(begin, end + '//#endregion'.length).replace(/\r\n/g, '\n');
+const source = readVendorSource();
+const native = extractVendorRegion(path, source).replace(/\r\n/g, '\n');
+const lastroUiWindowAppend = vm.runInNewContext(`${extractRuntimeNode(source, {
+  kind: 'function', name: 'lastroUiWindowAppend',
+})}\nlastroUiWindowAppend`) as (...args: unknown[]) => unknown;
 function parse(text: string) {
   return ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
 }
@@ -177,8 +177,10 @@ describe('native shortcut cooldown lifetime across map loading', () => {
   });
 
   it('resumes inside the real UI-state append wrapper after permanent migration', () => {
-    const wrapped = patchRuntimeUiState(native);
-    const f = fixture(wrapped); f.append(); f.delay(10, 5000); f.remove(); f.now(3000); f.append(); f.frame();
+    const append = method(native, 'onAppend');
+    expect(append).toContain('lastroUiWindowAppend');
+    expect(append).toContain('setDelayOnIndex(index, element._lastroCooldownDuration, true)');
+    const f = fixture(native); f.append(); f.delay(10, 5000); f.remove(); f.now(3000); f.append(); f.frame();
     expect(f.pending.size).toBe(1); expect(f.list[0]!.Delay).toBe(6000); expect(f.degrees()).toBeCloseTo(144);
     f.remove(); f.now(8000); f.append(); expect(f.overlay()).toBeNull(); expect(f.pending.size).toBe(0);
   });

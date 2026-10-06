@@ -26,7 +26,7 @@ describe('V2 runtime patch', () => {
     expect(patched).toContain('getMap: () => normalizeLastROTeleportMap(MapRenderer.currentMap)');
     expect(patched).toContain('routeMapChanged: () => lastroRouteNavigation.onMapChanged()');
     expect(patched).toMatch(/onMapChanging\(\);\s*UIManager\.removeComponents\(\)/);
-    expect(patched).toMatch(/function cleanGameUI\(\) \{\s*if .*?\.cancelRoute\(\);/);
+    expect(patched).toMatch(/function cleanGameUI\(\) \{\s*document\._lastroItemDrag\?\.cancel\(\);\s*if .*?\.cancelRoute\(\);/);
     expect(patched).toContain('胖大海');
     expect(patched).not.toContain('https://game.lastro.cn/ro/src/DB/logsTable.js');
     const installation = patched.slice(patched.indexOf('const lastroSendRouteTeleport ='), patched.indexOf('UIManager.addComponent(LastROTools)'));

@@ -79147,26 +79147,19 @@ var init_Preferences$1 = __esmMin(() => {
      * @param {mixed} default value
      * @param {number} optional version
      */
-    static get(key, def, version) {
-      Storage.get(key, function (value) {
-        version = version || 0;
-        if (!value[key] || JSON.parse(value[key])._version !== version) {
-          Preferences.save(def);
-          return;
-        }
-        const data = JSON.parse(value[key]);
-        data._key = key;
-        data._version = version;
-        data.save = selfSave;
-        const keys = Object.keys(data);
-        const count = keys.length;
-        for (let i = 0; i < count; ++i) def[keys[i]] = data[keys[i]];
-      });
-      def._key = key;
-      def._version = version;
-      def.save = selfSave;
-      return def;
-    }
+    static get(key, def, version = 0) {
+        def._key = key; def._version = version; def.save = selfSave;
+        let valid = false;
+        try { Storage.get(key, value => {
+          const data = JSON.parse(value[key]);
+          if (data && typeof data === "object" && !Array.isArray(data) && data._version === version) {
+            for (const field of Object.keys(data)) if (field !== "_key" && field !== "save" && field !== "__proto__") def[field] = data[field];
+            valid = true;
+          }
+        }); } catch { /* Recover an invalid local UI preference record. */ }
+        if (!valid) Preferences.save(def);
+        return def;
+      }
     /**
      * Save value in storage
      *
@@ -79174,15 +79167,11 @@ var init_Preferences$1 = __esmMin(() => {
      * @param {object} value to store
      */
     static save(data) {
-      const key = data._key;
-      delete data._key;
-      delete data.save;
-      const store = {};
-      store[key] = JSON.stringify(data);
-      Storage.set(store);
-      data._key = key;
-      data.save = selfSave;
-    }
+        if (!data || typeof data._key !== "string") return;
+        const value = {};
+        for (const key of Object.keys(data)) if (key !== "_key" && key !== "save") value[key] = data[key];
+        const store = {}; store[data._key] = JSON.stringify(value); Storage.set(store);
+      }
   };
 });
 //#endregion
@@ -181103,10 +181092,10 @@ function onClickOption(btn) {
  * Resize ChatBoxSettings
  */
 function onResize$8() {
-  const top = ChatBoxSettings._host.getBoundingClientRect().top;
+
   let lastHeight = 0;
   function resizeProcess() {
-    let h = Math.floor((Mouse.screen.y - top - 20) / 32);
+    let h = Math.floor((lastroUiLogicalPointer(lastroUiInputFrame(ChatBoxSettings._host), Mouse.screen, true).y - 20) / 32);
     h = Math.min(Math.max(h, 3), 8);
     if (h === lastHeight) return;
     resize$5(h);
@@ -181194,7 +181183,7 @@ var init_ChatBoxSettings = __esmMin(() => {
   /**
    * Once in HTML
    */
-  ChatBoxSettings.onAppend = function onAppend() {
+  ChatBoxSettings.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences$42, () => {
     resize$5(_preferences$42.height);
     const rect = this._host.getBoundingClientRect();
     this._host.style.top =
@@ -181204,7 +181193,10 @@ var init_ChatBoxSettings = __esmMin(() => {
       Math.min(Math.max(0, _preferences$42.x), Renderer.width - rect.width) +
       "px";
     this._host.style.display = "none";
-  };
+
+}, () => {_preferences$42.y = parseInt(this._host.style.top, 10) || 0;
+_preferences$42.x = parseInt(this._host.style.left, 10) || 0;
+}); };
   /**
    * Key Event Handler
    */
@@ -182250,7 +182242,7 @@ var init_ChatBox = __esmMin(() => {
   /**
    * Once append to HTML
    */
-  ChatBox.onAppend = function OnAppend() {
+  ChatBox.onAppend = function OnAppend() { return lastroUiWindowAppend(this, _preferences$41, () => {
     const root = _root$18();
     const inputEl = root.querySelector(".input");
     if (inputEl) inputEl.style.display = "none";
@@ -182258,7 +182250,20 @@ var init_ChatBox = __esmMin(() => {
     if (bmEl) bmEl.style.display = "block";
     const content = root.querySelector(".content.active");
     if (content) content.scrollTop = content.scrollHeight;
-  };
+
+}, () => {_preferences$41.y =
+      (parseInt(this._host.style.top, 10) || 0) +
+      (this._host.offsetHeight || 0);
+_preferences$41.x = parseInt(this._host.style.left, 10) || 0;
+_preferences$41.height = _heightIndex;
+_preferences$41.magnet_top = this.magnet.TOP;
+_preferences$41.magnet_bottom = this.magnet.BOTTOM;
+_preferences$41.magnet_left = this.magnet.LEFT;
+_preferences$41.magnet_right = this.magnet.RIGHT;
+_preferences$41.tabs = this.tabs;
+_preferences$41.tabOption = ChatBoxSettings_default.tabOption;
+_preferences$41.activeTab = this.activeTab;
+}); };
   /**
    * Stop custom scroll
    */
@@ -183028,7 +183033,7 @@ var init_MakeReadBook = __esmMin(() => {
   /**
    * Apply preferences once append to body
    */
-  MakeReadBook.onAppend = function OnAppend() {
+  MakeReadBook.onAppend = function OnAppend() { return lastroUiWindowAppend(this, _preferences$40, () => {
     this._host.style.display = "";
     this._host.style.top = `${Math.min(Math.max(0, _preferences$40.y), Renderer.height - 455)}px`;
     this._host.style.left = `${Math.min(Math.max(0, _preferences$40.x), Renderer.width - 555)}px`;
@@ -183038,7 +183043,16 @@ var init_MakeReadBook = __esmMin(() => {
     _preferences$40.save();
     const root = MakeReadBook.getRoot();
     this.draggable(root.querySelector(".titlebar"));
-  };
+
+}, () => {_preferences$40.show = this._host.style.display !== "none";
+_preferences$40.reduce = false;
+_preferences$40.y = parseInt(this._host.style.top, 10) || 0;
+_preferences$40.x = parseInt(this._host.style.left, 10) || 0;
+_preferences$40.magnet_top = this.magnet.TOP;
+_preferences$40.magnet_bottom = this.magnet.BOTTOM;
+_preferences$40.magnet_left = this.magnet.LEFT;
+_preferences$40.magnet_right = this.magnet.RIGHT;
+}); };
   /**
    * Remove MakeReadBook from window (and so clean up items)
    */
@@ -183142,10 +183156,10 @@ function addCard$1(cardList, itemId, index, slotCount) {
  * Extend ItemCompare window size
  */
 function onResize$7() {
-  const top = ItemCompare._host.offsetTop;
+
   let lastHeight = 0;
   function resizing() {
-    const h = Math.floor(Mouse.screen.y - top);
+    const h = Math.floor(lastroUiLogicalPointer(lastroUiInputFrame(ItemCompare._host), Mouse.screen, true).y);
     if (h === lastHeight) return;
     resize$4(h);
     lastHeight = h;
@@ -184102,7 +184116,7 @@ var init_InventoryV0$2 = __esmMin(() => {
 var InventoryV0_default$1;
 var init_InventoryV0$1 = __esmMin(() => {
   InventoryV0_default$1 =
-    ":host {\r\n\ttop: 100px;\r\n\tleft: 100px;\r\n}\r\n\r\n#InventoryV0 {\r\n\tposition: relative;\r\n\tdisplay: flex;\r\n\tflex-direction: column;\r\n}\r\n\r\n#InventoryV0 table {\r\n\tborder-spacing: 0px;\r\n\tdisplay: inline-block;\r\n}\r\n\r\n#InventoryV0 .titlebar {\r\n\twidth: 100%;\r\n\theight: 17px;\r\n\tbackground-color: white;\r\n\tbackground-repeat: repeat-x;\r\n\tborder-radius: 3px 3px 0px 0px;\r\n}\r\n\r\n#InventoryV0 .titlebar .base {\r\n\twidth: 11px;\r\n\theight: 11px;\r\n\tborder: none;\r\n\tbackground-color: transparent;\r\n\tbackground-repeat: no-repeat;\r\n\tvertical-align: middle;\r\n}\r\n\r\n#InventoryV0 .titlebar .text {\r\n\ttext-shadow: 1px 1px white;\r\n\tvertical-align: -2px;\r\n\twhite-space: nowrap;\r\n\t/* chrome bug */\r\n\tdisplay: inline-block;\r\n\twidth: 32px;\r\n\theight: 13px;\r\n\tfont-size: 11px;\r\n\tfont-weight: bold;\r\n}\r\n\r\n#InventoryV0 .titlebar .left {\r\n\tmargin-left: 3px;\r\n\tfloat: left;\r\n}\r\n\r\n#InventoryV0 .titlebar .right {\r\n\tfloat: right;\r\n\tmargin-right: 3px;\r\n}\r\n\r\n#InventoryV0 .titlebar .clear {\r\n\tclear: both;\r\n}\r\n\r\n#InventoryV0 .panel {\r\n\tborder-radius: 0px 0px 3px 3px;\r\n\tpadding: 0px;\r\n\tdisplay: flex;\r\n\tflex-direction: column;\r\n\tflex: 1;\r\n\toverflow: hidden;\r\n\tbackground-color: transparent;\r\n}\r\n\r\n#InventoryV0 .middle {\r\n\tdisplay: flex;\r\n\tflex: 1;\r\n\toverflow: hidden;\r\n}\r\n\r\n#InventoryV0 .tabs {\r\n\tdisplay: flex;\r\n\tflex-direction: column;\r\n\tbackground-repeat: round;\r\n\tbackground-size: auto 3px;\r\n}\r\n\r\n#InventoryV0 .tab-sprite {\r\n\twidth: 20px;\r\n\theight: 82px;\r\n\tbackground-repeat: no-repeat;\r\n\tbackground-position: top left;\r\n\tdisplay: flex;\r\n\tflex-direction: column;\r\n\tflex-shrink: 0;\r\n\talign-self: flex-end;\r\n\tborder-left: 1px solid white;\r\n}\r\n\r\n#InventoryV0 .tab-sprite button {\r\n\tflex: 1;\r\n\twidth: 20px;\r\n\tborder: none;\r\n\tbackground: transparent;\r\n\tcursor: pointer;\r\n\tpadding: 0;\r\n}\r\n\r\n#InventoryV0 .container {\r\n\tflex: 1;\r\n\tpadding-left: 17px;\r\n\tborder-right: 1px solid #ccc;\r\n\tbackground-clip: padding-box;\r\n\tbox-shadow: inset 40px 0px 0px 2px #ffffff;\r\n\tposition: relative;\r\n\tborder-left: 1px solid #ccc;\r\n\tbackground-color: white;\r\n\toverflow: hidden;\r\n\twhite-space: nowrap;\r\n}\r\n\r\n#InventoryV0 .scroll-host {\r\n\toverflow-y: auto;\r\n\tposition: absolute;\r\n\ttop: 0;\r\n\tleft: 0;\r\n\tright: 0;\r\n\tbottom: 0;\r\n\tdisplay: block;\r\n\r\n\t/* Hide native scrollbar but allow detection */\r\n\tscrollbar-width: none;\r\n\t-ms-overflow-style: none;\r\n}\r\n\r\n#InventoryV0 .scroll-host::-webkit-scrollbar {\r\n\tdisplay: none;\r\n}\r\n\r\n#InventoryV0 .content {\r\n\twidth: 100%;\r\n\tdisplay: grid;\r\n\tgrid-template-columns: repeat(auto-fill, 32px);\r\n\tgrid-auto-rows: 32px;\r\n\tmin-height: 90%;\r\n\tbackground-color: white;\r\n\tbackground-repeat: repeat;\r\n\tbackground-origin: border-box;\r\n\tbackground-clip: border-box;\r\n\tbox-sizing: border-box;\r\n\tpadding-top: 0px;\r\n\tmargin-left: 15px;\r\n\tmargin-top: 8px;\r\n}\r\n\r\n#InventoryV0 .content .item {\r\n\tdisplay: block;\r\n\twidth: 32px;\r\n\theight: 32px;\r\n\tmargin: 0;\r\n\tposition: relative;\r\n}\r\n\r\n#InventoryV0 .content .item .icon {\r\n\tposition: absolute;\r\n\ttop: 4px;\r\n\tleft: 4px;\r\n\twidth: 24px;\r\n\theight: 24px;\r\n\tborder: none;\r\n\tbackground-color: transparent;\r\n\tbackground-repeat: no-repeat;\r\n}\r\n\r\n#InventoryV0 .overlay {\r\n\tposition: absolute;\r\n\tdisplay: none;\r\n\twhite-space: nowrap;\r\n\tz-index: 900;\r\n\theight: 15px;\r\n\tline-height: 15px;\r\n\tborder-radius: 3px;\r\n\tpadding: 4px;\r\n\tbackground: rgba(0, 0, 0, 0.7);\r\n\tcolor: white;\r\n\ttext-shadow: 1px 1px black;\r\n}\r\n\r\n#InventoryV0 .overlay.grey {\r\n\tcolor: #aaa;\r\n}\r\n\r\n#InventoryV0 .content .item .amount {\r\n\tposition: absolute;\r\n\ttop: 15px;\r\n\tbottom: 9px;\r\n\tright: 0px;\r\n\ttext-align: right;\r\n\ttext-shadow: -1px -1px white;\r\n}\r\n\r\n#InventoryV0 .footer {\r\n\twidth: 100%;\r\n\theight: 27px;\r\n\tbackground-repeat: repeat-x;\r\n\tbackground-color: transparent;\r\n\tposition: relative;\r\n\tflex-shrink: 0;\r\n\tborder-right: 1px solid #ccc;\r\n\tborder-bottom: 1px solid #ccc;\r\n}\r\n\r\n#InventoryV0 .footer .cnt {\r\n\tposition: absolute;\r\n\tleft: 10px;\r\n\tbottom: 6px;\r\n}\r\n\r\n#InventoryV0 .footer button {\r\n\tposition: absolute;\r\n\tright: 0px;\r\n\tbottom: 1px;\r\n\twidth: 13px;\r\n\theight: 13px;\r\n\tborder: none;\r\n\tbackground-repeat: no-repeat;\r\n\tbackground-color: transparent;\r\n}\r\n\r\n#InventoryV0 .content .item .new_item {\r\n\tposition: absolute;\r\n\twidth: 32px;\r\n\theight: 32px;\r\n\tbackground-color: transparent;\r\n\tbackground-repeat: no-repeat;\r\n\tpointer-events: none;\r\n}\r\n\n/* LASTRO regular typography: Inventory/InventoryV0/InventoryV0 */\n#InventoryV0 { font-weight: 400; }\n#InventoryV0 .titlebar .text { font-weight: 500; }\n";
+    ":host {\r\n\ttop: 100px;\r\n\tleft: 100px;\r\n}\r\n\r\n#InventoryV0 {\r\n\tposition: relative;\r\n\tdisplay: flex;\r\n\tflex-direction: column;\r\n}\r\n\r\n#InventoryV0 table {\r\n\tborder-spacing: 0px;\r\n\tdisplay: inline-block;\r\n}\r\n\r\n#InventoryV0 .titlebar {\r\n\twidth: 100%;\r\n\theight: 17px;\r\n\tbackground-color: white;\r\n\tbackground-repeat: repeat-x;\r\n\tborder-radius: 3px 3px 0px 0px;\r\n}\r\n\r\n#InventoryV0 .titlebar .base {\r\n\twidth: 11px;\r\n\theight: 11px;\r\n\tborder: none;\r\n\tbackground-color: transparent;\r\n\tbackground-repeat: no-repeat;\r\n\tvertical-align: middle;\r\n}\r\n\r\n#InventoryV0 .titlebar .text {\r\n\ttext-shadow: 1px 1px white;\r\n\tvertical-align: -2px;\r\n\twhite-space: nowrap;\r\n\t/* chrome bug */\r\n\tdisplay: inline-block;\r\n\twidth: 32px;\r\n\theight: 13px;\r\n\tfont-size: 11px;\r\n\tfont-weight: bold;\r\n}\r\n\r\n#InventoryV0 .titlebar .left {\r\n\tmargin-left: 3px;\r\n\tfloat: left;\r\n}\r\n\r\n#InventoryV0 .titlebar .right {\r\n\tfloat: right;\r\n\tmargin-right: 3px;\r\n}\r\n\r\n#InventoryV0 .titlebar .clear {\r\n\tclear: both;\r\n}\r\n\r\n#InventoryV0 .panel {\r\n\tborder-radius: 0px 0px 3px 3px;\r\n\tpadding: 0px;\r\n\tdisplay: flex;\r\n\tflex-direction: column;\r\n\tflex: 1;\r\n\toverflow: hidden;\r\n\tbackground-color: transparent;\r\n}\r\n\r\n#InventoryV0 .middle {\r\n\tdisplay: flex;\r\n\tflex: 1;\r\n\toverflow: hidden;\r\n}\r\n\r\n#InventoryV0 .tabs {\r\n\tdisplay: flex;\r\n\tflex-direction: column;\r\n\tbackground-repeat: round;\r\n\tbackground-size: auto 3px;\r\n}\r\n\r\n#InventoryV0 .tab-sprite {\r\n\twidth: 20px;\r\n\theight: 82px;\r\n\tbackground-repeat: no-repeat;\r\n\tbackground-position: top left;\r\n\tdisplay: flex;\r\n\tflex-direction: column;\r\n\tflex-shrink: 0;\r\n\talign-self: flex-end;\r\n\tborder-left: 1px solid white;\r\n}\r\n\r\n#InventoryV0 .tab-sprite button {\r\n\tflex: 1;\r\n\twidth: 20px;\r\n\tborder: none;\r\n\tbackground: transparent;\r\n\tcursor: pointer;\r\n\tpadding: 0;\r\n}\r\n\r\n#InventoryV0 .container {\r\n\tflex: 1;\r\n\tpadding-left: 17px;\r\n\tborder-right: 1px solid #ccc;\r\n\tbackground-clip: padding-box;\r\n\tbox-shadow: inset 40px 0px 0px 2px #ffffff;\r\n\tposition: relative;\r\n\tborder-left: 1px solid #ccc;\r\n\tbackground-color: white;\r\n\toverflow: hidden;\r\n\twhite-space: nowrap;\r\n}\r\n\r\n#InventoryV0 .scroll-host {\r\n\toverflow-y: auto;\r\n\tposition: absolute;\r\n\ttop: 0;\r\n\tleft: 0;\r\n\tright: 0;\r\n\tbottom: 0;\r\n\tdisplay: block;\r\n\r\n\t/* Hide native scrollbar but allow detection */\r\n\tscrollbar-width: none;\r\n\t-ms-overflow-style: none;\r\n}\r\n\r\n#InventoryV0 .scroll-host::-webkit-scrollbar {\r\n\tdisplay: none;\r\n}\r\n\r\n#InventoryV0 .content {\r\n\twidth: 100%;\r\n\tdisplay: grid;\r\n\tgrid-template-columns: repeat(auto-fill, 32px);\r\n\tgrid-auto-rows: 32px;\r\n\tmin-height: 90%;\r\n\tbackground-color: white;\r\n\tbackground-repeat: repeat;\r\n\tbackground-origin: border-box;\r\n\tbackground-clip: border-box;\r\n\tbox-sizing: border-box;\r\n\tpadding-top: 0px;\r\n\tmargin-left: 15px;\r\n\tmargin-top: 8px;\r\n}\r\n\r\n#InventoryV0 .content .item {\r\n\tdisplay: block;\r\n\twidth: 32px;\r\n\theight: 32px;\r\n\tmargin: 0;\r\n\tposition: relative;\r\n}\r\n\r\n#InventoryV0 .content .item .icon {\r\n\tposition: absolute;\r\n\ttop: 4px;\r\n\tleft: 4px;\r\n\twidth: 24px;\r\n\theight: 24px;\r\n\tborder: none;\r\n\tbackground-color: transparent;\r\n\tbackground-repeat: no-repeat;\r\n}\r\n\r\n#InventoryV0 .overlay {\r\n\tposition: absolute;\r\n\tdisplay: none;\r\n\twhite-space: nowrap;\r\n\tz-index: 900;\r\n\theight: 15px;\r\n\tline-height: 15px;\r\n\tborder-radius: 3px;\r\n\tpadding: 4px;\r\n\tbackground: rgba(0, 0, 0, 0.7);\r\n\tcolor: white;\r\n\ttext-shadow: 1px 1px black;\r\n}\r\n\r\n#InventoryV0 .overlay.grey {\r\n\tcolor: #aaa;\r\n}\r\n\r\n#InventoryV0 .content .item .amount {\r\n\tposition: absolute;\r\n\ttop: 15px;\r\n\tbottom: 9px;\r\n\tright: 0px;\r\n\ttext-align: right;\r\n\ttext-shadow: -1px -1px white;\r\n}\r\n\r\n#InventoryV0 .footer {\r\n\twidth: 100%;\r\n\theight: 27px;\r\n\tbackground-repeat: repeat-x;\r\n\tbackground-color: transparent;\r\n\tposition: relative;\r\n\tflex-shrink: 0;\r\n\tborder-right: 1px solid #ccc;\r\n\tborder-bottom: 1px solid #ccc;\r\n}\r\n\r\n#InventoryV0 .footer .cnt {\r\n\tposition: absolute;\r\n\tleft: 10px;\r\n\tbottom: 6px;\r\n}\r\n\r\n#InventoryV0 .footer button {\r\n\tposition: absolute;\r\n\tright: 0px;\r\n\tbottom: 1px;\r\n\twidth: 13px;\r\n\theight: 13px;\r\n\tborder: none;\r\n\tbackground-repeat: no-repeat;\r\n\tbackground-color: transparent;\r\n}\r\n\r\n#InventoryV0 .content .item .new_item {\r\n\tposition: absolute;\r\n\twidth: 32px;\r\n\theight: 32px;\r\n\tbackground-color: transparent;\r\n\tbackground-repeat: no-repeat;\r\n\tpointer-events: none;\r\n}\r\n\n/* LASTRO regular typography: Inventory/InventoryV0/InventoryV0 */\n#InventoryV0 { font-weight: 400; }\n#InventoryV0 .titlebar .text { font-weight: 500; }\n\n.ui-component-root, #InventoryV0 { height: 100%; }\n#InventoryV0 .titlebar { flex-shrink: 0; }\n#InventoryV0 .panel, #InventoryV0 .middle { min-height: 0; }\n";
 });
 //#endregion
 //#region src/UI/Components/SwitchEquip/SwitchEquip.html?raw
@@ -184778,6 +184792,13 @@ function createMiniMap({
   MiniMap.init = function init() {
     const root = this.getRoot();
     _ctx = root.querySelector("canvas").getContext("2d");
+    // lastro-navigation-ui-installed
+    root.querySelector("canvas").addEventListener("click", event => {
+      if (event.button !== 0 || event.ctrlKey || event.shiftKey || event.altKey || event.metaKey) return;
+      init_Navigation();
+      Navigation_default.show(this._host);
+      event.stopPropagation();
+    });
     this.opacity = 2;
     Client.loadFile(`${DB.INTERFACE_PATH}map/map_arrow.bmp`, (dataURI) => {
       _arrow.src = dataURI;
@@ -184838,11 +184859,13 @@ function createMiniMap({
   /**
    * Once append to HTML
    */
-  MiniMap.onAppend = function onAppend() {
+  MiniMap.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences, () => {
     this.updateZoom(_preferences.zoom);
     this.toggleOpacity(_preferences.opacity + 1);
     Renderer.render(render);
-  };
+
+}, () => {_preferences.x = parseFloat(this._host.style.left) || 0; _preferences.y = parseFloat(this._host.style.top) || 0;
+}); };
   /**
    * Set map
    *
@@ -185495,6 +185518,37 @@ var init_MapPathFinder = __esmMin(() => {
 });
 //#endregion
 // lastro-movement-input-installed
+// lastro-navigation-ui-installed
+const getNavigationDockPosition = function getNavigationDockPosition(minimap, navigation, viewport, gap = 8) {
+  const width = Math.max(0, navigation.width), height = Math.max(0, navigation.height);
+  const maxLeft = Math.max(0, viewport.width - width), maxTop = Math.max(0, viewport.height - height);
+  let left = minimap.left - width - gap;
+  if (left < 0 && minimap.right + gap + width <= viewport.width) left = minimap.right + gap;
+  return {
+    left: Math.round(Math.max(0, Math.min(maxLeft, left))),
+    top: Math.min(maxTop, Math.round(Math.max(0, Math.min(maxTop, minimap.top)))),
+  };
+};
+const dockLastroNavigation = function dockLastroNavigation(navigation, minimapHost) {
+  const host = navigation._host;
+  if (!host) return;
+  const minimap = minimapHost || ['MiniMapV2', 'MiniMap']
+    .map(id => globalThis.document.getElementById(id))
+    .find(node => node && globalThis.getComputedStyle(node).display !== 'none');
+  if (!minimap) return;
+  const rect = host.getBoundingClientRect();
+  // Preserve the original layout scale; the native footer can overflow the host.
+  const scaleX = rect.width / host.offsetWidth || 1, scaleY = rect.height / host.offsetHeight || 1;
+  const position = getNavigationDockPosition(minimap.getBoundingClientRect(), {
+    width: rect.width, height: Math.max(rect.height, host.scrollHeight * scaleY),
+  }, {
+    width: globalThis.window.innerWidth, height: globalThis.window.innerHeight,
+  });
+  // Rects are visual CSS pixels; left/top use the host's layout coordinates.
+  const originX = rect.left - host.offsetLeft * scaleX, originY = rect.top - host.offsetTop * scaleY;
+  host.style.left = `${(position.left - originX) / scaleX}px`;
+  host.style.top = `${(position.top - originY) / scaleY}px`;
+};
 //#region src/UI/Components/Navigation/Navigation.js
 // lastro-vending-movement-installed
 /**
@@ -186080,6 +186134,8 @@ var init_Navigation = __esmMin(() => {
         endX: _finalTargetData.x,
         endY: _finalTargetData.y,
         displayName: _finalTargetData.displayName,
+
+        showWindow: _finalTargetData.showWindow,
       });
     }
   };
@@ -186384,6 +186440,8 @@ var init_Navigation = __esmMin(() => {
         endX: _finalTargetData.x,
         endY: _finalTargetData.y,
         displayName: _finalTargetData.displayName,
+
+        showWindow: _finalTargetData.showWindow,
       });
       _lastPathUpdate = tick;
     }
@@ -186696,7 +186754,9 @@ var init_Navigation = __esmMin(() => {
   /**
    * Show the navigation window
    */
-  Navigation.show = function show() {
+  Navigation.show = function show(minimapHost) {
+    if (!this.__loaded) this.prepare();
+    if (!this._host?.isConnected) this.append();
     const root = Navigation.getRoot();
     this.clearPath();
     initializePathFindingWorker();
@@ -186715,12 +186775,15 @@ var init_Navigation = __esmMin(() => {
         endX: _finalTargetData.x,
         endY: _finalTargetData.y,
         displayName: _finalTargetData.displayName,
+
+        showWindow: _finalTargetData.showWindow,
       });
     this.setMapNameText(mapName);
     const locationTitle = root.querySelector(".location-title");
     if (locationTitle && !locationTitle.textContent)
       this.setLocationTitle(mapName, null);
     this.ui.show();
+    dockLastroNavigation(this, minimapHost);
   };
   /**
    * Hide the navigation window
@@ -186728,7 +186791,7 @@ var init_Navigation = __esmMin(() => {
   Navigation.hide = function hide() {
     globalThis.roNaviDebug?.log("window-hide");
     this.ui.hide();
-    terminatePathFindingWorker();
+    if (_finalTargetData?.showWindow !== false) terminatePathFindingWorker();
   };
   Navigation.onKeyDown = function onKeyDown(event) {
     const hostDisplay = this._host
@@ -186817,6 +186880,17 @@ var init_Navigation = __esmMin(() => {
    * Unified navigation function that handles both same-map and cross-map navigation
    */
   Navigation.navigateTo = function navigateTo(options) {
+    if (!this.__loaded) this.prepare();
+    if (options.showWindow === false) {
+      const lastroNavigationDetached = !this._host?.isConnected;
+      if (lastroNavigationDetached) {
+        this.ui.hide();
+        this.append();
+      }
+      initializePathFindingWorker();
+      const lastroCurrentMap = getCurrentMap();
+      if (!lastroNavigationDetached && (!_mapData || _mapData.map !== lastroCurrentMap)) this.loadMap(lastroCurrentMap);
+    }
     if (typeof MapControl !== "undefined") MapControl?._lastroMovementInput?.cancel();
     globalThis.roNaviDebug?.log("navigate-enter", () => ({ ...options }), 1000);
     const root = Navigation.getRoot();
@@ -186841,6 +186915,8 @@ var init_Navigation = __esmMin(() => {
       x: options.endX,
       y: options.endY,
       displayName,
+
+      showWindow: options.showWindow,
     };
     let warpTypes = [200, 201];
     const servicesToggle = root.querySelector(".services-toggle");
@@ -189955,7 +190031,7 @@ var init_Rodex$1 = __esmMin(() => {
   /**
    * Apply preferences once append to body
    */
-  Rodex.onAppend = function OnAppend() {
+  Rodex.onAppend = function OnAppend() { return lastroUiWindowAppend(this, _preferences$37, () => {
     const root = _root$16();
     this._host.style.top = `${Math.min(Math.max(0, _preferences$37.y), Renderer.height - this._host.offsetHeight)}px`;
     this._host.style.left = `${Math.min(Math.max(0, _preferences$37.x), Renderer.width - this._host.offsetWidth)}px`;
@@ -189993,7 +190069,11 @@ var init_Rodex$1 = __esmMin(() => {
     root.querySelector("#tab_0").classList.add("active");
     Rodex.searchType = 1;
     Rodex.page = 0;
-  };
+
+}, () => {_preferences$37.show = this._host.style.display !== "none";
+_preferences$37.y = parseInt(this._host.style.top, 10);
+_preferences$37.x = parseInt(this._host.style.left, 10);
+}); };
   /**
    * Remove Rodex from window (and so clean up items)
    */
@@ -190960,7 +191040,7 @@ var init_Mail$1 = __esmMin(() => {
   /**
    * Apply preferences once append to body
    */
-  Mail.onAppend = function OnAppend() {
+  Mail.onAppend = function OnAppend() { return lastroUiWindowAppend(this, _preferences$36, () => {
     const root = _root$14();
     const closeBtn = root.querySelector(".close");
     if (closeBtn)
@@ -191020,7 +191100,16 @@ var init_Mail$1 = __esmMin(() => {
     this._host.style.top = `${Math.min(Math.max(0, _preferences$36.y), Renderer.height - hostHeight)}px`;
     this._host.style.left = `${Math.min(Math.max(0, _preferences$36.x), Renderer.width - hostWidth)}px`;
     this.draggable(".titlebar");
-  };
+
+}, () => {_preferences$36.show = this._host.style.display !== "none";
+_preferences$36.reduce = false;
+_preferences$36.y = parseInt(this._host.style.top, 10) || 0;
+_preferences$36.x = parseInt(this._host.style.left, 10) || 0;
+_preferences$36.magnet_top = this.magnet.TOP;
+_preferences$36.magnet_bottom = this.magnet.BOTTOM;
+_preferences$36.magnet_left = this.magnet.LEFT;
+_preferences$36.magnet_right = this.magnet.RIGHT;
+}); };
   /**
    * Add item to inventory
    */
@@ -191426,7 +191515,7 @@ function createPartyFriends(config) {
   /**
    * Once append to the DOM, start to position the UI
    */
-  Component.onAppend = function onAppend() {
+  Component.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences, () => {
     const root = _root();
     _preferences.friend = !_preferences.friend;
     onChangeTab();
@@ -191453,7 +191542,13 @@ function createPartyFriends(config) {
     if (!_preferences.show) this._host.style.display = "none";
     if (renewalParty)
       for (let i = 0; i < _party.length; i++) restoreDetachedMember(_party[i]);
-  };
+
+}, () => {_preferences.show = _isVisible();
+if (renewalParty) {_preferences.y = parseInt(this._host.style.top, 10) || 0;
+_preferences.x = parseInt(this._host.style.left, 10) || 0;} else {_preferences.y = parseInt(this._host.style.top, 10);
+_preferences.x = parseInt(this._host.style.left, 10);}
+if (renewalParty) {const tooltip = document.getElementById("ro-tooltip-party");}
+}); };
   /**
    * Clean up UI
    */
@@ -192467,15 +192562,15 @@ function createPartyFriends(config) {
    */
   function onResize() {
     const host = Component._host;
-    const top = host.offsetTop;
-    const left = host.offsetLeft;
+
+
     let lastWidth = 0;
     let lastHeight = 0;
     function resizing() {
       const extraX = -20;
       const extraY = 46;
-      let w = Math.floor((Mouse.screen.x - left - extraX) / 20);
-      let h = Math.floor((Mouse.screen.y - top - extraY) / 20);
+      let w = Math.floor((lastroUiLogicalPointer(lastroUiInputFrame(Component._host), Mouse.screen, true).x - extraX) / 20);
+      let h = Math.floor((lastroUiLogicalPointer(lastroUiInputFrame(Component._host), Mouse.screen, true).y - extraY) / 20);
       w = Math.min(Math.max(w, 12), 13);
       h = Math.min(Math.max(h, 6), 12);
       if (w === lastWidth && h === lastHeight) return;
@@ -193456,7 +193551,7 @@ function createWinStats({ name, htmlText, cssText, hasTraits }) {
       this.focus();
     } else this._host.style.display = "none";
   };
-  Component.onAppend = function onAppend() {
+  Component.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences, () => {
     for (let i = 0, count = this.stack.length; i < count; ++i)
       this.update.apply(this, this.stack[i]);
     this.stack.length = 0;
@@ -193473,7 +193568,13 @@ function createWinStats({ name, htmlText, cssText, hasTraits }) {
         ) + "px";
     }
     if (!_preferences.show && !_embedAnchor) this._host.style.display = "none";
-  };
+
+}, () => {if (_preferences) {if (!_embedAnchor) {_preferences.show = this._host.style.display !== "none";
+_preferences.x = parseInt(this._host.style.left, 10);
+_preferences.y = parseInt(this._host.style.top, 10);}
+const panel = _root.querySelector(".panel");
+_preferences.reduce = panel ? panel.style.display === "none" : false;}
+}); };
   const _origFix = Component._fixPositionOverflow;
   Component._fixPositionOverflow = function () {
     if (!_embedAnchor) _origFix.call(this);
@@ -195097,7 +195198,7 @@ var init_Bank$1 = __esmMin(() => {
   /**
    * Append to body
    */
-  Bank.onAppend = function onAppend() {
+  Bank.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences$35, () => {
     const root = this.getRoot();
     this._host.style.top =
       Math.min(
@@ -195112,7 +195213,11 @@ var init_Bank$1 = __esmMin(() => {
     const input = root.querySelector(".depo");
     input.value = "";
     input.focus();
-  };
+
+}, () => {_preferences$35.y = parseInt(this._host.style.top, 10);
+_preferences$35.x = parseInt(this._host.style.left, 10);
+const error = this.getRoot().querySelector(".errorupdate");
+}); };
   /**
    * Key Handler
    */
@@ -195305,7 +195410,7 @@ var init_SoundOption = __esmMin(() => {
     if (bgmState) bgmState.addEventListener("change", onToggleBGM);
     this.draggable(".titlebar");
   };
-  SoundOption.onAppend = function onAppend() {
+  SoundOption.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences$34, () => {
     this._host.style.top = _preferences$34.y + "px";
     this._host.style.left = _preferences$34.x + "px";
     const root = this.getRoot();
@@ -195317,7 +195422,10 @@ var init_SoundOption = __esmMin(() => {
     if (soundState) soundState.checked = Audio_default.Sound.play;
     const bgmState = root.querySelector(".bgm_state");
     if (bgmState) bgmState.checked = Audio_default.BGM.play;
-  };
+
+}, () => {_preferences$34.x = parseInt(this._host.style.left, 10);
+_preferences$34.y = parseInt(this._host.style.top, 10);
+}); };
   SoundOption.onRemove = function onRemove() {
     _preferences$34.x = parseInt(this._host.style.left, 10);
     _preferences$34.y = parseInt(this._host.style.top, 10);
@@ -195383,7 +195491,7 @@ var init_FPS = __esmMin(() => {
   /**
    * When appended to DOM
    */
-  FPS.onAppend = function onAppend() {
+  FPS.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences$33, () => {
     this._host.style.top = _preferences$33.y + "px";
     this._host.style.left = _preferences$33.x + "px";
     this._host.style.display = _preferences$33.show ? "" : "none";
@@ -195428,7 +195536,11 @@ var init_FPS = __esmMin(() => {
     if (_tickFn) Renderer.stop(_tickFn);
     _tickFn = tick;
     Renderer.render(tick);
-  };
+
+}, () => {_preferences$33.x = parseInt(this._host.style.left, 10);
+_preferences$33.y = parseInt(this._host.style.top, 10);
+_preferences$33.show = this._host.style.display !== "none";
+}); };
   /**
    * Once remove, save preferences
    */
@@ -195821,7 +195933,7 @@ var init_GraphicsOption = __esmMin(() => {
   /**
    * When append the element to html
    */
-  GraphicsOption.onAppend = function onAppend() {
+  GraphicsOption.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences$32, () => {
     this._host.style.top = `${_preferences$32.y}px`;
     this._host.style.left = `${_preferences$32.x}px`;
     const root = this.getRoot();
@@ -195859,7 +195971,10 @@ var init_GraphicsOption = __esmMin(() => {
     root.querySelector(".performanceMode").checked =
       GraphicsSettings.performanceMode;
     root.querySelector(".view-area").value = GraphicsSettings.viewArea;
-  };
+
+}, () => {_preferences$32.x = parseInt(this._host.style.left, 10);
+_preferences$32.y = parseInt(this._host.style.top, 10);
+}); };
   /**
    * Once remove, save preferences
    */
@@ -196206,11 +196321,14 @@ var init_ShortCutOption = __esmMin(() => {
   /**
    * Apply preferences once append to body
    */
-  ShortCutOption.onAppend = function () {
+  ShortCutOption.onAppend = function () { return lastroUiWindowAppend(this, _preferences$31, () => {
     this._host.style.left = _preferences$31.x + "px";
     this._host.style.top = _preferences$31.y + "px";
     this._host.style.zIndex = 100;
-  };
+
+}, () => {_preferences$31.x = parseInt(this._host.style.left, 10);
+_preferences$31.y = parseInt(this._host.style.top, 10);
+}); };
   /**
    * Remove from window (and so clean up)
    */
@@ -196588,7 +196706,7 @@ var init_CheckAttendance = __esmMin(() => {
   /**
    * Once append to the DOM, start to position the UI
    */
-  CheckAttendance.onAppend = function onAppend() {
+  CheckAttendance.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences$30, () => {
     Object.assign(this._host.style, {
       top: `${Math.min(Math.max(0, _preferences$30.y), Renderer.height - this._host.getBoundingClientRect().height)}px`,
       left: `${Math.min(Math.max(0, _preferences$30.x), Renderer.width - this._host.getBoundingClientRect().width)}px`,
@@ -196602,7 +196720,9 @@ var init_CheckAttendance = __esmMin(() => {
         "Currently there is no attendance check event.",
         ChatBox_default.TYPE.ERROR | ChatBox_default.TYPE.SELF,
       );
-  };
+
+}, () => {_preferences$30.x = parseFloat(this._host.style.left) || 0; _preferences$30.y = parseFloat(this._host.style.top) || 0;
+}); };
   /**
    * Window Shortcuts
    */
@@ -197150,14 +197270,25 @@ function createSkillList({
       },
     );
   };
-  Component.onAppend = function onAppend() {
+  Component.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences, () => {
     if (!_preferences.show) this.ui.hide();
     resize(this, _preferences.width, _preferences.height);
     this._host.style.top = `${Math.min(Math.max(0, _preferences.y), Renderer.height - 100)}px`;
     this._host.style.left = `${Math.min(Math.max(0, _preferences.x), Renderer.width - 100)}px`;
     const cb = this.getRoot().querySelector(".view_skill_info");
     if (cb) cb.checked = _preferences.skillInfo;
-  };
+
+}, () => {_preferences.show = this.ui.is(":visible");
+_preferences.y = parseInt(this._host.style.top, 10) || 0;
+_preferences.x = parseInt(this._host.style.left, 10) || 0;
+const content = this.getRoot().querySelector(".content");
+if (content) {_preferences.width =
+        Math.floor(parseInt(content.style.width, 10) / 32) ||
+        preferenceDefaults.width;
+_preferences.height =
+        Math.floor(parseInt(content.style.height, 10) / 32) ||
+        preferenceDefaults.height;}
+}); };
   Component.onRemove = function onRemove() {
     if (_btnLevelUp && _btnLevelUp.parentNode) _btnLevelUp.remove();
     _preferences.show = this.ui.is(":visible");
@@ -197674,15 +197805,15 @@ function createSkillList({
   }
   function onResize(e, comp) {
     e.stopImmediatePropagation();
-    const top = parseInt(comp._host.style.top, 10) || 0;
-    const left = parseInt(comp._host.style.left, 10) || 0;
+
+
     let lastWidth = 0;
     let lastHeight = 0;
     const resizing = () => {
       const extraX = -6;
       const extraY = 32;
-      let w = Math.floor((Mouse.screen.x - left - extraX) / 32);
-      let h = Math.floor((Mouse.screen.y - top - extraY) / 32);
+      let w = Math.floor((lastroUiLogicalPointer(lastroUiInputFrame(comp._host), Mouse.screen, true).x - extraX) / 32);
+      let h = Math.floor((lastroUiLogicalPointer(lastroUiInputFrame(comp._host), Mouse.screen, true).y - extraY) / 32);
       w = Math.min(Math.max(w, 8), 8);
       h = Math.min(Math.max(h, 4), 10);
       if (w === lastWidth && h === lastHeight) return;
@@ -197700,6 +197831,7 @@ function createSkillList({
     window.addEventListener("mouseup", onMouseUp);
   }
   function resize(comp, width, height) {
+    _preferences.width = width; _preferences.height = height;
     const root = comp.getRoot();
     if (listOnly) {
       width = Math.min(Math.max(width, 8), 8);
@@ -198156,7 +198288,7 @@ function createQuest(config) {
   /**
    * Once append to the DOM, start to position the UI
    */
-  Quest.onAppend = function onAppend() {
+  Quest.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences, () => {
     if (renewLayout) {
       this._host.style.left = `${Math.min(Math.max(0, _preferences.x), Renderer.width - 381)}px`;
       this._host.style.top = `${Math.min(Math.max(0, _preferences.y), Renderer.height - 466)}px`;
@@ -198201,7 +198333,14 @@ function createQuest(config) {
       root.querySelector("#all-quest-list").style.display = "none";
       if (!_preferences.show) this.ui.hide();
     }
-  };
+
+}, () => {const hostDisplay = this._host
+      ? getComputedStyle(this._host).display
+      : "none";
+_preferences.show = hostDisplay !== "none";
+_preferences.y = parseInt(this._host.style.top, 10);
+_preferences.x = parseInt(this._host.style.left, 10);
+}); };
   /**
    * Clean up UI
    */
@@ -198906,7 +199045,7 @@ function createQuestHelper(config) {
   /**
    * Once append to the DOM, start to position the UI
    */
-  QuestHelper.onAppend = function onAppend() {
+  QuestHelper.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences, () => {
     if (renewLayout) {
       this._host.style.left = `${Math.min(Math.max(0, _preferences.x + 382), Renderer.width - 342)}px`;
       this._host.style.top = `${Math.min(Math.max(0, _preferences.y), Renderer.height - 412)}px`;
@@ -198914,7 +199053,9 @@ function createQuestHelper(config) {
       this._host.style.left = `${Math.min(Math.max(0, _preferences.x + 382), Renderer.width - 350)}px`;
       this._host.style.top = `${Math.min(Math.max(0, _preferences.y), Renderer.height - 375)}px`;
     }
-  };
+
+}, () => {_preferences.x = parseFloat(this._host.style.left) || 0; _preferences.y = parseFloat(this._host.style.top) || 0;
+}); };
   QuestHelper.setQuestInfo = renewLayout
     ? function setQuestInfo(quest) {
         const root = QuestHelper.getRoot();
@@ -199578,12 +199719,15 @@ var init_Achievement$1 = __esmMin(() => {
       this.renderSidebar();
       this._host.style.display = "none";
     }
-    onAppend() {
+    onAppend() { return lastroUiWindowAppend(this, _preferences$28, () => {
       this._host.style.left = `${_preferences$28.x}px`;
       this._host.style.top = `${_preferences$28.y}px`;
       this._fixPositionOverflow();
       this.updateHeaderAndView();
-    }
+
+}, () => {_preferences$28.x = parseInt(this._host.style.left, 10);
+_preferences$28.y = parseInt(this._host.style.top, 10);
+}); }
     onRemove() {
       _preferences$28.x = parseInt(this._host.style.left, 10);
       _preferences$28.y = parseInt(this._host.style.top, 10);
@@ -200649,7 +200793,7 @@ var init_Reputation = __esmMin(() => {
    * Initializes the reputation system by building the group selector,
    * binding group selector events and rendering the default view.
    */
-  Reputation.onAppend = function onAppend() {
+  Reputation.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences$27, () => {
     this._host.style.top = `${Math.min(Math.max(0, _preferences$27.y), window.innerHeight - (this._host.offsetHeight || 0))}px`;
     this._host.style.left = `${Math.min(Math.max(0, _preferences$27.x), window.innerWidth - (this._host.offsetWidth || 0))}px`;
     buildGroupSelector();
@@ -200657,7 +200801,11 @@ var init_Reputation = __esmMin(() => {
     bindSearch();
     buildAllReputeEntries();
     filterByGroup("all");
-  };
+
+}, () => {_preferences$27.show = this._host.style.display !== "none";
+_preferences$27.y = parseInt(this._host.style.top, 10);
+_preferences$27.x = parseInt(this._host.style.left, 10);
+}); };
   /**
    * Once remove from body, save user preferences
    */
@@ -200888,7 +201036,7 @@ function createBasicInfo(config) {
    * When append the element to html
    * Execute elements in memory
    */
-  Component.onAppend = function onAppend() {
+  Component.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences, () => {
     const root = this.getRoot();
     const hostRect = this._host.getBoundingClientRect();
     this._host.style.top = `${Math.min(Math.max(0, _preferences.y), Renderer.height - hostRect.height)}px`;
@@ -200921,7 +201069,23 @@ function createBasicInfo(config) {
       const el = root.querySelector(`#${id}`);
       if (el) el.style.display = "none";
     });
-  };
+
+}, () => {const root = this.getRoot();
+const inner = root.querySelector(innerId);
+const buttons = root.querySelector(".buttons");
+_preferences.x = parseInt(this._host.style.left, 10);
+_preferences.y = parseInt(this._host.style.top, 10);
+_preferences.reduce = inner
+      ? inner.classList.contains("small")
+      : _preferences.reduce;
+_preferences.buttons = buttons
+      ? buttons.style.display !== "none"
+      : _preferences.buttons;
+_preferences.magnet_top = this.magnet.TOP;
+_preferences.magnet_bottom = this.magnet.BOTTOM;
+_preferences.magnet_left = this.magnet.LEFT;
+_preferences.magnet_right = this.magnet.RIGHT;
+}); };
   /**
    * Once remove, save preferences
    */
@@ -205945,7 +206109,7 @@ var init_WriteRodex = __esmMin(() => {
   WriteRodex.list = [];
   WriteRodex.receiver = null;
   WriteRodex.tax = 0;
-  Preferences.get("WriteRodex", { show: false }, 1);
+  const lastroWriteRodexPreferences = Preferences.get("WriteRodex", { show: false }, 1);
   /**
    * Render HTML
    */
@@ -205953,7 +206117,7 @@ var init_WriteRodex = __esmMin(() => {
   /**
    * Initialize Component
    */
-  WriteRodex.onAppend = function onAppend() {
+  WriteRodex.onAppend = function onAppend() { return lastroUiWindowAppend(this, lastroWriteRodexPreferences, () => {
     const root = _root$8();
     root
       .querySelector(".right .close")
@@ -205971,7 +206135,9 @@ var init_WriteRodex = __esmMin(() => {
     this._host.style.top = `${Math.min(Math.max(0, rodexTop - 20), Renderer.height - this._host.offsetHeight)}px`;
     this._host.style.left = `${Math.min(Math.max(0, rodexLeft) + 330, Renderer.width - this._host.offsetWidth)}px`;
     this.draggable(root.querySelector(".titlebar"));
-  };
+
+}, () => {lastroWriteRodexPreferences.x = parseFloat(this._host.style.left) || 0; lastroWriteRodexPreferences.y = parseFloat(this._host.style.top) || 0;
+}); };
   WriteRodex.initData = function initData(pkt) {
     const root = _root$8();
     WriteRodex.receiver = null;
@@ -206368,9 +206534,12 @@ function createInventory(config) {
   /**
    * Apply preferences once append to body
    */
-  Component.onAppend = function OnAppend() {
+  Component.onAppend = function OnAppend() { return lastroUiWindowAppend(this, _preferences, () => {
     const root = Component.getRoot();
-    if (!_preferences.show) this._host.style.display = "none";
+    this._host.style.display = "";
+    if (!resizableHeight) this._host.style.height = "";
+    const lastroExpandedPanel = root.querySelector(".panel");
+    if (lastroExpandedPanel) lastroExpandedPanel.style.display = "flex";
     if (tabSprite)
       Client.loadFile(
         DB.INTERFACE_PATH +
@@ -206392,10 +206561,24 @@ function createInventory(config) {
     this.magnet.RIGHT = _preferences.magnet_right;
     _realSize = _preferences.reduce
       ? 0
-      : this._host.getBoundingClientRect().height;
+      : (this._host.offsetHeight || parseFloat(this._host.style.height) || 0);
     const miniBtnAppend = root.querySelector(".titlebar .mini");
-    if (miniBtnAppend) miniBtnAppend.dispatchEvent(new Event("mousedown"));
-  };
+    if (miniBtnAppend) miniBtnAppend.dispatchEvent(new Event("click"));
+    if (!_preferences.show) this._host.style.display = "none";
+
+}, () => {const content = Component.getRoot().querySelector(".container .content");
+_preferences.show = this._host.style.display !== "none";
+_preferences.reduce = !!_realSize;
+_preferences.y = parseInt(this._host.style.top, 10);
+_preferences.x = parseInt(this._host.style.left, 10);
+const hostRect = ({ width: this._host.offsetWidth, height: (this._host.offsetHeight || parseFloat(this._host.style.height) || 0) });
+_preferences.width = Math.floor((hostRect.width - 25) / 32);
+if (resizableHeight) {_preferences.height = Math.floor((hostRect.height - 20) / 32);}
+_preferences.magnet_top = this.magnet.TOP;
+_preferences.magnet_bottom = this.magnet.BOTTOM;
+_preferences.magnet_left = this.magnet.LEFT;
+_preferences.magnet_right = this.magnet.RIGHT;
+}); };
   /**
    * Remove Inventory from window (and so clean up items)
    */
@@ -206891,15 +207074,15 @@ function createInventory(config) {
    * Extend inventory window size
    */
   function onResize() {
-    const top = Component._host.offsetTop;
-    const left = Component._host.offsetLeft;
+
+
     let lastWidth = 0;
     let lastHeight = 0;
     function resizing() {
-      let w = Math.floor((Mouse.screen.x - left - 25) / 32);
+      let w = Math.floor((lastroUiLogicalPointer(lastroUiInputFrame(Component._host), Mouse.screen, true).x - 25) / 32);
       w = Math.min(Math.max(w, 6), resizableHeight ? 8 : 9);
       if (resizableHeight) {
-        let h = Math.floor((Mouse.screen.y - top - 20) / 32);
+        let h = Math.floor((lastroUiLogicalPointer(lastroUiInputFrame(Component._host), Mouse.screen, true).y - 20) / 32);
         h = Math.min(Math.max(h, 2), 5);
         if (w === lastWidth && h === lastHeight) return;
         Component.resize(w, h);
@@ -206966,7 +207149,7 @@ function createInventory(config) {
       Component._host.style.height = `${_realSize}px`;
       _realSize = 0;
     } else {
-      _realSize = Component._host.getBoundingClientRect().height;
+      _realSize = (Component._host.offsetHeight || parseFloat(Component._host.style.height) || 0);
       Component._host.style.height = "17px";
       if (panel) panel.style.display = "none";
     }
@@ -207878,11 +208061,19 @@ function createStorage(config) {
     this.draggable(".titlebar");
     this.ui.hide();
   };
-  Component.onAppend = function onAppend() {
+  Component.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences, () => {
+    resizeHeight(_preferences.height);
     this.ui.show();
     this._host.style.left = `${Math.min(Math.max(0, _preferences.x), Renderer.width - this._host.getBoundingClientRect().width)}px`;
     this._host.style.top = `${Math.min(Math.max(0, _preferences.y), Renderer.height - this._host.getBoundingClientRect().height)}px`;
-  };
+
+}, () => {const root = this.getRoot();
+const content = root.querySelector(".container .content");
+_preferences.y = parseInt(this._host.style.top, 10);
+_preferences.x = parseInt(this._host.style.left, 10);
+_preferences.height = Math.floor(parseFloat(this.getRoot().querySelector(".container .content").style.height) / 32) || _preferences.height;
+if (hasSearch) {const searchInput = root.querySelector("#storage-search-input");}
+}); };
   Component.onRemove = function onRemove() {
     const root = this.getRoot();
     const content = root.querySelector(".container .content");
@@ -207890,9 +208081,7 @@ function createStorage(config) {
     _list.length = 0;
     _preferences.y = parseInt(this._host.style.top, 10);
     _preferences.x = parseInt(this._host.style.left, 10);
-    _preferences.height = Math.floor(
-      (this._host.getBoundingClientRect().height - 20) / 32,
-    );
+    _preferences.height = Math.floor(parseFloat(this.getRoot().querySelector(".container .content").style.height) / 32) || _preferences.height;
     _preferences.save();
     if (hasFilters) {
       for (const tabId in _openFilters)
@@ -207920,10 +208109,14 @@ function createStorage(config) {
         `.item[data-index="${item.index}"] .count`,
       );
       if (countEl) countEl.textContent = _list[i].count;
-      return;
+
+      if (hasSearch && _openFilters[ItemType_default.SEARCH]) Component.onSearch();
+return;
     }
     if (this.addItemSub(item)) _list.push(item);
-  };
+
+      if (hasSearch && _openFilters[ItemType_default.SEARCH]) Component.onSearch();
+};
   Component.addItemSub = function addItemSub(item) {
     if (getItemTab(item) === _preferences.tab) {
       const it = DB.getItemInfo(item.ITID);
@@ -208047,10 +208240,10 @@ function createStorage(config) {
     };
   if (hasSearch) Component.onEnterPressed = Component.onSearch;
   function onResize() {
-    const top = Component._host.offsetTop;
+
     let lastHeight = 0;
     function resizing() {
-      let h = Math.floor((Mouse.screen.y - top - 20) / 32);
+      let h = Math.floor((lastroUiLogicalPointer(lastroUiInputFrame(Component._host), Mouse.screen, true).y - 20) / 32);
       h = Math.min(Math.max(h, 8), 17);
       if (h === lastHeight) return;
       resizeHeight(h);
@@ -208067,6 +208260,7 @@ function createStorage(config) {
   }
   function resizeHeight(height) {
     height = Math.min(Math.max(height, 8), 17);
+    _preferences.height = height;
     const content = Component.getRoot().querySelector(".container .content");
     if (content) content.style.height = `${height * 32}px`;
     Component._host.style.height = `${50 + height * 32}px`;
@@ -208119,7 +208313,7 @@ function createStorage(config) {
       const orderBySelect = root.querySelector(".storage-order-by");
       const orderBy = orderBySelect ? orderBySelect.value : "BASE";
       if (orderBy === "UPGRADE" || orderBy === "DOWNGRADE") {
-        list = _list.slice(0);
+        list = list.slice(0);
         list.sort((a, b) => {
           const nameA = DB.getItemName(a);
           const nameB = DB.getItemName(b);
@@ -208332,7 +208526,7 @@ function StorageFilter(tabId) {
     new.target,
   );
   component.render = () => StorageFilter_default$1;
-  component.onRemove = function () {
+  component.onRemove = function () { try {
     const root = this.getRoot();
     const content = root.querySelector(".content");
     if (content) content.innerHTML = "";
@@ -208347,7 +208541,7 @@ function StorageFilter(tabId) {
     );
     this._preferences.save();
     if (typeof this.onCloseCallback === "function") this.onCloseCallback();
-  };
+   } finally { this._lastroWindowState?.dispose(); } };
   component._list = [];
   component._currentTabId = -1;
   component._preferences = Preferences.get(
@@ -208421,7 +208615,9 @@ var init_StorageFilter = __esmMin(() => {
     this.draggable(".titlebar");
     this.ui.hide();
   };
-  StorageFilter.prototype.onAppend = function onAppend() {
+  StorageFilter.prototype.onAppend = function onAppend() { return lastroUiWindowAppend(this, this._preferences, () => {
+    this.resizeHeight(this._preferences.height);
+
     this.ui.show();
     const rect = this._host.getBoundingClientRect();
     const width = rect.width || this._host.offsetWidth || 220;
@@ -208432,9 +208628,16 @@ var init_StorageFilter = __esmMin(() => {
       Renderer.height || globalThis.window?.innerHeight || height;
     this._host.style.left = `${Math.min(Math.max(0, this._preferences.x), Math.max(0, viewportWidth - width))}px`;
     this._host.style.top = `${Math.min(Math.max(0, this._preferences.y), Math.max(0, viewportHeight - height))}px`;
-  };
+
+  }, () => {
+    this._preferences.x = parseInt(this._host.style.left, 10);
+    this._preferences.y = parseInt(this._host.style.top, 10);
+    const content = this.getRoot().querySelector('.content');
+    const height = content ? parseFloat(content.style.height) / 32 : NaN;
+    if (Number.isFinite(height)) this._preferences.height = Math.min(Math.max(Math.floor(height), 4), 10);
+  }); };
   StorageFilter.prototype.setItems = function setItems(title, items, tabId) {
-    this._list = items.slice(0);
+    this._list = items.map((item) => ({ ...item }));
     this._currentTabId = tabId;
     const root = this.getRoot();
     const titleEl = root.querySelector(".titlebar .text");
@@ -208546,17 +208749,18 @@ var init_StorageFilter = __esmMin(() => {
   };
   StorageFilter.prototype.resizeHeight = function resizeHeight(height) {
     height = Math.min(Math.max(height, 4), 10);
+    this._preferences.height = height;
     const content = this.getRoot().querySelector(".content");
     if (content) content.style.height = `${height * 32}px`;
     this._host.style.height = `${height * 32 + 17 + 19}px`;
   };
   StorageFilter.prototype.onResize = function onResize() {
     const self = this;
-    const top = this._host.offsetTop;
+
     let lastHeight = 0;
     const extraY = 36;
     function resizing() {
-      let h = Math.floor((Mouse.screen.y - top - extraY) / 32);
+      let h = Math.floor((lastroUiLogicalPointer(lastroUiInputFrame(self._host), Mouse.screen, true).y - extraY) / 32);
       h = Math.min(Math.max(h, 4), 10);
       if (h === lastHeight) return;
       self.resizeHeight(h);
@@ -208695,15 +208899,15 @@ var init_Storage$1 = __esmMin(() => {
 function onResize$6() {
   const content = CartItems.getRoot().querySelector(".container .content");
   const hideEl = CartItems.getRoot().querySelector(".hide");
-  const top = CartItems._host.offsetTop;
-  const left = CartItems._host.offsetLeft;
+
+
   let lastWidth = 0;
   let lastHeight = 0;
   function resizing() {
     const extraX = 25;
     const extraY = 20;
-    let w = Math.floor((Mouse.screen.x - left - extraX) / 32);
-    let h = Math.floor((Mouse.screen.y - top - extraY) / 32);
+    let w = Math.floor((lastroUiLogicalPointer(lastroUiInputFrame(CartItems._host), Mouse.screen, true).x - extraX) / 32);
+    let h = Math.floor((lastroUiLogicalPointer(lastroUiInputFrame(CartItems._host), Mouse.screen, true).y - extraY) / 32);
     w = Math.min(Math.max(w, 6), 9);
     h = Math.min(Math.max(h, 2), 6);
     if (w === lastWidth && h === lastHeight) return;
@@ -208735,7 +208939,7 @@ function onToggleReduction() {
     CartItems._host.style.height = `${_realSize$1}px`;
     _realSize$1 = 0;
   } else {
-    _realSize$1 = CartItems._host.getBoundingClientRect().height;
+    _realSize$1 = (CartItems._host.offsetHeight || parseFloat(CartItems._host.style.height) || 0);
     CartItems._host.style.height = "17px";
     if (panel) panel.style.display = "none";
   }
@@ -209025,18 +209229,28 @@ var init_CartItems = __esmMin(() => {
   /**
    * Apply preferences once append to body
    */
-  CartItems.onAppend = function OnAppend() {
-    if (SessionStorage_default.Entity.hasCart === false)
-      this._host.style.display = "none";
-    if (!_preferences$26.show) this._host.style.display = "none";
+  CartItems.onAppend = function OnAppend() { return lastroUiWindowAppend(this, _preferences$26, () => {
+    this._host.style.display = "";
+    const lastroExpandedPanel = this.getRoot().querySelector(".panel");
+    if (lastroExpandedPanel) lastroExpandedPanel.style.display = "block";
     this.resize(_preferences$26.width, _preferences$26.height);
     const hostRect = this._host.getBoundingClientRect();
     this._host.style.top = `${Math.min(Math.max(0, _preferences$26.y), Renderer.height - hostRect.height)}px`;
     this._host.style.left = `${Math.min(Math.max(0, _preferences$26.x), Renderer.width - hostRect.width)}px`;
-    _realSize$1 = _preferences$26.reduce ? 0 : hostRect.height;
+    _realSize$1 = _preferences$26.reduce ? 0 : (this._host.offsetHeight || parseFloat(this._host.style.height) || 0);
     const miniBtn = this.getRoot().querySelector(".titlebar .mini");
-    if (miniBtn) miniBtn.dispatchEvent(new Event("mousedown"));
-  };
+    if (miniBtn) miniBtn.dispatchEvent(new Event("click"));
+    if (!_preferences$26.show || SessionStorage_default.Entity.hasCart === false) this._host.style.display = "none";
+
+}, () => {const content = this.getRoot().querySelector(".container .content");
+_preferences$26.show = this._host.style.display !== "none";
+_preferences$26.reduce = !!_realSize$1;
+_preferences$26.y = parseInt(this._host.style.top, 10);
+_preferences$26.x = parseInt(this._host.style.left, 10);
+const hostRect = ({ width: this._host.offsetWidth, height: (this._host.offsetHeight || parseFloat(this._host.style.height) || 0) });
+_preferences$26.width = Math.floor((hostRect.width - 25) / 32);
+_preferences$26.height = Math.floor((hostRect.height - 20) / 32);
+}); };
   /**
    * Remove Inventory from window (and so clean up items)
    */
@@ -209628,7 +209842,7 @@ function createEquipment({
     const pkt = new PACKET.CZ.REQ_CARTOFF();
     Network.sendPacket(pkt);
   }
-  Component.onAppend = function onAppend() {
+  Component.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences, () => {
     const hostRect = this._host.getBoundingClientRect();
     this._host.style.top = `${Math.min(Math.max(0, _preferences.y), Renderer.height - hostRect.height)}px`;
     this._host.style.left = `${Math.min(Math.max(0, _preferences.x), Renderer.width - hostRect.width)}px`;
@@ -209661,7 +209875,16 @@ function createEquipment({
         if (switchHost.style) switchHost.style.display = "none";
       }
     }
-  };
+
+}, () => {const root = Component.getRoot();
+_preferences.show = this._host.style.display !== "none";
+const panel = root.querySelector(".panel");
+_preferences.reduce = panel ? panel.style.display === "none" : false;
+const winStats = WinStatsController.getUI();
+_preferences.stats = winStats.isEmbedded();
+_preferences.y = parseInt(this._host.style.top, 10);
+_preferences.x = parseInt(this._host.style.left, 10);
+}); };
   Component.onRemove = function onRemove() {
     if (
       UIVersionManager.getEquipmentVersion() > 0 &&
@@ -210531,10 +210754,10 @@ function addCard(cardList, itemId, index, slotCount) {
  * Extend ItemInfo window size
  */
 function onResize$5() {
-  const top = ItemInfo._host.offsetTop;
+
   let lastHeight = 0;
   function resizing() {
-    const h = Math.floor(Mouse.screen.y - top);
+    const h = Math.floor(lastroUiLogicalPointer(lastroUiInputFrame(ItemInfo._host), Mouse.screen, true).y);
     if (h === lastHeight) return;
     resize$3(h);
     lastHeight = h;
@@ -211119,10 +211342,50 @@ var init_NpcBox$2 = __esmMin(() => {
 var NpcBox_default$1;
 var init_NpcBox$1 = __esmMin(() => {
   NpcBox_default$1 =
-    ":host {\r\n	width: 276px;\r\n	height: 176px;\r\n	top: 100px;\r\n	left: 100px;\r\n}\r\n\r\n#NpcBox {\r\n	position: absolute;\r\n	width: 276px;\r\n	height: 176px;\r\n	border-radius: 5px;\r\n	background: white;\r\n	padding: 2px;\r\n	line-height: 18px;\r\n	letter-spacing: 0px;\r\n}\r\n#NpcBox .border {\r\n	border: 1px solid #c1c6c2;\r\n	width: 264px;\r\n	height: 164px;\r\n	padding: 5px;\r\n	border-radius: 5px;\r\n}\r\n#NpcBox .content {\r\n	white-space: pre-wrap;\r\n	background-color: #eff4f0;\r\n	width: 254px;\r\n	height: 130px;\r\n	overflow-y: auto;\r\n	padding: 5px;\r\n}\r\n#NpcBox .btns {\r\n	position: absolute;\r\n	bottom: 2px;\r\n	right: 8px;\r\n}\r\n#NpcBox .btn {\r\n	width: 42px;\r\n	height: 20px;\r\n	bottom: 4px;\r\n	display: none;\r\n}\r\n\r\n.item-link {\r\n	color: #0070c0;\r\n	cursor: pointer;\r\n}\r\n\r\n.item-link:hover {\r\n	color: #00a0ff;\r\n}\r\n\r\n.navi-link {\r\n	color: #c00000;\r\n	cursor: pointer;\r\n	text-decoration: underline;\r\n}\r\n\r\n.navi-link:hover {\r\n	color: #ff0000;\r\n}\r\n";
+    ":host {\r\n\twidth: 276px;\r\n\theight: 176px;\r\n\ttop: 100px;\r\n\tleft: 100px;\r\n}\r\n\r\n#NpcBox {\r\n\tposition: absolute;\r\n\twidth: 276px;\r\n\theight: 176px;\r\n\tborder-radius: 5px;\r\n\tbackground: white;\r\n\tpadding: 2px;\r\n\tline-height: 18px;\r\n\tletter-spacing: 0px;\r\n}\r\n#NpcBox .border {\r\n\tborder: 1px solid #c1c6c2;\r\n\twidth: 264px;\r\n\theight: 164px;\r\n\tpadding: 5px;\r\n\tborder-radius: 5px;\r\n}\r\n#NpcBox .content {\r\n\twhite-space: pre-wrap;\r\n\tbackground-color: #eff4f0;\r\n\twidth: 254px;\r\n\theight: 130px;\r\n\toverflow-y: auto;\r\n\tpadding: 5px;\r\n}\r\n#NpcBox .btns {\r\n\tposition: absolute;\r\n\tbottom: 2px;\r\n\tright: 8px;\r\n}\r\n#NpcBox .btn {\r\n\twidth: 42px;\r\n\theight: 20px;\r\n\tbottom: 4px;\r\n\tdisplay: none;\r\n}\r\n\r\n.item-link {\r\n\tcolor: #0070c0;\r\n\tcursor: pointer;\r\n}\r\n\r\n.item-link:hover {\r\n\tcolor: #00a0ff;\r\n}\r\n\r\n.navi-link {\r\n\tcolor: #c00000;\r\n\tcursor: pointer;\r\n\ttext-decoration: underline;\r\n}\r\n\r\n.navi-link:hover {\r\n\tcolor: #ff0000;\r\n}\r\n\n#NpcBox .btn { color: transparent; }\n#NpcBox .btn.lastro-npc-button-fallback {\n  box-sizing: border-box;\n  border: 1px solid #b0b8c4;\n  border-radius: 3px;\n  background-image: linear-gradient(#ffffff, #e5e9ef);\n  color: #303848;\n  font-size: 11px;\n  line-height: 18px;\n  text-align: center;\n  cursor: pointer;\n}\n#NpcBox .btn.lastro-npc-button-fallback:hover { border-color: #7b96c1; }\n#NpcBox .btn.lastro-npc-button-fallback:active { background-image: linear-gradient(#d9e1ee, #f0f3f8); }\n";
 });
 //#endregion
 //#region src/UI/Components/NpcBox/NpcBox.js
+/* lastro-npc-dialog-buttons */
+function installLastroNpcDialogButtonFallback(npc) {
+  let observer = null;
+  const stop = () => { observer?.disconnect(); observer = null; };
+  function attach() {
+    stop();
+    const root = npc.getRoot();
+    const buttons = [['.next', '下一步'], ['.close', '关闭']].map(([selector, label]) => {
+      const button = root?.querySelector(selector);
+      if (button) {
+        button.textContent = label;
+        button.setAttribute('aria-label', label);
+      }
+      return button;
+    }).filter(Boolean);
+    const update = () => {
+      for (const button of buttons) {
+        const image = button.style.backgroundImage;
+        button.classList.toggle('lastro-npc-button-fallback', !image || image === 'none');
+      }
+    };
+    update();
+    const win = npc._host?.ownerDocument.defaultView;
+    if (win && npc.__active && npc._host.isConnected) {
+      observer = new win.MutationObserver(update);
+      for (const button of buttons) observer.observe(button, { attributes: true, attributeFilter: ['style'] });
+    }
+  }
+  const append = npc.onAppend, remove = npc.onRemove;
+  npc.onAppend = function (...args) {
+    const result = append?.apply(this, args);
+    attach();
+    return result;
+  };
+  npc.onRemove = function (...args) {
+    stop();
+    return remove?.apply(this, args);
+  };
+}
+
 /**
  * Process NAVI tags in text
  */
@@ -211369,6 +211632,7 @@ var init_NpcBox = __esmMin(() => {
    */
   NpcBox.onClosePressed = function onClosePressed() {};
   NpcBox.onNextPressed = function onNextPressed() {};
+  installLastroNpcDialogButtonFallback(NpcBox);
   NpcBox_default = UIManager.addComponent(NpcBox);
 });
 //#endregion
@@ -211483,7 +211747,7 @@ var init_ChatRoomCreate = __esmMin(() => {
   /**
    * Once append to body
    */
-  ChatRoomCreate.onAppend = function onAppend() {
+  ChatRoomCreate.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences$25, () => {
     if (!_preferences$25.show) this._host.style.display = "none";
     this._host.style.top =
       Math.min(
@@ -211495,7 +211759,11 @@ var init_ChatRoomCreate = __esmMin(() => {
         Math.max(0, _preferences$25.x),
         Renderer.width - this._host.offsetWidth,
       ) + "px";
-  };
+
+}, () => {_preferences$25.show = this._host.style.display !== "none";
+_preferences$25.y = parseInt(this._host.style.top, 10);
+_preferences$25.x = parseInt(this._host.style.left, 10);
+}); };
   /**
    * Once removed from DOM, save preferences
    */
@@ -211746,15 +212014,15 @@ function sendChatMessage() {
  * Resize ChatRoom via drag
  */
 function onResize$4() {
-  const top = ChatRoom._host.offsetTop;
-  const left = ChatRoom._host.offsetLeft;
+
+
   let lastWidth = 0;
   let lastHeight = 0;
   function resizeProcess() {
     const extraX = 25;
     const extraY = 20;
-    let w = Math.floor((Mouse.screen.x - left - extraX) / 32);
-    let h = Math.floor((Mouse.screen.y - top - extraY) / 32);
+    let w = Math.floor((lastroUiLogicalPointer(lastroUiInputFrame(ChatRoom._host), Mouse.screen, true).x - extraX) / 32);
+    let h = Math.floor((lastroUiLogicalPointer(lastroUiInputFrame(ChatRoom._host), Mouse.screen, true).y - extraY) / 32);
     w = Math.min(Math.max(w, 7), 14);
     h = Math.min(Math.max(h, 3), 8);
     if (w === lastWidth && h === lastHeight) return;
@@ -211877,7 +212145,7 @@ var init_ChatRoom$1 = __esmMin(() => {
   /**
    * Once appended to DOM
    */
-  ChatRoom.onAppend = function onAppend() {
+  ChatRoom.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences$24, () => {
     const root = this.getRoot();
     this.isOpen = true;
     _gridWidth = _preferences$24.width;
@@ -211895,7 +212163,13 @@ var init_ChatRoom$1 = __esmMin(() => {
       ) + "px";
     root.querySelector(".sendmsg").focus();
     this.updateChat();
-  };
+
+}, () => {const messages = this.getRoot().querySelector(".messages");
+_preferences$24.y = parseInt(this._host.style.top, 10);
+_preferences$24.x = parseInt(this._host.style.left, 10);
+_preferences$24.width = _gridWidth;
+_preferences$24.height = _gridHeight;
+}); };
   /**
    * Clean up variables once removed from DOM
    */
@@ -214542,7 +214816,7 @@ var init_HomunInformations = __esmMin(() => {
     this.toggleAggressive();
     this.toggleAggressive();
   };
-  HomunInformations.onAppend = function onAppend() {
+  HomunInformations.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences$23, () => {
     const root = HomunInformations.getRoot();
     Client.loadFile(
       DB.INTERFACE_PATH +
@@ -214562,7 +214836,11 @@ var init_HomunInformations = __esmMin(() => {
     }
     this._host.style.top = `${Math.min(Math.max(0, _preferences$23.y), Renderer.height - this._host.getBoundingClientRect().height)}px`;
     this._host.style.left = `${Math.min(Math.max(0, _preferences$23.x), Renderer.width - this._host.getBoundingClientRect().width)}px`;
-  };
+
+}, () => {_preferences$23.show = this._host.style.display !== "none";
+_preferences$23.y = parseInt(this._host.style.top, 10);
+_preferences$23.x = parseInt(this._host.style.left, 10);
+}); };
   HomunInformations.startAutoFeed = function startAutoFeed() {
     window.clearInterval(autoFeedInterval);
     autoFeedInterval = window.setInterval(
@@ -214964,11 +215242,15 @@ var init_MercenaryInformations = __esmMin(() => {
   /**
    * Once append to body
    */
-  MercenaryInformations.onAppend = function onAppend() {
+  MercenaryInformations.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences$22, () => {
     if (!_preferences$22.show) this._host.style.display = "none";
     this._host.style.top = `${Math.min(Math.max(0, _preferences$22.y), Renderer.height - this._host.getBoundingClientRect().height)}px`;
     this._host.style.left = `${Math.min(Math.max(0, _preferences$22.x), Renderer.width - this._host.getBoundingClientRect().width)}px`;
-  };
+
+}, () => {_preferences$22.show = this._host.style.display !== "none";
+_preferences$22.y = parseInt(this._host.style.top, 10);
+_preferences$22.x = parseInt(this._host.style.left, 10);
+}); };
   /**
    * Once remove from body
    */
@@ -215321,10 +215603,15 @@ var init_CaptchaUpload = __esmMin(() => {
   /**
    * Append to DOM
    */
-  CaptchaUpload.onAppend = function onAppend() {
+  CaptchaUpload.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences$21, () => {
     this._host.style.top = `${Math.min(Math.max(0, _preferences$21.y), Renderer.height - this._host.offsetHeight)}px`;
     this._host.style.left = `${Math.min(Math.max(0, _preferences$21.x), Renderer.width - this._host.offsetWidth)}px`;
-  };
+
+}, () => {_preferences$21.y = parseInt(this._host.style.top, 10);
+_preferences$21.x = parseInt(this._host.style.left, 10);
+const root = this.getRoot();
+const previewBox = root.querySelector(".preview_box");
+}); };
   /**
    * Remove data from UI
    */
@@ -215472,10 +215759,14 @@ var init_CaptchaSelector = __esmMin(() => {
   /**
    * Append to DOM
    */
-  CaptchaSelector.onAppend = function onAppend() {
+  CaptchaSelector.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences$20, () => {
     this._host.style.top = `${Math.min(Math.max(0, _preferences$20.y), Renderer.height - this._host.offsetHeight)}px`;
     this._host.style.left = `${Math.min(Math.max(0, _preferences$20.x), Renderer.width - this._host.offsetWidth)}px`;
-  };
+
+}, () => {_preferences$20.y = parseInt(this._host.style.top, 10);
+_preferences$20.x = parseInt(this._host.style.left, 10);
+const charInfo = this.getRoot().querySelector(".character_info");
+}); };
   /**
    * Remove data from UI
    */
@@ -223818,10 +224109,10 @@ function onContainerMouseLeave() {
  */
 function onResize$3(event) {
   const host = ShortCut._host;
-  const top = host.offsetTop;
+
   let lastHeight = 0;
   function resizing() {
-    let h = Math.floor((Mouse.screen.y - top) / 34 + 1);
+    let h = Math.floor((lastroUiLogicalPointer(lastroUiInputFrame(host), Mouse.screen, true).y) / 34 + 1);
     h = Math.min(Math.max(h, 1), _rowCount);
     if (h === lastHeight) return;
     host.style.height = `${h * 34}px`;
@@ -224344,7 +224635,7 @@ var init_ShortCut = __esmMin(() => {
   /**
    * Append to body
    */
-  ShortCut.onAppend = function onAppend() {
+  ShortCut.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences$19, () => {
     this._host.style.height = `${34 * _preferences$19.size}px`;
     const rect = this._host.getBoundingClientRect();
     this._host.style.top = `${Math.min(Math.max(0, _preferences$19.y), Renderer.height - rect.height)}px`;
@@ -224358,7 +224649,18 @@ var init_ShortCut = __esmMin(() => {
     _list$1.forEach((element, index) => {
       if (element && element.Delay) setDelayOnIndex(index, element._lastroCooldownDuration, true);
     });
-  };
+
+}, () => {const tooltip = ShortCut.getRoot().querySelector(".shortcut-tooltip");
+_preferences$19.y = parseInt(this._host.style.top, 10);
+_preferences$19.x = parseInt(this._host.style.left, 10);
+_preferences$19.size = Math.floor(
+      parseInt(this._host.style.height, 10) / 34,
+    );
+_preferences$19.magnet_top = this.magnet.TOP;
+_preferences$19.magnet_bottom = this.magnet.BOTTOM;
+_preferences$19.magnet_left = this.magnet.LEFT;
+_preferences$19.magnet_right = this.magnet.RIGHT;
+}, { restoreHeight: false }); };
   /**
    * When removed, clean up
    */
@@ -224406,8 +224708,8 @@ var init_ShortCut = __esmMin(() => {
         break;
       case "EXTEND":
         _preferences$19.size = (_preferences$19.size + 1) % (_rowCount + 1);
-        _preferences$19.save();
         this._host.style.height = `${_preferences$19.size * 34}px`;
+			_preferences$19.save();
     }
   };
   ShortCut.useSkill = function useSkill(id, level) {
@@ -275093,7 +275395,7 @@ var init_PetInformations = __esmMin(() => {
         PetInformations.onConfigUpdate(2, !petAutoFeeding ? 1 : 0);
       });
   };
-  PetInformations.onAppend = function onAppend() {
+  PetInformations.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences$18, () => {
     const root = PetInformations.getRoot();
     Client.loadFile(
       DB.INTERFACE_PATH + "checkbox_" + (petAutoFeeding ? "1" : "0") + ".bmp",
@@ -275108,7 +275410,11 @@ var init_PetInformations = __esmMin(() => {
     }
     this._host.style.top = `${Math.min(Math.max(0, _preferences$18.y), Renderer.height - this._host.getBoundingClientRect().height)}px`;
     this._host.style.left = `${Math.min(Math.max(0, _preferences$18.x), Renderer.width - this._host.getBoundingClientRect().width)}px`;
-  };
+
+}, () => {_preferences$18.show = this._host.style.display !== "none";
+_preferences$18.y = parseInt(this._host.style.top, 10);
+_preferences$18.x = parseInt(this._host.style.left, 10);
+}); };
   /**
    * Once remove from body, save user preferences
    */
@@ -283203,6 +283509,262 @@ var init_EntityManager = __esmMin(() => {
   Entity.Manager = EntityManager;
 });
 //#endregion
+function installLastroItemDrag({ document: doc, mouse, cursor, isEnabled }) {
+  if (doc._lastroItemDrag) return doc._lastroItemDrag;
+  const win = doc.defaultView, emitted = new WeakSet(), listeners = [];
+  let gesture, frame, lastOver = 0, suppressClickUntil = 0, consumeRelease = false;
+
+  function listen(target, type, handler) {
+    target.addEventListener(type, handler, true);
+    listeners.push(() => target.removeEventListener(type, handler, true));
+  }
+  function ownerHost(element) {
+    for (let host = element?.getRootNode().host; host; host = host.getRootNode().host) {
+      if (host.id) return host;
+    }
+    return null;
+  }
+  function sourceAt(event) {
+    const source = event.composedPath().find(node => node?.matches?.('[draggable="true"]'));
+    const host = ownerHost(source);
+    return host?.id && host.id !== 'Intro' ? source : null;
+  }
+  function point(event) {
+    return { x: event.clientX, y: event.clientY, ctrlKey: event.ctrlKey,
+      shiftKey: event.shiftKey, altKey: event.altKey, metaKey: event.metaKey };
+  }
+  function transferFor(state) {
+    const values = new Map();
+    const key = type => /^(text|text\/plain)$/i.test(type) ? 'text/plain' : String(type).toLowerCase();
+    return {
+      dropEffect: 'none', effectAllowed: 'all', files: [],
+      get types() { return [...values.keys()]; },
+      setData(type, value) { values.set(key(type), String(value)); },
+      getData(type) { return values.get(key(type)) || ''; },
+      clearData(type) { if (type === undefined) values.clear(); else values.delete(key(type)); },
+      setDragImage(image, x, y) { state.image = { node: image, x, y }; },
+    };
+  }
+  function emit(target, type, state, at, relatedTarget = null) {
+    const event = new win.MouseEvent(type, { bubbles: true, cancelable: true, composed: true,
+      clientX: at.x, clientY: at.y, button: 0, buttons: type === 'dragend' || type === 'drop' ? 0 : 1,
+      ctrlKey: at.ctrlKey, shiftKey: at.shiftKey, altKey: at.altKey, metaKey: at.metaKey, relatedTarget });
+    Object.defineProperty(event, 'dataTransfer', { value: state.transfer });
+    let stopped = false;
+    for (const name of ['stopPropagation', 'stopImmediatePropagation']) {
+      const native = event[name].bind(event);
+      event[name] = () => { stopped = true; native(); };
+    }
+    emitted.add(event);
+    target.dispatchEvent(event);
+    // Some legacy component listeners return false and only stop propagation.
+    // Their drop handlers still own payload validation, so retain that contract.
+    return { accepted: event.defaultPrevented || stopped, canceled: event.defaultPrevented };
+  }
+  function hit(at) {
+    let target = doc.elementFromPoint(at.x, at.y), next;
+    const visited = new Set();
+    while (target?.shadowRoot && !visited.has(target)) {
+      visited.add(target);
+      next = target.shadowRoot.elementFromPoint?.(at.x, at.y);
+      if (!next || next === target) break;
+      target = next;
+    }
+    const host = ownerHost(target);
+    return host && host.id !== 'Intro' || target?.matches?.('canvas') && target.getRootNode() === doc ? target : null;
+  }
+  function follow(state) {
+    const { x, y } = state.at;
+    mouse.screen.x = x + win.scrollX;
+    mouse.screen.y = y + win.scrollY;
+    cursor.x = mouse.screen.x;
+    cursor.y = mouse.screen.y;
+    const pointer = doc.querySelector('.cursor');
+    if (pointer) { pointer.style.left = x + 'px'; pointer.style.top = y + 'px'; }
+    if (state.ghost) {
+      state.ghost.style.left = x - (state.image?.x || 0) + 'px';
+      state.ghost.style.top = y - (state.image?.y || 0) + 'px';
+    }
+  }
+  function hover(state) {
+    const target = hit(state.at);
+    if (target !== state.target) {
+      const previous = state.target;
+      if (target) emit(target, 'dragenter', state, state.at, previous);
+      if (previous) emit(previous, 'dragleave', state, state.at, target);
+      state.target = target;
+    }
+    state.accepted = !!target && emit(target, 'dragover', state, state.at).accepted;
+  }
+  function pulse(time) {
+    frame = undefined;
+    if (!gesture?.started) return;
+    if (!gesture.source.isConnected || doc.hidden || !isEnabled()) { cancel(); return; }
+    if (time - lastOver >= 50) { lastOver = time; hover(gesture); }
+    if (gesture?.started) frame = win.requestAnimationFrame(pulse);
+  }
+  function restore(state) {
+    if (state.draggable === null) state.source.removeAttribute('draggable');
+    else state.source.setAttribute('draggable', state.draggable);
+    state.ghost?.remove();
+    if (state.started) {
+      cursor.freeze = state.freeze;
+      cursor.blockMagnetism = state.blockMagnetism;
+      const targeting = mouse.MOUSE_STATE && mouse.state === mouse.MOUSE_STATE.USESKILL;
+      cursor.setType?.(targeting && Number.isFinite(state.type) ? state.type : cursor.ACTION?.DEFAULT ?? 0);
+      doc.body.removeAttribute('data-lastro-item-drag');
+    }
+  }
+  function finish(drop = false) {
+    const state = gesture;
+    gesture = undefined;
+    if (frame !== undefined) win.cancelAnimationFrame(frame);
+    frame = undefined;
+    if (!state) return;
+    try {
+      if (state.started) {
+        if (drop && state.source.isConnected && state.target?.isConnected && state.accepted)
+          emit(state.target, 'drop', state, state.at);
+        else state.transfer.dropEffect = 'none';
+        if (state.target) emit(state.target, 'dragleave', state, state.at);
+        // Refine/EnchantGrade interpret a dragend outside the window as removal.
+        // Cancellation must keep their staged item, so end at the initial point.
+        emit(state.source, 'dragend', state, drop ? state.at : state.start);
+        delete win._OBJ_DRAG_;
+      }
+    } finally { restore(state); }
+  }
+  function cancel() {
+    if (gesture?.started) consumeRelease = true;
+    finish(false);
+  }
+  function begin(state) {
+    state.transfer = transferFor(state);
+    state.started = true;
+    state.freeze = cursor.freeze;
+    state.blockMagnetism = cursor.blockMagnetism;
+    state.type = cursor.getActualType?.();
+    const rejected = emit(state.source, 'dragstart', state, state.start).canceled;
+    if (gesture !== state) return;
+    const text = state.transfer.getData('Text');
+    let payload;
+    try { payload = JSON.parse(text); } catch { /* Staged refine items use a plain id. */ }
+    const staged = ['Refine', 'EnchantGrade'].includes(ownerHost(state.source)?.id);
+    if (rejected || (!staged && (!text || !['item', 'skill'].includes(payload?.type)))) { cancel(); return; }
+    cursor.setType?.(cursor.ACTION?.DEFAULT ?? 0);
+    cursor.freeze = true;
+    cursor.blockMagnetism = true;
+    doc.body.setAttribute('data-lastro-item-drag', '');
+    {
+      const ghost = doc.createElement('div');
+      ghost.setAttribute('data-lastro-item-drag-image', '');
+      Object.assign(ghost.style, { position: 'fixed', zIndex: '9998', pointerEvents: 'none',
+        userSelect: 'none', opacity: '0.75', cursor: 'none' });
+      const image = (state.image?.node || state.source).cloneNode(true);
+      if (!state.image) {
+        const originals = [state.source, ...state.source.querySelectorAll('*')];
+        const clones = [image, ...image.querySelectorAll('*')];
+        const properties = ['width', 'height', 'display', 'position', 'left', 'top', 'right', 'bottom',
+          'backgroundImage', 'backgroundSize', 'backgroundPosition', 'backgroundRepeat', 'color', 'font',
+          'lineHeight', 'textAlign', 'border', 'borderRadius', 'boxSizing', 'padding', 'margin'];
+        originals.forEach((node, index) => {
+          const computed = win.getComputedStyle(node), clone = clones[index];
+          for (const property of properties) clone.style[property] = computed[property];
+          clone.removeAttribute('id');
+          clone.removeAttribute('draggable');
+        });
+        const computed = win.getComputedStyle(state.source), rect = state.source.getBoundingClientRect();
+        Object.assign(image.style, { backgroundImage: computed.backgroundImage, backgroundSize: computed.backgroundSize,
+          backgroundPosition: computed.backgroundPosition, width: rect.width + 'px', height: rect.height + 'px',
+          position: 'relative', display: 'block', margin: '0', transform: 'none', pointerEvents: 'none' });
+      }
+      image.removeAttribute?.('id');
+      image.removeAttribute?.('draggable');
+      ghost.appendChild(image);
+      doc.body.appendChild(ghost);
+      state.ghost = ghost;
+    }
+    follow(state);
+    lastOver = 0;
+    frame = win.requestAnimationFrame(pulse);
+  }
+  listen(win, 'mousedown', event => {
+    if (event.button !== 0 || !isEnabled() || doc.hidden) return;
+    cancel();
+    consumeRelease = false;
+    suppressClickUntil = 0;
+    const source = sourceAt(event);
+    if (!source) return;
+    const start = point(event);
+    gesture = { source, start, at: start, draggable: source.getAttribute('draggable'), started: false };
+    // Also block implicit image dragging; a capture dragstart guard covers descendants.
+    source.setAttribute('draggable', 'false');
+    event.preventDefault();
+  });
+  listen(win, 'mousemove', event => {
+    if (!gesture) return;
+    if (event.buttons !== 1 || !gesture.source.isConnected || !isEnabled()) { cancel(); return; }
+    gesture.at = point(event);
+    if (!gesture.started && Math.hypot(gesture.at.x - gesture.start.x, gesture.at.y - gesture.start.y) >= 5) begin(gesture);
+    if (gesture?.started) {
+      follow(gesture);
+      hover(gesture);
+      event.preventDefault();
+    }
+  });
+  listen(win, 'dragstart', event => {
+    if (emitted.has(event) || !gesture || !isEnabled()) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (!gesture.started) { gesture.at = point(event); begin(gesture); }
+    if (gesture?.started) hover(gesture);
+  });
+  listen(win, 'mouseup', event => {
+    if (event.button !== 0) return;
+    if (!gesture) {
+      if (consumeRelease) {
+        consumeRelease = false;
+        suppressClickUntil = Date.now() + 500;
+        event.preventDefault(); event.stopImmediatePropagation();
+      }
+      return;
+    }
+    if (gesture.started) {
+      gesture.at = point(event);
+      follow(gesture);
+      hover(gesture);
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      suppressClickUntil = Date.now() + 500;
+      finish(true);
+    } else cancel();
+  });
+  listen(win, 'click', event => {
+    if (event.button === 0 && Date.now() < suppressClickUntil) {
+      suppressClickUntil = 0;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+  });
+  listen(win, 'keydown', event => {
+    if (event.key === 'Escape' && gesture) {
+      const active = gesture.started;
+      cancel();
+      if (active) { event.preventDefault(); event.stopImmediatePropagation(); }
+    }
+  });
+  listen(win, 'blur', cancel);
+  listen(win, 'pointercancel', cancel);
+  listen(doc, 'visibilitychange', () => { if (doc.hidden) cancel(); });
+  const observer = new win.MutationObserver(() => {
+    if (gesture && !gesture.source.isConnected) cancel();
+  });
+  observer.observe(doc.body, { childList: true, subtree: true });
+  const api = { cancel, active: () => !!gesture?.started,
+    destroy() { cancel(); observer.disconnect(); listeners.forEach(remove => remove()); delete doc._lastroItemDrag; } };
+  doc._lastroItemDrag = api;
+  return api;
+}
 //#region src/UI/CursorManager.js
 var CursorManager_exports = /* @__PURE__ */ __exportAll({
   default: () => Cursor,
@@ -283308,6 +283870,8 @@ function bindMouseEvents() {
     },
     true,
   );
+
+  installLastroItemDrag({ document, mouse: Mouse, cursor: Cursor, isEnabled: () => GraphicsSettings.cursor });
 }
 /**
  * Start pre-compiling animation to avoid building sprites
@@ -284053,6 +284617,225 @@ var init_Scrollbar = __esmMin(() => {
   };
 });
 //#endregion
+function lastroUiWindowAppend(component, preferences, append, snapshot, options = {}) {
+  const host = component._host, win = host?.ownerDocument?.defaultView;
+  if (!host || !win || !preferences || typeof preferences.save !== 'function') return append();
+  let state = component._lastroWindowState;
+  if (!state) {
+    const restoreHeight = options.restoreHeight !== false;
+    const number = value => Number.isFinite(Number(value)) ? Number(value) : undefined;
+    const pixel = value => typeof value === 'string' && /^-?\d+(?:\.\d+)?px$/.test(value) ? number(parseFloat(value)) : undefined;
+    const stored = preferences._lastroWindow;
+    const geometry = stored && typeof stored === 'object' ? { ...stored } : {};
+    let applying = false, removing = false, timer, lastSaved;
+    let applied = {}, ownScale = 1;
+    const originalSave = preferences.save;
+    const root = component.getRoot();
+    const dimensions = () => ({ width: host.offsetWidth || pixel(host.style.width) || 0, height: host.offsetHeight || pixel(host.style.height) || 0 });
+    function capture() {
+      if (applying || removing || !host.isConnected) return;
+      if (component.isEmbedded?.()) {
+        const geometryKeys = ['x', 'y', 'width', 'height'], previous = geometryKeys.map(key => preferences[key]);
+        snapshot(); geometryKeys.forEach((key, index) => { preferences[key] = previous[index]; });
+        return;
+      }
+      const left = pixel(host.style.left), top = pixel(host.style.top);
+      const changed = (value, previous) => value == null || previous == null ? value !== previous : Math.abs(value - previous) > 0.01;
+      const moved = changed(left, applied.left) || changed(top, applied.top);
+      const oldX = preferences.x, oldY = preferences.y, oldWidth = preferences.width, oldHeight = preferences.height, oldStats = preferences.stats;
+      snapshot();
+      if (host.style.display === 'none') { preferences.width = oldWidth; preferences.height = oldHeight; preferences.stats = oldStats; }
+      if (!moved && geometry.left != null) {
+        preferences.x = oldX; preferences.y = oldY;
+      }
+      if (moved || geometry.left == null) {
+        if (left != null) geometry.left = left;
+        if (top != null) geometry.top = top;
+      }
+      const width = pixel(host.style.width), height = pixel(host.style.height);
+      if (width > 0) geometry.width = width;
+      if (height > 0 || (!restoreHeight && height === 0)) geometry.height = height;
+      if (component._lastroResizeArgs) {
+        const args = component._lastroResizeArgs;
+        if (Object.hasOwn(preferences, 'width') && Number.isFinite(args[0])) preferences.width = args[0];
+        if (Object.hasOwn(preferences, 'height') && Number.isFinite(args[1])) preferences.height = args[1];
+      }
+      preferences._lastroWindow = { ...geometry };
+      applied.left = left; applied.top = top;
+    }
+    function persist() {
+      const signature = JSON.stringify({ ...preferences, save: undefined, _key: undefined });
+      if (signature !== lastSaved) { originalSave.call(preferences); lastSaved = signature; }
+    }
+    function save() {
+      win.clearTimeout(timer); timer = undefined;
+      if (removing) return;
+      capture(); persist();
+    }
+    function fit() {
+      if (applying || !host.isConnected || host.style.display === 'none' || !component._isDraggable) return;
+      if (component.isEmbedded?.()) {
+        if (ownScale !== 1) { ownScale = 1; host.style.scale = '1'; observer.takeRecords(); }
+        return;
+      }
+      capture();
+      applying = true;
+      try {
+        const { width, height } = dimensions(), rect = host.getBoundingClientRect();
+        const ancestorScale = width > 0 && rect.width > 0 ? rect.width / width / ownScale : 1;
+        const scale = Number.isFinite(ancestorScale) && ancestorScale > 0 ? ancestorScale : 1;
+        const vw = win.innerWidth, vh = win.innerHeight;
+        if (!(vw > 0 && vh > 0 && width > 0 && height > 0)) return;
+        const originX = rect.left - host.offsetLeft * scale, originY = rect.top - host.offsetTop * scale;
+        ownScale = Math.min(1, vw / (width * scale), vh / (height * scale));
+        host.style.transformOrigin = '0 0';
+        host.style.scale = String(ownScale);
+        // Match the physical viewport edges used by native drag snapping.
+        // An inset here would move a docked window away again on release/resize.
+        const minX = -originX / scale, minY = -originY / scale;
+        const maxX = (vw - originX) / scale - width * ownScale;
+        const maxY = (vh - originY) / scale - height * ownScale;
+        let left = number(geometry.left) ?? host.offsetLeft, top = number(geometry.top) ?? host.offsetTop;
+        if (component.magnet?.LEFT) left = minX;
+        if (component.magnet?.TOP) top = minY;
+        if (component.magnet?.RIGHT) left = maxX;
+        if (component.magnet?.BOTTOM) top = maxY;
+        applied = { left: Math.max(minX, Math.min(left, maxX)), top: Math.max(minY, Math.min(top, maxY)) };
+        host.style.left = applied.left + 'px'; host.style.top = applied.top + 'px';
+        applied = { left: pixel(host.style.left), top: pixel(host.style.top) };
+      } finally { applying = false; observer.takeRecords(); }
+    }
+    function schedule() {
+      if (applying || removing) return;
+      win.clearTimeout(timer);
+      timer = win.setTimeout(() => { save(); fit(); }, 80);
+    }
+    const observer = new win.MutationObserver(schedule);
+    observer.observe(host, { attributes: true, attributeFilter: ['style'] });
+    const interactionEnd = () => { if (host.isConnected) { save(); fit(); } };
+    const visibilityChange = () => { if (host.ownerDocument.hidden) save(); };
+    host.addEventListener('mouseup', interactionEnd);
+    root.addEventListener('click', schedule);
+    root.addEventListener('change', schedule);
+    win.addEventListener('mouseup', interactionEnd);
+    win.addEventListener('pagehide', save);
+    host.ownerDocument.addEventListener('visibilitychange', visibilityChange);
+    win.addEventListener('resize', fit);
+    const ancestors = new win.MutationObserver(records => {
+      if (records.some(record => record.oldValue !== record.target.getAttribute(record.attributeName))) fit();
+    });
+    for (let parent = host.parentElement; parent; parent = parent.parentElement) ancestors.observe(parent, {
+      attributes: true, attributeFilter: ['style', 'class'], attributeOldValue: true,
+    });
+    if (typeof component.resize === 'function') {
+      const resize = component.resize;
+      component.resize = function (...args) {
+        const result = resize.apply(this, args);
+        this._lastroResizeArgs = args;
+        if (!applying) { capture(); schedule(); }
+        return result;
+      };
+    }
+    const remove = component.onRemove;
+    component.onRemove = function (...args) {
+      save(); removing = true;
+      const values = { ...preferences };
+      try { return remove?.apply(this, args); }
+      finally {
+        removing = false;
+        // onRemove may clear content or measure a hidden/folded host.
+        Object.assign(preferences, values); persist();
+      }
+    };
+    const clamp = component._fixPositionOverflow;
+    component._fixPositionOverflow = function () { if (host.style.display !== 'none') fit(); else clamp?.call(this); };
+    preferences.save = save;
+    state = component._lastroWindowState = {
+      begin() { applying = true; },
+      end() {
+        if (component.isEmbedded?.()) { applying = false; observer.takeRecords(); fit(); return; }
+        if (Number.isFinite(geometry.width) && geometry.width > 0) host.style.width = geometry.width + 'px';
+        if (restoreHeight && Number.isFinite(geometry.height) && geometry.height > 0) host.style.height = geometry.height + 'px';
+        if (Number.isFinite(geometry.left)) host.style.left = geometry.left + 'px';
+        if (Number.isFinite(geometry.top)) host.style.top = geometry.top + 'px';
+        applying = false; observer.takeRecords();
+        if (geometry.left == null) capture();
+        fit();
+      },
+      save, fit,
+      dispose() {
+        win.clearTimeout(timer); observer.disconnect(); ancestors.disconnect();
+        host.removeEventListener('mouseup', interactionEnd);
+        root.removeEventListener('click', schedule); root.removeEventListener('change', schedule);
+        win.removeEventListener('mouseup', interactionEnd); win.removeEventListener('pagehide', save);
+        win.removeEventListener('resize', fit); host.ownerDocument.removeEventListener('visibilitychange', visibilityChange);
+      },
+    };
+  }
+  state.begin();
+  try { return append(); } finally { state.end(); }
+}
+function lastroBindNestedWindowState(component, preferences, current) {
+  if (component._lastroNestedWindowState) return;
+  const host = component._host, root = component.getRoot(), win = host.ownerDocument.defaultView;
+  const save = preferences.save;
+  let timer, signature;
+  const records = [['inputWindow', '.InputWindow'], ['outputWindow', '.OutputWindow'], ['AvailableItemsWindow', '.AvailableItemsWindow'], ['PurchaseResult', '.PurchaseResult']];
+  function capture() {
+    if (!host.isConnected) return;
+    const values = current();
+    for (const [key, selector] of records) {
+      const element = root.querySelector(selector), pref = values[key];
+      if (!element || !pref) continue;
+      const x = parseFloat(element.style.left), y = parseFloat(element.style.top);
+      const height = Math.floor(parseFloat(element.querySelector('.content')?.style.height) / 32);
+      if (Number.isFinite(x)) pref.x = x;
+      if (Number.isFinite(y)) pref.y = y;
+      if (height > 0) pref.height = height;
+      const width = parseFloat(element.style.width);
+      if (Object.hasOwn(pref, 'width') && width > 0) pref.width = width;
+    }
+  }
+  function flush() {
+    win.clearTimeout(timer); capture();
+    const value = JSON.stringify({ ...preferences, _key: undefined, save: undefined });
+    if (value !== signature) { save.call(preferences); signature = value; }
+  }
+  function schedule() { win.clearTimeout(timer); timer = win.setTimeout(flush, 80); }
+  const observer = new win.MutationObserver(schedule);
+  observer.observe(root, { subtree: true, attributes: true, attributeFilter: ['style'] });
+  win.addEventListener('mouseup', flush); win.addEventListener('pagehide', flush);
+  host.ownerDocument.addEventListener('visibilitychange', () => { if (host.ownerDocument.hidden) flush(); });
+  preferences.save = flush;
+  component._lastroNestedWindowState = { save: flush };
+}
+// lastro-ui-input-installed
+function lastroUiInputFrame(host) {
+  const win = host.ownerDocument.defaultView, rect = host.getBoundingClientRect();
+  const positive = (value, fallback = 1) => Number.isFinite(value) && value > 0 ? value : fallback;
+  const effectiveX = positive(rect.width / host.offsetWidth), effectiveY = positive(rect.height / host.offsetHeight);
+  const scale = String(win.getComputedStyle(host).scale || host.style.scale || '1').trim().split(/\s+/).map(Number);
+  const ownX = positive(scale[0]), ownY = positive(scale[1], ownX);
+  const ancestorX = effectiveX / ownX, ancestorY = effectiveY / ownY;
+  const originX = rect.left - host.offsetLeft * ancestorX, originY = rect.top - host.offsetTop * ancestorY;
+  return {
+    effectiveX, effectiveY, ancestorX, ancestorY, originX, originY,
+    rectLeft: rect.left, rectTop: rect.top, scrollX: win.scrollX || 0, scrollY: win.scrollY || 0,
+    left: -originX / ancestorX, top: -originY / ancestorY,
+    right: (win.innerWidth - originX) / ancestorX, bottom: (win.innerHeight - originY) / ancestorY,
+    width: rect.width / ancestorX, height: rect.height / ancestorY,
+  };
+}
+function lastroUiLogicalPointer(frame, pointer, content = false) {
+  const x = pointer.x - frame.scrollX, y = pointer.y - frame.scrollY;
+  return content ? { x: (x - frame.rectLeft) / frame.effectiveX, y: (y - frame.rectTop) / frame.effectiveY }
+    : { x: (x - frame.originX) / frame.ancestorX, y: (y - frame.originY) / frame.ancestorY };
+}
+function lastroUiDragBounds(host, frame) {
+  const rect = host.getBoundingClientRect();
+  return { left: (rect.left - frame.originX) / frame.ancestorX, top: (rect.top - frame.originY) / frame.ancestorY,
+    right: (rect.right - frame.originX) / frame.ancestorX, bottom: (rect.bottom - frame.originY) / frame.ancestorY };
+}
 //#region src/UI/GUIComponent.js
 async function _loadHeavyDeps() {
   if (_Cursor) return;
@@ -284472,10 +285255,12 @@ var init_GUIComponent = __esmMin(() => {
           Mouse.screen.x = event.touches[0].pageX;
           Mouse.screen.y = event.touches[0].pageY;
         } else if (event.which !== 1) return;
-        const x = host.offsetLeft - Mouse.screen.x;
-        const y = host.offsetTop - Mouse.screen.y;
-        const width = host.offsetWidth;
-        const height = host.offsetHeight;
+        const lastroDragFrame = lastroUiInputFrame(host);
+        const lastroStartPointer = lastroUiLogicalPointer(lastroDragFrame, Mouse.screen);
+        const x = host.offsetLeft - lastroStartPointer.x;
+        const y = host.offsetTop - lastroStartPointer.y;
+
+
         _snapCache = [];
         if (UI_default.windowmagnet && component.manager) {
           const hostParent = host.offsetParent;
@@ -284495,22 +285280,19 @@ var init_GUIComponent = __esmMin(() => {
             if (!el) continue;
             if (hostParent && el.offsetParent && el.offsetParent !== hostParent)
               continue;
-            _snapCache.push({
-              left: el.offsetLeft,
-              top: el.offsetTop,
-              right: el.offsetLeft + el.offsetWidth,
-              bottom: el.offsetTop + el.offsetHeight,
-            });
+            const lastroSnapRect = lastroUiDragBounds(el, lastroDragFrame);
+            _snapCache.push({ left: lastroSnapRect.left, top: lastroSnapRect.top, right: lastroSnapRect.right, bottom: lastroSnapRect.bottom });
           }
         }
         host.style.transition = "";
         host.offsetHeight;
         let drag;
         let currentOpacity = 1;
-        let lastMx = Mouse.screen.x;
-        let lastMy = Mouse.screen.y;
+        let lastMx = lastroStartPointer.x;
+        let lastMy = lastroStartPointer.y;
         const onEnd = (ev) => {
           if (ev.type === "touchend" || ev.which === 1 || ev.isTrigger) {
+            const lastroEndFrame = lastroUiInputFrame(host);
             cancelAnimationFrame(drag);
             window.removeEventListener("mouseup", onEnd);
             window.removeEventListener("touchend", onEnd);
@@ -284520,18 +285302,18 @@ var init_GUIComponent = __esmMin(() => {
               const gh = component.gridSnap.height;
               const padX = component.gridSnap.padX || 0;
               const padY = component.gridSnap.padY || 0;
-              const curRect = host.getBoundingClientRect();
+              const curRect = { left: host.offsetLeft, top: host.offsetTop };
               const maxXI = Math.floor(
-                ((_Renderer?.width ?? window.innerWidth) - width - padX) / gw,
+                ((lastroEndFrame.right) - lastroEndFrame.width - padX) / gw,
               );
               const maxYI = Math.floor(
-                ((_Renderer?.height ?? window.innerHeight) - height - padY) /
+                ((lastroEndFrame.bottom) - lastroEndFrame.height - padY) /
                   gh,
               );
               let gxi = Math.round((curRect.left - padX) / gw);
               let gyi = Math.round((curRect.top - padY) / gh);
-              gxi = Math.max(0, Math.min(gxi, maxXI));
-              gyi = Math.max(0, Math.min(gyi, maxYI));
+              gxi = Math.max(Math.max(0, Math.ceil((lastroEndFrame.left - padX) / gw)), Math.min(gxi, maxXI));
+              gyi = Math.max(Math.max(0, Math.ceil((lastroEndFrame.top - padY) / gh)), Math.min(gyi, maxYI));
               const snappedX = gxi * gw + padX;
               const snappedY = gyi * gh + padY;
               host.style.transition = `left ${component.snapDuration || 150}ms, top ${component.snapDuration || 150}ms, opacity 150ms`;
@@ -284559,8 +285341,10 @@ var init_GUIComponent = __esmMin(() => {
         window.addEventListener("mouseup", onEnd);
         window.addEventListener("touchend", onEnd);
         const dragging = () => {
-          const mx = Mouse.screen.x;
-          const my = Mouse.screen.y;
+          const lastroMoveFrame = lastroUiInputFrame(host);
+          const lastroMovePointer = lastroUiLogicalPointer(lastroMoveFrame, Mouse.screen);
+          const mx = lastroMovePointer.x;
+          const my = lastroMovePointer.y;
           if (mx === lastMx && my === lastMy) {
             drag = requestAnimationFrame(dragging);
             return;
@@ -284576,20 +285360,20 @@ var init_GUIComponent = __esmMin(() => {
               component.magnet.LEFT =
               component.magnet.RIGHT =
                 false;
-          if (Math.abs(x_) < SNAP_DISTANCE) {
-            x_ = 0;
+          if (Math.abs(x_ - lastroMoveFrame.left) < SNAP_DISTANCE) {
+            x_ = lastroMoveFrame.left;
             if (component.magnet) component.magnet.LEFT = true;
           }
-          if (Math.abs(y_) < SNAP_DISTANCE) {
-            y_ = 0;
+          if (Math.abs(y_ - lastroMoveFrame.top) < SNAP_DISTANCE) {
+            y_ = lastroMoveFrame.top;
             if (component.magnet) component.magnet.TOP = true;
           }
-          if (Math.abs(x_ + width - Mouse.screen.width) < SNAP_DISTANCE) {
-            x_ = Mouse.screen.width - width;
+          if (Math.abs(x_ + lastroMoveFrame.width - lastroMoveFrame.right) < SNAP_DISTANCE) {
+            x_ = lastroMoveFrame.right - lastroMoveFrame.width;
             if (component.magnet) component.magnet.RIGHT = true;
           }
-          if (Math.abs(y_ + height - Mouse.screen.height) < SNAP_DISTANCE) {
-            y_ = Mouse.screen.height - height;
+          if (Math.abs(y_ + lastroMoveFrame.height - lastroMoveFrame.bottom) < SNAP_DISTANCE) {
+            y_ = lastroMoveFrame.bottom - lastroMoveFrame.height;
             if (component.magnet) component.magnet.BOTTOM = true;
           }
           if (UI_default.windowmagnet && component.manager) {
@@ -284621,17 +285405,17 @@ var init_GUIComponent = __esmMin(() => {
               !(eA + SNAP_DISTANCE < sB || eB + SNAP_DISTANCE < sA);
             for (let i = 0; i < _snapCache.length; i++) {
               const box = _snapCache[i];
-              if (!lockX && isNear(y_, y_ + height, box.top, box.bottom)) {
+              if (!lockX && isNear(y_, y_ + lastroMoveFrame.height, box.top, box.bottom)) {
                 checkX(box.left);
                 checkX(box.right);
-                checkX(box.left - width);
-                checkX(box.right - width);
+                checkX(box.left - lastroMoveFrame.width);
+                checkX(box.right - lastroMoveFrame.width);
               }
-              if (!lockY && isNear(x_, x_ + width, box.left, box.right)) {
+              if (!lockY && isNear(x_, x_ + lastroMoveFrame.width, box.left, box.right)) {
                 checkY(box.top);
                 checkY(box.bottom);
-                checkY(box.top - height);
-                checkY(box.bottom - height);
+                checkY(box.top - lastroMoveFrame.height);
+                checkY(box.bottom - lastroMoveFrame.height);
               }
             }
             if (!lockX && snapX !== null) x_ = snapX;
@@ -285220,7 +286004,7 @@ var init_UIManager = __esmMin(() => {
     if (!style) {
       style = document.createElement("style");
       style.setAttribute("data-overlay", "");
-      style.textContent = `  
+      style.textContent = `\x20\x20
 			.win_popup_overlay {
 				position: fixed;
 				top: 0px;
@@ -285288,7 +286072,8 @@ var init_UIManager = __esmMin(() => {
         const component = this.components[keys[i]];
         const el = component.ui ? component.ui[0] : null;
         if (!el) continue;
-        UIClamp(el, WIDTH, HEIGHT, component.magnet);
+        if (component._lastroWindowState) component._lastroWindowState.fit();
+        else UIClamp(el, WIDTH, HEIGHT, component.magnet);
         if (component.onResize) component.onResize();
       }
     }
@@ -290681,7 +291466,9 @@ var init_Vending = __esmMin(() => {
     resize$1(inputContent, _preferences$16.inputWindow.height);
     resize$1(outputContent, _preferences$16.outputWindow.height);
     this._host.style.display = "none";
-  };
+
+lastroBindNestedWindowState(this, _preferences$16, () => _preferences$16);
+};
   Vending.setType = function setType(type) {
     const root = Vending.getRoot();
     const winBuyEls = root.querySelectorAll(".WinBuy");
@@ -291114,7 +291901,7 @@ var init_VendingShop = __esmMin(() => {
   /**
    * Apply preferences once append to body
    */
-  VendingShop.onAppend = function onAppend() {
+  VendingShop.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences$15, () => {
     this.resize(_preferences$15.width, _preferences$15.height);
     const hostRect = this._host.getBoundingClientRect();
     this._host.style.top = `${Math.min(Math.max(0, _preferences$15.y), Renderer.height - hostRect.height)}px`;
@@ -291124,7 +291911,19 @@ var init_VendingShop = __esmMin(() => {
     const titleShop = getVendingShopTitle(Vending_default?._shopname);
     const shopnameEl = this.getRoot().querySelector(".text.shopname");
     if (shopnameEl) shopnameEl.textContent = `${messageText} : ${titleShop}`;
-  };
+
+}, () => {const content = this.getRoot().querySelector(".container .content");
+const itemInfoEl = document.querySelector(".ItemInfo");
+_preferences$15.reduce = !!_realSize;
+_preferences$15.y = parseInt(this._host.style.top, 10);
+_preferences$15.x = parseInt(this._host.style.left, 10);
+_preferences$15.width = Math.floor(
+      (({ width: this._host.offsetWidth, height: this._host.offsetHeight }).width - 25) / 32,
+    );
+_preferences$15.height = Math.floor(
+      (({ width: this._host.offsetWidth, height: this._host.offsetHeight }).height - 20) / 32,
+    );
+}); };
   /**
    * Specify the type of the shop
    *
@@ -291548,7 +292347,7 @@ var init_VendingReport = __esmMin(() => {
         this._startY = e.clientY;
         const content = root.querySelector(".container .content");
         this._startHeight = content
-          ? content.getBoundingClientRect().height
+          ? content.offsetHeight
           : 0;
         this._boundResizeDrag = this.onResizeDrag.bind(this);
         this._boundResizeStop = this.onResizeStop.bind(this);
@@ -291577,9 +292376,12 @@ var init_VendingReport = __esmMin(() => {
   /**
    * Apply preferences once append to body
    */
-  VendingReport.onAppend = function OnAppend() {
+  VendingReport.onAppend = function OnAppend() { return lastroUiWindowAppend(this, _preferences$14, () => {
     this._host.style.display = "";
-  };
+
+}, () => {_preferences$14.y = parseInt(this._host.style.top, 10) || 0;
+_preferences$14.x = parseInt(this._host.style.left, 10) || 0;
+}); };
   /**
    * Remove Inventory from window (and so clean up items)
    */
@@ -291604,7 +292406,7 @@ var init_VendingReport = __esmMin(() => {
     if (!this._resizing) return;
     const MIN_HEIGHT = 100;
     const MAX_HEIGHT = 260;
-    const deltaY = e.clientY - this._startY;
+    const deltaY = (e.clientY - this._startY) / lastroUiInputFrame(this._host).effectiveY;
     let newHeight = this._startHeight + deltaY;
     newHeight = Math.min(Math.max(newHeight, MIN_HEIGHT), MAX_HEIGHT);
     const content = _root$7().querySelector(".container .content");
@@ -292266,7 +293068,7 @@ var init_Emoticons = __esmMin(() => {
   /**
    * Appending to html
    */
-  Emoticons.onAppend = function onAppend() {
+  Emoticons.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences$13, () => {
     if (!_preferences$13.show) this._host.style.display = "none";
     this._host.style.top =
       Math.min(
@@ -292278,7 +293080,11 @@ var init_Emoticons = __esmMin(() => {
         Math.max(0, _preferences$13.x),
         Renderer.width - this._host.offsetWidth,
       ) + "px";
-  };
+
+}, () => {_preferences$13.show = this._host.style.display !== "none";
+_preferences$13.y = parseInt(this._host.style.top, 10) || 0;
+_preferences$13.x = parseInt(this._host.style.left, 10) || 0;
+}); };
   /**
    * Once removed from DOM, save preferences
    */
@@ -292525,12 +293331,25 @@ var init_ShortCuts = __esmMin(() => {
   /**
    * Apply preferences once append to body
    */
-  ShortCuts.onAppend = function onAppend() {
+  ShortCuts.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences$12, () => {
     if (!_preferences$12.show) this._host.style.display = "none";
     const rect = this._host.getBoundingClientRect();
     this._host.style.top = `${Math.min(Math.max(0, _preferences$12.y), Renderer.height - rect.height)}px`;
     this._host.style.left = `${Math.min(Math.max(0, _preferences$12.x), Renderer.width - rect.width)}px`;
-  };
+
+}, () => {const content = ShortCuts.getRoot().querySelector(".container .content");
+_preferences$12.show = this._host.style.display !== "none";
+_preferences$12.reduce = false;
+_preferences$12.y = parseInt(this._host.style.top, 10);
+_preferences$12.x = parseInt(this._host.style.left, 10);
+const hostRect = ({ width: this._host.offsetWidth, height: this._host.offsetHeight });
+_preferences$12.width = Math.floor((hostRect.width - 25) / 32);
+_preferences$12.height = Math.floor((hostRect.height - 20) / 32);
+_preferences$12.magnet_top = this.magnet.TOP;
+_preferences$12.magnet_bottom = this.magnet.BOTTOM;
+_preferences$12.magnet_left = this.magnet.LEFT;
+_preferences$12.magnet_right = this.magnet.RIGHT;
+}); };
   /**
    * Remove ShortCuts from window (and so clean up items)
    */
@@ -293609,7 +294428,7 @@ var init_CashShop$1 = __esmMin(() => {
       onResetCartListCashShop();
     CashShop.loadCashShopBanner();
   };
-  CashShop.onAppend = function OnAppend() {
+  CashShop.onAppend = function OnAppend() { return lastroUiWindowAppend(this, _preferences$11, () => {
     const hostHeight = this._host.offsetHeight || 540;
     const hostWidth = this._host.offsetWidth || 723;
     this._host.style.top = `${Math.min(Math.max(0, _preferences$11.y), Renderer.height - hostHeight)}px`;
@@ -293619,7 +294438,20 @@ var init_CashShop$1 = __esmMin(() => {
     this.magnet.LEFT = _preferences$11.magnet_left;
     this.magnet.RIGHT = _preferences$11.magnet_right;
     CashShop.loadComponentCashShop();
-  };
+
+}, () => {_preferences$11.x = parseInt(this._host.style.left, 10) || 0;
+_preferences$11.y = parseInt(this._host.style.top, 10) || 0;
+_preferences$11.magnet_top = this.magnet.TOP;
+_preferences$11.magnet_bottom = this.magnet.BOTTOM;
+_preferences$11.magnet_left = this.magnet.LEFT;
+_preferences$11.magnet_right = this.magnet.RIGHT;
+const panelItems = _root$6().querySelector(".panel-items");
+const cartListItems = _root$6().querySelector(".cart-list .items");
+const totalPrice = _root$6().querySelector(
+      ".cart-footer-action .total-price span",
+    );
+const freePoints = _root$6().querySelector("#use-free-points");
+}); };
   /**
    * Remove Cash shop
    */
@@ -296214,7 +297046,7 @@ var init_Roulette$1 = __esmMin(() => {
   /**
    * Once append to the DOM
    */
-  Roulette.onAppend = function onAppend() {
+  Roulette.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences$10, () => {
     this._host.style.top =
       Math.min(
         Math.max(0, _preferences$10.y),
@@ -296229,7 +297061,11 @@ var init_Roulette$1 = __esmMin(() => {
     if (ROConfig.enableRoulette === false) return;
     if (PacketVerManager_default.value < 20141008) return;
     addRouletteIcon();
-  };
+
+}, () => {_preferences$10.show = this._host.style.display !== "none";
+_preferences$10.x = parseInt(this._host.style.left, 10);
+_preferences$10.y = parseInt(this._host.style.top, 10);
+}); };
   _iconBtn = null;
   /**
    * Remove from DOM
@@ -296713,10 +297549,18 @@ var init_CaptchaAnswer = __esmMin(() => {
   /**
    * Append to DOM
    */
-  CaptchaAnswer.onAppend = function onAppend() {
+  CaptchaAnswer.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences$9, () => {
     this._host.style.top = `${Math.min(Math.max(0, _preferences$9.y), Renderer.height - this._host.offsetHeight)}px`;
     this._host.style.left = `${Math.min(Math.max(0, _preferences$9.x), Renderer.width - this._host.offsetWidth)}px`;
-  };
+
+}, () => {_preferences$9.y = parseInt(this._host.style.top, 10);
+_preferences$9.x = parseInt(this._host.style.left, 10);
+const root = this.getRoot();
+const imageContainer = root.querySelector(".image_container");
+const retryCount = root.querySelector(".retry_count");
+const timerText = root.querySelector(".timer_text");
+const errorText = root.querySelector(".error_text");
+}); };
   /**
    * Set Image
    */
@@ -296846,10 +297690,14 @@ var init_CaptchaPreview = __esmMin(() => {
   /**
    * Append to DOM
    */
-  CaptchaPreview.onAppend = function onAppend() {
+  CaptchaPreview.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences$8, () => {
     this._host.style.top = `${Math.min(Math.max(0, _preferences$8.y), Renderer.height - this._host.offsetHeight)}px`;
     this._host.style.left = `${Math.min(Math.max(0, _preferences$8.x), Renderer.width - this._host.offsetWidth)}px`;
-  };
+
+}, () => {_preferences$8.y = parseInt(this._host.style.top, 10);
+_preferences$8.x = parseInt(this._host.style.left, 10);
+const previewBox = this.getRoot().querySelector(".preview_box");
+}); };
   /**
    * Remove data from UI
    */
@@ -296925,10 +297773,13 @@ var init_Clan$1 = __esmMin(() => {
     }
     this.ui.hide();
   };
-  Clan.onAppend = function onAppend() {
+  Clan.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences$7, () => {
     this._host.style.left = `${_preferences$7.x}px`;
     this._host.style.top = `${_preferences$7.y}px`;
-  };
+
+}, () => {_preferences$7.x = parseInt(this._host.style.left, 10);
+_preferences$7.y = parseInt(this._host.style.top, 10);
+}); };
   Clan.onRemove = function onRemove() {
     _preferences$7.x = parseInt(this._host.style.left, 10);
     _preferences$7.y = parseInt(this._host.style.top, 10);
@@ -297765,7 +298616,7 @@ function createPlayerViewEquip({
       }
     currentTabId = selectedId;
   }
-  Component.onAppend = function onAppend() {
+  Component.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences, () => {
     const rect = this._host.getBoundingClientRect();
     this._host.style.top =
       Math.min(Math.max(0, _preferences.y), Renderer.height - rect.height) +
@@ -297780,7 +298631,13 @@ function createPlayerViewEquip({
         break;
       }
     if (anyVisible) Renderer.render(renderCharacter);
-  };
+
+}, () => {const cells = _root.querySelectorAll(".col1, .col3, .ammo");
+_preferences.show = this._host.style.display !== "none";
+_preferences.reduce = _panel ? _panel.style.display === "none" : false;
+_preferences.y = parseInt(this._host.style.top, 10) || 0;
+_preferences.x = parseInt(this._host.style.left, 10) || 0;
+}); };
   Component.onRemove = function onRemove() {
     Renderer.stop(renderCharacter);
     currentTabId = "vieweqgeneral";
@@ -301273,7 +302130,10 @@ function onNextAppear(pkt) {
  * @param {object} pkt - PACKET.ZC.CLOSE_DIALOG
  */
 function onCloseAppear(pkt) {
-  if (NpcBox_default.ui && NpcBox_default.ui.is(":visible"))
+  // A terminal dialog packet is protocol state, not a layout visibility query.
+  // Keep it while the current dialog is temporarily hidden, and ignore stale
+  // packets after removal or when another NPC owns the window.
+  if (NpcBox_default.__active && NpcBox_default._host?.isConnected && NpcBox_default.ownerID === pkt.NAID)
     NpcBox_default.addClose(pkt.NAID);
 }
 /**
@@ -305845,10 +306705,10 @@ function onClose$2(event) {
  * Extend ConvertItems window size
  */
 function onResize$2() {
-  const top = parseInt(ConvertItems._host.style.top, 10) || 0;
+
   let lastHeight = 0;
   function resizing() {
-    let h = Math.floor((Mouse.screen.y - top - 20) / 32);
+    let h = Math.floor((lastroUiLogicalPointer(lastroUiInputFrame(ConvertItems._host), Mouse.screen, true).y - 20) / 32);
     h = Math.min(Math.max(h, 8), 17);
     if (h === lastHeight) return;
     resizeHeight$1(h);
@@ -305869,6 +306729,7 @@ function onResize$2() {
 function resizeHeight$1(height) {
   const root = ConvertItems.getRoot();
   height = Math.min(Math.max(height, 8), 17);
+  _preferences$6.height = height;
   const content = root.querySelector(".container .content");
   if (content) content.style.height = `${height * 32}px`;
   ConvertItems._host.style.height = `${50 + height * 32}px`;
@@ -306043,6 +306904,7 @@ var init_ConvertItems = __esmMin(() => {
     const root = ConvertItems.getRoot();
     this._host.style.top = `${(Renderer.height - 200) / 2}px`;
     this._host.style.left = `${(Renderer.width - 10) / 2}px`;
+    resizeHeight$1(_preferences$6.height);
     this.material = [];
     this.draggable(root.querySelector(".head"));
     root
@@ -306081,13 +306943,15 @@ var init_ConvertItems = __esmMin(() => {
   /**
    * Apply preferences once append to body
    */
-  ConvertItems.onAppend = function OnAppend() {
+  ConvertItems.onAppend = function OnAppend() { return lastroUiWindowAppend(this, _preferences$6, () => {
     const root = ConvertItems.getRoot();
     this.material = [];
     root
       .querySelectorAll(".container .content .item")
       .forEach((el) => el.remove());
-  };
+
+}, () => {_preferences$6.x = parseFloat(this._host.style.left) || 0; _preferences$6.y = parseFloat(this._host.style.top) || 0;
+}); };
   ConvertItems.addItem = function addItem(item) {
     const root = ConvertItems.getRoot();
     const it = DB.getItemInfo(item.ITID);
@@ -306247,10 +307111,10 @@ function _sanitizeHtml$2(str) {
  * Extend ItemListWindowSelection window size
  */
 function onResize$1() {
-  const top = parseInt(ItemListWindowSelection._host.style.top, 10) || 0;
+
   let lastHeight = 0;
   function resizing() {
-    let h = Math.floor((Mouse.screen.y - top - 20) / 32);
+    let h = Math.floor((lastroUiLogicalPointer(lastroUiInputFrame(ItemListWindowSelection._host), Mouse.screen, true).y - 20) / 32);
     h = Math.min(Math.max(h, 8), 17);
     if (h === lastHeight) return;
     resizeHeight(h);
@@ -306271,6 +307135,7 @@ function onResize$1() {
 function resizeHeight(height) {
   const root = ItemListWindowSelection.getRoot();
   height = Math.min(Math.max(height, 8), 17);
+  _preferences$5.height = height;
   const content = root.querySelector(".container .content");
   if (content) content.style.height = `${height * 32}px`;
   ItemListWindowSelection._host.style.height = `${50 + height * 32}px`;
@@ -306496,15 +307361,18 @@ var init_ItemListWindowSelection = __esmMin(() => {
       if (item) onItemInfo$3.call(item, e);
     });
     this.draggable(root.querySelector(".titlebar"));
+    resizeHeight(_preferences$5.height);
     this.setList(InventoryController.getUI().list);
   };
   /**
    * Apply preferences once append to body
    */
-  ItemListWindowSelection.onAppend = function OnAppend() {
+  ItemListWindowSelection.onAppend = function OnAppend() { return lastroUiWindowAppend(this, _preferences$5, () => {
     this.setList(InventoryController.getUI().list);
     ConvertItems_default.append();
-  };
+
+}, () => {_preferences$5.x = parseFloat(this._host.style.left) || 0; _preferences$5.y = parseFloat(this._host.style.top) || 0;
+}); };
   /**
    * Add elements to the list
    *
@@ -307665,7 +308533,7 @@ var init_ReadMail = __esmMin(() => {
   /**
    * Initialize Component
    */
-  ReadMail.onAppend = function onAppend() {
+  ReadMail.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences$4, () => {
     const root = _root$1();
     const closeBtn = root.querySelector(".close");
     if (closeBtn)
@@ -307687,7 +308555,16 @@ var init_ReadMail = __esmMin(() => {
     this._host.style.top = `${Math.min(Math.max(0, mailTop), Renderer.height - hostHeight)}px`;
     this._host.style.left = `${Math.min(Math.max(0, mailLeft + 300), Renderer.width - hostWidth)}px`;
     this.draggable(".titlebar");
-  };
+
+}, () => {_preferences$4.show = this._host.style.display !== "none";
+_preferences$4.reduce = false;
+_preferences$4.y = parseInt(this._host.style.top, 10) || 0;
+_preferences$4.x = parseInt(this._host.style.left, 10) || 0;
+_preferences$4.magnet_top = this.magnet.TOP;
+_preferences$4.magnet_bottom = this.magnet.BOTTOM;
+_preferences$4.magnet_left = this.magnet.LEFT;
+_preferences$4.magnet_right = this.magnet.RIGHT;
+}); };
   /**
    * Remove Mail from window (and so clean up items)
    */
@@ -310166,13 +311043,17 @@ var init_PetEvolution = __esmMin(() => {
         onRequestEvolve();
       });
   };
-  PetEvolution.onAppend = function onAppend() {
+  PetEvolution.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences$3, () => {
     const rect = this._host.getBoundingClientRect();
     const hostHeight = rect.height || 380;
     const hostWidth = rect.width || 280;
     this._host.style.top = `${Math.min(Math.max(0, _preferences$3.y), Renderer.height - hostHeight)}px`;
     this._host.style.left = `${Math.min(Math.max(0, _preferences$3.x), Renderer.width - hostWidth)}px`;
-  };
+
+}, () => {_preferences$3.show = this._host.style.display !== "none";
+_preferences$3.y = parseInt(this._host.style.top, 10);
+_preferences$3.x = parseInt(this._host.style.left, 10);
+}); };
   /**
    * Once remove from body, save user preferences
    */
@@ -311070,6 +311951,119 @@ var init_NpcStore$1 = __esmMin(() => {
     ":host {\r\n	top: 0px;\r\n	left: 0px;\r\n	width: 100%;\r\n	height: 100%;\r\n}\r\n\r\n#NpcStore {\r\n	position: absolute;\r\n	top: 0px;\r\n	left: 0px;\r\n	width: 100%;\r\n	height: 100%;\r\n}\r\n#NpcStore .titlebar {\r\n	width: 100%;\r\n	height: 17px;\r\n	background-color: white;\r\n	background-repeat: repeat-x;\r\n	border-radius: 3px 3px 0px 0px;\r\n	text-shadow: 1px 1px white;\r\n	font-size: 11px;\r\n	font-weight: bold;\r\n}\r\n#NpcStore .titlebar .text {\r\n	position: relative;\r\n	top: 2px;\r\n	left: 15px;\r\n	white-space: nowrap;\r\n}\r\n#NpcStore .footer {\r\n	width: 100%;\r\n	height: 27px;\r\n	background-repeat: repeat-x;\r\n	background-color: transparent;\r\n	position: relative;\r\n	border-radius: 0px 0px 3px 3px;\r\n}\r\n#NpcStore .resize {\r\n	position: absolute;\r\n	right: 1px;\r\n	bottom: 1px;\r\n	width: 13px;\r\n	height: 13px;\r\n}\r\n#NpcStore .btn {\r\n	width: 42px;\r\n	height: 20px;\r\n	margin: 0;\r\n}\r\n#NpcStore .selectall {\r\n	display: inline-block;\r\n	vertical-align: 2px;\r\n	width: 10px;\r\n	height: 10px;\r\n	border: none;\r\n	background-color: transparent;\r\n	background-repeat: no-repeat;\r\n	cursor: pointer;\r\n}\r\n#NpcStore .ask_quantity {\r\n	padding-top: 7px;\r\n	padding-left: 20px;\r\n}\r\n\r\n#NpcStore .container {\r\n	padding-left: 16px;\r\n	border-right: 1px solid #ccc;\r\n	background: white;\r\n	background-repeat: repeat-y;\r\n	padding-right: 2px;\r\n	padding-top: 5px;\r\n	padding-bottom: 5px;\r\n}\r\n#NpcStore .content {\r\n	overflow-y: auto;\r\n	overflow-x: hidden;\r\n	width: 100%;\r\n	height: 100%;\r\n	min-height: 65px;\r\n	background-color: transparent;\r\n	background-repeat: repeat-y;\r\n	background-attachment: local;\r\n}\r\n#NpcStore .content.contentAvailable {\r\n	background-repeat: repeat;\r\n	overflow-y: unset;\r\n}\r\n#NpcStore .content .item {\r\n	display: block;\r\n	position: relative;\r\n	height: 28px;\r\n	padding-top: 4px;\r\n}\r\n\r\n#NpcStore .content .item.expanded-barter {\r\n	padding-bottom: 30px !important;\r\n}\r\n\r\n#NpcStore .content .item.selected {\r\n	background-color: #346ae180;\r\n}\r\n#NpcStore .content .item.itemAvailable {\r\n	display: block;\r\n	float: left;\r\n	width: 28px;\r\n	position: relative;\r\n	height: 28px;\r\n	padding-top: 4px;\r\n}\r\n#NpcStore .content .item.itemAvailable.selected {\r\n	background-color: transparent;\r\n}\r\n\r\n#NpcStore .content .item .icon {\r\n	position: absolute;\r\n	top: 6px;\r\n	left: 4px;\r\n	width: 24px;\r\n	height: 24px;\r\n	border: none;\r\n	background-color: transparent;\r\n	background-repeat: no-repeat;\r\n}\r\n#NpcStore .content .item .amount {\r\n	position: absolute;\r\n	white-space: nowrap;\r\n	top: 18px;\r\n	left: 18px;\r\n	text-align: left;\r\n	text-shadow: -1px -1px white;\r\n}\r\n#NpcStore .content .item .amountBuying {\r\n	position: absolute;\r\n	white-space: nowrap;\r\n	top: 13px;\r\n	left: 160px;\r\n	text-align: left;\r\n	text-shadow: -1px -1px white;\r\n	color: red;\r\n}\r\n#NpcStore .content .item .name {\r\n	position: absolute;\r\n	top: 13px;\r\n	left: 32px;\r\n	width: 115px;\r\n	white-space: nowrap;\r\n	overflow: hidden;\r\n	text-overflow: ellipsis;\r\n}\r\n#NpcStore .content .item .price {\r\n	position: absolute;\r\n	top: 13px;\r\n	right: 16px;\r\n	white-space: nowrap;\r\n	text-align: right;\r\n}\r\n#NpcStore .content .item .unity {\r\n	position: absolute;\r\n	top: 13px;\r\n	right: 2px;\r\n	width: 10px;\r\n}\r\n\r\n#NpcStore .footer .total,\r\n#NpcStore .footer .totalP,\r\n#NpcStore .footer .cashuser {\r\n	padding-left: 10px;\r\n	padding-top: 8px;\r\n}\r\n#NpcStore .footer .total,\r\n#NpcStore .footer .totalP,\r\n#NpcStore .footer .limitZeny {\r\n	padding-left: 10px;\r\n	padding-top: 8px;\r\n}\r\n#NpcStore .InputWindow,\r\n#NpcStore .OutputWindow,\r\n#NpcStore .AvailableItemsWindow,\r\n#NpcStore .PurchaseResult {\r\n	width: 280px;\r\n	position: absolute;\r\n	z-index: 50;\r\n	pointer-events: auto;\r\n}\r\n#NpcStore .btn.buy,\r\n#NpcStore .btn.sell {\r\n	position: absolute;\r\n	top: 4px;\r\n	right: 62px;\r\n}\r\n#NpcStore .btn.ok {\r\n	position: absolute;\r\n	top: 4px;\r\n	right: 20px;\r\n}\r\n#NpcStore .btn.cancel {\r\n	position: absolute;\r\n	top: 4px;\r\n	right: 15px;\r\n}\r\n\r\n#NpcStore .content .item .nameOverlay {\r\n	position: relative;\r\n	display: none;\r\n	top: -17px;\r\n	left: 0px;\r\n	background-color: rgba(0, 0, 0, 0.6);\r\n	text-shadow: 1px 1px black;\r\n	color: white;\r\n	padding: 5px;\r\n	white-space: nowrap;\r\n	font-size: 0.6rem;\r\n}\r\n#NpcStore .content .item:hover .nameOverlay {\r\n	display: table;\r\n}\r\n#NpcStore .content .item .nameOverlay {\r\n	display: none;\r\n}\r\n\r\n#NpcStore .content .item .currency_icon {\r\n	position: absolute;\r\n	top: 6px;\r\n	left: 200px;\r\n	width: 24px;\r\n	height: 24px;\r\n	border: none;\r\n	background-color: transparent;\r\n	background-repeat: no-repeat;\r\n}\r\n#NpcStore .content .item .currency_amount {\r\n	position: absolute;\r\n	white-space: nowrap;\r\n	top: 18px;\r\n	right: 13px;\r\n	text-align: left;\r\n	text-shadow: -1px -1px white;\r\n}\r\n#NpcStore .content .item .currency_nameOverlay {\r\n	position: relative;\r\n	display: none;\r\n	top: -17px;\r\n	left: 0px;\r\n	background-color: rgba(0, 0, 0, 0.6);\r\n	text-shadow: 1px 1px black;\r\n	color: white;\r\n	padding: 5px;\r\n	white-space: nowrap;\r\n	font-size: 0.6rem;\r\n}\r\n#NpcStore .content .item:hover .currency_nameOverlay {\r\n	display: table;\r\n}\r\n#NpcStore .content .item .currency_nameOverlay {\r\n	display: none;\r\n}\r\n\r\n#NpcStore .currency_section {\r\n	display: flex;\r\n	height: 25px;\r\n	position: relative;\r\n	left: 30px;\r\n	width: 200px;\r\n}\r\n#NpcStore .currency_slot {\r\n	width: 24px;\r\n	padding-right: 15px;\r\n}\r\n#NpcStore .expanded_currency_holder {\r\n	height: 27px;\r\n	width: 30px;\r\n	position: relative;\r\n}\r\n#NpcStore .expanded_currency_icon {\r\n	height: 24px;\r\n	width: 24px;\r\n	position: relative;\r\n	left: 5px;\r\n}\r\n#NpcStore .expanded_currency_amount {\r\n	position: relative;\r\n	white-space: nowrap;\r\n	top: -10px;\r\n	left: 15px;\r\n	text-align: left;\r\n	text-shadow: -1px -1px white;\r\n}\r\n#NpcStore .expanded_currency_refinelvl {\r\n	position: relative;\r\n	white-space: nowrap;\r\n	top: -43px;\r\n	left: 12px;\r\n	text-align: left;\r\n	color: white;\r\n	font-weight: 850;\r\n	-webkit-text-stroke: 1px red;\r\n}\r\n#NpcStore .expanded_price {\r\n	position: relative;\r\n	top: -10px;\r\n	left: 215px;\r\n	white-space: nowrap;\r\n	text-align: right;\r\n	width: 80px;\r\n}\r\n#NpcStore .content .item .expanded_currency_nameOverlay {\r\n	position: relative;\r\n	visibility: hidden;\r\n	opacity: 0;\r\n	top: -17px;\r\n	left: 0px;\r\n	background-color: rgba(0, 0, 0, 0.6);\r\n	text-shadow: 1px 1px black;\r\n	color: white;\r\n	padding: 5px;\r\n	white-space: nowrap;\r\n	font-size: 0.6rem;\r\n	transition:\r\n		opacity 0.2s ease-in-out,\r\n		visibility 0.2s ease-in-out;\r\n	pointer-events: none;\r\n	z-index: 10;\r\n}\r\n#NpcStore .content .item:hover .expanded_currency_nameOverlay {\r\n	visibility: visible;\r\n	opacity: 1;\r\n}\r\n";
 });
 //#endregion
+function installLastroStoreScroll(component) {
+  if (component._lastroStoreScroll) return component._lastroStoreScroll;
+  const root = component.getRoot(), host = component._host;
+  const doc = host.ownerDocument, win = doc.defaultView;
+  let frame, active, pointer, previous, gesture;
+  const windows = '.InputWindow, .OutputWindow, .AvailableItemsWindow';
+
+  function rows(content) {
+    return [...content.children].filter(child => child.classList.contains('item'));
+  }
+  function bounds(content) {
+    const height = content.clientHeight;
+    const bar = content.querySelector(':scope > .ro-custom-scrollbar');
+    if (bar) { bar.style.top = '0px'; bar.style.height = height + 'px'; }
+    const items = rows(content);
+    const bottom = items.reduce((value, item) => Math.max(value, item.offsetTop + item.offsetHeight), 0);
+    const padding = parseFloat(win.getComputedStyle(content).paddingBottom) || 0;
+    return { items, height, max: Math.max(0, bottom + padding - height) };
+  }
+  function sync(content) {
+    if (typeof content._roScrollHandler === 'function') content._roScrollHandler();
+    else content._roScrollbarRestart?.();
+  }
+  function refresh(content) {
+    if (!content) return;
+    const { max } = bounds(content);
+    content.scrollTop = Math.max(0, Math.min(content.scrollTop, max));
+    sync(content);
+  }
+  function reveal(content, index) {
+    if (!content) return;
+    const { items, height, max } = bounds(content);
+    const item = items.find(row => row.getAttribute('data-index') === String(index));
+    let top = Math.max(0, Math.min(content.scrollTop, max));
+    if (item && height > 0) {
+      const start = item.offsetTop, end = start + item.offsetHeight;
+      if (start < top || item.offsetHeight > height) top = start;
+      else if (end > top + height) top = end - height;
+    }
+    content.scrollTop = Math.max(0, Math.min(top, max));
+    sync(content);
+  }
+  function pause() {
+    if (frame !== undefined) win.cancelAnimationFrame(frame);
+    frame = active = pointer = previous = undefined;
+  }
+  function stop() { pause(); gesture = undefined; }
+  function validDrag() {
+    const data = win._OBJ_DRAG_;
+    return gesture && data?.type === 'item' && data.from === 'NpcStore'
+      && data.container === gesture.container && String(data.index) === gesture.index;
+  }
+  function speed(content) {
+    const rect = content.getBoundingClientRect();
+    if (!pointer || rect.height <= 0 || rect.width <= 0 || pointer.x < rect.left || pointer.x > rect.right
+      || pointer.y < rect.top || pointer.y > rect.bottom) return 0;
+    const scale = rect.height / content.clientHeight;
+    const edge = Math.min(rect.height / 3, 32 * scale);
+    if (!(edge > 0)) return 0;
+    if (pointer.y < rect.top + edge) return -480 * (rect.top + edge - pointer.y) / edge;
+    if (pointer.y > rect.bottom - edge) return 480 * (pointer.y - rect.bottom + edge) / edge;
+    return 0;
+  }
+  function tick(time) {
+    frame = undefined;
+    if (!active?.isConnected || !host.isConnected || doc.hidden || !validDrag()) { stop(); return; }
+    const velocity = speed(active);
+    if (!velocity) { pause(); return; }
+    const { max } = bounds(active);
+    const delta = previous === undefined ? 16 : Math.max(0, Math.min(50, time - previous));
+    previous = time;
+    const top = Math.max(0, Math.min(active.scrollTop + velocity * delta / 1000, max));
+    const moved = Math.abs(top - active.scrollTop) > 0.01;
+    active.scrollTop = top;
+    sync(active);
+    if (moved) frame = win.requestAnimationFrame(tick);
+    else pause();
+  }
+  function over(event) {
+    if (!validDrag() || doc.hidden) { stop(); return; }
+    const target = event.target?.closest?.(windows);
+    const content = target && root.contains(target) ? target.querySelector('.content') : null;
+    if (!content) { pause(); return; }
+    if (active !== content) { pause(); active = content; }
+    pointer = { x: event.clientX, y: event.clientY };
+    if (!speed(content)) { pause(); return; }
+    event.preventDefault();
+    if (frame === undefined) frame = win.requestAnimationFrame(tick);
+  }
+  root.querySelectorAll('.content').forEach(content => { content.style.position = 'relative'; });
+  root.addEventListener('dragstart', event => {
+    stop();
+    const item = event.target?.closest?.('.item');
+    const container = item?.closest(windows);
+    const index = item?.getAttribute('data-index');
+    if (container && root.contains(container) && index) gesture = { container: container.className, index };
+  }, true);
+  root.addEventListener('dragover', over, true);
+  root.addEventListener('dragleave', event => {
+    if (event.relatedTarget && !root.contains(event.relatedTarget)) pause();
+  }, true);
+  doc.addEventListener('dragover', event => {
+    if (!event.composedPath().includes(host) && !root.contains(event.target)) pause();
+  }, true);
+  doc.addEventListener('drop', stop, true);
+  doc.addEventListener('dragend', stop, true);
+  root.addEventListener('drop', stop, true);
+  root.addEventListener('dragend', stop, true);
+  win.addEventListener('blur', stop);
+  doc.addEventListener('visibilitychange', () => { if (doc.hidden) stop(); });
+  component._lastroStoreScroll = { stop, refresh, reveal };
+  return component._lastroStoreScroll;
+}
 //#region src/UI/Components/NpcStore/NpcStore.js
 // lastro-vending-movement-installed
 
@@ -311798,6 +312792,7 @@ var init_NpcStore = __esmMin(() => {
    * Player should not be able to move when the store is opened
    */
   NpcStore.onAppend = function onAppend() {
+    installLastroStoreScroll(this);
     _closePacketSent = false;
     Client.loadFile(
       DB.INTERFACE_PATH +
@@ -311809,11 +312804,14 @@ var init_NpcStore = __esmMin(() => {
         if (selectall) selectall.style.backgroundImage = `url(${data})`;
       },
     );
-  };
+
+lastroBindNestedWindowState(this, _preferences$2, () => getCurrentPref());
+};
   /**
    * Released movement and save preferences
    */
   NpcStore.onRemove = function onRemove() {
+    this._lastroStoreScroll?.stop();
     this._lastroVendingShopping = false;
     const root = NpcStore.getRoot();
     const InputWindow = root.querySelector(".InputWindow");
@@ -311873,6 +312871,7 @@ var init_NpcStore = __esmMin(() => {
    * @param {number} type (see NpcStore.Type.*)
    */
   NpcStore.setType = function setType(type) {
+    this._lastroStoreScroll?.stop();
     const root = NpcStore.getRoot();
     switch (type) {
       case NpcStore.Type.BUY:
@@ -311966,11 +312965,13 @@ var init_NpcStore = __esmMin(() => {
    * @param {Array} item list
    */
   NpcStore.setList = function setList(items) {
+    this._lastroStoreScroll?.stop();
     let i, count;
     let it, item, out;
     const root = NpcStore.getRoot();
     root.querySelectorAll(".content").forEach((c) => {
       c.innerHTML = "";
+      c.scrollTop = 0;
     });
     root.querySelectorAll(".total .result").forEach((r) => {
       r.textContent = "0";
@@ -312248,6 +313249,13 @@ var init_NpcStore = __esmMin(() => {
       }
       NpcStore.calculateCost();
       NpcStore.calculateWeight();
+
+      const lastroScroll = NpcStore._lastroStoreScroll;
+      if (lastroScroll) {
+        lastroScroll.refresh(fromContent);
+        lastroScroll.refresh(toContent);
+        lastroScroll.reveal(toContent, index);
+      }
     };
   })();
   NpcStore.inventoryTransferPriority = InventoryItemTransferPriority.NPC_STORE;
@@ -313472,7 +314480,7 @@ var init_ReadRodex = __esmMin(() => {
   /**
    * Initialize Component
    */
-  ReadRodex.onAppend = function onAppend() {
+  ReadRodex.onAppend = function onAppend() { return lastroUiWindowAppend(this, _preferences$1, () => {
     const root = _root();
     root.querySelector(".right .close").addEventListener("click", onClickClose);
     const rodexTop = Rodex_default._host
@@ -313484,7 +314492,9 @@ var init_ReadRodex = __esmMin(() => {
     this._host.style.top = `${Math.min(Math.max(0, rodexTop), Renderer.height - this._host.offsetHeight)}px`;
     this._host.style.left = `${Math.min(Math.max(0, rodexLeft) + 310, Renderer.width - this._host.offsetWidth)}px`;
     this.draggable(root.querySelector(".titlebar"));
-  };
+
+}, () => {_preferences$1.show = this._host.style.display !== "none";
+}); };
   /**
    * Remove Mail from window (and so clean up items)
    */
@@ -315142,6 +316152,7 @@ function resetEntityForMapEntry(entity, pkt, gid) {
  * @param {object} pkt - PACKET.ZC.NPCACK_MAPMOVE
  */
 function onMapChange(pkt) {
+  document._lastroItemDrag?.cancel();
   lastroCloseVendingShopping();
   lastroCancelMovement(SessionStorage_default.Entity);
   MapControl._lastroMovementInput?.cancel();
@@ -315295,6 +316306,7 @@ function onServerChange(pkt) {
  * Components that were never prepared have no root element to clean.
  */
 function cleanGameUI() {
+  document._lastroItemDrag?.cancel();
   lastroCloseVendingShopping();
   lastroCancelMovement(SessionStorage_default.Entity);
   MapControl._lastroMovementInput?.cancel();

@@ -1,17 +1,19 @@
 // @vitest-environment jsdom
-import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { patchRuntimeNpcDialogButtons } from '../scripts/lastro-npc-dialog-buttons.mjs';
 import { patchRuntimeHotkeys } from '../scripts/lastro-hotkeys.mjs';
+import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
+import upstream from './fixtures/runtime-consolidation/ui-state-upstream.json';
 
-const native = readFileSync('vendor/v2/Online.js', 'utf8');
-const patched = patchRuntimeNpcDialogButtons(native);
+const native = readVendorSource();
+const patched = native;
+const upstreamNpc = native.replace(extractVendorRegion('src/UI/Components/NpcBox/NpcBox.js', native), upstream.npcComponentRegion)
+  .replace(extractRuntimeNode(native, {
+  region: 'src/Engine/MapEngine/NPC.js', kind: 'function', name: 'onCloseAppear',
+}), upstream.npcCloseAppear);
 function region(source: string, name: string) {
-  const start = source.indexOf('//#region ' + name), end = source.indexOf('//#endregion', start);
-  if (start < 0 || end < start) throw new Error('Missing native module: ' + name);
-  return source.slice(start, end);
+  return extractVendorRegion(name, source);
 }
 function nodeText(source: string, predicate: (node: ts.Node, file: ts.SourceFile) => boolean) {
   const file = ts.createSourceFile('npc-fixture.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
@@ -134,7 +136,7 @@ function fixture(source = patched, mode: 'immediate' | 'delayed' | 'failed' = 'd
 
 describe('NPC terminal button protocol state', () => {
   it('reproduces the native layout-dependent CLOSE_DIALOG loss with a connected active dialog', () => {
-    const f = fixture(native);
+    const f = fixture(upstreamNpc);
     f.packet('SAY_DIALOG');
     expect(f.npc.__active).toBe(true); expect(f.npc._host.isConnected).toBe(true);
     expect(f.npc._host.offsetParent).toBeNull(); expect(f.npc.ui.is(':visible')).toBe(false);
@@ -288,21 +290,13 @@ describe('NPC button asset fallback through native UIButton', () => {
   });
 });
 
-describe('strict NPC dialog patch anchors', () => {
-  it('keeps independent minimal runtime fixtures unchanged', () => {
-    const source = 'const unrelated = 1;'; expect(patchRuntimeNpcDialogButtons(source)).toBe(source);
-  });
-  it('rejects double installation and changed native close handlers instead of silently skipping the fix', () => {
-    expect(() => patchRuntimeNpcDialogButtons(patched)).toThrow('already-installed');
-    expect(() => patchRuntimeNpcDialogButtons(native.replace('function onCloseAppear(pkt)', 'function otherCloseHandler(pkt)'))).toThrow('close-handler');
-    const engine = region(native, 'src/Engine/MapEngine/NPC.js');
-    expect(() => patchRuntimeNpcDialogButtons(native.replace(engine,
-      engine.replace('NpcBox_default.ui && NpcBox_default.ui.is(":visible")', 'NpcBox_default.__active')))).toThrow('close-body');
-  });
-  it('rejects missing/duplicate NPC modules or changed component/style registration', () => {
-    expect(() => patchRuntimeNpcDialogButtons(region(native, 'src/UI/Components/NpcBox/NpcBox.js') + '\n//#endregion')).toThrow('src/Engine/MapEngine/NPC.js');
-    expect(() => patchRuntimeNpcDialogButtons(native + '\n' + region(native, 'src/UI/Components/NpcBox/NpcBox.js'))).toThrow('src/UI/Components/NpcBox/NpcBox.js');
-    expect(() => patchRuntimeNpcDialogButtons(native.replace('NpcBox_default = UIManager.addComponent(NpcBox)', 'NpcBox_default = otherComponent'))).toThrow('register');
-    expect(() => patchRuntimeNpcDialogButtons(native.replace('#NpcBox .btn {', '#NpcBox .different {'))).toThrow('button-css');
+describe('permanent NPC dialog button behavior', () => {
+  it('keeps the terminal close guard, owner ID, fallback registration, and observer cleanup in the vendor owner', () => {
+    const npc = extractVendorRegion('src/Engine/MapEngine/NPC.js', native);
+    expect(npc).toContain('NpcBox_default.__active && NpcBox_default._host?.isConnected && NpcBox_default.ownerID === pkt.NAID');
+    expect(npc).toContain('ownerID');
+    const component = extractVendorRegion('src/UI/Components/NpcBox/NpcBox.js', native);
+    expect(component).toContain('lastro-npc-button-fallback');
+    expect(component).toContain('observer?.disconnect()');
   });
 });

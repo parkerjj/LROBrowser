@@ -5,10 +5,13 @@ import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { installLastroShortcutSettings } from '../scripts/lastro-shortcut-settings.mjs';
 import { installLastroTeleportSettings } from '../scripts/lastro-teleport-settings.mjs';
-import { lastroUiWindowAppend } from '../scripts/lastro-ui-state.mjs';
+import { extractRuntimeNode, extractVendorRegion } from './helpers/vendor-runtime';
 
 const vendor = readFileSync('vendor/v2/Online.js', 'utf8');
 const generated = readFileSync('generated/runtime/Online.js', 'utf8');
+const lastroUiWindowAppend = vm.runInNewContext(`${extractRuntimeNode(vendor, {
+  kind: 'function', name: 'lastroUiWindowAppend',
+})}\nlastroUiWindowAppend`) as (...args: unknown[]) => unknown;
 // Execute the actual patch function without loading unrelated skill-data assets
 // through Vite's jsdom URL transformation.
 const patchSource = readFileSync('scripts/patch-v2-runtime.mjs', 'utf8');
@@ -20,9 +23,7 @@ const patchRuntimeShortcutSettings = vm.runInNewContext(
   { ts, installLastroShortcutSettings, installLastroTeleportSettings, fail: (message: string) => { throw new Error(message); } },
 ) as (source: string) => string;
 function region(source: string, name: string) {
-  const start = source.indexOf(`//#region ${name}`), end = source.indexOf('//#endregion', start);
-  if (start < 0 || end < 0) throw new Error(`Missing native region: ${name}`);
-  return source.slice(start, end + '//#endregion'.length);
+  return extractVendorRegion(name, source);
 }
 const componentModules = [
   'src/UI/Components/GraphicsOption/GraphicsOption.html?raw',
@@ -32,7 +33,7 @@ const componentModules = [
   'src/UI/Components/Escape/Escape.css?raw',
   'src/UI/Components/Escape/Escape.js',
 ];
-const native = ['src/UI/GUIComponent.js', 'src/UI/UIManager.js', ...componentModules]
+const native = extractRuntimeNode(vendor, { kind: 'function', name: 'lastroUiWindowAppend' }) + '\n' + ['src/UI/GUIComponent.js', 'src/UI/UIManager.js', ...componentModules]
   .map(name => region(vendor, name)).join('\n');
 const patched = patchRuntimeShortcutSettings(native);
 function classMembers(source: string, module: string, className: string, names: string[]) {

@@ -26,6 +26,18 @@ const stringKinds = new Map([
   [ts.SyntaxKind.TemplateMiddle, 'template-middle'],
   [ts.SyntaxKind.TemplateTail, 'template-tail'],
 ]);
+const triviaKinds = new Set([
+  ts.SyntaxKind.WhitespaceTrivia,
+  ts.SyntaxKind.NewLineTrivia,
+  ts.SyntaxKind.SingleLineCommentTrivia,
+  ts.SyntaxKind.MultiLineCommentTrivia,
+  ts.SyntaxKind.ShebangTrivia,
+  ts.SyntaxKind.ConflictMarkerTrivia,
+  ts.SyntaxKind.NonTextFileMarkerTrivia,
+  ts.SyntaxKind.EndOfFileToken,
+  ts.SyntaxKind.SyntaxList,
+  ts.SyntaxKind.JSDocComment,
+]);
 const retiredTransforms = [
   { module: './lastro-network-receive-recovery.mjs', imported: 'patchRuntimeNetworkFramingRecovery', local: 'patchRuntimeNetworkFramingRecovery', callOwner: 'patchV2Runtime' },
   { module: './lastro-network-receive-recovery.mjs', imported: 'patchRuntimeNetworkCloseDrain', local: 'patchRuntimeNetworkCloseDrain', callOwner: 'patchV2Runtime' },
@@ -393,13 +405,56 @@ function statementOwner(statement, file, index) {
 }
 
 function tokenizeStatement(statement, file, owner) {
-  const text = statement.getText(file);
-  const scanner = ts.createScanner(ts.ScriptTarget.Latest, true, ts.LanguageVariant.Standard, text);
   const tokens = [];
-  for (let kind = scanner.scan(); kind !== ts.SyntaxKind.EndOfFileToken; kind = scanner.scan()) {
-    const value = stringKinds.has(kind) ? scanner.getTokenValue() ?? '' : scanner.getTokenText();
-    tokens.push({ kind: stringKinds.get(kind) ?? ts.SyntaxKind[kind] ?? String(kind), value, owner });
+
+  function isTaggedTemplateToken(node) {
+    for (let current = node; current && current !== statement; current = current.parent) {
+      if (ts.isTemplateExpression(current) || ts.isNoSubstitutionTemplateLiteral(current)) {
+        return ts.isTaggedTemplateExpression(current.parent) && current.parent.template === current;
+      }
+    }
+    return false;
   }
+
+  function isDirectiveString(node) {
+    // Escapes with the same cooked value can disable a "use strict" directive.
+    if (!ts.isStringLiteral(node) || !ts.isExpressionStatement(node.parent)
+      || node.parent.expression !== node) return false;
+    const container = node.parent.parent;
+    if (!ts.isSourceFile(container) && !(ts.isBlock(container)
+      && ts.isFunctionLike(container.parent) && container.parent.body === container)) return false;
+    for (const current of container.statements) {
+      if (!ts.isExpressionStatement(current) || !ts.isStringLiteral(current.expression)) return false;
+      if (current === node.parent) return true;
+    }
+    return false;
+  }
+
+  function collect(node) {
+    if (node.kind === ts.SyntaxKind.JSDocComment || node.kind === ts.SyntaxKind.EndOfFileToken
+      || (typeof ts.isJSDoc === 'function' && ts.isJSDoc(node))) return;
+    const children = node.getChildren(file);
+    if (children.length) {
+      const boundary = ts.SyntaxKind[node.kind] ?? String(node.kind);
+      tokens.push({ kind: 'ast-open', value: boundary, owner });
+      for (const child of children) collect(child);
+      tokens.push({ kind: 'ast-close', value: boundary, owner });
+      return;
+    }
+    if (triviaKinds.has(node.kind)) return;
+    const kind = stringKinds.get(node.kind) ?? ts.SyntaxKind[node.kind] ?? String(node.kind);
+    const isTemplateToken = node.kind === ts.SyntaxKind.NoSubstitutionTemplateLiteral
+      || node.kind === ts.SyntaxKind.TemplateHead
+      || node.kind === ts.SyntaxKind.TemplateMiddle
+      || node.kind === ts.SyntaxKind.TemplateTail;
+    const value = stringKinds.has(node.kind) && !isDirectiveString(node)
+      && !(isTemplateToken && isTaggedTemplateToken(node))
+      ? node.text
+      : node.getText(file);
+    tokens.push({ kind, value, owner });
+  }
+
+  collect(statement);
   return tokens;
 }
 

@@ -3,7 +3,6 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { patchRuntimeCardCollection } from '../scripts/lastro-card-collection.mjs';
-import { patchRuntimeItemDrag } from '../scripts/lastro-item-drag.mjs';
 import { extractRuntimeNode, readVendorSource } from './helpers/vendor-runtime';
 
 const paths = ['src/UI/Components/CardConnection/CardConnection2', 'src/Engine/MapEngine.js',
@@ -126,7 +125,7 @@ describe('card collection runtime integration boundaries', () => {
   });
 
   it('places card invalidation after the unique permanent vending-close call in both lifecycle owners', () => {
-    const residual = patchRuntimeItemDrag(patched);
+    const residual = patched;
     const actualMap = parse(region(residual, paths[1]!).text);
     for (const [name, closed] of [['onMapChange', 'false'], ['cleanGameUI', 'true']] as const) {
       const body = declaration(actualMap, name).body!;
@@ -245,6 +244,7 @@ describe('card preset teardown and character isolation in emitted native code', 
     const component = { __loaded: true, remove: removed, clean: cleaned };
     const context = vm.createContext({
       SessionStorage_default: { Entity: null, moveAction: { pending: true } },
+      document: {},
       CardConnection2: { _lastroCardDeck: { invalidate } },
       MapControl: { _lastroMovementInput: { cancel: cancelInput } }, LastROInvalidateServerTick: invalidateTick,
       WhisperBox: { clearAll: whisper },

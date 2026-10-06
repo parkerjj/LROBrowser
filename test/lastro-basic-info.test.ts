@@ -7,6 +7,9 @@ import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './hel
 
 const native = readVendorSource();
 const patched = native;
+const lastroUiWindowAppend = runInNewContext(`${extractRuntimeNode(native, {
+  kind: 'function', name: 'lastroUiWindowAppend',
+})}\nlastroUiWindowAppend`) as (...args: unknown[]) => unknown;
 const versions = [1, 3, 4, 5];
 function region(source: string, path: string) {
   return extractVendorRegion('src/UI/Components/BasicInfo/' + path, source);
@@ -84,7 +87,7 @@ function fixture(version: number, reduce = false) {
     getRoot() { return this._root; }
   }
   const context = {
-    GUIComponent, UIManager: { addComponent: (component: unknown) => component },
+    GUIComponent, lastroUiWindowAppend, UIManager: { addComponent: (component: unknown) => component },
     Preferences: { get: preferences }, Renderer: { width: 800, height: 600 }, SessionStorage_default: session,
     DB: { INTERFACE_PATH: '' }, Client: { loadFile: (path: string, done: (url: string) => void) => { assets.push(path); done('data:image/bmp;base64,AA=='); } },
     MonsterTable_default: { 42: '超级魔导师', 43: '骑士' }, installLastROCardMenuButton: vi.fn(),

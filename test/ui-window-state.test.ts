@@ -1,16 +1,21 @@
 // @vitest-environment jsdom
-import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { lastroUiWindowAppend, patchRuntimeUiState } from '../scripts/lastro-ui-state.mjs';
+import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 
-const native = readFileSync('vendor/v2/Online.js', 'utf8');
-const patched = patchRuntimeUiState(native);
+const native = readVendorSource();
+const patched = native;
+const lastroUiWindowAppend = vm.runInNewContext(`${extractRuntimeNode(native, {
+  kind: 'function', name: 'lastroUiWindowAppend',
+})}\nlastroUiWindowAppend`) as (...args: unknown[]) => unknown;
+const uiInputHelpers = vm.runInNewContext(
+  ['lastroUiInputFrame', 'lastroUiLogicalPointer', 'lastroUiDragBounds']
+    .map(name => extractRuntimeNode(native, { kind: 'function', name })).join('\n')
+    + '\n({ lastroUiInputFrame, lastroUiLogicalPointer, lastroUiDragBounds })',
+) as Record<string, (...args: unknown[]) => unknown>;
 function region(source: string, path: string) {
-  const start = source.indexOf('//#region ' + path), end = source.indexOf('//#endregion', start);
-  if (start < 0 || end < start) throw new Error('Missing region: ' + path);
-  return source.slice(start, end);
+  return extractVendorRegion(path, source);
 }
 function template(version: number, kind = 'Inventory') {
   const path = kind === 'WinStats' ? 'WinStats/WinStats/WinStats' : `Inventory/InventoryV${version}/InventoryV${version}`;
@@ -60,7 +65,7 @@ function mount(version = 0, storage: Record<string, string> = {}, kind: 'Invento
   let zoom = 1;
   const mouse = { screen: { x: 10, y: 10, width: 1200, height: 800 } };
   const raf = new Map<number, FrameRequestCallback>(); let rafId = 0;
-  const context = vm.createContext({ window: win, document: doc, Event: win.Event, console,
+  const context = vm.createContext({ window: win, document: doc, Event: win.Event, console, ...uiInputHelpers,
     localStorage: { getItem: (key: string) => storage[key] ?? null, setItem: (key: string, value: string) => { storage[key] = value; } },
     __esmMin: (init: () => void) => init, UIVersionManager: { getInventoryVersion: () => version },
     Client: { loadFile: (_path: string, done: (value: string) => void) => done('') },
@@ -101,9 +106,10 @@ function mount(version = 0, storage: Record<string, string> = {}, kind: 'Invento
   const mouseEvent = (type: string) => { const event = new win.MouseEvent(type, { bubbles: true, button: 0 }); Object.defineProperty(event, 'which', { value: 1 }); return event; };
   const dragTo = (left: number, top: number) => {
     const x = component._host.offsetLeft, y = component._host.offsetTop;
-    mouse.screen.x = mouse.screen.y = 10;
+    const rect = component._host.getBoundingClientRect();
+    mouse.screen.x = rect.left + 10 + win.scrollX; mouse.screen.y = rect.top + 10 + win.scrollY;
     component.getRoot().querySelector('.titlebar')!.dispatchEvent(mouseEvent('mousedown'));
-    mouse.screen.x = left - x + 10; mouse.screen.y = top - y + 10; tickDrag();
+    mouse.screen.x += (left - x) * zoom; mouse.screen.y += (top - y) * zoom; tickDrag();
   };
   return { win, doc, component, saved, flush, storage, context, setZoom: (value: number) => { zoom = value; }, dragTo, endDrag: () => win.dispatchEvent(mouseEvent('mouseup')) };
 }
@@ -272,12 +278,12 @@ describe('native window preferences', () => {
     component.onRemove(); expect(saved).toBe(true); expect(pref.stats).toBe(true);
   });
 
-  it('patches real common factories and preserves automatic map/navigation/quest tracking placement', () => {
+  it('keeps permanent common factories and preserves automatic map/navigation/quest tracking placement', () => {
     expect(patched).toContain('return lastroUiWindowAppend(this, _preferences');
     expect(region(patched, 'src/UI/Components/Storage/StorageCommon.js')).toContain('resizeHeight(_preferences.height)');
     expect(region(patched, 'src/UI/Components/SkillList/SkillListCommon.js')).toContain('_preferences.width = width; _preferences.height = height');
     expect(region(patched, 'src/UI/Components/Quest/Quest/QuestWindow.js')).not.toContain('lastroUiWindowAppend');
     expect(region(patched, 'src/UI/Components/WorldMap/WorldMap.js')).not.toContain('lastroUiWindowAppend');
-    expect(patchRuntimeUiState(patched)).toBe(patched);
+    expect(extractRuntimeNode(patched, { kind: 'function', name: 'lastroUiWindowAppend' })).toContain('originalSave.call(preferences)');
   });
 });

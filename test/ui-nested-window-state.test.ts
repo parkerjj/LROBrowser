@@ -1,19 +1,21 @@
 // @vitest-environment jsdom
-import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { lastroBindNestedWindowState, patchRuntimeUiState } from '../scripts/lastro-ui-state.mjs';
+import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 
-const native = readFileSync('vendor/v2/Online.js', 'utf8');
-const patched = patchRuntimeUiState(native);
+const native = readVendorSource();
+const patched = native;
+const storeHelpers = ['lastroSetVendingShopping', 'installLastroStoreScroll']
+  .map(name => extractRuntimeNode(native, { kind: 'function', name })).join('\n');
+const lastroBindNestedWindowState = vm.runInNewContext(`${extractRuntimeNode(native, {
+  kind: 'function', name: 'lastroBindNestedWindowState',
+})}\nlastroBindNestedWindowState`) as (...args: unknown[]) => unknown;
 type Kind = 'Vending' | 'NpcStore';
 type WindowPref = { x: number; y: number; height: number; width?: number };
 type ModePref = { inputWindow: WindowPref; outputWindow: WindowPref; AvailableItemsWindow: WindowPref; PurchaseResult: WindowPref };
 function region(text: string, path: string) {
-  const start = text.indexOf('//#region ' + path), end = text.indexOf('//#endregion', start);
-  if (start < 0 || end < start) throw new Error('Missing native region: ' + path);
-  return text.slice(start, end);
+  return extractVendorRegion(path, text);
 }
 function extract(kind: Kind) {
   const path = `src/UI/Components/${kind}/${kind}`;
@@ -82,6 +84,7 @@ function mount(kind: Kind, storage: Record<string, string> = {}) {
     VendingModelMessage_default: { onRemove: messageCleanup },
   });
   vm.runInContext(`
+    ${storeHelpers}
     ${region(patched, 'src/Core/Preferences.js')}
     init_Preferences$1();
     var _input$1=[], _output$1=[], _input=[], _output=[], _type=0, _closePacketSent=false;
@@ -110,10 +113,12 @@ function mount(kind: Kind, storage: Record<string, string> = {}) {
 }
 
 describe('native nested-window preferences', () => {
-  it('patches only append to bind the native child windows and remains idempotent', () => {
+  it('binds native child windows exactly once from append', () => {
     expect(sources.Vending.code).toContain('lastroBindNestedWindowState(this, _preferences$16, () => _preferences$16)');
     expect(sources.NpcStore.code).toContain('lastroBindNestedWindowState(this, _preferences$2, () => getCurrentPref())');
-    expect(patchRuntimeUiState(patched)).toBe(patched);
+    expect(sources.Vending.code.match(/lastroBindNestedWindowState\(this,/g) ?? []).toHaveLength(1);
+    expect(sources.NpcStore.code.match(/lastroBindNestedWindowState\(this,/g) ?? []).toHaveLength(1);
+    expect(extractRuntimeNode(patched, { kind: 'function', name: 'lastroBindNestedWindowState' })).toContain('preferences.save = flush');
   });
 
   it('saves Vending adjustments on mouseup without clearing items or submitting a store', () => {

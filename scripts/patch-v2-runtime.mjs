@@ -24,7 +24,6 @@ import { createWorldMapIndex, installLastroWorldMap, WORLD_MAP_HTML, WORLD_MAP_C
 import { createMonsterPortraitLoader } from './lastro-monster-portrait.mjs';
 import { createLastroChatMapLinks } from './lastro-chat-map-links.mjs';
 import { patchRuntimeNpcMapLinks } from './lastro-npc-map-links.mjs';
-import { patchRuntimeNpcDialogButtons } from './lastro-npc-dialog-buttons.mjs';
 import { patchRuntimeAutolootSettings } from './lastro-autoloot-settings.mjs';
 import { patchRuntimeAchievementLinks } from './lastro-achievement-links.mjs';
 import { patchRuntimeTeleportFeedback } from './lastro-teleport-feedback.mjs';
@@ -39,17 +38,9 @@ import { installLastroTeleportSettings } from './lastro-teleport-settings.mjs';
 import { patchPetDialogueDecoding } from './patch-pet-dialogue.mjs';
 
 
-import { patchRuntimeUiState } from './lastro-ui-state.mjs';
-import { patchRuntimeStoreScroll } from './lastro-store-scroll.mjs';
-import { patchRuntimeStorageCount } from './lastro-storage-count.mjs';
-import { patchRuntimeUiInput } from './lastro-ui-input.mjs';
-
-import { patchRuntimeItemDrag } from './lastro-item-drag.mjs';
-
 import { patchRuntimeHotkeys } from './lastro-hotkeys.mjs';
 import { patchRuntimeCardDeckHotkeys } from './lastro-card-deck-hotkeys.mjs';
 import { patchRuntimeCardCollection } from './lastro-card-collection.mjs';
-import { patchRuntimeNavigationUi } from './lastro-navigation-ui.mjs';
 import { patchRuntimeQuests } from './lastro-quest-runtime.mjs';
 import { describeLastroMapLoadFailure } from './lastro-map-load-diagnostic.mjs';
 import teleportRoutes from './lastro-teleport-routes.json' with { type: 'json' };
@@ -806,45 +797,29 @@ export function patchNavigationPendingTargets(source) {
   return source;
 }
 
-export function patchRuntimePreferencesSave(source) {
-  const anchor = `    static save(data) {
-      const key = data._key;
-      delete data._key;
-      delete data.save;
-      const store = {};
-      store[key] = JSON.stringify(data);
-      Storage.set(store);
-      data._key = key;
-      data.save = selfSave;
-    }`;
-  return replaceOnce(source, anchor, `    static save(data) {
-      const key = data._key;
-      delete data._key;
-      delete data.save;
-      try {
-        const store = {};
-        store[key] = JSON.stringify(data);
-        Storage.set(store);
-      } finally {
-        data._key = key;
-        data.save = selfSave;
-      }
-    }`);
-}
-
 export function patchRuntimeToolsPanels(source) {
   const file = ts.createSourceFile('Online.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
-  const anchors = [], transitions = [], cleanups = [];
+  const anchors = [], transitions = [], cleanups = [], dragCancels = [];
   function visit(node, scope = '') {
     if (ts.isFunctionDeclaration(node)) scope = node.name?.text ?? scope;
     if (ts.isMethodDeclaration(node) && node.name?.getText(file) === 'setMap' && ts.isClassExpression(node.parent) && node.parent.name?.text === 'MapRenderer') scope = 'MapRenderer.setMap';
     if (ts.isCallExpression(node) && node.expression.getText(file) === 'UIManager.addComponent' && node.arguments[0]?.getText(file) === 'LastROTools') anchors.push(node);
     if (ts.isCallExpression(node) && scope === 'MapRenderer.setMap' && node.expression.getText(file) === 'UIManager.removeComponents') transitions.push(node);
     if (ts.isFunctionDeclaration(node) && node.name?.text === 'cleanGameUI') cleanups.push(node);
+    if (scope === 'cleanGameUI' && ts.isExpressionStatement(node) && ts.isCallExpression(node.expression)
+      && node.expression.arguments.length === 0 && !node.expression.questionDotToken
+      && ts.isPropertyAccessExpression(node.expression.expression)
+      && node.expression.expression.name.text === 'cancel' && node.expression.expression.questionDotToken
+      && ts.isPropertyAccessExpression(node.expression.expression.expression)
+      && !node.expression.expression.expression.questionDotToken
+      && node.expression.expression.expression.name.text === '_lastroItemDrag'
+      && ts.isIdentifier(node.expression.expression.expression.expression)
+      && node.expression.expression.expression.expression.text === 'document') dragCancels.push(node);
     ts.forEachChild(node, child => visit(child, scope));
   }
   visit(file);
-  if (anchors.length !== 1 || transitions.length !== 1 || cleanups.length !== 1) fail('anchor:lastro-tools-panels');
+  if (anchors.length !== 1 || transitions.length !== 1 || cleanups.length !== 1 || dragCancels.length !== 1
+    || dragCancels[0].parent !== cleanups[0].body) fail('anchor:lastro-tools-panels');
   const anchor = anchors[0];
   const install = `const lastroSendRouteTeleport = point => {
     if (!PACKET?.CZ?.PRIVATE_AIRSHIP_REQUEST) throw new Error("当前客户端不支持传送");
@@ -921,7 +896,7 @@ export function patchRuntimeToolsPanels(source) {
   const edits = [
     { start: anchor.getStart(file), text: 'init_Preferences$1();\n  ' + install },
     { start: transitions[0].getStart(file), text: 'if (typeof LastROTools !== "undefined") LastROTools?._lastroPanels?.onMapChanging();\n      ' },
-    { start: cleanups[0].body.getStart(file) + 1, text: '\n  if (typeof LastROTools !== "undefined") LastROTools?._lastroPanels?.cancelRoute();' },
+    { start: dragCancels[0].end, text: '\n  if (typeof LastROTools !== "undefined") LastROTools?._lastroPanels?.cancelRoute();' },
   ].sort((a, b) => b.start - a.start);
   for (const edit of edits) source = source.slice(0, edit.start) + edit.text + source.slice(edit.start);
   return `const LastROTeleportPresets = ${JSON.stringify({ profiles: teleportRoutes.profiles, upstreamCustomRoutes: teleportRoutes.upstreamCustomRoutes })};\n` + patchNavigationPendingTargets(source);
@@ -945,13 +920,71 @@ export function patchRuntimeShortcutSettings(source) {
     && parent.left.getText(file) === 'GraphicsOption_default' && parent.right === call ? parent.parent : parent;
   if (!ts.isExpressionStatement(statement) || statement.expression !== call && statement.expression !== parent
     || !ts.isBlock(statement.parent) && !ts.isSourceFile(statement.parent)) fail('anchor:lastro-shortcut-settings:statement');
-  const install = `(${installLastroShortcutSettings.toString()})(GraphicsOption, {
+  const helpers = [], declarations = [], preferences = [], appends = [];
+  function findPermanentOwners(node) {
+    if (ts.isFunctionDeclaration(node) && node.name?.text === 'lastroUiWindowAppend') helpers.push(node);
+    if (ts.isVariableDeclaration(node) && node.name.getText(file) === '_preferences$32') declarations.push(node);
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
+      if (node.left.getText(file) === '_preferences$32') preferences.push(node);
+      if (node.left.getText(file) === 'GraphicsOption.onAppend') appends.push(node);
+    }
+    ts.forEachChild(node, findPermanentOwners);
+  }
+  findPermanentOwners(file);
+  const helper = helpers[0], nativePreference = preferences[0], append = appends[0];
+  if (helpers.length !== 1 || declarations.length !== 1 || preferences.length !== 1 || appends.length !== 1
+    || helper.parameters.map(parameter => parameter.name.getText(file)).join(',') !== 'component,preferences,append,snapshot,options'
+    || helper.parameters[4].initializer?.getText(file) !== '{}'
+    || !ts.isCallExpression(nativePreference.right) || nativePreference.right.expression.getText(file) !== 'Preferences.get'
+    || nativePreference.right.arguments.length !== 3 || nativePreference.right.arguments[0].text !== 'GraphicsOption'
+    || nativePreference.right.arguments[2].getText(file) !== '1.1'
+    || nativePreference.parent.parent !== statement.parent || append.parent.parent !== statement.parent
+    || !ts.isFunctionExpression(append.right) || append.right.parameters.length !== 0
+    || append.right.asteriskToken || append.right.modifiers?.length
+    || append.right.body.statements.length !== 1) fail('anchor:lastro-shortcut-settings:ui-state');
+  const returned = append.right.body.statements[0];
+  const zeroArgumentBlockArrow = node => ts.isArrowFunction(node) && node.parameters.length === 0
+    && !node.modifiers?.length && ts.isBlock(node.body);
+  if (!ts.isReturnStatement(returned) || !returned.expression || !ts.isCallExpression(returned.expression)
+    || returned.expression.questionDotToken || returned.expression.expression.getText(file) !== 'lastroUiWindowAppend'
+    || returned.expression.arguments.length !== 4 || returned.expression.arguments[0].getText(file) !== 'this'
+    || returned.expression.arguments[1].getText(file) !== '_preferences$32'
+    || !zeroArgumentBlockArrow(returned.expression.arguments[2]) || !zeroArgumentBlockArrow(returned.expression.arguments[3])
+    || returned.expression.arguments[3].body.statements.map(node => node.getText(file)).join('\n')
+      !== '_preferences$32.x = parseInt(this._host.style.left, 10);\n_preferences$32.y = parseInt(this._host.style.top, 10);') {
+    fail('anchor:lastro-shortcut-settings:ui-state');
+  }
+  function serializeSettingsInstaller(factory, expectedStatements) {
+    const text = factory.toString();
+    const installerFile = ts.createSourceFile('settings.js', text, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+    const matches = [];
+    function findAppend(node) {
+      if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken
+        && node.left.getText(installerFile) === 'component.onAppend') matches.push(node.right);
+      ts.forEachChild(node, findAppend);
+    }
+    findAppend(installerFile);
+    const fn = matches[0];
+    if (matches.length !== 1 || !ts.isFunctionExpression(fn) || fn.parameters.length !== 1
+      || fn.asteriskToken || fn.modifiers?.length
+      || !fn.parameters[0].dotDotDotToken || fn.parameters[0].name.getText(installerFile) !== 'args'
+      || fn.body.statements.map(node => node.getText(installerFile)).join('\n') !== expectedStatements.join('\n')) {
+      fail('anchor:lastro-shortcut-settings:installer-append');
+    }
+    const body = `{ return lastroUiWindowAppend(this, _preferences$32, () => {${fn.body.getText(installerFile).slice(1, -1)}
+}, () => {_preferences$32.x = parseFloat(this._host.style.left) || 0; _preferences$32.y = parseFloat(this._host.style.top) || 0;
+}); }`;
+    return text.slice(0, fn.body.getStart(installerFile)) + body + text.slice(fn.body.end);
+  }
+  const shortcutInstaller = serializeSettingsInstaller(installLastroShortcutSettings, ['originalAppend?.apply(this, args);', 'sync();']);
+  const teleportInstaller = serializeSettingsInstaller(installLastroTeleportSettings, ['const result = originalAppend?.apply(this, args);', 'sync();', 'return result;']);
+  const install = `(${shortcutInstaller})(GraphicsOption, {
     document: globalThis.document,
     getEnabled: getLastroShortcutEntryEnabled,
     setEnabled: setLastroShortcutEntryEnabled,
     onError: () => UIManager.showErrorBox("快捷入口设置保存失败，请重试。"),
   });
-  (${installLastroTeleportSettings.toString()})(GraphicsOption, {
+  (${teleportInstaller})(GraphicsOption, {
     document: globalThis.document,
     getEnabled: getLastroTeleportConfirmationEnabled,
     setEnabled: setLastroTeleportConfirmationEnabled,
@@ -1202,22 +1235,14 @@ ${normalizedSource}`;
   output = patchRuntimeWorldMap(output);
   output = patchRuntimeChatMapLinks(output);
   output = patchRuntimeNpcMapLinks(output, teleportResourceLoaderCode());
-  output = patchRuntimeNpcDialogButtons(output);
   output = patchRuntimeAchievementLinks(output, teleportResourceLoaderCode());
   output = patchRuntimeTeleportFeedback(output);
   output = patchRuntimeAutolootSettings(output);
   output = patchRuntimeToolsPanels(output);
   output = patchRuntimeShortcutSettings(output);
-  output = patchRuntimePreferencesSave(output);
-  output = patchRuntimeNavigationUi(output);
   output = patchRuntimeQuests(output);
-  output = patchRuntimeStoreScroll(output);
-  output = patchRuntimeStorageCount(output);
   output = patchRuntimeItemName(output);
-  output = patchRuntimeUiState(output);
-  output = patchRuntimeUiInput(output);
   output = patchRuntimeEmoticons(output);
-  output = patchRuntimeItemDrag(output);
   output = patchMapLoadFailureRecovery(output);
   output = patchRuntimeTeleportFade(output);
   if (/new WebSocket|wss?:\/\/|socketProxy|electronAPI|NodeSocket/i.test(output)) fail('legacy-transport');

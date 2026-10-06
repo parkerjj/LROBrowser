@@ -2,9 +2,15 @@
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
+import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 
 const vendor = readVendorSource();
+const lastroUiWindowAppend = runInNewContext(`${extractRuntimeNode(vendor, {
+  kind: 'function', name: 'lastroUiWindowAppend',
+})}\nlastroUiWindowAppend`) as (...args: unknown[]) => unknown;
+const writerPreferences = extractRuntimeNode(vendor, {
+  region: 'src/UI/Components/Rodex/WriteRodex.js', kind: 'assignment', name: 'lastroWriteRodexPreferences',
+});
 function region(source: string, path: string) {
   return extractVendorRegion(path, source);
 }
@@ -66,14 +72,14 @@ function writer(runtimeSource = patched) {
   const native = {
     _host: dom.host, _shadow: dom.root, receiver: null, CharID: 0, tax: 0, list: [],
     requestSendRodex: sent, requestCancelWriteRodex: cancel, validateName: validate,
-    focus: vi.fn(), draggable: vi.fn(),
+    focus: vi.fn(), draggable: vi.fn(), getRoot: () => dom.root,
   };
   const names = ['_root$8', 'onClickClose$1', 'onClickSend', 'onClickValidateName', 'prettifyZeny$3'];
   const handlers = names.map(name => declaration('WriteRodex', name, runtimeSource)).join('\n');
   const methods = ['initData', 'onAppend', 'updateWeight', 'updateTax', 'characterInfo']
     .map(name => assignment('WriteRodex', name, runtimeSource)).join(';\n');
-  runInNewContext(`${handlers}\n${methods};`, {
-    WriteRodex: native,
+  runInNewContext(`const ${writerPreferences};\n${handlers}\n${methods};`, {
+    WriteRodex: native, lastroUiWindowAppend, Preferences: { get: (_key: string, defaults: object) => ({ ...defaults, save: vi.fn() }) },
     DB: { getMessage: (id: number) => id === 3575 ? 'TITLE' : `message-${id}` },
     SessionStorage_default: session,
     ChatBox_default: { addText: messages, TYPE: { INFO_MAIL: 1 }, FILTER: { PUBLIC_LOG: 0 } },

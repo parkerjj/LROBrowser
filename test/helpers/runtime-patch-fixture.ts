@@ -83,6 +83,8 @@ export function buildRuntimePatchFixture(vendorSource: string): string {
     name: 'cleanGameUI',
   });
   const audioPrelude = buildRuntimeAudioPrelude(vendorSource);
+  const uiWindowAppend = extractRuntimeNode(vendorSource, { kind: 'function', name: 'lastroUiWindowAppend' });
+  const graphicsOption = extractVendorRegion('src/UI/Components/GraphicsOption/GraphicsOption.js', vendorSource);
 
   return [
     'import { existing } from "./existing.mjs?build=fixture-1";',
@@ -104,7 +106,8 @@ export function buildRuntimePatchFixture(vendorSource: string): string {
     'ChatBox.addText = function addText(text, override) { text = text.replace(/<ITEMLINK>.*?<\\/ITEMLINK>/gi, function(match) { return match; }); if (!override && /mapname/.test(text)) override = true; };',
     'function onMapClick(event, mapLink) { if (requestChatMapTeleport(mapLink)) { event.preventDefault(); event.stopImmediatePropagation(); } }',
     'UIManager.addComponent(LastROTools);',
-    'UIManager.addComponent(GraphicsOption);',
+    uiWindowAppend,
+    graphicsOption,
     'Navigation.waitForMapData = function waitForMapData(callback) { setTimeout(() => Navigation.waitForMapData(callback), 100); };',
     'Navigation.navigateTo = function navigateTo(options) { _finalTargetData = {map: options.endMap}; this.waitForMapData(function () { this.findPath(); }); };',
     'var MapRenderer = class MapRenderer { static setMap(mapname) { UIManager.removeComponents(); } };',

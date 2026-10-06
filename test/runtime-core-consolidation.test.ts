@@ -6,7 +6,6 @@ import { auditCoreOwnership, compareRuntimeSources } from '../scripts/check-runt
 import * as displayLocalization from '../scripts/lastro-display-localization.mjs';
 import { patchRuntimeEntityAppearance } from '../scripts/lastro-entity-appearance.mjs';
 import { patchRuntimeEquipmentAppearance, patchRuntimeEquipmentCatalog, patchRuntimeEquipmentView } from '../scripts/lastro-equipment-view.mjs';
-import { patchRuntimeUiState } from '../scripts/lastro-ui-state.mjs';
 import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 import { buildRuntimePatchFixture } from './helpers/runtime-patch-fixture';
 
@@ -23,6 +22,15 @@ const task9Retirements = [
   { module: './lastro-basic-info.mjs', imported: 'patchRuntimeBasicInfoLayout', local: 'patchRuntimeBasicInfoLayout', callOwner: 'patchV2Runtime' },
   { module: './lastro-mail.mjs', imported: 'patchRuntimeMail', local: 'patchRuntimeMail', callOwner: 'patchV2Runtime' },
   { module: './lastro-shop-titles.mjs', imported: 'patchRuntimeShopTitles', local: 'patchRuntimeShopTitles', callOwner: 'patchV2Runtime' },
+];
+const task10Retirements = [
+  { module: './lastro-npc-dialog-buttons.mjs', imported: 'patchRuntimeNpcDialogButtons', local: 'patchRuntimeNpcDialogButtons', callOwner: 'patchV2Runtime' },
+  { module: './lastro-navigation-ui.mjs', imported: 'patchRuntimeNavigationUi', local: 'patchRuntimeNavigationUi', callOwner: 'patchV2Runtime' },
+  { module: './lastro-store-scroll.mjs', imported: 'patchRuntimeStoreScroll', local: 'patchRuntimeStoreScroll', callOwner: 'patchV2Runtime' },
+  { module: './lastro-storage-count.mjs', imported: 'patchRuntimeStorageCount', local: 'patchRuntimeStorageCount', callOwner: 'patchV2Runtime' },
+  { module: './lastro-ui-state.mjs', imported: 'patchRuntimeUiState', local: 'patchRuntimeUiState', callOwner: 'patchV2Runtime' },
+  { module: './lastro-ui-input.mjs', imported: 'patchRuntimeUiInput', local: 'patchRuntimeUiInput', callOwner: 'patchV2Runtime' },
+  { module: './lastro-item-drag.mjs', imported: 'patchRuntimeItemDrag', local: 'patchRuntimeItemDrag', callOwner: 'patchV2Runtime' },
 ];
 
 function audit(patcherSource: string, retiredTransforms = [layoutRetirement], ownership: Record<string, unknown> = {}) {
@@ -149,17 +157,17 @@ describe('runtime consolidation source helpers', () => {
     expect(db).toContain('getWeaponFallbackViewID');
   });
 
-  it('permanent cooldown survives the retained ui-state Shortcut append wrapping', () => {
+  it('permanent cooldown survives the vendor Shortcut append wrapper', () => {
     const vendor = readVendorSource();
-    const wrapped = patchRuntimeUiState(vendor);
-    const append = extractRuntimeNode(wrapped, {
+    const append = extractRuntimeNode(vendor, {
       region: 'src/UI/Components/ShortCut/ShortCut.js',
       kind: 'assignment',
       name: 'ShortCut.onAppend',
     });
-    expect(wrapped).toContain('function lastroUiWindowAppend(');
+    expect(vendor.includes('function lastroUiWindowAppend(')).toBe(true);
     expect(append).toContain('return lastroUiWindowAppend(this, _preferences$19, () => {');
     expect(append).toContain('_lastroCooldownDuration');
+    expect(append).toContain('setDelayOnIndex(index, element._lastroCooldownDuration, true)');
   });
 
   it('keeps every costume-loop helper token identical to its retained module', () => {
@@ -241,6 +249,65 @@ describe('runtime consolidation source helpers', () => {
       expect.objectContaining({ owner: 'function:render', kind: 'literal' }),
     ]);
     expect(comparison.differences[0]?.detail).toContain('blue');
+  });
+
+  it.each([
+    ['function', 'function mode(){ "use strict"; return this === undefined; }', String.raw`function mode(){ "use\x20strict"; return this === undefined; }`],
+    ['source', '"use strict"; function mode(){ return this === undefined; }', String.raw`"use\x20strict"; function mode(){ return this === undefined; }`],
+  ])('keeps %s directive prologue spelling significant when it changes strict-mode behavior', (_scope, before, after) => {
+    expect(runInNewContext(before + '; mode();')).toBe(true);
+    expect(runInNewContext(after + '; mode();')).toBe(false);
+    expect(compareRuntimeSources(before, after, { stage: 'ui-state' }).equal).toBe(false);
+  });
+
+  it('compares template interpolation tokens and keeps tagged-template raw text significant', () => {
+    const before = 'function render(value) { return `prefix ${ value + 1 } suffix`; }';
+    const triviaOnly = 'function render ( value ) { return `prefix ${value+1} suffix`; }';
+    expect(compareRuntimeSources(before, triviaOnly, { stage: 'ui-state' }))
+      .toMatchObject({ equal: true, differences: [] });
+
+    const changedExpression = triviaOnly.replace('value+1', 'other+1');
+    expect(compareRuntimeSources(before, changedExpression, { stage: 'ui-state' }).differences)
+      .toContainEqual(expect.objectContaining({ owner: 'function:render', kind: 'token-range' }));
+
+    const untaggedBefore = 'function render() { element.textContent = `  `; }';
+    const untaggedEscaped = 'function render() { element.textContent = `\\x20\\x20`; }';
+    expect(compareRuntimeSources(untaggedBefore, untaggedEscaped, { stage: 'ui-state' }))
+      .toMatchObject({ equal: true, differences: [] });
+
+    const taggedBefore = 'function render() { return String.raw`\\x20`; }';
+    const taggedAfter = 'function render() { return String.raw` `; }';
+    expect(compareRuntimeSources(taggedBefore, taggedAfter, { stage: 'ui-state' }).differences)
+      .toContainEqual(expect.objectContaining({ owner: 'function:render', kind: 'literal' }));
+  });
+
+  it('preserves syntax-tree boundaries so automatic semicolon insertion changes are detected', () => {
+    const newlineReturn = 'function run() { return\nvalue; }';
+    const sameTree = 'function run ( ) { return\n  value ; }';
+    expect(compareRuntimeSources(newlineReturn, sameTree, { stage: 'ui-state' }))
+      .toMatchObject({ equal: true, differences: [] });
+
+    const joinedReturn = 'function run() { return value; }';
+    const comparison = compareRuntimeSources(newlineReturn, joinedReturn, { stage: 'ui-state' });
+    expect(comparison.equal).toBe(false);
+    expect(comparison.differences).toContainEqual(expect.objectContaining({
+      owner: 'function:run', kind: 'token-range',
+    }));
+
+    const prefix = 'function run() { value\n++other; }';
+    const postfix = 'function run() { value++\nother; }';
+    expect(compareRuntimeSources(prefix, postfix, { stage: 'ui-state' }).differences)
+      .toContainEqual(expect.objectContaining({ owner: 'function:run', kind: 'token-range' }));
+  });
+
+  it('keeps regular-expression tokens distinct while ignoring surrounding comments', () => {
+    const before = 'function test() { const matcher = /a\\/b/g; return matcher.test("a/b"); } // trailing';
+    const same = 'function test ( ) { /* comment */ const matcher = /a\\/b/g; return matcher.test("a/b"); }';
+    expect(compareRuntimeSources(before, same, { stage: 'ui-state' }))
+      .toMatchObject({ equal: true, differences: [] });
+    const changed = same.replace('/a\\/b/g', '/a\\/c/g');
+    expect(compareRuntimeSources(before, changed, { stage: 'ui-state' }).differences)
+      .toContainEqual(expect.objectContaining({ owner: 'function:test', kind: 'token-range' }));
   });
 
   it('allows only token-identical audio declarations to move after imports', () => {
@@ -362,18 +429,20 @@ function patchV2Runtime(source) {
     expect(diagnostics).toEqual([]);
   });
 
-  it('retires the six permanent UI transforms while retaining the product layout', () => {
+  it('retires the seven permanent Task 10 UI transforms while retaining the product layout', () => {
     const patcherSource = readFileSync(new URL('../scripts/patch-v2-runtime.mjs', import.meta.url), 'utf8');
     const diagnostics = auditCoreOwnership({
       vendorSource: readVendorSource(),
       patcherSource,
       prepareSource: readFileSync(new URL('../scripts/prepare-runtime.mjs', import.meta.url), 'utf8'),
-      retiredTransforms: task9Retirements,
+      retiredTransforms: [...task9Retirements, ...task10Retirements],
       retiredHostExports: [],
+      forbiddenHostDefinitions: ['patchRuntimePreferencesSave'],
     });
     expect(diagnostics).toEqual([]);
     expect(patcherSource).toContain('output = patchRuntimeUiLayout(output);');
     expect(patcherSource).not.toContain('patchScopedUiLayout');
+    expect(patcherSource).not.toContain('patchRuntimePreferencesSave');
   });
 
   it('distinguishes retired scoped layout import from retained local product layout', () => {

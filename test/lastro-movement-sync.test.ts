@@ -1,9 +1,10 @@
 import vm from 'node:vm';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
-import { extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
+import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 
 const vendor = readVendorSource();
+const closeVendingShopping = extractRuntimeNode(vendor, { kind: 'function', name: 'lastroCloseVendingShopping' });
 function region(name: string, source = vendor) {
   return extractVendorRegion(name, source);
 }
@@ -102,7 +103,7 @@ function fixture(source = runtime) {
     Float32Array, Int16Array, Uint32Array, Uint16Array, Uint8Array, ArrayBuffer, DataView,
     __esmMin: (init: () => void) => { let loaded = false; return () => { if (!loaded) { loaded = true; init(); } }; },
     init_PathFinding: () => {}, init_Altitude: () => {}, init_SessionStorage: () => {}, init_DBManager: () => {},
-    SessionStorage_default, Renderer, Events, EntityManager, Altitude, Entity: constants, MapRenderer, MapControl, Network,
+    document: {}, SessionStorage_default, Renderer, Events, EntityManager, Altitude, Entity: constants, MapRenderer, MapControl, Network,
     LastROEventDueTick: () => dueTick,
     Configs: { get: (name: string, fallback: unknown) => name === 'lastroProtocol' ? true : fallback },
     DB: { getWeaponAction: () => 0 },
@@ -126,7 +127,7 @@ function fixture(source = runtime) {
   const action = region('src/Renderer/Entity/EntityAction.js');
   vm.runInContext([
     declaration(action, 'Action'), declaration(action, 'Animation'), declaration(action, 'setAction'), declaration(action, 'Init$10'),
-    source.replaceAll('import.meta.url', '"file:///native.js"'), 'init_EntityWalk();',
+    closeVendingShopping, source.replaceAll('import.meta.url', '"file:///native.js"'), 'init_EntityWalk();',
   ].join('\n'), context);
   const socket = {
     connected: true, isZone: true, handoffPending: false, _lastroMovementPacketAt: 10000, send: vi.fn(),

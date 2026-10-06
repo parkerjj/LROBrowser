@@ -1,19 +1,20 @@
 // @vitest-environment jsdom
-import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it } from 'vitest';
 import { patchRuntimeHotkeys } from '../scripts/lastro-hotkeys.mjs';
-import { lastroUiWindowAppend, patchRuntimeUiState } from '../scripts/lastro-ui-state.mjs';
 import { installDebugAccessGuard } from '../src/runtime/debug-access';
+import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
+import upstream from './fixtures/runtime-consolidation/ui-state-upstream.json';
 
-const native = readFileSync('vendor/v2/Online.js', 'utf8');
-const patched = patchRuntimeUiState(patchRuntimeHotkeys(native));
+const native = readVendorSource();
+const patched = patchRuntimeHotkeys(native);
+const lastroUiWindowAppend = vm.runInNewContext(`${extractRuntimeNode(native, {
+  kind: 'function', name: 'lastroUiWindowAppend',
+})}\nlastroUiWindowAppend`) as (...args: unknown[]) => unknown;
 const shortcutPath = 'src/UI/Components/ShortCut/ShortCut.js';
 function region(source: string, path: string) {
-  const start = source.indexOf('//#region ' + path), end = source.indexOf('//#endregion', start);
-  if (start < 0 || end < start) throw new Error('Missing actual runtime region: ' + path);
-  return source.slice(start, end);
+  return extractVendorRegion(path, source);
 }
 function assignment(source: string, path: string, left: string) {
   const file = ts.createSourceFile('actual.js', region(source, path), ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
@@ -100,7 +101,7 @@ function fixture(options: { legacyExtend?: boolean; storage?: Record<string, str
     ${assignment(patched, shortcutPath, 'ShortCut.onAppend')}
     ${assignment(patched, shortcutPath, 'ShortCut.onRemove')}
     ${assignment(patched, shortcutPath, 'ShortCut.setList')}
-    ${assignment(options.legacyExtend ? native : patched, shortcutPath, 'ShortCut.onShortCut')}
+    ${options.legacyExtend ? upstream.shortcutAction : assignment(patched, shortcutPath, 'ShortCut.onShortCut')}
     const UIManager = { components: {}, getComponent: name => name === 'ShortCutOption' ? {isCapturing: false} : ShortCut };
     ${region(patched, 'src/Controls/BattleMode.js')}
     init_BattleMode();
@@ -184,12 +185,11 @@ describe('F12 with actual skill-bar window persistence', () => {
     expect(f.host.style.height).toBe(`${next * 34}px`); expect(f.saved().size).toBe(next);
   });
 
-  it.each(['missing-extend', 'duplicate-extend', 'duplicate-handler'] as const)('fails patching explicitly when the actual upstream shortcut anchor drifts: %s', change => {
-    const original = assignment(native, shortcutPath, 'ShortCut.onShortCut');
-    const changed = change === 'missing-extend' ? original.replace('case "EXTEND":', 'case "GROW":')
-      : change === 'duplicate-extend' ? original.replace('case "EXTEND":', 'case "EXTEND":\ncase "EXTEND":')
-        : original + '\n' + original;
-    expect(changed).not.toBe(original);
-    expect(() => patchRuntimeUiState(native.replace(original, () => changed))).toThrow('anchor:ui-state:shortcut-extend-save-order');
+  it('updates shortcut height before saving its permanent preferences', () => {
+    const handler = assignment(native, shortcutPath, 'ShortCut.onShortCut');
+    const height = handler.indexOf('this._host.style.height =');
+    const save = handler.indexOf('_preferences$19.save()');
+    expect(height).toBeGreaterThanOrEqual(0);
+    expect(save).toBeGreaterThan(height);
   });
 });

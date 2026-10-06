@@ -10,6 +10,5 @@ export function patchRuntimeWorldMap(source: string): string;
 export function patchRuntimeChatMapLinks(source: string): string;
 export function patchNavigationPendingTargets(source: string): string;
 export function patchRuntimeToolsPanels(source: string): string;
-export function patchRuntimePreferencesSave(source: string): string;
 export function patchRuntimeShortcutSettings(source: string): string;
 export function patchMapLoadFailureRecovery(source: string): string;

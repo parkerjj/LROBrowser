@@ -1,16 +1,23 @@
+import { createRequire } from 'node:module';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { patchNavigationPendingTargets } from '../scripts/patch-v2-runtime.mjs';
+import { extractRuntimeNode, extractVendorRegion } from './helpers/vendor-runtime';
 
 let source: string;
 let runtime: string;
 let createHarness: () => Harness;
+const { JSDOM } = createRequire(import.meta.url)('jsdom') as { JSDOM: new () => { window: Window & typeof globalThis } };
+const dom = new JSDOM();
+const runtimeWindow = { window: dom.window, document: dom.window.document, getComputedStyle: dom.window.getComputedStyle.bind(dom.window) };
 beforeAll(async () => {
   source = await readFile(new URL('../vendor/v2/Online.js', import.meta.url), 'utf8');
   runtime = patchNavigationPendingTargets(source);
   createHarness = harnessFactory(runtime);
 });
+afterEach(() => dom.window.document.body.replaceChildren());
+afterAll(() => dom.window.close());
 
 interface Target { map: string; x: number; y: number; }
 interface Harness {
@@ -41,8 +48,19 @@ function harnessFactory(runtime: string): () => Harness {
   }
   visit(file);
   expect(functions).toHaveLength(4);
-  // Execute only these pinned native functions with local stubs: no GUI, worker or Network exists.
-  return new Function(`
+  const dockHelpers = ['getNavigationDockPosition', 'dockLastroNavigation']
+    .map(name => `const ${extractRuntimeNode(runtime, { kind: 'assignment', name })};`).join('\n');
+  const guiFile = ts.createSourceFile('GUIComponent.js', extractVendorRegion('src/UI/GUIComponent.js', runtime), ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const guiMethods: string[] = [];
+  function visitGui(node: ts.Node) {
+    if (ts.isMethodDeclaration(node) && ['prepare', 'append', 'getRoot'].includes(node.name.getText(guiFile))
+      && ts.isClassExpression(node.parent) && node.parent.name?.text === 'GUIComponent') guiMethods.push(node.getText(guiFile));
+    ts.forEachChild(node, visitGui);
+  }
+  visitGui(guiFile);
+  expect(guiMethods).toHaveLength(3);
+  // Execute pinned navigation functions and native GUI lifecycle with local worker/data dependencies.
+  return new Function('globalThis', 'document', `
     let _finalTargetData = null, _targetData = null, _mapData = null, _isMapClickTarget = false, locked = false;
     const scheduled = [], paths = [];
     const setTimeout = callback => scheduled.push(callback);
@@ -51,9 +69,14 @@ function harnessFactory(runtime: string): () => Harness {
     const normalizeMapName = x => x.replace(/\\.gat$/i, '');
     const initializePathFindingWorker = () => {};
     const resetPathFindingWorker = () => { locked = false; };
+    const MouseMode = { FREEZE: 2 };
+    ${dockHelpers}
     const MapPathFinder = {findPathBetweenMaps: (_s,_x,_y,endMap,endX,endY) => [{map:'izlude_in', x:endMap==='izlude'?48:endX, y:endMap==='izlude'?114:endY}]};
     const Navigation = {
-      getRoot: () => ({querySelector: () => null}), clearPath: () => { locked = false; },
+      __loaded: false, __active: false, mouseMode: 1,
+      _prepare() { this._host = document.createElement('div'); this._shadow = this._host.attachShadow({mode:'open'}); },
+      ${guiMethods.join(',\n')},
+      _setupScrollbars() {}, _fixPositionOverflow() {}, focus() {}, clearPath: () => { locked = false; },
       setTargetCoordinatesText: () => {}, setTargetCoordinatesBlinking: () => {},
       setMapNameText: () => {}, setLocationTitle: () => {}, ui:{show:()=>{}},
       findClosestWalkableCell: (x,y) => ({x,y}),
@@ -68,7 +91,7 @@ function harnessFactory(runtime: string): () => Harness {
       ready: () => { _mapData = {map:'izlude_in'}; const pending = scheduled.splice(0); for (const callback of pending) callback(); },
       state: () => ({finalTarget:_finalTargetData, target:_targetData})
     };
-  `) as () => Harness;
+  `).bind(null, runtimeWindow, dom.window.document) as () => Harness;
 }
 
 describe('native Navigation pending target guard', () => {

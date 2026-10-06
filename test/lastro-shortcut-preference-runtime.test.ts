@@ -1,14 +1,14 @@
-import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import { describe, expect, it, vi } from 'vitest';
-import { patchRuntimePreferencesSave, patchRuntimeShortcutSettings } from '../scripts/patch-v2-runtime.mjs';
+import { patchRuntimeShortcutSettings } from '../scripts/patch-v2-runtime.mjs';
+import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 
-const native = readFileSync('vendor/v2/Online.js', 'utf8').replace(/\r\n/g, '\n');
-const start = native.indexOf('//#region src/Core/Preferences.js');
-const end = native.indexOf('//#endregion', start);
-const preferenceSource = patchRuntimePreferencesSave(native.slice(start, end));
-const patched = patchRuntimeShortcutSettings('UIManager.addComponent(GraphicsOption);');
-const functions = patched.slice(0, patched.indexOf('(function installLastroShortcutSettings'));
+const native = readVendorSource();
+const preferenceSource = extractVendorRegion('src/Core/Preferences.js', native);
+const graphicsSource = extractRuntimeNode(native, { kind: 'function', name: 'lastroUiWindowAppend' }) + '\n'
+  + extractVendorRegion('src/UI/Components/GraphicsOption/GraphicsOption.js', native);
+const patched = patchRuntimeShortcutSettings(graphicsSource);
+const functions = patched.slice(0, patched.indexOf('function lastroUiWindowAppend('));
 
 function fixture(stored?: boolean) {
   const key = 'LastROShortcutEntry';
@@ -80,8 +80,10 @@ describe('persistent native shortcut preference adapter', () => {
   it('preserves the assigned GUI component used by the native Escape graphics button', () => {
     const component = { init: vi.fn(), onAppend: vi.fn(), append: vi.fn(), remove: vi.fn() };
     const addComponent = vi.fn((value: unknown) => value);
-    const output = patchRuntimeShortcutSettings('GraphicsOption_default = UIManager.addComponent(GraphicsOption);');
-    const value = runInNewContext(output + '\nGraphicsOption_default;', {
+    const output = patchRuntimeShortcutSettings(graphicsSource);
+    const registration = 'GraphicsOption_default = UIManager.addComponent(GraphicsOption);';
+    const installation = output.slice(output.indexOf('(function installLastroShortcutSettings'), output.indexOf(registration) + registration.length);
+    const value = runInNewContext(functions + '\n' + installation + '\nGraphicsOption_default;', {
       GraphicsOption: component, UIManager: { addComponent },
     });
     expect(addComponent).toHaveBeenCalledExactlyOnceWith(component);
@@ -90,9 +92,9 @@ describe('persistent native shortcut preference adapter', () => {
   });
 
   it('rejects registration embedded in an unreviewed expression', () => {
-    expect(() => patchRuntimeShortcutSettings('const wrong = UIManager.addComponent(GraphicsOption);'))
+    expect(() => patchRuntimeShortcutSettings(graphicsSource.replace('GraphicsOption_default = UIManager.addComponent(GraphicsOption);', 'const wrong = UIManager.addComponent(GraphicsOption);')))
       .toThrow('anchor:lastro-shortcut-settings:statement');
-    expect(() => patchRuntimeShortcutSettings('consume(UIManager.addComponent(GraphicsOption));'))
+    expect(() => patchRuntimeShortcutSettings(graphicsSource.replace('GraphicsOption_default = UIManager.addComponent(GraphicsOption);', 'consume(UIManager.addComponent(GraphicsOption));')))
       .toThrow('anchor:lastro-shortcut-settings:statement');
   });
 });

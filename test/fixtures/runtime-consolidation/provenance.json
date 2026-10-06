@@ -45,6 +45,26 @@
         "src/Renderer/Entity/EntityRoom.js"
       ],
       "fixtureSha256": "44c857e0cfc69926dfd4d36b63b320608d892a23421178cf661045723b6e53f4"
+    },
+    {
+      "path": "vendor/v2/Online.js",
+      "fixturePath": "test/fixtures/runtime-consolidation/quest-native-on-append.js.txt",
+      "sourceCommit": "ed064c5ee434413452bf205b0fa19ff610d002b7",
+      "sourceSha256": "d199a879e23d4c4e5b3d050834a300b3e82614f25dfa1069c22d9889ea4cbdb1",
+      "regionOrSymbol": "createQuest: Quest.onAppend function onAppend",
+      "fixtureSha256": "8ede047b430829346b5394604507198ad740b87fe585638c951703ec72dac986"
+    },
+    {
+      "path": "vendor/v2/Online.js",
+      "fixturePath": "test/fixtures/runtime-consolidation/ui-state-upstream.json",
+      "sourceCommit": "ed064c5ee434413452bf205b0fa19ff610d002b7",
+      "sourceSha256": "d199a879e23d4c4e5b3d050834a300b3e82614f25dfa1069c22d9889ea4cbdb1",
+      "regionOrSymbol": [
+        "src/UI/Components/NpcBox/NpcBox.js",
+        "src/Engine/MapEngine/NPC.js: onCloseAppear",
+        "src/UI/Components/ShortCut/ShortCut.js: ShortCut.onShortCut"
+      ],
+      "fixtureSha256": "3b6ca6ed4d940581882d4aefedaaad9101a7fb19ee5dbab0e57d8f00e9f0271f"
     }
   ]
 }
