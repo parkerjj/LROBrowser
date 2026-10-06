@@ -2,8 +2,10 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
 import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
+import { readHistoricalRuntime } from './helpers/historical-runtime';
 
 const vendor = readVendorSource();
+const upstream = readHistoricalRuntime('entity-upstream');
 const closeVendingShopping = extractRuntimeNode(vendor, { kind: 'function', name: 'lastroCloseVendingShopping' });
 function region(name: string, source = vendor) {
   return extractVendorRegion(name, source);
@@ -53,7 +55,7 @@ interface HitPacket {
 }
 interface MovePacket { MoveData: number[]; moveStartTime: number; }
 
-function fixture(source = runtime) {
+function fixture(source = runtime, oldSide?: 'control' | 'fastMove') {
   let now = 10000, dueTick: number | undefined;
   const SessionStorage_default = {
     serverTick: 10000, Entity: null as Entity | null, AID: 123, Playing: true,
@@ -126,9 +128,14 @@ function fixture(source = runtime) {
   vm.runInContext(region('src/Utils/PathFinding.js'), context);
   vm.runInContext('init_PathFinding(); PathFinding_default.setGat(Altitude);', context);
   const action = region('src/Renderer/Entity/EntityAction.js');
+  // These unchanged upstream owners reproduced bugs on the former entity-sync intermediate.
+  // Bind them to the actual permanent route/packet dependencies, without storing that repaired bundle.
+  const historicalOwners = oldSide === 'control'
+    ? [declaration(upstream.walk!, 'walkProcess'), upstream.state!, declaration(upstream.engine!, 'onEntityOptionChange')].join('\n')
+    : oldSide === 'fastMove' ? declaration(upstream.engine!, 'onEntityFastMove') : '';
   vm.runInContext([
     declaration(action, 'Action'), declaration(action, 'Animation'), declaration(action, 'setAction'), declaration(action, 'Init$10'),
-    closeVendingShopping, source.replaceAll('import.meta.url', '"file:///native.js"'), 'init_EntityWalk();',
+    closeVendingShopping, source.replaceAll('import.meta.url', '"file:///native.js"'), historicalOwners, 'init_EntityWalk();',
   ].join('\n'), context);
   const socket = {
     connected: true, isZone: true, handoffPending: false, _lastroMovementPacketAt: 10000, send: vi.fn(),
@@ -258,8 +265,8 @@ interface ControlledEntity extends Entity {
   _lastroMovementStops?: Set<number>;
   lookTo(x: number, y: number): void;
 }
-function controlFixture(source = runtime) {
-  const f = fixture(source);
+function controlFixture(source = runtime, oldSide = false) {
+  const f = fixture(source, oldSide ? 'control' : undefined);
   const readNow = (f.context.Date as { now(): number }).now;
   f.context.Date = class extends Date { static now() { return readNow(); } };
   for (const name of ['init_SoundManager', 'init_StatusState', 'init_MountTable', 'init_AllMountTable', 'init_Emotions']) {
@@ -319,6 +326,32 @@ function controlFixture(source = runtime) {
 }
 
 describe('authoritative control states retire old movement', () => {
+  it('reproduces native movement through stun followed by a server STOP correction', () => {
+    const f = controlFixture(runtime, true), fixed = controlFixture();
+    for (const entry of [f, fixed]) { beginWalk(entry); entry.setNow(10100); entry.entity.walkProcess(); }
+    const position = Array.from(f.entity.position), epoch = f.entity._lastroMovementEpoch;
+    const fixedPosition = Array.from(fixed.entity.position), fixedEpoch = fixed.entity._lastroMovementEpoch!;
+    for (const entry of [f, fixed]) {
+      expect(entry.state(statusConstants.states.BodyState.STUN!)).toMatchObject({ AID: 123, bodyState: 3 });
+    }
+    // Upstream caps a >250ms render stall to 100ms. The old intermediate had removed that cap.
+    // Equal 16ms render cadence isolates stun behavior and reaches the original 11000 deadline.
+    for (let tick = 10116; tick < 11000; tick += 16) {
+      for (const entry of [f, fixed]) { entry.setNow(tick); entry.entity.walkProcess(); }
+    }
+    for (const entry of [f, fixed]) { entry.setNow(11000); entry.entity.walkProcess(); }
+    expect(f.entity.position[0]).toBeGreaterThan(position[0]! + 5);
+    expect(f.entity._lastroMovementEpoch).toBe(epoch);
+    expect(Array.from(fixed.entity.position)).toEqual(fixedPosition);
+    expect(fixed.entity._lastroMovementEpoch).toBe(fixedEpoch + 1);
+    expect(fixed.entity.walk.total).toBe(0);
+    for (const entry of [f, fixed]) {
+      entry.functions.stop({ AID: 123, xPos: 2, yPos: 1 });
+      expect(Array.from(entry.entity.position)).toEqual([2, 1, 3]);
+      expect(entry.entity.walk.total).toBe(0);
+    }
+  });
+
   it.each(['STONE', 'FREEZE', 'STUN', 'SLEEP', 'IMPRISON'] as const)('retires a %s route at its fractional display position and accepts only a fresh route after recovery', name => {
     const f = controlFixture(); beginWalk(f); f.setNow(10100); f.entity.walkProcess();
     const position = Array.from(f.entity.position), epoch = f.entity._lastroMovementEpoch!;
@@ -448,6 +481,18 @@ describe('authoritative control states retire old movement', () => {
 });
 
 describe('authoritative FASTMOVE Body Relocation targets', () => {
+  it('reproduces the native empty-route buffer check after decoding a real FASTMOVE packet', () => {
+    const f = fixture(runtime, 'fastMove'); largerGat(f);
+    const packet = fastMovePacket(f, 50, 1);
+    expect({ ...packet }).toEqual({ AID: 123, targetXpos: 50, targetYpos: 1 });
+    f.functions.fastMove(packet);
+    expect(f.entity.walk.path.length).toBe(66);
+    expect(f.entity.walk.total).toBe(0);
+    expect(f.entity.walk.speed).toBe(10);
+    f.setNow(12000); f.entity.walkProcess();
+    expect(Array.from(f.entity.position)).toEqual([1, 1, 2]);
+  });
+
   it('applies a valid authoritative target when its local walking search fails, without leaving temporary speed', () => {
     const f = fixture(); largerGat(f);
     beginWalk(f);

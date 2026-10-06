@@ -3,10 +3,12 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
+import { readHistoricalRuntime } from './helpers/historical-runtime';
 
 const path = 'src/UI/Components/ShortCut/ShortCut.js';
 const source = readVendorSource();
 const native = extractVendorRegion(path, source).replace(/\r\n/g, '\n');
+const upstream = readHistoricalRuntime('skill-cooldown-upstream').shortcut!;
 const lastroUiWindowAppend = vm.runInNewContext(`${extractRuntimeNode(source, {
   kind: 'function', name: 'lastroUiWindowAppend',
 })}\nlastroUiWindowAppend`) as (...args: unknown[]) => unknown;
@@ -88,6 +90,13 @@ function fixture(text = native) {
 afterEach(() => { for (const dispose of disposals.splice(0)) dispose(); vi.restoreAllMocks(); document.body.replaceChildren(); });
 
 describe('native shortcut cooldown lifetime across map loading', () => {
+  it.each([3000, 8000])('reproduces canceled native refresh after reappend at %i ms', reopened => {
+    const f = fixture(upstream); f.delay(10, 5000); f.now(2000); f.renderer.tick = 2000; f.frame();
+    expect(f.pending.size).toBe(1); f.remove(); expect(f.pending.size).toBe(0);
+    f.now(reopened); f.append(); f.renderer.tick = 9000; f.frame();
+    expect(f.overlay()).not.toBeNull(); expect(f.list[0]!.Delay).toBe(6000); expect(f.pending.size).toBe(0);
+  });
+
   it('resumes remaining time and original progress without extending the deadline', () => {
     const f = fixture(); f.delay(10, 5000); f.now(2000); f.frame();
     expect(f.degrees()).toBeCloseTo(72); f.remove();

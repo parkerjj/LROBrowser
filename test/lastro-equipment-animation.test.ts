@@ -2,8 +2,12 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
+import { readHistoricalRuntime } from './helpers/historical-runtime';
 
 const vendor = readFileSync('vendor/v2/Online.js', 'utf8');
+const upstream = readHistoricalRuntime('entity-upstream').action
+  + '\n//#region src/Renderer/Entity/EntityRender.js\n'
+  + readHistoricalRuntime('equipment-animation-upstream').render + '\n//#endregion';
 const renderPath = 'src/Renderer/Entity/EntityRender.js';
 function region(path: string, source = vendor) {
   const start = source.indexOf('//#region ' + path), end = source.indexOf('//#endregion', start);
@@ -129,19 +133,24 @@ function fixture(source = vendor, options: FixtureOptions = {}) {
 
 describe('equipment rendering through actual native animation and render closures', () => {
   it('clamps a completed one-shot action to its final ACT frame before modulo', () => {
-    const fixed = fixture();
-    fixed.actor.setAction({ action: fixed.actor.ACTION.ATTACK1!, repeat: false });
-    const fixedFrames = fixed.render(400);
+    const baseline = fixture(upstream), fixed = fixture();
+    for (const f of [baseline, fixed]) f.actor.setAction({ action: f.actor.ACTION.ATTACK1!, repeat: false });
+    const baselineFrames = baseline.render(400), fixedFrames = fixed.render(400);
+    expect(baselineFrames.find(draw => draw.part === 'body')!.frame).toBe(0);
     expect(fixedFrames.find(draw => draw.part === 'body')!.frame).toBe(3);
     expect(fixed.actor.animation.play).toBe(false);
     expect(fixed.render(800).every(draw => draw.frame === 3)).toBe(true);
   });
 
   it.each([0, 1, 3, 4, 5, 7])('keeps all equipment on the completing attack when facing direction %i', direction => {
-    const fixed = fixture();
-    fixed.actor.direction = direction;
-    fixed.actor.setAction({ action: fixed.actor.ACTION.ATTACK1!, repeat: false, next: { action: fixed.actor.ACTION.IDLE!, repeat: true } });
-    const fixedFrames = fixed.render(300);
+    const baseline = fixture(upstream), fixed = fixture();
+    for (const f of [baseline, fixed]) {
+      f.actor.direction = direction;
+      f.actor.setAction({ action: f.actor.ACTION.ATTACK1!, repeat: false, next: { action: f.actor.ACTION.IDLE!, repeat: true } });
+    }
+    const baselineFrames = baseline.render(300), fixedFrames = fixed.render(300);
+    expect(baselineFrames.find(draw => draw.part === 'body')!.action).toBe(5);
+    expect(baselineFrames.find(draw => draw.part === 'head')!.action).toBe(0);
     expect(fixedFrames.map(draw => draw.action)).toEqual([5, 5, 5, 5]);
     expect(fixedFrames.every(draw => draw.direction === direction)).toBe(true);
     expect(fixed.actor.action).toBe(fixed.actor.ACTION.IDLE);
@@ -149,15 +158,17 @@ describe('equipment rendering through actual native animation and render closure
   });
 
   it('chooses the same walking robe frame before and after the body with different ACT delays', () => {
-    const frames = (direction: number) => {
-      const f = fixture(vendor, { bodyCount: 4, robeCount: 7, bodyDelay: 100, robeDelay: 50 });
+    const frames = (source: string, direction: number) => {
+      const f = fixture(source, { bodyCount: 4, robeCount: 7, bodyDelay: 100, robeDelay: 50 });
       f.actor.direction = direction; f.actor.walk.dist = 250 / 170.2;
       f.actor.setAction({ action: f.actor.ACTION.WALK!, repeat: true });
       const draws = f.render(100);
       expect(draws.map(draw => draw.part)).toEqual(direction === 0 ? ['robe', 'body', 'head', 'weapon'] : ['body', 'head', 'robe', 'weapon']);
       return draws.find(draw => draw.part === 'robe')!.frame;
     };
-    expect(frames(0)).toBe(frames(4));
+    expect(frames(upstream, 0)).toBe(5);
+    expect(frames(upstream, 4)).toBe(2);
+    expect(frames(vendor, 0)).toBe(frames(vendor, 4));
   });
 
   it.each([0, 2, 4, 6])('uses the same selected body anchor for attached head layers in direction %i', direction => {
@@ -195,10 +206,13 @@ describe('equipment rendering through actual native animation and render closure
   });
 
   it('samples one clock value for an entire composite draw even when resource rendering crosses frame boundaries', () => {
-    const fixed = fixture(vendor, { bodyCount: 10, robeCount: 10, headCount: 10 });
-    fixed.actor.attack_speed = 1000;
-    fixed.actor.setAction({ action: fixed.actor.ACTION.ATTACK1!, repeat: false });
-    fixed.setClockStep(50);
+    const baseline = fixture(upstream, { bodyCount: 10, robeCount: 10, headCount: 10 }), fixed = fixture(vendor, { bodyCount: 10, robeCount: 10, headCount: 10 });
+    for (const f of [baseline, fixed]) {
+      f.actor.attack_speed = 1000;
+      f.actor.setAction({ action: f.actor.ACTION.ATTACK1!, repeat: false });
+      f.setClockStep(50);
+    }
+    expect(new Set(baseline.render(100).map(draw => draw.frame)).size).toBeGreaterThan(1);
     expect(fixed.render(100).map(draw => draw.frame)).toEqual([1, 1, 1, 1]);
   });
 
@@ -268,13 +282,14 @@ describe('walking equipment cadence across body resources and movement speeds', 
     expect(byPart.weapon_trail).toBe(originalBody.frame);
   });
 
-  it('keeps cosmetic cadence independent of movement speed', () => {
+  it('reproduces movement-dependent cosmetic acceleration in the original renderer', () => {
     const framesAtSpeed = (source: string, speed: number) => {
       const f = fixture(source, { bodyCount: 12, bodyDelay: 100, headCount: 13, headDelay: 200 });
       f.actor.walk.speed = speed; f.actor.walk.dist = 500 / speed;
       f.actor.setAction({ action: f.actor.ACTION.WALK!, repeat: true });
       return f.render(500).find(draw => draw.part === 'head')!.frame;
     };
+    expect(framesAtSpeed(upstream, 50)).not.toBe(framesAtSpeed(upstream, 300));
     expect(framesAtSpeed(vendor, 50)).toBe(2);
     expect(framesAtSpeed(vendor, 300)).toBe(2);
   });

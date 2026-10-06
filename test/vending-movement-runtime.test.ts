@@ -4,6 +4,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { extractRuntimeNode } from './helpers/vendor-runtime';
+import { readHistoricalRuntime } from './helpers/historical-runtime';
 
 const native = readFileSync('vendor/v2/Online.js', 'utf8');
 function region(source: string, path: string) {
@@ -41,6 +42,7 @@ function declarations(source: string) {
 const common = declarations(region(native, 'src/UI/GUIComponent.js') + '\n' + region(native, 'src/UI/Components/NpcStore/NpcStore.html?raw'));
 const packetSources = declarations(region(native, 'src/Network/PacketStructure.js'));
 const sources = { actual: declarations(focused) };
+const upstreamSendPacket = readHistoricalRuntime('vending-send-upstream').sendPacket!;
 afterEach(() => { document.body.replaceChildren(); });
 
 interface Component {
@@ -50,7 +52,7 @@ interface Component {
   append(): void; remove(): void; setType(type: number): void; onKeyDown(event: { key: string }): void;
   setClosePacketSent(value: boolean): void; setList(list: unknown[]): void;
 }
-function fixture() {
+function fixture(fixed = true) {
   const parts = sources.actual;
   const session = { FreezeUI: false, Entity: { position: [10, 20], __navigationMovePending: undefined as unknown }, moveAction: {} as unknown, autoFollow: true };
   const mouse = { intersect: true, screen: {}, world: { x: 15, y: 25 } };
@@ -93,7 +95,7 @@ function fixture() {
   const assignments = ['NpcStore.Type', 'initialPreferences', '_preferences$2', 'NpcStore.mouseMode', 'NpcStore.onAppend', 'NpcStore.setType', 'NpcStore.onRemove', 'NpcStore.onKeyDown', 'NpcStore.setClosePacketSent'];
   const functions = ['getCurrentPref', '_hideAll', '_showAll', 'resize', 'onVendingStoreList', 'onBuyingStoreList', 'sendPacket'];
   vm.runInContext(`var _input=[], _output=[], _type=0, _closePacketSent=false, NpcStore_default=NpcStore;
-    ${functions.map(name => parts.functions.get(name)).join('\n')}
+    ${functions.map(name => !fixed && name === 'sendPacket' ? upstreamSendPacket : parts.functions.get(name)).join('\n')}
     ${assignments.map(name => parts.assignments.get(name)).join('\n')}
     ${vendingHelpers}\nlastroInstallVendingRemoval(NpcStore);
     Network.sendPacket=sendPacket;
@@ -122,6 +124,12 @@ function fixture() {
 }
 
 describe('native player-store shopping movement', () => {
+  it('reproduces the native lost shared freeze and movement-send bypass', () => {
+    const f = fixture(false); f.open(); expect(f.session.FreezeUI).toBe(true);
+    f.session.FreezeUI = false; f.mouse.intersect = true;
+    f.sendPacket(); expect(f.build).toHaveBeenCalledOnce(); expect(f.send).toHaveBeenCalledOnce();
+  });
+
   it('retains the final movement-send guard after a nested frozen window releases shared flags', () => {
     const f = fixture(); f.open(); expect(f.session.FreezeUI).toBe(true);
     f.session.FreezeUI = false; f.mouse.intersect = true;

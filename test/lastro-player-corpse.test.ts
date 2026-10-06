@@ -2,8 +2,10 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
 import { extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
+import { readHistoricalRuntime } from './helpers/historical-runtime';
 
 const vendor = readVendorSource();
+const upstream = readHistoricalRuntime('entity-upstream');
 function region(name: string) {
   return extractVendorRegion(name, vendor);
 }
@@ -55,7 +57,7 @@ interface CorpseEntity {
   animation: { repeat: boolean }; render: ReturnType<typeof vi.fn>;
   set(packet: Record<string, unknown>): void; remove(type: number): void; clean(): void;
 }
-function fixture() {
+function fixture(oldSide = false) {
   let now = 10000;
   const component = () => ({ clean: vi.fn(), free: vi.fn(), remove: vi.fn(), load: vi.fn(),
     update: vi.fn(), hp: -1, hp_max: -1 });
@@ -95,7 +97,7 @@ class Entity {
     for (const key of ['life','emblem','display','dialog','cast','room','attachments','animations','aura','dropEffect']) this[key]=component();
     this.render=mockFn(); Init$10.call(this); if (packet) this.set(packet);
   }
-${methods.join('\n')}
+${oldSide ? methods[0] + '\n' + upstream.clean + '\n' + upstream.remove : methods.join('\n')}
 }
 ${walkStructureCode}
 ${prototypes.join('\n')}
@@ -105,7 +107,7 @@ ${managerCode}
 init_EntityManager();
 ${movementCancelCode}
 ${handlerCode}
-${declaration(engineName, 'onEntityVanish', runtimeEngine)}
+${oldSide ? declaration('upstream/Entity.js', 'onEntityVanish', upstream.engine) : declaration(engineName, 'onEntityVanish', runtimeEngine)}
 `, context);
   const handlers = vm.runInContext('({ vanish:onEntityVanish, resurrect:onEntityResurect, spawn:onEntitySpam })', context) as {
     vanish(packet: { GID: number; type: number }): void;
@@ -133,6 +135,21 @@ ${declaration(engineName, 'onEntityVanish', runtimeEngine)}
 }
 
 describe('native player corpse lifecycle with the real entity manager', () => {
+  it('reproduces a remote corpse orphaned from lookup while remaining rendered after resurrection and departure', () => {
+    const f = fixture(true); f.handlers.vanish({ GID: 123, type: 1 });
+    expect(f.manager.get(123)).toBeNull(); expect(f.list()).toContain(f.other);
+    f.handlers.resurrect({ AID: 123 }); f.handlers.vanish({ GID: 123, type: 0 });
+    f.advance(100000); expect(f.other.action).toBe(f.other.ACTION.DIE); expect(f.other.remove_tick).toBe(0);
+    expect(f.list()).toContain(f.other); expect(f.other.render).toHaveBeenCalledOnce();
+  });
+
+  it('reproduces a second rendered actor when the native orphaned GID enters again', () => {
+    const f = fixture(true); f.handlers.vanish({ GID: 123, type: 1 }); f.respawn();
+    const copies = f.list().filter(entity => entity.GID === 123);
+    expect(copies).toHaveLength(2); expect(f.manager.get(123)).not.toBe(f.other);
+    f.advance(20000); expect(copies[0]!.render).toHaveBeenCalledOnce(); expect(copies[1]!.render).toHaveBeenCalledOnce();
+  });
+
   it('retains the remote dead player for server lifecycle packets without adding a corpse expiration', () => {
     const f = fixture(); f.manager.storeLife(123, { hp: 100, hp_max: 100 });
     f.handlers.vanish({ GID: 123, type: 1 });

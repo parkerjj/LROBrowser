@@ -3,6 +3,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
 import { patchRuntimeEquipmentCatalog, patchRuntimeEquipmentView } from '../scripts/lastro-equipment-view.mjs';
+import { readHistoricalRuntime } from './helpers/historical-runtime';
 
 const native = readFileSync('vendor/v2/Online.js', 'utf8');
 function region(source: string, path: string) {
@@ -28,6 +29,7 @@ function assignment(name: string) {
 const dbRegion = region(native, 'src/DB/DBManager.js'), viewRegion = region(native, 'src/Renderer/Entity/EntityView.js');
 const source = dbRegion + '\n' + viewRegion, fixed = source;
 const patchedView = patchRuntimeEquipmentView(region(fixed, 'src/Renderer/Entity/EntityView.js'));
+const upstreamView = readHistoricalRuntime('weapon-view-upstream').view!;
 const paths = ['Jobs/JobConst', 'Jobs/JobNameTable', 'Jobs/WeaponJobTable', 'Items/WeaponType',
   'Items/WeaponTable', 'Items/WeaponTypeExpansion', 'Items/WeaponTrailTable'];
 const catalog = paths.map(path => region(native, 'src/DB/' + path + '.js')).join('\n');
@@ -85,7 +87,7 @@ function fixture(fallback = true, sex = 0, job = 0, version = 20240101) {
     ${region(native, 'src/Utils/BinaryReader.js')}
     init_BinaryReader();
     ${packets}
-    ${fallback ? patchedView : patchRuntimeEquipmentView(viewRegion)}
+    ${fallback ? patchedView : patchRuntimeEquipmentView(upstreamView)}
     ${viewHandler}
   `, context);
   const data = vm.runInContext('({ DB, WeaponTypeExpansion, ItemTable_default, init: Init$5, BinaryReader, PACKET })', context) as {
@@ -117,14 +119,16 @@ function fixture(fallback = true, sex = 0, job = 0, version = 20240101) {
 const expansions = Object.entries(fixture().WeaponTypeExpansion).map(([view, base]) => ({ view: Number(view), base }));
 
 describe('expanded weapon resource fallback', () => {
-  it('falls back from a missing expanded Main Gauche SPR to its native base class', () => {
-    const current = fixture();
-    current.look(31);
+  it('reproduces the native retry of the same missing Main Gauche SPR and changes only its failure fallback', () => {
+    const baseline = fixture(false), current = fixture();
+    for (const f of [baseline, current]) f.look(31);
     const requested = current.DB.getWeaponPath(31, 0, 0) + '.spr';
     const base = current.DB.getWeaponPath(1, 0, 0) + '.spr';
     expect(requested).toBe('data/sprite/ÀÎ°£Á·/ÃÊº¸ÀÚ/ÃÊº¸ÀÚ_¿©_31.spr');
     expect(base).toBe('data/sprite/ÀÎ°£Á·/ÃÊº¸ÀÚ/ÃÊº¸ÀÚ_¿©_´Ü°Ë.spr');
-    current.finish(requested, false);
+    expect(baseline.pending.map(item => item.path)).toEqual(current.pending.map(item => item.path));
+    baseline.finish(requested, false); current.finish(requested, false);
+    expect(baseline.pending.filter(item => item.path.endsWith('.spr')).map(item => item.path)).toEqual([requested, requested]);
     expect(current.pending.filter(item => item.path.endsWith('.spr')).map(item => item.path)).toEqual([requested, base]);
     current.finish(base, true);
     expect(current.actor.files.weapon).toMatchObject({ spr: base, act: base.replace('.spr', '.act') });

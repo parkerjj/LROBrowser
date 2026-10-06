@@ -4,6 +4,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { setLastROInnerHTML } from '../src/runtime/lastro-trusted-dom.mjs';
+import { readHistoricalRuntime } from './helpers/historical-runtime';
 
 const native = readFileSync('vendor/v2/Online.js', 'utf8');
 const commonPath = 'src/UI/Components/Equipment/EquipmentCommon.js';
@@ -49,6 +50,7 @@ const common = region(native, commonPath);
 const helpers = parse(common).statements.filter(ts.isFunctionDeclaration)
   .filter(node => node.name?.text !== 'createEquipment').map(node => node.getText()).join('\n');
 const factory = nodeText(common, node => ts.isFunctionDeclaration(node) && node.name?.text === 'createEquipment');
+const upstreamFactory = readHistoricalRuntime('equipment-cart-upstream').factory!;
 const handler = nodeText(region(native, 'src/Engine/MapEngine/Entity.js'),
   node => ts.isFunctionDeclaration(node) && node.name?.text === 'onEntityStatusChange');
 const stateDefinitions = ['src/DB/Status/StatusConst.js', 'src/DB/Status/StatusState.js', 'src/DB/Items/EquipmentLocation.js']
@@ -69,7 +71,7 @@ interface Actor {
   GID: number; hasCart: boolean | number; effectState: number; CartNum?: number;
   effectColor: Float32Array; ACTION: { IDLE: number }; renderEntity: ReturnType<typeof vi.fn>;
 }
-function fixture(version: number) {
+function fixture(version: number, factorySource = factory) {
   let frame: (() => void) | undefined;
   const entity: Actor = {
     GID: 123, hasCart: false, effectState: 0,
@@ -112,7 +114,7 @@ function fixture(version: number) {
     [`EquipmentV${version}_default$1`]: styles.get(version), [`EquipmentV${version}_default$2`]: templates.get(version),
   });
   vm.runInContext(`${stateDefinitions}\ninit_StatusConst(); init_StatusState(); init_EquipmentLocation();
-    ${helpers}\n${factory}\n${handler}
+    ${helpers}\n${factorySource}\n${handler}
     var equipment = createEquipment(${configurations.get(version)});`, context);
   const component = context.equipment as Equipment;
   setLastROInnerHTML(component.getRoot(), component.render());
@@ -141,7 +143,12 @@ function fixture(version: number) {
 afterEach(() => { vi.restoreAllMocks(); document.body.replaceChildren(); document.head.querySelectorAll('style').forEach(style => style.remove()); });
 
 describe('native equipment cart buttons, CSS and render lifecycle', () => {
-  it.each(versions)('keeps the cart buttons synchronized with EquipmentV%i state', version => {
+  it.each(versions)('reproduces the CSS-hidden native button and repairs EquipmentV%i', version => {
+    const old = fixture(version, upstreamFactory);
+    old.entity.hasCart = true; old.frame();
+    expect(old.cart.style.display).toBe(''); expect(old.display(old.cart)).toBe('none');
+    expect(old.remove.style.display).toBe(''); expect(old.display(old.remove)).toBe('none');
+    old.component._host.remove();
     const current = fixture(version);
     current.frame();
     expect(current.display(current.cart)).toBe('none'); expect(current.display(current.remove)).toBe('none');

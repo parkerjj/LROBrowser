@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
+import { readHistoricalRuntime } from './helpers/historical-runtime';
 
 const vendor = readFileSync('vendor/v2/Online.js', 'utf8');
 const path = 'src/Engine/MapEngine/Skill.js';
@@ -26,6 +27,7 @@ function assignment(source: string, name: string) {
     && node.operatorToken.kind === ts.SyntaxKind.EqualsToken && node.left.getText(file) === name);
 }
 const native = region(vendor, path);
+const upstream = readHistoricalRuntime('manual-skill-upstream').skill!;
 const engine = region(vendor, 'src/Engine/MapEngine/Entity.js');
 const shortcut = region(vendor, 'src/UI/Components/ShortCut/ShortCut.js');
 const skillList = region(vendor, 'src/UI/Components/SkillList/SkillListCommon.js');
@@ -127,7 +129,9 @@ function fixture(source = native, version = 20260901) {
 }
 
 describe('manual skill requests use server timing rather than visual attack locks', () => {
-  it.each(['direct', 'keyboard', 'mouse', 'list'] as const)('allows %s target input after a native skill notification', via => {
+  it.each(['direct', 'keyboard', 'mouse', 'list'] as const)('reproduces and repairs %s target input after a native skill notification', via => {
+    const old = fixture(upstream); old.attack(); old.Renderer.tick = 1600; old.targetInput(19, via);
+    expect(old.player.amotionTick).toBe(2000); expect(old.send).not.toHaveBeenCalled();
     const current = fixture(); current.attack(); current.Renderer.tick = 1600; current.targetInput(19, via);
     expect(current.player.amotionTick).toBe(2000);
     expect(current.send).toHaveBeenCalledOnce();

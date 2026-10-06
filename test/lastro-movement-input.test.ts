@@ -3,6 +3,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
+import { readHistoricalRuntime } from './helpers/historical-runtime';
 
 const vendor = readVendorSource();
 type MovementInput = { request(): boolean; stop(): void; cancel(): void };
@@ -108,6 +109,8 @@ function extract(source: string): NativeParts {
   visit(file); return { functions, factory, init, hover, setMap, navigate };
 }
 const parts = extract(runtime);
+const upstream = readHistoricalRuntime('movement-input-upstream');
+const baselineParts = extract(upstream.engine + '\n' + upstream.control + '\nclass MapControl {\n' + upstream.init + '\n}');
 parts.functions.set('ground', `const ${extractRuntimeNode(vendor, { kind: 'assignment', name: 'refreshLastroGroundInput' })};`);
 parts.functions.set('cancelMovement', extractRuntimeNode(vendor, {
   region: 'src/Renderer/Entity/EntityWalk.js', kind: 'function', name: 'lastroCancelMovement',
@@ -132,14 +135,15 @@ function entityControlMethods(source: string): Record<string, string> {
   visit(file); return methods;
 }
 const pcMethods = entityControlMethods(entityControlSource);
+const baselinePCMethods = entityControlMethods('class EntityControl {\n' + upstream.pc + '\n}');
 const pcMouseDown = pcMethods.onMouseDown!;
 interface OccupancyEntity { objecttype: number; position: number[]; constructor: { TYPE_EFFECT: number; TYPE_UNIT: number; TYPE_TRAP: number }; }
 function occupant(x: number, y: number, objecttype = 0): OccupancyEntity {
   return { objecttype, position: [x, y], constructor: { TYPE_EFFECT: 9, TYPE_UNIT: 10, TYPE_TRAP: 11 } };
 }
 
-function movementFixture(actualEvents?: 'current' | 'previous') {
-  const source = parts;
+function movementFixture(actualEvents?: 'current' | 'previous', oldSide = false) {
+  const source = oldSide ? baselineParts : parts;
   const canvas = document.createElement('canvas'), overlay = document.createElement('div'); document.body.append(canvas, overlay);
   const calls: string[] = [], sent: { dest?: number[]; kind: string }[] = [];
   const player = { position: [1, 1], action: 0, ACTION: { SIT: 1, DIE: 2 }, headDir: 0, direction: 0,
@@ -201,9 +205,9 @@ function movementFixture(actualEvents?: 'current' | 'previous') {
     setPick: (target: typeof pickTarget) => { pickTarget = target; }, setFree: (predicate: typeof free) => { free = predicate; }, setHidden: (value: boolean) => { hidden = value; } };
 }
 
-function friendlyPCFixture() {
-  const f = movementFixture();
-  const methods = pcMethods;
+function friendlyPCFixture(baseline = false) {
+  const f = movementFixture(undefined, baseline);
+  const methods = baseline ? baselinePCMethods : pcMethods;
   const nativeControls = vm.runInContext('({' + ['onMouseDown', 'onFocus', 'canAttackEntity', 'onContextMenu']
     .map(name => name + ':' + methods[name]).join(',') + '})', f.context) as Record<string, (this: unknown) => boolean>;
   const pc = {
@@ -222,6 +226,12 @@ function friendlyPCFixture() {
 }
 
 describe('actual MapControl and MapEngine movement', () => {
+  it('reproduces the original lost second click within its 200ms throttle', () => {
+    const f = movementFixture(undefined, true); f.control.onRequestWalk(); f.control.onRequestStopWalk();
+    f.renderer.tick += 100; f.mouse.world.x = 50; f.control.onRequestWalk(); f.control.onRequestStopWalk();
+    vi.advanceTimersByTime(1000); expect(f.sent).toEqual([{ kind: 'move2', dest: [10, 20] }]);
+  });
+
   it('sends the captured second click after release despite the old renderer tick moving backwards', () => {
     const f = movementFixture(); f.down(); f.up(); vi.advanceTimersByTime(100); f.setPick({ x: 60, y: 70 }); f.down(); f.up();
     f.renderer.tick = -100000; f.mouse.world.x = 200; f.mouse.world.y = 201; vi.advanceTimersByTime(100);
@@ -262,6 +272,26 @@ describe('actual MapControl and MapEngine movement', () => {
     expect(f.sent).toEqual([{ kind: 'move2', dest: [29, 39] }]); vi.advanceTimersByTime(200);
     f.setFree(() => false); f.down(); f.up(); expect(f.sent).toHaveLength(1);
   });
+  it('retains native free-cell order for crowds, rounded positions, exclusions, terrain, and map edges', () => {
+    const baseline = movementFixture(undefined, true), optimized = movementFixture();
+    const search = (fixture: ReturnType<typeof movementFixture>, x: number, y: number, range: number) =>
+      vm.runInContext(`(() => { const out = [-1, -1]; return { found: checkFreeCell(${x}, ${y}, ${range}, out), out }; })()`, fixture.context);
+    for (let seed = 1; seed <= 10; seed++) for (const [x, y] of [[30, 40], [0, 0], [299, 299]] as [number, number][]) {
+      const entities = Array.from({ length: 120 }, (_, index) => occupant(
+        x + ((index * 7 + seed) % 19) - 9 + (index % 2 ? 0.4 : 0.6),
+        y + ((index * 11 + seed) % 19) - 9 + (index % 3 ? -0.4 : -0.6),
+        [0, 3, 6, 9, 10, 11][index % 6]));
+      for (const fixture of [baseline, optimized]) {
+        fixture.entities.splice(0, fixture.entities.length, ...entities);
+        fixture.setFree((cx, cy) => (cx * 3 + cy * 7 + seed) % 5 !== 0);
+      }
+      for (const position of [[1, 1], [200, 200]] as [number, number][]) {
+        baseline.session.Entity!.position = [...position]; optimized.session.Entity!.position = [...position];
+        for (const range of [0, 1, 3, 9]) expect(search(optimized, x, y, range)).toEqual(search(baseline, x, y, range));
+      }
+    }
+  });
+
   it('selects only walkable unoccupied cells around rounded crowds and map edges', () => {
     const f = movementFixture();
     const search = (fixture: ReturnType<typeof movementFixture>, x: number, y: number, range: number) =>
@@ -290,17 +320,17 @@ describe('actual MapControl and MapEngine movement', () => {
     }
   });
   it('scans a packed crowd once instead of 1330 times while retaining the walkable target fallback', () => {
-    const f = movementFixture();
+    const baseline = movementFixture(undefined, true), optimized = movementFixture();
     const crowd: OccupancyEntity[] = [];
     for (let x = 21; x <= 39; x++) for (let y = 31; y <= 49; y++) crowd.push(occupant(x, y));
     while (crowd.length < 1500) crowd.push(occupant(100 + crowd.length % 100, 200));
-    f.entities.push(...crowd);
-    const scan = vi.spyOn(f.entityManager, 'forEach');
+    for (const fixture of [baseline, optimized]) fixture.entities.push(...crowd);
+    const oldScan = vi.spyOn(baseline.entityManager, 'forEach'), newScan = vi.spyOn(optimized.entityManager, 'forEach');
     const search = (fixture: ReturnType<typeof movementFixture>) => vm.runInContext('checkFreeCell(30, 40, 9, [])', fixture.context);
-    expect(search(f)).toBe(false);
-    expect(scan).toHaveBeenCalledOnce();
-    f.down(); f.up(); vi.advanceTimersByTime(1000);
-    expect(f.sent).toEqual([{ kind: 'move2', dest: [30, 40] }]);
+    expect(search(baseline)).toBe(false); expect(search(optimized)).toBe(false);
+    expect(oldScan).toHaveBeenCalledTimes(1330); expect(newScan).toHaveBeenCalledOnce();
+    optimized.down(); optimized.up(); vi.advanceTimersByTime(1000);
+    expect(optimized.sent).toEqual([{ kind: 'move2', dest: [30, 40] }]);
     expect(vi.getTimerCount()).toBe(0);
   });
   it.each([20170201, 20211103])('keeps native MOVE selection at an occupied walkable corridor end for packet version %i', version => {
@@ -449,6 +479,9 @@ describe('actual MapControl and MapEngine movement', () => {
 
 describe('ordinary player click movement', () => {
   it('lets the native friendly focus branch reach walking instead of silently consuming the click', () => {
+    const baseline = friendlyPCFixture(true); baseline.down(); baseline.up();
+    expect(baseline.pc.onMouseDown).toHaveReturnedWith(true);
+    expect(baseline.pc.onFocus).not.toHaveBeenCalled(); expect(baseline.sent).toHaveLength(0);
     const current = friendlyPCFixture(); current.down(); current.up();
     expect(current.pc.onMouseDown).toHaveReturnedWith(false);
     expect(current.pc.onFocus).toHaveReturnedWith(false);
