@@ -3,9 +3,33 @@ import { fileURLToPath, URL as NodeURL } from 'node:url';
 import ts from 'typescript';
 
 const vendorPath = fileURLToPath(new NodeURL('../../vendor/v2/Online.js', import.meta.url));
+const MAX_SOURCE_FILE_CACHE_ENTRIES = 8;
+// Mutated full bundles create very large ASTs; keep them transient instead of retaining them.
+const MAX_TRANSIENT_SOURCE_LENGTH = 1_000_000;
+const sourceFileCaches = new Map<string, Map<string, ts.SourceFile>>();
+let cachedVendorSource: string | undefined;
 
 export function readVendorSource(): string {
-  return readFileSync(vendorPath, 'utf8');
+  return cachedVendorSource ??= readFileSync(vendorPath, 'utf8');
+}
+
+export function getRuntimeSourceFile(source: string, fileName = 'Online.js'): ts.SourceFile {
+  const cacheable = source.length <= MAX_TRANSIENT_SOURCE_LENGTH || source === cachedVendorSource;
+  if (!cacheable) return ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+
+  let cache = sourceFileCaches.get(fileName);
+  if (!cache) sourceFileCaches.set(fileName, cache = new Map());
+  const cached = cache.get(source);
+  if (cached) {
+    cache.delete(source);
+    cache.set(source, cached);
+    return cached;
+  }
+
+  const file = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  cache.set(source, file);
+  while (cache.size > MAX_SOURCE_FILE_CACHE_ENTRIES) cache.delete(cache.keys().next().value!);
+  return file;
 }
 
 export function extractVendorRegion(path: string, source = readVendorSource()): string {
@@ -40,7 +64,7 @@ export type RuntimeNodeSelector = {
 export function extractRuntimeNode(source: string, selector: RuntimeNodeSelector): string {
   if (!selector.name.trim()) throw new Error('A runtime node name is required');
   const scopedSource = selector.region ? extractVendorRegion(selector.region, source) : source;
-  const file = ts.createSourceFile('Online.js', scopedSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const file = getRuntimeSourceFile(scopedSource, selector.region ?? 'Online.js');
   const parseDiagnostics = (file as ts.SourceFile & { parseDiagnostics?: readonly ts.Diagnostic[] }).parseDiagnostics ?? [];
   if (parseDiagnostics.length) {
     const diagnostic = parseDiagnostics[0];

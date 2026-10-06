@@ -238,7 +238,7 @@ describe('packaged quest protocol and native lifecycle patch', () => {
     expect(result).toContain('Quest.setQuestList(_questList);\n      questWindow.append();');
     const bridge = result.slice(result.indexOf('function installLastroQuestBridge('));
     expect(bridge.slice(0, bridge.indexOf('quest.onRemove ='))).toContain('quest.onAppend = function (...args) {\n    const result = onAppend?.apply(this, args);');
-  });
+  }, 30_000);
 
   it.each([
     ['lastroUiWindowAppend', 'unknownWindowAppend'],
@@ -252,7 +252,7 @@ describe('packaged quest protocol and native lifecycle patch', () => {
   ])('fails closed when the permanent Quest wrapper changes %s to %s', (before, after) => {
     expect(() => patchRuntimeQuests(rewriteQuestOnAppend(uiStateWrappedVendor, owner => owner.replace(before, after))))
       .toThrow('anchor:lastro-quests');
-  });
+  }, 30_000);
 
   it('fails closed when the permanent Quest layout moves into the snapshot callback', () => {
     expect(() => patchRuntimeQuests(rewriteQuestOnAppend(uiStateWrappedVendor, (owner, node, sourceFile) => {

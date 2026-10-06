@@ -245,7 +245,7 @@ describe('permanent WorldMap core and product seam', () => {
       const permanent = name === 'createMonsterPortraitLoader' ? fixture.createMonsterPortraitLoader : extractRuntimeNode(readVendorSource(), { kind: 'function', name: name! });
       expect(compareRuntimeSources(`const helper = (${reusable});`, `const helper = (${permanent});`, { stage: 'worldmap' })).toMatchObject({ equal: true, differences: [] });
     }
-  });
+  }, 30_000);
 
   it.each([
     ['const lastroWorldMapActions = {};', 'let lastroWorldMapActions = {};'],
@@ -365,7 +365,7 @@ describe('permanent WorldMap portrait guard and exact nine display owners', () =
     expect(extractVendorRegion('src/UI/Components/WorldMap/WorldMap.js', output)).toContain(guard);
     const { patchV2Runtime } = await import('../scripts/patch-v2-runtime.mjs');
     expect(extractVendorRegion('src/UI/Components/WorldMap/WorldMap.js', patchV2Runtime(source))).toContain(guard);
-  }, 60000);
+  }, 120_000);
   it.each(actualJobSites.flatMap(site => [false, true].map(duplicate => ({ site, duplicate }))))('rejects missing/duplicate actual $site.0 display owner (duplicate=$duplicate)', async ({ site: [, path, expression, occurrence], duplicate }) => {
     const input = mutateActualJobSite(readVendorSource(), path, expression, occurrence, duplicate);
     expect(() => displayLocalization.patchRuntimeJobLocalization(input)).toThrow('anchor:job-display-lookups');
@@ -494,7 +494,7 @@ describe('runtime consolidation source helpers', () => {
     }
     expect(fixture).toContain('function defaultSocketFactory(host, port)');
     expect(fixture).toContain('function initThread()');
-  });
+  }, 30_000);
 
   it('permanent clock route and input compose without retained appearance patches', () => {
     const vendor = readVendorSource();

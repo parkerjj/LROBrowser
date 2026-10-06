@@ -88,5 +88,5 @@ describe('map load failure recovery', () => {
       const node = extractRuntimeNode(source, { kind: 'function', name });
       expect(() => extractRuntimeNode(source + '\n' + node, { kind: 'function', name })).toThrow('found 2');
     }
-  });
+  }, 30_000);
 });

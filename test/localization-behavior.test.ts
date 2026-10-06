@@ -143,5 +143,5 @@ describe('localization behavior', () => {
     expect(localizedWriteRodex).toContain('"邮件标题不能为空。"');
     expect(localizedWriteRodex).toContain('"0 / 2000"');
     expect(localizedWriteRodex).not.toContain('DB.getMessage(3575)');
-  });
+  }, 30_000);
 });

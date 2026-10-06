@@ -1,5 +1,5 @@
 import ts from 'typescript';
-import { extractRuntimeNode, extractVendorRegion } from './vendor-runtime';
+import { extractRuntimeNode, extractVendorRegion, getRuntimeSourceFile } from './vendor-runtime';
 
 const audioPreludeOwners = [
   'function:installLastROWebAudio',
@@ -12,7 +12,7 @@ const audioPreludeOwners = [
 ];
 
 export function buildRuntimeAudioPrelude(vendorSource: string): string[] {
-  const file = ts.createSourceFile('Online.js', vendorSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const file = getRuntimeSourceFile(vendorSource);
   const diagnostics = (file as ts.SourceFile & { parseDiagnostics?: readonly ts.Diagnostic[] }).parseDiagnostics ?? [];
   if (diagnostics.length) {
     const diagnostic = diagnostics[0];

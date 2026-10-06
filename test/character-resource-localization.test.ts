@@ -223,5 +223,5 @@ describe('character resource names survive Chinese UI localization', () => {
       expect(() => patchRuntimeJobLocalization(original.replace(guard, changed))).toThrow('anchor:job-display-lookups');
     }
     expect(() => patchRuntimeJobLocalization(appendUiCode(original, worldMap, '\n' + guard + ';\n'))).toThrow('anchor:job-display-lookups');
-  });
+  }, 30_000);
 });

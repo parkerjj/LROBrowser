@@ -1,9 +1,9 @@
 import ts from 'typescript';
-import { extractVendorRegion } from './vendor-runtime';
+import { extractVendorRegion, getRuntimeSourceFile } from './vendor-runtime';
 
 /** Derive a compact comparison contract from the actual prepared runtime. */
 export function buildWorldMapComparisonPair(runtime: string) {
-  const file = ts.createSourceFile('Online.js', runtime, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const file = getRuntimeSourceFile(runtime);
   const declarations = new Map<string, ts.VariableDeclaration>();
   const functions = new Map<string, ts.FunctionDeclaration>();
   function visit(node: ts.Node) {

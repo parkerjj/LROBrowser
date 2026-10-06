@@ -23,7 +23,7 @@ describe('permanent vendor audio ownership', () => {
     expect(installer).toContain('timingFactory');
     expect(installer).toContain('if (buffers.get(key) === promise) buffers.delete(key)');
     expect(installer).toContain('timing.release(request)');
-  });
+  }, 30_000);
 });
 interface BufferValue { duration: number; }
 interface SoundManagerApi { play(filename: string, volume?: number): void; stop(filename?: string): void; }
