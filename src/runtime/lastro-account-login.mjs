@@ -1,4 +1,5 @@
 import { createEncryptedAccountStorage, validateAccountCredentials } from '../accounts/account-storage.mjs';
+import { saveLoginPreferences } from './login-preferences.mjs';
 
 const UNAVAILABLE_REASON = 'App服协议参数尚未完成验证';
 let activeLogin;
@@ -25,7 +26,10 @@ export function decorateLastROLoginTemplate(name, htmlText) {
   const closingIndex = cleaned.lastIndexOf('</div>');
   if (closingIndex === -1) return cleaned;
   const panel = '<section class="lastro-login-panel" data-lastro-login-panel>'
-    + '<p class="lastro-login-environment" data-lastro-login-environment role="status"></p>'
+    + '<section class="lastro-login-modes"><h3>连接模式</h3>'
+    + '<div class="lastro-mode-list"><button type="button" data-connection-mode="relay">传统</button>'
+    + '<button type="button" data-connection-mode="direct">直连</button></div>'
+    + '<p class="lastro-mode-description" data-lastro-mode-description></p></section>'
     + '<section class="lastro-login-servers"><h3>服务器</h3><div class="lastro-server-list" data-lastro-server-list></div></section>'
     + '<section class="lastro-account-view" data-lastro-view="list">'
     + '<h3>快捷登录</h3>'
@@ -60,17 +64,19 @@ export function decorateLastROLoginStyles(name, cssText) {
   // The legacy skin positions every #WinLogin input, including panel descendants.
   cssText += '\n#WinLogin .lastro-login-panel input { position: static; left: auto; top: auto; width: 100%; height: auto; min-height: 30px; box-sizing: border-box; margin-top: 4px; padding: 5px 9px; border: 1px solid #d7e0ea; border-radius: 6px; background: #fff; color: #243447; font: 12px/1.4 "Segoe UI", "Microsoft YaHei", sans-serif; }';
   return `${cssText}
-.lastro-login-panel { position: absolute; top: 0; left: calc(100% + 12px); z-index: 20; width: 308px; max-height: 400px; overflow-y: auto; box-sizing: border-box; padding: 14px; background: #fff; border: 1px solid #e3e9f2; border-radius: 10px; box-shadow: 0 10px 28px rgba(30, 55, 90, .18); color: #243447; font: 12px/1.5 "Segoe UI", "Microsoft YaHei", sans-serif; }
+.lastro-login-panel { position: absolute; top: 0; left: calc(100% + 12px); z-index: 20; width: 400px; max-height: 400px; overflow-y: auto; box-sizing: border-box; padding: 14px; background: #fff; border: 1px solid #e3e9f2; border-radius: 10px; box-shadow: 0 10px 28px rgba(30, 55, 90, .18); color: #243447; font: 12px/1.5 "Segoe UI", "Microsoft YaHei", sans-serif; }
 .lastro-login-panel h3 { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: #55677c; }
-.lastro-login-environment, .lastro-login-message { min-height: 16px; margin: 0 0 8px; font-size: 11px; color: #7a8ba0; white-space: pre-wrap; }
+.lastro-login-message { min-height: 16px; margin: 0 0 8px; font-size: 11px; color: #7a8ba0; white-space: pre-wrap; }
 .lastro-login-message { margin: 8px 0 0; }
-.lastro-login-servers { margin-bottom: 12px; }
-.lastro-server-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.lastro-login-modes, .lastro-login-servers { margin-bottom: 12px; }
+.lastro-mode-description { margin: 5px 0 0; color: #7a8ba0; font-size: 11px; white-space: nowrap; }
+.lastro-mode-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.lastro-server-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .lastro-login-panel button { box-sizing: border-box; min-height: 28px; padding: 4px 10px; overflow: hidden; border: 1px solid #d7e0ea; border-radius: 6px; background: #fff; color: #243447; font: 12px/1.4 "Segoe UI", "Microsoft YaHei", sans-serif; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .lastro-login-panel button:hover { border-color: #4a90d9; color: #4a90d9; }
 .lastro-login-panel button:disabled { opacity: .45; cursor: default; }
 .lastro-login-panel button:disabled:hover { border-color: #d7e0ea; color: #243447; }
-.lastro-server-list button[data-selected="true"] { border-color: #4a90d9; background: #eaf3fc; color: #2f6fb2; font-weight: 600; }
+.lastro-server-list button[data-selected="true"], .lastro-mode-list button[data-selected="true"] { border-color: #4a90d9; background: #eaf3fc; color: #2f6fb2; font-weight: 600; }
 .lastro-account-list { display: flex; flex-direction: column; gap: 6px; }
 .lastro-account-card { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid #e3e9f2; border-radius: 8px; background: #fff; cursor: pointer; transition: border-color .12s, background .12s; }
 .lastro-account-card:hover { border-color: #b9d2ec; background: #f7fbff; }
@@ -131,7 +137,7 @@ export function installLastROLogin({ root, component, configs }) {
   const panel = root?.querySelector?.('[data-lastro-login-panel]');
   if (!panel) return;
   if (installed.has(panel)) return;
-  const environment = panel.querySelector('[data-lastro-login-environment]');
+  const modeDescription = panel.querySelector('[data-lastro-mode-description]');
   const message = panel.querySelector('[data-lastro-login-message]');
   const serverList = panel.querySelector('[data-lastro-server-list]');
   const listView = panel.querySelector('[data-lastro-view="list"]');
@@ -148,7 +154,7 @@ export function installLastROLogin({ root, component, configs }) {
   const nativeUsername = root.querySelector('.user');
   const nativePassword = root.querySelector('.pass');
   const nativeConnect = root.querySelector('.connect');
-  if (!environment || !message || !serverList || !listView || !accountList || !emptyState || !loginButton
+  if (!modeDescription || !message || !serverList || !listView || !accountList || !emptyState || !loginButton
     || !form || !formTitle || !editServer || !labelInput || !usernameInput || !passwordInput || !deleteButton) return;
 
   const profiles = profilesFromConfig(configs);
@@ -156,6 +162,7 @@ export function installLastROLogin({ root, component, configs }) {
   let accountsCache = [];
   let selectedAccount;
   let selectedProfileId = currentId;
+  let connectionMode = configs?.get?.('connectionMode', 'relay') === 'direct' ? 'direct' : 'relay';
   let revision = 0;
   let mutationBusy = false;
   let visible = true;
@@ -181,7 +188,8 @@ export function installLastROLogin({ root, component, configs }) {
   }
 
   function syncLoginButton() {
-    loginButton.disabled = !selectedAccount;
+    loginButton.disabled = mutationBusy || !selectedAccount
+      || connectionMode === 'direct' && globalThis.LastRODirectSocketsSupported === false;
   }
 
   function showListView() {
@@ -296,6 +304,7 @@ export function installLastROLogin({ root, component, configs }) {
     if (typeof globalThis.confirm === 'function'
       && !globalThis.confirm(`确定删除账号「${account.label || account.username}」？`)) return;
     mutationBusy = true;
+    syncConnectionControls();
     ++revision;
     fillNativeCredentials('', '');
     passwordInput.value = '';
@@ -307,7 +316,7 @@ export function installLastROLogin({ root, component, configs }) {
       await refreshAccounts();
     } catch {
       setMessage('本地账号删除失败');
-    } finally { mutationBusy = false; }
+    } finally { mutationBusy = false; syncConnectionControls(); }
   }
 
   async function saveFromForm() {
@@ -323,6 +332,7 @@ export function installLastROLogin({ root, component, configs }) {
       return;
     }
     mutationBusy = true;
+    syncConnectionControls();
     const requested = ++revision;
     try {
       const saved = await storage.save({
@@ -339,7 +349,7 @@ export function installLastROLogin({ root, component, configs }) {
       await refreshAccounts();
     } catch {
       setMessage('本地账号存储不可用，账号仍可直接登录');
-    } finally { mutationBusy = false; }
+    } finally { mutationBusy = false; syncConnectionControls(); }
   }
 
   function loginFromFormOnly() {
@@ -356,6 +366,58 @@ export function installLastROLogin({ root, component, configs }) {
     return accountsCache.find(account => account.id === card?.dataset?.accountId);
   }
 
+  function syncConnectionControls() {
+    syncLoginButton();
+    for (const button of serverList.querySelectorAll('[data-server-profile]')) {
+      const profile = profiles.find(profile => profile.id === button.dataset.serverProfile);
+      const modeUnavailable = connectionMode === 'relay' ? profile?.id === 'lastro-app' : profile?.id !== 'lastro-app';
+      button.disabled = mutationBusy || profile?.availability === 'unavailable' || modeUnavailable;
+      button.dataset.selected = String(profile?.id === selectedProfileId);
+      button.setAttribute('aria-pressed', button.dataset.selected);
+      button.title = modeUnavailable ? connectionMode === 'relay' ? 'App服不支持传统模式' : '直连暂时仅App服可用' : profile?.unavailableReason || '';
+    }
+    for (const button of panel.querySelectorAll('[data-connection-mode]')) {
+      button.disabled = mutationBusy;
+      button.dataset.selected = String(button.dataset.connectionMode === connectionMode);
+      button.setAttribute('aria-pressed', button.dataset.selected);
+    }
+    const blocked = connectionMode === 'direct' && globalThis.LastRODirectSocketsSupported === false;
+    if (nativeConnect) nativeConnect.disabled = blocked;
+    modeDescription.textContent = connectionMode === 'relay'
+      ? '传统：采用与LRO旧版客户端相同的工作模式。'
+      : '直连：直连游戏服务器，响应更快速。(此被GM暂时关闭仅App服可用）';
+    saveLoginPreferences({ connectionMode, serverProfileId: selectedProfileId });
+  }
+
+  function selectProfile(profile) {
+    if (mutationBusy || !profile || profile.availability === 'unavailable'
+      || (connectionMode === 'relay' ? profile.id === 'lastro-app' : profile.id !== 'lastro-app')) return;
+    if (profile.id === selectedProfileId) return;
+    component.onServerSelect?.(profile);
+    selectedProfileId = profile.id;
+    selectedAccount = undefined;
+    fillNativeCredentials('', '');
+    showListView();
+    renderAccounts([]);
+    setMessage('');
+    syncConnectionControls();
+    void refreshAccounts();
+  }
+
+  for (const button of panel.querySelectorAll('[data-connection-mode]')) {
+    button.addEventListener('click', () => {
+      if (mutationBusy || connectionMode === button.dataset.connectionMode) return;
+      connectionMode = button.dataset.connectionMode;
+      configs.set('connectionMode', connectionMode);
+      if (connectionMode === 'relay' && selectedProfileId === 'lastro-app') {
+        selectProfile(profiles.find(profile => profile.id === 'lastro-2x'));
+      } else if (connectionMode === 'direct' && selectedProfileId !== 'lastro-app') {
+        selectProfile(profiles.find(profile => profile.id === 'lastro-app'));
+      }
+      syncConnectionControls();
+    });
+  }
+
   for (const profile of profiles) {
     const button = globalThis.document.createElement('button');
     button.type = 'button';
@@ -365,27 +427,17 @@ export function installLastROLogin({ root, component, configs }) {
     button.disabled = profile.availability === 'unavailable';
     button.title = profile.availability === 'unavailable' ? (profile.unavailableReason || UNAVAILABLE_REASON) : '';
     button.addEventListener('click', () => {
-      if (profile.availability === 'unavailable') {
-        setMessage(profile.unavailableReason || UNAVAILABLE_REASON);
-        return;
-      }
-      if (profile.id !== selectedProfileId) {
-        const url = new globalThis.URL(globalThis.location.href);
-        url.searchParams.set('server', profile.id);
-        globalThis.location.assign(url.href);
-        return;
-      }
-      component.onServerSelect?.(profile);
+      selectProfile(profile);
     });
     serverList.append(button);
   }
 
-  if (globalThis.LastRODirectSocketsSupported === false) {
-    environment.textContent = '当前页面不是 Direct Sockets IWA。请安装 signed .swbn 后再登录。';
-    if (nativeConnect) nativeConnect.disabled = true;
-  } else {
-    environment.textContent = 'Direct TCP API 可用；尚未连接游戏服务器';
+  if (connectionMode === 'relay' && selectedProfileId === 'lastro-app') {
+    selectProfile(profiles.find(profile => profile.id === 'lastro-2x'));
+  } else if (connectionMode === 'direct' && selectedProfileId !== 'lastro-app') {
+    selectProfile(profiles.find(profile => profile.id === 'lastro-app'));
   }
+  syncConnectionControls();
 
   form.addEventListener('submit', event => event.preventDefault());
 
@@ -420,8 +472,8 @@ export function installLastROLogin({ root, component, configs }) {
 
   const before = (username, password) => {
     if (!visible) return false;
-    if (globalThis.LastRODirectSocketsSupported === false) {
-      environment.textContent = '当前页面不是 Direct Sockets IWA。请安装 signed .swbn 后再登录。';
+    if (connectionMode === 'direct' && globalThis.LastRODirectSocketsSupported === false) {
+      setMessage('当前页面不支持直连，请从 IWA 应用入口打开，或选择传统。');
       return false;
     }
     if (selectedAccount?.id && selectedAccount.username === username) void storage.markUsed(selectedAccount.id, Date.now()).catch(() => undefined);

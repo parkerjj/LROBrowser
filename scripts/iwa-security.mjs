@@ -11,7 +11,7 @@ export const REQUIRED_HEADERS = Object.freeze({
     "img-src * data: blob:",
     "media-src * data: blob:",
     "font-src * data: blob:",
-    "connect-src * data: blob:",
+    "connect-src * data: blob: wss://port.lastro.cn",
     "worker-src 'self'", "require-trusted-types-for 'script'",
     'trusted-types lastro-iwa-html lastro-iwa-worker',
   ].join('; '),

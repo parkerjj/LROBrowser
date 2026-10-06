@@ -1,6 +1,10 @@
 # LastRO V2 IWA 客户端
 
-这是独立的 LastRO V2 Isolated Web App 客户端。生产网络连接只使用 Direct TCP / `TCPSocket`；WSS、WebSocket、proxy、bridge、Electron 和 NodeSocket fallback 不属于客户端路径。
+这是独立的 LastRO V2 Isolated Web App 客户端。游戏连接支持在登录面板显式选择官方 WSS 传统模式或 Direct TCP / `TCPSocket` 直连。当前直连仅 App服可用，二转和三转使用传统模式。
+
+连接模式位于服务器选择上方，三个服务器按钮同排显示，只显示当前模式的一行说明。切换模式或服务器即时生效，无需重新载入页面。传统模式下 App服按钮置灰；切到直连自动选择 App服，切回传统自动选择2转。模式和服务器选择保存在本地，刷新后恢复；没有有效记录时默认传统 + 2转。账号仍按服务器 profile 管理，切换连接模式不改变已保存账号信息。
+
+WSS 路由以官方 `Online_new.js` 为准：入口为 `wss://port.lastro.cn/`，二转目标为 `45.248.10.247:26569`，三转目标为 `45.248.10.247:28569`，目标地址和端口放在 URL 路径中。选角、进图及换图也通过同一入口转发到相应端口。
 
 Phase A 支持本地构建、审计、unsigned Web Bundle 和被 Git 忽略的本地 disposable test key 签名。账号密码由用户在 IWA IndexedDB 中按服务器 profile 管理。可用服务器为 `lastro-3x`、`lastro-2x` 和 `lastro-app`。App服使用 `45.248.8.68:27569`，协议参数沿用 2转服，`lastroNid=6`。
 

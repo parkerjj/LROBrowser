@@ -1126,7 +1126,17 @@ ${normalizedSource}`;
   ]);
   output = replaceOnce(output, '_thread_ready = true;', '_thread_ready = true;\n\t\t\t\t\t\tconsole.info("[LastRO IWA] resource worker ready; initializing renderer");');
   output = replaceOnce(output, 'savingFiles(files);', 'console.info("[LastRO IWA] initializing remote client resources");\n\t\t\tThread.send("CLIENT_INIT", { files: [], save: false }, (...args) => Client.onFilesLoaded(...args));');
-  output = replaceFunctionBody(output, 'defaultSocketFactory', '{\n\tif (typeof globalThis.LastRODirectSocketFactory !== "function") throw new Error("Direct TCP factory unavailable");\n\treturn globalThis.LastRODirectSocketFactory(host, port);\n}');
+  output = replaceFunctionBody(output, 'defaultSocketFactory', `{
+  if (Configs.get("connectionMode", "direct") === "relay") {
+    if (Configs.get("id") === "lastro-app") throw new Error("App服不支持中转");
+    // Online_new.js routes the public host through this upstream address.
+    const targetHost = host === "port.lastro.cn" ? "45.248.10.247" : host;
+    return new Socket$1("wss://port.lastro.cn/" + targetHost + ":" + port);
+  }
+  if (Configs.get("id") !== "lastro-app") throw new Error("直连暂时仅App服可用");
+  if (typeof globalThis.LastRODirectSocketFactory !== "function") throw new Error("Direct TCP factory unavailable");
+  return globalThis.LastRODirectSocketFactory(host, port);
+}`);
   output = patchLoginRegistrationHook(output);
   output = patchRuntimeEntityAppearance(output);
   output = patchRuntimeEquipmentCatalog(output);
@@ -1136,7 +1146,6 @@ ${normalizedSource}`;
   output = patchRuntimeCharacterSwitch(output);
   output = patchRuntimeNetworkHandoffCleanup(output);
   output = patchRuntimeNetworkDiagnostics(output);
-  output = replaceOnce(output, 'init_WebSocket();', '');
   output = replaceOnce(output, 'init_NodeSocket();', '');
   output = replaceWorkerCreation(output);
   output = replacePathFindingWorkerCreation(output);
@@ -1215,7 +1224,6 @@ ${normalizedSource}`;
     ['          return Function(importsKeys, sourceURL + "return " + source).apply(\n            undefined,\n            importsValues,\n          );',
       '          throw new Error("Dynamic templates are disabled in the IWA runtime");'],
   ]);
-  output = removeRegion(output, ['legacy transport', 'WebSocket']);
   output = removeRegion(output, ['NodeSocket']);
   output = output.replace(/\/\*\*(?:(?!\*\/)[\s\S])*?Default socket factory(?:(?!\*\/)[\s\S])*?\*\/\r?\nfunction defaultSocketFactory/, 'function defaultSocketFactory');
   output = replaceOnceAny(output, [
@@ -1262,7 +1270,7 @@ ${normalizedSource}`;
   output = patchRuntimeItemName(output);
   output = patchRuntimeEmoticons(output);
   output = patchRuntimeTeleportFade(output);
-  if (/new WebSocket|wss?:\/\/|socketProxy|electronAPI|NodeSocket/i.test(output)) fail('legacy-transport');
+  if (/\bws:\/\/|socketProxy|electronAPI|NodeSocket/i.test(output)) fail('legacy-transport');
   output = patchRuntimeCredentialSecurity(output);
   output = patchRuntimePluginLoader(output);
   output = patchRuntimeDebugAccess(output);

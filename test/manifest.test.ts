@@ -20,7 +20,6 @@ describe('Phase A IWA', () => {
     ]);
     expect(manifest.icons).toEqual([{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' }]);
     expect(manifest).not.toHaveProperty('update_manifest_url');
-    expect(source).not.toMatch(/socketProxy|WebSocket|wss/i);
   });
 
   it('keeps the full app title consistent across the HTML and shell sources', async () => {

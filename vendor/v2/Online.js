@@ -166492,32 +166492,37 @@ var init_PacketCrypt = __esmMin(() => {
  *
  * @param {string} url
  */
-function Socket$1(host, port, proxy) {
-  let url = "ws://" + host + ":" + port + "/";
+function Socket$1(url) {
+  if (new URL(url).protocol !== "wss:") throw new Error("中转连接必须使用 WSS");
   const self = this;
   this.connected = false;
-  if (proxy) {
-    url = proxy;
-    if (!url.match(/\/$/)) url += "/";
-    const proxyHost = Configs.get("socketProxyHost", null) || host;
-    url += proxyHost + ":" + port;
-  }
+  this.closed = false;
+  let completed = false;
+  const complete = (success) => {
+    if (completed || self.closed) return;
+    completed = true;
+    self.onComplete?.(success);
+  };
   this.ws = new WebSocket(url);
   this.ws.binaryType = "arraybuffer";
   this.ws.onopen = function OnOpen() {
+    if (self.closed) return;
     self.connected = true;
-    self.onComplete(true);
+    complete(true);
   };
   this.ws.onerror = function OnError() {
-    if (!self.connected) self.onComplete(false);
+    if (!self.connected) complete(false);
   };
   this.ws.onmessage = function OnMessage(event) {
-    self.onMessage(event.data);
+    if (!self.closed && self.connected) self.onMessage?.(event.data);
   };
   this.ws.onclose = function OnClose(event) {
+    if (self.closed) return;
+    const wasConnected = self.connected;
+    if (!wasConnected) complete(false);
     self.connected = false;
-    this.close();
-    if (self.onClose) self.onClose(event);
+    self.closed = true;
+    if (wasConnected) self.onClose?.(event);
   };
 }
 var init_WebSocket = __esmMin(() => {
@@ -166533,10 +166538,10 @@ var init_WebSocket = __esmMin(() => {
    * Closing connection to server
    */
   Socket$1.prototype.close = function Close() {
-    if (this.connected) {
-      this.ws.close();
-      this.connected = false;
-    }
+    if (this.closed) return;
+    this.closed = true;
+    this.connected = false;
+    this.ws.close();
   };
 });
 //#endregion
@@ -323665,12 +323670,8 @@ function createWinLogin({ name, htmlText, cssText }) {
 function patchWinLoginTemplate() {}
 function selectLoginServerProfile(profile) {
   if (!profile || typeof profile !== "object" || !profile.address) return null;
-  if (profile.id && profile.id !== Configs.getServer?.().id) {
-    const url = new URL(window.location.href);
-    url.searchParams.set("server", profile.id);
-    window.location.assign(url.toString());
-    return null;
-  }
+  if (Configs.get("connectionMode", "direct") === "relay" && profile.id === "lastro-app") return null;
+  if (Configs.get("connectionMode", "relay") === "direct" && profile.id !== "lastro-app") return null;
   const selected = {
     ...profile,
     port: Number(profile.port),
@@ -323683,8 +323684,22 @@ function selectLoginServerProfile(profile) {
     !Number.isFinite(selected.langtype)
   )
     return null;
+  Network.close();
+  PacketCrypt_default.reset();
   Configs.setServer(selected);
   _server = selected;
+  // GameEngine reloads this list when returning from the game or an error.
+  if (typeof _servers !== "undefined") {
+    _servers = [selected];
+    _previous_server = selected;
+  }
+  _charServers = [];
+  _loginID = "";
+  SessionStorage_default.LangType = selected.langtype;
+  PacketVerManager_default.value = Number(selected.packetver);
+  CodepageManager.setCharset(resolveNetworkCharset(
+    Configs.get("networkCharset"), selected.langtype, Configs.get("disableKorean"),
+  ));
   return selected;
 }
 function populateLoginServerButtons(root, profiles, selectedId, onSelect) {}

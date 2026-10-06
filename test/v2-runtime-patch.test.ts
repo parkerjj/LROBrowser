@@ -287,7 +287,7 @@ end`;
     expect(patched).not.toContain('el.innerHTML = PRELOADER_INNER_HTML');
     expect(patched).toContain('const retainedRuntime = 1;');
     expect(patched).not.toContain('?build=');
-    expect(patched).not.toMatch(/WebSocket|wss?:\/\/|socketProxy|electronAPI|NodeSocket/i);
+    expect(patched).not.toMatch(/electronAPI|NodeSocket/i);
   }, 20000);
 
   it('fails closed when an anchored region drifts', () => {
@@ -302,7 +302,7 @@ end`;
       expect(config.servers[0]).toMatchObject({ address: candidate.loginAddress, port: candidate.loginPort,
         version: candidate.version, langtype: candidate.langtype, packetver: candidate.packetver });
       expect(config.autoLogin).toEqual(['user', 'pass']);
-      expect(JSON.stringify(config)).not.toMatch(/wss?:\/\/|XKore|quickLogin|socketProxy/i);
+      expect(JSON.stringify(config)).not.toMatch(/XKore|quickLogin|socketProxy/i);
       expect(Object.isFrozen(config)).toBe(true);
     }
   });

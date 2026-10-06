@@ -1,6 +1,7 @@
 import type { AvailableServerProfile } from '../servers/server-profile';
 import { getAvailableServerProfile, LASTRO_SERVER_PROFILES } from '../servers/server-profiles';
 import { validateAccountCredentials } from '../accounts/account-storage.mjs';
+import { readLoginPreferences } from './login-preferences.mjs';
 
 export interface ClientCredentials {
   username: string;
@@ -8,6 +9,7 @@ export interface ClientCredentials {
 }
 
 export interface V2ClientConfig {
+  readonly connectionMode: 'direct' | 'relay';
   readonly servers: readonly [Readonly<Record<string, unknown>>];
   readonly autoLogin: readonly [string, string] | null;
   readonly loginServerProfiles: readonly Readonly<Record<string, unknown>>[];
@@ -69,6 +71,10 @@ export function buildClientConfig(profile: AvailableServerProfile, credentials: 
     forceUseAddress: true,
     packetver: available.packetver,
     renewal: true,
+    packetKeys: available.packetKeys,
+    clientHash: available.clientHash,
+    clientVer: available.clientVer,
+    lastroNid: available.lastroNid,
   });
   const loginServerProfiles = Object.freeze([
     ...LASTRO_SERVER_PROFILES.map(candidate => candidate.availability === 'available'
@@ -77,11 +83,14 @@ export function buildClientConfig(profile: AvailableServerProfile, credentials: 
         address: candidate.loginAddress, port: candidate.loginPort, version: candidate.version,
         langtype: candidate.langtype, packetver: candidate.packetver,
         disableKorean: true, forceUseAddress: true,
+        packetKeys: candidate.packetKeys, clientHash: candidate.clientHash,
+        clientVer: candidate.clientVer, lastroNid: candidate.lastroNid,
       })
       : Object.freeze({ id: candidate.id, label: candidate.displayName, availability: candidate.availability,
         unavailableReason: candidate.unavailableReason }),
   )]);
   return Object.freeze({
+    connectionMode: readLoginPreferences().connectionMode,
     servers: Object.freeze([server] as const),
     get autoLogin() { const value = pendingLogin; pendingLogin = null; return value; },
     loginServerProfiles,

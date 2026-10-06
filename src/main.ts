@@ -1,12 +1,13 @@
 import { bootstrapV2Client } from './runtime/client-bootstrap';
 import { getAvailableServerProfile } from './servers/server-profiles';
 import { installDebugAccessGuard } from './runtime/debug-access';
+import { readLoginPreferences } from './runtime/login-preferences.mjs';
 
 installDebugAccessGuard(window);
 
 const root = document.getElementById('app');
 if (!root) throw new Error('Missing app mount point');
-const requestedServer = new URLSearchParams(window.location.search).get('server') ?? 'lastro-2x';
+const requestedServer = readLoginPreferences().serverProfileId;
 const profile = getAvailableServerProfile(requestedServer);
 void bootstrapV2Client({ mount: root, profile, credentials: { username: '', password: '' } }).catch((error: unknown) => {
   root.replaceChildren();

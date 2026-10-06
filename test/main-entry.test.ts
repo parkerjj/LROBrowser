@@ -9,6 +9,17 @@ describe('application entry', () => {
     document.body.replaceChildren();
     vi.resetModules();
     bootstrapV2Client.mockClear();
+    localStorage.clear();
+  });
+
+  it('restores the last server before bootstrapping instead of using a stale URL', async () => {
+    document.body.innerHTML = '<div id="app"></div>';
+    const { saveLoginPreferences } = await import('../src/runtime/login-preferences.mjs');
+    saveLoginPreferences({ connectionMode: 'relay', serverProfileId: 'lastro-3x' });
+    await import('../src/main');
+    expect(bootstrapV2Client).toHaveBeenCalledWith(expect.objectContaining({
+      profile: expect.objectContaining({ id: 'lastro-3x' }),
+    }));
   });
 
   it('starts the V2 runtime directly without mounting an account shell', async () => {

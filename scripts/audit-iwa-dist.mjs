@@ -8,6 +8,7 @@ import { REQUIRED_HEADERS } from './iwa-security.mjs';
 /* eslint-disable no-control-regex -- Reject control characters in untrusted package paths. */
 
 const ALLOWED_ORIGINS = new Set(['https://game.lastro.cn', 'https://rodata.ltsd.ro']);
+const RELAY_ORIGINS = new Set(['wss://port.lastro.cn']);
 const NON_RESOURCE_ORIGINS = new Set(['http://www.w3.org']);
 const REMOTE_EXECUTABLE = /https?:\/\/[^\s"'`]+\.(?:js|mjs|cjs|wasm|lua|lub)(?:[?#]|$)/i;
 const PROHIBITED_TEXT = [
@@ -47,7 +48,7 @@ function validateProtocolHandlers(manifest) {
 
 function originReferences(source) {
   const origins = new Set();
-  for (const match of source.matchAll(/https?:\/\/[^\s"'`<>)]*/gi)) {
+  for (const match of source.matchAll(/(?:https?|wss?):\/\/[^\s"'`<>);]*/gi)) {
     try { origins.add(new globalThis.URL(match[0]).origin); } catch { /* ignored malformed fragments are handled by the source audit */ }
   }
   return [...origins].sort();
@@ -109,7 +110,8 @@ export async function auditDist(distDirectory, reportPath = path.resolve('releas
       catch (error) { throw new Error(`prohibited bundle content: ${error.message}`); }
     }
   }
-  const unapprovedOrigins = [...originSet].filter((origin) => !ALLOWED_ORIGINS.has(origin) && !NON_RESOURCE_ORIGINS.has(origin));
+  const unapprovedOrigins = [...originSet].filter((origin) => !ALLOWED_ORIGINS.has(origin)
+    && !RELAY_ORIGINS.has(origin) && !NON_RESOURCE_ORIGINS.has(origin));
   if (unapprovedOrigins.length) throw new Error(`unapproved remote origins: ${unapprovedOrigins.join(', ')}`);
   if (prohibitedResults.length) throw new Error(`prohibited bundle content: ${prohibitedResults.map((item) => `${item.name}@${item.file}`).join(', ')}`);
 

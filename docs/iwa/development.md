@@ -25,7 +25,7 @@ Windows 下可在仓库目录运行 `node scripts/local-server-control.mjs start
 
 该后台入口直接使用 Node 24 和仓库已有 Vite。游戏继续从原有 Chrome IWA 开发安装入口打开；普通 localhost 页面仅用于检查服务。启动时只在资源缺失或源文件更新后重新生成，更新期间的资源请求会返回明确的暂不可用状态，避免把页面 HTML 当作 JS 或 JSON。
 
-本地开发使用 Chrome 的 Dev Mode Proxy 加载上述 HTTP 服务；签名包安装另需 manifest 和 Web Bundle 文件。测试 Web Bundle ID 由临时密钥派生，不能作为未来生产身份。Direct TCP 只在支持 Direct Sockets 的 IWA 环境中启用，普通浏览器不会降级到 WebSocket 或代理连接。
+本地开发使用 Chrome 的 Dev Mode Proxy 加载上述 HTTP 服务；签名包安装另需 manifest 和 Web Bundle 文件。测试 Web Bundle ID 由临时密钥派生，不能作为未来生产身份。Direct TCP 只在支持 Direct Sockets 的 IWA 环境中启用，当前仅 App服可用。登录面板的传统模式使用官方 WSS；切换模式会自动切到相应可用服务器，并保存模式和服务器选择。
 
 切换角色收到成功的 `RESTART_ACK` 后，立即结束旧地图连接，再异步恢复角色选择界面，避免正常 EOF 被误报为断线。如果收到 EOF 时原生接收器还有已收到的批次等待处理，关闭回调等待这些批次完成，保留每 32 帧让出主线程的机制；不完整的最后一帧仍在真实关闭时丢弃。新连接的心跳清理先从连接列表移除旧连接再关闭，兼容 Direct TCP 同步关闭回调。接收器遇到无法确定长度或非法长度的帧时，仅丢弃当前 TCP 数据块并继续接收下一块；不会扫描字节猜测包边界，真实断线仍结束接收。下一块不保证从完整包起始，因此此调整不代替正确的服务器协议定义。
 
