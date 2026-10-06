@@ -10,7 +10,6 @@ import { patchRuntimeNavigation, patchRuntimePluginLoader, patchRuntimePlainText
 import { patchRuntimeCredentialSecurity } from './lastro-credential-security.mjs';
 import { patchRuntimeLastROItemLayouts } from './lastro-network-security.mjs';
 import { patchRuntimeCharacterSwitch, patchRuntimeNetworkHandoffCleanup } from './lastro-character-switch.mjs';
-import { patchRuntimeNetworkFramingRecovery, patchRuntimeNetworkCloseDrain } from './lastro-network-receive-recovery.mjs';
 import { patchRuntimeNetworkDiagnostics } from './lastro-network-diagnostics.mjs';
 import { patchRuntimeLuaStartup } from './lastro-lua-startup.mjs';
 import { patchRuntimeDebugAccess } from './lastro-debug-access.mjs';
@@ -1193,8 +1192,6 @@ ${normalizedSource}`;
   output = patchRuntimeLastROItemLayouts(output);
   output = patchRuntimeCharacterSwitch(output);
   output = patchRuntimeNetworkHandoffCleanup(output);
-  output = patchRuntimeNetworkFramingRecovery(output);
-  output = patchRuntimeNetworkCloseDrain(output);
   output = patchRuntimeNetworkDiagnostics(output);
   output = replaceOnce(output, 'init_WebSocket();', '');
   output = replaceOnce(output, 'init_NodeSocket();', '');

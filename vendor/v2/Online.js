@@ -166875,7 +166875,7 @@ function receive(buf) {
     );
     // A legacy transport message is a TCP chunk, not a packet boundary. Do not
     // decode its remaining bytes after losing framing, but keep the socket open.
-    if (state) clearReceiveState(ownerSocket);
+    if (state) state.saveBuffer = null;
     else _save_buffer = null;
   };
   const scheduleReceiveContinuation = () => {
@@ -167094,6 +167094,19 @@ function receive(buf) {
  * Server ask to close the socket
  */
 function onClose$9(event) {
+  const lastroPendingCloseState = typeof _receiveStates !== "undefined" && this ? _receiveStates.get(this) : null;
+  if (this === _socket && !this.handoffPending && lastroPendingCloseState && !lastroPendingCloseState.closed && lastroPendingCloseState.yieldPending && typeof setTimeout === "function") {
+    if (!lastroPendingCloseState.closePending) {
+      lastroPendingCloseState.closePending = true;
+      setTimeout(() => {
+        lastroPendingCloseState.closePending = false;
+        if (lastroPendingCloseState.closed) return;
+        onClose$9.call(this, event);
+      }, 0);
+    }
+    return;
+  }
+
   if (this === _socket && this.isZone && !this.handoffPending) {
     lastroCancelMovement(SessionStorage_default.Entity);
     if (typeof MapControl !== "undefined") MapControl._lastroMovementInput?.cancel();
