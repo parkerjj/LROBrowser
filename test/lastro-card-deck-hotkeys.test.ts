@@ -9,8 +9,12 @@ import { installLastroCardDeckUI } from '../scripts/lastro-card-deck-ui.mjs';
 import { installLastroCardState } from '../scripts/lastro-card-state.mjs';
 import type { LastroCardStateComponent, LastroCardStateData } from '../scripts/lastro-card-state.mjs';
 import { patchRuntimeHotkeys } from '../scripts/lastro-hotkeys.mjs';
+import { extractRuntimeNode } from './helpers/vendor-runtime';
 
 const native = readFileSync('vendor/v2/Online.js', 'utf8');
+const lastroUiWindowAppend = vm.runInNewContext(`${extractRuntimeNode(native, {
+  kind: 'function', name: 'lastroUiWindowAppend',
+})}\nlastroUiWindowAppend`) as (...args: unknown[]) => unknown;
 const patched = patchRuntimeCardDeckHotkeys(native);
 function region(source: string, path: string) {
   const start = source.indexOf('//#region ' + path), end = source.indexOf('//#endregion', start);
@@ -69,7 +73,7 @@ function fixture(saved?: string) {
   const components: Record<string, unknown> = { ChatBox: chat };
   const initializationNames = [...new Set([...fixtureSource.matchAll(/\b(init_[\w$]+)\(\);/g)].map(match => match[1]!))];
   const context = vm.createContext({
-    window: win, document: doc, console,
+    window: win, document: doc, console, lastroUiWindowAppend,
     localStorage: { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => storage.set(key, value) },
     Renderer: { width: 800, height: 600 }, ChatBox: chat, _root$18: () => chatRoot, ShortCutOption_default$1: '',
     Controls_default: {}, Configs: {}, Network: {}, PACKET: {}, DB: {}, Client: {}, CARD_CONNECTION_TABS: [],

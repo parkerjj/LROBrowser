@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
-import { createLastroUiMessages, patchRuntimeUiMessages, UI_MESSAGE_OVERRIDES } from '../scripts/lastro-ui-messages.mjs';
+import { createLastroUiMessages, patchRuntimeUiMessages, UI_MESSAGE_OVERRIDES } from '../scripts/lastro-display-localization.mjs';
 
 const vendor = readFileSync('vendor/v2/Online.js', 'utf8');
 const marker = '//#region src/DB/DBManager.js';

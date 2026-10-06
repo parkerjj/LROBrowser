@@ -2,10 +2,12 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
-import { patchRuntimeEquipmentAnimation } from '../scripts/lastro-equipment-animation.mjs';
+import { readHistoricalRuntime } from './helpers/historical-runtime';
 
 const vendor = readFileSync('vendor/v2/Online.js', 'utf8');
-const patched = patchRuntimeEquipmentAnimation(vendor);
+const upstream = readHistoricalRuntime('entity-upstream').action
+  + '\n//#region src/Renderer/Entity/EntityRender.js\n'
+  + readHistoricalRuntime('equipment-animation-upstream').render + '\n//#endregion';
 const renderPath = 'src/Renderer/Entity/EntityRender.js';
 function region(path: string, source = vendor) {
   const start = source.indexOf('//#region ' + path), end = source.indexOf('//#endregion', start);
@@ -70,7 +72,7 @@ interface FixtureOptions {
   bodyCount?: number; robeCount?: number; headCount?: number; bodyDelay?: number; robeDelay?: number; headDelay?: number;
   parts?: Partial<Record<'accessory' | 'accessory2' | 'accessory3' | 'shield' | 'weapon_trail', { count: number; delay: number }>>;
 }
-function fixture(source = patched, options: FixtureOptions = {}) {
+function fixture(source = vendor, options: FixtureOptions = {}) {
   let now = 1000, clockStep = 0;
   const resources = new Map<string, NativeAct | { part: string }>(), draws: Draw[] = [];
   const client = { loadFile: vi.fn((path: string) => resources.get(path)) };
@@ -131,7 +133,7 @@ function fixture(source = patched, options: FixtureOptions = {}) {
 
 describe('equipment rendering through actual native animation and render closures', () => {
   it('clamps a completed one-shot action to its final ACT frame before modulo', () => {
-    const baseline = fixture(vendor), fixed = fixture();
+    const baseline = fixture(upstream), fixed = fixture();
     for (const f of [baseline, fixed]) f.actor.setAction({ action: f.actor.ACTION.ATTACK1!, repeat: false });
     const baselineFrames = baseline.render(400), fixedFrames = fixed.render(400);
     expect(baselineFrames.find(draw => draw.part === 'body')!.frame).toBe(0);
@@ -141,7 +143,7 @@ describe('equipment rendering through actual native animation and render closure
   });
 
   it.each([0, 1, 3, 4, 5, 7])('keeps all equipment on the completing attack when facing direction %i', direction => {
-    const baseline = fixture(vendor), fixed = fixture();
+    const baseline = fixture(upstream), fixed = fixture();
     for (const f of [baseline, fixed]) {
       f.actor.direction = direction;
       f.actor.setAction({ action: f.actor.ACTION.ATTACK1!, repeat: false, next: { action: f.actor.ACTION.IDLE!, repeat: true } });
@@ -164,9 +166,9 @@ describe('equipment rendering through actual native animation and render closure
       expect(draws.map(draw => draw.part)).toEqual(direction === 0 ? ['robe', 'body', 'head', 'weapon'] : ['body', 'head', 'robe', 'weapon']);
       return draws.find(draw => draw.part === 'robe')!.frame;
     };
-    expect(frames(vendor, 0)).toBe(5);
-    expect(frames(vendor, 4)).toBe(2);
-    expect(frames(patched, 0)).toBe(frames(patched, 4));
+    expect(frames(upstream, 0)).toBe(5);
+    expect(frames(upstream, 4)).toBe(2);
+    expect(frames(vendor, 0)).toBe(frames(vendor, 4));
   });
 
   it.each([0, 2, 4, 6])('uses the same selected body anchor for attached head layers in direction %i', direction => {
@@ -179,7 +181,7 @@ describe('equipment rendering through actual native animation and render closure
   });
 
   it('retains per-ACT frame counts during ordinary attack progress', () => {
-    const f = fixture(patched, { bodyCount: 4, robeCount: 7, headCount: 6 });
+    const f = fixture(vendor, { bodyCount: 4, robeCount: 7, headCount: 6 });
     f.actor.setAction({ action: f.actor.ACTION.ATTACK1!, repeat: false });
     const draws = f.render(150);
     expect(draws.find(draw => draw.part === 'body')!.frame).toBe(1);
@@ -188,7 +190,7 @@ describe('equipment rendering through actual native animation and render closure
   });
 
   it.each([0, 4])('holds each ACT at its own completed frame and honors a later explicitly frozen frame in direction %i', direction => {
-    const f = fixture(patched, { bodyCount: 4, robeCount: 7, headCount: 6 });
+    const f = fixture(vendor, { bodyCount: 4, robeCount: 7, headCount: 6 });
     f.actor.direction = direction;
     f.actor.setAction({ action: f.actor.ACTION.ATTACK1!, repeat: false });
     for (const elapsed of [400, 800, 1200]) {
@@ -204,7 +206,7 @@ describe('equipment rendering through actual native animation and render closure
   });
 
   it('samples one clock value for an entire composite draw even when resource rendering crosses frame boundaries', () => {
-    const baseline = fixture(vendor, { bodyCount: 10, robeCount: 10, headCount: 10 }), fixed = fixture(patched, { bodyCount: 10, robeCount: 10, headCount: 10 });
+    const baseline = fixture(upstream, { bodyCount: 10, robeCount: 10, headCount: 10 }), fixed = fixture(vendor, { bodyCount: 10, robeCount: 10, headCount: 10 });
     for (const f of [baseline, fixed]) {
       f.actor.attack_speed = 1000;
       f.actor.setAction({ action: f.actor.ACTION.ATTACK1!, repeat: false });
@@ -263,13 +265,11 @@ describe('walking equipment cadence across body resources and movement speeds', 
 
   it.each(matrix)('keeps cosmetic cadence at body delay $bodyDelay and movement speed $speed', ({ bodyDelay, speed }) => {
     const options = { bodyCount: 8, bodyDelay, robeCount: 8, robeDelay: 200, headCount: 13, headDelay: 100, parts: extendedParts };
-    const fixed = fixture(patched, options), original = fixture(vendor, options);
-    for (const f of [fixed, original]) {
-      f.actor.walk.speed = speed;
-      f.actor.walk.dist = 450 / speed;
-      f.actor.setAction({ action: f.actor.ACTION.WALK!, repeat: true });
-    }
-    const frames = fixed.render(450), originalBody = original.render(450).find(draw => draw.part === 'body')!;
+    const fixed = fixture(vendor, options);
+    fixed.actor.walk.speed = speed;
+    fixed.actor.walk.dist = 450 / speed;
+    fixed.actor.setAction({ action: fixed.actor.ACTION.WALK!, repeat: true });
+    const frames = fixed.render(450), originalBody = frames.find(draw => draw.part === 'body')!;
     const byPart = Object.fromEntries(frames.map(draw => [draw.part, draw.frame]));
     expect(byPart.robe).toBe(originalBody.frame);
     expect(byPart.head).toBe(4);
@@ -289,13 +289,13 @@ describe('walking equipment cadence across body resources and movement speeds', 
       f.actor.setAction({ action: f.actor.ACTION.WALK!, repeat: true });
       return f.render(500).find(draw => draw.part === 'head')!.frame;
     };
-    expect(framesAtSpeed(vendor, 50)).not.toBe(framesAtSpeed(vendor, 300));
-    expect(framesAtSpeed(patched, 50)).toBe(2);
-    expect(framesAtSpeed(patched, 300)).toBe(2);
+    expect(framesAtSpeed(upstream, 50)).not.toBe(framesAtSpeed(upstream, 300));
+    expect(framesAtSpeed(vendor, 50)).toBe(2);
+    expect(framesAtSpeed(vendor, 300)).toBe(2);
   });
 
   it.each([0, 1, 2, 3, 4, 5, 6, 7])('keeps independent ACT frames attached to the actual body pose in direction %i', direction => {
-    const f = fixture(patched, {
+    const f = fixture(vendor, {
       bodyCount: 4, robeCount: 7, robeDelay: 200, headCount: 6, headDelay: 150,
       parts: { accessory: { count: 11, delay: 100 }, accessory2: { count: 9, delay: 250 }, accessory3: { count: 5, delay: 175 } },
     });
@@ -318,7 +318,7 @@ describe('walking equipment cadence across body resources and movement speeds', 
   });
 
   it('uses the head ACT delay after several loops while preserving the robe walking pose', () => {
-    const f = fixture(patched, { bodyCount: 4, robeCount: 7, robeDelay: 200, headCount: 6, headDelay: 100 });
+    const f = fixture(vendor, { bodyCount: 4, robeCount: 7, robeDelay: 200, headCount: 6, headDelay: 100 });
     f.actor.walk.dist = 23;
     f.actor.setAction({ action: f.actor.ACTION.WALK!, repeat: true });
     const draws = f.render(2050);
@@ -328,7 +328,7 @@ describe('walking equipment cadence across body resources and movement speeds', 
 
   it('renders the same costume frames after sparse or frequent draws at the same elapsed time', () => {
     const renderSchedule = (schedule: number[]) => {
-      const f = fixture(patched, { bodyCount: 8, robeCount: 7, robeDelay: 125, headCount: 9, headDelay: 75, parts: extendedParts });
+      const f = fixture(vendor, { bodyCount: 8, robeCount: 7, robeDelay: 125, headCount: 9, headDelay: 75, parts: extendedParts });
       f.actor.setAction({ action: f.actor.ACTION.WALK!, repeat: true });
       let draws: Draw[] = [];
       for (const elapsed of schedule) {
@@ -344,7 +344,7 @@ describe('walking equipment cadence across body resources and movement speeds', 
   });
 
   it('samples one walking clock for all costume layers across a render-time frame boundary', () => {
-    const f = fixture(patched, { bodyCount: 8, robeCount: 11, robeDelay: 100, headCount: 11, headDelay: 100, parts: { accessory: { count: 11, delay: 100 } } });
+    const f = fixture(vendor, { bodyCount: 8, robeCount: 11, robeDelay: 100, headCount: 11, headDelay: 100, parts: { accessory: { count: 11, delay: 100 } } });
     f.actor.walk.dist = 2;
     f.actor.setAction({ action: f.actor.ACTION.WALK!, repeat: true });
     f.setClockStep(75);
@@ -353,7 +353,7 @@ describe('walking equipment cadence across body resources and movement speeds', 
   });
 
   it('honors an explicitly frozen walking frame even if elapsed time and movement distance advance', () => {
-    const f = fixture(patched, { bodyCount: 8, robeCount: 7, robeDelay: 200, headCount: 6, headDelay: 100, parts: extendedParts });
+    const f = fixture(vendor, { bodyCount: 8, robeCount: 7, robeDelay: 200, headCount: 6, headDelay: 100, parts: extendedParts });
     f.actor.setAction({ action: f.actor.ACTION.WALK!, play: false, repeat: true, frame: 2 });
     for (const elapsed of [100, 750, 2000]) {
       f.actor.walk.dist = elapsed / 50;
@@ -362,7 +362,7 @@ describe('walking equipment cadence across body resources and movement speeds', 
   });
 
   it('switches independently timed walking costumes to the complete attack pose before its next action', () => {
-    const f = fixture(patched, { bodyCount: 4, robeCount: 7, robeDelay: 200, headCount: 6, headDelay: 150, parts: { accessory: { count: 11, delay: 125 } } });
+    const f = fixture(vendor, { bodyCount: 4, robeCount: 7, robeDelay: 200, headCount: 6, headDelay: 150, parts: { accessory: { count: 11, delay: 125 } } });
     f.actor.walk.dist = 3;
     f.actor.setAction({ action: f.actor.ACTION.WALK!, repeat: true });
     const walking = f.render(350);
@@ -379,7 +379,7 @@ describe('walking equipment cadence across body resources and movement speeds', 
 
 describe('continuous accessory loops through the native composite renderer', () => {
   function windFixture() {
-    const f = fixture(patched, { parts: { accessory3: { count: 8, delay: 200 } } });
+    const f = fixture(vendor, { parts: { accessory3: { count: 8, delay: 200 } } });
     // Match a looping head accessory: three idle head-turn groups, one walking
     // loop and a shorter attack subset. Sprite layers repeat across poses, but
     // their attachment anchors belong to the current character action.
@@ -482,19 +482,16 @@ describe('all native player action groups and equipment slots', () => {
         shield: { count: 5, delay: 50 }, weapon_trail: { count: 7, delay: 60 },
       },
     };
-    const f = fixture(patched, options), original = fixture(vendor, options);
+    const f = fixture(vendor, options);
     const repeating = ['IDLE', 'WALK', 'SIT', 'READYFIGHT'].includes(action);
-    for (const instance of [f, original]) {
-      instance.actor.direction = direction;
-      instance.actor.headDir = direction % 3;
-      instance.actor.walk.dist = 350 / 170.2;
-      instance.actor.setAction({
-        action: instance.actor.ACTION[action]!, repeat: repeating,
-        next: repeating || action === 'DIE' ? false : { action: instance.actor.ACTION.IDLE!, repeat: true },
-      });
-    }
-    const draws = f.render(500), nativeSlots = original.render(500).map(draw => draw.part).sort();
-    expect(draws.map(draw => draw.part).sort()).toEqual(nativeSlots);
+    f.actor.direction = direction;
+    f.actor.headDir = direction % 3;
+    f.actor.walk.dist = 350 / 170.2;
+    f.actor.setAction({
+      action: f.actor.ACTION[action]!, repeat: repeating,
+      next: repeating || action === 'DIE' ? false : { action: f.actor.ACTION.IDLE!, repeat: true },
+    });
+    const draws = f.render(500);
     expect(draws.map(draw => draw.part).sort()).toEqual([...parts].sort());
     expect(draws.every(draw => draw.action === f.actor.ACTION[action] && draw.direction === direction)).toBe(true);
     expect(draws.every(draw => Number.isInteger(draw.frame) && draw.frame >= 0 && Number.isFinite(draw.zIndex) && draw.position.every(Number.isFinite))).toBe(true);
@@ -518,20 +515,5 @@ describe('all native player action groups and equipment slots', () => {
       expect(f.actor.action).toBe(f.actor.ACTION.DIE);
       expect(f.actor.animation.play).toBe(false);
     }
-  });
-});
-
-describe('equipment animation patch anchors', () => {
-  it('ignores source files without the native renderer region', () => {
-    expect(patchRuntimeEquipmentAnimation('small fixture')).toBe('small fixture');
-  });
-  it('rejects applying the patch twice', () => {
-    expect(() => patchRuntimeEquipmentAnimation(patched)).toThrow('anchor:equipment-animation');
-  });
-  it('rejects a missing native completion anchor', () => {
-    expect(() => patchRuntimeEquipmentAnimation(vendor.replace('    if (animation.next) entity.setAction(animation.next);', '// missing completion'))).toThrow('anchor:equipment-animation');
-  });
-  it('rejects a duplicate native rendering region', () => {
-    expect(() => patchRuntimeEquipmentAnimation(vendor + '\n' + region(renderPath))).toThrow('anchor:equipment-animation');
   });
 });

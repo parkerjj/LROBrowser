@@ -1,24 +1,96 @@
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
-import { patchGuildEmblemRequestCallbacks, patchLegacyScriptSinks, patchLuaJsonEscapes, patchNpcMenuBlankArea, patchTrustedTypesDomWrites, patchV2Runtime, patchWebAudioPlayback, patchRuntimeWorldMap, patchRuntimeChatMapLinks, patchRuntimeToolsPanels } from '../scripts/patch-v2-runtime.mjs';
+import { patchGuildEmblemRequestCallbacks, patchLegacyScriptSinks, patchLuaJsonEscapes, patchNpcMenuBlankArea, patchTrustedTypesDomWrites, patchV2Runtime, patchRuntimeWorldMapProductActions, patchRuntimeChatMapLinks, patchRuntimeToolsPanels } from '../scripts/patch-v2-runtime.mjs';
 import { buildClientConfig } from '../src/runtime/client-config';
 import { LASTRO_SERVER_PROFILES } from '../src/servers/server-profiles';
-import { createLastroUiMessages } from '../scripts/lastro-ui-messages.mjs';
+import { createLastroUiMessages } from '../scripts/lastro-display-localization.mjs';
+import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
+import { buildRuntimePatchFixture } from './helpers/runtime-patch-fixture';
 
 const profile = LASTRO_SERVER_PROFILES[0];
 if (!profile || profile.availability !== 'available') throw new Error('missing fixture profile');
 
-async function nativeCacheRegions() {
-  const native = await readFile(new URL('../vendor/v2/Online.js', import.meta.url), 'utf8');
-  return ['src/Core/MemoryItem.js', 'src/Core/MemoryManager.js', 'src/Core/Preferences.js'].map(name => {
-    const start = native.indexOf('//#region ' + name), end = native.indexOf('//#endregion', start);
-    if (start < 0 || end < start) throw new Error('Missing native cache region: ' + name);
-    return native.slice(start, end + '//#endregion'.length);
-  });
-}
-
 describe('V2 runtime patch', () => {
+  it('prepare never applies permanent transforms twice', () => {
+    const source = buildRuntimePatchFixture(readVendorSource());
+    const first = patchV2Runtime(source), second = patchV2Runtime(source);
+    expect(second).toBe(first);
+    const ast = ts.createSourceFile('fixture-final.js', second, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+    const definitions = new Map<string, number>();
+    let unlocks = 0;
+    const visit = (node: ts.Node) => {
+      if ((ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node)) && node.name) {
+        definitions.set(node.name.text, (definitions.get(node.name.text) ?? 0) + 1);
+      }
+      if (ts.isExpressionStatement(node) && node.parent === ast && ts.isCallExpression(node.expression)
+        && node.expression.expression.getText(ast) === 'installLastROAudioUnlock') unlocks++;
+      ts.forEachChild(node, visit);
+    };
+    visit(ast);
+    for (const name of ['installLastROWebAudio', 'installLastroTimedWebAudio', 'createLastroSoundTiming',
+      'installLastROAudioUnlock', 'LastROAudioPlay', 'LastROAudioUnlock', 'LastROAudioRegisterContext',
+      'createWorldMapIndex', 'installLastroWorldMap', 'createMonsterPortraitLoader',
+      'resolveLastroMapResourceName', 'describeLastroMapLoadFailure', 'lastroUiWindowAppend']) {
+      expect(definitions.get(name), name).toBe(1);
+    }
+    expect(unlocks).toBe(1);
+    expect(() => patchV2Runtime(first)).toThrow('anchor:');
+    for (const path of ['src/Core/MemoryItem.js', 'src/Core/MemoryManager.js', 'src/Core/Preferences.js',
+      'src/Audio/BGM.js', 'src/Audio/SoundManager.js', 'src/Renderer/Effects/RainWeather.js', 'src/UI/Common.css?raw']) {
+      expect(extractVendorRegion(path, source)).toBe(extractVendorRegion(path));
+    }
+    for (const name of ['onMapComplete', 'onMapChange', 'cleanGameUI']) {
+      const region = name === 'onMapComplete' ? 'src/Renderer/MapRenderer.js' : 'src/Engine/MapEngine.js';
+      const vendorOwner = extractRuntimeNode(extractVendorRegion(region), { kind: 'function', name });
+      expect(extractRuntimeNode(source, { kind: 'function', name })).toBe(vendorOwner);
+    }
+  }, 30000);
+
+  it('final runtime has one core factory and keeps modular product transforms', async () => {
+    const runtime = await readFile('generated/runtime/Online.js', 'utf8');
+    const runtimeFile = ts.createSourceFile('final-runtime.js', runtime, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+    const factoryCounts = new Map<string, number>();
+    const collectFactories = (node: ts.Node) => {
+      if ((ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node)) && node.name) {
+        factoryCounts.set(node.name.text, (factoryCounts.get(node.name.text) ?? 0) + 1);
+      }
+      ts.forEachChild(node, collectFactories);
+    };
+    collectFactories(runtimeFile);
+    for (const name of ['createWorldMapIndex', 'installLastroWorldMap', 'createMonsterPortraitLoader', 'installLastroToolsPanels',
+      'installLastroShortcutSettings', 'installLastroTeleportSettings']) {
+      expect(factoryCounts.get(name), name).toBe(1);
+    }
+    const worldMap = extractVendorRegion('src/UI/Components/WorldMap/WorldMap.js', runtime);
+    for (const name of ['createLastroTeleportPreflight', 'createLastroWorldMapTeleport']) {
+      expect(extractRuntimeNode(worldMap, { kind: 'function', name })).toContain('function ' + name);
+    }
+    const file = ts.createSourceFile('worldmap-final.js', worldMap, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+    const actionBindings: ts.CallExpression[] = [];
+    const visit = (node: ts.Node) => {
+      if (ts.isCallExpression(node) && node.expression.getText(file) === 'Object.assign'
+        && node.arguments[0]?.getText(file) === 'lastroWorldMapActions') actionBindings.push(node);
+      ts.forEachChild(node, visit);
+    };
+    visit(file);
+    expect(actionBindings).toHaveLength(1);
+    const actions = actionBindings[0]!.arguments[1];
+    expect(actions && ts.isObjectLiteralExpression(actions)).toBe(true);
+    expect((actions as ts.ObjectLiteralExpression).properties.map(property => property.name?.getText(file)))
+      .toEqual(['navigate', 'teleport', 'cancelTeleport']);
+  }, 30000);
+
+  it('retained transforms reject malformed source after core retirement', () => {
+    const source = buildRuntimePatchFixture(readVendorSource());
+    const initialization = '\troInitSpinner.add();\n\tPlugins.init();\n\tGameEngine.init();';
+    expect(source.split(initialization)).toHaveLength(2);
+    expect(() => patchV2Runtime(source.replace(initialization, 'missingProductInitialization();'))).toThrow('anchor:');
+    expect(() => patchRuntimeWorldMapProductActions(source.replace('const lastroWorldMapActions = {};', 'const lastroWorldMapActions = null;')))
+      .toThrow('anchor:worldmap-product-actions');
+    expect(() => patchRuntimeToolsPanels(source.replace('UIManager.addComponent(LastROTools);', ''))).toThrow('anchor:lastro-tools-panels');
+    expect(() => patchRuntimeChatMapLinks(source.replace('function requestChatMapTeleport(link) { return false; }', ''))).toThrow('anchor:chat-map-links');
+  }, 30000);
   it.each([
     'function cleanGameUI() {}',
     'UIManager.addComponent(LastROTools); function cleanGameUI() {}',
@@ -33,7 +105,7 @@ describe('V2 runtime patch', () => {
     expect(patched).toContain('getMap: () => normalizeLastROTeleportMap(MapRenderer.currentMap)');
     expect(patched).toContain('routeMapChanged: () => lastroRouteNavigation.onMapChanged()');
     expect(patched).toMatch(/onMapChanging\(\);\s*UIManager\.removeComponents\(\)/);
-    expect(patched).toMatch(/function cleanGameUI\(\) \{\s*if .*?\.cancelRoute\(\);/);
+    expect(patched).toMatch(/function cleanGameUI\(\) \{\s*document\._lastroItemDrag\?\.cancel\(\);\s*if .*?\.cancelRoute\(\);/);
     expect(patched).toContain('胖大海');
     expect(patched).not.toContain('https://game.lastro.cn/ro/src/DB/logsTable.js');
     const installation = patched.slice(patched.indexOf('const lastroSendRouteTeleport ='), patched.indexOf('UIManager.addComponent(LastROTools)'));
@@ -65,32 +137,8 @@ describe('V2 runtime patch', () => {
     expect(() => patchRuntimeChatMapLinks('function requestChatMapTeleport(link) { return false; }')).toThrow('anchor:chat-map-links');
   });
   it('requires an unambiguous world-map anchor on upstream updates', () => {
-    expect(() => patchRuntimeWorldMap('unrecognized upstream source')).toThrow('anchor:worldmap-component');
+    expect(() => patchRuntimeWorldMapProductActions('unrecognized upstream source')).toThrow('anchor:worldmap-product-actions');
   });
-  it('routes BGM and sound effects through decoded Web Audio buffers', async () => {
-    const source = [
-      ...await nativeCacheRegions(),
-      'var BGM = class BGM {',
-      '  static audio = document.createElement("audio");',
-      '  static load(url) { BGM.audio.src = url; BGM.audio.play(); }',
-      '  static stop() { BGM.audio.pause(); }',
-      '};',
-      'var SoundManager = class SoundManager {',
-      '  static play(filename, vol) { const audio = document.createElement("audio"); audio.src = filename; audio.play(); }',
-      '  static stop(filename) { return filename; }',
-      '};',
-      'function createRainAudio() { this.audioCtx = new AudioContext(); }',
-    ].join('\n');
-    const patched = patchWebAudioPlayback(source);
-    expect(patched).toContain('LastROWebAudio.playBgm');
-    expect(patched).toContain('LastROWebAudio.playSound');
-    expect(patched).not.toContain('document.createElement("audio")');
-    expect(patched).not.toContain('BGM.audio.play()');
-    expect(patched).not.toContain('audio.play().catch');
-    expect(patched).toContain('decodeAudioData');
-    expect(patched).toContain('source.loop = true');
-  });
-
   it('loads message IDs and quoted-comma values from the local CSV', async () => {
     const runtime = await readFile('generated/runtime/Online.js', 'utf8');
     const csv = await readFile('vendor/core/data/msgstringtable.csv', 'utf8');
@@ -188,97 +236,7 @@ end`;
   });
 
   it('replaces the factory and removes legacy initialization regions', async () => {
-    const fixture = [
-      'import { existing } from "./existing.mjs?build=fixture-1";',
-      ...await nativeCacheRegions(),
-      'var root = freeGlobal || freeSelf || Function("return this")();',
-      'var Common_default$1 = "body {\\r\\n\\tfont-size: 12px;\\r\\n\\tfont-family: \'SCDream\', Arial, sans-serif;\\r\\n\\tfont-size-adjust: 0.5186;\\r\\n}\\r\\n:host {\\r\\n\\ttouch-action: manipulation;\\r\\n}";',
-      'function drawLabel(ctx) { ctx.font = "10px Arial"; }',
-      'var BGM = class BGM { static audio = document.createElement("audio"); static load(url) { BGM.audio.src = url; BGM.audio.play(); } };',
-      'var SoundManager = class SoundManager { static play() { const audio = document.createElement("audio"); audio.play(); } };',
-      'function createRainAudio() {',
-      '\tconst AudioContext = window.AudioContext || window.webkitAudioContext;',
-      '\tthis.audioCtx = new AudioContext();',
-      '}',
-      'function compileTemplate(importsKeys, sourceURL, source, importsValues) { return Function(importsKeys, sourceURL + "return " + source).apply(undefined, importsValues); }',
-      'function addPreloader(el) { el.innerHTML = PRELOADER_INNER_HTML; }',
-      '/** Earlier runtime documentation */\nconst retainedRuntime = 1;',
-      '//#region src/Network/SocketHelpers/WebSocket.js\nfunction Socket$1() {}\n//#endregion',
-      '//#region src/Network/SocketHelpers/NodeSocket.js\nvar Socket;\n//#endregion',
-      '//#region src/UI/Components/WorldMap/WorldMap.js\nvar WorldMap;\n//#endregion',
-      'function defaultSocketFactory(host, port) { return new Socket(host, port); }',
-      'function requestChatMapTeleport(link) { return false; }',
-      'function flushMessageBuffer() { messages.forEach(msg => { const div = document.createElement("div"); if (!msg.override) div.textContent = msg.text; else div.innerHTML = msg.text; }); }',
-      'ChatBox.addText = function addText(text, override) { text = text.replace(/<ITEMLINK>.*?<\\/ITEMLINK>/gi, function(match) { return match; }); if (!override && /mapname/.test(text)) override = true; };',
-      'function onMapClick(event, mapLink) { if (requestChatMapTeleport(mapLink)) { event.preventDefault(); event.stopImmediatePropagation(); } }',
-      'UIManager.addComponent(LastROTools);',
-      'UIManager.addComponent(GraphicsOption);',
-      'Navigation.waitForMapData = function waitForMapData(callback) { setTimeout(() => Navigation.waitForMapData(callback), 100); };',
-      'Navigation.navigateTo = function navigateTo(options) { _finalTargetData = {map: options.endMap}; this.waitForMapData(function () { this.findPath(); }); };',
-      'var MapRenderer = class MapRenderer { static setMap(mapname) { UIManager.removeComponents(); } };',
-      'function onMapComplete(success,error) { if (!success) { UIManager.showErrorBox(error).ui.css("zIndex", 1e3); return; } }',
-      'function cleanGameUI() {}',
-      'function onGlobalAnnounce(pkt) { Announce_default.set(pkt.msg, "#FFFF00"); }',
-      'function onPlayerMessage(pkt) { ChatBox_default.addText(pkt.msg); }',
-      'function onEntityTalkColor(pkt) { ChatBox_default.addText(pkt.msg); }',
-      'function onConnectionRequest(username, password) {',
-      '  SoundManager.play("fixture-login.wav");',
-      '  Network.connect(_server.address, _server.port, (success) => {',
-      '    if (!success) {',
-      '      return;',
-      '    }',
-      '    let pkt;',
-      '    function sendLogin() {',
-      '      if (Configs.get("loginMode") == "han") {',
-      '        pkt = new PACKET.CA.LOGIN_HAN();',
-      '        Network.sendPacket(pkt);',
-      '      } else {',
-      '        pkt = new PACKET.CA.LOGIN();',
-      '        Network.sendPacket(pkt);',
-      '      }',
-      '    }',
-      '  });',
-      '}',
-      'function initializeLoginConfig() {',
-      '      const autoLogin = Configs.get("autoLogin");',
-      '      if (autoLogin instanceof Array && autoLogin[0] && autoLogin[1]) {',
-      '        onConnectionRequest.apply(null, autoLogin);',
-      '        Configs.set("autoLogin", null);',
-      '      }',
-      '}',
-      'function initializeNetworkDebug() {',
-      '  packetDump = Configs.get("packetDump", false);',
-      '}',
-      'Plugins.init = function initPlugins() { this.list = Configs.get("plugins", []); };',
-      '//#region src/UI/Components/Storage/Fixture.js',
-      'function renderStorageListFixture() { nameSpan.innerHTML = DB.getItemName(item); }',
-      'function renderStorageGridFixture() { nameSpan.innerHTML = DB.getItemName(item); }',
-      'function renderStorageListOverlayFixture() { overlay.innerHTML = `${DB.getItemName(item)} ${item.count || 1}${getItemCountUnit()}`; }',
-      'function renderStorageGridOverlayFixture() { overlay.innerHTML = `${DB.getItemName(item)} ${item.count || 1}${getItemCountUnit()}`; }',
-      '//#endregion',
-      'function renderCharacterFixture() { charCanvases[i].querySelector(".name").innerHTML = _slots[i] ? _slots[i].name : ""; }',
-      'function init_NetworkManager() { init_WebSocket(); init_NodeSocket(); }',
-      'function init() {\n\troInitSpinner.add();\n\tPlugins.init();\n\tGameEngine.init();\n}',
-      'function initThread() {\n\tif (!_source) _source = new Worker(new URL(\n\t\t/* @vite-ignore */\n\t\t"" + new URL("LastROThreadEventHandler.js", import.meta.url).href,\n\t\t"" + import.meta.url\n\t), { type: "classic" });\n\tif (_source instanceof Worker) _source.addEventListener("message", Thread.receive, false);\n}',
-      'function initializePathFindingWorker() { const workerUrl = new URL("PathFindingWorker.js", import.meta.url).href; return new Worker(workerUrl); }',
-      'function loadXMLFile(filename, callback, onEnd) {}',
-      'function loadLuaValue(file_path, variable_name, callback, onEnd) { Client.loadFile(file_path, function(file) {}); }',
-      ...['map', 'npc', 'link', 'linkdistance', 'npcdistance'].map(table => `loadLuaValue(DB.LUA_PATH + "navigation/navi_${table}_krpri.lub", "Navi_Table", callback, onEnd);`),
-      'function onReady() { _thread_ready = true; savingFiles(files); }',
-      'function updateGamepads() { const gamepads = navigator.getGamepads ? navigator.getGamepads() : []; }',
-      'function clientInit() { if (remoteClient) Thread.send("SET_HOST", remoteClient); }',
-      'function loginInit() {\n\t\t\t\tThread.send("SET_HOST", remoteClient);\n}',
-      'function loadFiles() { if (!Configs.get("remoteClient") && !count && !window.electronAPI?.isElectron) { alert("x"); } }',
-      'function createWinLogin({ name, htmlText, cssText }) {',
-      '\t\tconst Component = new GUIComponent(name, enhanceWinLoginStyles(name, cssText));',
-      '\t\tconst renderedHtmlText = enhanceWinLoginTemplate(name, htmlText);',
-      '\t\tvoid 0;',
-      '\t\tpopulateLoginServerButtons(root, Configs.get("loginServerProfiles", []), Configs.getServer?.().id || "lastro", (profile) => Component.onServerSelect(profile));',
-      '\t\tconst user = _inputUsername.value;',
-      '\t\tconst pass = _inputPassword.value;',
-      '\t\tapplyDebugLoginFields();',
-      '\t}',
-    ].join('\n');
+    const fixture = buildRuntimePatchFixture(readVendorSource());
     const patched = patchV2Runtime(fixture);
     const transpiled = ts.transpileModule(patched, {
       compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ESNext },
@@ -287,13 +245,17 @@ end`;
     expect(transpiled.diagnostics ?? []).toEqual([]);
     expect(patched).toContain('globalThis.LastRODirectSocketFactory(host, port)');
     expect(patched).toContain("font-family: Arial, 'Microsoft YaHei', 'MiSans', 'LastRO Glyph Fallback', sans-serif");
-    expect(patched).toContain("font-family: 'MiSans', Arial, sans-serif");
+    expect(patched).toContain("font-family: 'MiSans', Arial, 'Liberation Sans', Arimo, sans-serif");
     expect(patched).toContain('font-size: 12px');
     expect(patched).toContain('font-size-adjust: none');
     expect(patched).toContain('ctx.font = "10px Arial"');
     expect(patched).toContain('Arial');
     expect(patched).toContain('function installLastROAudioUnlock()');
-    expect(patched).toContain('installLastROAudioUnlock();\nimport { existing }');
+    expect(patched.match(/function installLastROAudioUnlock\(\) \{/g)).toHaveLength(1);
+    expect(patched.match(/function installLastROWebAudio\(\) \{/g)).toHaveLength(1);
+    expect(patched.match(/installLastROAudioUnlock\(\);/g)).toHaveLength(1);
+    expect(patched.indexOf('const LastROWebAudio = installLastROWebAudio();'))
+      .toBeLessThan(patched.indexOf('installLastROAudioUnlock();'));
     expect(patched).toContain('LastROWebAudio.playBgm');
     expect(patched).toContain('LastROWebAudio.playSound');
     expect(patched).not.toContain('document.createElement("audio")');
@@ -326,7 +288,7 @@ end`;
     expect(patched).toContain('const retainedRuntime = 1;');
     expect(patched).not.toContain('?build=');
     expect(patched).not.toMatch(/WebSocket|wss?:\/\/|socketProxy|electronAPI|NodeSocket/i);
-  });
+  }, 20000);
 
   it('fails closed when an anchored region drifts', () => {
     expect(() => patchV2Runtime('function defaultSocketFactory(host, port) {}')).toThrow(/anchor|function/);

@@ -2,9 +2,9 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { URL } from 'node:url';
 import process from 'node:process';
 import { EXTRA_SKILL_NAMES } from './lastro-skill-extra.mjs';
-import { SKILL_NAME_OVERRIDES } from './lastro-skill-localization.mjs';
+import { SKILL_NAME_OVERRIDES } from './lastro-display-localization.mjs';
 import { readSkillSource } from './lastro-skill-data.mjs';
-import { assertRuntimeLocalizationMount, JOB_NAME_OVERRIDES, MAP_NAME_OVERRIDES, MAP_TITLE_OVERRIDES, RUNTIME_TEXT_REPLACEMENTS } from './lastro-localization.mjs';
+import { assertRuntimeLocalizationMount, JOB_NAME_OVERRIDES, MAP_NAME_OVERRIDES, MAP_TITLE_OVERRIDES, RUNTIME_TEXT_REPLACEMENTS } from './lastro-display-localization.mjs';
 
 const runtime = readFileSync(new URL('../vendor/v2/Online.js', import.meta.url), 'utf8');
 const names = Object.fromEntries([...runtime.matchAll(/SkillInfo\[SkillConst_default\.([A-Z0-9_]+)\]\s*=\s*\{\s*Name:\s*"[^"]*",\s*SkillName:\s*"([^"]*)"/g)].map(m => [m[1], m[2]]));

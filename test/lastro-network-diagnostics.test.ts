@@ -3,7 +3,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
 import { createLastroNetworkDiagnostics, patchRuntimeNetworkDiagnostics } from '../scripts/lastro-network-diagnostics.mjs';
-import { patchRuntimeNetworkFramingRecovery } from '../scripts/lastro-network-receive-recovery.mjs';
+import { extractRuntimeNode } from './helpers/vendor-runtime';
 // @ts-expect-error The reviewed vendored protocol module has no declaration file.
 import * as framing from '../vendor/v2/lastro-packet-framing.mjs';
 // @ts-expect-error The reviewed vendored card module has no declaration file.
@@ -35,6 +35,7 @@ function runtime(source = patched) {
     init_CodepageManager() {}, init_BinaryWriter() {}, init_PacketVerManager() {}, init_Configs() {},
     PacketVerManager_default: { value: 20211103 },
     Configs: { get: (key: string) => ['renewal', 'lastroProtocol', 'lastroCustomPackets'].includes(key) },
+    SessionStorage_default: { Entity: null },
   });
   for (const name of ['src/Utils/Struct.js', 'src/Utils/BinaryReader.js', 'src/Network/PacketStructure.js',
     'src/Network/PacketRegister.js', 'src/Network/Packets/packets2021_len_main.js', 'src/Network/PacketLength.js']) {
@@ -54,6 +55,9 @@ function runtime(source = patched) {
     read$1: {}, packetDump: false, Packets: { list: packetList },
     PacketLength_default: { getPacketLength: context.getPacketLength }, setTimeout: (callback: () => void) => scheduled.push(callback),
   });
+  vm.runInContext(extractRuntimeNode(native, {
+    region: 'src/Renderer/Entity/EntityWalk.js', kind: 'function', name: 'lastroCancelMovement',
+  }), context);
   const prefix = source.slice(source.indexOf('const lastroNetworkDiagnostics ='), source.indexOf('//#region src/Network/NetworkManager.js'));
   vm.runInContext(prefix, context);
   const file = ts.createSourceFile('NetworkManager.js', region(source, 'src/Network/NetworkManager.js'), ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
@@ -119,10 +123,8 @@ describe('passive native network diagnostics', () => {
     expect(h.state.closed).toBe(false); expect(h.socket.close).not.toHaveBeenCalled();
   });
 
-  it.each(['before', 'after'] as const)('coexists with framing recovery when applied %s it', order => {
-    const source = order === 'before' ? patchRuntimeNetworkFramingRecovery(patched)
-      : patchRuntimeNetworkDiagnostics(patchRuntimeNetworkFramingRecovery(native));
-    const h = runtime(source), originalLength = h.context.PacketLength_default.getPacketLength;
+  it('records unknown frame lengths while the permanent receiver keeps the socket live', () => {
+    const h = runtime(), originalLength = h.context.PacketLength_default.getPacketLength;
     h.context.PacketLength_default.getPacketLength = (opcode: number) => opcode === 0x00b3 ? 0 : originalLength(opcode);
     h.send(frame(0x00b3, 3));
     expect(h.context.LastRONetworkDiagnostic).toEqual({ event: 'packet-failure', atMs: 12345, opcode: 0x00b3, length: null,
@@ -130,20 +132,27 @@ describe('passive native network diagnostics', () => {
     expect(h.state.closed).toBe(false); h.send(frame(0x0073, 11)); expect(h.decoded).toEqual([0x0073]);
   });
 
-  it('records only the declared invalid length and leaves the native discard untouched', () => {
+  it('records only the declared invalid length and keeps the socket live', () => {
     const h = runtime(), bytes = frame(0x008d, 4); new DataView(bytes.buffer).setUint16(2, 3, true);
     h.send(bytes);
     expect(h.context.LastRONetworkDiagnostic).toEqual({ event: 'packet-failure', atMs: 12345, opcode: 0x008d, length: 3,
       phase: 'map', kind: 'framing', reason: 'invalid-length' });
-    expect(h.state.closed).toBe(true); expect(h.socket.close).not.toHaveBeenCalled();
+    expect(h.state.closed).toBe(false); expect(h.socket.close).not.toHaveBeenCalled();
+    h.send(frame(0x0073, 11)); expect(h.decoded).toEqual([0x0073]);
   });
 
-  it('does not alter the native 32-frame yield or terminal receive-state cleanup', () => {
+  it('drains the accepted ACK after the native 32-frame yield before EOF cleanup', () => {
     const h = runtime(), ack = frame(0x00b3, 3); ack[2] = 1;
     h.send(join(...Array.from({ length: 32 }, () => frame(0x0073, 11)), ack));
-    expect(h.decoded).toHaveLength(32); expect(h.scheduled).toHaveLength(1);
-    h.close(); h.scheduled.shift()!();
-    expect(h.decoded).toHaveLength(32); expect(h.state.closed).toBe(true); expect(h.state.saveBuffer).toBeNull();
+    expect(h.decoded).toEqual(Array.from({ length: 32 }, () => 0x0073));
+    expect(h.scheduled).toHaveLength(1);
+    h.close();
+    expect(h.scheduled).toHaveLength(2);
+    h.scheduled.shift()!();
+    expect(h.decoded).toEqual([...Array.from({ length: 32 }, () => 0x0073), 0x00b3]);
+    expect(h.state.closed).toBe(false);
+    h.scheduled.shift()!();
+    expect(h.state.closed).toBe(true); expect(h.state.saveBuffer).toBeNull();
   });
 
   it('does not report a normal handoff close as an unexpected disconnect', () => {
@@ -182,7 +191,7 @@ describe('passive native network diagnostics', () => {
   it('changes only five anchored native sites and rejects missing or duplicate anchors', () => {
     const nativeRegion = region(native, 'src/Network/NetworkManager.js');
     const outputRegion = region(patched, 'src/Network/NetworkManager.js');
-    expect(outputRegion).toContain('throw lastroPacketError;'); expect(outputRegion).toContain('if (state) clearReceiveState(ownerSocket);');
+    expect(outputRegion).toContain('throw lastroPacketError;'); expect(outputRegion).toContain('if (state) state.saveBuffer = null;');
     expect(patched.slice(patched.indexOf('//#endregion', patched.indexOf('//#region src/Network/NetworkManager.js'))))
       .toBe(native.slice(native.indexOf('//#endregion', native.indexOf('//#region src/Network/NetworkManager.js'))));
     expect(nativeRegion).not.toContain('lastroNetworkDiagnostics');

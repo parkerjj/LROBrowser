@@ -1,12 +1,9 @@
-import { readFile } from 'node:fs/promises';
 import { describe, expect, it, vi } from 'vitest';
-import { patchRuntimeFrameTiming } from '../scripts/lastro-frame-timing.mjs';
+import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 
-const source = await readFile(new URL('../vendor/v2/Online.js', import.meta.url), 'utf8');
-const patched = patchRuntimeFrameTiming(source.replaceAll('\r\n', '\n'));
+const vendor = readVendorSource();
 function region(name: string) {
-  const start = patched.indexOf('//#region ' + name);
-  return patched.slice(start, patched.indexOf('//#endregion', start));
+  return extractVendorRegion(name, vendor);
 }
 function events() {
   let wall = 1000;
@@ -124,7 +121,9 @@ describe('real runtime frame and event timing', () => {
     mono = 20016;
     expect(api.LastROAdvanceServerTick()).toBe(5016);
     expect(region('src/Engine/MapEngine.js')).toMatch(/if \(!success\)[\s\S]*?return;\s*\}\s*LastROInvalidateServerTick\(\);/);
-    expect(region('src/Engine/MapEngine.js')).toContain('function cleanGameUI() {\n  LastROInvalidateServerTick();');
+    expect(extractRuntimeNode(vendor, {
+      region: 'src/Engine/MapEngine.js', kind: 'function', name: 'cleanGameUI',
+    })).toContain('LastROInvalidateServerTick();');
   });
   it('records actual ping latency and anchors a pong received between frames', () => {
     let mono = 8000;
@@ -152,10 +151,5 @@ describe('real runtime frame and event timing', () => {
     resets.mockClear();
     for (const startTime of [undefined, NaN, -1, 0x100000000, '5000']) initialize({ startTime });
     expect(resets).not.toHaveBeenCalled();
-  });
-  it('rejects duplicated or changed runtime anchors', () => {
-    expect(() => patchRuntimeFrameTiming(patched)).toThrow('anchor:frame-timing');
-    expect(() => patchRuntimeFrameTiming(source.replace('const tick = _tick$1 + delay;', 'const tick = delay;'))).toThrow('anchor:frame-timing');
-    expect(patchRuntimeFrameTiming('small fixture')).toBe('small fixture');
   });
 });

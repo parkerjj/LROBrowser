@@ -3,8 +3,7 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
-import { patchRuntimeStatusTooltips } from '../scripts/lastro-localization.mjs';
-import { createLastroUiMessages } from '../scripts/lastro-ui-messages.mjs';
+import { patchRuntimeStatusTooltips, createLastroUiMessages } from '../scripts/lastro-display-localization.mjs';
 import { setLastROInnerHTML } from '../src/runtime/lastro-trusted-dom.mjs';
 
 const native = readFileSync('vendor/v2/Online.js', 'utf8');

@@ -25,6 +25,21 @@ function one(scope, predicate, label) {
   function visit(node) { if (predicate(node)) found.push(node); ts.forEachChild(node, visit); }
   visit(scope.file); if (found.length !== 1) fail(label); return found[0];
 }
+function afterVendingClose(scope, entry, name, text) {
+  const calls = [];
+  function visit(node) {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)
+      && node.expression.text === 'lastroCloseVendingShopping') calls.push(node);
+    ts.forEachChild(node, visit);
+  }
+  visit(entry.body);
+  const close = calls[0], statement = close?.parent;
+  if (calls.length !== 1 || !close || close.arguments.length !== 0
+    || !statement || !ts.isExpressionStatement(statement) || statement.parent !== entry.body) {
+    fail(`${name}:vending-close`);
+  }
+  return { scope, start: statement.end, text: `\n  ${text}` };
+}
 
 /** Keep card state in the native component, with narrow lifecycle and server-notice hooks. */
 export function patchRuntimeCardCollection(source) {
@@ -99,8 +114,8 @@ export function patchRuntimeCardCollection(source) {
   const guard = 'if (typeof CardConnection2 !== "undefined") CardConnection2?._lastroCardDeck?.invalidate';
   const edits = [
     { scope: card, start: creation.parent.end, text: installation },
-    { scope: map, start: changeMap.body.getStart(map.file) + 1, text: '\n  ' + guard + '(false);\n' },
-    { scope: map, start: cleanup.body.getStart(map.file) + 1, text: '\n  ' + guard + '(true);\n' },
+    afterVendingClose(map, changeMap, 'onMapChange', `${guard}(false);`),
+    afterVendingClose(map, cleanup, 'cleanGameUI', `${guard}(true);`),
     { scope: network, start: close.body.getStart(network.file) + 1,
       text: '\n  if (this === _socket && this.isZone) { ' + guard + '(true); }\n' },
     { scope: main, start: notice.body.getStart(main.file) + 1,

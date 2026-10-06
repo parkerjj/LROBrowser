@@ -1,5 +1,6 @@
 import { createLastroTeleportPreflight } from './lastro-teleport-preflight.mjs';
 import { createLastroWorldMapTeleport } from './lastro-worldmap-teleport.mjs';
+import ts from 'typescript';
 
 export function installLastroNpcMapLinks(component, { setHtml, labelFor, showPrompt, shouldConfirmTeleport = () => true, teleport, cancelPending, canActivate = () => true, onError }) {
   let generation = 0, pending = null;
@@ -219,7 +220,34 @@ export function patchRuntimeNpcMapLinks(source, resourceLoaderCode) {
   NpcBox_default$1 += "\\na.lastro-npc-map-link{color:#0070c0;text-decoration:underline;cursor:pointer}a.lastro-npc-map-link:hover{color:#00a0ff}a.lastro-npc-map-link:focus-visible{outline:1px solid #0070c0;outline-offset:1px}a.lastro-npc-map-link[aria-busy]{opacity:.7;cursor:wait}";
   NpcBox = new GUIComponent("NpcBox", NpcBox_default$1);`);
   replace('div.innerHTML = processText(text);', 'NpcBox._lastroMapLinks.render(div, text, processText);');
-  replace('NpcBox_default = UIManager.addComponent(NpcBox);', `
+  const buttonMarkerCount = region.split('/* lastro-npc-dialog-buttons */').length - 1;
+  const file = ts.createSourceFile('NpcBox.js', region, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const helpers = [], calls = [], registrations = [];
+  function visit(node) {
+    if (ts.isFunctionDeclaration(node) && node.name?.text === 'installLastroNpcDialogButtonFallback') helpers.push(node);
+    if (ts.isCallExpression(node) && node.expression.getText(file) === 'installLastroNpcDialogButtonFallback') calls.push(node);
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken
+      && node.left.getText(file) === 'NpcBox_default' && ts.isCallExpression(node.right)
+      && node.right.expression.getText(file) === 'UIManager.addComponent'
+      && node.right.arguments.length === 1 && node.right.arguments[0].getText(file) === 'NpcBox') registrations.push(node.parent);
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  let installAnchor = 'NpcBox_default = UIManager.addComponent(NpcBox);';
+  if (buttonMarkerCount || helpers.length || calls.length) {
+    const helper = helpers[0], call = calls[0], registration = registrations[0];
+    if (file.parseDiagnostics.length || buttonMarkerCount !== 1 || helpers.length !== 1 || calls.length !== 1
+      || helper.parameters.length !== 1 || helper.parameters[0].name.getText(file) !== 'npc'
+      || call.questionDotToken || call.arguments.length !== 1 || call.arguments[0].getText(file) !== 'NpcBox'
+      || !ts.isExpressionStatement(call.parent) || registrations.length !== 1
+      || !ts.isExpressionStatement(registration) || !ts.isBlock(registration.parent)
+      || call.parent.parent !== registration.parent
+      || registration.parent.statements.indexOf(call.parent) + 1 !== registration.parent.statements.indexOf(registration)) {
+      throw new Error('anchor:npc-map-links:dialog-buttons');
+    }
+    installAnchor = call.parent.getText(file);
+  }
+  replace(installAnchor, `
   const lastroNpcMapPreflight = (${createLastroTeleportPreflight.toString()})({
     getMap: () => MapRenderer.loading ? "" : normalizeLastROTeleportMap(MapRenderer.currentMap),
     getProfile: () => String(Configs.get("lastroNid", 0)) + ":" + String(Configs.get("clientVer", 0)),
@@ -279,6 +307,6 @@ export function patchRuntimeNpcMapLinks(source, resourceLoaderCode) {
     canActivate: () => ![NpcMenu_default, InputBox_default].some(dialog => dialog.__active && dialog._host && dialog._host.style.display !== "none"),
     onError: error => UIManager.showErrorBox(error.message || "传送失败，请重试。"),
   });
-  NpcBox_default = UIManager.addComponent(NpcBox);`);
+  ${installAnchor}`);
   return source.slice(0, start) + region + source.slice(end);
 }

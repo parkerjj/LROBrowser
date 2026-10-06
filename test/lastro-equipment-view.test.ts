@@ -1,12 +1,22 @@
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
 import { patchRuntimeEquipmentView } from '../scripts/lastro-equipment-view.mjs';
+import { extractVendorRegion } from './helpers/vendor-runtime';
 
 const vendor = readFileSync('vendor/v2/Online.js', 'utf8');
 const marker = '//#region src/Renderer/Entity/EntityView.js';
 const start = vendor.indexOf(marker), end = vendor.indexOf('//#endregion', start) + '//#endregion'.length;
 const native = vendor.slice(start, end), patched = patchRuntimeEquipmentView(native);
+const dbFile = ts.createSourceFile('DBManager.js', extractVendorRegion('src/DB/DBManager.js', vendor), ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+const fallbackMethods: string[] = [];
+function fallbackMethod(node: ts.Node) {
+  if (ts.isMethodDeclaration(node) && node.name.getText(dbFile) === 'getWeaponFallbackViewID') fallbackMethods.push(node.getText(dbFile));
+  ts.forEachChild(node, fallbackMethod);
+}
+fallbackMethod(dbFile);
+if (fallbackMethods.length !== 1) throw new Error('Missing or duplicate actual weapon fallback method');
 type Part = 'robe' | 'weapon' | 'shield' | 'accessory' | 'accessory2' | 'accessory3';
 interface Files { spr: string | null; act: string | null; pal: string | null; size: number; }
 interface Actor {
@@ -43,9 +53,11 @@ function fixture(source = patched, sharedRobe = true, robeNames: Record<number, 
   };
   const context = vm.createContext({
     console, DB: db, Client: { loadFile }, MountTable: {}, AllMountTable: {}, ShadowTable_default: {},
+    WeaponTypeExpansion: {}, WeaponType_default: { MAX: 100 },
     PacketVerManager_default: { value: 20240101 }, JobConst_default: {},
     __esmMin: (init: () => void) => init, setTimeout: (callback: () => void) => timers.push(callback),
   });
+  vm.runInContext(`class FallbackDB { ${fallbackMethods[0]} } DB.getWeaponFallbackViewID = FallbackDB.getWeaponFallbackViewID;`, context);
   vm.runInContext(patched === source ? patched : source, context);
   vm.runInContext('HeadParts = ["head", "accessory", "accessory2", "accessory3"];', context);
   const functions = vm.runInContext('({ init: Init$5, body: UpdateBody, style: UpdateBodyStyle })', context) as {

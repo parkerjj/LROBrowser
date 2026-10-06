@@ -1,6 +1,19 @@
 // @vitest-environment jsdom
+import vm from 'node:vm';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { installLastroItemDrag } from '../scripts/lastro-item-drag.mjs';
+import { extractRuntimeNode, readVendorSource } from './helpers/vendor-runtime';
+
+type ItemDragInstaller = (options: {
+  document: Document;
+  mouse: { screen: { x: number; y: number }; state?: number; MOUSE_STATE?: { USESKILL: number } };
+  cursor: { x: number; y: number; freeze?: boolean; blockMagnetism?: boolean; ACTION?: { DEFAULT: number };
+    setType?: (type: number) => void; getActualType?: () => number };
+  isEnabled: () => boolean;
+}) => { cancel(): void; destroy(): void; active(): boolean };
+
+const vendor = readVendorSource();
+const installLastroItemDrag = vm.runInNewContext('(' + extractRuntimeNode(vendor,
+  { kind: 'function', name: 'installLastroItemDrag' }) + ')') as ItemDragInstaller;
 
 type DragWindow = Window & typeof globalThis & { _OBJ_DRAG_?: unknown };
 const frames: HTMLIFrameElement[] = [];

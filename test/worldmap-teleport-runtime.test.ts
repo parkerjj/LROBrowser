@@ -1,13 +1,16 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { patchRuntimeWorldMap } from '../scripts/patch-v2-runtime.mjs';
-import { describeLastroMapLoadFailure } from '../scripts/lastro-map-load-diagnostic.mjs';
+import { runInNewContext } from 'node:vm';
+import { extractRuntimeNode } from './helpers/vendor-runtime';
 import { mapBinaryFixture } from './map-binary-fixture';
 
 const { buildPrivateAirshipRequest } = await import(new URL('../vendor/v2/lastro-v1-migration.mjs', import.meta.url).href);
-const runtime = patchRuntimeWorldMap(readFileSync('vendor/v2/Online.js', 'utf8'));
+const native = readFileSync('vendor/v2/Online.js', 'utf8');
+const runtime = readFileSync('generated/runtime/Online.js', 'utf8');
+const describeLastroMapLoadFailure = runInNewContext(`(${extractRuntimeNode(native, { kind: 'function', name: 'describeLastroMapLoadFailure' })})`);
+const resolveLastroMapResourceName = runInNewContext(`(${extractRuntimeNode(native, { kind: 'function', name: 'resolveLastroMapResourceName' })})`);
 const begin = runtime.indexOf('const lastroWorldMapPreflight =');
-const installation = runtime.slice(begin, runtime.indexOf('WorldMap = new GUIComponent', begin));
+const installation = runtime.slice(begin, runtime.indexOf('WorldMap._lastroTeleport =', begin));
 if (begin < 0 || !installation) throw new Error('Missing world map resource gate');
 
 function resources() {
@@ -26,7 +29,7 @@ function fixture(files = resources(), aliases: Record<string, string> = {}) {
   const popup = vi.fn();
   const state = { currentMap: 'izlude.gat', loading: false };
   let manual = false, profile = 5;
-  const api = new Function('Thread', 'DB', 'MapRenderer', 'Configs', 'PACKET', 'Network', 'buildPrivateAirshipRequest', 'normalizeLastROTeleportMap', 'UIManager', 'console', 'describeLastroMapLoadFailure', `
+  const api = new Function('Thread', 'DB', 'MapRenderer', 'Configs', 'PACKET', 'Network', 'buildPrivateAirshipRequest', 'normalizeLastROTeleportMap', 'UIManager', 'console', 'describeLastroMapLoadFailure', 'resolveLastroMapResourceName', `
     ${installation}
     return lastroWorldMapTeleport;
   `)({ send: (type: string, input: { filename: string }, callback: (bytes: ArrayBuffer | null, error?: string) => void) => {
@@ -36,7 +39,7 @@ function fixture(files = resources(), aliases: Record<string, string> = {}) {
   } }, { mapalias: aliases }, state, { get: () => profile }, { CZ: { PRIVATE_AIRSHIP_REQUEST: class {} } },
   { sendPacket: (packet: unknown) => packets.push(packet) }, buildPrivateAirshipRequest, (map: string) => map.replace(/\.gat$/i, ''),
   { showErrorBox: popup, showPromptBox: (_message: string, _yes: string, _no: string, approve: () => void) => { approve(); return {}; } },
-  { warn: () => {} }, describeLastroMapLoadFailure);
+  { warn: () => {} }, describeLastroMapLoadFailure, resolveLastroMapResourceName);
   return { api, packets, reads, popup, state, pending, manual: () => { manual = true; }, setProfile: () => { profile++; } };
 }
 

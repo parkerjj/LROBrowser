@@ -1,24 +1,20 @@
-import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
-import { patchRuntimeEntitySync } from '../scripts/lastro-entity-sync.mjs';
-import { patchRuntimeMovementSync } from '../scripts/lastro-movement-sync.mjs';
+import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
+import { readHistoricalRuntime } from './helpers/historical-runtime';
 
-const vendor = readFileSync(new URL('../vendor/v2/Online.js', import.meta.url), 'utf8');
+const vendor = readVendorSource();
+const upstream = readHistoricalRuntime('entity-upstream');
+const closeVendingShopping = extractRuntimeNode(vendor, { kind: 'function', name: 'lastroCloseVendingShopping' });
 function region(name: string, source = vendor) {
-  const start = source.indexOf(`//#region ${name}`);
-  if (start < 0) throw new Error(name);
-  const end = source.indexOf('//#endregion', start) + '//#endregion'.length;
-  return source.slice(start, end);
+  return extractVendorRegion(name, source);
 }
-const base = [
+const runtime = [
   'src/Renderer/Entity/EntityWalk.js', 'src/Engine/MapEngine/Entity.js',
   'src/Engine/MapEngine/Main.js', 'src/Engine/MapEngine.js', 'src/Network/NetworkManager.js',
   'src/Renderer/Entity/EntityState.js',
 ].map(name => region(name)).join('\n');
-const synchronized = patchRuntimeEntitySync(base);
-const patched = patchRuntimeMovementSync(synchronized);
 function declaration(source: string, name: string) {
   const file = ts.createSourceFile('native.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
   const nodes = file.statements.filter(node => ts.isFunctionDeclaration(node) && node.name?.text === name);
@@ -59,7 +55,7 @@ interface HitPacket {
 }
 interface MovePacket { MoveData: number[]; moveStartTime: number; }
 
-function fixture(source = patched) {
+function fixture(source = runtime, oldSide?: 'control' | 'fastMove') {
   let now = 10000, dueTick: number | undefined;
   const SessionStorage_default = {
     serverTick: 10000, Entity: null as Entity | null, AID: 123, Playing: true,
@@ -100,7 +96,6 @@ function fixture(source = patched) {
     TYPE_FALCON: 15, TYPE_WUG: 16, TYPE_WARP: -1,
     VT: { OUTOFSIGHT: 0, DEAD: 1, EXIT: 2, TELEPORT: 3 },
   };
-  const LastROAdvanceServerTick = vi.fn(() => SessionStorage_default.serverTick);
   const MapRenderer = { loading: false, currentMap: 'prontera', onLoad: () => {}, setMap: vi.fn() };
   const MapControl = { _lastroMovementInput: { cancel: vi.fn() } };
   const Network = { sendPacket: vi.fn() };
@@ -110,8 +105,8 @@ function fixture(source = patched) {
     Float32Array, Int16Array, Uint32Array, Uint16Array, Uint8Array, ArrayBuffer, DataView,
     __esmMin: (init: () => void) => { let loaded = false; return () => { if (!loaded) { loaded = true; init(); } }; },
     init_PathFinding: () => {}, init_Altitude: () => {}, init_SessionStorage: () => {}, init_DBManager: () => {},
-    SessionStorage_default, Renderer, Events, EntityManager, Altitude, Entity: constants, MapRenderer, MapControl, Network,
-    LastROAdvanceServerTick, LastROEventDueTick: () => dueTick,
+    document: {}, SessionStorage_default, Renderer, Events, EntityManager, Altitude, Entity: constants, MapRenderer, MapControl, Network,
+    LastROEventDueTick: () => dueTick,
     Configs: { get: (name: string, fallback: unknown) => name === 'lastroProtocol' ? true : fallback },
     DB: { getWeaponAction: () => 0 },
     EffectManager: { remove: vi.fn(), spam: vi.fn() },
@@ -124,14 +119,23 @@ function fixture(source = patched) {
     BasicInfoController: {}, PlayerViewEquipController: {}, StatusIcons_default: {}, ChatBox_default: {},
     ShortCut_default: {}, Controller$3: {}, controller: {}, CashShop_default: {},
     PacketCrypt_default: { process: vi.fn() }, isObserverMode: () => false,
+    PACKET: { CZ: {}, ZC: {} },
     C_DEATH_SYNC_OFFSET: 200, C_MULTIHIT_DELAY: 200,
   });
+  const rendererRegion = region('src/Renderer/Renderer.js');
+  const clockSource = rendererRegion.slice(rendererRegion.indexOf('let lastroServerClockMark'), rendererRegion.indexOf('var mat4$9'));
+  vm.runInContext(clockSource, context);
   vm.runInContext(region('src/Utils/PathFinding.js'), context);
   vm.runInContext('init_PathFinding(); PathFinding_default.setGat(Altitude);', context);
   const action = region('src/Renderer/Entity/EntityAction.js');
+  // These unchanged upstream owners reproduced bugs on the former entity-sync intermediate.
+  // Bind them to the actual permanent route/packet dependencies, without storing that repaired bundle.
+  const historicalOwners = oldSide === 'control'
+    ? [declaration(upstream.walk!, 'walkProcess'), upstream.state!, declaration(upstream.engine!, 'onEntityOptionChange')].join('\n')
+    : oldSide === 'fastMove' ? declaration(upstream.engine!, 'onEntityFastMove') : '';
   vm.runInContext([
     declaration(action, 'Action'), declaration(action, 'Animation'), declaration(action, 'setAction'), declaration(action, 'Init$10'),
-    source.replaceAll('import.meta.url', '"file:///native.js"'), 'init_EntityWalk();',
+    closeVendingShopping, source.replaceAll('import.meta.url', '"file:///native.js"'), historicalOwners, 'init_EntityWalk();',
   ].join('\n'), context);
   const socket = {
     connected: true, isZone: true, handoffPending: false, _lastroMovementPacketAt: 10000, send: vi.fn(),
@@ -261,8 +265,8 @@ interface ControlledEntity extends Entity {
   _lastroMovementStops?: Set<number>;
   lookTo(x: number, y: number): void;
 }
-function controlFixture(source = patched) {
-  const f = fixture(source);
+function controlFixture(source = runtime, oldSide = false) {
+  const f = fixture(source, oldSide ? 'control' : undefined);
   const readNow = (f.context.Date as { now(): number }).now;
   f.context.Date = class extends Date { static now() { return readNow(); } };
   for (const name of ['init_SoundManager', 'init_StatusState', 'init_MountTable', 'init_AllMountTable', 'init_Emotions']) {
@@ -323,15 +327,29 @@ function controlFixture(source = patched) {
 
 describe('authoritative control states retire old movement', () => {
   it('reproduces native movement through stun followed by a server STOP correction', () => {
-    const f = controlFixture(synchronized); beginWalk(f); f.setNow(10100); f.entity.walkProcess();
+    const f = controlFixture(runtime, true), fixed = controlFixture();
+    for (const entry of [f, fixed]) { beginWalk(entry); entry.setNow(10100); entry.entity.walkProcess(); }
     const position = Array.from(f.entity.position), epoch = f.entity._lastroMovementEpoch;
-    expect(f.state(statusConstants.states.BodyState.STUN!)).toMatchObject({ AID: 123, bodyState: 3 });
-    f.setNow(11000); f.entity.walkProcess();
+    const fixedPosition = Array.from(fixed.entity.position), fixedEpoch = fixed.entity._lastroMovementEpoch!;
+    for (const entry of [f, fixed]) {
+      expect(entry.state(statusConstants.states.BodyState.STUN!)).toMatchObject({ AID: 123, bodyState: 3 });
+    }
+    // Upstream caps a >250ms render stall to 100ms. The old intermediate had removed that cap.
+    // Equal 16ms render cadence isolates stun behavior and reaches the original 11000 deadline.
+    for (let tick = 10116; tick < 11000; tick += 16) {
+      for (const entry of [f, fixed]) { entry.setNow(tick); entry.entity.walkProcess(); }
+    }
+    for (const entry of [f, fixed]) { entry.setNow(11000); entry.entity.walkProcess(); }
     expect(f.entity.position[0]).toBeGreaterThan(position[0]! + 5);
     expect(f.entity._lastroMovementEpoch).toBe(epoch);
-    f.functions.stop({ AID: 123, xPos: 2, yPos: 1 });
-    expect(Array.from(f.entity.position)).toEqual([2, 1, 3]);
-    expect(f.entity.walk.total).toBe(0);
+    expect(Array.from(fixed.entity.position)).toEqual(fixedPosition);
+    expect(fixed.entity._lastroMovementEpoch).toBe(fixedEpoch + 1);
+    expect(fixed.entity.walk.total).toBe(0);
+    for (const entry of [f, fixed]) {
+      entry.functions.stop({ AID: 123, xPos: 2, yPos: 1 });
+      expect(Array.from(entry.entity.position)).toEqual([2, 1, 3]);
+      expect(entry.entity.walk.total).toBe(0);
+    }
   });
 
   it.each(['STONE', 'FREEZE', 'STUN', 'SLEEP', 'IMPRISON'] as const)('retires a %s route at its fractional display position and accepts only a fresh route after recovery', name => {
@@ -464,7 +482,7 @@ describe('authoritative control states retire old movement', () => {
 
 describe('authoritative FASTMOVE Body Relocation targets', () => {
   it('reproduces the native empty-route buffer check after decoding a real FASTMOVE packet', () => {
-    const f = fixture(synchronized); largerGat(f);
+    const f = fixture(runtime, 'fastMove'); largerGat(f);
     const packet = fastMovePacket(f, 50, 1);
     expect({ ...packet }).toEqual({ AID: 123, targetXpos: 50, targetYpos: 1 });
     f.functions.fastMove(packet);
@@ -601,7 +619,7 @@ describe('damage visuals on server-approved movement', () => {
   });
 
   it('preserves native LastRO movement during HURT and recovery of the same approved route', () => {
-    const f = fixture(synchronized);
+    const f = fixture();
     beginWalk(f);
     f.functions.hit(normalHit, f.entity);
     f.flush(10150);
@@ -1028,18 +1046,5 @@ describe('movement while the server is silent or disconnected', () => {
     f.entity.walkProcess();
     expect(Array.from(f.entity.position)).toEqual([4, 6, 10]);
     expect(f.entity.action).toBe(f.entity.ACTION.WALK);
-  });
-});
-
-describe('movement patch source ownership', () => {
-  it('leaves unrelated source and the native pathfinder unchanged', () => {
-    expect(patchRuntimeMovementSync('const sample = 1;')).toBe('const sample = 1;');
-    const output = patchRuntimeMovementSync(patchRuntimeEntitySync(vendor));
-    expect(region('src/Utils/PathFinding.js', output)).toBe(region('src/Utils/PathFinding.js'));
-    expect(region('src/Network/PacketStructure.js', output)).toBe(region('src/Network/PacketStructure.js'));
-  });
-
-  it('rejects a duplicate entity region before applying a possibly ambiguous patch', () => {
-    expect(() => patchRuntimeMovementSync(synchronized + region('src/Engine/MapEngine/Entity.js'))).toThrow('anchor:movement-sync');
   });
 });

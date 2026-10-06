@@ -3,7 +3,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
 import { patchRuntimeEquipmentCatalog, patchRuntimeEquipmentView } from '../scripts/lastro-equipment-view.mjs';
-import { patchRuntimeWeaponViewFallback } from '../scripts/lastro-weapon-view-fallback.mjs';
+import { readHistoricalRuntime } from './helpers/historical-runtime';
 
 const native = readFileSync('vendor/v2/Online.js', 'utf8');
 function region(source: string, path: string) {
@@ -27,8 +27,9 @@ function assignment(name: string) {
     && node.left.getText(file) === name) + ';';
 }
 const dbRegion = region(native, 'src/DB/DBManager.js'), viewRegion = region(native, 'src/Renderer/Entity/EntityView.js');
-const source = dbRegion + '\n' + viewRegion, fixed = patchRuntimeWeaponViewFallback(source);
+const source = dbRegion + '\n' + viewRegion, fixed = source;
 const patchedView = patchRuntimeEquipmentView(region(fixed, 'src/Renderer/Entity/EntityView.js'));
+const upstreamView = readHistoricalRuntime('weapon-view-upstream').view!;
 const paths = ['Jobs/JobConst', 'Jobs/JobNameTable', 'Jobs/WeaponJobTable', 'Items/WeaponType',
   'Items/WeaponTable', 'Items/WeaponTypeExpansion', 'Items/WeaponTrailTable'];
 const catalog = paths.map(path => region(native, 'src/DB/' + path + '.js')).join('\n');
@@ -86,7 +87,7 @@ function fixture(fallback = true, sex = 0, job = 0, version = 20240101) {
     ${region(native, 'src/Utils/BinaryReader.js')}
     init_BinaryReader();
     ${packets}
-    ${fallback ? patchedView : patchRuntimeEquipmentView(viewRegion)}
+    ${fallback ? patchedView : patchRuntimeEquipmentView(upstreamView)}
     ${viewHandler}
   `, context);
   const data = vm.runInContext('({ DB, WeaponTypeExpansion, ItemTable_default, init: Init$5, BinaryReader, PACKET })', context) as {
@@ -192,32 +193,5 @@ describe('expanded weapon resource fallback', () => {
     f.look(39); const current = f.DB.getWeaponPath(39, 0, 0) + '.spr'; f.finish(current, true);
     f.finish(f.DB.getWeaponPath(1, 0, 0) + '.spr', true);
     expect(f.actor.weapon).toBe(39); expect(f.actor.files.weapon.spr).toBe(current);
-  });
-});
-
-describe('weapon fallback transformation anchors', () => {
-  it('preserves the original packet-facing resolver and all nonweapon factories', () => {
-    const resolver = (text: string) => nodeText(text, (node, file) => ts.isMethodDeclaration(node)
-      && node.name.getText(file) === 'getWeaponViewID');
-    expect(resolver(fixed)).toBe(resolver(source));
-    expect(region(fixed, 'src/Renderer/Entity/EntityView.js')).toBe(viewRegion.replace(
-      'UpdateGeneric("weapon", "getWeaponPath", "getWeaponViewID")', 'UpdateGeneric("weapon", "getWeaponPath", "getWeaponFallbackViewID")'));
-    expect(expansions).toHaveLength(72);
-  });
-  it('rejects duplicate installation and incomplete or changed native anchors', () => {
-    expect(patchRuntimeWeaponViewFallback('unrelated source')).toBe('unrelated source');
-    expect(() => patchRuntimeWeaponViewFallback(fixed)).toThrow('already-installed');
-    expect(() => patchRuntimeWeaponViewFallback(dbRegion)).toThrow('regions');
-    expect(() => patchRuntimeWeaponViewFallback(source + '\n' + viewRegion)).toThrow('region');
-    expect(() => patchRuntimeWeaponViewFallback(source.replace('static getWeaponViewID(id)', 'static getWeaponViewID(view)'))).toThrow('resolver-signature');
-    expect(() => patchRuntimeWeaponViewFallback(source.replace('UpdateGeneric("weapon", "getWeaponPath", "getWeaponViewID")',
-      'UpdateGeneric("weapon", "getWeaponPath", "different")'))).toThrow('factory-signature');
-  });
-  it('produces valid JavaScript before and after the existing view transformation', () => {
-    const parsed = ts.createSourceFile('weapon.js', fixed, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS) as
-      ts.SourceFile & { parseDiagnostics: readonly ts.Diagnostic[] };
-    expect(parsed.parseDiagnostics).toHaveLength(0);
-    expect(patchRuntimeWeaponViewFallback(dbRegion + '\n' + patchRuntimeEquipmentView(viewRegion)))
-      .toBe(region(fixed, 'src/DB/DBManager.js') + '\n' + patchedView);
   });
 });

@@ -1,17 +1,33 @@
-import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
-import { createLastroMonsterHoverHp, patchRuntimeMonsterHoverHp } from '../scripts/lastro-monster-hover-hp.mjs';
+import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 
+const vendor = readVendorSource();
 const entityTypes = { TYPE_PC: 0, TYPE_DISGUISED: 1, TYPE_MOB: 5, TYPE_NPC: 6, TYPE_PET: 7, TYPE_NPC_ABR: 13, TYPE_NPC_BIONIC: 14 };
 const unknownHp = '';
 interface Life { hp: number; hp_max: number; display?: boolean; update?: () => void; }
 interface MonsterEntity {
   GID: number; objecttype: number; constructor: typeof entityTypes; life: Life;
-  display?: { name: string; fakename: string; refresh?: (entity: MonsterEntity) => void };
+  display?: { name: string; fakename: string; load?: number; refresh?: (entity: MonsterEntity) => void };
 }
 interface Entry { hp?: unknown; maxhp?: unknown; }
+interface MonsterHoverState {
+  update(gid: number, hp: number, maxhp: number): void;
+  spawn(entity: MonsterEntity, packet: Entry): void;
+  tiny(gid: number, units: unknown): void;
+  name(entity: MonsterEntity, rawName: unknown): void;
+  text(entity: MonsterEntity): string;
+  remove(gid: number): void;
+  clear(): void;
+}
+const createLastroMonsterHoverHp = new Function(`return (${extractRuntimeNode(vendor, {
+  region: 'src/Renderer/EntityManager.js', kind: 'function', name: 'createLastroMonsterHoverHp',
+})})`)() as (options: {
+  getEntity(gid: number): MonsterEntity | undefined;
+  getLife(gid: number): Life | undefined;
+  now?: () => number;
+}) => MonsterHoverState;
 function fixture() {
   const entities = new Map<number, MonsterEntity>(), cache = new Map<number, Life>();
   let tick = 10000;
@@ -270,19 +286,15 @@ describe('monster hover HP provenance and explicit percentage estimates', () => 
   });
 });
 
-// Reuse ASTs for the three patched regions and extract native mouse callbacks
+// Reuse ASTs for the permanent vendor regions and extract native mouse callbacks
 // from one small control region. The full vendor is sliced, never parsed.
-const vendor = readFileSync(new URL('../vendor/v2/Online.js', import.meta.url), 'utf8');
 const paths = ['src/Renderer/Entity/EntityDisplay.js', 'src/Renderer/EntityManager.js', 'src/Engine/MapEngine/Entity.js'] as const;
 function region(source: string, name: string) {
-  const start = source.indexOf('//#region ' + name), end = source.indexOf('//#endregion', start);
-  if (start < 0 || end <= start) throw new Error('Missing native region: ' + name);
-  return source.slice(start, end + '//#endregion'.length);
+  return extractVendorRegion(name, source);
 }
-const native = paths.map(name => region(vendor, name)).join('\n');
+const runtimeSource = paths.map(name => region(vendor, name)).join('\n');
 const parse = (source: string) => ts.createSourceFile('Hover.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
-const nativeAst = parse(native);
-const patched = patchRuntimeMonsterHoverHp(native), patchedAst = parse(patched);
+const actual = declarations(parse(runtimeSource));
 function declarations(file: ts.SourceFile, className = 'Display') {
   const functions: Record<string, string> = {}, methods: Record<string, string> = {};
   const variables: Record<string, string> = {};
@@ -297,7 +309,6 @@ function declarations(file: ts.SourceFile, className = 'Display') {
   }
   visit(file); return { functions, methods, variables };
 }
-const before = declarations(nativeAst), after = declarations(patchedAst);
 const mouseMethods = declarations(parse(region(vendor, 'src/Controls/EntityControl.js')), 'EntityControl').methods;
 
 interface Draw {
@@ -341,7 +352,7 @@ interface RuntimeDisplay {
   TYPE: { NONE: number; LOADING: number; COMPLETE: number }; load: number; display: boolean;
   fixture: CanvasFixture; ctx: CanvasFixture['ctx']; canvas: CanvasFixture['surface'];
   add(): void; remove(): void;
-  update(style?: number): void; render(matrix?: object): void; refresh(entity: RuntimeEntity): void;
+  update(style?: number): void; render(matrix?: object): void; refresh(entity: MonsterEntity): void;
 }
 interface RuntimeEntity extends Omit<MonsterEntity, 'display'> {
   display: RuntimeDisplay; clean(): void; onMouseOver(): void; onMouseOut(): void;
@@ -390,11 +401,11 @@ function runtime({ pixelRatio = 1, ugly = false, showname = false } = {}) {
     __exportAll: (value: object) => value,
     __esmMin: (callback: () => void) => { let initialized = false; return () => { if (!initialized) { initialized = true; callback(); } }; },
   });
-  const managerRegion = region(patched, paths[1]);
+  const managerRegion = region(runtimeSource, paths[1]);
   for (const match of managerRegion.matchAll(/\b(init_[\w$]+)\(\);/g)) context[match[1]!] = () => {};
   vm.runInContext(`
-    ${after.functions.multiShadow}
-    ${after.functions.Init$7}
+    ${actual.functions.multiShadow}
+    ${actual.functions.Init$7}
     var Display = class {
       constructor() {
         this.fixture = makeCanvas(); this.canvas = this.fixture.surface; this.ctx = this.fixture.ctx;
@@ -403,11 +414,11 @@ function runtime({ pixelRatio = 1, ugly = false, showname = false } = {}) {
         this.name = ''; this.fakename = ''; this.party_name = ''; this.guild_name = '';
         this.guild_rank = ''; this.title_name = ''; this.emblem = null; this.gifEmblem = null;
       }
-      ${after.methods.update}
-      ${after.methods.render}
-      ${after.methods.refresh}
-      ${after.methods.add}
-      ${after.methods.remove}
+      ${actual.methods.update}
+      ${actual.methods.render}
+      ${actual.methods.refresh}
+      ${actual.methods.add}
+      ${actual.methods.remove}
     };
     var EntityEvents = class {
       ${mouseMethods.onMouseOver}
@@ -431,11 +442,11 @@ function runtime({ pixelRatio = 1, ugly = false, showname = false } = {}) {
     ${managerRegion}
     init_EntityManager();
     ${packetCode}
-    ${after.functions.onEntitySpam}
-    ${after.functions.onEntityLifeUpdate}
-    ${after.functions.onEntityLifeUpdateTiny}
-    ${after.functions.onEntityIdentity}
-    ${after.functions.updateEntityStyle}
+    ${actual.functions.onEntitySpam}
+    ${actual.functions.onEntityLifeUpdate}
+    ${actual.functions.onEntityLifeUpdateTiny}
+    ${actual.functions.onEntityIdentity}
+    ${actual.functions.updateEntityStyle}
   `, context);
   const manager = context.EntityManager as RuntimeManager;
   const notify = context.onEntityLifeUpdate as (pkt: { AID: number; hp: number; maxhp: number }) => void;
@@ -489,7 +500,7 @@ describe('native monster hover HP packet and canvas integration', () => {
     const state = f.manager._lastroMonsterHoverHp, name = state.name;
     const loads: number[] = [];
     vi.spyOn(state, 'name').mockImplementation((owner, rawName) => {
-      loads.push((owner as RuntimeEntity).display.load); name(owner, rawName);
+      loads.push(owner.display?.load ?? -1); name(owner, rawName);
     });
     entity.display.load = entity.display.TYPE.LOADING;
     entity.display.fakename = 'Alias (HP:20%)';
@@ -772,74 +783,5 @@ describe('native monster hover HP packet and canvas integration', () => {
     expect(entity.display.fixture.surface.height).toBe(24 * 3 * 2 + 5);
     expect(entity.display.ctx.font).toBe('bold 24px Arial');
     expect(entity.display.fixture.draws.filter(draw => draw.text === 'G' && draw.kind === 'fill').at(-1)!.y).toBeCloseTo(5 + 24 * 1.2);
-  });
-});
-
-const displayTemplate = `${before.functions.Init$7}\nDisplay = class {${before.methods.update}\n${before.methods.render}};`;
-const managerTemplate = ['free', 'removeEntity', 'removeGID', 'storeLife', 'getLife'].map(name => before.functions[name]).join('\n')
-  + '\nfunction initializeManager() { ' + before.variables.EntityManager + '; }';
-const engineTemplate = ['onEntityLifeUpdate', 'onEntityLifeUpdateTiny', 'onEntitySpam', 'onEntityIdentity'].map(name => before.functions[name]).join('\n');
-const templates = [displayTemplate, managerTemplate, engineTemplate];
-const wrap = (content: string, index: number) => '//#region ' + paths[index] + '\n' + content + '\n//#endregion';
-const small = templates.map(wrap).join('\n').replace(/\r\n/g, '\n');
-
-describe('monster hover runtime patch scope and fail-closed guards', () => {
-  it('keeps original packet handlers and Display methods outside the explicit changes byte-identical', () => {
-    for (const [name, source] of Object.entries(before.functions)) {
-      if (['Init$7', 'free', 'removeEntity', 'removeGID', 'onEntitySpam', 'onEntityLifeUpdate', 'onEntityLifeUpdateTiny', 'onEntityIdentity'].includes(name)) continue;
-      expect(after.functions[name], name).toBe(source);
-    }
-    for (const [name, source] of Object.entries(before.methods)) {
-      if (name === 'update' || name === 'render') continue;
-      expect(after.methods[name], name).toBe(source);
-    }
-    expect(Object.keys(before.methods)).toContain('update');
-    expect(patched.match(/lastro-monster-hover-hp-installed/g)).toHaveLength(3);
-    expect((patchedAst as ts.SourceFile & { parseDiagnostics: readonly ts.Diagnostic[] }).parseDiagnostics).toHaveLength(0);
-  });
-
-  it.each(['\n', '\r\n'])('supports complete native anchors with %j line endings while preserving outside bytes', eol => {
-    const input = ('// before\n//#region other.js\nconst untouched = 1;\n//#endregion\n' + small + '\n// after\n').replace(/\n/g, eol);
-    const output = patchRuntimeMonsterHoverHp(input);
-    expect(output).not.toBe(input);
-    expect(output.slice(0, output.indexOf('//#region ' + paths[0]))).toBe(input.slice(0, input.indexOf('//#region ' + paths[0])));
-    expect(output.slice(output.lastIndexOf('//#endregion') + 12)).toBe(input.slice(input.lastIndexOf('//#endregion') + 12));
-    if (eol === '\r\n') expect(output.replace(/\r\n/g, '')).not.toContain('\n');
-  });
-
-  it('leaves region-free fixtures unchanged and rejects partial dependent regions', () => {
-    const unrelated = '//#region other.js\nconst untouched = true;\n//#endregion';
-    expect(patchRuntimeMonsterHoverHp(unrelated)).toBe(unrelated);
-    for (let index = 0; index < paths.length; index++) {
-      expect(() => patchRuntimeMonsterHoverHp(templates.filter((_, i) => i !== index).map((content, i) => wrap(content, i < index ? i : i + 1)).join('\n')))
-        .toThrow(/anchor:monster-hover-hp:regions/);
-    }
-  });
-
-  it.each([
-    ['font size', 'const fontSize = 12 * dpr;', 'const fontSize = 11 * dpr;'],
-    ['display owner', 'this.display = new Display();', 'this.display = new Display(); this.other = true;'],
-    ['exact HP source', 'hp: pkt.hp,', 'hp: pkt.hp * 5,'],
-    ['Tiny percentage scale', 'const hp = pkt.hp * 5;', 'const hp = pkt.hp * 4;'],
-    ['identity completion', 'entity.display.load = entity.display.TYPE.COMPLETE;', 'entity.display.load = entity.display.TYPE.LOADING;'],
-    ['spawn cache boundary', 'entity.life.hp <= -1', 'entity.life.hp <= 0'],
-    ['Life cache retrieval', 'return _lifeCache.get(gid) || null;', 'return _lifeCache.get(gid);'],
-    ['GID removal boundary', 'function removeGID(gid) {\n  _gidMap.delete(gid);', 'function removeGID(gid) {\n  _gidMap.delete(gid); changed();'],
-  ])('rejects changed %s anchors rather than patching an unexpected native implementation', (_label, from, to) => {
-    for (const eol of ['\n', '\r\n']) {
-      const input = small.replace(/\n/g, eol), changed = input.replace(from.replace(/\n/g, eol), to.replace(/\n/g, eol));
-      expect(changed).not.toBe(input);
-      expect(() => patchRuntimeMonsterHoverHp(changed)).toThrow(/anchor:monster-hover-hp:/);
-    }
-  });
-
-  it('rejects duplicate regions, duplicate functions, missing terminators, mixed newlines and second application', () => {
-    expect(() => patchRuntimeMonsterHoverHp(small + '\n' + wrap(managerTemplate, 1))).toThrow(/anchor:monster-hover-hp:/);
-    const init = before.functions.Init$7!.replace(/\r\n/g, '\n');
-    expect(() => patchRuntimeMonsterHoverHp(small.replace(init, init + '\n' + init)))
-      .toThrow(/anchor:monster-hover-hp:/);
-    expect(() => patchRuntimeMonsterHoverHp(small.replace('//#endregion', ''))).toThrow(/anchor:monster-hover-hp:/);
-    expect(() => patchRuntimeMonsterHoverHp(small.replace('\n', '\r\n'))).toThrow(/anchor:monster-hover-hp:/);
-    expect(() => patchRuntimeMonsterHoverHp(patchRuntimeMonsterHoverHp(small))).toThrow(/anchor:monster-hover-hp:already-installed/);
   });
 });

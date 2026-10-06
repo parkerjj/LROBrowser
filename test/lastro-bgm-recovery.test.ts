@@ -2,11 +2,12 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
-import { patchWebAudioPlayback } from '../scripts/patch-v2-runtime.mjs';
-import { patchRuntimeAudioTiming } from '../scripts/lastro-audio-timing.mjs';
+import { buildRuntimeAudioPrelude } from './helpers/runtime-patch-fixture';
+import { extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 
-const native = readFileSync('vendor/v2/Online.js', 'utf8');
-const base = patchWebAudioPlayback(native), final = patchRuntimeAudioTiming(base);
+const native = readVendorSource();
+const preTimingAudio = JSON.parse(readFileSync('test/fixtures/runtime-consolidation/audio-pre-timing.json', 'utf8'))
+  .regions as Record<string, string>;
 function region(source: string, name: string) {
   const start = source.indexOf('//#region ' + name), end = source.indexOf('//#endregion', start);
   if (start < 0 || end < start) throw new Error('Missing native region: ' + name);
@@ -63,6 +64,7 @@ function fixture(options: { base?: boolean; manualClient?: boolean; suspended?: 
     connect = vi.fn(); disconnect = vi.fn(); start = vi.fn(); stop = vi.fn();
   }
   class AudioContextMock extends EventTarget {
+    constructor() { super(); contexts.push(this); }
     state = options.suspended ? 'suspended' : 'running'; currentTime = 0; destination = {};
     resume = vi.fn(async () => { this.state = 'running'; this.dispatchEvent(new Event('statechange')); });
     decodeAudioData = vi.fn((bytes: ArrayBuffer) => {
@@ -82,7 +84,7 @@ function fixture(options: { base?: boolean; manualClient?: boolean; suspended?: 
     'Ground_default', 'Water_default', 'Models_default', 'AnimatedModels_default', 'GR2ModelRenderer_default', 'SignboardManager']
     .map(name => [name, { free: noop, clearLifeCache: noop, init: noop }]));
   const context = vm.createContext({ document, Event, EventTarget, performance: { now: () => 0 }, Date,
-    AudioContext: AudioContextMock, LastROAudioRegisterContext: (audio: AudioContextMock) => { contexts.push(audio); return audio; },
+    AudioContext: AudioContextMock, LastROAudioRegisterContext: (audio: AudioContextMock) => audio,
     fetch: fetchAudio, Audio_default: preferences, URL: { revokeObjectURL }, console: { warn: warnings },
     init_Client: noop, init_Audio: noop, __esmMin: (fn: () => void) => fn,
     Renderer: renderer, SoundManager: { stop: noop }, UIManager: { removeComponents: noop },
@@ -106,14 +108,13 @@ function fixture(options: { base?: boolean; manualClient?: boolean; suspended?: 
     audioJobs.push(job); if (!options.manualClient) job.complete();
   }) };
   context.Thread = Thread;
-  const source = options.base ? base : final;
-  const start = source.indexOf('function installLastROWebAudio() {');
-  const marker = 'const LastROWebAudio = installLastROWebAudio();', end = source.indexOf(marker, start);
-  if (start < 0 || end < start) throw new Error('Missing actual Web Audio installer');
-  vm.runInContext(region(source, 'src/Core/MemoryItem.js') + '\n' + region(source, 'src/Core/MemoryManager.js')
+  const audioPrelude = options.base ? preTimingAudio.installer : buildRuntimeAudioPrelude(native).join('\n');
+  const bgmSource = options.base ? preTimingAudio['src/Audio/BGM.js'] : extractVendorRegion('src/Audio/BGM.js', native);
+  if (!audioPrelude || !bgmSource) throw new Error('Missing bounded or permanent audio source');
+  vm.runInContext(region(native, 'src/Core/MemoryItem.js') + '\n' + region(native, 'src/Core/MemoryManager.js')
     + '\ninit_MemoryManager();\nfunction onFileLoaded(data, error, input) { MemoryManager.set(input.filename, data, error); }\n'
-    + 'var Client = {' + clientLoad + '};\n' + source.slice(start, end + marker.length) + '\n'
-    + region(source, 'src/Audio/BGM.js') + '\ninit_BGM();\n' + mapRuntime, context);
+    + 'var Client = {' + clientLoad + '};\n' + audioPrelude + '\n'
+    + bgmSource + '\ninit_BGM();\n' + mapRuntime, context);
   const bgm = context.BGM as BgmApi;
   const memory = context.MemoryManager as { exist(path: string): boolean; get(path: string): unknown };
   const maps = context.MapRenderer as { setMap(name: string): void };
@@ -259,7 +260,7 @@ describe('BGM recovery through native Client cache and final Web Audio patches',
     const f = fixture({ suspended: true }); f.bgm.play('01.mp3'); await f.decode();
     expect(f.contexts[0]!.state).toBe('suspended'); expect(f.sources).toHaveLength(1);
     f.document.dispatchEvent(new Event(event)); await settle();
-    expect(f.contexts[0]!.state).toBe('running'); expect(f.contexts[0]!.resume).toHaveBeenCalledOnce();
+    expect(f.contexts[0]!.state).toBe('running'); expect(f.contexts[0]!.resume).toHaveBeenCalledTimes(2);
     expect(f.sources).toHaveLength(1);
   });
 
@@ -272,21 +273,5 @@ describe('BGM recovery through native Client cache and final Web Audio patches',
     const f = fixture(); f.bgm.play('01.mp3'); await settle(); f.preferences.BGM.play = false; await f.decode();
     expect(f.sources).toHaveLength(0); expect(f.bgm.stopped).toBe(true);
     f.preferences.BGM.play = true; f.bgm.play('01.mp3'); await settle(); expect(f.sources).toHaveLength(1);
-  });
-});
-
-describe('BGM failed cache patch anchors', () => {
-  it.each([
-    ['src/Core/MemoryItem.js', '_data = null;'],
-    ['src/Core/MemoryItem.js', 'complete = false;'],
-    ['src/Core/MemoryItem.js', 'return this._data;'],
-    ['src/Core/MemoryItem.js', 'this._error = error;'],
-    ['src/Core/MemoryManager.js', 'const item = _memory[filename];'],
-    ['src/Core/MemoryManager.js', 'return item.data;'],
-    ['src/Core/MemoryManager.js', 'return !!_memory[filename];'],
-  ])('rejects native cache structure drift in %s at %s', (name, anchor) => {
-    const previous = region(native, name);
-    expect(() => patchWebAudioPlayback(native.replace(previous, previous.replace(anchor, 'changedNativeCache;'))))
-      .toThrow('anchor:bgm:failed-cache');
   });
 });

@@ -115,6 +115,24 @@ describe('native bounty snapshot bridge', () => {
 
 const vendor = readFileSync(new URL('../vendor/v2/Online.js', import.meta.url), 'utf8');
 const patched = patchRuntimeQuests(vendor);
+const uiStateWrappedVendor = vendor;
+const uiStateWrappedPatched = patchRuntimeQuests(uiStateWrappedVendor);
+function rewriteQuestOnAppend(source: string, rewrite: (owner: string, node: ts.FunctionExpression, file: ts.SourceFile) => string) {
+  const sourceFile = ts.createSourceFile('Online.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  let scope = '';
+  const owners: ts.FunctionExpression[] = [];
+  function visit(node: ts.Node) {
+    const parentScope = scope;
+    if (ts.isFunctionDeclaration(node)) scope = node.name?.text ?? scope;
+    if (scope === 'createQuest' && ts.isFunctionExpression(node) && node.name?.text === 'onAppend') owners.push(node);
+    ts.forEachChild(node, visit);
+    scope = parentScope;
+  }
+  visit(sourceFile);
+  expect(owners).toHaveLength(1);
+  const owner = owners[0]!;
+  return source.slice(0, owner.getStart(sourceFile)) + rewrite(owner.getText(sourceFile), owner, sourceFile) + source.slice(owner.end);
+}
 const file = ts.createSourceFile('Online.js', patched, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
 const assignments = new Map<string, string>();
 let bountyHook = '', itemLookup = '';
@@ -176,8 +194,74 @@ describe('packaged quest protocol and native lifecycle patch', () => {
     expect(patched).toContain('questWindow = (init_QuestWindow(), QuestWindow_default)');
   });
 
+  it('keeps the quest-list rebuild inside the exact permanent UI-state append wrapper branch', () => {
+    const wrappedFile = ts.createSourceFile('Online.js', uiStateWrappedPatched, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+    let onAppend: ts.FunctionExpression | undefined;
+    let scope = '';
+    function visit(node: ts.Node) {
+      const parentScope = scope;
+      if (ts.isFunctionDeclaration(node)) scope = node.name?.text ?? scope;
+      if (scope === 'createQuest' && ts.isFunctionExpression(node) && node.name?.text === 'onAppend') onAppend = node;
+      ts.forEachChild(node, visit);
+      scope = parentScope;
+    }
+    visit(wrappedFile);
+    expect(onAppend).toBeDefined();
+    const returned = onAppend!.body.statements[0]!;
+    expect(ts.isReturnStatement(returned) && returned.expression && ts.isCallExpression(returned.expression)).toBe(true);
+    const wrapper = (returned as ts.ReturnStatement).expression as ts.CallExpression;
+    expect(wrapper.expression.getText(wrappedFile)).toBe('lastroUiWindowAppend');
+    expect(wrapper.arguments).toHaveLength(4);
+    expect(wrapper.arguments[0]!.getText(wrappedFile)).toBe('this');
+    expect(wrapper.arguments[1]!.getText(wrappedFile)).toBe('_preferences');
+    const append = wrapper.arguments[2] as ts.ArrowFunction;
+    expect(ts.isArrowFunction(append) && append.parameters).toHaveLength(0);
+    expect(ts.isBlock(append.body)).toBe(true);
+    const layout = (append.body as ts.Block).statements.find(node => ts.isIfStatement(node) && node.expression.getText(wrappedFile) === 'renewLayout') as ts.IfStatement;
+    expect(ts.isBlock(layout.elseStatement!)).toBe(true);
+    const elseStatements = (layout.elseStatement as ts.Block).statements;
+    expect(elseStatements.slice(-2).map(node => node.getText(wrappedFile))).toEqual([
+      'Quest.setQuestList(_questList);',
+      'questWindow.append();',
+    ]);
+  });
+
   it('fails closed when native anchors drift or a duplicate patch is attempted', () => {
     expect(() => patchRuntimeQuests(patched)).toThrow('anchor:lastro-quests');
     expect(() => patchRuntimeQuests(vendor.replace('questWindow = null,', 'questWindow = undefined,'))).toThrow('anchor:lastro-quests');
+  });
+
+  it('retains the bounded original direct Quest append contract', () => {
+    const originalAppend = readFileSync(new URL('./fixtures/runtime-consolidation/quest-native-on-append.js.txt', import.meta.url), 'utf8').trim();
+    const direct = rewriteQuestOnAppend(vendor, () => originalAppend);
+    const result = patchRuntimeQuests(direct);
+    expect(result).toContain('Quest.setQuestList(_questList);\n      questWindow.append();');
+    const bridge = result.slice(result.indexOf('function installLastroQuestBridge('));
+    expect(bridge.slice(0, bridge.indexOf('quest.onRemove ='))).toContain('quest.onAppend = function (...args) {\n    const result = onAppend?.apply(this, args);');
+  });
+
+  it.each([
+    ['lastroUiWindowAppend', 'unknownWindowAppend'],
+    ['if (renewLayout)', 'if (otherLayout)'],
+    ['if (renewLayout)', 'if (renewLayout) {} if (renewLayout)'],
+    ['lastroUiWindowAppend(this, _preferences', 'lastroUiWindowAppend(null, _preferences'],
+    ['() => {', '(value) => {'],
+    ['getComputedStyle(this._host).display', 'otherDisplay'],
+    ['function onAppend(', 'async function onAppend('],
+    ['function onAppend(', 'function* onAppend('],
+  ])('fails closed when the permanent Quest wrapper changes %s to %s', (before, after) => {
+    expect(() => patchRuntimeQuests(rewriteQuestOnAppend(uiStateWrappedVendor, owner => owner.replace(before, after))))
+      .toThrow('anchor:lastro-quests');
+  });
+
+  it('fails closed when the permanent Quest layout moves into the snapshot callback', () => {
+    expect(() => patchRuntimeQuests(rewriteQuestOnAppend(uiStateWrappedVendor, (owner, node, sourceFile) => {
+      const returned = node.body.statements[0]!;
+      const start = returned.getStart(sourceFile) - node.getStart(sourceFile);
+      const end = returned.end - node.getStart(sourceFile);
+      return owner.slice(0, start)
+        + 'return lastroUiWindowAppend(this, _preferences, () => {}, () => { if (renewLayout) {} });'
+        + owner.slice(end);
+    }))).toThrow('anchor:lastro-quests');
   });
 });

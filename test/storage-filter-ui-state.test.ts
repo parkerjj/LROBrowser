@@ -1,20 +1,16 @@
 // @vitest-environment jsdom
-import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { patchRuntimeUiState } from '../scripts/lastro-ui-state.mjs';
 import { setLastROInnerHTML } from '../src/runtime/lastro-trusted-dom.mjs';
+import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 
-const native = readFileSync('vendor/v2/Online.js', 'utf8');
+const native = readVendorSource();
 function region(source: string, suffix: string) {
-  const start = source.indexOf('//#region src/UI/Components/Storage/StorageV3/StorageFilter.' + suffix);
-  const end = source.indexOf('//#endregion', start);
-  if (start < 0 || end < start) throw new Error('Missing native StorageFilter ' + suffix);
-  return source.slice(start, end + '//#endregion'.length);
+  return extractVendorRegion('src/UI/Components/Storage/StorageV3/StorageFilter.' + suffix, source);
 }
 const nativeRegion = region(native, 'js');
-const patched = patchRuntimeUiState(nativeRegion);
+const patched = nativeRegion;
 const file = ts.createSourceFile('StorageFilter.js', patched, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
 const statements: string[] = [];
 function collect(node: ts.Node) {
@@ -26,10 +22,9 @@ function collect(node: ts.Node) {
   ts.forEachChild(node, collect);
 }
 collect(file);
-// The helper is inserted at GUIComponent's region, which is absent from this narrow fixture.
-const helperFile = ts.createSourceFile('UiState.js', readFileSync('scripts/lastro-ui-state.mjs', 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
-const helper = helperFile.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'lastroUiWindowAppend')?.getText(helperFile).replace(/^export\s+/, '');
-if (!helper) throw new Error('Missing production UI state helper');
+// The permanent helper is defined in the vendor GUIComponent region, outside this narrow fixture.
+const helper = ['lastroUiWindowAppend', 'lastroUiInputFrame', 'lastroUiLogicalPointer', 'lastroUiDragBounds']
+  .map(name => extractRuntimeNode(native, { kind: 'function', name })).join('\n');
 const templateFile = ts.createSourceFile('StorageFilter.html', region(native, 'html?raw'), ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
 let template = '';
 function findTemplate(node: ts.Node) {
@@ -165,9 +160,8 @@ describe('native StorageFilter window persistence', () => {
     expect(f.saved.get('StorageFilter_4')?.height).toBe(8);
   });
 
-  it('rejects a drifted StorageFilter append or resize anchor while unrelated fixtures remain unchanged', () => {
-    expect(() => patchRuntimeUiState(nativeRegion.replace('StorageFilter.prototype.onAppend', 'StorageFilter.prototype.renamedAppend'))).toThrow('anchor:ui-state:storage-filter');
-    expect(() => patchRuntimeUiState(nativeRegion.replace('height = Math.min(Math.max(height, 4), 10);', 'height = Math.min(Math.max(height, 4), 11);'))).toThrow('anchor:ui-state:storage-filter-height');
-    expect(patchRuntimeUiState('const unrelated = true;')).toBe('const unrelated = true;');
+  it('uses the permanent filter installer and window-state helper', () => {
+    expect(patched).toContain('lastroUiWindowAppend');
+    expect(helper).toContain('originalSave.call(preferences)');
   });
 });

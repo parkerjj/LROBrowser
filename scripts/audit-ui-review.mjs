@@ -3,7 +3,7 @@ import console from 'node:console';
 import { TextDecoder } from 'node:util';
 import ts from 'typescript';
 import { JSDOM } from 'jsdom';
-import { createLastroUiMessages } from './lastro-ui-messages.mjs';
+import { createLastroUiMessages } from './lastro-display-localization.mjs';
 
 const runtime = await readFile('generated/runtime/Online.js', 'utf8');
 const uiMessages = JSON.parse(/const lastroUiMessages = ([^\r\n]+);\r?\n/.exec(runtime)?.[1] || '{}');

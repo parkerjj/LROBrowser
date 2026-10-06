@@ -4,11 +4,15 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { patchRuntimeAchievementLinks, type AchievementLinkComponent, type AchievementLinksApi } from '../scripts/lastro-achievement-links.mjs';
-import { resolveLastroMapResourceName } from '../scripts/lastro-map-resource-name.mjs';
-import { describeLastroMapLoadFailure } from '../scripts/lastro-map-load-diagnostic.mjs';
 import { mapBinaryFixture } from './map-binary-fixture';
+import { extractRuntimeNode } from './helpers/vendor-runtime';
 
 const native = readFileSync('vendor/v2/Online.js', 'utf8');
+const describeLastroMapLoadFailure = vm.runInNewContext(`(${extractRuntimeNode(native, { kind: 'function', name: 'describeLastroMapLoadFailure' })})`);
+const resolveLastroMapResourceName = vm.runInNewContext(`(${extractRuntimeNode(native, { kind: 'function', name: 'resolveLastroMapResourceName' })})`);
+const lastroUiWindowAppend = vm.runInNewContext(`${extractRuntimeNode(native, {
+  kind: 'function', name: 'lastroUiWindowAppend',
+})}\nlastroUiWindowAppend`) as (...args: unknown[]) => unknown;
 const lua = new TextDecoder('gbk').decode(readFileSync('vendor/core/System/achievement_list_cn2_06.lua'));
 function region(source: string, name: string) {
   const start = source.indexOf('//#region ' + name), end = source.indexOf('//#endregion', start);
@@ -89,14 +93,14 @@ function fixture(options: { files?: Record<string, ArrayBuffer | null>; label?: 
   const state = { currentMap: 'izlude.gat', loading: false };
   const preference = { x: 100, y: 100, save: vi.fn() };
   let manual = false, profile = 5;
-  const context = vm.createContext({ window: win, document: doc, Event: win.Event, console: { warn() {}, error() {} },
+  const context = vm.createContext({ window: win, document: doc, Event: win.Event, lastroUiWindowAppend, console: { warn() {}, error() {} },
     ArrayBuffer, DataView, Uint8Array, queueMicrotask, setTimeout, clearTimeout, Mouse: mouse, MouseMode: { FREEZE: 2 }, SessionStorage_default: session,
     MapRenderer: state, Configs: { get: () => profile },
     normalizeLastROTeleportMap: (map: string) => map.trim().toLowerCase().replace(/\.(gat|rsw)$/i, ''),
     DB: { mapalias: {}, getAchievementTable: () => records, getMessage: (id: number) => '消息' + id,
       getMapName: () => options.label ?? '拉赫草原5' },
     Preferences: { get: () => preference }, Client: { loadFile: vi.fn() }, ItemInfo_default: {},
-    WorldMap_default: { searchMonster: monster }, showLastroTeleportNotice: notice, describeLastroMapLoadFailure,
+    WorldMap_default: { searchMonster: monster }, showLastroTeleportNotice: notice, describeLastroMapLoadFailure, resolveLastroMapResourceName,
     Network: { sendPacket: (packet: Record<string, unknown>) => packets.push({ ...packet }) }, buildPrivateAirshipRequest,
     PACKET: { CZ: { PRIVATE_AIRSHIP_REQUEST: class {}, REQ_ACH_REWARD: class {} } },
     Thread: { send: (type: string, input: { filename: string; args: null }, callback: (bytes: ArrayBuffer | null, error?: string) => void) => {

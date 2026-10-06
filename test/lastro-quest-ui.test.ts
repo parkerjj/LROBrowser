@@ -10,13 +10,18 @@ import type { LastroQuestUI, NativeQuest, NativeQuestComponent, QuestRoute } fro
 import { patchRuntimeQuests, installLastroQuestBridge } from '../scripts/lastro-quest-runtime.mjs';
 import { buildLastroQuestMetadata, createLastroQuestData } from '../scripts/lastro-quest-data.mjs';
 import { setLastROInnerHTML } from '../src/runtime/lastro-trusted-dom.mjs';
+import { extractRuntimeNode } from './helpers/vendor-runtime';
 
 const native = readFileSync('vendor/v2/Online.js', 'utf8');
+const lastroUiWindowAppend = runInNewContext(extractRuntimeNode(native, { kind: 'function', name: 'lastroUiWindowAppend' }) + '\nlastroUiWindowAppend;');
 // Vite's jsdom module URL is HTTP; run the actual patch with its filesystem module
 // location so its checked-in metadata read stays offline and is not mocked away.
 const runtimeModule = readFileSync('scripts/lastro-quest-runtime.mjs', 'utf8');
-const patchDeclaration = functionSource(runtimeModule, 'patchRuntimeQuests');
-const patchFactory = runInNewContext('(' + patchDeclaration.declaration.getText(patchDeclaration.file).replace(/^export\s+/, '').replaceAll('import.meta.url', JSON.stringify(pathToFileURL(resolve('scripts/lastro-quest-runtime.mjs')).href)) + ')', {
+const patchDeclarations = ['questRenewLayoutBranch', 'serializeQuestBridge', 'patchRuntimeQuests'].map(name => {
+  const { file, declaration } = functionSource(runtimeModule, name);
+  return declaration.getText(file).replace(/^export\s+/, '');
+}).join('\n').replaceAll('import.meta.url', JSON.stringify(pathToFileURL(resolve('scripts/lastro-quest-runtime.mjs')).href));
+const patchFactory = runInNewContext(patchDeclarations + '\npatchRuntimeQuests;', {
   ts, readFileSync, URL: NodeURL, buildLastroQuestMetadata, createLastroQuestData, installLastroQuestBridge, installLastroQuestUI,
   fail: () => { throw new Error('anchor:lastro-quests'); },
 }) as typeof patchRuntimeQuests;
@@ -96,6 +101,7 @@ function fixture(renew = false) {
   }
   const context = {
     GUIComponent, document, window, getComputedStyle, __esmMin: (callback: () => void) => callback,
+    lastroUiWindowAppend,
     init_Preferences$1: vi.fn(), init_UIManager: vi.fn(), init_GUIComponent: vi.fn(), init_QuestWindow$2: vi.fn(), init_QuestWindow$1: vi.fn(), init_QuestWindow: vi.fn(),
     Preferences: { get: (_key: string, defaults: object) => Object.assign({}, defaults, preference) },
     UIManager: { addComponent: (component: unknown) => component }, Renderer: { width: 1024, height: 768 },

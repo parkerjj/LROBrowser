@@ -1,17 +1,17 @@
 // @vitest-environment jsdom
-import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { patchRuntimeSkillCooldown } from '../scripts/lastro-skill-cooldown.mjs';
-import { lastroUiWindowAppend, patchRuntimeUiState } from '../scripts/lastro-ui-state.mjs';
+import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
+import { readHistoricalRuntime } from './helpers/historical-runtime';
 
 const path = 'src/UI/Components/ShortCut/ShortCut.js';
-const marker = '//#region ' + path;
-const source = readFileSync('vendor/v2/Online.js', 'utf8');
-const begin = source.indexOf(marker), end = source.indexOf('//#endregion', begin);
-const native = source.slice(begin, end + '//#endregion'.length).replace(/\r\n/g, '\n');
-const patched = patchRuntimeSkillCooldown(native);
+const source = readVendorSource();
+const native = extractVendorRegion(path, source).replace(/\r\n/g, '\n');
+const upstream = readHistoricalRuntime('skill-cooldown-upstream').shortcut!;
+const lastroUiWindowAppend = vm.runInNewContext(`${extractRuntimeNode(source, {
+  kind: 'function', name: 'lastroUiWindowAppend',
+})}\nlastroUiWindowAppend`) as (...args: unknown[]) => unknown;
 function parse(text: string) {
   return ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
 }
@@ -34,10 +34,10 @@ function runnable(text: string) {
   return nodeText(text, node => ts.isFunctionDeclaration(node) && node.name?.text === 'setDelayOnIndex')
     + '\n' + methods.map(name => method(text, name)).join('\n');
 }
-const programs = new Map([native, patched].map(text => [text, runnable(text)]));
+const programs = new Map([[native, runnable(native)]]);
 const disposals: (() => void)[] = [];
 interface Slot { isSkill: boolean; ID: number; Delay?: number; _lastroCooldownDuration?: number }
-function fixture(text = patched) {
+function fixture(text = native) {
   let clock = 1000, sequence = 0;
   const pending = new Map<number, () => void>(), background = new WeakMap<HTMLElement, string>();
   const createElement = document.createElement.bind(document);
@@ -91,7 +91,7 @@ afterEach(() => { for (const dispose of disposals.splice(0)) dispose(); vi.resto
 
 describe('native shortcut cooldown lifetime across map loading', () => {
   it.each([3000, 8000])('reproduces canceled native refresh after reappend at %i ms', reopened => {
-    const f = fixture(native); f.delay(10, 5000); f.now(2000); f.renderer.tick = 2000; f.frame();
+    const f = fixture(upstream); f.delay(10, 5000); f.now(2000); f.renderer.tick = 2000; f.frame();
     expect(f.pending.size).toBe(1); f.remove(); expect(f.pending.size).toBe(0);
     f.now(reopened); f.append(); f.renderer.tick = 9000; f.frame();
     expect(f.overlay()).not.toBeNull(); expect(f.list[0]!.Delay).toBe(6000); expect(f.pending.size).toBe(0);
@@ -185,64 +185,12 @@ describe('native shortcut cooldown lifetime across map loading', () => {
     f.root.append(slot); f.append(); f.frame(); expect(f.pending.size).toBe(1); expect(f.degrees()).toBeCloseTo(144);
   });
 
-  it.each(['before', 'after'])('resumes inside the real UI-state append wrapper when cooldown patch runs %s it', order => {
-    const wrapped = order === 'before' ? patchRuntimeUiState(patched) : patchRuntimeSkillCooldown(patchRuntimeUiState(native));
-    const f = fixture(wrapped); f.append(); f.delay(10, 5000); f.remove(); f.now(3000); f.append(); f.frame();
+  it('resumes inside the real UI-state append wrapper after permanent migration', () => {
+    const append = method(native, 'onAppend');
+    expect(append).toContain('lastroUiWindowAppend');
+    expect(append).toContain('setDelayOnIndex(index, element._lastroCooldownDuration, true)');
+    const f = fixture(native); f.append(); f.delay(10, 5000); f.remove(); f.now(3000); f.append(); f.frame();
     expect(f.pending.size).toBe(1); expect(f.list[0]!.Delay).toBe(6000); expect(f.degrees()).toBeCloseTo(144);
     f.remove(); f.now(8000); f.append(); expect(f.overlay()).toBeNull(); expect(f.pending.size).toBe(0);
-  });
-});
-
-describe('shortcut patch boundaries and anchors', () => {
-  it.each(['\n', '\r\n'])('supports and preserves %j newlines with valid JavaScript', newline => {
-    const input = native.replace(/\n/g, newline), output = patchRuntimeSkillCooldown(input);
-    expect((parse(output) as ts.SourceFile & { parseDiagnostics: readonly ts.Diagnostic[] }).parseDiagnostics).toHaveLength(0);
-    expect(output.includes('\r\n')).toBe(newline === '\r\n');
-    if (newline === '\r\n') expect(output).not.toMatch(/(?<!\r)\n/);
-    const f = fixture(output); f.delay(10, 5000); f.remove(); f.now(8000); f.append(); expect(f.overlay()).toBeNull();
-  });
-
-  it('preserves native onRemove, clean, global and per-skill methods verbatim', () => {
-    for (const name of methods.filter(name => name !== 'onAppend')) expect(method(patched, name)).toBe(method(native, name));
-  });
-  it('edits only its marked region in the production bundle', () => {
-    const full = patchRuntimeSkillCooldown(source);
-    const oldEnd = end + '//#endregion'.length, newEnd = full.indexOf('//#endregion', begin) + '//#endregion'.length;
-    expect(full.slice(0, begin)).toBe(source.slice(0, begin)); expect(full.slice(newEnd)).toBe(source.slice(oldEnd));
-    expect(full.slice(begin, newEnd)).toContain('resume = false');
-  });
-  it('leaves bundles without the optional native region untouched', () => {
-    expect(patchRuntimeSkillCooldown('function outside() {}')).toBe('function outside() {}');
-  });
-
-  const guard = 'if (_list$1[index].Delay && _list$1[index].Delay >= Renderer.tick + delay)\n    return;';
-  it.each([
-    ['missing delay function', native.replace('function setDelayOnIndex(', 'function otherDelay(')],
-    ['duplicate delay function', native.replace('//#endregion', nodeText(native, node => ts.isFunctionDeclaration(node) && node.name?.text === 'setDelayOnIndex') + '\n//#endregion')],
-    ['changed parameters', native.replace('setDelayOnIndex(index, delay) {', 'setDelayOnIndex(index, delay, extra) {')],
-    ['missing merge guard', native.replace('>= Renderer.tick + delay', '> Renderer.tick + delay')],
-    ['duplicate merge guard', native.replace(guard, guard + '\n  ' + guard)],
-    ['changed deadline', native.replace('_list$1[index].Delay = Renderer.tick + delay;', '_list$1[index].Delay = Renderer.tick + 2 * delay;')],
-    ['missing animation clock', native.replace('const now = Renderer.tick;', 'const now = Date.now();')],
-    ['duplicate animation clock', native.replace('const now = Renderer.tick;', 'const now = Renderer.tick; { const now = Renderer.tick; }')],
-    ['missing overlay removal', native.replace('if (existing) existing.remove();', 'if (existing) existing.hide();')],
-    ['duplicate overlay removal', native.replace('if (existing) existing.remove();', 'if (existing) existing.remove(); if (existing) existing.remove();')],
-    ['missing append', native.replace('ShortCut.onAppend = function onAppend()', 'ShortCut.otherAppend = function onAppend()')],
-    ['duplicate append', native.replace('//#endregion', method(native, 'onAppend') + '\n//#endregion')],
-    ['missing append anchor', native.replace('updateEmptySlotTooltips();', 'otherTooltips();')],
-    ['duplicate region', native + '\n' + native],
-    ['region prefix', native.replace(marker, marker + '?raw')],
-    ['region inline', 'var outside = 1; ' + native],
-    ['header without newline', native.replace(marker + '\n', marker + ' ')],
-    ['missing region end', native.replace('//#endregion', '')],
-    ['nested region', native.replace('//#endregion', '//#region another.js\n//#endregion')],
-    ['mixed newlines', native.replace('\n', '\r\n')],
-    ['bare CR', native.replace('\n', '\r')],
-    ['invalid syntax', native.replace('function setDelayOnIndex(index, delay) {', 'function setDelayOnIndex(index, delay {')],
-  ])('fails closed for %s', (_label, input) => {
-    expect(() => patchRuntimeSkillCooldown(input)).toThrow(/anchor:skill-cooldown:/);
-  });
-  it('rejects an already patched region instead of duplicating resume callbacks', () => {
-    expect(() => patchRuntimeSkillCooldown(patched)).toThrow(/anchor:skill-cooldown:/);
   });
 });

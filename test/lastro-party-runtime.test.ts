@@ -1,21 +1,25 @@
 // @vitest-environment jsdom
-import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 import ts from 'typescript';
-import { createLastroPartyState, patchRuntimePartyState } from '../scripts/lastro-party-state.mjs';
+import { extractRuntimeNode, readVendorSource } from './helpers/vendor-runtime';
 
 const paths = ['src/Engine/MapEngine/Group.js', 'src/UI/Components/MiniMap/MiniMapCommon.js'];
-const vendor = readFileSync('vendor/v2/Online.js', 'utf8');
+const vendor = readVendorSource();
+const partyFactorySource = extractRuntimeNode(vendor, {
+  region: paths[0],
+  kind: 'function',
+  name: 'createLastroPartyState',
+});
+const createLastroPartyState = new Function(`return (${partyFactorySource});`)() as { toString(): string };
 function region(source: string, path: string) {
   const start = source.indexOf('//#region ' + path), end = source.indexOf('//#endregion', start);
   if (start < 0 || end < start) throw new Error('Missing native region: ' + path);
   return source.slice(start, end + '//#endregion'.length);
 }
-// One transformation of the real bundle; repeated strict-anchor cases use the small fixture below.
-const actualPatched = patchRuntimePartyState(vendor);
-const group = region(actualPatched, paths[0]!), mini = region(actualPatched, paths[1]!);
+// Integration tests execute permanent functions and explicit runtime dependencies from the vendor.
+const group = region(vendor, paths[0]!), mini = region(vendor, paths[1]!);
 
 function nativeDependencyPrefix(path: string, name: string, stopAfter: string) {
   const file = ts.createSourceFile(path, region(vendor, path), ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
@@ -102,7 +106,7 @@ interface MiniMap {
 }
 const member = (aid: number, map = 'prontera.gat'): Member => ({ AID: aid, characterName: '玩家' + aid, state: 0, mapName: map });
 
-function fixture(patched = true) {
+function fixture() {
   const actors = new Map<number, Actor>(), cache = new Map<number, LifeData>(), hooked = new Map<unknown, (packet: Packet) => void>();
   const overlay = document.createElement('div'); document.body.appendChild(overlay);
   function spawn(aid: number) {
@@ -124,8 +128,8 @@ function fixture(patched = true) {
     storeLife: vi.fn((aid: number, data: LifeData) => { cache.set(aid, Object.assign(cache.get(aid) ?? {}, data)); }),
     removeLife: vi.fn((aid: number) => { cache.delete(aid); }),
   };
-  const selectedGroup = patched ? group : region(vendor, paths[0]!);
-  const selectedMini = patched ? mini : region(vendor, paths[1]!);
+  const selectedGroup = group;
+  const selectedMini = mini;
   // Read-only snapshots of the real factory's private arrays, without changing its production methods.
   const inspectedMini = selectedMini.replace('return UIManager.addComponent(MiniMap);',
     'MiniMap._testSnapshot = () => ({ party: _party.map(value => ({ ...value })), guild: _guild.map(value => ({ ...value })), markers: _markers.map(value => ({ ...value })) });\n  return UIManager.addComponent(MiniMap);');
@@ -172,10 +176,7 @@ function fixture(patched = true) {
 afterEach(() => { document.body.replaceChildren(); vi.restoreAllMocks(); });
 
 describe('native party packet wiring and real minimap cleanup', () => {
-  it('reproduces upstream lingering marks and bars, then cleans them through the same successful native self-leave packet', () => {
-    const original = fixture(false); original.establish(); original.fire('DELETE_MEMBER_FROM_GROUP', { AID: 10, characterName: '玩家10', result: 0 });
-    expect(original.teammate.life.canvas.isConnected).toBe(true); expect(original.cache.has(20)).toBe(true);
-    expect(original.maps[1]!._testSnapshot().party.map(value => value.key)).toEqual([20, 30]);
+  it('cleans member marks and life bars on the successful native self-leave packet', () => {
     const f = fixture(); f.establish(); f.fire('DELETE_MEMBER_FROM_GROUP', { AID: 10, characterName: '玩家10', result: 0 });
     expect(f.teammate.life.canvas.isConnected).toBe(false); expect(f.other.life.canvas.isConnected).toBe(false); expect(f.cache.size).toBe(0);
     expect(f.self.life.canvas.isConnected).toBe(true); expect(f.session.hasParty).toBe(false);
@@ -269,56 +270,4 @@ describe('native party packet wiring and real minimap cleanup', () => {
     expect(f.maps[0]!._testSnapshot().guild).toHaveLength(1); expect(f.maps[0]!._testSnapshot().markers).toHaveLength(1);
     f.maps[0]!.addPartyMemberMark(40, 4, 5); expect(f.maps[0]!._testSnapshot().party).toHaveLength(1);
   });
-});
-
-const small = `//#region src/Engine/MapEngine/Group.js
-function onPartyCreate(pkt) { const memberData = {}; controller.getUI().setParty(_partyName, [memberData]); }
-function onPartyList(pkt) { WorldMap_default.updatePartyMembers(pkt); }
-function onPartyMemberJoin(pkt) { controller.getUI().addPartyMember(pkt); }
-function onPartyMemberLeave(pkt) { controller.getUI().removePartyMember(pkt.AID, pkt.characterName); }
-function onMemberLifeUpdate(pkt) { EntityManager.storeLife(pkt.AID, { hp: pkt.hp, hp_max: pkt.maxhp }); }
-function onMemberMove$1(pkt) { Controller$5.getUI().addPartyMemberMark(pkt.AID, pkt.xPos, pkt.yPos); }
-function onPartyIsAlive(pkt) { controller.getUI().updateMemberDead(pkt.AID, pkt.isDead); }
-var _partyName, GroupEngine;
-var init_Group = __esmMin(() => { _partyName = ""; GroupEngine = class GroupEngine { static init() {} }; });
-//#endregion
-//#region src/UI/Components/MiniMap/MiniMapCommon.js
-function createMiniMap() { const MiniMap = {}, _party = []; MiniMap.removePartyMemberMark = function () {}; return MiniMap; }
-//#endregion
-`;
-
-describe('party patch exact scope and strict native anchors', () => {
-  it('changes only Group.js and MiniMapCommon.js in the real production source', () => {
-    const strip = (source: string) => paths.reduce((value, path) => value.replace(region(value, path), '/* target:' + path + ' */'), source);
-    expect(strip(actualPatched)).toBe(strip(vendor)); expect(group).toContain('/* lastro-party-state */'); expect(mini).toContain('MiniMap.clearPartyMemberMarks');
-    expect(() => new Function(group + '\n' + mini)).not.toThrow();
-  });
-
-  it.each(['LF', 'CRLF'])('accepts clean %s anchors and preserves the region newline style', style => {
-    const source = style === 'CRLF' ? small.replace(/\n/g, '\r\n') : small, output = patchRuntimePartyState(source);
-    expect(output).toContain('/* lastro-party-state */'); expect(output).toContain('MiniMap.clearPartyMemberMarks');
-    expect(() => new Function(output)).not.toThrow();
-    if (style === 'CRLF') expect(/(?<!\r)\n/.test(output)).toBe(false); else expect(output).not.toContain('\r');
-  });
-
-  it('leaves unrelated bundles unchanged', () => { expect(patchRuntimePartyState('const unrelated = 1;')).toBe('const unrelated = 1;'); });
-  it.each(paths)('rejects a missing required region %s', path => { expect(() => patchRuntimePartyState(small.replace(region(small, path), ''))).toThrow(/anchor:party-state/); });
-  it.each(paths)('rejects a duplicated required region %s', path => { expect(() => patchRuntimePartyState(small + region(small, path))).toThrow(/anchor:party-state/); });
-  it('rejects a partial matching region name', () => { expect(() => patchRuntimePartyState(small.replace(paths[0]!, paths[0]! + '.extra'))).toThrow(/anchor:party-state/); });
-  it('rejects a region without its closing marker', () => { expect(() => patchRuntimePartyState(small.replace('//#endregion', ''))).toThrow(/anchor:party-state/); });
-  it('rejects mixed newline styles within a target region', () => {
-    const mixed = small.replace(/\n/g, '\r\n').replace('function onPartyCreate', '\nfunction onPartyCreate');
-    expect(() => patchRuntimePartyState(mixed)).toThrow(/anchor:party-state:newlines/);
-  });
-  it('rejects a malformed target region', () => { expect(() => patchRuntimePartyState(small.replace('const memberData = {};', 'const memberData = ;'))).toThrow(/anchor:party-state:syntax/); });
-  it('rejects a changed party handler parameter', () => { expect(() => patchRuntimePartyState(small.replace('onMemberMove$1(pkt)', 'onMemberMove$1(packet)'))).toThrow(/anchor:party-state/); });
-  it('rejects an ambiguous duplicate native party-life store call', () => {
-    const duplicate = small.replace('EntityManager.storeLife(pkt.AID, { hp: pkt.hp, hp_max: pkt.maxhp });', 'EntityManager.storeLife(pkt.AID, {}); EntityManager.storeLife(pkt.AID, {});');
-    expect(() => patchRuntimePartyState(duplicate)).toThrow(/anchor:party-state:party-life/);
-  });
-  it('rejects a changed private minimap party array initializer', () => { expect(() => patchRuntimePartyState(small.replace('_party = []', '_party = new Array()'))).toThrow(/anchor:party-state:minimap-array/); });
-  it('rejects an already defined minimap party-clear method rather than replacing a future native implementation', () => {
-    expect(() => patchRuntimePartyState(small.replace('return MiniMap;', 'MiniMap.clearPartyMemberMarks = function () {}; return MiniMap;'))).toThrow(/anchor:party-state/);
-  });
-  it('rejects a second application to the same source', () => { expect(() => patchRuntimePartyState(patchRuntimePartyState(small))).toThrow(/anchor:party-state:already-patched/); });
 });

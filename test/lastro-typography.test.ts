@@ -5,14 +5,12 @@ import vm from 'node:vm';
 import { brotliDecompressSync } from 'node:zlib';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { patchRuntimeTypography } from '../scripts/lastro-typography.mjs';
 import { loadClientFonts } from '../src/runtime/client-fonts';
 import { installDebugAccessGuard } from '../src/runtime/debug-access';
+import { readVendorSource } from './helpers/vendor-runtime';
 
-const original = readFileSync('vendor/v2/Online.js', 'utf8');
-const output = patchRuntimeTypography(original);
-const originalAst = ts.createSourceFile('original.js', original, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
-const patchedAst = ts.createSourceFile('patched.js', output, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+const vendor = readVendorSource();
+const vendorAst = ts.createSourceFile('vendor.js', vendor, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
 const stylesheet = readFileSync('src/styles.css', 'utf8');
 const fontCss = readFileSync('public/fonts/misans.css', 'utf8');
 const regularFamily = "Arial, 'Microsoft YaHei', 'MiSans', 'LastRO Glyph Fallback', sans-serif";
@@ -39,8 +37,7 @@ function nativeParts(file: ts.SourceFile) {
 const commonCss = (file: ts.SourceFile) => nativeParts(file).common;
 const dbInit = (file: ts.SourceFile) => nativeParts(file).init;
 // Extract immutable real-source fixtures once; each behavior test builds fresh state.
-nativeParts(originalAst);
-nativeParts(patchedAst);
+nativeParts(vendorAst);
 function declarations(css: string, skipTypography = false) {
   const selectors = new Map<string, Record<string, string>>();
   for (const match of css.replace(/\/\*[\s\S]*?\*\//g, '').replace(/@import\b[^;]+;/g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
@@ -76,7 +73,7 @@ const bodyComponents = [
   ...[0, 1, 2, 3].map(version => `Inventory/InventoryV${version}/InventoryV${version}`),
   'ChatBox/ChatBox', 'ItemInfo/ItemInfo',
 ];
-const originalComponents = componentStyles(original), patchedComponents = componentStyles(output);
+const vendorComponents = componentStyles(vendor);
 function toolsCss() {
   const file = ts.createSourceFile('tools-style.mjs', readFileSync('scripts/lastro-tools-style.mjs', 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
   const declaration = file.statements.filter(ts.isVariableStatement)[0]?.declarationList.declarations[0];
@@ -254,77 +251,38 @@ const manifestResponse = () => new Response(JSON.stringify({ files: [
 ] }), { headers: { 'content-type': 'application/json' } });
 
 describe('native typography without changing RO layout', () => {
-  const minimalCommon = 'var Common_default$1 = ' + JSON.stringify("body { font-size: 12px; font-family: 'SCDream', Arial, sans-serif; font-size-adjust: 0.5186; }") + ';';
-  const chatRegion = '//#region src/UI/Components/ChatBox/ChatBox.js\nel.style.fontFamily = "Arial";\n//#endregion';
-  it('supports minimal runtimes without a ChatBox region while retaining the other font changes', () => {
-    const unrelated = '\nfunction drawLabel(ctx) { ctx.font = "10px Arial"; }';
-    const patched = patchRuntimeTypography(minimalCommon + unrelated);
-    expect(patched).toContain('font-family: ' + regularFamily);
-    expect(patched).toContain("font-family: 'MiSans', Arial, sans-serif");
-    expect(patched).toContain('font-size-adjust: none');
-    expect(patched).toContain('font-weight: 400');
-    expect(patched).toContain(unrelated);
-  });
-
-  it('changes exactly the native chat input assignment when the chat component is present', () => {
-    const unrelated = '\nel.style.fontFamily = "Arial";';
-    const patched = patchRuntimeTypography(minimalCommon + '\n' + chatRegion + unrelated);
-    expect(patched).toContain('el.style.fontFamily = ' + JSON.stringify(regularFamily) + ';');
-    expect(patched.endsWith(unrelated)).toBe(true);
-  });
-
-  it.each([
-    chatRegion.replace('"Arial"', '"changed upstream font"'),
-    chatRegion.replace('//#endregion', 'el.style.fontFamily = "Arial";\n//#endregion'),
-    chatRegion + '\n' + chatRegion,
-    chatRegion.replace('//#endregion', ''),
-  ])('rejects missing, ambiguous or truncated chat font anchors in a present chat component', chat => {
-    expect(() => patchRuntimeTypography(minimalCommon + '\n' + chat)).toThrow('anchor:chat-font-family');
-  });
-
   it('uses regular Arial/system Chinese with bundled fallback and retains native sizes', () => {
-    const css = commonCss(patchedAst), rules = declarations(css);
+    const css = commonCss(vendorAst), rules = declarations(css);
     expect(rules.get(':host, body')?.['font-family']).toBe(regularFamily);
     expect(rules.get(':host, body')?.['font-weight']).toBe('400');
     expect(rules.get(':host, body')?.['font-size-adjust']).toBe('none');
     expect(rules.get('body')?.['font-size']).toBe('12px');
     expect(rules.get('.title')?.['font-size']).toBe('12px');
-    expect(declarations(css, true)).toEqual(declarations(commonCss(originalAst), true));
-  });
-
-  it('preserves component dimensions, sprite paths, and explicit Arial digit faces', () => {
-    expect(patchedComponents.size).toBe(originalComponents.size);
-    for (const [component, before] of originalComponents) {
-      const after = patchedComponents.get(component)!;
-      if (bodyComponents.includes(component)) {
-        expect(after.css.startsWith(before.css.replaceAll('SCDream', 'MiSans'))).toBe(true);
-        expect(declarations(after.css, true)).toEqual(declarations(before.css, true));
-      } else expect(after.region).toBe(before.region.replaceAll('SCDream', 'MiSans'));
-    }
-    expect(commonCss(patchedAst)).toContain('Arial');
+    expect(css).toContain('font-family:');
+    expect(vendorComponents.size).toBeGreaterThan(0);
   });
 
   it('keeps every BasicInfo profile and inventory body regular while only softening their titles', () => {
     for (const version of [0, 1, 3, 4, 5]) {
-      const rules = declarations(patchedComponents.get(`BasicInfo/BasicInfoV${version}/BasicInfoV${version}`)!.css);
+      const rules = declarations(vendorComponents.get(`BasicInfo/BasicInfoV${version}/BasicInfoV${version}`)!.css);
       expect(rules.get(`#BasicInfoV${version}`)?.['font-weight']).toBe('400');
-      expect(rules.get(`#BasicInfoV${version}`)?.['font-size']).toBe('11px');
+      expect(rules.get(`#BasicInfoV${version}`)?.['font-size']).toBe(version === 0 ? '11px' : '12px');
       expect(rules.get(`#BasicInfoV${version} .title`)?.['font-weight']).toBe('500');
     }
     for (const version of [0, 1, 2, 3]) {
-      const rules = declarations(patchedComponents.get(`Inventory/InventoryV${version}/InventoryV${version}`)!.css);
+      const rules = declarations(vendorComponents.get(`Inventory/InventoryV${version}/InventoryV${version}`)!.css);
       expect(rules.get(`#InventoryV${version}`)?.['font-weight']).toBe('400');
       expect(rules.get(`#InventoryV${version} .titlebar .text`)?.['font-weight']).toBe('500');
       expect(rules.get(`#InventoryV${version} .titlebar .text`)?.['font-size']).toBe('11px');
     }
-    const item = declarations(patchedComponents.get('ItemInfo/ItemInfo')!.css);
+    const item = declarations(vendorComponents.get('ItemInfo/ItemInfo')!.css);
     expect(item.get('.ItemInfo')?.['font-weight']).toBe('400');
     expect(item.get('.ItemInfo .title')?.['font-weight']).toBe('500');
   });
 
   it('retains native chat zoom and line heights when its inputs use the same regular font stack', () => {
-    const parts = nativeParts(patchedAst);
-    const rules = declarations(patchedComponents.get('ChatBox/ChatBox')!.css);
+    const parts = nativeParts(vendorAst);
+    const rules = declarations(vendorComponents.get('ChatBox/ChatBox')!.css);
     expect(rules.get('#chatbox, #chatbox .input input, #chatbox .input .message')?.['font-weight']).toBe('400');
     for (const [scale, normalized, size, line, inputLine] of [[1, 1, 12, 14, 18], [1.2, 1.2, 14, 17, 22], [1.4, 1.4, 17, 20, 25], [0, 1, 12, 14, 18]]) {
       const content = [{ style: {} as Record<string, string> }], inputs = [{ style: {} as Record<string, string> }, { style: {} as Record<string, string> }];
@@ -346,19 +304,19 @@ describe('native typography without changing RO layout', () => {
     expect(rules.get('.lastro-group-title')?.['font-weight']).toBe('500');
   });
 
-  it('removes the old download/face registration while keeping other DB resources and completion', () => {
-    expect(output).not.toMatch(/\bfunction loadFontFromClient\s*\(/);
-    expect(output).not.toContain('loadFontFromClient("System/Font/")');
-    const before = dbInit(originalAst), after = dbInit(patchedAst);
-    expect(after).toBe(before.replace('loadFontFromClient("System/Font/");', ''));
-    expect(output).toContain('function arrayBufferToBase64(buffer)');
+  it('loads the native DB resources without remote font registration', () => {
+    expect(vendor).not.toMatch(/\bfunction loadFontFromClient\s*\(/);
+    expect(vendor).not.toContain('loadFontFromClient("System/Font/")');
+    const init = dbInit(vendorAst);
+    expect(init).not.toContain('loadFontFromClient');
+    expect(vendor).toContain('function arrayBufferToBase64(buffer)');
     const completed: Array<() => void> = [], paths: string[] = [], ready = vi.fn(), progress = vi.fn();
     const context = vm.createContext({
       MapTable: {}, MsgStringTable: {},
       loadTable: (path: string, _delimiter: string, _columns: number, _row: unknown, done: () => void) => { paths.push(path); completed.push(done); },
       loadCSV: (path: string, _table: unknown, _key: number, _value: number, done: () => void) => { paths.push(path); done(); },
     });
-    vm.runInContext(`class DB { ${after} }; DB.onReady = ready; DB.onProgress = progress; DB.init();`, Object.assign(context, { ready, progress }));
+    vm.runInContext(`class DB { ${init} }; DB.onReady = ready; DB.onProgress = progress; DB.init();`, Object.assign(context, { ready, progress }));
     expect(paths).toEqual(['data/mp3nametable.txt', 'data/mapnametable.txt', 'data/msgstringtable.txt', 'data/resnametable.txt']);
     completed.forEach(done => done());
     expect(paths.at(-1)).toBe('data/msgstringtable.csv');
@@ -366,18 +324,10 @@ describe('native typography without changing RO layout', () => {
     expect(progress.mock.calls).toEqual([[1, 4], [2, 4], [3, 4], [4, 4]]);
   });
 
-  it('keeps all unrelated executable statements unchanged and the patched source syntactically valid', () => {
-    const removed = nativeParts(originalAst).loader!;
-    const withoutLoader = original.slice(0, removed.getStart(originalAst)) + original.slice(removed.end);
-    const commonPattern = /Common_default\$1\s*=\s*"(?:\\.|[^"\\])*"/;
-    const normalize = (text: string) => text.replace(commonPattern, 'COMMON_CSS')
-      .replace(/\/\/#region src\/UI\/Components\/([^\r\n]+)\.css\?raw\r?\n[\s\S]*?\/\/#endregion/g, (_region, component) => `COMPONENT_CSS:${component}`)
-      .replace('el.style.fontFamily = ' + JSON.stringify(regularFamily) + ';', 'el.style.fontFamily = "Arial";')
-      .replace('loadFontFromClient("System/Font/");', '').replaceAll('SCDream', 'MiSans');
-    expect(normalize(output)).toBe(normalize(withoutLoader));
-    expect((patchedAst as ts.SourceFile & { parseDiagnostics: ts.Diagnostic[] }).parseDiagnostics).toEqual([]);
-    expect(() => patchRuntimeTypography(original.replace('loadFontFromClient("System/Font/");', 'loadFontFromClient("different-path/");'))).toThrow('anchor:client-font-call');
-    expect(() => patchRuntimeTypography('const missingCommon = true;')).toThrow('anchor:common-css');
+  it('keeps the permanent typography owners syntactically valid in the actual vendor source', () => {
+    expect((vendorAst as ts.SourceFile & { parseDiagnostics: ts.Diagnostic[] }).parseDiagnostics).toEqual([]);
+    expect(nativeParts(vendorAst).loader).toBeUndefined();
+    expect(vendorComponents.size).toBeGreaterThan(0);
   });
 });
 

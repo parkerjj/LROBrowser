@@ -1,22 +1,20 @@
 // @vitest-environment jsdom
-import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { patchRuntimeMail } from '../scripts/lastro-mail.mjs';
+import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 
-const vendor = readFileSync('vendor/v2/Online.js', 'utf8');
+const vendor = readVendorSource();
+const lastroUiWindowAppend = runInNewContext(`${extractRuntimeNode(vendor, {
+  kind: 'function', name: 'lastroUiWindowAppend',
+})}\nlastroUiWindowAppend`) as (...args: unknown[]) => unknown;
+const writerPreferences = extractRuntimeNode(vendor, {
+  region: 'src/UI/Components/Rodex/WriteRodex.js', kind: 'assignment', name: 'lastroWriteRodexPreferences',
+});
 function region(source: string, path: string) {
-  const marker = `//#region ${path}`;
-  const start = source.indexOf(marker), end = source.indexOf('//#endregion', start);
-  if (start < 0 || end < 0 || source.lastIndexOf(marker) !== start) throw new Error(`Missing unique ${path}`);
-  return source.slice(start, end + '//#endregion'.length);
+  return extractVendorRegion(path, source);
 }
-// Parse only the nine native mail regions; do not initialize the bundled game.
-const source = ['Rodex', 'WriteRodex', 'ReadRodex'].flatMap(name =>
-  ['html?raw', 'css?raw', 'js'].map(extension => region(vendor, `src/UI/Components/Rodex/${name}.${extension}`)),
-).join('\n');
-const patched = patchRuntimeMail(source);
+const patched = vendor;
 function ast(source: string) { return ts.createSourceFile('mail.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS); }
 function find(source: string, predicate: (node: ts.Node) => boolean) {
   const file = ast(source), found: ts.Node[] = [];
@@ -36,14 +34,14 @@ function assignment(component: string, name: string, runtimeSource = patched) {
 }
 function template(component: string, extension = 'html?raw', runtimeSource = patched) {
   const file = ast(region(runtimeSource, `src/UI/Components/Rodex/${component}.${extension}`));
-  let value: string | undefined;
+  const values: string[] = [];
   function visit(node: ts.Node) {
-    if (ts.isBinaryExpression(node) && ts.isStringLiteral(node.right)) value = node.right.text;
+    if (ts.isBinaryExpression(node) && ts.isStringLiteral(node.right)) values.push(node.right.text);
     ts.forEachChild(node, visit);
   }
   visit(file);
-  if (value === undefined) throw new Error('Missing native template');
-  return value;
+  if (values.length !== 1) throw new Error(`Expected one native mail literal; found ${values.length}`);
+  return values[0]!;
 }
 const mountedHosts: HTMLElement[] = [];
 afterEach(() => mountedHosts.splice(0).forEach(host => host.remove()));
@@ -74,14 +72,14 @@ function writer(runtimeSource = patched) {
   const native = {
     _host: dom.host, _shadow: dom.root, receiver: null, CharID: 0, tax: 0, list: [],
     requestSendRodex: sent, requestCancelWriteRodex: cancel, validateName: validate,
-    focus: vi.fn(), draggable: vi.fn(),
+    focus: vi.fn(), draggable: vi.fn(), getRoot: () => dom.root,
   };
   const names = ['_root$8', 'onClickClose$1', 'onClickSend', 'onClickValidateName', 'prettifyZeny$3'];
   const handlers = names.map(name => declaration('WriteRodex', name, runtimeSource)).join('\n');
   const methods = ['initData', 'onAppend', 'updateWeight', 'updateTax', 'characterInfo']
     .map(name => assignment('WriteRodex', name, runtimeSource)).join(';\n');
-  runInNewContext(`${handlers}\n${methods};`, {
-    WriteRodex: native,
+  runInNewContext(`const ${writerPreferences};\n${handlers}\n${methods};`, {
+    WriteRodex: native, lastroUiWindowAppend, Preferences: { get: (_key: string, defaults: object) => ({ ...defaults, save: vi.fn() }) },
     DB: { getMessage: (id: number) => id === 3575 ? 'TITLE' : `message-${id}` },
     SessionStorage_default: session,
     ChatBox_default: { addText: messages, TYPE: { INFO_MAIL: 1 }, FILTER: { PUBLIC_LOG: 0 } },
@@ -426,40 +424,4 @@ describe('native mail localization and behavior', () => {
     expect(f.element('.get-zeny').style.display).toBe('none');
   });
 
-  it('transforms actual CRLF mail regions and executes the default title and invalid-title guard', () => {
-    const crlf = source.replace(/\r?\n/g, '\r\n');
-    const converted = patchRuntimeMail(crlf);
-    expect((ast(converted) as ts.SourceFile & { parseDiagnostics: readonly ts.Diagnostic[] }).parseDiagnostics).toEqual([]);
-    const f = writer(converted);
-    const title = f.element<HTMLInputElement>('.title-text');
-    expect(title.value).toBe('Mail');
-    expect(title.placeholder).toBe('标题');
-    f.api.receiver = '收件人'; f.api.CharID = 11;
-    title.value = ' '.repeat(23) + '无法发送的尾部文字';
-    f.element<HTMLTextAreaElement>('.content-text').focus(); f.element('.send').click();
-    expect(f.messages).toHaveBeenCalledExactlyOnceWith('邮件标题不能为空。', 1, 0);
-    expect(f.root.activeElement).toBe(title);
-    expect(f.sent).not.toHaveBeenCalled(); expect(f.cancel).not.toHaveBeenCalled();
-    f.api.initData({ receiveName: '收件人' }); f.api.receiver = '收件人'; f.api.CharID = 11;
-    expect(title.value).toBe('Mail'); f.element('.send').click();
-    expect(f.sent).toHaveBeenCalledExactlyOnceWith('收件人', '寄件角色', 0, 5, 1, 11, 'Mail\0', '\0');
-  });
-
-  it('rejects missing or ambiguous send-title and writer-region anchors before returning a partial patch', () => {
-    const lf = source.replaceAll('\r\n', '\n');
-    const nativeTitle = '  ' + find(region(lf, 'src/UI/Components/Rodex/WriteRodex.js'), node =>
-      ts.isVariableStatement(node) && node.declarationList.declarations.some(declaration =>
-        ts.isIdentifier(declaration.name) && declaration.name.text === 'title'));
-    expect(lf).toContain(nativeTitle);
-    expect(() => patchRuntimeMail(lf.replace('.substring(0, 23)', '.substring(0, 24)'))).toThrow('anchor:mail-send-title');
-    expect(() => patchRuntimeMail(lf.replace(nativeTitle, nativeTitle + '\n' + nativeTitle))).toThrow('anchor:mail-send-title');
-    expect(() => patchRuntimeMail(lf.replace(nativeTitle, nativeTitle + '\n' + nativeTitle.replaceAll('\n', '\r\n')))).toThrow('anchor:mail-send-title');
-    expect(() => patchRuntimeMail(lf + '\n' + region(lf, 'src/UI/Components/Rodex/WriteRodex.js'))).toThrow('anchor:mail-write-region');
-  });
-
-  it('fails on native anchor drift instead of partially changing an unknown layout', () => {
-    expect(() => patchRuntimeMail(source.replace('Rodex/ReadRodex.css?raw', 'Rodex/Missing.css?raw'))).toThrow('anchor:mail-templates');
-    expect(() => patchRuntimeMail(source.replace('DB.getMessage(3575)', 'DB.getMessage(3576)'))).toThrow('anchor:mail-title');
-    expect(patchRuntimeMail('const unrelated = true;')).toBe('const unrelated = true;');
-  });
 });

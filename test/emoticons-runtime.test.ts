@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { patchRuntimeEmoticons } from '../scripts/lastro-emoticons.mjs';
+import { patchRuntimeEmoticons } from '../scripts/lastro-display-localization.mjs';
 
 const vendor = readFileSync('vendor/v2/Online.js', 'utf8');
 function region(source: string, name: string) {

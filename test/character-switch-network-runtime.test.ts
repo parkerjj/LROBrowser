@@ -4,7 +4,8 @@ import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DirectTcpSocket } from '../src/network/direct-tcp-socket';
 import { patchRuntimeCharacterSwitch, patchRuntimeNetworkHandoffCleanup } from '../scripts/lastro-character-switch.mjs';
-import { patchRuntimeNetworkCloseDrain } from '../scripts/lastro-network-receive-recovery.mjs';
+// @ts-expect-error The reviewed LastRO card protocol helpers have no declaration file.
+import * as cardProtocol from '../vendor/v2/lastro-card-collection.mjs';
 
 const vendor = readFileSync(new URL('../vendor/v2/Online.js', import.meta.url), 'utf8');
 function region(name: string, source = vendor) {
@@ -17,7 +18,7 @@ const native = [
   'src/Network/NetworkManager.js', 'src/Engine/MapEngine.js',
 ].map(name => region(name)).join('\n');
 const switchPatched = patchRuntimeNetworkHandoffCleanup(patchRuntimeCharacterSwitch(native));
-const patched = patchRuntimeNetworkCloseDrain(switchPatched);
+const patched = switchPatched;
 function declarations(source: string, names: string[]) {
   const file = ts.createSourceFile('native.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
   return names.map(name => {
@@ -93,6 +94,7 @@ function runtime(source = patched) {
     eof() { this.ended = true; this.controller.close(); }
   }
   const context = vm.createContext({
+    ...cardProtocol,
     ArrayBuffer, Uint8Array, DataView, Int8Array, Int32Array, Float32Array, Math, Number,
     window: {}, SEEK_SET: 2, SEEK_CUR: 1,
     console: {
@@ -136,6 +138,7 @@ function runtime(source = patched) {
   vm.runInContext(region('src/Utils/BinaryReader.js'), context);
   context.init_BinaryReader();
   vm.runInContext([
+    declarations(region('src/Renderer/Entity/EntityWalk.js'), ['lastroCancelMovement']),
     declarations(region('src/Network/NetworkManager.js', source), [
       'connect', 'createReceiveState', 'getReceiveState', 'clearReceiveState',
       'receive', 'read$1', 'onClose$9', 'close', 'setPing',
@@ -386,7 +389,6 @@ describe('character-switch patch anchors', () => {
     const unrelated = 'export const unchanged = true;';
     expect(patchRuntimeCharacterSwitch(unrelated)).toBe(unrelated);
     expect(patchRuntimeNetworkHandoffCleanup(unrelated)).toBe(unrelated);
-    expect(patchRuntimeNetworkCloseDrain(unrelated)).toBe(unrelated);
     expect(declarations(region('src/Network/NetworkManager.js', switchPatched), ['onClose$9']))
       .toBe(declarations(region('src/Network/NetworkManager.js', native), ['onClose$9']));
   });
@@ -412,19 +414,45 @@ describe('character-switch patch anchors', () => {
     expect(() => patchRuntimeNetworkHandoffCleanup(native.replace(ping, changed))).toThrow('anchor:character-switch:');
   });
 
-  it('refuses ambiguous close regions, changed native disconnect conditions and repeated drain patches', () => {
-    expect(() => patchRuntimeNetworkCloseDrain(patched)).toThrow('anchor:network-close-drain:');
-    expect(() => patchRuntimeNetworkCloseDrain(native + region('src/Network/NetworkManager.js'))).toThrow('anchor:network-close-drain:');
-    const close = declarations(region('src/Network/NetworkManager.js', native), ['onClose$9']);
-    const changed = close.replace('this === _socket && !this.handoffPending', 'this === _socket || !this.handoffPending');
-    expect(changed).not.toBe(close);
-    expect(() => patchRuntimeNetworkCloseDrain(native.replace(close, changed))).toThrow('anchor:network-close-drain:');
-    expect(() => patchRuntimeNetworkCloseDrain(native.replace('function onClose$9(event)', 'function onClose$9(event, ignored)')))
-      .toThrow('anchor:network-close-drain:');
-  });
 });
 
 describe('EOF draining the actual native receive continuations', () => {
+  it('permanent receive state survives malformed chunk and drains EOF batch', async () => {
+    const h = fixture(switchPatched), old = await h.connect();
+    h.context.Configs.get = (name: string, fallback: unknown) => name === 'lastroCustomPackets' ? true : fallback;
+    h.context.PacketLength_default.getPacketLength = (id: number) => id === 0x7ffc ? -1 : id === 0x00b3 ? 3 : 4;
+    h.context.Packets.list[0x7ffc] = { Struct: vi.fn(), callback: vi.fn() };
+
+    h.context.receive.call(old.socket, new Uint8Array([0xfc, 0x7f, 3, 0]));
+    expect(old.state.closed).toBe(false);
+    expect(h.context._receiveStates.get(old.socket)).toBe(old.state);
+
+    h.context.receive.call(old.socket, dataFrame(0x7fff, 777));
+    expect(h.decoded).toContainEqual({ source: 'map', value: 777 });
+
+    h.context.receive.call(old.socket, batchFrames(96, accepted));
+    old.transport.eof();
+    await microtasks();
+    expect(h.decoded.filter(packet => packet.source === 'map')).toHaveLength(33);
+    expect(old.state.yieldPending).toBe(true);
+    expect(old.state.closed).toBe(false);
+    await h.flushReceiveTimers();
+    expect(h.decoded.filter(packet => packet.source === 'map').map(packet => packet.value))
+      .toEqual([777, ...Array.from({ length: 96 }, (_, index) => index)]);
+    expect(h.charInit).toHaveBeenCalledOnce();
+    expect(h.messages).toEqual([]);
+    expect(old.state.closed).toBe(true);
+    expect(old.state.saveBuffer).toBeNull();
+
+    const next = await h.connect();
+    h.context.onClose$9.call(old.socket, new Error('Late old socket close'));
+    expect(h.context._socket).toBe(next.socket);
+    expect(h.context._receiveStates.get(next.socket)).toBe(next.state);
+    expect(next.socket.connected).toBe(true);
+    expect(next.transport.close).not.toHaveBeenCalled();
+    expect(h.messages).toEqual([]);
+  });
+
   it.each([32, 96])('finishes all %s frames and the accepted restart ACK before the final close callback', async count => {
     const h = fixture(), old = await h.connect();
     old.transport.push(batchFrames(count, accepted)); old.transport.eof();

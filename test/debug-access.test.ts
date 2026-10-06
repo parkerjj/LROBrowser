@@ -4,6 +4,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { installDebugAccessGuard } from '../src/runtime/debug-access';
+import { extractRuntimeNode } from './helpers/vendor-runtime';
 
 const native = readFileSync('vendor/v2/Online.js', 'utf8');
 function region(path: string) {
@@ -184,10 +185,13 @@ describe('game IWA page debug access', () => {
       Mouse: { intersect: true, state: 0, MOUSE_STATE: { USESKILL: 1 }, screen: { x: 80, y: 90 } }, KEYS: { SHIFT: false, ALT: false, CTRL: false },
       SessionStorage_default: { Entity: entity }, EntityManager: { getOverEntity: () => other, getFocusEntity: () => null },
       Entity: { TYPE_EFFECT: 99, TYPE_TRAP: 100 }, Cursor: { ACTION: { ROTATE: 1, DEFAULT: 0 }, setType() {} },
-      Camera: { rotate }, _rightClickPosition: [0, 0],
+      Camera: { rotate, modelView: [], projection: [] }, _rightClickPosition: [0, 0],
+      Renderer: { canvas: f.win.document.body }, MapRenderer: { currentMap: 'prontera.gat', loading: false },
+      Altitude: { width: 1, height: 1, intersect: () => false, getCellHeight: () => 0 },
     });
     const path = 'src/Controls/MapControl.js';
-    vm.runInContext(nativeFunction(path, 'onMouseDown') + '\n' + nativeFunction(path, 'onMouseUp'), context);
+    vm.runInContext(`const ${extractRuntimeNode(native, { kind: 'assignment', name: 'refreshLastroGroundInput' })};\n`
+      + nativeFunction(path, 'onMouseDown') + '\n' + nativeFunction(path, 'onMouseUp'), context);
     f.win.document.body.addEventListener('mousedown', context.onMouseDown);
     f.win.document.body.addEventListener('mouseup', context.onMouseUp);
     for (const name of ['mousedown', 'contextmenu', 'mouseup']) {

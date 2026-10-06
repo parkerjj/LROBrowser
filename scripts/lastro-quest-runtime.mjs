@@ -58,6 +58,61 @@ export function installLastroQuestBridge(quest, { data, getQuests, canRefresh, q
 
 function fail() { throw new Error('anchor:lastro-quests'); }
 
+function questRenewLayoutBranch(onAppend, file) {
+  if (onAppend.parameters.length !== 0 || onAppend.asteriskToken || onAppend.modifiers?.length) fail();
+  const direct = onAppend.body.statements.filter(node => ts.isIfStatement(node)
+    && node.expression.getText(file) === 'renewLayout');
+  if (direct.length === 1 && onAppend.body.statements.length === 1) return { layout: direct[0], wrapped: false };
+  if (direct.length !== 0 || onAppend.body.statements.length !== 1) fail();
+
+  const returned = onAppend.body.statements[0];
+  if (!ts.isReturnStatement(returned) || !returned.expression || !ts.isCallExpression(returned.expression)) fail();
+  const wrapped = returned.expression;
+  if (wrapped.expression.getText(file) !== 'lastroUiWindowAppend' || wrapped.arguments.length !== 4
+    || wrapped.questionDotToken || wrapped.arguments[0].getText(file) !== 'this'
+    || wrapped.arguments[1].getText(file) !== '_preferences') fail();
+  const [append, snapshot] = wrapped.arguments.slice(2);
+  const zeroArgumentBlockArrow = node => ts.isArrowFunction(node) && node.parameters.length === 0
+    && !node.modifiers?.length && ts.isBlock(node.body);
+  if (!zeroArgumentBlockArrow(append) || !zeroArgumentBlockArrow(snapshot)
+    || append.body.statements.length !== 1) fail();
+  const layouts = append.body.statements.filter(node => ts.isIfStatement(node)
+    && node.expression.getText(file) === 'renewLayout');
+  if (layouts.length !== 1 || snapshot.body.statements.length !== 4
+    || snapshot.body.statements[0].getText(file) !== 'const hostDisplay = this._host\n      ? getComputedStyle(this._host).display\n      : "none";'
+    || snapshot.body.statements.slice(1).map(node => node.getText(file)).join('\n') !== [
+      '_preferences.show = hostDisplay !== "none";',
+      '_preferences.y = parseInt(this._host.style.top, 10);',
+      '_preferences.x = parseInt(this._host.style.left, 10);',
+    ].join('\n')) fail();
+  return { layout: layouts[0], wrapped: true };
+}
+
+function serializeQuestBridge(wrapped) {
+  const text = installLastroQuestBridge.toString();
+  if (!wrapped) return text;
+  const file = ts.createSourceFile('quest-bridge.js', text, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const matches = [];
+  function visit(node) {
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken
+      && node.left.getText(file) === 'quest.onAppend') matches.push(node.right);
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  const fn = matches[0];
+  if (matches.length !== 1 || !ts.isFunctionExpression(fn) || fn.parameters.length !== 1
+    || fn.asteriskToken || fn.modifiers?.length
+    || !fn.parameters[0].dotDotDotToken || fn.parameters[0].name.getText(file) !== 'args'
+    || fn.body.statements.map(node => node.getText(file)).join('\n') !== [
+      'const result = onAppend?.apply(this, args);', 'stop();', 'this.refreshBounties();',
+      'interval = clock.setInterval(() => this.refreshBounties(), 15000);', 'return result;',
+    ].join('\n')) fail();
+  const body = `{ return lastroUiWindowAppend(this, _preferences, () => {${fn.body.getText(file).slice(1, -1)}
+}, () => {_preferences.x = parseFloat(this._host.style.left) || 0; _preferences.y = parseFloat(this._host.style.top) || 0;
+}); }`;
+  return text.slice(0, fn.body.getStart(file)) + body + text.slice(fn.body.end);
+}
+
 export function patchRuntimeQuests(source) {
   if (!source.includes('//#region src/UI/Components/Quest/QuestCommon.js')) return source;
   if (source.includes('/* lastro-quest-integration */')) fail();
@@ -87,7 +142,9 @@ export function patchRuntimeQuests(source) {
   const returns = factory.body.statements.filter(node => ts.isReturnStatement(node) && node.expression?.getText(file) === 'UIManager.addComponent(Quest)');
   if (returns.length !== 1 || defaults[0].initializer?.getText(file) !== 'null') fail();
   edits.push({ start: defaults[0].initializer.getStart(file), end: defaults[0].initializer.end, text: '(init_QuestWindow(), QuestWindow_default)' });
-  const layout = appends[0].body.statements.find(node => ts.isIfStatement(node) && node.expression.getText(file) === 'renewLayout');
+  const { layout, wrapped } = questRenewLayoutBranch(appends[0], file);
+  if (wrapped && file.statements.filter(node => ts.isFunctionDeclaration(node)
+    && node.name?.text === 'lastroUiWindowAppend').length !== 1) fail();
   if (!layout || !layout.elseStatement || !ts.isBlock(layout.elseStatement)) fail();
   edits.push({ start: layout.elseStatement.end - 1, end: layout.elseStatement.end - 1, text: '\n      Quest.setQuestList(_questList);\n      questWindow.append();\n    ' });
   const update = updates[0];
@@ -137,7 +194,7 @@ export function patchRuntimeQuests(source) {
     getInfo: id => DB.getQuestInfo(id), getMonsterName: id => lastroQuestMonsterNames[id] || DB.getMonsterName(id),
     legacyMetadata: ${JSON.stringify(metadata)}, isLastro: () => Configs.get("lastroProtocol", false),
   });
-  (${installLastroQuestBridge.toString()})(Quest, {
+  (${serializeQuestBridge(wrapped)})(Quest, {
     data: lastroQuestData, getQuests: () => _questList,
     canRefresh: () => Configs.get("lastroProtocol", false) && !MapRenderer.loading && !!SessionStorage_default.Entity && !!PACKET.CZ.HUNTINGLIST,
     queryHuntingList: () => Network.sendPacket(new PACKET.CZ.HUNTINGLIST()),

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
-import { lastroItemEnchantName, patchRuntimeItemName } from '../scripts/lastro-item-name.mjs';
+import { lastroItemEnchantName, patchRuntimeItemName } from '../scripts/lastro-display-localization.mjs';
 
 const source = readFileSync('vendor/v2/Online.js', 'utf8');
 const patched = patchRuntimeItemName(source);

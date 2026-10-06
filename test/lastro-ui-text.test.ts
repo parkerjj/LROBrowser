@@ -3,8 +3,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { patchRuntimeUiText } from '../scripts/lastro-ui-text.mjs';
-import { createLastroUiMessages } from '../scripts/lastro-ui-messages.mjs';
+import { patchRuntimeUiText, createLastroUiMessages } from '../scripts/lastro-display-localization.mjs';
 
 const native = readFileSync('vendor/v2/Online.js', 'utf8');
 let patched: string;

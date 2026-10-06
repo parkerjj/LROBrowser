@@ -1,11 +1,27 @@
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
 import { findLastroServerWalkPath, type LastroServerWalkAltitude } from '../scripts/lastro-server-walk.mjs';
+import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 
-const vendor = readFileSync(new URL('../vendor/v2/Online.js', import.meta.url), 'utf8');
-const marker = vendor.indexOf('//#region src/Utils/PathFinding.js');
-const nativePathFinding = vendor.slice(marker, vendor.indexOf('//#endregion', marker));
+const vendor = readVendorSource();
+const nativePathFinding = extractVendorRegion('src/Utils/PathFinding.js', vendor);
+const embeddedRoute = extractRuntimeNode(vendor, {
+  region: 'src/Renderer/Entity/EntityWalk.js', kind: 'function', name: 'findLastroServerWalkPath',
+});
+const reusableRoute = extractRuntimeNode(readFileSync('scripts/lastro-server-walk.mjs', 'utf8'), {
+  kind: 'function', name: 'findLastroServerWalkPath',
+});
+
+function tokens(source: string) {
+  const scanner = ts.createScanner(ts.ScriptTarget.Latest, true, ts.LanguageVariant.Standard, source);
+  const result: string[] = [];
+  for (let token = scanner.scan(); token !== ts.SyntaxKind.EndOfFileToken; token = scanner.scan()) {
+    result.push(`${token}:${scanner.getTokenText()}`);
+  }
+  return result;
+}
 
 function map(width = 96, height = width) {
   const cells = new Uint8Array(width * height).fill(10);
@@ -104,6 +120,12 @@ function expectLegalPath(out: Int16Array, count: number, from: number[], to: num
 }
 
 describe('bounded fallback for rejected server walking paths', () => {
+  it('keeps the embedded bundle helper in token parity with the reusable route helper', () => {
+    const reusableTokens = tokens(reusableRoute);
+    expect(reusableTokens[0]).toBe(`${ts.SyntaxKind.ExportKeyword}:export`);
+    expect(tokens(embeddedRoute)).toEqual(reusableTokens.slice(1));
+  });
+
   it.each([
     { wallX: 60, wallBottom: 43, wallTop: 55, from: [50, 50], to: [69, 50], expectedSteps: 19 },
     { wallX: 16, wallBottom: 0, wallTop: 14, from: [1, 1], to: [30, 1], expectedSteps: 30 },
