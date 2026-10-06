@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
-import { patchRuntimeLastROItemLayouts } from '../scripts/lastro-network-security.mjs';
+import { patchRuntimeLastROItemLayouts } from '../scripts/lastro-item-packet-layouts.mjs';
 // @ts-expect-error The reviewed vendored protocol module has no declaration file.
 import * as nativeFraming from '../vendor/v2/lastro-packet-framing.mjs';
 // @ts-expect-error The reviewed vendored card module has no declaration file.
@@ -99,7 +99,7 @@ const legacyItemLayouts = [
   [0x0a0a, 47, 57], [0x0a0b, 47, 57], [0x0a37, 59, 69],
 ] as const;
 
-describe('real native LastRO network compatibility', () => {
+describe('real native LastRO item packet layout and network compatibility', () => {
   it.each(legacyItemLayouts)('decodes the published legacy layout for opcode %s under the configured newer client date', (id, legacyLength) => {
     const bytes = frame(id, legacyLength);
     for (let index = 2; index < bytes.length; index++) bytes[index] = (index * 13 + 7) & 255;

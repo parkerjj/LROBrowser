@@ -8,7 +8,7 @@ import process from 'node:process';
 import ts from 'typescript';
 import { patchRuntimeNavigation, patchRuntimePluginLoader, patchRuntimePlainTextSinks } from './patch-csp-runtime.mjs';
 import { patchRuntimeCredentialSecurity } from './lastro-credential-security.mjs';
-import { patchRuntimeLastROItemLayouts } from './lastro-network-security.mjs';
+import { patchRuntimeLastROItemLayouts } from './lastro-item-packet-layouts.mjs';
 import { patchRuntimeCharacterSwitch, patchRuntimeNetworkHandoffCleanup } from './lastro-character-switch.mjs';
 import { patchRuntimeNetworkDiagnostics } from './lastro-network-diagnostics.mjs';
 import { patchRuntimeLuaStartup } from './lastro-lua-startup.mjs';

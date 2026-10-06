@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { patchRuntimeLastROItemLayouts } from '../scripts/lastro-network-security.mjs';
+import { patchRuntimeLastROItemLayouts } from '../scripts/lastro-item-packet-layouts.mjs';
 
 const native = readFileSync('vendor/v2/Online.js', 'utf8');
 function networkRegion(source: string): string {
@@ -8,8 +8,8 @@ function networkRegion(source: string): string {
   return source.slice(start, source.indexOf('//#endregion', start));
 }
 
-describe('native networking after basic-security rollback', () => {
-  it('preserves the complete native receive, callbacks, reassembly and handoff logic', () => {
+describe('LastRO item packet layouts', () => {
+  it('leaves the native network manager region unchanged', () => {
     const output = patchRuntimeLastROItemLayouts(native);
     expect(networkRegion(output)).toBe(networkRegion(native));
     expect(output).not.toContain('function lastroReceivePackets(');
@@ -22,7 +22,7 @@ describe('native networking after basic-security rollback', () => {
     expect(patchRuntimeLastROItemLayouts(unrelated)).toBe(unrelated);
   });
 
-  it('rejects duplicate application of the six reviewed layout adjustments', () => {
+  it('rejects a second application of the six reviewed layout adjustments', () => {
     expect(() => patchRuntimeLastROItemLayouts(patchRuntimeLastROItemLayouts(native))).toThrow('anchor:network-security:item-layout');
   });
 });

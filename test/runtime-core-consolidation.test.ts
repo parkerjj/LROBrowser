@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import ts from 'typescript';
 import { auditCoreOwnership, compareRuntimeSources } from '../scripts/check-runtime-consolidation.mjs';
@@ -26,6 +26,13 @@ function audit(patcherSource: string, retiredTransforms = [layoutRetirement]) {
 }
 
 describe('runtime consolidation source helpers', () => {
+  it('resolves the packet layout transform only from its renamed module', async () => {
+    const previousModule = new URL(`../scripts/${['lastro', 'network', 'security'].join('-')}.mjs`, import.meta.url);
+    expect(existsSync(previousModule)).toBe(false);
+    const packetLayouts = await import('../scripts/lastro-item-packet-layouts.mjs');
+    expect(packetLayouts.patchRuntimeLastROItemLayouts).toBeTypeOf('function');
+  });
+
   it('reads the current vendor source for unique region extraction', () => {
     const source = readVendorSource();
     expect(extractVendorRegion('src/Audio/BGM.js', source)).toContain('//#region src/Audio/BGM.js');
