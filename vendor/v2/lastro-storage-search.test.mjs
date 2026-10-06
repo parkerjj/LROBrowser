@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { extractRuntimeNode } from "../../test/helpers/vendor-runtime.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SOURCE = readFileSync(join(HERE, "Online.js"), "utf8");
@@ -182,7 +183,7 @@ test("storage search and category filters can construct StorageFilter", () => {
 test("storage filter stays inside the viewport when its measured size is unavailable", () => {
   const onAppend = new Function(
     "Renderer",
-    `return (${extractStorageFilterMethod(
+    `${extractRuntimeNode(SOURCE, { kind: 'function', name: 'lastroUiWindowAppend' })}\nreturn (${extractStorageFilterMethod(
       SOURCE,
       "StorageFilter.prototype.onAppend =",
     )});`,
@@ -195,7 +196,11 @@ test("storage filter stays inside the viewport when its measured size is unavail
   };
   const component = {
     _host: host,
-    _preferences: { x: 2280, y: 2180 },
+    _preferences: { x: 2280, y: 2180, height: 4 },
+    getRoot: () => ({ querySelector: () => null }),
+    resizeHeight: new Function(`return (${extractRuntimeNode(SOURCE, {
+      region: 'src/UI/Components/Storage/StorageV3/StorageFilter.js', kind: 'function', name: 'resizeHeight',
+    })});`)(),
     ui: { show() {} },
   };
 

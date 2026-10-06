@@ -140,7 +140,7 @@ function fixture(options: { old?: boolean; year?: 2018 | 2025; rejectThrows?: bo
     const Network = { hookPacket: (packet, callback) => { if (packet) hookPacket(packet, callback); } };
     let _save_buffer = null, _receive_yield_pending = false;
     const _receiveStates = new WeakMap();
-    const socket = {}, state = getReceiveState(socket);
+    const socket = {}, _socket = socket, state = getReceiveState(socket);
     const read$1 = { callback: null }, packetDump = false, SEEK_SET = 2;
     ${activeMain.code}
     MainEngine$11();

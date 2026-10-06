@@ -117,6 +117,7 @@ function fixture(source = runtime) {
     BasicInfoController: {}, PlayerViewEquipController: {}, StatusIcons_default: {}, ChatBox_default: {},
     ShortCut_default: {}, Controller$3: {}, controller: {}, CashShop_default: {},
     PacketCrypt_default: { process: vi.fn() }, isObserverMode: () => false,
+    PACKET: { CZ: {}, ZC: {} },
     C_DEATH_SYNC_OFFSET: 200, C_MULTIHIT_DELAY: 200,
   });
   const rendererRegion = region('src/Renderer/Renderer.js');

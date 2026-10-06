@@ -88,6 +88,7 @@ function loadReceiveHarness(decodedPackets) {
       let _save_buffer = null;
       let _receive_yield_pending = false;
       const socket = { close() { socket.closeCount++; }, closeCount: 0 };
+      const _socket = socket;
       const _receiveStates = new WeakMap();
       ${extractFunction(source, 'function createReceiveState()')}
       ${extractFunction(source, 'function getReceiveState(socket)')}

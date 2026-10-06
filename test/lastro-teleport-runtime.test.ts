@@ -3,9 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { validateMapBinary } from '../src/resources/map-binary-validation';
 import { patchRuntimeToolsPanels } from '../scripts/patch-v2-runtime.mjs';
 import { mapBinaryFixture } from './map-binary-fixture';
+import { extractRuntimeNode } from './helpers/vendor-runtime';
 
 const { buildPrivateAirshipRequest } = await import(new URL('../vendor/v2/lastro-v1-migration.mjs', import.meta.url).href);
 const runtime = patchRuntimeToolsPanels(readFileSync('vendor/v2/Online.js', 'utf8'));
+const mapResourceResolver = extractRuntimeNode(runtime, { kind: 'function', name: 'resolveLastroMapResourceName' });
 const begin = runtime.indexOf('const lastroSendRouteTeleport =');
 const end = runtime.indexOf('(function installLastroToolsPanels', begin);
 if (begin < 0 || end < begin) throw new Error('Missing prepared teleport runtime');
@@ -51,6 +53,7 @@ function fixture(files = resources(), aliases: Record<string, string> = {}) {
   } };
   const worldMap = { _lastroTeleport: { cancelPending: vi.fn() } };
   const exposed = new Function('Thread', 'MapRenderer', 'SessionStorage_default', 'PACKET', 'Network', 'Configs', 'Navigation_default', 'LastROTools', 'normalizeLastROTeleportMap', 'buildPrivateAirshipRequest', 'DB', 'console', 'WorldMap_default', `
+    ${mapResourceResolver}
     ${installation}
     return { api: lastroVerifiedRouteRequest, routeNavigation: lastroRouteNavigation };
   `)(thread, mapRenderer, { Entity: actor }, { CZ: { PRIVATE_AIRSHIP_REQUEST: class {} } },

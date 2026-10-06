@@ -112,6 +112,8 @@ parts.functions.set('ground', `const ${extractRuntimeNode(vendor, { kind: 'assig
 parts.functions.set('cancelMovement', extractRuntimeNode(vendor, {
   region: 'src/Renderer/Entity/EntityWalk.js', kind: 'function', name: 'lastroCancelMovement',
 }));
+parts.functions.set('vendingActive', extractRuntimeNode(vendor, { kind: 'function', name: 'lastroVendingShoppingActive' }));
+parts.functions.set('closeVending', extractRuntimeNode(vendor, { kind: 'function', name: 'lastroCloseVendingShopping' }));
 const hoverParts = extract(region('src/UI/GUIComponent.js'));
 const navigationParts = extract(region('src/UI/Components/Navigation/Navigation.js'));
 const eventsRuntime = region('src/Core/Events.js');
@@ -185,7 +187,7 @@ function movementFixture(actualEvents?: 'current' | 'previous') {
     WhisperBox: { clearAll: vi.fn() }, console: { warn: vi.fn() },
     _list: entities,
   });
-  const needed = ['onRequestWalk', 'onRequestStopWalk', 'walkIntervalProcess', 'checkFreeCell', 'isFreeCell', 'onMouseDown', 'onMouseUp', 'onMouseUpCapture', 'ground', 'cancelMovement'];
+  const needed = ['onRequestWalk', 'onRequestStopWalk', 'walkIntervalProcess', 'checkFreeCell', 'isFreeCell', 'onMouseDown', 'onMouseUp', 'onMouseUpCapture', 'ground', 'cancelMovement', 'vendingActive', 'closeVending'];
   vm.runInContext(pcMethods.lastroCanPassPlayerClick!, context);
   if (actualEvents) vm.runInContext('function __esmMin(fn) { return () => fn(); }\n' + eventsRuntime + '\ninit_Events();', context);
   const factory = actualEvents === 'previous' ? source.factory.replace('clock: globalThis', 'clock: Events') : source.factory;
@@ -398,9 +400,13 @@ describe('actual MapControl and MapEngine movement', () => {
   it('cancels queued floor input at an actual new native Navigation.navigateTo request', () => {
     const f = movementFixture(); f.down(); f.up(); vi.advanceTimersByTime(50); f.setPick({ x: 60, y: 70 }); f.down(); f.up();
     const root = document.createElement('div'), path = vi.fn(() => []);
-    Object.assign(f.context, { Navigation: { getRoot: () => root }, normalizeMapName: (map: string) => map.replace(/\.gat$/i, ''),
-      _finalTargetData: null, MapPathFinder: { findPathBetweenMaps: path } });
-    vm.runInContext(navigationParts.navigate + '\nNavigation.navigateTo({startMap:"prontera",startX:1,startY:1,endMap:"prontera",endX:80,endY:90,showWindow:false});', f.context);
+    document.body.append(root);
+    Object.assign(f.context, { Navigation: { getRoot: () => root, _host: root, __loaded: true }, normalizeMapName: (map: string) => map.replace(/\.gat$/i, ''),
+      _finalTargetData: null, _mapData: { map: 'prontera' }, _pathFindingWorker: {}, MapPathFinder: { findPathBetweenMaps: path } });
+    const navigationDependencies = ['initializePathFindingWorker', 'getCurrentMap'].map(name => extractRuntimeNode(vendor, {
+      region: 'src/UI/Components/Navigation/Navigation.js', kind: 'function', name,
+    })).join('\n');
+    vm.runInContext(navigationDependencies.replaceAll('import.meta.url', '"file:///native.js"') + '\n' + navigationParts.navigate + '\nNavigation.navigateTo({startMap:"prontera",startX:1,startY:1,endMap:"prontera",endX:80,endY:90,showWindow:false});', f.context);
     expect(path).toHaveBeenCalledOnce(); vi.advanceTimersByTime(1000); expect(f.sent).toHaveLength(1); expect(vi.getTimerCount()).toBe(0);
   });
   it('retires queued ground movement before native skill handling removes its selection UI and restores Mouse.state', () => {
@@ -427,7 +433,10 @@ describe('actual MapControl and MapEngine movement', () => {
       // Invoke the actual patched entry prologue: the remaining native body owns map/UI teardown.
       const file = ts.createSourceFile('entry.js', parts.functions.get(name)!, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
       const fn = file.statements[0] as ts.FunctionDeclaration;
-      vm.runInContext(fn.body!.statements.slice(0, 2).map(statement => statement.getText(file)).join('\n'), f.context);
+      const cancellation = fn.body!.statements.map((statement, index) => ({ statement, index }))
+        .filter(({ statement }) => statement.getText(file).replace(/\s+/g, '') === 'MapControl._lastroMovementInput?.cancel();');
+      expect(cancellation).toHaveLength(1);
+      vm.runInContext(fn.body!.statements.slice(0, cancellation[0]!.index + 1).map(statement => statement.getText(file)).join('\n'), f.context);
     }
     vi.advanceTimersByTime(1000); expect(f.sent).toHaveLength(1);
   });

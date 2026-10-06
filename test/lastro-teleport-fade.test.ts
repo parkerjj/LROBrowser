@@ -4,9 +4,12 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createLastroTeleportFade, patchRuntimeTeleportFade } from '../scripts/lastro-teleport-fade.mjs';
+import { extractRuntimeNode } from './helpers/vendor-runtime';
 
 const vendor = readFileSync('vendor/v2/Online.js', 'utf8');
 const patched = patchRuntimeTeleportFade(vendor);
+const permanentHelpers = ['lastroCancelMovement', 'lastroCloseVendingShopping', 'describeLastroMapLoadFailure']
+  .map(name => extractRuntimeNode(vendor, { kind: 'function', name })).join('\n');
 function region(source: string, path: string) {
   const start = source.indexOf('//#region ' + path), end = source.indexOf('//#endregion', start);
   if (start < 0 || end < start) throw new Error('Missing native region ' + path);
@@ -34,6 +37,8 @@ function parts(source: string) {
 const rendererPath = 'src/Renderer/MapRenderer.js';
 const renderer = parts(region(patched, rendererPath));
 const nativeRenderer = parts(region(vendor, 'src/Renderer/Renderer.js'));
+const rendererRuntime = region(vendor, 'src/Renderer/Renderer.js');
+const serverClock = rendererRuntime.slice(rendererRuntime.indexOf('let lastroServerClockMark'), rendererRuntime.indexOf('var mat4$9'));
 const background = parts(region(vendor, 'src/UI/Background.js'));
 const htmlHelper = parts(region(vendor, 'src/Utils/HtmlHelper.js'));
 const entities = parts(region(patched, 'src/Engine/MapEngine/Entity.js'));
@@ -148,12 +153,12 @@ function nativeFixture(currentMap = 'prontera.gat') {
   const container = document.createElement('div'), canvas = document.createElement('canvas');
   const renderPart = () => ({ render: vi.fn(), free: vi.fn(), init: vi.fn() });
   const actor = (GID: number, position: number[]) => ({
-    GID, position, walkTo: vi.fn(), objecttype: 0, effectState: 0, _effectState: 0,
+    GID, position, walkTo: vi.fn(), action: 0, ACTION: { IDLE: 0, WALK: 1 }, objecttype: 0, effectState: 0, _effectState: 0,
     remove: vi.fn(), aura: { remove: vi.fn(), free: vi.fn(), load: vi.fn() },
   });
   const player = actor(10, [1, 2, 0]), other = actor(11, [3, 4, 0]);
   const context = vm.createContext({
-    document, console,
+    document, console, Network: { close: vi.fn() }, MapControl: {},
     SoundManager: { stop: vi.fn() }, BGM: { stop: vi.fn(), play: vi.fn() },
     Renderer: { stop: vi.fn(), remove: vi.fn(), init: vi.fn(), show: vi.fn(), getContext: () => ({}), render: vi.fn(() => { calls.push('renderer-start'); expect(animate).not.toHaveBeenCalled(); }) },
     UIManager: { removeComponents: vi.fn(), showErrorBox: vi.fn(() => ({ ui: { css: vi.fn() } })) },
@@ -178,6 +183,7 @@ function nativeFixture(currentMap = 'prontera.gat') {
     Events: { process: vi.fn(), setTimeout: vi.fn() }, C_DEATH_SYNC_OFFSET: 200,
   });
   vm.runInContext([
+    permanentHelpers, serverClock,
     helper[0]!.getText(helperFile), renderer.function('stripMapExtension'), renderer.function('onMapComplete'),
     `class Background { ${background.method('remove')} static setLoading(callback) { document.body.append(_container, _canvas); callback(); } }`,
     `class MapRenderer { ${['setMap', 'free', 'onRender'].map(name => renderer.method(name)).join('\n')} }`,

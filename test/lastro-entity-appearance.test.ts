@@ -51,13 +51,16 @@ function types(node: ts.Node) {
 }
 types(entityAst);
 const renderAst = file(region('src/Renderer/Entity/EntityRender.js', vendor));
-let actionIndexSource = '';
+const actionIndices: string[] = [];
 function renderIndex(node: ts.Node) {
-  if (ts.isElementAccessExpression(node) && node.expression.getText(renderAst) === 'act.actions') actionIndexSource = node.argumentExpression.getText(renderAst);
+  if (ts.isElementAccessExpression(node) && node.expression.getText(renderAst) === 'act.actions'
+    && ts.isVariableDeclaration(node.parent) && node.parent.name.getText(renderAst) === 'action'
+    && node.argumentExpression.getText(renderAst).includes('Camera.direction')) actionIndices.push(node.argumentExpression.getText(renderAst));
   ts.forEachChild(node, renderIndex);
 }
 renderIndex(renderAst);
-if (!actionIndexSource.includes('entity.action * 8')) throw new Error('Missing native ACT action index');
+if (actionIndices.length !== 1) throw new Error('Missing or duplicate native ACT action index');
+const actionIndexSource = actionIndices[0]!;
 
 interface ActionOptions { action: number; frame?: number; speed?: number; repeat?: boolean; play?: boolean; next?: ActionOptions | false; delay?: number; }
 interface AppearanceEntity {
@@ -101,7 +104,7 @@ function fixture(lastro = true, source = patched) {
     ...['Action', 'Animation', 'setAction', 'Init$10'].map(name => declaration(region(paths.actions, source), name)),
     ...['hasTransformation', 'getEffectiveJob', 'isValidEntitySex', 'shouldSuppressHead', 'UpdateBody'].map(name => declaration(region(paths.view, source), name)),
     declaration(region(paths.engine, source), 'onEntityAction'),
-    `function nativeActIndex(entity, camera = 0, length = 104) { const Camera = { direction: camera }, act = { actions: { length } }; return ${actionIndexSource}; }`,
+    `function nativeActIndex(entity, camera = 0, length = 104) { const Camera = { direction: camera }, act = { actions: { length } }, frame = entity._lastroEquipmentFrame; return ${actionIndexSource}; }`,
   ].join('\n'), context);
   const functions = vm.runInContext('({ types: Entity, init: Init$10, update: UpdateBody, attack: onEntityAction, index: nativeActIndex, db: DB, table: MonsterTable_default, merge: mergeJobNameTable })', context) as {
     types: Record<string, number>; init(this: AppearanceEntity): void; update(this: AppearanceEntity, job: number): void;
