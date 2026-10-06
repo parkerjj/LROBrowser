@@ -20,8 +20,6 @@ import { patchRuntimeDebugAccess } from './lastro-debug-access.mjs';
 
 import { ITEM_OBTAIN_CSS } from './lastro-loot-style.mjs';
 import { installLastroLootList } from './lastro-loot-list.mjs';
-import { createWorldMapIndex, installLastroWorldMap, WORLD_MAP_HTML, WORLD_MAP_CSS } from './lastro-worldmap.mjs';
-import { createMonsterPortraitLoader } from './lastro-monster-portrait.mjs';
 import { createLastroChatMapLinks } from './lastro-chat-map-links.mjs';
 import { patchRuntimeNpcMapLinks } from './lastro-npc-map-links.mjs';
 import { patchRuntimeAutolootSettings } from './lastro-autoloot-settings.mjs';
@@ -42,14 +40,11 @@ import { patchRuntimeHotkeys } from './lastro-hotkeys.mjs';
 import { patchRuntimeCardDeckHotkeys } from './lastro-card-deck-hotkeys.mjs';
 import { patchRuntimeCardCollection } from './lastro-card-collection.mjs';
 import { patchRuntimeQuests } from './lastro-quest-runtime.mjs';
-import { describeLastroMapLoadFailure } from './lastro-map-load-diagnostic.mjs';
 import teleportRoutes from './lastro-teleport-routes.json' with { type: 'json' };
 import { createLastroTeleportNavigation } from './lastro-teleport-navigation.mjs';
 import { createLastroTeleportPreflight } from './lastro-teleport-preflight.mjs';
 import { createLastroVerifiedTeleportRequest } from './lastro-teleport-request.mjs';
 import { createLastroWorldMapTeleport } from './lastro-worldmap-teleport.mjs';
-import { resolveLastroMapResourceName } from './lastro-map-resource-name.mjs';
-import worldMapLayout from './lastro-worldmap-layout.json' with { type: 'json' };
 
 const repo = fileURLToPath(new URL('../', import.meta.url));
 
@@ -259,7 +254,7 @@ function patchRuntimeUiLayout(source) {
 
 function teleportResourceLoaderCode() {
   return `filename => new Promise((resolve, reject) => {
-    const resolvedFilename = (${resolveLastroMapResourceName.toString()})(filename, DB.mapalias);
+    const resolvedFilename = resolveLastroMapResourceName(filename, DB.mapalias);
     let settled = false;
     const timer = globalThis.setTimeout(() => {
       if (settled) return;
@@ -284,17 +279,87 @@ function teleportResourceLoaderCode() {
   })`;
 }
 
-export function patchRuntimeWorldMap(source) {
+export function patchRuntimeWorldMapProductActions(source) {
+  const marker = '/* lastro-worldmap-product-actions */';
   const pattern = /\/\/#region src\/UI\/Components\/WorldMap\/WorldMap\.js\r?\n[\s\S]*?\/\/#endregion/g;
-  if ([...source.matchAll(pattern)].length !== 1) fail('anchor:worldmap-component');
-  return source.replace(pattern, () => `//#region src/UI/Components/WorldMap/WorldMap.js
-var WorldMap, WorldMap_default;
-var init_WorldMap = __esmMin(() => {
-  init_DBManager(); init_Client(); init_UIManager(); init_GUIComponent();
-  init_MonsterTable();
-  init_NetworkManager(); init_PacketStructure(); init_SessionStorage(); init_MapRenderer(); init_Navigation();
-  init_Thread(); init_Configs();
-  const lastroWorldMapPreflight = (${createLastroTeleportPreflight.toString()})({
+  const regions = [...source.matchAll(pattern)];
+  if (regions.length !== 1 || count(source, marker) !== 1) fail('anchor:worldmap-product-actions');
+  const region = regions[0], text = region[0];
+  const file = ts.createSourceFile('WorldMap.js', text, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const declarations = [], factories = [];
+  function visit(node) {
+    if (ts.isVariableDeclaration(node) && node.name.getText(file) === 'init_WorldMap') declarations.push(node);
+    if (ts.isFunctionExpression(node) && ['installLastroWorldMap', 'createWorldMapIndex', 'createMonsterPortraitLoader'].includes(node.name?.text)) factories.push(node);
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  const declaration = declarations[0], initializer = declaration?.initializer;
+  const callback = ts.isCallExpression(initializer ?? {}) && initializer.expression.getText(file) === '__esmMin'
+    && initializer.arguments.length === 1 && initializer.arguments[0];
+  const statements = callback && ts.isArrowFunction(callback) && !callback.modifiers?.length
+    && callback.parameters.length === 0 && ts.isBlock(callback.body) && callback.body.statements;
+  const expectedInits = ['init_DBManager', 'init_Client', 'init_UIManager', 'init_GUIComponent', 'init_MonsterTable', 'init_NetworkManager', 'init_PacketStructure', 'init_SessionStorage', 'init_MapRenderer', 'init_Navigation', 'init_Thread', 'init_Configs'];
+  if (file.parseDiagnostics.length || declarations.length !== 1 || !statements || statements.length !== 18
+      || factories.length !== 3 || new Set(factories.map(node => node.name.text)).size !== 3
+      || expectedInits.some((name, i) => !ts.isExpressionStatement(statements[i])
+        || !ts.isCallExpression(statements[i].expression) || statements[i].expression.expression.getText(file) !== name
+        || statements[i].expression.arguments.length !== 0)) fail('anchor:worldmap-product-actions');
+  const gui = statements[12], actions = statements[13], render = statements[14], installer = statements[15];
+  const action = ts.isVariableStatement(actions) && actions.declarationList.declarations[0];
+  const call = ts.isExpressionStatement(installer) && installer.expression;
+  const assignment = ts.isExpressionStatement(gui) && gui.expression;
+  const props = ts.isCallExpression(call ?? {}) && call.arguments[1];
+  const coreProperties = ['DB', 'Client', 'monsterPortrait', 'itemTable', 'currentMap', 'accountId', 'loadData'];
+  if (!action || (actions.declarationList.flags & ts.NodeFlags.BlockScoped) !== ts.NodeFlags.Const || actions.declarationList.declarations.length !== 1
+      || action.name.getText(file) !== 'lastroWorldMapActions' || !ts.isObjectLiteralExpression(action.initializer ?? {}) || action.initializer.properties.length
+      || text.slice(actions.end, render.getStart(file)).trim() !== marker
+      || !ts.isBinaryExpression(assignment ?? {}) || assignment.operatorToken.kind !== ts.SyntaxKind.EqualsToken
+      || assignment.left.getText(file) !== 'WorldMap' || !ts.isNewExpression(assignment.right) || assignment.right.expression.getText(file) !== 'GUIComponent'
+      || assignment.right.arguments?.length !== 2 || !ts.isStringLiteral(assignment.right.arguments[0]) || assignment.right.arguments[0].text !== 'WorldMap'
+      || !ts.isStringLiteral(assignment.right.arguments[1])
+      || !ts.isCallExpression(call ?? {}) || !ts.isParenthesizedExpression(call.expression)
+      || !ts.isFunctionExpression(call.expression.expression) || call.expression.expression.name?.text !== 'installLastroWorldMap'
+      || call.arguments.length !== 4 || call.arguments[0].getText(file) !== 'WorldMap'
+      || !ts.isObjectLiteralExpression(props ?? {}) || props.properties.length !== 8
+      || coreProperties.some((name, i) => props.properties[i].name?.getText(file) !== name)
+      || !ts.isSpreadAssignment(props.properties[7]) || props.properties[7].expression.getText(file) !== 'lastroWorldMapActions'
+      || !ts.isFunctionExpression(call.arguments[3]) || call.arguments[3].name?.text !== 'createWorldMapIndex'
+      || statements[16].getText(file) !== 'WorldMap.mouseMode = GUIComponent.MouseMode.STOP;'
+      || statements[17].getText(file) !== 'WorldMap_default = UIManager.addComponent(WorldMap);') fail('anchor:worldmap-product-actions');
+  const portrait = props.properties[2].initializer;
+  if (!ts.isCallExpression(portrait ?? {}) || !ts.isParenthesizedExpression(portrait.expression)
+      || !ts.isFunctionExpression(portrait.expression.expression) || portrait.expression.expression.name?.text !== 'createMonsterPortraitLoader') fail('anchor:worldmap-product-actions');
+  const expectedDeps = ts.createSourceFile('worldmap-deps.js', `const deps = {
+    DB, Client,
+    monsterPortrait: (createMonsterPortraitLoader)(Client, id => MonsterTable_default[id] ? DB.getBodyPath(id, 0) : null, document),
+    itemTable: () => ItemTable_default,
+    currentMap: () => MapRenderer.currentMap,
+    accountId: () => SessionStorage_default.AID,
+    loadData: async () => {
+      const values = await Promise.all(["world-data", "mob-data"].map(async name => {
+        const response = await fetch(new URL("../core/data/world/" + name + ".json", import.meta.url));
+        if (!response.ok) throw new Error("World map data HTTP " + response.status);
+        return response.json();
+      }));
+      return { worldData: values[0], mobData: values[1] };
+    }
+  };`, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const actualDepsText = 'const deps = {' + props.properties.slice(0, 7).map(node => node.getText(file)).join(',') + '};';
+  const actualDeps = ts.createSourceFile('worldmap-actual-deps.js', actualDepsText.replace(portrait.expression.getText(file), '(createMonsterPortraitLoader)'), ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const printer = ts.createPrinter({ removeComments: true });
+  const dependencyTokens = file => {
+    function check(node) {
+      if (node.kind === ts.SyntaxKind.RegularExpressionLiteral || ts.isTemplateExpression(node) || ts.isNoSubstitutionTemplateLiteral(node)) fail('anchor:worldmap-product-actions');
+      ts.forEachChild(node, check);
+    }
+    check(file);
+    const scanner = ts.createScanner(ts.ScriptTarget.Latest, true, ts.LanguageVariant.Standard, printer.printFile(file));
+    const tokens = [];
+    for (let kind = scanner.scan(); kind !== ts.SyntaxKind.EndOfFileToken; kind = scanner.scan()) tokens.push([kind, scanner.getTokenText()]);
+    return JSON.stringify(tokens);
+  };
+  if (actualDeps.parseDiagnostics.length || dependencyTokens(actualDeps) !== dependencyTokens(expectedDeps)) fail('anchor:worldmap-product-actions');
+  const injection = `const lastroWorldMapPreflight = (${createLastroTeleportPreflight.toString()})({
     getMap: () => MapRenderer.loading ? "" : normalizeLastROTeleportMap(MapRenderer.currentMap),
     getProfile: () => String(Configs.get("lastroNid", 0)) + ":" + String(Configs.get("clientVer", 0)),
     loadFile: ${teleportResourceLoaderCode()},
@@ -320,23 +385,8 @@ var init_WorldMap = __esmMin(() => {
       } else UIManager.showErrorBox(error.message || "传送地点检查失败，请重试。");
     },
   });
-  WorldMap = new GUIComponent("WorldMap", ${JSON.stringify(WORLD_MAP_CSS)});
   WorldMap._lastroTeleport = lastroWorldMapTeleport;
-  WorldMap.render = () => ${JSON.stringify(WORLD_MAP_HTML)};
-  (${installLastroWorldMap.toString()})(WorldMap, {
-    DB, Client,
-    monsterPortrait: (${createMonsterPortraitLoader.toString()})(Client, id => MonsterTable_default[id] ? DB.getBodyPath(id, 0) : null, document),
-    itemTable: () => ItemTable_default,
-    currentMap: () => MapRenderer.currentMap,
-    accountId: () => SessionStorage_default.AID,
-    loadData: async () => {
-      const values = await Promise.all(["world-data", "mob-data"].map(async name => {
-        const response = await fetch(new URL("../core/data/world/" + name + ".json", import.meta.url));
-        if (!response.ok) throw new Error("World map data HTTP " + response.status);
-        return response.json();
-      }));
-      return { worldData: values[0], mobData: values[1] };
-    },
+  Object.assign(lastroWorldMapActions, {
     navigate: mapname => {
       if (typeof LastROTools !== "undefined") LastROTools?._lastroPanels?.cancelRoute();
       if (normalizeLastROTeleportMap(MapRenderer.currentMap) === normalizeLastROTeleportMap(mapname)) {
@@ -352,12 +402,11 @@ var init_WorldMap = __esmMin(() => {
       return lastroWorldMapTeleport.request(mapname, label);
     },
     cancelTeleport: () => lastroWorldMapTeleport.cancelPending(),
-  }, ${JSON.stringify(worldMapLayout.regions)}, ${createWorldMapIndex.toString()});
-  WorldMap.mouseMode = GUIComponent.MouseMode.STOP;
-  WorldMap_default = UIManager.addComponent(WorldMap);
-});
-//#endregion`);
+  });`;
+  const position = region.index + actions.end;
+  return source.slice(0, position) + '\n  ' + injection + source.slice(position);
 }
+
 
 function replaceWorkerCreation(source) {
   const pattern = /if \(!_source\) _source = new Worker\(new URL\(\s*\/\* @vite-ignore \*\/\s*"" \+ new URL\("LastROThreadEventHandler\.js", import\.meta\.url\)\.href,\s*"" \+ import\.meta\.url\s*\), \{ type: "classic" \}\);/g;
@@ -1035,37 +1084,6 @@ async function setLastroTeleportConfirmationEnabled(enabled) {
   return preference + source.slice(0, anchor) + install + source.slice(anchor);
 }
 
-export function patchMapLoadFailureRecovery(source) {
-  const file = ts.createSourceFile('Online.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
-  const functions = [];
-  function visit(node) {
-    if (ts.isFunctionDeclaration(node) && node.name?.text === 'onMapComplete') functions.push(node);
-    ts.forEachChild(node, visit);
-  }
-  visit(file);
-  const fn = functions[0];
-  const failures = fn?.body?.statements.filter(node => ts.isIfStatement(node) && node.expression.getText(file) === '!success') || [];
-  if (functions.length !== 1 || failures.length !== 1 || fn.parameters.map(node => node.getText(file)).join(',') !== 'success,error'
-      || !failures[0].thenStatement.getText(file).includes('UIManager.showErrorBox(error)')
-      || failures[0].thenStatement.getText(file).includes('lastroFailedMap')) fail('anchor:map-load-failure');
-  const failure = failures[0].thenStatement;
-  const replacement = `{
-    const lastroFailedMap = this.currentMap;
-    this.loading = false;
-    this.currentMap = "";
-    Mouse.intersect = false;
-    if (typeof LastROTools !== "undefined") LastROTools?._lastroPanels?.cancelRoute();
-    Network.close();
-    console.error("[LastRO] Map load failed", lastroFailedMap, error);
-    const lastroMapDiagnostic = describeLastroMapLoadFailure(lastroFailedMap, error);
-    globalThis.LastROMapLoadFailure = lastroMapDiagnostic;
-    try { globalThis.localStorage?.setItem("LastROMapLoadFailure", JSON.stringify(lastroMapDiagnostic)); } catch { /* Storage may be unavailable. */ }
-    UIManager.showErrorBox(lastroMapDiagnostic.message).ui.css("zIndex", 1e3);
-    return;
-  }`;
-  return describeLastroMapLoadFailure.toString() + '\n' + source.slice(0, failure.getStart(file)) + replacement + source.slice(failure.end);
-}
-
 export function patchV2Runtime(source) {
   if (!source.startsWith('import ')) fail('anchor:runtime-imports');
   const normalizedSource = source.replace(/\r\n/g, '\n');
@@ -1232,7 +1250,7 @@ ${normalizedSource}`;
   output = patchLuaTableCompletion(output);
   output = patchRuntimeUiLayout(output);
   output = patchPetDialogueDecoding(output);
-  output = patchRuntimeWorldMap(output);
+  output = patchRuntimeWorldMapProductActions(output);
   output = patchRuntimeChatMapLinks(output);
   output = patchRuntimeNpcMapLinks(output, teleportResourceLoaderCode());
   output = patchRuntimeAchievementLinks(output, teleportResourceLoaderCode());
@@ -1243,7 +1261,6 @@ ${normalizedSource}`;
   output = patchRuntimeQuests(output);
   output = patchRuntimeItemName(output);
   output = patchRuntimeEmoticons(output);
-  output = patchMapLoadFailureRecovery(output);
   output = patchRuntimeTeleportFade(output);
   if (/new WebSocket|wss?:\/\/|socketProxy|electronAPI|NodeSocket/i.test(output)) fail('legacy-transport');
   output = patchRuntimeCredentialSecurity(output);

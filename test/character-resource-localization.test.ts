@@ -191,11 +191,37 @@ describe('character resource names survive Chinese UI localization', () => {
   });
   it('preserves only the exact WorldMap portrait resource guard', () => {
     const worldMap = 'src/UI/Components/WorldMap/WorldMap.js';
-    const guard = 'createMonsterPortraitLoader(Client, id => MonsterTable_default[id] ? DB.getBodyPath(id, 0) : null, document);';
-    const withGuard = appendUiCode(original, worldMap, `\n${guard}\n`);
-    expect(patchRuntimeJobLocalization(withGuard)).toContain(guard);
-    const malformedGuard = appendUiCode(original, worldMap,
-      '\ncreateMonsterPortraitLoader(Client, id => MonsterTable_default[id] ? DB.getBodyPath(id, 1) : null, document);\n');
-    expect(() => patchRuntimeJobLocalization(malformedGuard)).toThrow('anchor:job-display-lookups');
+    const source = nativeRegion(original, worldMap);
+    const file = ts.createSourceFile('WorldMap.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+    const calls: ts.CallExpression[] = [];
+    function visit(node: ts.Node) {
+      if (ts.isCallExpression(node) && ts.isParenthesizedExpression(node.expression)
+          && ts.isFunctionExpression(node.expression.expression) && node.expression.expression.name?.text === 'createMonsterPortraitLoader') calls.push(node);
+      ts.forEachChild(node, visit);
+    }
+    visit(file);
+    expect(calls).toHaveLength(1);
+    const call = calls[0]!, guard = call.getText(file);
+    const output = patchRuntimeJobLocalization(original);
+    expect(nativeRegion(output, worldMap)).toContain(guard);
+    const localized = ts.createSourceFile('localized.js', output, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+    let displayCalls = 0;
+    function countDisplay(node: ts.Node) {
+      if (ts.isCallExpression(node) && node.expression.getText(localized) === 'lastroJobDisplayName') displayCalls++;
+      ts.forEachChild(node, countDisplay);
+    }
+    countDisplay(localized);
+    expect(displayCalls).toBe(9);
+    const condition = 'MonsterTable_default[id] ? DB.getBodyPath(id, 0) : null';
+    for (const changed of [
+      guard.replace(condition, 'null'),
+      guard.replace('MonsterTable_default[id]', 'MonsterTable_default[id + 1]'),
+      guard.replace('function createMonsterPortraitLoader', 'function renamedPortraitFactory'),
+      guard.replace('DB.getBodyPath(id, 0)', 'DB.getBodyPath(id, 1)'),
+    ]) {
+      expect(changed).not.toBe(guard);
+      expect(() => patchRuntimeJobLocalization(original.replace(guard, changed))).toThrow('anchor:job-display-lookups');
+    }
+    expect(() => patchRuntimeJobLocalization(appendUiCode(original, worldMap, '\n' + guard + ';\n'))).toThrow('anchor:job-display-lookups');
   });
 });

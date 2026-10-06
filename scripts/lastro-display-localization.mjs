@@ -1677,8 +1677,12 @@ export function patchRuntimeJobLocalization(source) {
   const loaderCalls = [];
   for (const region of regions) {
     function visit(node) {
-      if (ts.isCallExpression(node) && node.expression.getText(region.file) === 'createMonsterPortraitLoader')
-        loaderCalls.push({ node, region });
+      if (ts.isCallExpression(node)) {
+        const expression = ts.isParenthesizedExpression(node.expression) ? node.expression.expression : node.expression;
+        if ((ts.isIdentifier(expression) && expression.text === 'createMonsterPortraitLoader')
+            || (ts.isFunctionExpression(expression) && expression.name?.text === 'createMonsterPortraitLoader'))
+          loaderCalls.push({ node, region });
+      }
       ts.forEachChild(node, visit);
     }
     visit(region.file);

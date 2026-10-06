@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { resolveLastroMapResourceName } from '../scripts/lastro-map-resource-name.mjs';
+import { runInNewContext } from 'node:vm';
+import { extractRuntimeNode, readVendorSource } from './helpers/vendor-runtime';
+
+const resolveLastroMapResourceName = runInNewContext(`(${extractRuntimeNode(readVendorSource(), { kind: 'function', name: 'resolveLastroMapResourceName' })})`) as typeof import('../scripts/lastro-map-resource-name.mjs').resolveLastroMapResourceName;
 
 describe('native map resource aliases', () => {
   it('applies the same one-step alias as the map loader without changing the packet map name', () => {

@@ -100,6 +100,8 @@ export function buildRuntimePatchFixture(vendorSource: string): string {
     '//#region src/Network/SocketHelpers/WebSocket.js\nfunction Socket$1() {}\n//#endregion',
     '//#region src/Network/SocketHelpers/NodeSocket.js\nvar Socket;\n//#endregion',
     worldMap,
+    extractRuntimeNode(vendorSource, { kind: 'function', name: 'resolveLastroMapResourceName' }),
+    extractRuntimeNode(vendorSource, { kind: 'function', name: 'describeLastroMapLoadFailure' }),
     'function defaultSocketFactory(host, port) { return new Socket(host, port); }',
     'function requestChatMapTeleport(link) { return false; }',
     'function flushMessageBuffer() { messages.forEach(msg => { const div = document.createElement("div"); if (!msg.override) div.textContent = msg.text; else div.innerHTML = msg.text; }); }',

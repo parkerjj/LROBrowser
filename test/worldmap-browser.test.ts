@@ -5,16 +5,9 @@ import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { extractWorldMapFixture } from '../scripts/extract-worldmap-fixture.mjs';
 import { createLastroWorldMapTeleport } from '../scripts/lastro-worldmap-teleport.mjs';
-import { WORLD_MAP_CSS, WORLD_MAP_HTML } from '../scripts/lastro-worldmap.mjs';
 
 const runtime = readFileSync('generated/runtime/Online.js', 'utf8');
 const fixture = extractWorldMapFixture(runtime);
-fixture.css = WORLD_MAP_CSS; fixture.html = WORLD_MAP_HTML;
-// Exercise current source behavior without regenerating the packaged runtime.
-const installerFile = ts.createSourceFile('lastro-worldmap.mjs', readFileSync('scripts/lastro-worldmap.mjs', 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
-const installer = installerFile.statements.filter(node => ts.isFunctionDeclaration(node) && node.name?.text === 'installLastroWorldMap');
-if (installer.length !== 1) throw new Error('Missing source world map installer');
-fixture.installLastroWorldMap = installer[0]!.getText(installerFile).replace(/^export\s+/, '');
 function nativeRegion(name: string) {
   const start = runtime.indexOf('//#region ' + name), end = runtime.indexOf('//#endregion', start);
   if (start < 0 || end < start) throw new Error('Missing native region: ' + name);

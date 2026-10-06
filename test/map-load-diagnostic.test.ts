@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { describeLastroMapLoadFailure } from '../scripts/lastro-map-load-diagnostic.mjs';
+import { runInNewContext } from 'node:vm';
+import { extractRuntimeNode, readVendorSource } from './helpers/vendor-runtime';
+
+const describeLastroMapLoadFailure = runInNewContext(`(${extractRuntimeNode(readVendorSource(), { kind: 'function', name: 'describeLastroMapLoadFailure' })})`) as typeof import('../scripts/lastro-map-load-diagnostic.mjs').describeLastroMapLoadFailure;
 
 describe('native map load diagnostics', () => {
   it.each([

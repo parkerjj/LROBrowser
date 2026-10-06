@@ -56,6 +56,7 @@ export interface RuntimeSourceComparison {
   equal: boolean;
   differences: RuntimeSourceDifference[];
   relocatedOwners?: string[];
+  structuralDeltas?: string[];
 }
 
 export declare function auditCoreOwnership(input: CoreOwnershipInput): string[];

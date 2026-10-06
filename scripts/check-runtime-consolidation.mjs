@@ -504,8 +504,8 @@ function compareOwnerTokens(before, after, owner) {
   };
 }
 
-/** Compare runtime sources without region-wide allowances; strings use decoded values. */
-export function compareRuntimeSources(before, after, options) {
+/** Strict comparison shared by every stage, including the fixed seven audio owners. */
+function compareStrictRuntimeSources(before, after, options) {
   if (!options || !stages.has(options.stage)) {
     throw new Error(`Unknown runtime comparison stage: ${options?.stage ?? '<missing>'}`);
   }
@@ -612,6 +612,169 @@ export function compareRuntimeSources(before, after, options) {
   return { equal: differences.length === 0, differences, relocatedOwners };
 }
 
+// Spec 6.2/6.3 permits only these fixed WorldMap/action and pure-helper shapes.
+// Canonicalization edits individual AST nodes; every remaining token is compared.
+function worldMapStructuralProjection(before, after) {
+  const oldFile = parseSource(before, 'worldmap-before.js'), newFile = parseSource(after, 'worldmap-after.js');
+  const errors = [], deltas = [], oldEdits = [], newEdits = [];
+  const reject = detail => { throw new Error(detail); };
+  const nodes = (file, predicate) => { const result = []; visit(file, node => { if (predicate(node)) result.push(node); }); return result; };
+  const one = (file, predicate, label) => { const found = nodes(file, predicate); if (found.length !== 1) reject(`${label}: expected one, found ${found.length}`); return found[0]; };
+  const initializer = file => {
+    const declaration = one(file, node => ts.isVariableDeclaration(node) && node.name.getText(file) === 'init_WorldMap', 'init_WorldMap');
+    const call = declaration.initializer;
+    if (!ts.isCallExpression(call ?? {}) || call.expression.getText(file) !== '__esmMin' || call.arguments.length !== 1
+        || !ts.isArrowFunction(call.arguments[0]) || call.arguments[0].parameters.length || call.arguments[0].modifiers?.length
+        || !ts.isBlock(call.arguments[0].body)) reject('init_WorldMap callback shape');
+    return call.arguments[0].body;
+  };
+  const hasOldProduct = nodes(oldFile, node => ts.isVariableDeclaration(node) && node.name.getText(oldFile) === 'lastroWorldMapPreflight').length;
+  const hasNewActions = nodes(newFile, node => ts.isVariableDeclaration(node) && node.name.getText(newFile) === 'lastroWorldMapActions').length;
+  if (!hasOldProduct || !hasNewActions) return { before, after, errors, deltas };
+  const tokensEqual = (a, aFile, b, bFile, label) => {
+    const difference = compareOwnerTokens(tokenizeStatement(a, aFile, label), tokenizeStatement(b, bFile, label), label);
+    if (difference) reject(`${label}: ${difference.detail}`);
+  };
+  const text = (node, file) => node.getText(file);
+  const callStatement = (node, file, name) => ts.isExpressionStatement(node) && ts.isCallExpression(node.expression)
+    && node.expression.expression.getText(file) === name && node.expression.arguments.length === 0;
+  const constBinding = (node, file, name) => ts.isVariableStatement(node)
+    && (node.declarationList.flags & ts.NodeFlags.BlockScoped) === ts.NodeFlags.Const
+    && node.declarationList.declarations.length === 1 && node.declarationList.declarations[0].name.getText(file) === name;
+  const installerCall = (node, file) => {
+    const call = ts.isExpressionStatement(node) && node.expression;
+    if (!ts.isCallExpression(call ?? {}) || !ts.isParenthesizedExpression(call.expression)
+        || !ts.isFunctionExpression(call.expression.expression) || call.expression.expression.name?.text !== 'installLastroWorldMap'
+        || call.arguments.length !== 4 || call.arguments[0].getText(file) !== 'WorldMap'
+        || !ts.isObjectLiteralExpression(call.arguments[1]) || !ts.isFunctionExpression(call.arguments[3])
+        || call.arguments[3].name?.text !== 'createWorldMapIndex') reject('installer owner/arguments');
+    return call;
+  };
+  const apply = (source, edits) => { for (const edit of edits.sort((a, b) => b.start - a.start)) source = source.slice(0, edit.start) + edit.text + source.slice(edit.end); return source; };
+  try {
+    if (oldFile.parseDiagnostics.length || newFile.parseDiagnostics.length) reject('parse diagnostics');
+    const oldBody = initializer(oldFile), newBody = initializer(newFile);
+    const a = oldBody.statements, b = newBody.statements;
+    const oldInits = ['init_DBManager', 'init_Client', 'init_UIManager', 'init_GUIComponent', 'init_MonsterTable', 'init_NetworkManager', 'init_PacketStructure', 'init_SessionStorage', 'init_MapRenderer', 'init_Navigation', 'init_Thread', 'init_Configs'];
+    if (a.length !== 20 || b.length !== 22 || oldInits.some((name, i) => !callStatement(a[i], oldFile, name))
+        || oldInits.some((name, i) => !callStatement(b[i], newFile, name))) reject('fixed initializer count/order');
+    if (!constBinding(a[12], oldFile, 'lastroWorldMapPreflight') || !constBinding(a[13], oldFile, 'lastroWorldMapTeleport')
+        || !constBinding(b[14], newFile, 'lastroWorldMapPreflight') || !constBinding(b[15], newFile, 'lastroWorldMapTeleport')
+        || !constBinding(b[13], newFile, 'lastroWorldMapActions')) reject('product/action const owners');
+    const actions = b[13].declarationList.declarations[0].initializer;
+    if (!ts.isObjectLiteralExpression(actions ?? {}) || actions.properties.length) reject('actions must be an empty object');
+    const marker = '/* lastro-worldmap-product-actions */';
+    if (after.split(marker).length !== 2 || after.slice(b[17].end, b[18].getStart(newFile)).trim() !== marker) reject('unique action marker placement');
+    const oldInstaller = installerCall(a[17], oldFile), newInstaller = installerCall(b[19], newFile);
+    const oldProps = oldInstaller.arguments[1].properties, newProps = newInstaller.arguments[1].properties;
+    const coreProps = ['DB', 'Client', 'monsterPortrait', 'itemTable', 'currentMap', 'accountId', 'loadData'];
+    const actionProps = ['navigate', 'teleport', 'cancelTeleport'];
+    const assignment = ts.isExpressionStatement(b[17]) && b[17].expression;
+    if (oldProps.length !== 10 || !oldProps.hasTrailingComma || newProps.length !== 8 || newProps.hasTrailingComma
+        || coreProps.some((name, i) => oldProps[i].name?.getText(oldFile) !== name || newProps[i].name?.getText(newFile) !== name)
+        || !ts.isSpreadAssignment(newProps[7]) || newProps[7].expression.getText(newFile) !== 'lastroWorldMapActions'
+        || !ts.isCallExpression(assignment ?? {}) || assignment.expression.getText(newFile) !== 'Object.assign'
+        || assignment.arguments.length !== 2 || assignment.arguments[0].getText(newFile) !== 'lastroWorldMapActions'
+        || !ts.isObjectLiteralExpression(assignment.arguments[1]) || assignment.arguments[1].properties.length !== 3 || !assignment.arguments[1].properties.hasTrailingComma
+        || actionProps.some((name, i) => oldProps[i + 7].name?.getText(oldFile) !== name || assignment.arguments[1].properties[i].name?.getText(newFile) !== name)) reject('exact three action members and core deps');
+    const gui = ts.isExpressionStatement(b[12]) && b[12].expression;
+    if (!ts.isBinaryExpression(gui ?? {}) || gui.left.getText(newFile) !== 'WorldMap' || gui.operatorToken.kind !== ts.SyntaxKind.EqualsToken
+        || !ts.isNewExpression(gui.right) || gui.right.expression.getText(newFile) !== 'GUIComponent'
+        || gui.right.arguments?.length !== 2 || !ts.isStringLiteral(gui.right.arguments[0]) || gui.right.arguments[0].text !== 'WorldMap'
+        || !ts.isStringLiteral(gui.right.arguments[1])) reject('unique WorldMap GUI constructor');
+    for (const [i, j] of [[14, 12], [15, 16], [16, 18], [18, 20], [19, 21]]) tokensEqual(a[i], oldFile, b[j], newFile, `WorldMap statement ${i}`);
+    if (text(a[15], oldFile) !== 'WorldMap._lastroTeleport = lastroWorldMapTeleport;'
+        || text(a[18], oldFile) !== 'WorldMap.mouseMode = GUIComponent.MouseMode.STOP;'
+        || text(a[19], oldFile) !== 'WorldMap_default = UIManager.addComponent(WorldMap);') reject('attachment/registration shape');
+    for (const name of ['createLastroTeleportPreflight', 'createLastroWorldMapTeleport', 'installLastroWorldMap', 'createWorldMapIndex', 'createMonsterPortraitLoader']) {
+      const predicate = node => ts.isFunctionExpression(node) && node.name?.text === name && node.getStart() >= oldBody.getStart() && node.end <= oldBody.end;
+      one(oldFile, predicate, `old factory ${name}`);
+      one(newFile, node => ts.isFunctionExpression(node) && node.name?.text === name && node.getStart() >= newBody.getStart() && node.end <= newBody.end, `new factory ${name}`);
+    }
+    const resolver = one(newFile, node => ts.isFunctionDeclaration(node) && node.name?.text === 'resolveLastroMapResourceName', 'permanent resolver');
+    const diagnosticOld = one(oldFile, node => ts.isFunctionDeclaration(node) && node.name?.text === 'describeLastroMapLoadFailure', 'old diagnostic');
+    const diagnosticNew = one(newFile, node => ts.isFunctionDeclaration(node) && node.name?.text === 'describeLastroMapLoadFailure', 'permanent diagnostic');
+    const mapComplete = one(newFile, node => ts.isFunctionDeclaration(node) && node.name?.text === 'onMapComplete', 'map completion');
+    if (resolver.parent !== newFile || diagnosticNew.parent !== newFile || diagnosticOld !== oldFile.statements[3]
+        || oldFile.statements.slice(0, 3).some(node => !ts.isImportDeclaration(node) || node.moduleSpecifier.text !== './lastro-trusted-dom.mjs')
+        || newFile.statements.indexOf(diagnosticNew) !== newFile.statements.indexOf(resolver) + 1
+        || newFile.statements.indexOf(mapComplete) !== newFile.statements.indexOf(diagnosticNew) + 1
+        || resolver.modifiers?.length || resolver.asteriskToken || diagnosticNew.modifiers?.length || diagnosticNew.asteriskToken) reject('pure helper declaration placement/shape');
+    tokensEqual(diagnosticOld, oldFile, diagnosticNew, newFile, 'diagnostic body');
+    const oldResolverCalls = nodes(oldFile, node => ts.isCallExpression(node) && ts.isParenthesizedExpression(node.expression)
+      && ts.isFunctionExpression(node.expression.expression) && node.expression.expression.name?.text === 'resolveLastroMapResourceName');
+    const newResolverCalls = nodes(newFile, node => ts.isCallExpression(node) && node.expression.getText(newFile) === 'resolveLastroMapResourceName');
+    const enclosingOwner = (node, file) => { for (let current = node.parent; current; current = current.parent) {
+      if (ts.isVariableDeclaration(current) && ['lastroWorldMapPreflight', 'lastroNpcMapPreflight', 'lastroAchievementMapPreflight', 'lastroRoutePreflight'].includes(current.name.getText(file))) return current.name.getText(file);
+    } return ''; };
+    const expectedOwners = ['lastroWorldMapPreflight', 'lastroNpcMapPreflight', 'lastroAchievementMapPreflight', 'lastroRoutePreflight'];
+    if (oldResolverCalls.length !== 4 || newResolverCalls.length !== 4
+        || oldResolverCalls.map(node => enclosingOwner(node, oldFile)).sort().join(',') !== [...expectedOwners].sort().join(',')
+        || newResolverCalls.map(node => enclosingOwner(node, newFile)).sort().join(',') !== [...expectedOwners].sort().join(',')) reject('exact four preflight resolver consumers');
+    // A local binding can be identical in both sources while changing the new
+    // identifier call relative to the old inline function. Resolve lexical
+    // symbols, including parameters and destructuring/catch/block bindings.
+    const bindingOptions = { allowJs: true, noLib: true, noResolve: true };
+    const bindingHost = {
+      ...ts.createCompilerHost(bindingOptions),
+      getSourceFile: name => name === newFile.fileName ? newFile : undefined,
+      fileExists: name => name === newFile.fileName,
+      readFile: name => name === newFile.fileName ? after : undefined,
+    };
+    const bindingChecker = ts.createProgram([newFile.fileName], bindingOptions, bindingHost).getTypeChecker();
+    for (const call of newResolverCalls) {
+      const bindings = bindingChecker.getSymbolAtLocation(call.expression)?.getDeclarations();
+      if (bindings?.length !== 1 || bindings[0] !== resolver) reject('permanent resolver callee is shadowed or unresolved');
+    }
+    const resolverText = text(resolver, newFile);
+    for (const call of oldResolverCalls) {
+      const fn = call.expression.expression;
+      if (call.arguments.length !== 2 || call.arguments[0].getText(oldFile) !== 'filename' || call.arguments[1].getText(oldFile) !== 'DB.mapalias'
+          || !ts.isVariableDeclaration(call.parent) || call.parent.name.getText(oldFile) !== 'resolvedFilename') reject('resolver invocation arguments/owner');
+      // Function declarations and expressions have distinct AST wrappers; compare
+      // equivalent expressions so parameters, body and literals remain exact.
+      const reference = parseSource(`const resolver = (${resolverText});`, 'resolver-reference.js');
+      tokensEqual(fn, oldFile, reference.statements[0].declarationList.declarations[0].initializer.expression, reference, 'resolver body');
+      oldEdits.push({ start: call.expression.getStart(oldFile), end: call.expression.end, text: 'resolveLastroMapResourceName' });
+    }
+    for (const call of newResolverCalls) if (call.arguments.length !== 2 || call.arguments[0].getText(newFile) !== 'filename'
+        || call.arguments[1].getText(newFile) !== 'DB.mapalias' || !ts.isVariableDeclaration(call.parent)
+        || call.parent.name.getText(newFile) !== 'resolvedFilename') reject('permanent resolver invocation drift');
+    // Normalize the old WorldMap body into the reviewed new statement order.
+    // Copy old members verbatim; the subsequent strict pass checks all new bodies.
+    const oldDeps = oldInstaller.arguments[1];
+    const depsText = '{' + oldProps.slice(0, 7).map(node => text(node, oldFile)).join(',') + ',...lastroWorldMapActions}';
+    const installerText = before.slice(oldInstaller.getStart(oldFile), oldDeps.getStart(oldFile)) + depsText + before.slice(oldDeps.end, oldInstaller.end) + ';';
+    const resolverInBody = oldResolverCalls.find(call => enclosingOwner(call, oldFile) === 'lastroWorldMapPreflight');
+    const preflightText = text(a[12], oldFile).replace(text(resolverInBody.expression, oldFile), 'resolveLastroMapResourceName');
+    const normalizedBody = '{' + [...oldInits.map(name => name + '();'), text(a[14], oldFile), 'const lastroWorldMapActions = {};',
+      preflightText, text(a[13], oldFile), text(a[15], oldFile),
+      'Object.assign(lastroWorldMapActions, {' + oldProps.slice(7).map(node => text(node, oldFile)).join(',') + ',});',
+      text(a[16], oldFile), installerText, text(a[18], oldFile), text(a[19], oldFile)].join('\n') + '}';
+    oldEdits.splice(oldEdits.findIndex(edit => edit.start === resolverInBody.expression.getStart(oldFile)), 1);
+    oldEdits.push({ start: oldBody.getStart(oldFile), end: oldBody.end, text: normalizedBody }, { start: diagnosticOld.getStart(oldFile), end: diagnosticOld.end, text: '' });
+    newEdits.push({ start: resolver.getStart(newFile), end: resolver.end, text: '' }, { start: diagnosticNew.getStart(newFile), end: diagnosticNew.end, text: '' });
+    deltas.push('WorldMap: twelve client initializers retain exact order; GUI precedes pure product factory construction',
+      'WorldMap: empty const actions object, unique marker, exact three callbacks assigned once and spread into installer deps',
+      'resolver: four token-identical inline preflight helpers replaced by one pure declaration and exact filename/DB.mapalias calls',
+      'diagnostic: token-identical pure declaration relocated immediately before onMapComplete after resolver');
+    return { before: apply(before, oldEdits), after: apply(after, newEdits), errors, deltas };
+  } catch (error) {
+    errors.push({ owner: 'WorldMap structural contract', kind: 'worldmap-shape', detail: error.message });
+    return { before, after, errors, deltas: [] };
+  }
+}
+
+export function compareRuntimeSources(before, after, options) {
+  if (!['worldmap', 'final'].includes(options?.stage)) return compareStrictRuntimeSources(before, after, options);
+  const projection = worldMapStructuralProjection(before, after);
+  const result = compareStrictRuntimeSources(projection.before, projection.after, options);
+  result.differences.unshift(...projection.errors);
+  result.equal = result.differences.length === 0;
+  if (projection.deltas.length) result.structuralDeltas = projection.deltas;
+  return result;
+}
+
 function parseArguments(args) {
   const values = new Map();
   for (let index = 0; index < args.length; index++) {
@@ -641,10 +804,11 @@ async function cli(args) {
       readFile(path.join(repo, 'scripts/prepare-runtime.mjs'), 'utf8'),
     ]);
     const diagnostics = auditCoreOwnership({
-      vendorSource, patcherSource, prepareSource, retiredTransforms, retiredHostExports: [],
+      vendorSource, patcherSource, prepareSource, retiredTransforms,
+      retiredHostExports: ['resolveLastroMapResourceName', 'describeLastroMapLoadFailure'],
       relocatedBindings,
       coordinatorBindings: displayCoordinatorBindings,
-      forbiddenHostDefinitions: relocatedCoordinatorNames,
+      forbiddenHostDefinitions: [...relocatedCoordinatorNames, 'patchRuntimeWorldMap', 'patchMapLoadFailureRecovery'],
       strictRelocationAudit: true,
     });
     for (const module of new Set(retiredTransforms.map(transform => transform.module))) {

@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { describeLastroMapLoadFailure } from '../scripts/lastro-map-load-diagnostic.mjs';
+import { extractRuntimeNode } from './helpers/vendor-runtime';
 import type { NpcMapComponent, NpcMapLinksApi } from '../scripts/lastro-npc-map-links.mjs';
 import { patchRuntimeNpcMapLinks } from '../scripts/lastro-npc-map-links.mjs';
 import { setLastROInnerHTML } from '../src/runtime/lastro-trusted-dom.mjs';
@@ -14,6 +14,8 @@ import { mapBinaryFixture } from './map-binary-fixture';
 const { buildPrivateAirshipRequest } = await import(pathToFileURL(resolve('vendor/v2/lastro-v1-migration.mjs')).href);
 const runtime = readFileSync('generated/runtime/Online.js', 'utf8');
 const native = readFileSync('vendor/v2/Online.js', 'utf8');
+const describeLastroMapLoadFailure = vm.runInNewContext(`(${extractRuntimeNode(native, { kind: 'function', name: 'describeLastroMapLoadFailure' })})`);
+const resolveLastroMapResourceName = vm.runInNewContext(`(${extractRuntimeNode(native, { kind: 'function', name: 'resolveLastroMapResourceName' })})`);
 function region(source: string, name: string) {
   const start = source.indexOf('//#region ' + name), end = source.indexOf('//#endregion', start);
   if (start < 0 || end < start) throw new Error('Missing native region: ' + name);
@@ -126,7 +128,7 @@ function fixture(files = resources()) {
       npc.__active = false; host.remove(); npc.onRemove?.();
     }),
   };
-  const api: NpcMapLinksApi = new Function('NpcBox', 'Thread', 'DB', 'MapRenderer', 'Configs', 'PACKET', 'Network', 'buildPrivateAirshipRequest', 'normalizeLastROTeleportMap', 'UIManager', 'console', 'describeLastroMapLoadFailure', 'setLastROInnerHTML', 'NpcMenu_default', 'InputBox_default', 'showLastroTeleportNotice', 'Mouse', 'SessionStorage_default', `
+  const api: NpcMapLinksApi = new Function('NpcBox', 'Thread', 'DB', 'MapRenderer', 'Configs', 'PACKET', 'Network', 'buildPrivateAirshipRequest', 'normalizeLastROTeleportMap', 'UIManager', 'console', 'describeLastroMapLoadFailure', 'setLastROInnerHTML', 'NpcMenu_default', 'InputBox_default', 'showLastroTeleportNotice', 'Mouse', 'SessionStorage_default', 'resolveLastroMapResourceName', `
     ${dialogButtonFallback}
     ${installation}
     return NpcBox._lastroMapLinks;
@@ -136,7 +138,7 @@ function fixture(files = resources()) {
     if (manual) pending.push(complete); else queueMicrotask(complete);
   } }, { mapalias: {}, getMapName: label }, state, { get: () => profile }, { CZ: { PRIVATE_AIRSHIP_REQUEST: class {} } },
   { sendPacket: (packet: unknown) => packets.push(packet) }, buildPrivateAirshipRequest, (map: string) => map.replace(/\.gat$/i, ''),
-  { showErrorBox: popup, showPromptBox: showPrompt }, { warn: () => {} }, describeLastroMapLoadFailure, setLastROInnerHTML, menu, input, notice, mouse, session);
+  { showErrorBox: popup, showPromptBox: showPrompt }, { warn: () => {} }, describeLastroMapLoadFailure, setLastROInnerHTML, menu, input, notice, mouse, session, resolveLastroMapResourceName);
   npc.init?.();
   api.render(content, '(Lv.160) 暗•超魔导师 凯特莉娜 位于地图\n^nMapName^lhz_dun03', text => text);
   const link = content.querySelector('a');

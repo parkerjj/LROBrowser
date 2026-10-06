@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
-import { patchGuildEmblemRequestCallbacks, patchLegacyScriptSinks, patchLuaJsonEscapes, patchNpcMenuBlankArea, patchTrustedTypesDomWrites, patchV2Runtime, patchRuntimeWorldMap, patchRuntimeChatMapLinks, patchRuntimeToolsPanels } from '../scripts/patch-v2-runtime.mjs';
+import { patchGuildEmblemRequestCallbacks, patchLegacyScriptSinks, patchLuaJsonEscapes, patchNpcMenuBlankArea, patchTrustedTypesDomWrites, patchV2Runtime, patchRuntimeWorldMapProductActions, patchRuntimeChatMapLinks, patchRuntimeToolsPanels } from '../scripts/patch-v2-runtime.mjs';
 import { buildClientConfig } from '../src/runtime/client-config';
 import { LASTRO_SERVER_PROFILES } from '../src/servers/server-profiles';
 import { createLastroUiMessages } from '../scripts/lastro-display-localization.mjs';
@@ -58,7 +58,7 @@ describe('V2 runtime patch', () => {
     expect(() => patchRuntimeChatMapLinks('function requestChatMapTeleport(link) { return false; }')).toThrow('anchor:chat-map-links');
   });
   it('requires an unambiguous world-map anchor on upstream updates', () => {
-    expect(() => patchRuntimeWorldMap('unrecognized upstream source')).toThrow('anchor:worldmap-component');
+    expect(() => patchRuntimeWorldMapProductActions('unrecognized upstream source')).toThrow('anchor:worldmap-product-actions');
   });
   it('loads message IDs and quoted-comma values from the local CSV', async () => {
     const runtime = await readFile('generated/runtime/Online.js', 'utf8');

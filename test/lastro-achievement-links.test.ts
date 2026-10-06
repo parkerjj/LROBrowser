@@ -4,12 +4,12 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { patchRuntimeAchievementLinks, type AchievementLinkComponent, type AchievementLinksApi } from '../scripts/lastro-achievement-links.mjs';
-import { resolveLastroMapResourceName } from '../scripts/lastro-map-resource-name.mjs';
-import { describeLastroMapLoadFailure } from '../scripts/lastro-map-load-diagnostic.mjs';
 import { mapBinaryFixture } from './map-binary-fixture';
 import { extractRuntimeNode } from './helpers/vendor-runtime';
 
 const native = readFileSync('vendor/v2/Online.js', 'utf8');
+const describeLastroMapLoadFailure = vm.runInNewContext(`(${extractRuntimeNode(native, { kind: 'function', name: 'describeLastroMapLoadFailure' })})`);
+const resolveLastroMapResourceName = vm.runInNewContext(`(${extractRuntimeNode(native, { kind: 'function', name: 'resolveLastroMapResourceName' })})`);
 const lastroUiWindowAppend = vm.runInNewContext(`${extractRuntimeNode(native, {
   kind: 'function', name: 'lastroUiWindowAppend',
 })}\nlastroUiWindowAppend`) as (...args: unknown[]) => unknown;
@@ -100,7 +100,7 @@ function fixture(options: { files?: Record<string, ArrayBuffer | null>; label?: 
     DB: { mapalias: {}, getAchievementTable: () => records, getMessage: (id: number) => '消息' + id,
       getMapName: () => options.label ?? '拉赫草原5' },
     Preferences: { get: () => preference }, Client: { loadFile: vi.fn() }, ItemInfo_default: {},
-    WorldMap_default: { searchMonster: monster }, showLastroTeleportNotice: notice, describeLastroMapLoadFailure,
+    WorldMap_default: { searchMonster: monster }, showLastroTeleportNotice: notice, describeLastroMapLoadFailure, resolveLastroMapResourceName,
     Network: { sendPacket: (packet: Record<string, unknown>) => packets.push({ ...packet }) }, buildPrivateAirshipRequest,
     PACKET: { CZ: { PRIVATE_AIRSHIP_REQUEST: class {}, REQ_ACH_REWARD: class {} } },
     Thread: { send: (type: string, input: { filename: string; args: null }, callback: (bytes: ArrayBuffer | null, error?: string) => void) => {
