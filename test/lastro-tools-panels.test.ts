@@ -25,6 +25,17 @@ function originalAssignment(name: string) {
 }
 const originalTemplate = runInNewContext(originalAssignment('LastROTools_default$1')) as string;
 const originalInitSource = originalAssignment('LastROTools.init');
+function originalDeclaration(name: string) {
+  const matches: ts.FunctionDeclaration[] = [];
+  function visit(node: ts.Node) {
+    if (ts.isFunctionDeclaration(node) && node.name?.text === name) matches.push(node);
+    ts.forEachChild(node, visit);
+  }
+  visit(ast);
+  if (matches.length !== 1) throw new Error(`Expected one original ${name}; found ${matches.length}`);
+  return matches[0]!.getText(ast);
+}
+const closeQuickPlacePickerSource = originalDeclaration('closeLastROQuickPlacePicker');
 
 type Route = { npc: string; desc: string; outset: [string, number, number]; path: [string, number, number][] };
 type Catalog = Record<string, Record<string, Route>>;
@@ -105,7 +116,7 @@ function fixture(options: { preferences?: unknown; storage?: Map<string, unknown
   });
   tools.hidePanel.mockImplementation(() => { tools._host.style.display = 'none'; });
   tools.restorePanel.mockImplementation(() => { tools._host.style.display = ''; });
-  tools.init = runInNewContext(`(${originalInitSource})`, {
+  tools.init = runInNewContext(`${closeQuickPlacePickerSource}\n(${originalInitSource})`, {
     installLastRORandomTeleportShortcut() {},
     showLastROSettingsView() {}, showLastROMainView() {}, activateLastROSettingsTab() {},
   });

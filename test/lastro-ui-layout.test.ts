@@ -29,14 +29,22 @@ const previewMarkerlessPaths = [
 function cssText(path: string) {
   const region = extractVendorRegion(`src/UI/Components/${path}.css?raw`, vendor);
   const file = ts.createSourceFile('component-css.js', region, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
-  const literals: ts.StringLiteral[] = [];
+  const variable = `${path.split('/').at(-1)}_default$1`;
+  const assignments: ts.BinaryExpression[] = [];
   function visit(node: ts.Node) {
-    if (ts.isBinaryExpression(node) && ts.isStringLiteral(node.right)) literals.push(node.right);
+    if (ts.isBinaryExpression(node) && node.left.getText(file) === variable && ts.isStringLiteral(node.right)
+      && [ts.SyntaxKind.EqualsToken, ts.SyntaxKind.PlusEqualsToken].includes(node.operatorToken.kind)) assignments.push(node);
     ts.forEachChild(node, visit);
   }
   visit(file);
-  if (literals.length !== 1) throw new Error(`Expected one CSS literal for ${path}; found ${literals.length}`);
-  return literals[0]!.text;
+  if (assignments.filter(node => node.operatorToken.kind === ts.SyntaxKind.EqualsToken).length !== 1)
+    throw new Error(`Expected one CSS initializer for ${path}; found ${assignments.length}`);
+  let css = '';
+  for (const assignment of assignments) {
+    const value = (assignment.right as ts.StringLiteral).text;
+    css = assignment.operatorToken.kind === ts.SyntaxKind.EqualsToken ? value : css + value;
+  }
+  return css;
 }
 
 describe('permanent scoped native UI layout', () => {

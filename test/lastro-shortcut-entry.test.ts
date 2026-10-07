@@ -28,10 +28,16 @@ function assignment(name: string) {
   return matches[0]!.right.getText(ast);
 }
 function declaration(name: string) {
-  const match = ast.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === name);
-  if (!match) throw new Error('Missing native helper: ' + name); return match.getText(ast);
+  const matches: ts.FunctionDeclaration[] = [];
+  const visit = (node: ts.Node) => {
+    if (ts.isFunctionDeclaration(node) && node.name?.text === name) matches.push(node);
+    ts.forEachChild(node, visit);
+  };
+  visit(ast);
+  if (matches.length !== 1) throw new Error(`Expected one native helper ${name}; found ${matches.length}`);
+  return matches[0]!.getText(ast);
 }
-const helpers = ['activateLastROSettingsTab', 'showLastROSettingsView', 'showLastROMainView'].map(declaration).join('\n');
+const helpers = ['activateLastROSettingsTab', 'showLastROSettingsView', 'showLastROMainView', 'closeLastROQuickPlacePicker'].map(declaration).join('\n');
 const originalTemplate = vm.runInNewContext(`${declaration('patchLastROToolsTemplate')}\nlet LastROTools_default$1 = ''; patchLastROToolsTemplate(); LastROTools_default$1;`) as string;
 const css = vm.runInNewContext(`${region('src/UI/Components/LastROTools/LastROTools.css?raw')}\ninit_LastROTools$1(); LastROTools_default;`, { __esmMin: (initialize: () => void) => initialize }) as string;
 const styleSource = readFileSync('scripts/lastro-tools-style.mjs', 'utf8').replace('export const ', 'const ');
@@ -104,7 +110,7 @@ function fixture(initial?: boolean) {
     'minimizePanel', 'restorePanel', 'collapseDetailedSettings', 'onMapChanged', 'getOptionLabel', 'loadQuickRoutes', 'renderQuickRoutes',
     'stopQuickRoute', 'setOnlyTargetState', 'setLoadInfo', 'setReloadInfo', 'applyState'];
   Object.assign(tools, Object.fromEntries(methods.map(name => [name, vm.runInContext(`(${assignment(`LastROTools.${name}`)})`, context)])),
-    { render: () => originalTemplate, _defaultQuickRoutes: upstreamFixture.routes });
+    { render: () => originalTemplate, renderQuickPlaceMenu: vi.fn(), _defaultQuickRoutes: upstreamFixture.routes });
   const captured = captureLastroShortcutEntry(tools);
   const cancel = vi.fn();
   const panels = installPanels(tools, {
@@ -244,17 +250,18 @@ describe('upstream shortcut entry mode', () => {
   it.each([
     { enabled: true, cache: [] }, { enabled: false, cache: [1002] },
   ])('preserves server target checked=$enabled across both modes without changing the native cache or sending packets', ({ enabled, cache }) => {
-    const f = fixture(), originalCache = [...cache];
-    f.tools._onlyTargets = originalCache;
+    const f = fixture();
+    f.tools._onlyTargets = [...cache];
     f.tools.setOnlyTargetOptions([{ id: 1002, name: '波利' }]);
     f.tools.setOnlyTargetState({ mobid: 1002, value: enabled ? 1 : 0 });
+    const serverCache = f.tools._onlyTargets, expectedCache = [...serverCache];
     const target = () => f.root().querySelector<HTMLInputElement>('[data-target-id="1002"]')!;
     expect(target().checked).toBe(enabled);
     for (const nativeMode of [false, true]) {
       f.controller.setEnabled(nativeMode);
       expect(target().checked).toBe(enabled);
-      expect(f.tools._onlyTargets).toBe(originalCache);
-      expect(f.tools._onlyTargets).toEqual(cache);
+      expect(f.tools._onlyTargets).toBe(serverCache);
+      expect(f.tools._onlyTargets).toEqual(expectedCache);
       expect(f.packets).toEqual([]);
     }
     target().click();
