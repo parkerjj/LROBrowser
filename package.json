@@ -11,6 +11,7 @@
     "dev": "pnpm prepare:runtime && vite --host 127.0.0.1",
     "prepare:runtime": "node scripts/prepare-runtime.mjs",
     "build": "pnpm prepare:runtime && vite build",
+    "build:web": "LASTRO_BUILD_TARGET=web pnpm prepare:runtime && LASTRO_BUILD_TARGET=web vite build --outDir dist-web",
     "test": "pnpm prepare:runtime && vitest run --exclude test/release-smoke.test.ts",
     "test:release": "pnpm build && vitest run test/release-smoke.test.ts",
     "typecheck": "tsc --noEmit",

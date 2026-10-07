@@ -2,6 +2,7 @@ import type { AvailableServerProfile } from '../servers/server-profile';
 import { getAvailableServerProfile, LASTRO_SERVER_PROFILES } from '../servers/server-profiles';
 import { validateAccountCredentials } from '../accounts/account-storage.mjs';
 import { readLoginPreferences } from './login-preferences.mjs';
+import { IS_WEB_BUILD } from './build-target';
 
 export interface ClientCredentials {
   username: string;
@@ -90,7 +91,7 @@ export function buildClientConfig(profile: AvailableServerProfile, credentials: 
         unavailableReason: candidate.unavailableReason }),
   )]);
   return Object.freeze({
-    connectionMode: readLoginPreferences().connectionMode,
+    connectionMode: IS_WEB_BUILD ? 'relay' : readLoginPreferences().connectionMode,
     servers: Object.freeze([server] as const),
     get autoLogin() { const value = pendingLogin; pendingLogin = null; return value; },
     loginServerProfiles,
@@ -111,7 +112,7 @@ export function buildClientConfig(profile: AvailableServerProfile, credentials: 
     systemRoot: 'core/System/',
     customWasmUri: 'core/wasm/liblua5.1.wasm',
     resourceProfileId: available.resourceProfileId,
-    remoteClient: 'https://game.lastro.cn/ro/client_re/',
+    remoteClient: IS_WEB_BUILD ? 'https://rodata.ltsd.ro/ro/client_re/' : 'https://game.lastro.cn/ro/client_re/',
     resourcePathCharset: 'gbk', lastroDataCharset: 'gbk', statusDescriptionCharset: 'gbk', networkCharset: 'gbk',
     loadLua: true, skipIntro: true, skipServerList: true, enableCashShop: true, enableRefineUI: true, enableMapName: true, enableAchievements: true,
     customItemInfo: Object.freeze(['System/itemInfo_re_59.lua', 'System/itemInfo_re_61.lua']),

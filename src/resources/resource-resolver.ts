@@ -10,6 +10,9 @@ export const DEFAULT_RESOURCE_ROOTS = Object.freeze([
   'https://game.lastro.cn/ro/client_re/',
   'https://rodata.ltsd.ro/ro/client_re/'
 ] as const);
+export const WEB_RESOURCE_ROOTS = Object.freeze([
+  'https://rodata.ltsd.ro/ro/client_re/'
+] as const);
 
 /**
  * World-map backdrop artwork (referenced by worldviewdata_list.lub `BgImage`).
@@ -213,7 +216,9 @@ export async function resolvePassiveResource(resourcePath: string, options: Reso
   }
   const candidates = buildResourcePathCandidates(normalizedPath, options.primaryCharset, options.fallbackCharset);
   const allRoots = (options.resourceRoots ?? DEFAULT_RESOURCE_ROOTS).map(normalizeRoot);
-  if (allRoots.join('|') !== DEFAULT_RESOURCE_ROOTS.join('|')) throw new Error('Resource root order is fixed');
+  const isDefaultRoots = allRoots.join('|') === DEFAULT_RESOURCE_ROOTS.join('|');
+  const isWebRoots = allRoots.join('|') === WEB_RESOURCE_ROOTS.join('|');
+  if (!isDefaultRoots && !isWebRoots) throw new Error('Resource root order is fixed');
   const roots = backdropOnly ? allRoots.filter((root) => root.startsWith(CLEAN_BACKDROP_ROOT)) : allRoots;
   const controller = new AbortController();
   const loadRoot = async (root: string) => {
