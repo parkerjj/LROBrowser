@@ -217,7 +217,9 @@ const bootstrapCode = ts.transpileModule(bootstrapSource, {
     function visit(node: ts.Node): ts.Node {
       // Preserve the real startup body; only replace its external runtime import
       // with a local observation so the tests never execute the game or network.
-      if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+      const importArgument = ts.isCallExpression(node) && node.arguments[0];
+      if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword
+        && importArgument && ts.isStringLiteral(importArgument) && importArgument.text === '/runtime/Online.js') {
         return ts.factory.createCallExpression(ts.factory.createIdentifier('recordRuntimeImport'), undefined, node.arguments);
       }
       return ts.visitEachChild(node, visit, context);
@@ -238,6 +240,7 @@ function bootstrapFixture(manifest = deferred<Response>()) {
       if (path.endsWith('/lastro-login-http')) return { prepareLastROLoginSession: async () => undefined, sendLastROLoginPost: vi.fn() };
       if (path.endsWith('/client-config')) return { buildClientConfig: () => ({}) };
       if (path.endsWith('/debug-access')) return { installDebugAccessGuard };
+      if (path.endsWith('/build-target')) return { IS_WEB_BUILD: false };
       throw new Error('Unexpected startup dependency: ' + path);
     },
   });

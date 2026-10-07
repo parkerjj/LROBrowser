@@ -1,10 +1,10 @@
 import type { LegacyClientSocket } from '../network/client-socket';
-import { createDirectSocket, isDirectSocketsSupported } from '../network/socket-factory';
-import { prepareLastROLoginSession, sendLastROLoginPost, type LastROLoginPhase } from '../network/lastro-login-http';
+import type { LastROLoginPhase } from '../network/lastro-login-http';
 import type { AvailableServerProfile } from '../servers/server-profile';
 import { buildClientConfig, type ClientCredentials, type V2ClientConfig } from './client-config';
 import { loadClientFonts } from './client-fonts';
 import { installDebugAccessGuard } from './debug-access';
+import { IS_WEB_BUILD } from './build-target';
 
 export interface BootstrapOptions {
   mount: HTMLElement;
@@ -23,12 +23,16 @@ declare global {
   var LastRODirectSocketFactory: ((host: string, port: number) => LegacyClientSocket) | undefined;
   var LastROLoginRegistration: ((phase: LastROLoginPhase, nid: number, username: string, password: string) => void) | undefined;
   var LastRODirectSocketsSupported: boolean | undefined;
+  var LastROWebBuild: boolean | undefined;
   var LastROResourceRoots: readonly string[] | undefined;
   var LastROExecutableManifest: ExecutableAssetManifest | undefined;
 }
 
-const LASTRO_RESOURCE_ROOTS = Object.freeze([
+const IWA_RESOURCE_ROOTS = Object.freeze([
   'https://game.lastro.cn/ro/client_re/',
+  'https://rodata.ltsd.ro/ro/client_re/'
+] as const);
+const WEB_RESOURCE_ROOTS = Object.freeze([
   'https://rodata.ltsd.ro/ro/client_re/'
 ] as const);
 
@@ -51,28 +55,39 @@ async function loadExecutableManifest(): Promise<ExecutableAssetManifest> {
 
 export async function bootstrapV2Client(options: BootstrapOptions): Promise<void> {
   if (options.runtimeUrl !== undefined && options.runtimeUrl !== '/runtime/Online.js') throw new Error('只能加载客户端内置运行程序');
-  globalThis.LastRODirectSocketsSupported = isDirectSocketsSupported();
+  globalThis.LastROWebBuild = IS_WEB_BUILD;
+  let sendLastROLoginPost: ((phase: LastROLoginPhase, nid: number, username: string, password: string) => void) | undefined;
+  let prepareLastROLoginSession: (() => Promise<void>) | undefined;
+  globalThis.LastRODirectSocketsSupported = IS_WEB_BUILD ? false : undefined;
+  globalThis.LastRODirectSocketFactory = undefined;
   installDebugAccessGuard(window);
   globalThis.ROConfig = buildClientConfig(options.profile, options.credentials);
-  globalThis.LastRODirectSocketFactory = options.socketFactory ?? createDirectSocket;
   const mount = options.mount;
-  globalThis.LastROLoginRegistration = (phase, nid, username, password) => {
-    void sendLastROLoginPost(phase, nid, username, password).catch(() => {
-      // Never include credentials, request bodies or server responses in UI/logs.
-      let warning = document.getElementById('lastro-secure-login-status');
-      if (!warning) {
-        warning = document.createElement('p'); warning.id = 'lastro-secure-login-status';
-        warning.setAttribute('role', 'alert'); mount.prepend(warning);
-      }
-      warning.textContent = '登录辅助请求未完成，请检查服务器连接。';
-    });
-  };
-  // Fetch Yii2's CSRF cookie/token before the login packet is sent. The checkin POST
-  // is intentionally fire-and-forget, so doing this work here avoids delaying it
-  // until after the game connection has already switched to the map server.
-  void prepareLastROLoginSession().catch(() => undefined);
-  globalThis.LastROResourceRoots = LASTRO_RESOURCE_ROOTS;
   const [manifest] = await Promise.all([loadExecutableManifest(), loadClientFonts()]);
+  if (!IS_WEB_BUILD) {
+    const socketFactory = await import('../network/socket-factory');
+    const loginHttp = await import('../network/lastro-login-http');
+    globalThis.LastRODirectSocketsSupported = socketFactory.isDirectSocketsSupported();
+    globalThis.LastRODirectSocketFactory = options.socketFactory ?? socketFactory.createDirectSocket;
+    sendLastROLoginPost = loginHttp.sendLastROLoginPost;
+    prepareLastROLoginSession = loginHttp.prepareLastROLoginSession;
+    globalThis.LastROLoginRegistration = (phase, nid, username, password) => {
+      void Promise.resolve(sendLastROLoginPost?.(phase, nid, username, password)).catch(() => {
+        // Never include credentials, request bodies or server responses in UI/logs.
+        let warning = document.getElementById('lastro-secure-login-status');
+        if (!warning) {
+          warning = document.createElement('p'); warning.id = 'lastro-secure-login-status';
+          warning.setAttribute('role', 'alert'); mount.prepend(warning);
+        }
+        warning.textContent = '登录辅助请求未完成，请检查服务器连接。';
+      });
+    };
+    // Fetch Yii2's CSRF cookie/token before the login packet is sent.
+    if (prepareLastROLoginSession) void prepareLastROLoginSession().catch(() => undefined);
+  } else {
+    globalThis.LastROLoginRegistration = undefined;
+  }
+  globalThis.LastROResourceRoots = IS_WEB_BUILD ? WEB_RESOURCE_ROOTS : IWA_RESOURCE_ROOTS;
   globalThis.LastROExecutableManifest = manifest;
   await import(/* @vite-ignore */ '/runtime/Online.js');
 }

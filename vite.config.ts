@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
+import { copyFile, readFile, rm as rmAsync, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { type Plugin, type ViteDevServer } from 'vite';
 import { defineConfig } from 'vitest/config';
@@ -9,7 +10,7 @@ export function stripViteClientInjection(html: string): string {
   return html.replace(/<script\b(?=[^>]*\bsrc=["'][^"']*\/@vite\/client["'])[^>]*>\s*<\/script>\s*/g, '');
 }
 
-function packageRuntime(): Plugin {
+function packageRuntime(target: 'iwa' | 'web'): Plugin {
   function serveStagedRuntime(server: ViteDevServer) {
     server.middlewares.use((request, response, next) => {
       for (const [name, value] of Object.entries(REQUIRED_HEADERS)) response.setHeader(name, value);
@@ -40,9 +41,17 @@ function packageRuntime(): Plugin {
     configureServer: serveStagedRuntime,
     transformIndexHtml: {
       order: 'post',
-      handler: stripViteClientInjection,
+      handler: (html) => {
+        const transformed = stripViteClientInjection(html);
+        return target === 'web' ? transformed.replace(/\s*<link rel="manifest"[^>]*>/i, '') : transformed;
+      },
     },
-    generateBundle() {
+    generateBundle(_options, bundle) {
+      if (target === 'web') {
+        delete bundle['.well-known/manifest.webmanifest'];
+        const index = bundle['index.html'];
+        if (index && index.type === 'asset') this.emitFile({ type: 'asset', fileName: '200.html', source: index.source });
+      }
       const runtime = path.resolve('generated/runtime/Online.js');
       if (existsSync(runtime)) this.emitFile({ type: 'asset', fileName: 'runtime/Online.js', source: readFileSync(runtime) });
       const manifestPath = path.resolve('generated/core/executable-assets.json');
@@ -58,12 +67,24 @@ function packageRuntime(): Plugin {
       }
       this.emitFile({ type: 'asset', fileName: 'core/executable-assets.json', source: readFileSync(manifestPath) });
     },
+    async writeBundle(options) {
+      if (target !== 'web') return;
+      const outputDirectory = path.resolve(options.dir ?? 'dist-web');
+      await rmAsync(path.join(outputDirectory, '.well-known'), { recursive: true, force: true });
+      await copyFile(path.join(outputDirectory, 'index.html'), path.join(outputDirectory, '200.html'));
+      const worldMapSources = path.join(outputDirectory, 'worldmap/sources.json');
+      const sourceText = await readFile(worldMapSources, 'utf8');
+      await writeFile(worldMapSources, sourceText.replaceAll('https://game.lastro.cn/', 'https://rodata.ltsd.ro/'));
+    },
   };
 }
 
+const buildTarget = process.env.LASTRO_BUILD_TARGET === 'web' ? 'web' : 'iwa';
+
 export default defineConfig({
   base: './',
-  plugins: [packageRuntime()],
+  define: { __LASTRO_BUILD_TARGET__: JSON.stringify(buildTarget) },
+  plugins: [packageRuntime(buildTarget)],
   optimizeDeps: { entries: ['index.html'], exclude: ['/runtime/Online.js'] },
   build: { target: 'es2022', sourcemap: false, rollupOptions: { external: ['/runtime/Online.js'] } },
   server: {
