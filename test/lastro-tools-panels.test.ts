@@ -1151,7 +1151,7 @@ describe('destination actions and lifecycle', () => {
     let reject!: (error: Error) => void;
     f.requestRoute.mockReturnValue(new Promise((_resolve, fail) => { reject = fail; }));
     f.api.requestCustomRoute(route('原生快捷地点')); expect(f.requestRoute).not.toHaveBeenCalled();
-    f.confirmations[0]!.yes(); expect(f.requestRoute).toHaveBeenCalledOnce(); expect(f.tools.setStatus).toHaveBeenCalledWith('正在检查传送地点');
+    f.confirmations[0]!.yes(); expect(f.requestRoute).toHaveBeenCalledOnce(); expect(f.tools.setStatus).toHaveBeenCalledWith('正在处理传送请求');
     reject(new Error('地图资源不存在')); await Promise.resolve();
     expect(f.tools.setStatus).toHaveBeenCalledWith('无法前往：地图资源不存在'); expect(f.api.teleport._host.isConnected).toBe(false);
   });
@@ -1161,7 +1161,7 @@ describe('destination actions and lifecycle', () => {
     let reject!: (error: Error) => void;
     f.requestRoute.mockReturnValue(new Promise((_resolve, failure) => { reject = failure; }));
     f.row('a').querySelector<HTMLButtonElement>('.lastro-route-go')!.click();
-    expect(f.root().querySelector('[role="status"]')?.textContent).toBe('正在检查传送地点');
+    expect(f.root().querySelector('[role="status"]')?.textContent).toBe('正在处理传送请求');
     reject(new Error('地图资源不存在')); await Promise.resolve();
     expect(f.root().querySelector('[role="status"]')?.textContent).toBe('无法前往：地图资源不存在');
   });

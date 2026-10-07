@@ -66,6 +66,11 @@ beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] }));
 afterEach(() => vi.useRealTimers());
 
 describe('prepared teleport runtime resource gate', () => {
+  it('configures the quick teleport panel to bypass resource preflight and save its confirmation setting', () => {
+    expect(runtime).toContain('requestRoute: route => lastroVerifiedRouteRequest.request(route, { skipPreflight: true })');
+    expect(runtime).toContain('setTeleportConfirmationEnabled: enabled => setLastroTeleportConfirmationEnabled(enabled)');
+  });
+
   it('walks to an explicit quest point on the current map after resource approval without opening navigation UI', async () => {
     const f = fixture(); f.mapRenderer.currentMap = 'prontera.gat';
     expect(await f.api.request({ outset: ['prontera', 3, 3], path: [['prontera', 3, 3]], direct: true })).toBe('navigation');

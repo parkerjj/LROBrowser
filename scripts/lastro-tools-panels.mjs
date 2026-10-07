@@ -377,7 +377,7 @@ export function installLastroToolsPanels(tools, deps, css, presetRoutes = {}) {
     try {
       const mode = requestRoute(route);
       if (mode && typeof mode.then === 'function') {
-        if (status) status.textContent = '正在检查传送地点'; tools.setStatus?.('正在检查传送地点');
+        if (status) status.textContent = '正在处理传送请求'; tools.setStatus?.('正在处理传送请求');
         mode.then(complete, failed);
       } else complete(mode);
     } catch (error) { failed(error); }
@@ -385,7 +385,7 @@ export function installLastroToolsPanels(tools, deps, css, presetRoutes = {}) {
   function cancelPendingRequest() {
     requestGeneration++;
     deps.cancelPendingRoute?.();
-    if (status?.textContent === '正在检查传送地点') status.textContent = '';
+    if (status?.textContent === '正在处理传送请求') status.textContent = '';
   }
   function cancelConfirmation() {
     if (!confirmation) return;
@@ -395,26 +395,56 @@ export function installLastroToolsPanels(tools, deps, css, presetRoutes = {}) {
   function go(route) {
     if (confirmation) return;
     if (deps.shouldConfirmTeleport?.() === false) { run(route); return; }
-    confirmAction(`是否前往${route.npc}？`, () => run(route));
+    const dontAsk = typeof deps.setTeleportConfirmationEnabled === 'function' ? () => {
+      try {
+        Promise.resolve(deps.setTeleportConfirmationEnabled(false)).then(
+          () => run(route),
+          error => {
+            const message = `无法保存传送确认设置：${error?.message || error}`;
+            if (status) status.textContent = message; tools.setStatus?.(message);
+          },
+        );
+      } catch (error) {
+        const message = `无法保存传送确认设置：${error?.message || error}`;
+        if (status) status.textContent = message; tools.setStatus?.(message);
+      }
+    } : undefined;
+    confirmAction(`是否前往${route.npc}？`, () => run(route), dontAsk);
   }
-  function confirmAction(message, action) {
+  function confirmAction(message, action, dontAskAction) {
     if (!deps.showPrompt) { action(); return; }
     if (confirmation) return;
     const pending = { settled: false, popup: null }; confirmation = pending;
-    const finish = yes => {
+    const finish = choice => {
       if (pending.settled) return;
       pending.settled = true;
       if (confirmation === pending) confirmation = null;
-      if (yes) action();
+      if (choice === 'yes') action();
+      else if (choice === 'dontAsk') dontAskAction?.();
     };
     try {
-      pending.popup = deps.showPrompt(message, () => finish(true), () => finish(false));
+      pending.popup = deps.showPrompt(message, () => finish('yes'), () => finish('no'));
       if (pending.popup) {
         const previousRemove = pending.popup.onRemove;
         pending.popup.onRemove = function (...args) {
           win.queueMicrotask(() => finish(false));
           return previousRemove?.apply(this, args);
         };
+        if (dontAskAction) {
+          const popupRoot = pending.popup.getRoot?.() || pending.popup._shadow;
+          const buttons = popupRoot?.querySelector?.('.btns');
+          if (buttons) {
+            const button = element('button', 'btn', '别再烦我了！');
+            button.type = 'button'; button.dataset.disableTeleportConfirmation = '';
+            button.style.cssText = 'appearance:none;box-sizing:border-box;width:auto;min-width:94px;height:20px;margin-left:3px;padding:0 6px;border:1px solid #8b7650;border-radius:2px;background:linear-gradient(#f7e5b6,#d1b97c);color:#2c2414;font:12px/18px Arial,"Microsoft YaHei",sans-serif;white-space:nowrap;cursor:pointer';
+            for (const type of ['pointerdown', 'mousedown', 'touchstart']) button.addEventListener(type, event => event.stopPropagation());
+            button.addEventListener('click', event => {
+              event.preventDefault(); event.stopPropagation();
+              finish('dontAsk'); pending.popup?.remove?.();
+            });
+            buttons.append(button);
+          }
+        }
       } else if (!pending.settled) finish(false);
     } catch (error) { finish(false); if (status) status.textContent = `无法打开确认窗口：${error.message}`; }
   }
