@@ -50,6 +50,7 @@ function kindFor(file) {
   if (extension === '.lub') return 'lub';
   if (extension === '.wasm') return 'wasm';
   if (extension === '.json') return 'data-json';
+  if (extension === '.png' && file.startsWith('data/texture/유저인터페이스/display_mapname/')) return 'passive';
   if (extension === '.csv' || extension === '.otf' || extension === '.ttf' || extension === '.txt') return 'passive';
   if (extension === '.js' || extension === '.mjs' || extension === '.cjs') return 'runtime';
   fail('unsupported-executable', file);
