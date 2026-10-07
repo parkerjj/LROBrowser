@@ -14,15 +14,11 @@
 
 `src/assistant/lro-assistant-standard.mjs` 从既有助手标准版适配而来，已纳入仓库，可直接作为模块源码维护，构建无需原插件 TXT 或作者本机转换脚本。原始来源哈希保留在文件头。`scripts/patch-lro-assistant.mjs` 在构建时为固定的客户端 runtime 提供模块、封包订阅与原生组件桥；关键挂载点变化会使构建失败。生成物仍位于 generated/dist，不纳入提交。
 
-## 网站市场：合并前需确认的限制
+## 网站市场
 
-正式包代码只请求同源的受控市场入口 `/__lro_market/search`，沿用客户端统一 CSP，不新增远程资源 origin，也不转发游戏账号、密码或会话。开发服务才将该入口转发到固定的 `https://ltsd.ro/api/v1/market/search` 只读地址。市场支持物品名/词条/店名、多词包含匹配、相关度和购物清单置顶。
+助手直接向 `https://ltsd.ro/api/v1/market/search` 发起只读 GET，请求不携带账号、密码、Cookie 或授权信息。输入搜索词后点击“查询”才发起请求，输入过程不会触发远程查询。关键词通过 `q` 传递；分页时保留 API 返回的 `nextCursor` 并作为下一次请求的 `cursor` 参数。IWA 来源需由 LastROWeb API 的 CORS 配置允许；IWA 分发审计仅允许这个精确 API 路径，不放宽该域名的其他路径或其他来源。
 
-**当前已验证的使用方式是本地 IWA 开发代理。正式签名包尚无同源市场服务，网站市场查询在正式包中不可用。** 为复现本地行为，提供 `scripts/lro-local/serve-client.mjs` 与固定目的地只读查询服务，仅监听 127.0.0.1。同一份市场模块使用同源入口，开发服务提供该入口的转发实现。此服务不参与游戏 TCP 通信，不进入正式包，也不是通用 HTTP 代理。
-
-本地验证：先完成构建，再运行 `node scripts/lro-local/serve-client.mjs`，在 Chrome 的 IWA 开发代理安装中使用输出的 localhost 地址。需要保持该进程运行。可用环境变量 LRO_TEST_PORT 调整端口。
-
-维护者应在发布前决定正式市场接入方式，并完成游戏内验收；本次整合不自动部署、签名或合并到 Development。
+市场搜索仅读取公开列表数据，不参与游戏连接，也不访问客户端账号存储。
 
 ## 验证
 

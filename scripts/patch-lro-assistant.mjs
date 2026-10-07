@@ -124,6 +124,7 @@ export function patchLroAssistantRuntime(source) {
       edits.push({ start: at, end: at, text: `
     if (globalThis.ROConfig?.lroAssistantEnabled === true) {
       const buttons = root.querySelector('.buttons') || root.querySelector(innerId);
+      buttons?.querySelector('#attendance')?.remove();
       if (buttons && !root.querySelector('[data-lro-assistant-entry]')) {
         const entry = document.createElement(buttonKeyBy === 'id' ? 'div' : 'button');
         entry.id = 'lro-assistant';

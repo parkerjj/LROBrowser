@@ -6,8 +6,11 @@ export interface VerifiedTeleportRequestOptions {
   clearNavigation?(): void;
   sendTeleport?(point: readonly unknown[]): void;
 }
+export interface TeleportRequestOptions {
+  skipPreflight?: boolean;
+}
 export function createLastroVerifiedTeleportRequest(options: VerifiedTeleportRequestOptions): {
-  request(route: unknown): Promise<string | null>;
+  request(route: unknown, requestOptions?: TeleportRequestOptions): Promise<string | null>;
   cancelPending(): void;
   cancel(): void;
 };

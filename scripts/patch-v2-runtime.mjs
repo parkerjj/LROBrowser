@@ -913,12 +913,13 @@ export function patchRuntimeToolsPanels(source) {
     document: globalThis.document, window: globalThis, GUIComponent, UIManager,
     setHtml: setLastROInnerHTML,
     normalizeRoute: normalizeRouteEntry,
-    requestRoute: route => lastroVerifiedRouteRequest.request(route),
+    requestRoute: route => lastroVerifiedRouteRequest.request(route, { skipPreflight: true }),
     cancelPendingRoute: () => lastroVerifiedRouteRequest.cancelPending(),
     routeMapChanging: () => { lastroVerifiedRouteRequest.cancelPending(); lastroRouteNavigation.onMapChanging(); },
     routeMapChanged: () => lastroRouteNavigation.onMapChanged(),
     cancelRoute: () => lastroVerifiedRouteRequest.cancel(),
     showPrompt: (message, yes, no) => UIManager.showPromptBox(message, "ok", "cancel", yes, no),
+    setTeleportConfirmationEnabled: enabled => setLastroTeleportConfirmationEnabled(enabled),
     shouldConfirmTeleport: () => typeof getLastroTeleportConfirmationEnabled !== "function" || getLastroTeleportConfirmationEnabled(),
     getPresetRoutes: () => {
       const catalog = LastROTeleportPresets.profiles[Configs.get("clientVer", 0)];
@@ -1066,7 +1067,7 @@ let lastroTeleportConfirmationPreferences;
 function getLastroTeleportConfirmationPreferences() {
   init_Preferences$1();
   if (!lastroTeleportConfirmationPreferences) {
-    const defaults = { _key: "LastROTeleportConfirmation", _version: 1, enabled: true };
+    const defaults = { _key: "LastROTeleportConfirmation", _version: 1, enabled: false };
     try { lastroTeleportConfirmationPreferences = Preferences.get("LastROTeleportConfirmation", defaults, 1); }
     catch { lastroTeleportConfirmationPreferences = { ...defaults, save() { return Preferences.save(this); } }; }
   }

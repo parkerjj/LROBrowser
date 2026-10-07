@@ -103,6 +103,7 @@ function runtime(source: string, initialEnabled = true, initialTeleportEnabled?:
     defaults: { quality: 25, cursor: true, bloom: false }, save: vi.fn(),
   };
   const renderer = { width: 1024, height: 768, resize: vi.fn(), frameLimit: 0, render: vi.fn() };
+  const controls = { snap: true, itemsnap: true, save: vi.fn() };
   const onWindowError = (event: ErrorEvent) => { errors.push(event.error); event.preventDefault(); };
   window.addEventListener('error', onWindowError);
   const context = vm.createContext({ ...assistantInput,
@@ -115,7 +116,7 @@ function runtime(source: string, initialEnabled = true, initialTeleportEnabled?:
     Mouse: { intersect: true }, SessionStorage_default: { FreezeUI: false }, _Cursor: null,
     setLastROInnerHTML: (target: HTMLElement, html: string) => { target.innerHTML = html; },
     lastroUiWindowAppend,
-    Preferences: preferences, GraphicsSettings: settings, Renderer: renderer,
+    Preferences: preferences, GraphicsSettings: settings, Controls_default: controls, Renderer: renderer,
     Configs: { get: (_name: string, fallback: unknown) => fallback, set: vi.fn() },
     Context: { isFullScreen: () => true }, FPS_default: { _host: null, toggle: vi.fn() },
     MemoryManager: { search: () => [] }, ChatBox_default: { addText: vi.fn(), TYPE: {}, FILTER: {} },
@@ -124,7 +125,7 @@ function runtime(source: string, initialEnabled = true, initialTeleportEnabled?:
   });
   const stubs = [
     'FPS', 'Configs', 'Context', 'Preferences$1', 'Graphics', 'Renderer', 'UIManager', 'GUIComponent',
-    'MemoryManager', 'ChatBox', 'KeyEventHandler', 'SoundOption', 'ShortCutOption',
+    'MemoryManager', 'ChatBox', 'KeyEventHandler', 'SoundOption', 'ShortCutOption', 'Controls',
   ];
   for (const name of stubs) context[`init_${name}`] = () => {};
   const core = `
@@ -150,7 +151,7 @@ function runtime(source: string, initialEnabled = true, initialTeleportEnabled?:
   escape.append();
   const menu = escape.getRoot().querySelector<HTMLButtonElement>('.graphics')!;
   const fixture = {
-    context, graphics, escape, menu, render, init, append, settings, renderer, saved, save, preferences, errors, timeline,
+    context, graphics, escape, menu, render, init, append, settings, controls, renderer, saved, save, preferences, errors, timeline,
     toggle() { menu.click(); },
     dispose() {
       for (const component of [graphics, escape]) {
@@ -184,7 +185,7 @@ describe.each([
     expect(h.append).toHaveBeenCalledOnce();
     const root = h.graphics.getRoot();
     expect(root.querySelector<HTMLInputElement>('.details')?.value).toBe(String(h.settings.quality));
-    expect(root.querySelector<HTMLInputElement>('.cursor-option')?.checked).toBe(true);
+    expect(root.querySelector<HTMLInputElement>('.cursor-option')?.checked).toBe(false);
     expect(root.querySelectorAll('.lastro-shortcut-entry')).toHaveLength(shortcut ? 1 : 0);
     expect(root.querySelectorAll('.lastro-teleport-confirmation')).toHaveLength(teleport ? 1 : 0);
   });
@@ -223,6 +224,52 @@ describe.each([
     expect(h.settings.quality).toBe(75);
     expect(h.settings.save).toHaveBeenCalledOnce();
     expect(h.renderer.resize).toHaveBeenCalledOnce();
+    expect(h.errors).toEqual([]);
+  });
+
+  it('toggles the system cursor and hides the game cursor immediately', () => {
+    const h = runtime(source);
+    const pointer = document.createElement('div'); pointer.className = 'cursor';
+    document.body.append(pointer); document.body.classList.add('custom-cursor');
+    h.toggle();
+    const checkbox = h.graphics.getRoot().querySelector<HTMLInputElement>('.cursor-option')!;
+    checkbox.checked = true; checkbox.dispatchEvent(new Event('change'));
+    expect(h.settings.cursor).toBe(false);
+    expect(document.body.classList.contains('custom-cursor')).toBe(false);
+    expect(pointer.style.display).toBe('none');
+    h.toggle(); h.toggle();
+    expect(checkbox.checked).toBe(true);
+    checkbox.checked = false; checkbox.dispatchEvent(new Event('change'));
+    expect(h.settings.cursor).toBe(true);
+    expect(document.body.classList.contains('custom-cursor')).toBe(true);
+    expect(pointer.style.display).toBe('block');
+    expect(h.settings.save).toHaveBeenCalledTimes(2);
+    expect(h.errors).toEqual([]);
+    document.body.classList.remove('custom-cursor');
+  });
+
+  it('shows independent snap controls below the cursor and restores changes on reopen', () => {
+    const h = runtime(source);
+    h.toggle();
+    const root = h.graphics.getRoot();
+    const cursor = root.querySelector<HTMLInputElement>('.cursor-option')!;
+    const monster = root.querySelector<HTMLInputElement>('.monster-snap')!;
+    const item = root.querySelector<HTMLInputElement>('.item-snap')!;
+    expect(monster).not.toBeNull(); expect(item).not.toBeNull();
+    expect(cursor.compareDocumentPosition(monster) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(monster.compareDocumentPosition(item) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(monster.checked).toBe(true); expect(item.checked).toBe(true);
+    monster.checked = false; monster.dispatchEvent(new Event('change'));
+    expect(h.controls.snap).toBe(false); expect(h.controls.itemsnap).toBe(true);
+    item.checked = false; item.dispatchEvent(new Event('change'));
+    expect(h.controls.itemsnap).toBe(false);
+    expect(h.controls.save).toHaveBeenCalledTimes(2);
+    expect(h.settings.save).not.toHaveBeenCalled();
+    h.toggle(); h.controls.snap = true; h.toggle();
+    expect(monster.checked).toBe(true); expect(item.checked).toBe(false);
+    expect(root.querySelectorAll('.monster-snap')).toHaveLength(1);
+    expect(root.querySelectorAll('.item-snap')).toHaveLength(1);
+    expect(root.querySelector('input[type="range"][class*="snap"]')).toBeNull();
     expect(h.errors).toEqual([]);
   });
 });
@@ -268,18 +315,18 @@ describe.each([
   { name: 'fresh shortcut patch', source: patched },
   ...(generated.includes('_lastroTeleportSettings') ? [{ name: 'generated runtime', source: generated }] : []),
 ])('GraphicsOption teleport preferences in $name', ({ source }) => {
-  it('defaults to enabled below the shortcut row without writing either preference on open', () => {
+  it('defaults to disabled below the shortcut row without writing either preference on open', () => {
     const h = runtime(source);
     h.toggle();
     const root = h.graphics.getRoot(), teleport = root.querySelector<HTMLInputElement>('.lastro-teleport-confirmation')!;
-    expect(teleport.checked).toBe(true);
+    expect(teleport.checked).toBe(false);
     expect(teleport.closest('label')?.textContent).toBe('启用传送确认');
     const rows = Array.from(root.querySelectorAll('#basic table tr'));
     expect(rows.at(-1)?.querySelector('td')?.textContent).toBe('传送确认');
     expect(rows.at(-2)?.querySelector('td')?.textContent).toBe('快捷入口');
     expect(root.querySelector<HTMLInputElement>('.lastro-shortcut-entry')?.checked).toBe(true);
     expect(h.save).not.toHaveBeenCalled();
-    expect(h.context.getLastroTeleportConfirmationEnabled()).toBe(true);
+    expect(h.context.getLastroTeleportConfirmationEnabled()).toBe(false);
     expect(h.errors).toEqual([]);
   });
 

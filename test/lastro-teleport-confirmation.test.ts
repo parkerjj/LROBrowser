@@ -24,9 +24,10 @@ function prompts() {
   const showPrompt = vi.fn((message: string, onYes: () => void, onNo: () => void) => {
     const host = document.createElement('div'), root = host.attachShadow({ mode: 'open' });
     const text = document.createElement('p'); text.textContent = message;
+    const buttons = document.createElement('div'); buttons.className = 'btns';
     const yes = document.createElement('button'), no = document.createElement('button');
     yes.className = no.className = 'btn'; yes.textContent = '确认'; no.textContent = '取消';
-    root.append(text, yes, no); document.body.append(host);
+    buttons.append(yes, no); root.append(text, buttons); document.body.append(host);
     const prompt = { onRemove: undefined as (() => void) | undefined, getRoot: () => root,
       remove() { this.onRemove?.(); host.remove(); }, _bindKeyDown() {} };
     yes.addEventListener('click', () => { prompt.remove(); onYes(); });
@@ -97,6 +98,7 @@ const installTools = runInNewContext(readFileSync('scripts/lastro-tools-panels.m
   (tools: Panel, deps: Record<string, unknown>, css: string) => ToolsApi;
 function tools(policy?: Policy, approved = true) {
   const popup = prompts(), saved = vi.fn();
+  const setTeleportConfirmationEnabled = vi.fn(async () => true);
   const preferences = { orders: {}, category: 'custom', save: saved,
     customPlaces: { version: 1, entries: [{ id: 'place-1', name: '我的地点', desc: '', map: 'prontera', x: 100, y: 184 }] } };
   const preflight = { check: vi.fn(async () => ({ approved })), cancel: vi.fn() };
@@ -111,10 +113,11 @@ function tools(policy?: Policy, approved = true) {
   const api = installTools(component, { document, window, GUIComponent: Panel,
     UIManager: { addComponent: (value: Panel) => value }, setHtml: setLastROInnerHTML, normalizeRoute,
     loadPreferences: () => preferences, getProfile: () => 5, getPresetRoutes: () => ({}),
-    showPrompt: popup.showPrompt, requestRoute: verified.request, cancelPendingRoute: verified.cancelPending,
+    showPrompt: popup.showPrompt, requestRoute: (route: Route) => verified.request(route, { skipPreflight: true }), cancelPendingRoute: verified.cancelPending,
+    setTeleportConfirmationEnabled,
     ...(policy ? { shouldConfirmTeleport: policy } : {}) }, '');
   cleanups.push(() => { api.deactivate(); verified.cancel(); });
-  return { api, preferences, saved, preflight, navigation, ...popup };
+  return { api, preferences, saved, preflight, navigation, setTeleportConfirmationEnabled, ...popup };
 }
 
 describe('teleport confirmation setting at every prompt owner', () => {
@@ -176,23 +179,32 @@ describe('teleport confirmation setting at every prompt owner', () => {
       expect(f.api.canSend('ra_fild05')).toBe(false);
     });
   }
-  it('keeps default tools route confirmation before the shared verified request', async () => {
+  it('keeps the default tools route confirmation before starting its route request', async () => {
     const f = tools(); f.api.requestCustomRoute(route);
     expect(f.showPrompt).toHaveBeenCalledTimes(1); expect(f.preflight.check).not.toHaveBeenCalled();
     f.dialogs[0]!.yes.click(); await flush();
-    expect(f.preflight.check).toHaveBeenCalledTimes(1); expect(f.navigation.request).toHaveBeenCalledExactlyOnceWith(route);
+    expect(f.preflight.check).not.toHaveBeenCalled(); expect(f.navigation.request).toHaveBeenCalledExactlyOnceWith(route);
   });
   it('skips disabled tools route confirmation and still uses the shared verified request', async () => {
     const f = tools(() => false); f.api.requestCustomRoute(route);
     expect(f.showPrompt).not.toHaveBeenCalled(); await flush();
-    expect(f.preflight.check).toHaveBeenCalledTimes(1); expect(f.navigation.request).toHaveBeenCalledExactlyOnceWith(route);
+    expect(f.preflight.check).not.toHaveBeenCalled(); expect(f.navigation.request).toHaveBeenCalledExactlyOnceWith(route);
     expect(() => f.api.requestCustomRoute({ ...route, unavailable: true })).toThrow('地点资料暂不可用');
-    expect(f.preflight.check).toHaveBeenCalledTimes(1);
+    expect(f.preflight.check).not.toHaveBeenCalled();
   });
-  it('retains tools resource rejection when confirmation is disabled', async () => {
+  it('starts the tools route without resource preflight when confirmation is disabled', async () => {
     const f = tools(() => false, false); f.api.requestCustomRoute(route);
     expect(f.showPrompt).not.toHaveBeenCalled(); await flush();
-    expect(f.preflight.check).toHaveBeenCalledTimes(1); expect(f.navigation.request).not.toHaveBeenCalled();
+    expect(f.preflight.check).not.toHaveBeenCalled(); expect(f.navigation.request).toHaveBeenCalledExactlyOnceWith(route);
+  });
+  it('adds a no-more-confirmation button that saves the setting and continues the route', async () => {
+    const f = tools(() => true); f.api.requestCustomRoute(route);
+    const button = f.dialogs[0]!.host.shadowRoot!.querySelector<HTMLButtonElement>('[data-disable-teleport-confirmation]');
+    expect(button).not.toBeNull();
+    button!.click(); await flush();
+    expect(f.setTeleportConfirmationEnabled).toHaveBeenCalledExactlyOnceWith(false);
+    expect(f.preflight.check).not.toHaveBeenCalled();
+    expect(f.navigation.request).toHaveBeenCalledExactlyOnceWith(route);
   });
   it('still confirms deleting a saved location when teleport confirmation is disabled', async () => {
     const f = tools(() => false); f.api.showTeleport();

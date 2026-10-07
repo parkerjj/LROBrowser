@@ -161,7 +161,8 @@ describe('item dragging without the browser drag cursor', () => {
     f.start(); f.move(90, 100);
     expect(f.mouse.screen.x).toBe(101); expect(f.mouse.screen.y).toBe(117);
     expect(f.cursor.x).toBe(101); expect(f.cursor.y).toBe(117);
-    expect(pointer.style.left).toBe('90px'); expect(pointer.style.top).toBe('100px'); f.release();
+    expect(pointer.style.translate).toBe('90px 100px');
+    expect(pointer.style.left).toBe(''); expect(pointer.style.top).toBe(''); f.release();
   });
 
   it('does not drop onto a target that has not accepted dragover', () => {

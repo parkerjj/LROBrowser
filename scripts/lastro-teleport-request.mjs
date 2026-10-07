@@ -9,7 +9,7 @@ export function createLastroVerifiedTeleportRequest({ preflight, navigation, get
     navigation.cancel();
     clearNavigation?.();
   }
-  async function request(route) {
+  async function request(route, { skipPreflight = false } = {}) {
     cancel();
     const current = generation;
     const map = getMap(), profile = getProfile();
@@ -18,10 +18,10 @@ export function createLastroVerifiedTeleportRequest({ preflight, navigation, get
       ? { npc: route.npc, desc: route.desc, outset: copy(route.outset), path: copy(route.path), position: copy(route.position), ...(route.direct === true ? { direct: true } : {}) }
       : route;
     try {
-      const result = await preflight.check(target);
+      const result = skipPreflight ? null : await preflight.check(target);
       if (current !== generation) return null;
       if (map !== getMap() || profile !== getProfile()) throw new Error('当前地图或区服已变化，请重新选择地点');
-      if (!result?.approved) throw new Error('传送地点未通过检查');
+      if (!skipPreflight && !result?.approved) throw new Error('传送地点未通过检查');
       if (target?.direct === true) {
         if (!Array.isArray(target.outset)) throw new Error('当前客户端不支持快捷传送');
         const normalize = value => typeof value === 'string' ? value.trim().replace(/\.gat$/i, '').toLowerCase() : '';

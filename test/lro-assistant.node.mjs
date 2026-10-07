@@ -592,10 +592,10 @@ test('actual native storage, party and minimap factories expose read-only snapsh
     addAssistantAwareListener(f.page,'pointermove',()=>gameMoves++,true);
     addAssistantAwareListener(f.page,'mouseup',()=>gameReleases++,true);
     pointer(control,'pointerdown',20);pointer(control,'pointermove',40);
-    assert.equal(gameMoves,0);assert.equal(f.page.document.querySelector('.cursor').style.left,'40px');
+    assert.equal(gameMoves,0);assert.equal(f.page.document.querySelector('.cursor').style.translate,'40px 20px');
     pointer(control,'pointerup',40);
     pointer(f.page.document.body,'pointermove',80);
-    assert.equal(gameMoves,1);assert.equal(f.page.document.querySelector('.cursor').style.left,'80px');
+    assert.equal(gameMoves,1);assert.equal(f.page.document.querySelector('.cursor').style.translate,'80px 20px');
     pointer(f.page.document.body,'mouseup',80);assert.equal(gameReleases,0);
     pointer(f.page.document.body,'mousedown',90);pointer(f.page.document.body,'mouseup',90);assert.equal(gameReleases,1);
     const prefs=new Map();
@@ -612,11 +612,12 @@ test('actual native storage, party and minimap factories expose read-only snapsh
       addAssistantAwareListener,removeAssistantAwareListener,guardAssistantInputHandler});
     context.UIManager.getComponent=()=>({open(){opened++;}});
     const basic=vm.runInNewContext(factory('createBasicInfo')+'\ncreateBasicInfo({name:"BasicInfoV1",innerId:"#BasicInfoV1"})',context);
-    basic.getRoot().querySelector('#BasicInfoV1').innerHTML='<div class="buttons"></div>';
+    basic.getRoot().querySelector('#BasicInfoV1').innerHTML='<div class="buttons"><button id="attendance"></button></div>';
     basic.draggable=()=>{};
     basic.init();basic.init();
     const entries=basic.getRoot().querySelectorAll('[data-lro-assistant-entry]');
     assert.equal(entries.length,1,'native toolbar entry is not duplicated');
+    assert.equal(basic.getRoot().querySelector('#attendance'),null,'attendance shortcut is removed to make room in the native toolbar');
     entries[0].dispatchEvent(new f.page.MouseEvent('mousedown',{bubbles:true}));
     entries[0].dispatchEvent(new f.page.MouseEvent('click',{bubbles:true}));
     assert.equal(opened,1,'native toolbar opens the registered assistant');

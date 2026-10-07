@@ -7074,7 +7074,8 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
                     </div>
                     <div class="body">
                         <div class="toolbar">
-                            <input class="search" type="search" placeholder="搜物品、卡片、词条或店名" autocomplete="off">
+                            <input class="search" type="search" placeholder="搜物品、卡片、词条或店名（至少2个字）" autocomplete="off">
+                            <button class="market-search-submit" type="button">查询</button>
                             <button class="shopping-list-open" type="button">购物清单</button>
                             <button class="scan" type="button">立即记录</button>
                             <button class="market-more" type="button" hidden>显示更多结果</button>

@@ -8,6 +8,7 @@ import { REQUIRED_HEADERS } from './iwa-security.mjs';
 /* eslint-disable no-control-regex -- Reject control characters in untrusted package paths. */
 
 const ALLOWED_ORIGINS = new Set(['https://game.lastro.cn', 'https://rodata.ltsd.ro']);
+const API_ORIGIN_PATHS = new Map([['https://ltsd.ro', '/api/v1/market/search']]);
 const RELAY_ORIGINS = new Set(['wss://port.lastro.cn']);
 const NON_RESOURCE_ORIGINS = new Set(['http://www.w3.org']);
 const REMOTE_EXECUTABLE = /https?:\/\/[^\s"'`]+\.(?:js|mjs|cjs|wasm|lua|lub)(?:[?#]|$)/i;
@@ -46,12 +47,12 @@ function validateProtocolHandlers(manifest) {
   ))) throw new Error('invalid protocol handler');
 }
 
-function originReferences(source) {
-  const origins = new Set();
+function urlReferences(source) {
+  const urls = [];
   for (const match of source.matchAll(/(?:https?|wss?):\/\/[^\s"'`<>);]*/gi)) {
-    try { origins.add(new globalThis.URL(match[0]).origin); } catch { /* ignored malformed fragments are handled by the source audit */ }
+    try { urls.push(new globalThis.URL(match[0])); } catch { /* ignored malformed fragments are handled by the source audit */ }
   }
-  return [...origins].sort();
+  return urls;
 }
 
 export async function auditDist(distDirectory, reportPath = path.resolve('release/audit-report.json'), options = {}) {
@@ -86,6 +87,7 @@ export async function auditDist(distDirectory, reportPath = path.resolve('releas
 
   const originSet = new Set();
   const navigationOrigins = new Set();
+  const referencedUrls = [];
   const prohibitedResults = [];
   const bytesByCategory = {};
   let totalBytes = 0;
@@ -104,7 +106,9 @@ export async function auditDist(distDirectory, reportPath = path.resolve('releas
       if (navigationOnly && /\bfetch\s*\(|XMLHttpRequest|WebSocket|\.src\s*=|import\s*\(/.test(source)) {
         throw new Error('navigation helper must not load remote resources');
       }
-      for (const origin of originReferences(source)) {
+      const urls = urlReferences(source);
+      referencedUrls.push(...urls);
+      for (const origin of new Set(urls.map((url) => url.origin))) {
         if (navigationOnly && ['https://ro.dvg.cn', 'https://ro.ro321.com'].includes(origin)) navigationOrigins.add(origin);
         else originSet.add(origin);
       }
@@ -118,8 +122,13 @@ export async function auditDist(distDirectory, reportPath = path.resolve('releas
       catch (error) { throw new Error(`prohibited bundle content: ${error.message}`); }
     }
   }
-  const unapprovedOrigins = [...originSet].filter((origin) => !ALLOWED_ORIGINS.has(origin)
-    && !RELAY_ORIGINS.has(origin) && !NON_RESOURCE_ORIGINS.has(origin));
+  const unapprovedOrigins = [...originSet].filter((origin) => {
+    if (ALLOWED_ORIGINS.has(origin) || RELAY_ORIGINS.has(origin) || NON_RESOURCE_ORIGINS.has(origin)) return false;
+    const allowedPath = API_ORIGIN_PATHS.get(origin);
+    if (!allowedPath) return true;
+    return referencedUrls.some((url) => url.origin === origin
+      && (url.pathname !== allowedPath || url.username || url.password || url.hash));
+  });
   if (unapprovedOrigins.length) throw new Error(`unapproved remote origins: ${unapprovedOrigins.join(', ')}`);
   if (prohibitedResults.length) throw new Error(`prohibited bundle content: ${prohibitedResults.map((item) => `${item.name}@${item.file}`).join(', ')}`);
 
@@ -148,7 +157,7 @@ export async function auditDist(distDirectory, reportPath = path.resolve('releas
     totalBytes,
     bytesByCategory,
     navigationOrigins: [...navigationOrigins],
-    externalOrigins: [...originSet].filter((origin) => ALLOWED_ORIGINS.has(origin)),
+    externalOrigins: [...originSet].filter((origin) => ALLOWED_ORIGINS.has(origin) || API_ORIGIN_PATHS.has(origin)),
     coreManifestSummary: { fileCount: coreManifest.files.length, packagedBytes: coreManifest.files.reduce((sum, file) => sum + file.bytes, 0) },
     prohibitedPatternResults: [],
     requiredHeaders: REQUIRED_HEADERS,
