@@ -148,7 +148,7 @@ function movementFixture(actualEvents?: 'current' | 'previous', oldSide = false)
   const canvas = document.createElement('canvas'), overlay = document.createElement('div'); document.body.append(canvas, overlay);
   const calls: string[] = [], sent: { dest?: number[]; kind: string }[] = [];
   const player = { position: [1, 1], action: 0, ACTION: { SIT: 1, DIE: 2 }, headDir: 0, direction: 0,
-    lookTo: vi.fn(), constructor: { TYPE_EFFECT: 9, TYPE_UNIT: 10, TYPE_TRAP: 11 } };
+    attack_range: 1, isOverWeight: false, lookTo: vi.fn(), constructor: { TYPE_EFFECT: 9, TYPE_UNIT: 10, TYPE_TRAP: 11 } };
   const session = { Entity: player as typeof player | null, FreezeUI: false, moveAction: null, autoFollow: false, TouchTargeting: false,
     captchaGetIdOnEntityClick: false, captchaGetIdOnFloorClick: false, mapState: { isPVP: false, isGVG: false } };
   const mouse = { screen: { x: 5, y: 5, width: 300, height: 300 }, world: { x: 10, y: 20, z: 0 }, intersect: true, state: 0, MOUSE_STATE: { NORMAL: 0, USESKILL: 2 } };
@@ -185,7 +185,7 @@ function movementFixture(actualEvents?: 'current' | 'previous', oldSide = false)
     PacketVerManager_default: { value: 20211103 }, PACKET: { CZ: { REQUEST_MOVE: LegacyMove, REQUEST_MOVE2: Move, CHANGE_DIRECTION: Direction, CHANGE_DIRECTION2: Direction } },
     Network: { sendPacket: vi.fn((packet: Move) => { sent.push({ kind: packet.kind, dest: packet.dest ? [...packet.dest] : undefined }); calls.push('packet'); }) },
     SkillTargetSelection_default: { onMapMouseDown: vi.fn(() => true) }, Mobile: { init: vi.fn() },
-    Cursor: { ACTION: { DEFAULT: 0, ROTATE: 1 }, setType: vi.fn() }, AIDriver: { setmsg: vi.fn() },
+    Cursor: { ACTION: { DEFAULT: 0, ROTATE: 1, ATTACK: 2, LOCK: 3 }, setType: vi.fn() }, AIDriver: { setmsg: vi.fn() },
     _rightClickPosition: new Int16Array(2), _walkTimer: null, _walkLastTick: 0,
     onMouseWheel: vi.fn(), onDragOver: vi.fn(), onDrop$6: vi.fn(), onAutoFollow: vi.fn(),
     component, GUIComponent: { MouseMode: { STOP: 0, CROSS: 1 } }, _Cursor: { ACTION: { DEFAULT: 0 }, setType: vi.fn() }, _EntityManager: entityManager,
@@ -240,11 +240,14 @@ function vendingSign(f: ReturnType<typeof movementFixture>) {
 function friendlyPCFixture(baseline = false) {
   const f = movementFixture(undefined, baseline);
   const methods = baseline ? baselinePCMethods : pcMethods;
-  const nativeControls = vm.runInContext('({' + ['onMouseDown', 'onFocus', 'canAttackEntity', 'onContextMenu']
+  const nativeControls = vm.runInContext('({' + ['onMouseOver', 'onMouseDown', 'onFocus', 'canAttackEntity', 'onContextMenu']
     .map(name => name + ':' + methods[name]).join(',') + '})', f.context) as Record<string, (this: unknown) => boolean>;
   const pc = {
-    ...occupant(100, 100), GID: 555, GUID: 0, display: { name: 'friend' },
+    ...occupant(100, 100), GID: 555, GUID: 0,
     constructor: { TYPE_PC: 0, TYPE_EFFECT: 9, TYPE_UNIT: 10, TYPE_TRAP: 11 },
+    display: { name: 'friend', load: 1, TYPE: { NONE: 0, LOADING: 1, COMPLETE: 2 } },
+    attachments: { add: vi.fn() },
+    onMouseOver: vi.fn((): void => { nativeControls.onMouseOver!.call(pc); }),
     onMouseDown: vi.fn((): boolean => nativeControls.onMouseDown!.call(pc)),
     onFocus: vi.fn((): boolean => nativeControls.onFocus!.call(pc)),
     canAttackEntity: vi.fn((): boolean => nativeControls.canAttackEntity!.call(pc)),
@@ -541,18 +544,40 @@ describe('ordinary player click movement', () => {
     const baseline = friendlyPCFixture(true); baseline.down(); baseline.up();
     expect(baseline.pc.onMouseDown).toHaveReturnedWith(true);
     expect(baseline.pc.onFocus).not.toHaveBeenCalled(); expect(baseline.sent).toHaveLength(0);
-    const current = friendlyPCFixture(); current.down(); current.up();
+    const current = friendlyPCFixture();
+    const cursor = (current.context as unknown as { Cursor: { ACTION: { DEFAULT: number; ATTACK: number }; setType: ReturnType<typeof vi.fn> } }).Cursor;
+    cursor.setType.mockClear(); current.pc.onMouseOver();
+    expect(cursor.setType).toHaveBeenCalledWith(cursor.ACTION.DEFAULT);
+    expect(cursor.setType).not.toHaveBeenCalledWith(cursor.ACTION.ATTACK);
+    current.pc.canAttackEntity.mockClear();
+    current.down(); current.up();
     expect(current.pc.onMouseDown).toHaveReturnedWith(false);
     expect(current.pc.onFocus).toHaveReturnedWith(false);
     expect(current.pc.canAttackEntity).toHaveBeenCalledTimes(2);
     expect(current.sent).toEqual([{ kind: 'move2', dest: [30, 40] }]);
     vi.advanceTimersByTime(1000); expect(current.sent).toHaveLength(1); expect(vi.getTimerCount()).toBe(0);
   });
-  it.each(['pvp', 'gvg', 'entity-captcha', 'floor-captcha', 'touch', 'shift', 'ctrl', 'alt', 'noshift', 'attackable', 'unknown-capability', 'missing-map', 'missing-capability'])(
-    'keeps the native player consumption for %s interactions', mode => {
+  it.each(['pvp', 'gvg'])('routes an attackable %s player click into the native attack request path', mode => {
     const f = friendlyPCFixture();
     if (mode === 'pvp') f.session.mapState.isPVP = true;
-    if (mode === 'gvg') f.session.mapState.isGVG = true;
+    else f.session.mapState.isGVG = true;
+    class DirectionPacket { kind = 'direction2'; }
+    class AttackPacket { kind = 'attack2'; action = 0; targetGID = 0; }
+    Object.assign((f.context as unknown as { PACKET: { CZ: Record<string, unknown> } }).PACKET.CZ, {
+      CHANGE_DIRECTION2: DirectionPacket, REQUEST_ACT2: AttackPacket,
+    });
+    Object.assign(f.context, { PathFinding_default: { search: (_sx: number, _sy: number, _tx: number, _ty: number, _range: number, out: number[]) => {
+      out.push(2, 2); return 1;
+    } } });
+    f.down(); f.up();
+    expect(f.pc.onMouseDown).toHaveReturnedWith(false);
+    expect(f.pc.canAttackEntity).toHaveReturnedWith(true);
+    expect(f.pc.onFocus).toHaveReturnedWith(true);
+    expect(f.sent).toEqual([{ kind: 'direction2' }, { kind: 'attack2' }]);
+  });
+  it.each(['entity-captcha', 'floor-captcha', 'touch', 'shift', 'ctrl', 'alt', 'noshift', 'attackable', 'unknown-capability', 'missing-map', 'missing-capability'])(
+    'keeps the native player consumption for %s interactions', mode => {
+    const f = friendlyPCFixture();
     if (mode === 'entity-captcha') f.session.captchaGetIdOnEntityClick = true;
     if (mode === 'floor-captcha') f.session.captchaGetIdOnFloorClick = true;
     if (mode === 'touch') f.session.TouchTargeting = true;
@@ -569,6 +594,18 @@ describe('ordinary player click movement', () => {
     if (mode === 'entity-captcha') expect(f.captcha).toHaveBeenCalledWith(555);
     else expect(f.captcha).not.toHaveBeenCalled();
     vi.advanceTimersByTime(1000); expect(vi.getTimerCount()).toBe(0);
+  });
+  it.each(['entity', 'floor'])('keeps %s-ID captcha collection ahead of PVP attacks', mode => {
+    const f = friendlyPCFixture(); f.session.mapState.isPVP = true;
+    f.pc.canAttackEntity.mockReturnValue(true);
+    if (mode === 'entity') f.session.captchaGetIdOnEntityClick = true;
+    else f.session.captchaGetIdOnFloorClick = true;
+    f.down(); f.up();
+    expect(f.pc.onMouseDown).toHaveReturnedWith(true);
+    expect(f.pc.onFocus).not.toHaveBeenCalled();
+    expect(f.sent).toHaveLength(0);
+    if (mode === 'entity') expect(f.captcha).toHaveBeenCalledWith(555);
+    else expect(f.captcha).not.toHaveBeenCalled();
   });
   it.each(['skill', 'frozen'])('does not bypass %s protection when the entity method is invoked directly', mode => {
     const f = friendlyPCFixture();

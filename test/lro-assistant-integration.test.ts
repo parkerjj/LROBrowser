@@ -32,6 +32,7 @@ describe('LRO assistant integration', () => {
     expect(runtime).toContain('Component.lroReadItems =');
     expect(runtime).toContain('Component.lroReadParty =');
     expect(runtime).toContain('MiniMap.lroReadZoom =');
+    expect(runtime).toContain('globalThis.LROAssistantProfileChange = assistant.switchProfile');
     expect(() => patchLroAssistantRuntime(runtime)).toThrow('already applied');
   });
 });

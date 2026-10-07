@@ -134,7 +134,7 @@ function formatLastUsed(timestamp) {
   return new Date(timestamp).toLocaleDateString();
 }
 
-export function installLastROLogin({ root, component, configs }) {
+export function installLastROLogin({ root, component, configs, onAssistantProfileChange }) {
   const panel = root?.querySelector?.('[data-lastro-login-panel]');
   if (!panel) return;
   if (installed.has(panel)) return;
@@ -390,10 +390,7 @@ export function installLastROLogin({ root, component, configs }) {
     saveLoginPreferences({ connectionMode, serverProfileId: selectedProfileId });
   }
 
-  function selectProfile(profile) {
-    if (mutationBusy || !profile || profile.availability === 'unavailable'
-      || (connectionMode === 'relay' ? profile.id === 'lastro-app' : profile.id !== 'lastro-app')) return;
-    if (profile.id === selectedProfileId) return;
+  function applyProfile(profile) {
     component.onServerSelect?.(profile);
     selectedProfileId = profile.id;
     selectedAccount = undefined;
@@ -405,17 +402,49 @@ export function installLastROLogin({ root, component, configs }) {
     void refreshAccounts();
   }
 
+  function selectProfile(profile) {
+    if (mutationBusy || !profile || profile.availability === 'unavailable'
+      || (connectionMode === 'relay' ? profile.id === 'lastro-app' : profile.id !== 'lastro-app')) return Promise.resolve(false);
+    if (profile.id === selectedProfileId) return Promise.resolve(true);
+    if (typeof onAssistantProfileChange !== 'function') {
+      applyProfile(profile);
+      return Promise.resolve(true);
+    }
+    mutationBusy = true;
+    ++revision;
+    syncConnectionControls();
+    return Promise.resolve().then(() => onAssistantProfileChange(profile.id)).then(() => {
+      applyProfile(profile);
+      return true;
+    }).catch(() => {
+      setMessage('助手数据切换失败，服务器未更改');
+      return false;
+    }).finally(() => {
+      mutationBusy = false;
+      syncConnectionControls();
+    });
+  }
+
   for (const button of panel.querySelectorAll('[data-connection-mode]')) {
     button.addEventListener('click', () => {
       if (mutationBusy || connectionMode === button.dataset.connectionMode) return;
+      const previousMode = connectionMode;
       connectionMode = button.dataset.connectionMode;
       configs.set('connectionMode', connectionMode);
+      let selection;
       if (connectionMode === 'relay' && selectedProfileId === 'lastro-app') {
-        selectProfile(profiles.find(profile => profile.id === 'lastro-2x'));
+        selection = selectProfile(profiles.find(profile => profile.id === 'lastro-2x'));
       } else if (connectionMode === 'direct' && selectedProfileId !== 'lastro-app') {
-        selectProfile(profiles.find(profile => profile.id === 'lastro-app'));
+        selection = selectProfile(profiles.find(profile => profile.id === 'lastro-app'));
       }
       syncConnectionControls();
+      if (selection) void selection.then(success => {
+        if (!success) {
+          connectionMode = previousMode;
+          configs.set('connectionMode', connectionMode);
+          syncConnectionControls();
+        }
+      });
     });
   }
 

@@ -65,7 +65,7 @@ export function installMarketApi(app,page) {
   for(const [value,label] of [['remote','网站市场'],['local','本地记录']]){const o=page.document.createElement('option');o.value=value;o.textContent=label;select.append(o);}
   const refresh=page.document.createElement('button');refresh.textContent='刷新市场';refresh.type='button';
   const more=page.document.createElement('button');more.textContent='下一页';more.type='button';more.hidden=true;
-  const status=page.document.createElement('span');status.style.cssText='width:100%;font-size:11px;color:#345';status.textContent='打开助手后加载网站市场';
+  const status=page.document.createElement('span');status.style.cssText='width:100%;font-size:11px;color:#345';status.textContent='点击查询或刷新市场加载网站数据';
   const stop=page.document.createElement('button');stop.type='button';stop.textContent='暂停查询';stop.hidden=true;
   let paused=false;stop.addEventListener('click',()=>{paused=true;controller?.abort();});
   bar.append(select,refresh,more,stop,status);root.querySelector('.filters').after(bar);
@@ -107,6 +107,15 @@ export function installMarketApi(app,page) {
   }
   app.render=paint;
   function schedule(){page.clearTimeout(timer);scheduled=requestKey();timer=page.setTimeout(()=>load(false),180);}
+  function reset(){
+    generation++;controller?.abort();controller=null;page.clearTimeout(timer);timer=null;
+    started=false;busy=false;paused=false;pending=[];cursor=null;signature='';scheduled='';activeSearch='';
+    records.clear();resultCache.clear();
+    const search=root.querySelector('.search');if(search)search.value='';
+    status.textContent='点击查询或刷新市场加载网站数据';
+    more.hidden=true;more.disabled=false;stop.hidden=true;
+    paint();
+  }
   async function load(append=false,force=false){
     if(!remote)return;started=true;controller?.abort();controller=new page.AbortController();const active=controller;
     page.clearTimeout(timer);scheduled='';
@@ -187,9 +196,8 @@ export function installMarketApi(app,page) {
   root.querySelector('.search')?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();submitSearch?.click();}});
   select.addEventListener('change',()=>{remote=select.value==='remote';generation++;controller?.abort();page.clearTimeout(timer);busy=false;if(remote)load();else{status.textContent='本地记录：保留手动查看商店的数据';more.hidden=true;originalRender();}});
   for(const selector of ['.sort','.map-only'])root.querySelector(selector).addEventListener('change',()=>{if(remote&&started)schedule();});
-  const show=app.showAssistantView.bind(app);app.showAssistantView=(...args)=>{const result=show(...args);if(remote&&!started)load();return result;};
   // API mode defaults to all maps and API-supported sorting; local records are untouched.
   root.querySelector('.map-only').checked=false;
   root.querySelector('.sort').value='price';
-  return {load,get records(){return [...records.values()];}};
+  return {load,reset,get records(){return [...records.values()];}};
 }

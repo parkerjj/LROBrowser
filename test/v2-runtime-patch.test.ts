@@ -264,7 +264,7 @@ end`;
     expect(patched).toContain('this.audioCtx = LastROAudioRegisterContext(new AudioContext());');
     expect(patched).toContain('const resumeAudioContexts = () => {');
     expect(patched).toContain('lastro-account-login.mjs');
-    expect(patched).toContain('installLastROLogin({ root, component: Component, configs: Configs })');
+    expect(patched).toContain('installLastROLogin({ root, component: Component, configs: Configs, onAssistantProfileChange: profileId => globalThis.LROAssistantProfileChange?.(profileId) })');
     expect(patched).toContain('beforeLastROLoginConnect(user, pass)');
     expect(patched).toContain('Network.sendPacket(pkt);\n        afterLastROLoginPassword(username, password);');
     expect(patched).not.toContain('globalThis.LastROLoginBeforeConnect');

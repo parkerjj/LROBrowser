@@ -134,18 +134,113 @@ function nativeComponent(f, name, html='') {
   return {name,_host:host,getRoot:()=>root,ui:{0:host,is:()=>false},remove(){host.style.display='none';}};
 }
 
-test('IndexedDB persistence, server isolation and no access to account keys', async () => {
+test('IndexedDB shares character preferences while isolating server data and account keys', async () => {
   const indexedDB = new IDBFactory();
   const a = await openAssistantStorage('lastro-2x',{indexedDB});
   a.setItem('ro-market-assistant:settings:v1', JSON.stringify({collapsed:false}));
+  a.setItem('ro-market-assistant:records:v1', JSON.stringify([{ id: 'two-x' }]));
   await a.flush(); await a.close();
   const again = await openAssistantStorage('lastro-2x',{indexedDB});
   assert.deepEqual(JSON.parse(again.getItem('ro-market-assistant:settings:v1')), {collapsed:false});
+  assert.deepEqual(JSON.parse(again.getItem('ro-market-assistant:records:v1')), [{ id: 'two-x' }]);
   const b = await openAssistantStorage('lastro-3x',{indexedDB});
-  assert.equal(b.getItem('ro-market-assistant:settings:v1'),null);
+  assert.deepEqual(JSON.parse(b.getItem('ro-market-assistant:settings:v1')), {collapsed:false});
+  assert.equal(b.getItem('ro-market-assistant:records:v1'),null);
   assert.throws(()=>b.getItem('accounts'),/自己的数据/);
   assert.throws(()=>b.setItem('password','fixture'),/自己的数据/);
   await again.close(); await b.close();
+});
+
+test('assistant storage can switch profiles in place without mixing IndexedDB data', async () => {
+  const indexedDB = new IDBFactory();
+  const storage = await openAssistantStorage('lastro-2x', { indexedDB });
+  storage.setItem('ro-market-assistant:records:v1', JSON.stringify([{ id: 'two-x' }]));
+  storage.setItem('ro-market-assistant:character-settings:v1', JSON.stringify({ schemaVersion: 1, salt: 'shared', profiles: {} }));
+  await storage.flush();
+
+  await storage.switchProfile('lastro-3x');
+  assert.equal(storage.profile, 'lastro-3x');
+  assert.equal(storage.getItem('ro-market-assistant:records:v1'), null);
+  assert.deepEqual(JSON.parse(storage.getItem('ro-market-assistant:character-settings:v1')), { schemaVersion: 1, salt: 'shared', profiles: {} });
+  storage.setItem('ro-market-assistant:records:v1', JSON.stringify([{ id: 'three-x' }]));
+  await storage.flush();
+
+  await storage.switchProfile('lastro-2x');
+  assert.deepEqual(JSON.parse(storage.getItem('ro-market-assistant:records:v1')), [{ id: 'two-x' }]);
+  await storage.close();
+});
+
+test('assistant rebinds profile data in place while retaining this character preferences', async () => {
+  const f = fixture();
+  const indexedDB = new IDBFactory();
+  const storage = await openAssistantStorage('lastro-2x', { indexedDB });
+  const app = createStandardAssistant({ page: f.page, modules: f.members, storage, subscribePackets: f.bus.subscribe });
+  try {
+    app.records = [{ itemName: 'two-x potion', shop: '2x shop', source: 'manual', map: 'prontera', x: 20, y: 30 }];
+    app.settings.shoppingList = ['红色药水'];
+    app.settings.assistantHost = { right: 24, top: 30 };
+    app.windowPositions.assistantHost = { right: 24, top: 30 };
+    app.saveWindowPositions();
+    assert.equal(f.page.localStorage.getItem('ro-market-assistant:window-positions:v1'), null);
+    app.itemOverview.data.accounts.fixture = { label: '角色仓库', storage: [], storageUpdatedAt: '' };
+    app.itemOverview.flushSave();
+    app.save();
+    await storage.flush();
+
+    await app.switchProfile('lastro-3x');
+    assert.equal(storage.profile, 'lastro-3x');
+    assert.equal(f.page.location.href, 'https://assistant.test/');
+    assert.deepEqual(app.records, []);
+    assert.deepEqual(app.itemOverview.data.accounts, {});
+    assert.deepEqual(app.settings.shoppingList, ['红色药水']);
+    assert.deepEqual(app.settings.assistantHost, { right: 24, top: 30 });
+
+    app.records = [{ itemName: 'three-x potion', shop: '3x shop', source: 'manual', map: 'prontera', x: 20, y: 30 }];
+    app.save();
+    await app.switchProfile('lastro-2x');
+    assert.equal(app.records[0].itemName, 'two-x potion');
+    assert.deepEqual(app.itemOverview.data.accounts.fixture.storage, []);
+
+    f.session.Character.GID = 201;
+    app.syncCharacterSettings();
+    assert.deepEqual(app.settings.shoppingList, []);
+    f.session.Character.GID = 200;
+    app.syncCharacterSettings();
+    assert.deepEqual(app.settings.shoppingList, ['红色药水']);
+  } finally {
+    await storage.close();
+    f.cleanup();
+  }
+});
+
+test('character presets follow the character when the server profile changes', async () => {
+  const f = fixture();
+  const storage = await openAssistantStorage('lastro-2x', { indexedDB: new IDBFactory() });
+  const app = createStandardAssistant({ page: f.page, modules: f.members, storage, subscribePackets: f.bus.subscribe });
+  const database = f.members.get('DB/DBManager');
+  try {
+    database.nid = 'lastro-2x';
+    app.gameplayVisible = true;
+    const outfitKey = app.equipmentOutfit.identity();
+    const outfitPresets = [{ id: 'role-outfit', name: '角色搭配' }];
+    app.equipmentOutfit.savePresets(outfitPresets);
+    const deckKey = app.cardDeck.identity().characterKey;
+    const deckEntry = { presets: [{ id: 'role-deck', name: '角色卡组' }] };
+    app.cardDeck.data.characters[deckKey] = deckEntry;
+    app.cardDeck.save();
+    await storage.flush();
+
+    await app.switchProfile('lastro-3x');
+    database.nid = 'lastro-3x';
+
+    assert.equal(app.equipmentOutfit.identity(), outfitKey);
+    assert.deepEqual(app.equipmentOutfit.presets(), outfitPresets);
+    assert.equal(app.cardDeck.identity().characterKey, deckKey);
+    assert.deepEqual(app.cardDeck.readEntry(), deckEntry);
+  } finally {
+    await storage.close();
+    f.cleanup();
+  }
 });
 
 test('failed database open rejects instead of starting with empty data',async()=>{
@@ -387,15 +482,18 @@ test('repeated installation creates one instance and saves in the real IndexedDB
     installed.open();await installed.flush();
     assert.equal(f.page.document.querySelectorAll('#ro-market-assistant').length,1);
     assert.equal(installed.storageStatus.failed,false);
+    await installed.switchProfile('lastro-3x');
+    assert.equal(installed.storageStatus.profile, 'lastro-3x');
+    assert.equal(f.page.location.href, 'https://assistant.test/');
   }finally{f.cleanup();}
 });
 
 test('write failure is reported and subsequent flush never claims success',async()=>{
   const indexedDB=new IDBFactory();let database;let errors=0;
   const original=indexedDB.open.bind(indexedDB);
-  indexedDB.open=(...args)=>{
-    const request=original(...args);
-    request.addEventListener('success',()=>{database=request.result;});return request;
+  indexedDB.open=(name,...args)=>{
+    const request=original(name,...args);
+    request.addEventListener('success',()=>{if(name==='lro-assistant-standard:lastro-2x')database=request.result;});return request;
   };
   const storage=await openAssistantStorage('lastro-2x',{indexedDB,onError:()=>errors++});
   database.transaction=()=>{throw new Error('simulated disk failure');};

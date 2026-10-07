@@ -48,13 +48,24 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
 
     function writeSharedJson(key, value) { return largeStorage.writeJson(key, value); }
 
+    function readProfileJson(key, fallback) {
+        try {
+            const raw = storage.getProfileItem?.(key);
+            return raw == null ? fallback : JSON.parse(raw) ?? fallback;
+        } catch { return fallback; }
+    }
+
     // Large data is shared by the standard and full editions in this origin's
     // IndexedDB. A verified userscript copy lets document-start migration free
     // localStorage before the native client first writes its preferences.
+    let profileSwitching = false;
     function createLargeOriginStorage() {
         return { ready: Promise.resolve(), has: () => true,
           readJson(key, fallback) { try { return JSON.parse(storage.getItem(key)) ?? fallback; } catch { return fallback; } },
-          writeJson(key, value) { try { storage.setItem(key, JSON.stringify(value)); return true; } catch (error) { reportError(error); return false; } }
+          writeJson(key, value) {
+            if (profileSwitching) return false;
+            try { storage.setItem(key, JSON.stringify(value)); return true; } catch (error) { reportError(error); return false; }
+          }
         };
       }
 
@@ -2249,10 +2260,8 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
             }
             placeWindow(targetHost, defaultTargetPosition(page.innerWidth, page.innerHeight, TARGET_WINDOW_WIDTH, shortcutRect), TARGET_WINDOW_WIDTH);
         }
-        const WINDOW_POSITIONS_KEY = `${APP_ID}:window-positions:v1`;
         function readSavedWindowPosition(settingKey) {
-            try { const positions = JSON.parse(page.localStorage.getItem(WINDOW_POSITIONS_KEY) || '{}'); return positions?.[settingKey] || assistant?.settings?.[settingKey] || null; }
-            catch (_error) { return assistant?.settings?.[settingKey] || null; }
+            return assistant?.settings?.[settingKey] || null;
         }
         function saveWindowPosition(node, settingKey, fallbackWidth) {
             if (!assistant || !node) return;
@@ -2261,8 +2270,6 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
                 top: Number.isFinite(Number.parseFloat(node.style.top)) ? Number.parseFloat(node.style.top) : rect?.top };
             const position = placeWindow(node, raw, fallbackWidth); if (!position) return;
             assistant.settings[settingKey] = position;
-            try { const positions = JSON.parse(page.localStorage.getItem(WINDOW_POSITIONS_KEY) || '{}'); positions[settingKey] = position;
-                page.localStorage.setItem(WINDOW_POSITIONS_KEY, JSON.stringify(positions)); } catch (_error) {}
             assistant.save();
         }
         function syncSession() {
@@ -2883,10 +2890,7 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
     class ItemEncyclopediaModule {
         constructor(assistant) {
             this.assistant = assistant;
-            const storedEntries = assistant.loadJson(ENCYCLOPEDIA_KEY, []);
-            this.entries = (Array.isArray(storedEntries) ? storedEntries : [])
-                .map((entry) => normalizeEncyclopediaEntry(entry))
-                .filter((entry) => entry.key);
+            this.loadProfileData();
             this.currentItem = null;
             this.lastNativeItem = null;
             this.nativeInfoHost = null;
@@ -2894,16 +2898,40 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
             this.referenceLoadingKeys = new Set();
             this.monsterMapLoadingIds = new Set();
             this.monsterInfoLoading = new Map();
-            const storedMonsterMaps = assistant.loadJson(MONSTER_MAP_CACHE_KEY, {});
-            this.monsterMapCache = storedMonsterMaps && typeof storedMonsterMaps === 'object' && !Array.isArray(storedMonsterMaps)
-                ? storedMonsterMaps
-                : {};
             this.currentKey = '';
             this.editing = false;
             this.nativePreviewItem = null;
             this.nativePreviewVisible = false;
             this.previewWindow = null;
             this.previewRenderToken = 0;
+        }
+
+        loadProfileData() {
+            const storedEntries = this.assistant.loadJson(ENCYCLOPEDIA_KEY, []);
+            this.entries = (Array.isArray(storedEntries) ? storedEntries : [])
+                .map((entry) => normalizeEncyclopediaEntry(entry))
+                .filter((entry) => entry.key);
+            const storedMonsterMaps = this.assistant.loadJson(MONSTER_MAP_CACHE_KEY, {});
+            this.monsterMapCache = storedMonsterMaps && typeof storedMonsterMaps === 'object' && !Array.isArray(storedMonsterMaps)
+                ? storedMonsterMaps : {};
+        }
+
+        reloadProfileData() {
+            this.loadProfileData();
+            this.localMonsterRequest = null;
+            this.referenceLoadingKeys.clear();
+            this.monsterMapLoadingIds.clear();
+            this.monsterInfoLoading.clear();
+            this.currentItem = null;
+            this.lastNativeItem = null;
+            this.currentKey = '';
+            this.editing = false;
+            this.previewRenderToken++;
+            this.previewWindow?.host?.remove();
+            this.previewWindow = null;
+            this.assistant.shadow.querySelector('.encyclopedia-modal').hidden = true;
+            this.assistant.shadow.querySelector('.monster-map-modal').hidden = true;
+            this.hideNativeTrigger();
         }
 
         init() {
@@ -3657,6 +3685,34 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
             this.selectedDeleteCharacterKey = '';
             this.data = this.load();
             globalScope.addEventListener('pagehide', () => this.flushSave());
+        }
+
+        reloadProfileData() {
+            globalScope.clearTimeout(this.saveTimer);
+            this.saveTimer = 0;
+            for (const timer of Object.values(this.captureTimers)) globalScope.clearTimeout(timer);
+            if (this.storageRecoveryTimer) globalScope.clearTimeout(this.storageRecoveryTimer);
+            this.data = this.load();
+            this.opened = false;
+            this.inventoryOpen = false;
+            this.storageOpen = false;
+            this.cartOpen = false;
+            this.storageReceiving = false;
+            this.cartReceiving = false;
+            this.storageItems.clear();
+            this.cartItems.clear();
+            this.storageBatchAt = 0;
+            this.cartBatchAt = 0;
+            this.storageExpectedCount = null;
+            this.storageMaximum = 0;
+            this.storageRecoveryTimer = 0;
+            this.storageRecoverySignature = '';
+            this.storageCommittedSignature = '';
+            this.query = '';
+            this.locationFilter = 'all';
+            this.ownerFilter = 'all';
+            this.selectedDeleteCharacterKey = '';
+            if (this.window) this.window.host.hidden = true;
         }
 
         emptyData(salt = '') {
@@ -5175,9 +5231,7 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
     class EquipmentOutfitModule {
         constructor(assistant) {
             this.assistant = assistant;
-            const raw = readSharedJson(OUTFIT_KEY, null);
-            this.data = raw?.schemaVersion === 1 && raw.characters && raw.salt ? raw
-                : { schemaVersion: 1, salt: Date.now().toString(36) + Math.random().toString(36).slice(2), characters: {} };
+            this.loadProfileData();
             this.enabled = false;
             this.opened = false;
             this.window = null;
@@ -5189,19 +5243,50 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
 
         }
 
+        loadProfileData() {
+            const shared = readSharedJson(OUTFIT_KEY, null);
+            this.legacyProfileData = readProfileJson(OUTFIT_KEY, null);
+            const valid = value => value?.schemaVersion === 1 && value.characters && value.salt;
+            this.data = valid(shared) ? shared : valid(this.legacyProfileData) ? clonePlain(this.legacyProfileData) :
+                { schemaVersion: 1, salt: Date.now().toString(36) + Math.random().toString(36).slice(2), characters: {} };
+        }
+
+        reloadProfileData() {
+            this.loadProfileData();
+            this.lastIdentity = '';
+            this.lastRenderAt = 0;
+            this.running = null;
+            this.editor = null;
+            this.opened = false;
+            if (this.window) this.window.host.hidden = true;
+        }
+
         identity() {
             const session = this.assistant.getAmdModule('Engine/SessionStorage');
             const character = session?.Character || session?.Entity;
             const gid = character?.GID ?? session?.GID;
             const aid = session?.AID ?? character?.AID;
             if (!gid || !aid || !session?.Entity || !this.assistant.gameplayVisible) throw new Error('请进入游戏后操作');
-            const database = this.assistant.getAmdModule('DB/DBManager');
-            return 'c_' + featureHash(`${database?.nid || ''}:${aid}:${gid}`, this.data.salt);
+            return 'c_' + featureHash(`${aid}:${gid}`, this.data.salt);
         }
 
         presets() {
             const key = this.identity();
-            const entry = this.data.characters[key];
+            let entry = this.data.characters[key];
+            if (!Array.isArray(entry) && this.legacyProfileData?.salt) {
+                const session = this.assistant.getAmdModule('Engine/SessionStorage') || {};
+                const character = session.Character || session.Entity || {};
+                const gid = character.GID ?? session.GID;
+                const aid = session.AID ?? character.AID;
+                const database = this.assistant.getAmdModule('DB/DBManager');
+                const oldKey = 'c_' + featureHash(`${database?.nid || ''}:${aid}:${gid}`, this.legacyProfileData.salt);
+                const legacyEntry = this.legacyProfileData.characters?.[oldKey];
+                if (Array.isArray(legacyEntry)) {
+                    entry = clonePlain(legacyEntry, []);
+                    this.data.characters[key] = entry;
+                    writeSharedJson(OUTFIT_KEY, this.data);
+                }
+            }
             return Array.isArray(entry) ? entry : [];
         }
 
@@ -5550,8 +5635,7 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
             this.enabled = false;
             this.opened = false;
             this.window = null;
-            this.data = normalizeCardDeckStore(assistant.loadJson(CARD_DECK_KEY, null));
-            if (!this.data.salt) this.data.salt = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+            this.loadProfileData();
             this.switching = false;
             this.aborted = false;
             this.runToken = 0;
@@ -5565,6 +5649,31 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
             this.refreshingDeck = false;
             this.preparing = false;
             this.switchContext = null;
+        }
+
+        loadProfileData() {
+            this.data = normalizeCardDeckStore(this.assistant.loadJson(CARD_DECK_KEY, null));
+            this.legacyProfileData = normalizeCardDeckStore(readProfileJson(CARD_DECK_KEY, null));
+            if (!this.data.salt) this.data.salt = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+        }
+
+        reloadProfileData() {
+            this.runToken++;
+            this.aborted = true;
+            this.switching = false;
+            this.loadProfileData();
+            this.aborted = false;
+            this.confirmPlan = null;
+            this.nameTarget = null;
+            this.pendingRecord = null;
+            this.currentDeck = [];
+            this.lastDeckRefreshAt = 0;
+            this.refreshingDeck = false;
+            this.preparing = false;
+            this.switchContext = null;
+            this.statusText = '先在游戏里切换到想要的卡组并点击“记录当前卡册”，之后就能一键静默切回。';
+            this.opened = false;
+            if (this.window) this.window.host.hidden = true;
         }
 
         assertSwitchContext() {
@@ -5589,15 +5698,29 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
             const database = this.assistant.getAmdModule('DB/DBManager');
             const character = session.Character || session.Entity || {};
             const rawCharacter = character.GID ?? session.GID ?? character.name ?? 'current';
+            const rawAccount = session.AID ?? character.AID ?? '';
             const rawServer = normalizeText(database && database.nid);
             return {
-                characterKey: 'c_' + featureHash(rawCharacter + ':' + rawServer, this.data.salt),
+                characterKey: 'c_' + featureHash(rawAccount + ':' + rawCharacter, this.data.salt),
+                rawCharacter,
+                rawServer,
                 name: normalizeText(character.name ?? character.display?.name ?? '') || '当前角色'
             };
         }
 
         readEntry() {
-            return this.data.characters[this.identity().characterKey] || null;
+            const identity = this.identity();
+            let entry = this.data.characters[identity.characterKey];
+            if (!entry && this.legacyProfileData?.salt) {
+                const oldKey = 'c_' + featureHash(identity.rawCharacter + ':' + identity.rawServer, this.legacyProfileData.salt);
+                entry = this.legacyProfileData.characters[oldKey];
+                if (entry) {
+                    this.data.characters[identity.characterKey] = clonePlain(entry);
+                    this.save();
+                    entry = this.data.characters[identity.characterKey];
+                }
+            }
+            return entry || null;
         }
 
         writeEntry() {
@@ -6242,13 +6365,12 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
             this.settingsTemplate = clonePlain(this.settings);
             this.globalSettings = readSharedJson(GLOBAL_SETTINGS_KEY, { schemaVersion: 1, itemOverviewEnabled: this.settings.itemOverviewEnabled });
             if (!this.globalSettings || typeof this.globalSettings !== 'object') this.globalSettings = { schemaVersion: 1, itemOverviewEnabled: false };
-            if (typeof this.globalSettings.itemOverviewEnabled !== 'boolean') this.globalSettings.itemOverviewEnabled = Boolean(this.settings.itemOverviewEnabled);
-            this.settings.itemOverviewEnabled = Boolean(this.globalSettings.itemOverviewEnabled);
             this.characterSettingsStore = readSharedJson(CHARACTER_SETTINGS_KEY, null);
             if (!this.characterSettingsStore || this.characterSettingsStore.schemaVersion !== 1 || !this.characterSettingsStore.profiles) {
                 this.characterSettingsStore = { schemaVersion: 1, salt: `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`, profiles: {} };
             }
             if (!normalizeText(this.characterSettingsStore.salt)) this.characterSettingsStore.salt = `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
+            this.migrateLegacyProfileSettings();
             this.characterSettingsKey = '';
             this.currentMap = '';
             this.host = null;
@@ -6312,10 +6434,11 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
             this.equipmentComparisonDirty = true;
             this.equipmentCompareRenderedItem = null;
             this.equipmentCompareDismissedItem = null;
-            this.windowPositions = this.loadJson(`${APP_ID}:window-positions:v1`, {});
-            if (!this.windowPositions || typeof this.windowPositions !== 'object' || Array.isArray(this.windowPositions)) {
-                this.windowPositions = {};
-            }
+            this.windowPositions = Object.fromEntries(['assistantHost', 'shopWindow', 'clearConfirm', 'support', 'itemDetails',
+                'encyclopedia', 'monsterMap', 'shopping', 'equipmentCompare', 'itemOverview', 'partyBars', 'bossSettings',
+                'costumeSettings', 'cardDeck', 'equipmentOutfit', 'targetPosition', 'dpsPosition']
+                .filter(key => this.settings[key] && typeof this.settings[key] === 'object')
+                .map(key => [key, clonePlain(this.settings[key])]));
             this.equipmentCompareMovedByUser = Boolean(this.windowPositions.equipmentCompare);
             this.positionChangedByUser = Boolean(this.windowPositions.assistantHost);
             this.suppressCollapseClick = false;
@@ -6344,6 +6467,53 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
             return normalized;
         }
 
+        migrateLegacyProfileSettings() {
+            const profile = storage.profile;
+            if (!profile || typeof storage.getProfileItem !== 'function') return;
+            const read = key => {
+                try {
+                    const raw = storage.getProfileItem(key);
+                    return raw === null ? null : JSON.parse(raw);
+                } catch { return null; }
+            };
+            const legacyCharacters = read(CHARACTER_SETTINGS_KEY);
+            const legacySettings = read(SETTINGS_KEY);
+            const legacyGlobal = read(GLOBAL_SETTINGS_KEY);
+            const legacyPositions = read(`${APP_ID}:window-positions:v1`);
+            const hasLegacyCharacters = legacyCharacters?.schemaVersion === 1 && legacyCharacters.profiles
+                && normalizeText(legacyCharacters.salt);
+            if (!hasLegacyCharacters && !legacySettings && !legacyGlobal && !legacyPositions) return;
+            if (!this.characterSettingsStore.legacyProfiles || typeof this.characterSettingsStore.legacyProfiles !== 'object') {
+                this.characterSettingsStore.legacyProfiles = {};
+            }
+            if (!this.characterSettingsStore.legacyProfiles[profile]) {
+                this.characterSettingsStore.legacyProfiles[profile] = {
+                    salt: hasLegacyCharacters ? legacyCharacters.salt : '',
+                    profiles: hasLegacyCharacters ? legacyCharacters.profiles : {},
+                    settings: legacySettings && typeof legacySettings === 'object' ? legacySettings : {},
+                    itemOverviewEnabled: typeof legacyGlobal?.itemOverviewEnabled === 'boolean' ? legacyGlobal.itemOverviewEnabled : undefined,
+                    windowPositions: legacyPositions && typeof legacyPositions === 'object' ? legacyPositions : {},
+                };
+                writeSharedJson(CHARACTER_SETTINGS_KEY, this.characterSettingsStore);
+            }
+            const legacy = this.characterSettingsStore.legacyProfiles[profile];
+            if (typeof this.settings.itemOverviewEnabled !== 'boolean' && typeof legacy.itemOverviewEnabled === 'boolean') {
+                this.settings.itemOverviewEnabled = legacy.itemOverviewEnabled;
+            }
+        }
+
+        legacyWindowPositions() {
+            if (this.characterSettingsStore.legacyWindowPositionsMigrated) return {};
+            let positions = {};
+            try {
+                positions = JSON.parse(page.localStorage.getItem(`${APP_ID}:window-positions:v1`) || '{}') || {};
+                page.localStorage.removeItem(`${APP_ID}:window-positions:v1`);
+            } catch { /* Old global position data is optional. */ }
+            this.characterSettingsStore.legacyWindowPositionsMigrated = true;
+            writeSharedJson(CHARACTER_SETTINGS_KEY, this.characterSettingsStore);
+            return positions && typeof positions === 'object' && !Array.isArray(positions) ? positions : {};
+        }
+
         currentCharacterSettingsKey() {
             const session = this.getAmdModule('Engine/SessionStorage') || {};
             const character = session.Character || session.Entity || {};
@@ -6354,14 +6524,10 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
         }
 
         characterSettingsPayload() {
-            const payload = clonePlain(this.settings);
-            delete payload.itemOverviewEnabled;
-            return payload;
+            return clonePlain(this.settings);
         }
 
         persistSettingsStores() {
-            this.globalSettings = { schemaVersion: 1, itemOverviewEnabled: Boolean(this.settings.itemOverviewEnabled) };
-            writeSharedJson(GLOBAL_SETTINGS_KEY, this.globalSettings);
             if (this.characterSettingsKey) {
                 this.characterSettingsStore.profiles[this.characterSettingsKey] = { settings: this.characterSettingsPayload(), updatedAt: nowIso() };
             }
@@ -6373,25 +6539,54 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
             if (!key || key === this.characterSettingsKey) return false;
             if (this.characterSettingsKey) this.persistSettingsStores();
             this.characterSettingsKey = key;
+            const session = this.getAmdModule('Engine/SessionStorage') || {};
+            const character = session.Character || session.Entity || {};
+            const identity = `${session.AID ?? character.AID}:${character.GID ?? session.GID}`;
+            const legacy = this.characterSettingsStore.legacyProfiles?.[storage.profile];
+            const oldKey = legacy?.salt ? `p_${featureHash(identity, legacy.salt)}` : '';
+            const legacySettings = oldKey ? legacy?.profiles?.[oldKey]?.settings : null;
             const saved = this.characterSettingsStore.profiles[key]?.settings;
-            this.settings = this.normalizeSettings({ ...clonePlain(this.settingsTemplate), ...(saved ? clonePlain(saved) : {}) });
-            this.settings.itemOverviewEnabled = Boolean(this.globalSettings.itemOverviewEnabled);
-            if (!saved) this.persistSettingsStores();
-            if (this.host) {
-                for (const [moduleKey] of ASSISTANT_MODULES) {
-                    if (moduleKey !== 'itemOverviewEnabled') this.setModuleEnabled(moduleKey, Boolean(this.settings[moduleKey]), { persist: false, render: false });
-                }
-                this.itemOverview.setEnabled(this.settings.itemOverviewEnabled);
-                this.partyBars.columns = this.settings.partyBarsColumns === 2 ? 2 : 1;
-                this.partyBars.render();
-                this.dps.applySettings();
-                this.costumeVisibility.sync();
-                const mapOnly = this.shadow?.querySelector('.map-only'); if (mapOnly) mapOnly.checked = Boolean(this.settings.currentMapOnly);
-                const sort = this.shadow?.querySelector('.sort'); if (sort) sort.value = this.settings.sort;
-                this.renderModuleManager();
-                this.render();
+            const oldPreferences = legacySettings || legacy?.settings || {};
+            const windowPositions = this.legacyWindowPositions();
+            this.settings = this.normalizeSettings({ ...clonePlain(this.settingsTemplate), ...clonePlain(oldPreferences), ...clonePlain(saved || {}) });
+            if (typeof saved?.itemOverviewEnabled !== 'boolean' && typeof legacySettings?.itemOverviewEnabled !== 'boolean'
+                && typeof legacy?.itemOverviewEnabled === 'boolean') {
+                this.settings.itemOverviewEnabled = legacy.itemOverviewEnabled;
             }
+            for (const [positionKey, position] of Object.entries(windowPositions || legacy?.windowPositions || {})) {
+                if (position && typeof position === 'object'
+                    && !Object.prototype.hasOwnProperty.call(saved || {}, positionKey)
+                    && !Object.prototype.hasOwnProperty.call(legacySettings || {}, positionKey)) {
+                    this.settings[positionKey] = position;
+                }
+            }
+            this.windowPositions = Object.fromEntries(['assistantHost', 'shopWindow', 'clearConfirm', 'support', 'itemDetails',
+                'encyclopedia', 'monsterMap', 'shopping', 'equipmentCompare', 'itemOverview', 'partyBars', 'bossSettings',
+                'costumeSettings', 'cardDeck', 'equipmentOutfit', 'targetPosition', 'dpsPosition']
+                .filter(positionKey => this.settings[positionKey] && typeof this.settings[positionKey] === 'object')
+                .map(positionKey => [positionKey, clonePlain(this.settings[positionKey])]));
+            this.equipmentCompareMovedByUser = Boolean(this.windowPositions.equipmentCompare);
+            this.positionChangedByUser = Boolean(this.windowPositions.assistantHost);
+            if (!saved) this.persistSettingsStores();
+            this.applySettingsToModules();
             return true;
+        }
+
+        applySettingsToModules() {
+            if (!this.host) return;
+            for (const [moduleKey] of ASSISTANT_MODULES) {
+                if (moduleKey !== 'itemOverviewEnabled') this.setModuleEnabled(moduleKey, Boolean(this.settings[moduleKey]), { persist: false, render: false });
+            }
+            this.itemOverview.setEnabled(this.settings.itemOverviewEnabled);
+            this.partyBars.columns = this.settings.partyBarsColumns === 2 ? 2 : 1;
+            this.partyBars.render();
+            this.dps.applySettings();
+            this.costumeVisibility.sync();
+            const mapOnly = this.shadow?.querySelector('.map-only'); if (mapOnly) mapOnly.checked = Boolean(this.settings.currentMapOnly);
+            const sort = this.shadow?.querySelector('.sort'); if (sort) sort.value = this.settings.sort;
+            this.renderModuleManager();
+            this.restoreAllWindowPositions();
+            this.render();
         }
 
         loadJson(key, fallback) {
@@ -6427,6 +6622,7 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
         }
 
         save() {
+            if (profileSwitching) return;
             if (this.saveTimer) {
                 globalScope.clearTimeout(this.saveTimer);
                 this.saveTimer = null;
@@ -6437,6 +6633,66 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
             } catch (error) {
                 this.setStatus(`保存失败：${error.message}`, true);
             }
+        }
+
+        switchProfile(nextProfile) {
+            const transition = (this.profileSwitchTask || Promise.resolve()).catch(() => {}).then(async () => {
+                if (nextProfile === storage.profile) return false;
+                if (typeof storage.switchProfile !== 'function') throw new Error('助手存储不支持服务器切换');
+                this.captureCurrentWindowPositions();
+                this.saveWindowPositions();
+                this.itemOverview.flushSave();
+                this.save();
+                await storage.flush();
+                profileSwitching = true;
+                try {
+                    await storage.switchProfile(nextProfile);
+                    profileSwitching = false;
+                    this.profileRevision = (this.profileRevision || 0) + 1;
+                    this.marketRenderedLimit = MARKET_DISPLAY_STEP;
+                    this.currentMap = '';
+                    this.records = normalizeStoredRecords(this.loadJson(STORAGE_KEY, []))
+                        .filter(record => record.availability !== 'unavailable' && isMarketRecordFresh(record));
+                    this.activeSnapshots.clear();
+                    this.lastScanSummary = '等待打开商店';
+                    this.lastClickedShop = null;
+                    this.selectedRecordId = '';
+                    this.detailRecord = null;
+                    this.latestStoreItems = [];
+                    this.latestStoreItemsAt = 0;
+                    this.currentNativeStoreSnapshot = null;
+                    this.equippedItems.clear();
+                    this.lastNativeViewedItem = null;
+                    this.viewedShopKeys = new Map((() => {
+                        const stored = this.loadJson(VIEWED_SHOPS_KEY, []);
+                        return Array.isArray(stored) ? stored.filter(entry => Array.isArray(entry)
+                            && typeof entry[0] === 'string' && entry[0] && isViewedShopFresh(Number(entry[1])))
+                            .map(([key, viewedAt]) => [key, Number(viewedAt)]) : [];
+                    })());
+                    this.lastViewedMarkerRefreshAt = 0;
+                    this.itemOverview.reloadProfileData();
+                    this.cardDeck.reloadProfileData();
+                    this.equipmentOutfit.reloadProfileData();
+                    this.encyclopedia?.reloadProfileData();
+                    this.migrateLegacyProfileSettings();
+                    this.settings = this.normalizeSettings(this.settingsTemplate);
+                    this.characterSettingsKey = '';
+                    this.windowPositions = {};
+                    if (!this.syncCharacterSettings()) this.applySettingsToModules();
+                    this.shadow.querySelector('.detail-modal').hidden = true;
+                    this.shadow.querySelector('.encyclopedia-modal').hidden = true;
+                    this.shadow.querySelector('.monster-map-modal').hidden = true;
+                    this.shadow.querySelector('.shopping-modal').hidden = true;
+                    const search = this.shadow.querySelector('.search'); if (search) search.value = '';
+                    this.clearViewedShopMarkerElements();
+                    this.render();
+                    return true;
+                } finally {
+                    profileSwitching = false;
+                }
+            });
+            this.profileSwitchTask = transition;
+            return transition;
         }
 
         start() {
@@ -6491,6 +6747,7 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
             this.observeRoot(globalScope.document.documentElement);
             this.scheduleScan(300);
             this.pollTimer = globalScope.setInterval(() => {
+                if (profileSwitching) return;
                 if (this.removeExpiredRecords()) this.render();
                 if (AVAILABLE_MODULES.shopEnabled) {
                     this.installStoreItemCapture();
@@ -7358,6 +7615,7 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
         }
 
         updateGameplayVisibility(force = false) {
+            if (profileSwitching) return;
             this.syncCharacterSettings();
             if (!this.host) return;
             const now = Date.now();
@@ -7463,20 +7721,16 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
         }
 
         saveWindowPositions() {
-            try {
-                const key = `${APP_ID}:window-positions:v1`;
-                const latest = JSON.parse(globalScope.localStorage.getItem(key) || '{}') || {};
-                const ownedKeys = ['assistantHost', 'shopWindow', 'clearConfirm', 'support', 'itemDetails',
-                    'encyclopedia', 'monsterMap', 'shopping', 'equipmentCompare', 'itemOverview', 'partyBars', 'bossSettings'];
-                for (const name of ownedKeys) {
-                    if (Object.prototype.hasOwnProperty.call(this.windowPositions, name)) latest[name] = this.windowPositions[name];
+            const ownedKeys = ['assistantHost', 'shopWindow', 'clearConfirm', 'support', 'itemDetails',
+                'encyclopedia', 'monsterMap', 'shopping', 'equipmentCompare', 'itemOverview', 'partyBars', 'bossSettings',
+                'costumeSettings', 'cardDeck', 'equipmentOutfit', 'targetPosition', 'dpsPosition'];
+            for (const name of ownedKeys) {
+                if (Object.prototype.hasOwnProperty.call(this.windowPositions, name)) {
+                    this.settings[name] = clonePlain(this.windowPositions[name]);
                 }
-                this.windowPositions = latest;
-                globalScope.localStorage.setItem(key, JSON.stringify(latest));
-                return true;
-            } catch (_error) {
-                return false;
             }
+            this.save();
+            return true;
         }
 
         clampWindowPosition(element, raw) {

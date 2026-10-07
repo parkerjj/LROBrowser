@@ -67,6 +67,7 @@ if (globalThis.ROConfig?.lroAssistantEnabled === true) {
     const assistant = await installLroAssistant({ enabled: true, page: window,
       profile: globalThis.ROConfig.lroAssistantProfile,
       modules: lroAssistantModules, subscribePackets: lroAssistantPackets.subscribe });
+    globalThis.LROAssistantProfileChange = assistant.switchProfile;
     UIManager.getComponent('LROAssistant').open = assistant.open;
   } catch (error) {
     console.error('[LRO助手] 启动失败，客户端继续启动', error?.message);

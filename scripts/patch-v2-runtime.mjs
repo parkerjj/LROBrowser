@@ -1238,9 +1238,9 @@ ${normalizedSource}`;
     'const renderedHtmlText = decorateLastROLoginTemplate(name, enhanceWinLoginTemplate(name, htmlText));');
   output = replaceOnceAny(output, [
     ['    void 0;\n    populateLoginServerButtons(\n      root,\n      Configs.get("loginServerProfiles", []),\n      Configs.getServer?.().id || "lastro",\n      (profile) => Component.onServerSelect(profile),\n    );',
-      '    installLastROLogin({ root, component: Component, configs: Configs });'],
+      '    installLastROLogin({ root, component: Component, configs: Configs, onAssistantProfileChange: profileId => globalThis.LROAssistantProfileChange?.(profileId) });'],
     ['\t\tvoid 0;\n\t\tpopulateLoginServerButtons(root, Configs.get("loginServerProfiles", []), Configs.getServer?.().id || "lastro", (profile) => Component.onServerSelect(profile));',
-      '\t\tinstallLastROLogin({ root, component: Component, configs: Configs });'],
+      '\t\tinstallLastROLogin({ root, component: Component, configs: Configs, onAssistantProfileChange: profileId => globalThis.LROAssistantProfileChange?.(profileId) });'],
   ]);
   output = replaceOnceAny(output, [
     ['    const pass = _inputPassword.value;\n    applyDebugLoginFields();',

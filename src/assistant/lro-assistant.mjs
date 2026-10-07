@@ -30,7 +30,11 @@ export function installLroAssistant(options) {
         page, storage, modules: options.modules,
         subscribePackets: options.subscribePackets, reportError,
       });
-      if (page.fetch) installMarketApi(assistant,page);
+      const marketApi = page.fetch ? installMarketApi(assistant,page) : null;
+      const switchProfile = async profileId => {
+        marketApi?.reset?.();
+        return assistant.switchProfile(profileId);
+      };
       return Object.freeze({
         version: ASSISTANT_VERSION,
         author: ASSISTANT_AUTHOR,
@@ -39,6 +43,7 @@ export function installLroAssistant(options) {
           options.modules.get('UI/UIManager')?.getComponent?.('LROAssistant')?.focus();
         },
         flush: async () => { assistant.itemOverview.flushSave(); await storage.flush(); },
+        switchProfile,
         // Lifetime is one client page. Per-feature switches remain available;
         // disabling the entire integration takes effect on the next reload.
         get storageStatus() { return storage.status; },

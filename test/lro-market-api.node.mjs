@@ -62,6 +62,27 @@ test('market search waits for an explicit query button click',async()=>{
  }finally{page.close();}
 });
 
+test('opening the assistant does not automatically load website market data',async()=>{
+ const page=new JSDOM('<body></body>',{url:'https://example.test'}).window;
+ try{
+ const host=page.document.createElement('div');page.document.body.append(host);const root=host.attachShadow({mode:'open'});
+ root.innerHTML='<input class="search"><button class="market-search-submit">查询</button><input class="map-only" type="checkbox"><select class="sort"><option value="price">价格</option></select><div class="filters"></div><div class="results"></div><div class="summary"></div><button class="market-more"></button>';
+ const calls=[];page.fetch=async url=>{calls.push(new URL(url));return {ok:true,json:async()=>({items:[],nextCursor:null})};};
+ let opens=0;
+ const app={shadow:root,records:[],currentMap:'prontera.gat',render(){},findMarketDisplayRecord(){},openRecordItemDetails(){},showAssistantView(){opens++;},showStoredItemDetails(){},getAmdModule(){return null;}};
+ const api=installMarketApi(app,page);
+ app.showAssistantView('manager');
+ await new Promise(resolve=>page.setTimeout(resolve,0));
+ assert.equal(opens,1);
+ assert.equal(calls.length,0,'opening the assistant must not query the market');
+ await submitSearch(page,root);
+ assert.equal(calls.length,1,'an explicit search action still queries the market');
+ api.reset();await new Promise(resolve=>page.setTimeout(resolve,0));
+ assert.equal(calls.length,1,'clearing market state during a server switch must not start a query');
+ assert.deepEqual(api.records,[]);
+ }finally{page.close();}
+});
+
 test('API pagination, search reset, anonymous access, errors and local fallback',async()=>{
  const page=new JSDOM('<body></body>',{url:'https://example.test'}).window;
  try{
