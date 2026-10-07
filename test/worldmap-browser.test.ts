@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { assistantInput } from './assistant-runtime-fixture';
 import { readFileSync, existsSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
@@ -41,6 +42,7 @@ function mount(loadData = vi.fn(async () => data), itemTable: Record<number, { i
   const navigate = vi.fn(), teleport = vi.fn<(mapid: string, label?: string) => void | Promise<boolean>>(), cancelTeleport = vi.fn();
   const Client = { loadFile: vi.fn((_path: string, _done: (url: string) => void, fail?: () => void) => fail?.()) };
   const api = runInNewContext(`(${fixture.installLastroWorldMap})(component,deps,regions,(${fixture.createWorldMapIndex}))`, {
+    ...assistantInput,
     component, regions: fixture.regions,
     deps: { document, DB: { INTERFACE_PATH: '', getItemInfo: (id: number) => itemTable[id] || {} }, Client, loadData, itemTable: () => itemTable, currentMap: () => 'prontera.gat', navigate, teleport, cancelTeleport, monsterPortrait },
   });
@@ -59,7 +61,7 @@ function mountNative(scale = 1, options: { loadData?: () => Promise<typeof data>
   const frame = document.createElement('iframe'); document.body.append(frame); frames.push(frame);
   const win = frame.contentWindow as Window & typeof globalThis, doc = win.document;
   doc.body.style.zoom = String(scale);
-  const GUI = runInNewContext(`(${guiClass})`, { window: win, document: doc, Event: win.Event,
+  const GUI = runInNewContext(`(${guiClass})`, { ...assistantInput, window: win, document: doc, Event: win.Event,
     MouseMode: { STOP: 1, FREEZE: 2 }, _ensureDeps: () => {}, Common_default$1: commonCss,
     setLastROInnerHTML: (element: HTMLElement, html: string) => { element.innerHTML = html; } });
   // Native prepare/append/focus/key binding remain intact. Asset/renderer services
@@ -85,6 +87,7 @@ function mountNative(scale = 1, options: { loadData?: () => Promise<typeof data>
   const loadData = options.loadData || vi.fn(async () => data);
   const itemTable: Record<number, { identifiedDisplayName: string }> = options.itemTable || items;
   const api = runInNewContext(`(${fixture.installLastroWorldMap})(component,deps,regions,(${fixture.createWorldMapIndex}))`, {
+    ...assistantInput,
     component, regions: fixture.regions,
     deps: { document: doc, DB: { INTERFACE_PATH: '', getItemInfo: (id: number) => itemTable[id] || {} },
       Client: { loadFile: (_path: string, _done: unknown, failed: () => void) => failed() },
@@ -148,6 +151,42 @@ describe('packaged official-style world map', () => {
     f.win.dispatchEvent(new f.win.Event('resize'));
     expect(host.getBoundingClientRect().width).toBeCloseTo(640);
     expect(host.getBoundingClientRect().height).toBeCloseTo(400);
+    f.component.remove();
+  });
+  it('opens the details panel on the right and gives the map that space back when closed', async () => {
+    const f = mountNative(); await f.api.open({ kind: 'search' });
+    const worldMap = f.root().querySelector<HTMLElement>('#WorldMap')!;
+    const panel = fixture.css.match(/\.wm-panel\{([^}]+)\}/)?.[1] || '';
+    expect(panel).toContain('right:0');
+    expect(panel).toContain('width:var(--wm-panel-width)');
+    expect(fixture.css).toMatch(/#WorldMap\.wm-panel-open \.wm-canvas\{[^}]*right:var\(--wm-panel-width\)/);
+    expect(fixture.css).toMatch(/@media\(max-width:540px\)[\s\S]*?#WorldMap\.wm-panel-open \.wm-canvas\{right:0\}/);
+    expect(worldMap.classList.contains('wm-panel-open')).toBe(true);
+    f.click('返回');
+    expect(worldMap.classList.contains('wm-panel-open')).toBe(false);
+    f.component.remove();
+  });
+  it('groups search results by monster, map, and item with independent pagination', async () => {
+    const catalog = Object.fromEntries(Array.from({ length: 65 }, (_, i) => [6000 + i, { identifiedDisplayName: `测试道具 ${i}` }]));
+    const loadData = vi.fn(async () => ({ ...data, mobData: { ...data.mobData, 1100: { kName: '测试怪物', LV: '10' } } }));
+    const f = mountNative(1, { loadData, itemTable: catalog }); await f.api.open({ kind: 'search' });
+    const input = f.root().querySelector<HTMLInputElement>('.wm-form input')!;
+    input.value = '测试'; input.dispatchEvent(new f.win.Event('input'));
+
+    const groups = [...f.root().querySelectorAll<HTMLElement>('.wm-search-group')];
+    expect(groups.map(group => group.dataset.kind)).toEqual(['monster', 'map', 'item']);
+    expect(groups.map(group => group.querySelector('h3')?.textContent)).toEqual(['怪物（1）', '地图（1）', '道具（65）']);
+    expect(groups[0]!.querySelectorAll('.wm-card')).toHaveLength(1);
+    expect(groups[1]!.querySelectorAll('.wm-card')).toHaveLength(1);
+    expect(groups[2]!.querySelectorAll('.wm-card')).toHaveLength(60);
+    expect(groups[2]!.querySelector('.wm-page')?.textContent).toContain('1 / 2');
+
+    groups[2]!.querySelector<HTMLButtonElement>('.wm-page button:last-child')!.click();
+    const updated = [...f.root().querySelectorAll<HTMLElement>('.wm-search-group')];
+    expect(updated[0]!.querySelectorAll('.wm-card')).toHaveLength(1);
+    expect(updated[1]!.querySelectorAll('.wm-card')).toHaveLength(1);
+    expect(updated[2]!.querySelectorAll('.wm-card')).toHaveLength(5);
+    expect(updated[2]!.querySelector('.wm-page')?.textContent).toContain('2 / 2');
     f.component.remove();
   });
   it.each([false, true])('restores the typed search, filter and result page after a same-map remove/append (new DOM: %s)', async rebuild => {

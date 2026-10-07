@@ -65,11 +65,11 @@ export const WORLD_MAP_HTML = '<div id="WorldMap"><div class="wm-canvas" aria-la
 export const WORLD_MAP_CSS = `
 :host{position:fixed!important;inset:0;width:100vw;height:100vh;display:block;overflow:hidden}
 .ui-component-root{position:absolute;inset:0;min-width:0;min-height:0;overflow:hidden}
-#WorldMap{--wm-gutter:clamp(12px,2.4vw,32px);position:absolute;inset:0;overflow:hidden;background:#1b2423;color:#f1f0e9;font:13px/1.5 Arial,'Microsoft YaHei','MiSans','LastRO Glyph Fallback',sans-serif;font-size-adjust:none;isolation:isolate}
+#WorldMap{--wm-gutter:clamp(12px,2.4vw,32px);--wm-panel-width:min(440px,max(320px,42vw));position:absolute;inset:0;overflow:hidden;background:#1b2423;color:#f1f0e9;font:13px/1.5 Arial,'Microsoft YaHei','MiSans','LastRO Glyph Fallback',sans-serif;font-size-adjust:none;isolation:isolate}
 #WorldMap *{box-sizing:border-box}#WorldMap [hidden]{display:none!important}
 #WorldMap button,#WorldMap select,#WorldMap input{font:inherit;color:inherit}
 #WorldMap button{cursor:pointer}#WorldMap button:focus-visible,#WorldMap select:focus-visible,#WorldMap input:focus-visible{outline:2px solid #e1cf8f;outline-offset:2px}
-.wm-canvas{position:absolute;inset:0;overflow:hidden}
+.wm-canvas{position:absolute;inset:0;overflow:hidden}#WorldMap.wm-panel-open .wm-canvas{right:var(--wm-panel-width)}
 .wm-grid{position:absolute;background-size:100% 100%;background-repeat:no-repeat}
 .wm-tile{position:absolute;padding:0;border:1px solid #090909;border-radius:4px;background:#282d29;overflow:hidden}
 .wm-tile img{display:block;width:100%;height:100%;object-fit:fill}.wm-tile:hover{outline:2px solid #ddcb90;z-index:1}.wm-tile.selected{outline:2px dashed #f6de92;z-index:2}.wm-tile.current{box-shadow:0 0 0 2px #e9ca6d;z-index:1}
@@ -81,14 +81,16 @@ export const WORLD_MAP_CSS = `
 #WorldMap .wm-close,#WorldMap .wm-panel .wm-back{width:60px;height:32px;min-height:32px;padding:0;border:1px solid #ffffff26;border-radius:4px;background:#202b27;font-size:12px!important;font-weight:500!important;line-height:30px;text-align:center}#WorldMap .wm-close:hover,#WorldMap .wm-panel .wm-back:hover{background:#303e37;border-color:#a99561}
 .wm-message{position:absolute;left:50%;top:66px;transform:translateX(-50%);padding:12px 18px;background:#172021ed;border:1px solid #93866a;z-index:4;max-width:90%}
 .wm-message button{margin-left:12px;background:#384449;border:1px solid #9a9682;border-radius:3px}
-.wm-panel{position:absolute;inset:0;z-index:5;overflow:auto;background:rgba(8,12,12,.94);padding:0 var(--wm-gutter) 14px;font-size:12px;overscroll-behavior:contain}
+.wm-panel{position:absolute;top:0;right:0;bottom:0;left:auto;width:var(--wm-panel-width);z-index:5;overflow:auto;background:rgba(8,12,12,.97);border-left:1px solid #a9956138;padding:0 var(--wm-gutter) 14px;font-size:12px;overscroll-behavior:contain}
 .wm-panel header{display:flex;align-items:center;gap:10px;position:sticky;top:0;margin:0 calc(-1 * var(--wm-gutter));background:#111919f5;padding:12px calc(var(--wm-gutter) + 70px) 12px var(--wm-gutter);z-index:1;border-bottom:1px solid #a9956138}.wm-panel header>button{flex:none}.wm-panel h2{flex:1;min-width:0;font-size:15px;font-weight:600;line-height:1.35;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wm-panel h3{font-size:14px;margin:18px 0 10px}.wm-panel p{margin:10px 0}.wm-panel button{border:1px solid #ffffff26;border-radius:4px;color:#f2f0e6;background:#ffffff0d;padding:6px 10px;min-height:32px}.wm-panel button:hover{background:#ffffff1a;border-color:#a99561}
 .wm-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}.wm-card{display:flex;align-items:center;gap:10px;text-align:left;min-height:48px;overflow-wrap:anywhere}.wm-card span{flex:1}.wm-card small{display:block;color:#a4b1ac;font-size:10px;line-height:1.6}.wm-card img{width:26px;height:26px;object-fit:contain;flex:none}.wm-card img.wm-map-thumb{width:48px;height:48px;border-radius:3px}.wm-muted{color:#aebbb5}.wm-form{display:grid;grid-template-columns:90px minmax(120px,1fr) 64px;align-items:center;gap:8px;margin:12px 0 18px;padding:12px;border:1px solid #ffffff14;border-radius:6px;background:#17201fee;box-shadow:inset 0 1px 0 #ffffff05}.wm-form input,.wm-form select{width:100%;min-width:0;min-height:36px;border:1px solid #ffffff29;border-radius:4px;background:#23302e;padding:7px 10px;line-height:20px}.wm-form input::placeholder{color:#8c9995}.wm-form>button{min-height:36px;border-color:#b8a67070;background:#56634b40}.wm-form>button:hover{background:#56634b70}.wm-description{white-space:pre-wrap;overflow-wrap:anywhere;background:#ffffff08;padding:16px;border-left:2px solid #a99561;line-height:1.8}.wm-description .wm-item-icon{width:48px;height:48px;object-fit:contain;float:right;margin:0 0 12px 16px}.wm-actions{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}.wm-page{display:flex;gap:12px;justify-content:center;align-items:center;margin:18px 0}.wm-selected{border-color:#d4c390!important}
 .wm-card .wm-item-thumbnail,.wm-item-thumbnail{display:inline-grid;place-items:center;width:40px;height:40px;flex:none;border-radius:4px;background:#ffffff0a;vertical-align:middle}.wm-item-thumbnail img.wm-item-icon{width:32px;height:32px;object-fit:contain;image-rendering:pixelated;margin:0;float:none}.wm-item-thumbnail .wm-icon-fallback{font-size:10px;line-height:1.3;color:#a3afab;text-align:center}.wm-description>.wm-item-thumbnail{float:right;width:64px;height:64px;margin:0 0 12px 16px}.wm-description>.wm-item-thumbnail img{width:48px;height:48px}
 .wm-workspace{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;padding-top:12px}.wm-context,.wm-inspectors{min-width:0;max-height:none;overflow:visible;padding:0 0 12px}.wm-inspectors{border-top:1px solid #ffffff26;padding-top:14px}.wm-inspectors:empty{display:none}.wm-inspector{scroll-margin-top:88px}.wm-inspector+.wm-inspector{border-top:1px solid #ffffff30;margin-top:20px;padding-top:12px}.wm-inspector h3.wm-detail-title{margin-top:0;font-size:15px}.wm-map-image{margin:0;background:#050a09;border:1px solid #ffffff20;border-radius:4px;text-align:center;padding:12px}.wm-map-image img.wm-map-thumb{display:block;width:100%;height:clamp(180px,35vh,380px);object-fit:contain;image-rendering:pixelated}.wm-map-image figcaption{color:#b4bfbc;margin-top:8px}.wm-portrait{width:64px;height:64px;flex:none;display:grid;place-items:center;background:radial-gradient(ellipse,#ffffff12,transparent);border-radius:4px}.wm-portrait img{width:64px;height:64px;object-fit:contain;image-rendering:pixelated}.wm-portrait small{font-size:10px;text-align:center;color:#a3afab}.wm-monster-heading{display:flex;align-items:center;gap:12px}.wm-monster-heading .wm-portrait,.wm-monster-heading .wm-portrait img{width:88px;height:88px}.wm-card[aria-pressed=true]{border-color:#d4c390;background:#d4c39019}.wm-workspace .wm-cards{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
 @media(max-width:760px){#WorldMap{--wm-gutter:10px}.wm-toolbar,#WorldMap .wm-close{top:10px}.wm-panel header{gap:8px;padding-top:10px;padding-bottom:10px}.wm-panel h2{font-size:14px}.wm-form{grid-template-columns:72px minmax(0,1fr) 56px;gap:6px;padding:8px}.wm-form input,.wm-form select{padding:7px 8px}.wm-workspace .wm-cards{grid-template-columns:repeat(auto-fill,minmax(145px,1fr))}.wm-card{padding:6px!important}}
+@media(max-width:540px){#WorldMap.wm-panel-open .wm-canvas{right:0}.wm-panel{width:100%}}
 @media(max-width:420px){.wm-panel h2{display:none}.wm-form{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.wm-form input{grid-column:1/-1;grid-row:1}.wm-form>button{justify-self:stretch;width:100%;min-width:0}}
 #WorldMap .wm-search-results .wm-card{min-height:44px;padding:6px 8px;font-size:12px;line-height:1.4}#WorldMap .wm-search-results .wm-cards{grid-template-columns:repeat(auto-fill,minmax(min(100%,160px),1fr))}.wm-card small{font-size:11px}.wm-search-results .wm-card small{font-size:10px}.wm-search-results .wm-portrait,.wm-search-results .wm-portrait img{width:32px;height:32px}.wm-search-results .wm-card img.wm-map-thumb{width:36px;height:36px}.wm-search-results .wm-item-thumbnail{width:32px;height:32px}.wm-search-results .wm-item-thumbnail img.wm-item-icon{width:26px;height:26px}
+.wm-panel .wm-cards{grid-template-columns:minmax(0,1fr)}.wm-search-group+.wm-search-group{border-top:1px solid #ffffff26;padding-top:4px}
 .wm-item-window{position:absolute;z-index:10;width:280px;max-width:calc(100% - 12px);max-height:calc(100% - 12px);display:flex;flex-direction:column;color:#000;background-color:#fff;background-repeat:no-repeat;border:0;border-radius:5px;box-shadow:inset 0 0 0 3px #fff,inset 0 0 0 4px #c0c0c0,0 2px 5px #0005;font-size:12px;line-height:18px;overflow:hidden;padding:3px}
 .wm-item-window-header{position:relative;z-index:1;display:flex;align-items:center;flex:none;height:27px;padding:0 16px 0 86px;cursor:grab;touch-action:none;user-select:none;background:linear-gradient(#fff 4px,#e5eaf2 5px,#f7f9fc 6px,#d5deeb 7px,#f8faff 8px,#e2e7f0 9px,#fff 20px);border-radius:3px 3px 0 0}.wm-item-window[data-skinned] .wm-item-window-header{background:transparent}.wm-item-window[data-dragging] .wm-item-window-header{cursor:grabbing}
 .wm-item-window-title{font-size:11px;font-weight:bold;min-width:0;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:1px 1px #fff}
@@ -110,13 +112,15 @@ export function installLastroWorldMap(component, deps, regions, makeIndex) {
   const { DB, Client } = deps;
   let root, grid, canvas, panel, body, title, regionSelect, message;
   let index, loading, alive = false, generation = 0, currentRegion = 0;
-  let route = null, fromSearch = false, selectedMap = '', searchTerm = '', searchType = 'all', searchPage = 0;
+  let route = null, fromSearch = false, selectedMap = '', searchTerm = '', searchType = 'all';
+  let searchPages = { monster: 0, map: 0, item: 0 };
   let resumeView = null;
   let activeMonsterTarget = null;
   let searchMonsterId = null;
   let context, inspectors, monsterPane, itemPopup, itemOpener;
   let itemPosition = null, itemDrag = null, itemResizeObserver;
   let partyMaps = new Set();
+  const resetSearchPages = () => { searchPages = { monster: 0, map: 0, item: 0 }; };
   const document = deps.document || globalThis.document;
   const window = document.defaultView;
   function visible() {
@@ -315,7 +319,7 @@ export function installLastroWorldMap(component, deps, regions, makeIndex) {
       monsterTarget: monsterPane?.isConnected ? { id: Number(monsterPane.dataset.id) }
         : activeMonsterTarget ? { ...activeMonsterTarget } : null, scrollTop: panel.scrollTop };
   }
-  function closePanel() { deps.cancelTeleport?.(); generation++; closeItem(false); panel.hidden = true; route = null; fromSearch = false; resumeView = null; activeMonsterTarget = null; body.replaceChildren(); root.querySelector('.wm-search').focus(); }
+  function closePanel() { deps.cancelTeleport?.(); generation++; closeItem(false); panel.hidden = true; root.querySelector('#WorldMap').classList.remove('wm-panel-open'); fitRegion(); route = null; fromSearch = false; resumeView = null; activeMonsterTarget = null; body.replaceChildren(); root.querySelector('.wm-search').focus(); }
   function hide(preserveView = false) {
     if (preserveView) rememberView();
     const saved = preserveView ? resumeView : null;
@@ -325,6 +329,7 @@ export function installLastroWorldMap(component, deps, regions, makeIndex) {
     // Explicit close starts on the map next time; native remove owns cancellation,
     // popup disposal and keyboard cleanup, without focusing the covered toolbar.
     resumeView = null; activeMonsterTarget = null; route = null; fromSearch = false; panel.hidden = true;
+    root.querySelector('#WorldMap').classList.remove('wm-panel-open');
     component._host.style.display = 'none'; component.remove();
   }
   async function open(next, opener, monsterTarget, restoredView) {
@@ -338,7 +343,7 @@ export function installLastroWorldMap(component, deps, regions, makeIndex) {
     else if (next.kind === 'map' && route?.kind === 'search') fromSearch = true;
     if (!inline || !route) route = inline ? { kind: 'search' } : next;
     if (restoredView) fromSearch = restoredView.fromSearch;
-    panel.hidden = false; message.hidden = true;
+    panel.hidden = false; root.querySelector('#WorldMap').classList.add('wm-panel-open'); fitRegion(); message.hidden = true;
     if (!inline || !body.children.length) { title.textContent = '正在读取资料…'; body.replaceChildren(); }
     const back = root.querySelector('.wm-back'); back.hidden = false; back.textContent = '返回';
     const ticket = ++generation;
@@ -368,7 +373,7 @@ export function installLastroWorldMap(component, deps, regions, makeIndex) {
     const id = typeof target?.id === 'number' && Number.isInteger(target.id) && target.id > 0 && target.id <= 0xffffffff ? target.id : null;
     const name = typeof target?.name === 'string' ? target.name.replace(/\^[0-9a-f]{6}/gi, '').trim() : '';
     showWindow();
-    searchTerm = id === null ? name : String(id); searchType = 'monster'; searchPage = 0; searchMonsterId = id;
+    searchTerm = id === null ? name : String(id); searchType = 'monster'; resetSearchPages(); searchMonsterId = id;
     return open({ kind: 'search' }, undefined, { id, name });
   }
   function mapDetails(map) {
@@ -449,10 +454,10 @@ export function installLastroWorldMap(component, deps, regions, makeIndex) {
     for (const source of item.sources) list.append(card(source.monster, 'monster', `${source.kind} ${(source.rate / 100).toFixed(2)}% · ${source.monster.maps.length} 张地图`));
   }
   function searchView() {
-    title.textContent = '搜索怪物、物品与地图';
+    title.textContent = '搜索怪物、地图与道具';
     const form = node('form', undefined, 'wm-form');
     const type = node('select'); type.setAttribute('aria-label', '搜索类型');
-    for (const [value, label] of [['all', '全部'], ['monster', '怪物'], ['item', '物品'], ['map', '地图']]) {
+    for (const [value, label] of [['all', '全部'], ['monster', '怪物'], ['map', '地图'], ['item', '道具']]) {
       const option = node('option', label); option.value = value; type.append(option);
     }
     type.value = searchType;
@@ -466,19 +471,30 @@ export function installLastroWorldMap(component, deps, regions, makeIndex) {
       const hits = index.search(searchTerm, searchType).filter(hit => searchMonsterId === null || searchType !== 'monster' || hit.record.id === searchMonsterId);
       if (!searchTerm.trim()) return;
       results.append(node('p', hits.length ? `找到 ${hits.length} 条结果` : '没有匹配结果', 'wm-muted'));
-      const list = node('div', undefined, 'wm-cards'); results.append(list);
-      searchPage = Math.min(searchPage, Math.max(0, Math.ceil(hits.length / 60) - 1));
-      for (const hit of hits.slice(searchPage * 60, (searchPage + 1) * 60)) list.append(card(hit.record, hit.kind, `${{ map: '地图', monster: '怪物', item: '物品' }[hit.kind]} · ID ${hit.record.id}`));
-      if (hits.length > 60) {
-        const pager = node('div', undefined, 'wm-page');
-        const prev = button('上一页', () => { searchPage--; run(); }); prev.disabled = searchPage === 0;
-        const next = button('下一页', () => { searchPage++; run(); }); next.disabled = (searchPage + 1) * 60 >= hits.length;
-        pager.append(prev, node('span', `${searchPage + 1} / ${Math.ceil(hits.length / 60)}`), next); results.append(pager);
+      const categories = [
+        ['monster', '怪物'], ['map', '地图'], ['item', '道具'],
+      ];
+      for (const [kind, label] of categories) {
+        const matches = hits.filter(hit => hit.kind === kind);
+        if (!matches.length) continue;
+        const group = node('section', undefined, 'wm-search-group'); group.dataset.kind = kind;
+        group.append(node('h3', `${label}（${matches.length}）`));
+        const list = node('div', undefined, 'wm-cards'); group.append(list);
+        const pageCount = Math.ceil(matches.length / 60);
+        const page = Math.min(searchPages[kind], pageCount - 1); searchPages[kind] = page;
+        for (const hit of matches.slice(page * 60, (page + 1) * 60)) list.append(card(hit.record, hit.kind, `${label} · ID ${hit.record.id}`));
+        if (pageCount > 1) {
+          const pager = node('div', undefined, 'wm-page');
+          const prev = button('上一页', () => { searchPages[kind]--; run(); }); prev.disabled = page === 0;
+          const next = button('下一页', () => { searchPages[kind]++; run(); }); next.disabled = (page + 1) * 60 >= matches.length;
+          pager.append(prev, node('span', `${page + 1} / ${pageCount}`), next); group.append(pager);
+        }
+        results.append(group);
       }
     };
-    form.addEventListener('submit', event => { event.preventDefault(); searchPage = 0; searchMonsterId = null; activeMonsterTarget = null; run(); });
-    input.addEventListener('input', () => { searchPage = 0; searchMonsterId = null; activeMonsterTarget = null; run(); });
-    type.addEventListener('change', () => { searchPage = 0; searchMonsterId = null; activeMonsterTarget = null; run(); });
+    form.addEventListener('submit', event => { event.preventDefault(); resetSearchPages(); searchMonsterId = null; activeMonsterTarget = null; run(); });
+    input.addEventListener('input', () => { resetSearchPages(); searchMonsterId = null; activeMonsterTarget = null; run(); });
+    type.addEventListener('change', () => { resetSearchPages(); searchMonsterId = null; activeMonsterTarget = null; run(); });
     run();
   }
   function render() {
@@ -622,6 +638,7 @@ export function installLastroWorldMap(component, deps, regions, makeIndex) {
     deps.cancelTeleport?.(); alive = false; generation++; closeItem(false);
     route = null; fromSearch = false; activeMonsterTarget = null; body?.replaceChildren();
     if (panel) panel.hidden = true;
+    root?.querySelector('#WorldMap')?.classList.remove('wm-panel-open');
     if (message) message.hidden = true;
     window.removeEventListener('resize', fitViewport);
   };

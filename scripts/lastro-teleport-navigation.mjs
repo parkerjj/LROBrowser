@@ -57,7 +57,9 @@ export function createLastroTeleportNavigation({ getMap, getPosition, sendTelepo
     const position = getPosition();
     if (!position || !Number.isFinite(position[0]) || !Number.isFinite(position[1])) return;
     // Native navigation chooses a walkable neighbour when the NPC occupies its cell.
-    while (currentMap === target[0] && Math.abs(position[0] - target[1]) <= 1 && Math.abs(position[1] - target[2]) <= 1) {
+    while (currentMap === target[0]) {
+      const proximity = state.index === state.path.length - 1 ? 1 : 5;
+      if (Math.abs(position[0] - target[1]) > proximity || Math.abs(position[1] - target[2]) > proximity) break;
       state.index += 1;
       if (state.index === state.path.length) {
         finish(state, '已到达目标地点');

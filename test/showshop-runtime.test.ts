@@ -83,13 +83,14 @@ afterEach(() => { for (const fixture of fixtures.splice(0)) fixture.dispose(); v
 
 function runtime(source = focused, saved: SavedPreferences = {}) {
   const messages = vi.fn(), send = vi.fn(), save = vi.fn(), projection = vi.fn(), history = vi.fn(), ordinaryTalk = vi.fn();
+  const player = { walk: { total: 0 }, action: 0, ACTION: { WALK: 1 } };
   const callbacks: Array<() => void> = [], entities: Array<{ room: Room }> = [];
   const manager = { components: {} as Record<string, Component>, addComponent(component: Component & { name: string }) {
     this.components[component.name] = component; Object.assign(component, { manager: this }); return component;
   } };
   const context = vm.createContext({
     document, window, Event, HTMLElement, console, CSS_NUMBER: { zIndex: true, opacity: true }, Common_default$1: '',
-    MouseMode: { CROSS: 0, STOP: 1, FREEZE: 2 }, Mouse: { intersect: true }, SessionStorage_default: { FreezeUI: false },
+    MouseMode: { CROSS: 0, STOP: 1, FREEZE: 2 }, Mouse: { intersect: true }, SessionStorage_default: { FreezeUI: false, Entity: player },
     _Cursor: null, _EntityManager: { setOverEntity: vi.fn() }, _list: entities,
     _ensureDeps() {}, setLastROInnerHTML: (target: HTMLElement, html: string) => { target.innerHTML = html; },
     __esmMin: (callback: () => void) => { let loaded = false; return () => { if (!loaded) { loaded = true; callback(); } }; },
@@ -143,7 +144,7 @@ function runtime(source = focused, saved: SavedPreferences = {}) {
     room.create(title, id, type, true);
     return room;
   };
-  const f = { context, chat, messages, send, save, projection, history, ordinaryTalk, callbacks, entities, saved, command, create,
+  const f = { context, player, chat, messages, send, save, projection, history, ordinaryTalk, callbacks, entities, saved, command, create,
     map: () => context.Map_default as { showshop?: boolean },
     flushIcon() { const callback = callbacks.shift(); if (!callback) throw new Error('No icon callback'); callback(); },
     dispose() { for (const entity of entities) entity.room.clean(); chat.remove(); },
@@ -156,6 +157,45 @@ function meta(room: Room) {
 const display = (room: Room) => room.node!._host.style.display;
 
 describe('native /showshop command and shop title visibility', () => {
+  it.each([0, 1])('fades store type %i to 50 percent while the player walks and restores its original opacity on stopping', type => {
+    const f = runtime(), room = f.create(type); f.flushIcon(); const host = room.node!._host;
+    host.style.opacity = '0.75';
+    f.player.walk.total = 6; room.render([]);
+    expect(host.style.opacity).toBe('0.5');
+    room.render([]); expect(host.style.opacity).toBe('0.5');
+    f.player.walk.total = 0; room.render([]);
+    expect(host.style.opacity).toBe('0.75');
+  });
+  it('fades newly appearing shops while walking and restores them even if the left button is still held', () => {
+    const f = runtime(); f.player.walk.total = 6;
+    const room = f.create(1); expect(room.node!._host.style.opacity).toBe('0.5');
+    f.flushIcon(); expect(room.node!._host.style.opacity).toBe('0.5');
+    f.context.MapControl = { _lastroMovementInput: { isHeld: () => true } };
+    f.player.walk.total = 0; room.render([]);
+    expect(room.node!._host.style.opacity).toBe('');
+  });
+  it('leaves ordinary chat rooms opaque and restores a faded shop reused as a chat room', () => {
+    const f = runtime(), shop = f.create(1), chat = f.create(2); f.flushIcon(); f.flushIcon();
+    chat.node!._host.style.opacity = '0.6'; f.player.walk.total = 6;
+    shop.render([]); chat.render([]);
+    expect(shop.node!._host.style.opacity).toBe('0.5'); expect(chat.node!._host.style.opacity).toBe('0.6');
+    shop.create('聊天房间', 999, 3, true);
+    expect(shop.node!._host.style.opacity).toBe('');
+  });
+  it('preserves showshop visibility and restores opacity when the player leaves the map', () => {
+    const f = runtime(), room = f.create(1); f.flushIcon(); f.player.walk.total = 6;
+    f.command('/showshop off'); expect(display(room)).toBe('none'); expect(room.node!._host.style.opacity).toBe('0.5');
+    f.command('/showshop on'); expect(display(room)).toBe(''); expect(room.node!._host.style.opacity).toBe('0.5');
+    f.context.SessionStorage_default.Entity = null; room.render([]);
+    expect(room.node!._host.style.opacity).toBe('');
+  });
+  it('does not carry the old opacity snapshot into a replacement shop DOM', () => {
+    const f = runtime(), room = f.create(1); f.flushIcon(); room.node!._host.style.opacity = '0.75';
+    f.player.walk.total = 6; room.render([]); expect(room.node!._host.style.opacity).toBe('0.5');
+    room.clean(); room.create('新商店', 456, 0, true); f.flushIcon();
+    expect(room.node!._host.style.opacity).toBe('0.5');
+    f.player.walk.total = 0; room.render([]); expect(room.node!._host.style.opacity).toBe('');
+  });
   it('reproduces the unregistered upstream command through real ChatBox.submit without a server packet', () => {
     const f = runtime(focused); f.command('/showshop');
     expect(f.messages).toHaveBeenCalledWith('商店标题：隐藏', 1, 0);

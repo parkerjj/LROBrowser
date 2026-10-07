@@ -11,6 +11,8 @@ export interface ClientCredentials {
 
 export interface V2ClientConfig {
   readonly connectionMode: 'direct' | 'relay';
+  readonly lroAssistantEnabled: boolean;
+  readonly lroAssistantProfile: string;
   readonly servers: readonly [Readonly<Record<string, unknown>>];
   readonly autoLogin: readonly [string, string] | null;
   readonly loginServerProfiles: readonly Readonly<Record<string, unknown>>[];
@@ -53,7 +55,7 @@ export interface V2ClientConfig {
   readonly debugEnterSex: null;
 }
 
-export function buildClientConfig(profile: AvailableServerProfile, credentials: ClientCredentials): V2ClientConfig {
+export function buildClientConfig(profile: AvailableServerProfile, credentials: ClientCredentials, options: { assistantEnabled?: boolean } = {}): V2ClientConfig {
   const available = getAvailableServerProfile(profile.id);
   const hasUsername = Boolean(credentials.username);
   const hasPassword = Boolean(credentials.password);
@@ -92,6 +94,8 @@ export function buildClientConfig(profile: AvailableServerProfile, credentials: 
   )]);
   return Object.freeze({
     connectionMode: IS_WEB_BUILD ? 'relay' : readLoginPreferences().connectionMode,
+    lroAssistantEnabled: options.assistantEnabled !== false,
+    lroAssistantProfile: available.id,
     servers: Object.freeze([server] as const),
     get autoLogin() { const value = pendingLogin; pendingLogin = null; return value; },
     loginServerProfiles,

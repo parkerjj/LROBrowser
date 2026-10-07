@@ -75,13 +75,15 @@ function fixture(nid = 3) {
   } as unknown as Tools;
   const Configs = { get: (name: string, fallback?: unknown) => name === 'lastroNid' ? nid : name === 'lastroCustomPackets' ? true : fallback };
   const Network = { sendPacket: (value: OutgoingPacket) => sent.push(value) };
+  const MapRenderer = { currentMap: 'prontera.gat' };
   const globals = {
     ...migration, document, PACKET, Network, Configs,
     OPTION_TO_PACKET_ID: runInNewContext(assigned('OPTION_TO_PACKET_ID')),
     SCALAR_FIELD_BY_ID: Object.fromEntries(Object.entries(migration.AUTO_BATTLE_SCALAR_IDS).map(([field, id]) => [String(id), field])),
+    closeLastROQuickPlacePicker() {},
     getLastROInventoryItems: () => [], getLastROLearnedSkills: () => [], SkillInfo: {},
     installLastRORandomTeleportShortcut() {}, showLastROSettingsView() {}, showLastROMainView() {}, activateLastROSettingsTab() {},
-    MapRenderer: { currentMap: 'prontera.gat' }, loadWorldMapData: async () => ({ worldData: {}, mobData: {} }),
+    MapRenderer, loadWorldMapData: async () => ({ worldData: {}, mobData: {} }),
     getMapTargetOptions: () => [{ id: 1002, name: '波利' }, { id: 1007, name: '疯兔' }],
   };
   for (const name of ['init', 'restorePanel', 'onMapChanged', 'setOnlyTargetOptions', 'toggleOnlyTarget', 'setOnlyTargetState', 'setAutomationOption', 'updateField', 'setLoadInfo', 'setReloadInfo', 'applyState', 'populateItemSelects', 'populateSkillSelects', 'getOptionLabel', 'renderCompactStatus', 'submitAssistSkill', 'renderAssistSkillList']) {
@@ -91,7 +93,7 @@ function fixture(nid = 3) {
   const field = (name: string) => root.querySelector<HTMLInputElement | HTMLSelectElement>(`[data-field="${name}"]`)!;
   const option = (name: string) => root.querySelector<HTMLInputElement>(`[data-option="${name}"]`)!;
   const targets = () => [...root.querySelectorAll<HTMLInputElement>('[data-target-id]')];
-  return { tools, root, sent, PACKET, Configs, Network, field, option, targets };
+  return { tools, root, sent, PACKET, Configs, Network, MapRenderer, field, option, targets };
 }
 function mapReady(f: ReturnType<typeof fixture>) {
   const ui = { append() {}, setMap() {} };
@@ -113,20 +115,25 @@ function mapReady(f: ReturnType<typeof fixture>) {
   load();
 }
 
-describe('native automation without automatic settings reads or confirmation gates', () => {
-  it('packages no added synchronization installer, settings read or indeterminate control override', () => {
-    const runtime = readFileSync('generated/runtime/Online.js', 'utf8');
-    expect(runtime).not.toContain('_lastroAutomationSync');
-    expect(runtime).not.toMatch(/new\s+PACKET\.CZ\.NOTIFY_LOADINFO\s*\(/);
-    expect(runtime).not.toContain('input.indeterminate');
-  });
-
-  it('starts with an editable empty target selection and sends no read on init, reopen or map changes', async () => {
-    const f = fixture(); f.tools.restorePanel(); await f.tools.onMapChanged(); await f.tools.onMapChanged();
+describe('native automation server synchronization without confirmation gates', () => {
+  it('requests server settings and clears the previous map target selection on map entry', async () => {
+    const f = fixture(); f.tools._onlyTargets = [1002]; f.tools.restorePanel();
+    const initialMapLoad = f.tools.onMapChanged();
+    expect(f.tools._onlyTargets).toEqual([]);
+    f.tools.setOnlyTargetState({ mobid: 1002, value: 1 });
+    await initialMapLoad;
     expect(f.targets()).toHaveLength(2);
-    for (const input of f.targets()) { expect(input.checked).toBe(false); expect(input.indeterminate).toBe(false); expect(input.disabled).toBe(false); }
+    expect(f.targets()[0]!.checked).toBe(true);
+    expect(f.targets()[1]!.checked).toBe(false);
+    for (const input of f.targets()) { expect(input.indeterminate).toBe(false); expect(input.disabled).toBe(false); }
     expect(f.option('autoAttack').disabled).toBe(false); expect(f.option('autoAttack').indeterminate).toBe(false);
-    expect(f.sent).toEqual([]); expect('_lastroAutomationSync' in f.tools).toBe(false);
+    expect(f.tools._onlyTargets).toEqual([1002]);
+    f.MapRenderer.currentMap = 'geffen.gat';
+    const nextMapLoad = f.tools.onMapChanged();
+    expect(f.tools._onlyTargets).toEqual([]);
+    expect(f.targets()[0]!.checked).toBe(false);
+    await nextMapLoad;
+    expect(f.sent.map(packet => [...packet.build!().bytes])).toEqual([[0xff, 0x0a], [0xff, 0x0a]]);
   });
 
   it('selects and deselects the actual target checkbox immediately without a server snapshot or acknowledgement', async () => {
@@ -134,20 +141,28 @@ describe('native automation without automatic settings reads or confirmation gat
     input.click(); expect(input.checked).toBe(true); expect(f.tools._onlyTargets).toEqual([1002]);
     input.click(); expect(input.checked).toBe(false); expect(f.tools._onlyTargets).toEqual([]);
     expect(input.disabled).toBe(false); expect(input.indeterminate).toBe(false);
-    expect(f.sent.map(packet => ({ id: packet.id, value: packet.value }))).toEqual([{ id: 1002, value: 1 }, { id: 1002, value: 0 }]);
-    expect(f.sent.map(packet => [...packet.build!().bytes])).toEqual([[0xfd, 0x0a, 0xea, 3, 0, 0, 1], [0xfd, 0x0a, 0xea, 3, 0, 0, 0]]);
+    expect(f.sent.slice(1).map(packet => ({ id: packet.id, value: packet.value }))).toEqual([{ id: 1002, value: 1 }, { id: 1002, value: 0 }]);
+    expect(f.sent.map(packet => [...packet.build!().bytes])).toEqual([[0xff, 0x0a], [0xfd, 0x0a, 0xea, 3, 0, 0, 1], [0xfd, 0x0a, 0xea, 3, 0, 0, 0]]);
   });
 
   it('allows an upstream server-selected target to be cleared without waiting for another response', async () => {
     const f = fixture(); await f.tools.onMapChanged(); f.tools.setOnlyTargetState({ mobid: 1002, value: 1 });
-    const input = f.targets()[0]!; expect(input.checked).toBe(true); input.click();
+    const input = f.targets()[0]!; expect(input.checked).toBe(true); expect(f.tools._onlyTargets).toEqual([1002]); input.click();
     expect(input.checked).toBe(false); expect(input.disabled).toBe(false); expect(input.indeterminate).toBe(false);
-    expect(f.sent[0]).toMatchObject({ id: 1002, value: 0 });
+    expect(f.tools._onlyTargets).toEqual([]);
+    expect(f.sent[1]).toMatchObject({ id: 1002, value: 0 });
   });
 
-  it('sends only native ACTORINIT when the real map ready callback runs', () => {
+  it('requests current settings after sending ACTORINIT when the map is ready', () => {
     const f = fixture(); mapReady(f);
-    expect(f.sent.map(packet => [...packet.build!().bytes])).toEqual([[0x7d, 0]]);
+    expect(f.sent.map(packet => [...packet.build!().bytes])).toEqual([[0x7d, 0], [0xff, 0x0a]]);
+  });
+
+  it('shows current-map attack targets before the other battle settings', () => {
+    const f = fixture();
+    const battle = f.root.querySelector('[data-tab-panel="battle"]')!;
+    const targetGroup = f.root.querySelector('[data-targets]')!.closest('.lastro-group');
+    expect(battle.firstElementChild).toBe(targetGroup);
   });
 
   it.each([3, 5, 6])('keeps profile %i auto battle online and editable before any settings push', nid => {

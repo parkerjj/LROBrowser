@@ -25,6 +25,17 @@ function originalAssignment(name: string) {
 }
 const originalTemplate = runInNewContext(originalAssignment('LastROTools_default$1')) as string;
 const originalInitSource = originalAssignment('LastROTools.init');
+function originalDeclaration(name: string) {
+  const matches: ts.FunctionDeclaration[] = [];
+  function visit(node: ts.Node) {
+    if (ts.isFunctionDeclaration(node) && node.name?.text === name) matches.push(node);
+    ts.forEachChild(node, visit);
+  }
+  visit(ast);
+  if (matches.length !== 1) throw new Error(`Expected one original ${name}; found ${matches.length}`);
+  return matches[0]!.getText(ast);
+}
+const closeQuickPlacePickerSource = originalDeclaration('closeLastROQuickPlacePicker');
 
 type Route = { npc: string; desc: string; outset: [string, number, number]; path: [string, number, number][] };
 type Catalog = Record<string, Record<string, Route>>;
@@ -105,7 +116,7 @@ function fixture(options: { preferences?: unknown; storage?: Map<string, unknown
   });
   tools.hidePanel.mockImplementation(() => { tools._host.style.display = 'none'; });
   tools.restorePanel.mockImplementation(() => { tools._host.style.display = ''; });
-  tools.init = runInNewContext(`(${originalInitSource})`, {
+  tools.init = runInNewContext(`${closeQuickPlacePickerSource}\n(${originalInitSource})`, {
     installLastRORandomTeleportShortcut() {},
     showLastROSettingsView() {}, showLastROMainView() {}, activateLastROSettingsTab() {},
   });
@@ -1151,7 +1162,7 @@ describe('destination actions and lifecycle', () => {
     let reject!: (error: Error) => void;
     f.requestRoute.mockReturnValue(new Promise((_resolve, fail) => { reject = fail; }));
     f.api.requestCustomRoute(route('原生快捷地点')); expect(f.requestRoute).not.toHaveBeenCalled();
-    f.confirmations[0]!.yes(); expect(f.requestRoute).toHaveBeenCalledOnce(); expect(f.tools.setStatus).toHaveBeenCalledWith('正在检查传送地点');
+    f.confirmations[0]!.yes(); expect(f.requestRoute).toHaveBeenCalledOnce(); expect(f.tools.setStatus).toHaveBeenCalledWith('正在处理传送请求');
     reject(new Error('地图资源不存在')); await Promise.resolve();
     expect(f.tools.setStatus).toHaveBeenCalledWith('无法前往：地图资源不存在'); expect(f.api.teleport._host.isConnected).toBe(false);
   });
@@ -1161,7 +1172,7 @@ describe('destination actions and lifecycle', () => {
     let reject!: (error: Error) => void;
     f.requestRoute.mockReturnValue(new Promise((_resolve, failure) => { reject = failure; }));
     f.row('a').querySelector<HTMLButtonElement>('.lastro-route-go')!.click();
-    expect(f.root().querySelector('[role="status"]')?.textContent).toBe('正在检查传送地点');
+    expect(f.root().querySelector('[role="status"]')?.textContent).toBe('正在处理传送请求');
     reject(new Error('地图资源不存在')); await Promise.resolve();
     expect(f.root().querySelector('[role="status"]')?.textContent).toBe('无法前往：地图资源不存在');
   });

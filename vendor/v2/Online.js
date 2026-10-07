@@ -79112,7 +79112,7 @@ var init_MouseEventHandler = __esmMin(() => {
       Mouse.screen.x = event.pageX;
       Mouse.screen.y = event.pageY;
     },
-    { passive: true },
+    { passive: true, capture: true },
   );
 });
 //#endregion
@@ -80148,8 +80148,8 @@ var init_Controls = __esmMin(() => {
     {
       noctrl: true,
       noshift: false,
-      snap: false,
-      itemsnap: false,
+      snap: true,
+      itemsnap: true,
       attackTargetMode: 0,
       joyQuick: 0,
       joyDeadline: 0.1,
@@ -186977,7 +186977,7 @@ var init_WorldMap = __esmMin(() => {
   init_MonsterTable();
   init_NetworkManager(); init_PacketStructure(); init_SessionStorage(); init_MapRenderer(); init_Navigation();
   init_Thread(); init_Configs();
-  WorldMap = new GUIComponent("WorldMap", "\n:host{position:fixed!important;inset:0;width:100vw;height:100vh;display:block;overflow:hidden}\n.ui-component-root{position:absolute;inset:0;min-width:0;min-height:0;overflow:hidden}\n#WorldMap{--wm-gutter:clamp(12px,2.4vw,32px);position:absolute;inset:0;overflow:hidden;background:#1b2423;color:#f1f0e9;font:13px/1.5 Arial,'Microsoft YaHei','MiSans','LastRO Glyph Fallback',sans-serif;font-size-adjust:none;isolation:isolate}\n#WorldMap *{box-sizing:border-box}#WorldMap [hidden]{display:none!important}\n#WorldMap button,#WorldMap select,#WorldMap input{font:inherit;color:inherit}\n#WorldMap button{cursor:pointer}#WorldMap button:focus-visible,#WorldMap select:focus-visible,#WorldMap input:focus-visible{outline:2px solid #e1cf8f;outline-offset:2px}\n.wm-canvas{position:absolute;inset:0;overflow:hidden}\n.wm-grid{position:absolute;background-size:100% 100%;background-repeat:no-repeat}\n.wm-tile{position:absolute;padding:0;border:1px solid #090909;border-radius:4px;background:#282d29;overflow:hidden}\n.wm-tile img{display:block;width:100%;height:100%;object-fit:fill}.wm-tile:hover{outline:2px solid #ddcb90;z-index:1}.wm-tile.selected{outline:2px dashed #f6de92;z-index:2}.wm-tile.current{box-shadow:0 0 0 2px #e9ca6d;z-index:1}\n.wm-tile .wm-boss{position:absolute;left:4px;top:4px;width:14px;height:14px;object-fit:contain;filter:drop-shadow(0 1px 1px #000)}\n.wm-tile.party:not(.current){box-shadow:inset 0 0 0 2px #8bb85f}.wm-tile.party:not(.current)::after{content:'';position:absolute;right:3px;bottom:3px;width:7px;height:7px;border-radius:50%;background:#9fdb73}\n.wm-toolbar{position:absolute;left:var(--wm-gutter);right:var(--wm-gutter);top:12px;display:flex;justify-content:space-between;gap:8px;pointer-events:none;z-index:3}.wm-toolbar>div{display:flex;gap:8px;padding-right:68px}\n.wm-toolbar button,.wm-toolbar select{pointer-events:auto;border:1px solid #ffffff26;border-radius:4px;background:#202b27;font-size:12px!important;font-weight:500!important;height:32px;min-height:32px;padding:0 10px}.wm-toolbar button{width:60px}.wm-toolbar select{min-width:0;max-width:calc(100% - 136px)}.wm-toolbar option{background:#202723}.wm-toolbar button:hover{background:#303e37}\n#WorldMap .wm-close{position:absolute;top:12px;right:var(--wm-gutter);z-index:11}\n#WorldMap .wm-close,#WorldMap .wm-panel .wm-back{width:60px;height:32px;min-height:32px;padding:0;border:1px solid #ffffff26;border-radius:4px;background:#202b27;font-size:12px!important;font-weight:500!important;line-height:30px;text-align:center}#WorldMap .wm-close:hover,#WorldMap .wm-panel .wm-back:hover{background:#303e37;border-color:#a99561}\n.wm-message{position:absolute;left:50%;top:66px;transform:translateX(-50%);padding:12px 18px;background:#172021ed;border:1px solid #93866a;z-index:4;max-width:90%}\n.wm-message button{margin-left:12px;background:#384449;border:1px solid #9a9682;border-radius:3px}\n.wm-panel{position:absolute;inset:0;z-index:5;overflow:auto;background:rgba(8,12,12,.94);padding:0 var(--wm-gutter) 14px;font-size:12px;overscroll-behavior:contain}\n.wm-panel header{display:flex;align-items:center;gap:10px;position:sticky;top:0;margin:0 calc(-1 * var(--wm-gutter));background:#111919f5;padding:12px calc(var(--wm-gutter) + 70px) 12px var(--wm-gutter);z-index:1;border-bottom:1px solid #a9956138}.wm-panel header>button{flex:none}.wm-panel h2{flex:1;min-width:0;font-size:15px;font-weight:600;line-height:1.35;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wm-panel h3{font-size:14px;margin:18px 0 10px}.wm-panel p{margin:10px 0}.wm-panel button{border:1px solid #ffffff26;border-radius:4px;color:#f2f0e6;background:#ffffff0d;padding:6px 10px;min-height:32px}.wm-panel button:hover{background:#ffffff1a;border-color:#a99561}\n.wm-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}.wm-card{display:flex;align-items:center;gap:10px;text-align:left;min-height:48px;overflow-wrap:anywhere}.wm-card span{flex:1}.wm-card small{display:block;color:#a4b1ac;font-size:10px;line-height:1.6}.wm-card img{width:26px;height:26px;object-fit:contain;flex:none}.wm-card img.wm-map-thumb{width:48px;height:48px;border-radius:3px}.wm-muted{color:#aebbb5}.wm-form{display:grid;grid-template-columns:90px minmax(120px,1fr) 64px;align-items:center;gap:8px;margin:12px 0 18px;padding:12px;border:1px solid #ffffff14;border-radius:6px;background:#17201fee;box-shadow:inset 0 1px 0 #ffffff05}.wm-form input,.wm-form select{width:100%;min-width:0;min-height:36px;border:1px solid #ffffff29;border-radius:4px;background:#23302e;padding:7px 10px;line-height:20px}.wm-form input::placeholder{color:#8c9995}.wm-form>button{min-height:36px;border-color:#b8a67070;background:#56634b40}.wm-form>button:hover{background:#56634b70}.wm-description{white-space:pre-wrap;overflow-wrap:anywhere;background:#ffffff08;padding:16px;border-left:2px solid #a99561;line-height:1.8}.wm-description .wm-item-icon{width:48px;height:48px;object-fit:contain;float:right;margin:0 0 12px 16px}.wm-actions{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}.wm-page{display:flex;gap:12px;justify-content:center;align-items:center;margin:18px 0}.wm-selected{border-color:#d4c390!important}\n.wm-card .wm-item-thumbnail,.wm-item-thumbnail{display:inline-grid;place-items:center;width:40px;height:40px;flex:none;border-radius:4px;background:#ffffff0a;vertical-align:middle}.wm-item-thumbnail img.wm-item-icon{width:32px;height:32px;object-fit:contain;image-rendering:pixelated;margin:0;float:none}.wm-item-thumbnail .wm-icon-fallback{font-size:10px;line-height:1.3;color:#a3afab;text-align:center}.wm-description>.wm-item-thumbnail{float:right;width:64px;height:64px;margin:0 0 12px 16px}.wm-description>.wm-item-thumbnail img{width:48px;height:48px}\n.wm-workspace{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;padding-top:12px}.wm-context,.wm-inspectors{min-width:0;max-height:none;overflow:visible;padding:0 0 12px}.wm-inspectors{border-top:1px solid #ffffff26;padding-top:14px}.wm-inspectors:empty{display:none}.wm-inspector{scroll-margin-top:88px}.wm-inspector+.wm-inspector{border-top:1px solid #ffffff30;margin-top:20px;padding-top:12px}.wm-inspector h3.wm-detail-title{margin-top:0;font-size:15px}.wm-map-image{margin:0;background:#050a09;border:1px solid #ffffff20;border-radius:4px;text-align:center;padding:12px}.wm-map-image img.wm-map-thumb{display:block;width:100%;height:clamp(180px,35vh,380px);object-fit:contain;image-rendering:pixelated}.wm-map-image figcaption{color:#b4bfbc;margin-top:8px}.wm-portrait{width:64px;height:64px;flex:none;display:grid;place-items:center;background:radial-gradient(ellipse,#ffffff12,transparent);border-radius:4px}.wm-portrait img{width:64px;height:64px;object-fit:contain;image-rendering:pixelated}.wm-portrait small{font-size:10px;text-align:center;color:#a3afab}.wm-monster-heading{display:flex;align-items:center;gap:12px}.wm-monster-heading .wm-portrait,.wm-monster-heading .wm-portrait img{width:88px;height:88px}.wm-card[aria-pressed=true]{border-color:#d4c390;background:#d4c39019}.wm-workspace .wm-cards{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}\n@media(max-width:760px){#WorldMap{--wm-gutter:10px}.wm-toolbar,#WorldMap .wm-close{top:10px}.wm-panel header{gap:8px;padding-top:10px;padding-bottom:10px}.wm-panel h2{font-size:14px}.wm-form{grid-template-columns:72px minmax(0,1fr) 56px;gap:6px;padding:8px}.wm-form input,.wm-form select{padding:7px 8px}.wm-workspace .wm-cards{grid-template-columns:repeat(auto-fill,minmax(145px,1fr))}.wm-card{padding:6px!important}}\n@media(max-width:420px){.wm-panel h2{display:none}.wm-form{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.wm-form input{grid-column:1/-1;grid-row:1}.wm-form>button{justify-self:stretch;width:100%;min-width:0}}\n#WorldMap .wm-search-results .wm-card{min-height:44px;padding:6px 8px;font-size:12px;line-height:1.4}#WorldMap .wm-search-results .wm-cards{grid-template-columns:repeat(auto-fill,minmax(min(100%,160px),1fr))}.wm-card small{font-size:11px}.wm-search-results .wm-card small{font-size:10px}.wm-search-results .wm-portrait,.wm-search-results .wm-portrait img{width:32px;height:32px}.wm-search-results .wm-card img.wm-map-thumb{width:36px;height:36px}.wm-search-results .wm-item-thumbnail{width:32px;height:32px}.wm-search-results .wm-item-thumbnail img.wm-item-icon{width:26px;height:26px}\n.wm-item-window{position:absolute;z-index:10;width:280px;max-width:calc(100% - 12px);max-height:calc(100% - 12px);display:flex;flex-direction:column;color:#000;background-color:#fff;background-repeat:no-repeat;border:0;border-radius:5px;box-shadow:inset 0 0 0 3px #fff,inset 0 0 0 4px #c0c0c0,0 2px 5px #0005;font-size:12px;line-height:18px;overflow:hidden;padding:3px}\n.wm-item-window-header{position:relative;z-index:1;display:flex;align-items:center;flex:none;height:27px;padding:0 16px 0 86px;cursor:grab;touch-action:none;user-select:none;background:linear-gradient(#fff 4px,#e5eaf2 5px,#f7f9fc 6px,#d5deeb 7px,#f8faff 8px,#e2e7f0 9px,#fff 20px);border-radius:3px 3px 0 0}.wm-item-window[data-skinned] .wm-item-window-header{background:transparent}.wm-item-window[data-dragging] .wm-item-window-header{cursor:grabbing}\n.wm-item-window-title{font-size:11px;font-weight:bold;min-width:0;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:1px 1px #fff}\n#WorldMap .wm-item-window-close{position:absolute;top:0;right:0;width:11px;height:11px;padding:0;border:0;border-radius:0;background-color:#e5e9f3;background-image:var(--wm-close-off,none);background-repeat:no-repeat;color:#415b82;font:bold 11px/11px Arial;cursor:pointer}#WorldMap .wm-item-window-close[data-skinned]{font-size:0}#WorldMap .wm-item-window-close:hover{background-image:var(--wm-close-on,var(--wm-close-off,none))}\n.wm-item-window .wm-item-detail{margin-top:-24px;padding:5px 7px 7px;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#abbad0 #edf0f5}\n.wm-item-window p{margin:5px 0}.wm-item-window .wm-muted,.wm-item-window .wm-card small,.wm-item-window .wm-icon-fallback{color:#667184}\n.wm-item-window .wm-item-meta{margin:4px 0 0 90px;font-size:10px;line-height:15px;color:#666}\n.wm-item-window .wm-description{display:grid;grid-template-columns:75px minmax(0,1fr);align-items:start;gap:15px;min-height:100px;padding:0;border:0;background:transparent;font-size:12px;line-height:18px;color:#000;white-space:normal}\n.wm-item-window .wm-description-text{padding-top:24px;white-space:pre-wrap;overflow-wrap:anywhere;min-width:0}\n.wm-item-window .wm-description>.wm-item-thumbnail{float:none;width:75px;height:100px;margin:0;background:transparent;border:0;align-self:start;position:relative}.wm-item-window .wm-description>.wm-item-thumbnail img{width:24px;height:24px}.wm-item-window .wm-description>.wm-item-thumbnail .wm-item-collection{width:75px;height:100px;object-fit:contain;image-rendering:pixelated}\n.wm-item-window .wm-item-thumbnail[data-collection]>*:not(.wm-item-collection){display:none!important}\n.wm-item-window .wm-item-sources{margin-top:12px;padding-top:8px;border-top:1px solid #cdd5e0}.wm-item-window summary{cursor:pointer;color:#3c557d}.wm-item-window .wm-cards{grid-template-columns:minmax(0,1fr);gap:6px;margin-top:8px}\n.wm-item-window .wm-card{background:#f3f6fb;border:1px solid #c4cede;border-radius:3px;padding:5px 8px;min-height:44px}.wm-item-window .wm-card:hover{background:#e6edf8}.wm-item-window .wm-portrait,.wm-item-window .wm-portrait img{width:40px;height:40px}\n#WorldMap .wm-item-window button:focus-visible,#WorldMap .wm-item-window summary:focus-visible{outline:2px solid #4a73ae;outline-offset:-2px}\n");
+  WorldMap = new GUIComponent("WorldMap", "\n:host{position:fixed!important;inset:0;width:100vw;height:100vh;display:block;overflow:hidden}\n.ui-component-root{position:absolute;inset:0;min-width:0;min-height:0;overflow:hidden}\n#WorldMap{--wm-gutter:clamp(12px,2.4vw,32px);--wm-panel-width:min(440px,max(320px,42vw));position:absolute;inset:0;overflow:hidden;background:#1b2423;color:#f1f0e9;font:13px/1.5 Arial,'Microsoft YaHei','MiSans','LastRO Glyph Fallback',sans-serif;font-size-adjust:none;isolation:isolate}\n#WorldMap *{box-sizing:border-box}#WorldMap [hidden]{display:none!important}\n#WorldMap button,#WorldMap select,#WorldMap input{font:inherit;color:inherit}\n#WorldMap button{cursor:pointer}#WorldMap button:focus-visible,#WorldMap select:focus-visible,#WorldMap input:focus-visible{outline:2px solid #e1cf8f;outline-offset:2px}\n.wm-canvas{position:absolute;inset:0;overflow:hidden}#WorldMap.wm-panel-open .wm-canvas{right:var(--wm-panel-width)}\n.wm-grid{position:absolute;background-size:100% 100%;background-repeat:no-repeat}\n.wm-tile{position:absolute;padding:0;border:1px solid #090909;border-radius:4px;background:#282d29;overflow:hidden}\n.wm-tile img{display:block;width:100%;height:100%;object-fit:fill}.wm-tile:hover{outline:2px solid #ddcb90;z-index:1}.wm-tile.selected{outline:2px dashed #f6de92;z-index:2}.wm-tile.current{box-shadow:0 0 0 2px #e9ca6d;z-index:1}\n.wm-tile .wm-boss{position:absolute;left:4px;top:4px;width:14px;height:14px;object-fit:contain;filter:drop-shadow(0 1px 1px #000)}\n.wm-tile.party:not(.current){box-shadow:inset 0 0 0 2px #8bb85f}.wm-tile.party:not(.current)::after{content:'';position:absolute;right:3px;bottom:3px;width:7px;height:7px;border-radius:50%;background:#9fdb73}\n.wm-toolbar{position:absolute;left:var(--wm-gutter);right:var(--wm-gutter);top:12px;display:flex;justify-content:space-between;gap:8px;pointer-events:none;z-index:3}.wm-toolbar>div{display:flex;gap:8px;padding-right:68px}\n.wm-toolbar button,.wm-toolbar select{pointer-events:auto;border:1px solid #ffffff26;border-radius:4px;background:#202b27;font-size:12px!important;font-weight:500!important;height:32px;min-height:32px;padding:0 10px}.wm-toolbar button{width:60px}.wm-toolbar select{min-width:0;max-width:calc(100% - 136px)}.wm-toolbar option{background:#202723}.wm-toolbar button:hover{background:#303e37}\n#WorldMap .wm-close{position:absolute;top:12px;right:var(--wm-gutter);z-index:11}\n#WorldMap .wm-close,#WorldMap .wm-panel .wm-back{width:60px;height:32px;min-height:32px;padding:0;border:1px solid #ffffff26;border-radius:4px;background:#202b27;font-size:12px!important;font-weight:500!important;line-height:30px;text-align:center}#WorldMap .wm-close:hover,#WorldMap .wm-panel .wm-back:hover{background:#303e37;border-color:#a99561}\n.wm-message{position:absolute;left:50%;top:66px;transform:translateX(-50%);padding:12px 18px;background:#172021ed;border:1px solid #93866a;z-index:4;max-width:90%}\n.wm-message button{margin-left:12px;background:#384449;border:1px solid #9a9682;border-radius:3px}\n.wm-panel{position:absolute;top:0;right:0;bottom:0;left:auto;width:var(--wm-panel-width);z-index:5;overflow:auto;background:rgba(8,12,12,.97);border-left:1px solid #a9956138;padding:0 var(--wm-gutter) 14px;font-size:12px;overscroll-behavior:contain}\n.wm-panel header{display:flex;align-items:center;gap:10px;position:sticky;top:0;margin:0 calc(-1 * var(--wm-gutter));background:#111919f5;padding:12px calc(var(--wm-gutter) + 70px) 12px var(--wm-gutter);z-index:1;border-bottom:1px solid #a9956138}.wm-panel header>button{flex:none}.wm-panel h2{flex:1;min-width:0;font-size:15px;font-weight:600;line-height:1.35;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wm-panel h3{font-size:14px;margin:18px 0 10px}.wm-panel p{margin:10px 0}.wm-panel button{border:1px solid #ffffff26;border-radius:4px;color:#f2f0e6;background:#ffffff0d;padding:6px 10px;min-height:32px}.wm-panel button:hover{background:#ffffff1a;border-color:#a99561}\n.wm-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}.wm-card{display:flex;align-items:center;gap:10px;text-align:left;min-height:48px;overflow-wrap:anywhere}.wm-card span{flex:1}.wm-card small{display:block;color:#a4b1ac;font-size:10px;line-height:1.6}.wm-card img{width:26px;height:26px;object-fit:contain;flex:none}.wm-card img.wm-map-thumb{width:48px;height:48px;border-radius:3px}.wm-muted{color:#aebbb5}.wm-form{display:grid;grid-template-columns:90px minmax(120px,1fr) 64px;align-items:center;gap:8px;margin:12px 0 18px;padding:12px;border:1px solid #ffffff14;border-radius:6px;background:#17201fee;box-shadow:inset 0 1px 0 #ffffff05}.wm-form input,.wm-form select{width:100%;min-width:0;min-height:36px;border:1px solid #ffffff29;border-radius:4px;background:#23302e;padding:7px 10px;line-height:20px}.wm-form input::placeholder{color:#8c9995}.wm-form>button{min-height:36px;border-color:#b8a67070;background:#56634b40}.wm-form>button:hover{background:#56634b70}.wm-description{white-space:pre-wrap;overflow-wrap:anywhere;background:#ffffff08;padding:16px;border-left:2px solid #a99561;line-height:1.8}.wm-description .wm-item-icon{width:48px;height:48px;object-fit:contain;float:right;margin:0 0 12px 16px}.wm-actions{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}.wm-page{display:flex;gap:12px;justify-content:center;align-items:center;margin:18px 0}.wm-selected{border-color:#d4c390!important}\n.wm-card .wm-item-thumbnail,.wm-item-thumbnail{display:inline-grid;place-items:center;width:40px;height:40px;flex:none;border-radius:4px;background:#ffffff0a;vertical-align:middle}.wm-item-thumbnail img.wm-item-icon{width:32px;height:32px;object-fit:contain;image-rendering:pixelated;margin:0;float:none}.wm-item-thumbnail .wm-icon-fallback{font-size:10px;line-height:1.3;color:#a3afab;text-align:center}.wm-description>.wm-item-thumbnail{float:right;width:64px;height:64px;margin:0 0 12px 16px}.wm-description>.wm-item-thumbnail img{width:48px;height:48px}\n.wm-workspace{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;padding-top:12px}.wm-context,.wm-inspectors{min-width:0;max-height:none;overflow:visible;padding:0 0 12px}.wm-inspectors{border-top:1px solid #ffffff26;padding-top:14px}.wm-inspectors:empty{display:none}.wm-inspector{scroll-margin-top:88px}.wm-inspector+.wm-inspector{border-top:1px solid #ffffff30;margin-top:20px;padding-top:12px}.wm-inspector h3.wm-detail-title{margin-top:0;font-size:15px}.wm-map-image{margin:0;background:#050a09;border:1px solid #ffffff20;border-radius:4px;text-align:center;padding:12px}.wm-map-image img.wm-map-thumb{display:block;width:100%;height:clamp(180px,35vh,380px);object-fit:contain;image-rendering:pixelated}.wm-map-image figcaption{color:#b4bfbc;margin-top:8px}.wm-portrait{width:64px;height:64px;flex:none;display:grid;place-items:center;background:radial-gradient(ellipse,#ffffff12,transparent);border-radius:4px}.wm-portrait img{width:64px;height:64px;object-fit:contain;image-rendering:pixelated}.wm-portrait small{font-size:10px;text-align:center;color:#a3afab}.wm-monster-heading{display:flex;align-items:center;gap:12px}.wm-monster-heading .wm-portrait,.wm-monster-heading .wm-portrait img{width:88px;height:88px}.wm-card[aria-pressed=true]{border-color:#d4c390;background:#d4c39019}.wm-workspace .wm-cards{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}\n@media(max-width:760px){#WorldMap{--wm-gutter:10px}.wm-toolbar,#WorldMap .wm-close{top:10px}.wm-panel header{gap:8px;padding-top:10px;padding-bottom:10px}.wm-panel h2{font-size:14px}.wm-form{grid-template-columns:72px minmax(0,1fr) 56px;gap:6px;padding:8px}.wm-form input,.wm-form select{padding:7px 8px}.wm-workspace .wm-cards{grid-template-columns:repeat(auto-fill,minmax(145px,1fr))}.wm-card{padding:6px!important}}\n@media(max-width:540px){#WorldMap.wm-panel-open .wm-canvas{right:0}.wm-panel{width:100%}}\n@media(max-width:420px){.wm-panel h2{display:none}.wm-form{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.wm-form input{grid-column:1/-1;grid-row:1}.wm-form>button{justify-self:stretch;width:100%;min-width:0}}\n#WorldMap .wm-search-results .wm-card{min-height:44px;padding:6px 8px;font-size:12px;line-height:1.4}#WorldMap .wm-search-results .wm-cards{grid-template-columns:repeat(auto-fill,minmax(min(100%,160px),1fr))}.wm-card small{font-size:11px}.wm-search-results .wm-card small{font-size:10px}.wm-search-results .wm-portrait,.wm-search-results .wm-portrait img{width:32px;height:32px}.wm-search-results .wm-card img.wm-map-thumb{width:36px;height:36px}.wm-search-results .wm-item-thumbnail{width:32px;height:32px}.wm-search-results .wm-item-thumbnail img.wm-item-icon{width:26px;height:26px}\n.wm-panel .wm-cards{grid-template-columns:minmax(0,1fr)}.wm-search-group+.wm-search-group{border-top:1px solid #ffffff26;padding-top:4px}\n.wm-item-window{position:absolute;z-index:10;width:280px;max-width:calc(100% - 12px);max-height:calc(100% - 12px);display:flex;flex-direction:column;color:#000;background-color:#fff;background-repeat:no-repeat;border:0;border-radius:5px;box-shadow:inset 0 0 0 3px #fff,inset 0 0 0 4px #c0c0c0,0 2px 5px #0005;font-size:12px;line-height:18px;overflow:hidden;padding:3px}\n.wm-item-window-header{position:relative;z-index:1;display:flex;align-items:center;flex:none;height:27px;padding:0 16px 0 86px;cursor:grab;touch-action:none;user-select:none;background:linear-gradient(#fff 4px,#e5eaf2 5px,#f7f9fc 6px,#d5deeb 7px,#f8faff 8px,#e2e7f0 9px,#fff 20px);border-radius:3px 3px 0 0}.wm-item-window[data-skinned] .wm-item-window-header{background:transparent}.wm-item-window[data-dragging] .wm-item-window-header{cursor:grabbing}\n.wm-item-window-title{font-size:11px;font-weight:bold;min-width:0;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:1px 1px #fff}\n#WorldMap .wm-item-window-close{position:absolute;top:0;right:0;width:11px;height:11px;padding:0;border:0;border-radius:0;background-color:#e5e9f3;background-image:var(--wm-close-off,none);background-repeat:no-repeat;color:#415b82;font:bold 11px/11px Arial;cursor:pointer}#WorldMap .wm-item-window-close[data-skinned]{font-size:0}#WorldMap .wm-item-window-close:hover{background-image:var(--wm-close-on,var(--wm-close-off,none))}\n.wm-item-window .wm-item-detail{margin-top:-24px;padding:5px 7px 7px;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#abbad0 #edf0f5}\n.wm-item-window p{margin:5px 0}.wm-item-window .wm-muted,.wm-item-window .wm-card small,.wm-item-window .wm-icon-fallback{color:#667184}\n.wm-item-window .wm-item-meta{margin:4px 0 0 90px;font-size:10px;line-height:15px;color:#666}\n.wm-item-window .wm-description{display:grid;grid-template-columns:75px minmax(0,1fr);align-items:start;gap:15px;min-height:100px;padding:0;border:0;background:transparent;font-size:12px;line-height:18px;color:#000;white-space:normal}\n.wm-item-window .wm-description-text{padding-top:24px;white-space:pre-wrap;overflow-wrap:anywhere;min-width:0}\n.wm-item-window .wm-description>.wm-item-thumbnail{float:none;width:75px;height:100px;margin:0;background:transparent;border:0;align-self:start;position:relative}.wm-item-window .wm-description>.wm-item-thumbnail img{width:24px;height:24px}.wm-item-window .wm-description>.wm-item-thumbnail .wm-item-collection{width:75px;height:100px;object-fit:contain;image-rendering:pixelated}\n.wm-item-window .wm-item-thumbnail[data-collection]>*:not(.wm-item-collection){display:none!important}\n.wm-item-window .wm-item-sources{margin-top:12px;padding-top:8px;border-top:1px solid #cdd5e0}.wm-item-window summary{cursor:pointer;color:#3c557d}.wm-item-window .wm-cards{grid-template-columns:minmax(0,1fr);gap:6px;margin-top:8px}\n.wm-item-window .wm-card{background:#f3f6fb;border:1px solid #c4cede;border-radius:3px;padding:5px 8px;min-height:44px}.wm-item-window .wm-card:hover{background:#e6edf8}.wm-item-window .wm-portrait,.wm-item-window .wm-portrait img{width:40px;height:40px}\n#WorldMap .wm-item-window button:focus-visible,#WorldMap .wm-item-window summary:focus-visible{outline:2px solid #4a73ae;outline-offset:-2px}\n");
   const lastroWorldMapActions = {};
   /* lastro-worldmap-product-actions */
   WorldMap.render = () => "<div id=\"WorldMap\"><div class=\"wm-canvas\" aria-label=\"世界地图\"><div class=\"wm-grid\"></div></div><nav class=\"wm-toolbar\" aria-label=\"世界地图工具\"><select aria-label=\"大陆\" class=\"wm-region\"></select><div><button type=\"button\" class=\"wm-search\">搜索</button></div></nav><button type=\"button\" class=\"wm-close\" aria-label=\"关闭世界地图\" title=\"关闭世界地图\">关闭</button><div class=\"wm-message\" role=\"status\" hidden></div><section class=\"wm-panel\" role=\"dialog\" aria-label=\"地图资料查询\" hidden><header><button type=\"button\" class=\"wm-back\">返回</button><h2 class=\"wm-title\"></h2></header><div class=\"wm-body\"></div></section></div>";
@@ -186985,13 +186985,15 @@ var init_WorldMap = __esmMin(() => {
   const { DB, Client } = deps;
   let root, grid, canvas, panel, body, title, regionSelect, message;
   let index, loading, alive = false, generation = 0, currentRegion = 0;
-  let route = null, fromSearch = false, selectedMap = '', searchTerm = '', searchType = 'all', searchPage = 0;
+  let route = null, fromSearch = false, selectedMap = '', searchTerm = '', searchType = 'all';
+  let searchPages = { monster: 0, map: 0, item: 0 };
   let resumeView = null;
   let activeMonsterTarget = null;
   let searchMonsterId = null;
   let context, inspectors, monsterPane, itemPopup, itemOpener;
   let itemPosition = null, itemDrag = null, itemResizeObserver;
   let partyMaps = new Set();
+  const resetSearchPages = () => { searchPages = { monster: 0, map: 0, item: 0 }; };
   const document = deps.document || globalThis.document;
   const window = document.defaultView;
   function visible() {
@@ -187190,7 +187192,7 @@ var init_WorldMap = __esmMin(() => {
       monsterTarget: monsterPane?.isConnected ? { id: Number(monsterPane.dataset.id) }
         : activeMonsterTarget ? { ...activeMonsterTarget } : null, scrollTop: panel.scrollTop };
   }
-  function closePanel() { deps.cancelTeleport?.(); generation++; closeItem(false); panel.hidden = true; route = null; fromSearch = false; resumeView = null; activeMonsterTarget = null; body.replaceChildren(); root.querySelector('.wm-search').focus(); }
+  function closePanel() { deps.cancelTeleport?.(); generation++; closeItem(false); panel.hidden = true; root.querySelector('#WorldMap').classList.remove('wm-panel-open'); fitRegion(); route = null; fromSearch = false; resumeView = null; activeMonsterTarget = null; body.replaceChildren(); root.querySelector('.wm-search').focus(); }
   function hide(preserveView = false) {
     if (preserveView) rememberView();
     const saved = preserveView ? resumeView : null;
@@ -187200,6 +187202,7 @@ var init_WorldMap = __esmMin(() => {
     // Explicit close starts on the map next time; native remove owns cancellation,
     // popup disposal and keyboard cleanup, without focusing the covered toolbar.
     resumeView = null; activeMonsterTarget = null; route = null; fromSearch = false; panel.hidden = true;
+    root.querySelector('#WorldMap').classList.remove('wm-panel-open');
     component._host.style.display = 'none'; component.remove();
   }
   async function open(next, opener, monsterTarget, restoredView) {
@@ -187213,7 +187216,7 @@ var init_WorldMap = __esmMin(() => {
     else if (next.kind === 'map' && route?.kind === 'search') fromSearch = true;
     if (!inline || !route) route = inline ? { kind: 'search' } : next;
     if (restoredView) fromSearch = restoredView.fromSearch;
-    panel.hidden = false; message.hidden = true;
+    panel.hidden = false; root.querySelector('#WorldMap').classList.add('wm-panel-open'); fitRegion(); message.hidden = true;
     if (!inline || !body.children.length) { title.textContent = '正在读取资料…'; body.replaceChildren(); }
     const back = root.querySelector('.wm-back'); back.hidden = false; back.textContent = '返回';
     const ticket = ++generation;
@@ -187243,7 +187246,7 @@ var init_WorldMap = __esmMin(() => {
     const id = typeof target?.id === 'number' && Number.isInteger(target.id) && target.id > 0 && target.id <= 0xffffffff ? target.id : null;
     const name = typeof target?.name === 'string' ? target.name.replace(/\^[0-9a-f]{6}/gi, '').trim() : '';
     showWindow();
-    searchTerm = id === null ? name : String(id); searchType = 'monster'; searchPage = 0; searchMonsterId = id;
+    searchTerm = id === null ? name : String(id); searchType = 'monster'; resetSearchPages(); searchMonsterId = id;
     return open({ kind: 'search' }, undefined, { id, name });
   }
   function mapDetails(map) {
@@ -187324,10 +187327,10 @@ var init_WorldMap = __esmMin(() => {
     for (const source of item.sources) list.append(card(source.monster, 'monster', `${source.kind} ${(source.rate / 100).toFixed(2)}% · ${source.monster.maps.length} 张地图`));
   }
   function searchView() {
-    title.textContent = '搜索怪物、物品与地图';
+    title.textContent = '搜索怪物、地图与道具';
     const form = node('form', undefined, 'wm-form');
     const type = node('select'); type.setAttribute('aria-label', '搜索类型');
-    for (const [value, label] of [['all', '全部'], ['monster', '怪物'], ['item', '物品'], ['map', '地图']]) {
+    for (const [value, label] of [['all', '全部'], ['monster', '怪物'], ['map', '地图'], ['item', '道具']]) {
       const option = node('option', label); option.value = value; type.append(option);
     }
     type.value = searchType;
@@ -187341,19 +187344,30 @@ var init_WorldMap = __esmMin(() => {
       const hits = index.search(searchTerm, searchType).filter(hit => searchMonsterId === null || searchType !== 'monster' || hit.record.id === searchMonsterId);
       if (!searchTerm.trim()) return;
       results.append(node('p', hits.length ? `找到 ${hits.length} 条结果` : '没有匹配结果', 'wm-muted'));
-      const list = node('div', undefined, 'wm-cards'); results.append(list);
-      searchPage = Math.min(searchPage, Math.max(0, Math.ceil(hits.length / 60) - 1));
-      for (const hit of hits.slice(searchPage * 60, (searchPage + 1) * 60)) list.append(card(hit.record, hit.kind, `${{ map: '地图', monster: '怪物', item: '物品' }[hit.kind]} · ID ${hit.record.id}`));
-      if (hits.length > 60) {
-        const pager = node('div', undefined, 'wm-page');
-        const prev = button('上一页', () => { searchPage--; run(); }); prev.disabled = searchPage === 0;
-        const next = button('下一页', () => { searchPage++; run(); }); next.disabled = (searchPage + 1) * 60 >= hits.length;
-        pager.append(prev, node('span', `${searchPage + 1} / ${Math.ceil(hits.length / 60)}`), next); results.append(pager);
+      const categories = [
+        ['monster', '怪物'], ['map', '地图'], ['item', '道具'],
+      ];
+      for (const [kind, label] of categories) {
+        const matches = hits.filter(hit => hit.kind === kind);
+        if (!matches.length) continue;
+        const group = node('section', undefined, 'wm-search-group'); group.dataset.kind = kind;
+        group.append(node('h3', `${label}（${matches.length}）`));
+        const list = node('div', undefined, 'wm-cards'); group.append(list);
+        const pageCount = Math.ceil(matches.length / 60);
+        const page = Math.min(searchPages[kind], pageCount - 1); searchPages[kind] = page;
+        for (const hit of matches.slice(page * 60, (page + 1) * 60)) list.append(card(hit.record, hit.kind, `${label} · ID ${hit.record.id}`));
+        if (pageCount > 1) {
+          const pager = node('div', undefined, 'wm-page');
+          const prev = button('上一页', () => { searchPages[kind]--; run(); }); prev.disabled = page === 0;
+          const next = button('下一页', () => { searchPages[kind]++; run(); }); next.disabled = (page + 1) * 60 >= matches.length;
+          pager.append(prev, node('span', `${page + 1} / ${pageCount}`), next); group.append(pager);
+        }
+        results.append(group);
       }
     };
-    form.addEventListener('submit', event => { event.preventDefault(); searchPage = 0; searchMonsterId = null; activeMonsterTarget = null; run(); });
-    input.addEventListener('input', () => { searchPage = 0; searchMonsterId = null; activeMonsterTarget = null; run(); });
-    type.addEventListener('change', () => { searchPage = 0; searchMonsterId = null; activeMonsterTarget = null; run(); });
+    form.addEventListener('submit', event => { event.preventDefault(); resetSearchPages(); searchMonsterId = null; activeMonsterTarget = null; run(); });
+    input.addEventListener('input', () => { resetSearchPages(); searchMonsterId = null; activeMonsterTarget = null; run(); });
+    type.addEventListener('change', () => { resetSearchPages(); searchMonsterId = null; activeMonsterTarget = null; run(); });
     run();
   }
   function render() {
@@ -187497,6 +187511,7 @@ var init_WorldMap = __esmMin(() => {
     deps.cancelTeleport?.(); alive = false; generation++; closeItem(false);
     route = null; fromSearch = false; activeMonsterTarget = null; body?.replaceChildren();
     if (panel) panel.hidden = true;
+    root?.querySelector('#WorldMap')?.classList.remove('wm-panel-open');
     if (message) message.hidden = true;
     window.removeEventListener('resize', fitViewport);
   };
@@ -195126,7 +195141,7 @@ var init_Context = __esmMin(() => {
 var GraphicsOption_default$2;
 var init_GraphicsOption$2 = __esmMin(() => {
   GraphicsOption_default$2 =
-    '<div id="GraphicsOption">\r\n	<div class="titlebar" data-background="basic_interface/titlebar_mid.bmp">\r\n		<div class="left">\r\n			<button\r\n				class="base"\r\n				data-background="basic_interface/sys_base_off.bmp"\r\n				data-hover="basic_interface/sys_base_on.bmp"\r\n			></button>\r\n			<span class="text" data-text="1484">Graphics Settings</span>\r\n		</div>\r\n		<div class="right">\r\n			<button\r\n				class="base close"\r\n				data-background="basic_interface/sys_close_off.bmp"\r\n				data-hover="basic_interface/sys_close_on.bmp"\r\n			></button>\r\n		</div>\r\n		<div class="clear"></div>\r\n	</div>\r\n\r\n	<div class="tabs-container">\r\n		<div class="tabs">\r\n			<button class="tab-button selected" data-tab="basic">Basic</button>\r\n			<button class="tab-button" data-tab="advanced">Advanced</button>\r\n		</div>\r\n	</div>\r\n\r\n	<div class="panel">\r\n		<div class="tab-content selected" id="basic">\r\n			<table>\r\n				<tr>\r\n					<td>Details</td>\r\n					<td style="display: inline-block; width: 260px">\r\n						<input\r\n							class="details"\r\n							type="range"\r\n							value="100"\r\n							max="100"\r\n							min="25"\r\n							step="5"\r\n							style="width: 90%"\r\n						/>\r\n					</td>\r\n				</tr>\r\n				<tr class="resolution">\r\n					<td>Resolution</td>\r\n					<td>\r\n						<select class="screensize">\r\n							<option value="650x480">640 x 480</option>\r\n							<option value="800x600">800 x 600</option>\r\n							<option value="1024x768">1024 x 768</option>\r\n							<option value="1280x800">1280 x 800</option>\r\n							<option value="1400x900">1400 x 900</option>\r\n							<option value="1680x1050">1680 x 1050</option>\r\n							<option value="full">Full Screen</option>\r\n						</select>\r\n					</td>\r\n				</tr>\r\n				<tr>\r\n					<td>Cursor</td>\r\n					<td>\r\n						<label>\r\n							<input class="cursor-option" type="checkbox" />\r\n							Show official cursor\r\n						</label>\r\n					</td>\r\n				</tr>\r\n				<tr>\r\n					<td>FPS Limit</td>\r\n					<td>\r\n						<select class="fpslimit">\r\n							<option value="-1">Unlimited</option>\r\n							<option value="30">30</option>\r\n							<option value="60">60</option>\r\n							<option value="90">90</option>\r\n							<option value="120">120</option>\r\n						</select>\r\n					</td>\r\n				</tr>\r\n				<tr>\r\n					<td>FPS Display</td>\r\n					<td>\r\n						<label>\r\n							<input class="fps" type="checkbox" />\r\n						</label>\r\n					</td>\r\n				</tr>\r\n			</table>\r\n		</div>\r\n\r\n		<div class="tab-content" id="advanced">\r\n			<table>\r\n				<tr>\r\n					<td title="Force nearest neighbor filtering for pixel-perfect sprite rendering">\r\n						Pixel Perfect Sprites\r\n					</td>\r\n					<td>\r\n						<label>\r\n							<input class="pixel-perfect" type="checkbox" />\r\n							Force nearest neighbor filtering\r\n						</label>\r\n					</td>\r\n				</tr>\r\n				<tr>\r\n					<td title="Add a glowing bloom effect to bright areas">Bloom</td>\r\n					<td>\r\n						<label style="display: inline-block; margin-right: 20px">\r\n							<input class="bloom" type="checkbox" />\r\n						</label>\r\n						<label style="display: inline-block; width: 200px">\r\n							Intensity:\r\n							<input\r\n								class="bloom-intensity"\r\n								type="range"\r\n								value="0.5"\r\n								min="0.1"\r\n								max="3.0"\r\n								step="0.05"\r\n								style="width: 90%; vertical-align: middle"\r\n							/>\r\n						</label>\r\n					</td>\r\n				</tr>\r\n				<tr>\r\n					<td title="Apply a blur effect to the screen">Blur</td>\r\n					<td>\r\n						<label style="display: inline-block; margin-right: 20px">\r\n							<input class="blur" type="checkbox" />\r\n						</label>\r\n						<label style="display: inline-block; width: 90px">\r\n							Intensity:\r\n							<input\r\n								class="blur-intensity"\r\n								type="range"\r\n								value="3.0"\r\n								min="2.0"\r\n								max="10.0"\r\n								step="0.1"\r\n								style="width: 90%; vertical-align: middle"\r\n							/>\r\n						</label>\r\n						<label style="display: inline-block; width: 90px">\r\n							Area:\r\n							<input\r\n								class="blur-area"\r\n								type="range"\r\n								value="14.0"\r\n								min="3.0"\r\n								max="20.0"\r\n								step="1.0"\r\n								style="width: 90%; vertical-align: middle"\r\n							/>\r\n						</label>\r\n					</td>\r\n				</tr>\r\n				<tr>\r\n					<td title="Contrast Adaptive Sharpening for enhanced details">Contr. Adapt. Sharp. (CAS)</td>\r\n					<td>\r\n						<label style="display: inline-block; margin-right: 20px">\r\n							<input class="casEnabled" type="checkbox" />\r\n						</label>\r\n						<label style="display: inline-block; width: 90px">\r\n							Contrast:\r\n							<input\r\n								class="casContrast"\r\n								type="range"\r\n								value="0.0"\r\n								min="0.0"\r\n								max="1.0"\r\n								step="0.05"\r\n								style="width: 90%; vertical-align: middle"\r\n							/>\r\n						</label>\r\n						<label style="display: inline-block; width: 90px">\r\n							Sharpening:\r\n							<input\r\n								class="casSharpening"\r\n								type="range"\r\n								value="1.0"\r\n								min="0.0"\r\n								max="1.0"\r\n								step="0.05"\r\n								style="width: 90%; vertical-align: middle"\r\n							/>\r\n						</label>\r\n					</td>\r\n				</tr>\r\n				<tr>\r\n					<td title="Fast Approximate Anti-Aliasing for smoother edges">FXAA</td>\r\n					<td>\r\n						<label style="display: inline-block; margin-right: 20px">\r\n							<input class="fxaaEnabled" type="checkbox" />\r\n						</label>\r\n						<label style="display: inline-block; width: 90px">\r\n							Subpix:\r\n							<input\r\n								class="fxaaSubpix"\r\n								type="range"\r\n								value="0.25"\r\n								min="0.0"\r\n								max="1.0"\r\n								step="0.05"\r\n								style="width: 90%; vertical-align: middle"\r\n							/>\r\n						</label>\r\n						<label style="display: inline-block; width: 90px">\r\n							Edge Threshold:\r\n							<input\r\n								class="fxaaEdgeThreshold"\r\n								type="range"\r\n								value="0.125"\r\n								min="0.063"\r\n								max="0.333"\r\n								step="0.03"\r\n								style="width: 90%; vertical-align: middle"\r\n							/>\r\n						</label>\r\n					</td>\r\n				</tr>\r\n				<tr>\r\n					<td title="Cartoon rendering effect for stylized visuals">Cartoon</td>\r\n					<td>\r\n						<label style="display: inline-block; margin-right: 20px">\r\n							<input class="cartoonEnabled" type="checkbox" />\r\n						</label>\r\n						<label style="display: inline-block; width: 90px">\r\n							Power:\r\n							<input\r\n								class="cartoonPower"\r\n								type="range"\r\n								value="1.5"\r\n								min="0.1"\r\n								max="9.9"\r\n								step="0.1"\r\n								style="width: 90%; vertical-align: middle"\r\n							/>\r\n						</label>\r\n						<label style="display: inline-block; width: 90px">\r\n							Edge Slope:\r\n							<input\r\n								class="cartoonEdgeSlope"\r\n								type="range"\r\n								value="1.5"\r\n								min="1.5"\r\n								max="5.9"\r\n								step="0.1"\r\n								style="width: 90%; vertical-align: middle"\r\n							/>\r\n						</label>\r\n					</td>\r\n				</tr>\r\n				<tr>\r\n					<td title="Increase color intensity and saturation">Vibrance</td>\r\n					<td>\r\n						<label style="display: inline-block; margin-right: 20px">\r\n							<input class="vibranceEnabled" type="checkbox" />\r\n						</label>\r\n						<label style="display: inline-block; width: 200px">\r\n							Intensity:\r\n							<input\r\n								class="vibrance"\r\n								type="range"\r\n								value="0.15"\r\n								min="-0.9"\r\n								max="0.9"\r\n								step="0.1"\r\n								style="width: 90%; vertical-align: middle"\r\n							/>\r\n						</label>\r\n					</td>\r\n				</tr>\r\n				<tr>\r\n					<td\r\n						title="Hide objects outside the viewing area, enable downsampling rendering and others to improve performance"\r\n					>\r\n						Performance Mode\r\n					</td>\r\n					<td>\r\n						<label style="display: inline-block; margin-right: 20px">\r\n							<input class="performanceMode" type="checkbox" />\r\n						</label>\r\n						<label style="display: inline-block; width: 200px">\r\n							Culling Area:\r\n							<input\r\n								class="view-area"\r\n								type="range"\r\n								value="14.0"\r\n								min="4.0"\r\n								max="20.0"\r\n								step="1.0"\r\n								style="width: 90%; vertical-align: middle"\r\n							/>\r\n						</label>\r\n					</td>\r\n				</tr>\r\n			</table>\r\n\r\n			<div class="reset-section">\r\n				<button class="reset-button">Reset to Default Values</button>\r\n			</div>\r\n		</div>\r\n	</div>\r\n</div>\r\n';
+    '<div id="GraphicsOption">\r\n\t<div class="titlebar" data-background="basic_interface/titlebar_mid.bmp">\r\n\t\t<div class="left">\r\n\t\t\t<button\r\n\t\t\t\tclass="base"\r\n\t\t\t\tdata-background="basic_interface/sys_base_off.bmp"\r\n\t\t\t\tdata-hover="basic_interface/sys_base_on.bmp"\r\n\t\t\t></button>\r\n\t\t\t<span class="text" data-text="1484">Graphics Settings</span>\r\n\t\t</div>\r\n\t\t<div class="right">\r\n\t\t\t<button\r\n\t\t\t\tclass="base close"\r\n\t\t\t\tdata-background="basic_interface/sys_close_off.bmp"\r\n\t\t\t\tdata-hover="basic_interface/sys_close_on.bmp"\r\n\t\t\t></button>\r\n\t\t</div>\r\n\t\t<div class="clear"></div>\r\n\t</div>\r\n\r\n\t<div class="tabs-container">\r\n\t\t<div class="tabs">\r\n\t\t\t<button class="tab-button selected" data-tab="basic">Basic</button>\r\n\t\t\t<button class="tab-button" data-tab="advanced">Advanced</button>\r\n\t\t</div>\r\n\t</div>\r\n\r\n\t<div class="panel">\r\n\t\t<div class="tab-content selected" id="basic">\r\n\t\t\t<table>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td>Details</td>\r\n\t\t\t\t\t<td style="display: inline-block; width: 260px">\r\n\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\tclass="details"\r\n\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\tvalue="100"\r\n\t\t\t\t\t\t\tmax="100"\r\n\t\t\t\t\t\t\tmin="25"\r\n\t\t\t\t\t\t\tstep="5"\r\n\t\t\t\t\t\t\tstyle="width: 90%"\r\n\t\t\t\t\t\t/>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr class="resolution">\r\n\t\t\t\t\t<td>Resolution</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<select class="screensize">\r\n\t\t\t\t\t\t\t<option value="650x480">640 x 480</option>\r\n\t\t\t\t\t\t\t<option value="800x600">800 x 600</option>\r\n\t\t\t\t\t\t\t<option value="1024x768">1024 x 768</option>\r\n\t\t\t\t\t\t\t<option value="1280x800">1280 x 800</option>\r\n\t\t\t\t\t\t\t<option value="1400x900">1400 x 900</option>\r\n\t\t\t\t\t\t\t<option value="1680x1050">1680 x 1050</option>\r\n\t\t\t\t\t\t\t<option value="full">Full Screen</option>\r\n\t\t\t\t\t\t</select>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td>Cursor</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label>\r\n\t\t\t\t\t\t\t<input class="cursor-option" type="checkbox" />\r\n\t\t\t\t\t\t\tShow system cursor\r\n\t\t\t\t\t\t</label>\r\n<label style="display:block" title="仅游戏鼠标指针生效"><input class="monster-snap" type="checkbox" /> Monster cursor snap</label>\r\n<label style="display:block" title="仅游戏鼠标指针生效"><input class="item-snap" type="checkbox" /> Item cursor snap</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td>FPS Limit</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<select class="fpslimit">\r\n\t\t\t\t\t\t\t<option value="-1">Unlimited</option>\r\n\t\t\t\t\t\t\t<option value="30">30</option>\r\n\t\t\t\t\t\t\t<option value="60">60</option>\r\n\t\t\t\t\t\t\t<option value="90">90</option>\r\n\t\t\t\t\t\t\t<option value="120">120</option>\r\n\t\t\t\t\t\t</select>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td>FPS Display</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label>\r\n\t\t\t\t\t\t\t<input class="fps" type="checkbox" />\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t</table>\r\n\t\t</div>\r\n\r\n\t\t<div class="tab-content" id="advanced">\r\n\t\t\t<table>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td title="Force nearest neighbor filtering for pixel-perfect sprite rendering">\r\n\t\t\t\t\t\tPixel Perfect Sprites\r\n\t\t\t\t\t</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label>\r\n\t\t\t\t\t\t\t<input class="pixel-perfect" type="checkbox" />\r\n\t\t\t\t\t\t\tForce nearest neighbor filtering\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td title="Add a glowing bloom effect to bright areas">Bloom</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label style="display: inline-block; margin-right: 20px">\r\n\t\t\t\t\t\t\t<input class="bloom" type="checkbox" />\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 200px">\r\n\t\t\t\t\t\t\tIntensity:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="bloom-intensity"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="0.5"\r\n\t\t\t\t\t\t\t\tmin="0.1"\r\n\t\t\t\t\t\t\t\tmax="3.0"\r\n\t\t\t\t\t\t\t\tstep="0.05"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td title="Apply a blur effect to the screen">Blur</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label style="display: inline-block; margin-right: 20px">\r\n\t\t\t\t\t\t\t<input class="blur" type="checkbox" />\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 90px">\r\n\t\t\t\t\t\t\tIntensity:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="blur-intensity"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="3.0"\r\n\t\t\t\t\t\t\t\tmin="2.0"\r\n\t\t\t\t\t\t\t\tmax="10.0"\r\n\t\t\t\t\t\t\t\tstep="0.1"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 90px">\r\n\t\t\t\t\t\t\tArea:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="blur-area"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="14.0"\r\n\t\t\t\t\t\t\t\tmin="3.0"\r\n\t\t\t\t\t\t\t\tmax="20.0"\r\n\t\t\t\t\t\t\t\tstep="1.0"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td title="Contrast Adaptive Sharpening for enhanced details">Contr. Adapt. Sharp. (CAS)</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label style="display: inline-block; margin-right: 20px">\r\n\t\t\t\t\t\t\t<input class="casEnabled" type="checkbox" />\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 90px">\r\n\t\t\t\t\t\t\tContrast:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="casContrast"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="0.0"\r\n\t\t\t\t\t\t\t\tmin="0.0"\r\n\t\t\t\t\t\t\t\tmax="1.0"\r\n\t\t\t\t\t\t\t\tstep="0.05"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 90px">\r\n\t\t\t\t\t\t\tSharpening:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="casSharpening"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="1.0"\r\n\t\t\t\t\t\t\t\tmin="0.0"\r\n\t\t\t\t\t\t\t\tmax="1.0"\r\n\t\t\t\t\t\t\t\tstep="0.05"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td title="Fast Approximate Anti-Aliasing for smoother edges">FXAA</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label style="display: inline-block; margin-right: 20px">\r\n\t\t\t\t\t\t\t<input class="fxaaEnabled" type="checkbox" />\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 90px">\r\n\t\t\t\t\t\t\tSubpix:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="fxaaSubpix"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="0.25"\r\n\t\t\t\t\t\t\t\tmin="0.0"\r\n\t\t\t\t\t\t\t\tmax="1.0"\r\n\t\t\t\t\t\t\t\tstep="0.05"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 90px">\r\n\t\t\t\t\t\t\tEdge Threshold:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="fxaaEdgeThreshold"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="0.125"\r\n\t\t\t\t\t\t\t\tmin="0.063"\r\n\t\t\t\t\t\t\t\tmax="0.333"\r\n\t\t\t\t\t\t\t\tstep="0.03"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td title="Cartoon rendering effect for stylized visuals">Cartoon</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label style="display: inline-block; margin-right: 20px">\r\n\t\t\t\t\t\t\t<input class="cartoonEnabled" type="checkbox" />\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 90px">\r\n\t\t\t\t\t\t\tPower:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="cartoonPower"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="1.5"\r\n\t\t\t\t\t\t\t\tmin="0.1"\r\n\t\t\t\t\t\t\t\tmax="9.9"\r\n\t\t\t\t\t\t\t\tstep="0.1"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 90px">\r\n\t\t\t\t\t\t\tEdge Slope:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="cartoonEdgeSlope"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="1.5"\r\n\t\t\t\t\t\t\t\tmin="1.5"\r\n\t\t\t\t\t\t\t\tmax="5.9"\r\n\t\t\t\t\t\t\t\tstep="0.1"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td title="Increase color intensity and saturation">Vibrance</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label style="display: inline-block; margin-right: 20px">\r\n\t\t\t\t\t\t\t<input class="vibranceEnabled" type="checkbox" />\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 200px">\r\n\t\t\t\t\t\t\tIntensity:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="vibrance"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="0.15"\r\n\t\t\t\t\t\t\t\tmin="-0.9"\r\n\t\t\t\t\t\t\t\tmax="0.9"\r\n\t\t\t\t\t\t\t\tstep="0.1"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td\r\n\t\t\t\t\t\ttitle="Hide objects outside the viewing area, enable downsampling rendering and others to improve performance"\r\n\t\t\t\t\t>\r\n\t\t\t\t\t\tPerformance Mode\r\n\t\t\t\t\t</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label style="display: inline-block; margin-right: 20px">\r\n\t\t\t\t\t\t\t<input class="performanceMode" type="checkbox" />\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 200px">\r\n\t\t\t\t\t\t\tCulling Area:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="view-area"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="14.0"\r\n\t\t\t\t\t\t\t\tmin="4.0"\r\n\t\t\t\t\t\t\t\tmax="20.0"\r\n\t\t\t\t\t\t\t\tstep="1.0"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t</table>\r\n\r\n\t\t\t<div class="reset-section">\r\n\t\t\t\t<button class="reset-button">Reset to Default Values</button>\r\n\t\t\t</div>\r\n\t\t</div>\r\n\t</div>\r\n</div>\r\n';
 });
 //#endregion
 //#region src/UI/Components/GraphicsOption/GraphicsOption.css?raw
@@ -195150,10 +195165,20 @@ function onUpdateQualityDetails() {
  * Toggle game cursor
  */
 function onToggleGameCursor() {
-  GraphicsSettings.cursor = !!this.checked;
+  GraphicsSettings.cursor = !this.checked;
   GraphicsSettings.save();
   if (!GraphicsSettings.cursor) document.body.classList.remove("custom-cursor");
   else document.body.classList.add("custom-cursor");
+  const cursor = document.querySelector(".cursor");
+  if (cursor) cursor.style.display = GraphicsSettings.cursor ? "block" : "none";
+}
+function onToggleMonsterSnap() {
+  Controls_default.snap = !!this.checked;
+  Controls_default.save();
+}
+function onToggleItemSnap() {
+  Controls_default.itemsnap = !!this.checked;
+  Controls_default.save();
 }
 /**
  * Update the fps limit
@@ -195321,6 +195346,7 @@ var init_GraphicsOption = __esmMin(() => {
   init_Context();
   init_Preferences$1();
   init_Graphics();
+  init_Controls();
   init_Renderer();
   init_UIManager();
   init_GUIComponent();
@@ -195373,6 +195399,8 @@ var init_GraphicsOption = __esmMin(() => {
     };
     bindChange(".details", onUpdateQualityDetails);
     bindChange(".cursor-option", onToggleGameCursor);
+    bindChange(".monster-snap", onToggleMonsterSnap);
+    bindChange(".item-snap", onToggleItemSnap);
     bindChange(".screensize", onUpdateScreenSize);
     bindChange(".fpslimit", onUpdateFPSLimit);
     bindChange(".fps", onToggleFPSDisplay);
@@ -195406,7 +195434,9 @@ var init_GraphicsOption = __esmMin(() => {
     const root = this.getRoot();
     root.querySelector(".details").value = GraphicsSettings.quality;
     root.querySelector(".screensize").value = GraphicsSettings.screensize;
-    root.querySelector(".cursor-option").checked = GraphicsSettings.cursor;
+    root.querySelector(".cursor-option").checked = !GraphicsSettings.cursor;
+    root.querySelector(".monster-snap").checked = Controls_default.snap;
+    root.querySelector(".item-snap").checked = Controls_default.itemsnap;
     root.querySelector(".fpslimit").value = GraphicsSettings.fpslimit;
     root.querySelector(".fps").checked = FPS_default._host
       ? FPS_default._host.style.display !== "none"
@@ -224823,8 +224853,7 @@ function move(dx, dy) {
   );
   const cursor = document.querySelector(".cursor");
   if (cursor) {
-    cursor.style.left = Mouse.screen.x + "px";
-    cursor.style.top = Mouse.screen.y + "px";
+    cursor.style.translate = `${Mouse.screen.x}px ${Mouse.screen.y}px`;
   }
 }
 function moveMouseToEntity(entity) {
@@ -224864,8 +224893,7 @@ function moveMouseToEntity(entity) {
   Mouse.screen.y = screenY;
   const _selector = document.querySelector(".cursor");
   if (_selector) {
-    _selector.style.left = screenX + "px";
-    _selector.style.top = screenY + "px";
+    _selector.style.translate = `${screenX}px ${screenY}px`;
   }
 }
 function leftClick(click = false) {
@@ -225052,8 +225080,7 @@ function navigateDraggableItems(direction) {
       Mouse.screen.y = targetCenterY;
       const _selector = document.querySelector(".cursor");
       if (_selector) {
-        _selector.style.left = targetCenterX + "px";
-        _selector.style.top = targetCenterY + "px";
+        _selector.style.translate = `${targetCenterX}px ${targetCenterY}px`;
       }
     }
   }
@@ -226835,6 +226862,7 @@ var init_MapRenderer = __esmMin(() => {
       fog.use = Map_default.fog;
       const light = MapRenderer.light;
       let x, y;
+      const heldMovement = typeof MapControl !== "undefined" && MapControl._lastroMovementInput?.isHeld?.();
       Mouse.world.x = -1;
       Mouse.world.y = -1;
       Mouse.world.z = -1;
@@ -226845,7 +226873,7 @@ var init_MapRenderer = __esmMin(() => {
       Ground_default.render(gl, modelView, projection, normalMat, fog, light);
       Effects_default.spam(SessionStorage_default.Entity.position, tick);
       if (
-        Mouse.intersect &&
+        (Mouse.intersect || heldMovement) &&
         Altitude.intersect(modelView, projection, _pos$6)
       ) {
         x = _pos$6[0];
@@ -226907,7 +226935,7 @@ var init_MapRenderer = __esmMin(() => {
       SignboardManager.render(gl, modelView, projection);
       ScreenEffectManager.render(gl, modelView, projection, fog, tick);
       Sounds_default.render(SessionStorage_default.Entity.position, tick);
-      if (Mouse.intersect) {
+      if (Mouse.intersect && !heldMovement) {
         const entity = EntityManager.intersect();
         EntityManager.setOverEntity(entity);
       }
@@ -275541,16 +275569,21 @@ var init_Trade$1 = __esmMin(() => {
 //#region src/Controls/EntityControl.js
 // lastro-movement-input-installed
 function lastroCanPassPlayerClick(entity) {
-  return SessionStorage_default.FreezeUI === false
-    && Mouse.state === Mouse.MOUSE_STATE.NORMAL
-    && SessionStorage_default.captchaGetIdOnEntityClick === false
-    && SessionStorage_default.captchaGetIdOnFloorClick === false
-    && SessionStorage_default.TouchTargeting === false
-    && SessionStorage_default.mapState?.isPVP === false
-    && SessionStorage_default.mapState?.isGVG === false
-    && KEYS.SHIFT === false && KEYS.CTRL === false && KEYS.ALT === false
-    && Controls_default.noshift === false
-    && typeof entity.canAttackEntity === 'function' && entity.canAttackEntity() === false;
+  const session = SessionStorage_default;
+  const mapState = session.mapState;
+  if (session.FreezeUI !== false
+    || Mouse.state !== Mouse.MOUSE_STATE.NORMAL
+    || session.captchaGetIdOnEntityClick !== false
+    || session.captchaGetIdOnFloorClick !== false
+    || session.TouchTargeting !== false
+    || KEYS.SHIFT !== false || KEYS.CTRL !== false || KEYS.ALT !== false
+    || Controls_default.noshift !== false
+    || !mapState
+    || typeof entity.canAttackEntity !== 'function') return false;
+  const canAttack = entity.canAttackEntity();
+  if (canAttack === false)
+    return mapState?.isPVP === false && mapState?.isGVG === false;
+  return canAttack === true && (mapState?.isPVP === true || mapState?.isGVG === true);
 }
 /**
  * Export
@@ -280584,6 +280617,7 @@ var EntityRoom_default$1;
 var init_EntityRoom$2 = __esmMin(() => {
   EntityRoom_default$1 =
     ":host {\r\n\twidth: 140px;\r\n\theight: 26px;\r\n}\r\n\r\n.EntityRoom {\r\n\tbox-sizing: border-box;\r\n\tposition: absolute;\r\n\tz-index: 45;\r\n\twidth: 140px;\r\n\tmax-height: 26px;\r\n\tborder-radius: 5px;\r\n\tbackground-color: white;\r\n\tpadding: 2px;\r\n\tletter-spacing: 0px;\r\n}\r\n\r\n.EntityRoom button {\r\n\twidth: 100%;\r\n\ttext-align: left;\r\n\tpadding: 0px;\r\n\tborder-radius: 5px;\r\n\tborder: 1px solid #c1c6c2;\r\n\tbackground-color: transparent;\r\n\tbackground-repeat: no-repeat;\r\n\tbackground-position: left center;\r\n\twhite-space: nowrap;\r\n\tdisplay: flex;\r\n\talign-items: center;\r\n}\r\n\r\n.EntityRoom button::after {\r\n\tcontent: '';\r\n\tposition: absolute;\r\n\tbottom: -12px;\r\n\tleft: 50%;\r\n\tmargin-left: -10px;\r\n\tz-index: -1;\r\n\twidth: 0;\r\n\theight: 0;\r\n\tborder-style: solid;\r\n\tborder-width: 0 10.5px 26px 10.5px;\r\n\tborder-color: transparent transparent #fff transparent;\r\n\ttransform: rotate(220deg);\r\n}\r\n\r\n.EntityRoom .image {\r\n\twidth: 24px;\r\n\theight: 24px;\r\n\tmargin-right: 5px;\r\n\tmargin-top: -1px;\r\n\tmargin-bottom: -3px;\r\n}\r\n\r\n.EntityRoom .title {\r\n\toverflow: hidden;\r\n\ttext-overflow: ellipsis;\r\n\twhite-space: nowrap;\r\n\tmin-width: 0;\r\n\tflex: 1;\r\n}\r\n\r\n.EntityRoom .overlay {\r\n\tdisplay: none;\r\n\tposition: absolute;\r\n\ttop: 0;\r\n\tleft: 26px;\r\n\tz-index: 900;\r\n\tpadding: 5px;\r\n\tbackground-color: rgba(0, 0, 0, 0.6);\r\n\tcolor: white;\r\n\ttext-shadow: 1px 1px black;\r\n\tborder: 1px solid #5a5a5a;\r\n\twhite-space: nowrap;\r\n}\r\n\n/* LASTRO scoped UI layout: EntityRoom/EntityRoom */\n\n.EntityRoom .overlay { pointer-events: none; }\n";
+  EntityRoom_default$1 += "\n:host { transition: opacity 150ms ease-out; }\n";
 });
 //#endregion
 //#region src/UI/Components/EntityRoom/EntityRoom.js
@@ -280696,6 +280730,7 @@ var init_EntityRoom = __esmMin(() => {
   init_Client();
   init_DBManager();
   init_Map();
+  init_SessionStorage();
   init_EntityRoom$1();
   vec4$1 = gl_matrix_default.vec4;
   _pos$1 = /* @__PURE__ */ new Float32Array(4);
@@ -280818,8 +280853,17 @@ var init_EntityRoom = __esmMin(() => {
     this._lastroShopTitleHost = host;
     this._lastroShopTitleHidden = false;
     this._lastroShopTitleDisplay = undefined;
+    this._lastroShopTitleOpacity = undefined;
   }
   const shop = this.type === Room.Type.BUY_SHOP || this.type === Room.Type.SELL_SHOP;
+  const moving = shop && SessionStorage_default.Entity?.walk?.total > 0;
+  if (moving) {
+    if (this._lastroShopTitleOpacity === undefined) this._lastroShopTitleOpacity = host.style.opacity;
+    if (host.style.opacity !== '0.5') host.style.opacity = '0.5';
+  } else if (this._lastroShopTitleOpacity !== undefined) {
+    if (host.style.opacity !== this._lastroShopTitleOpacity) host.style.opacity = this._lastroShopTitleOpacity;
+    this._lastroShopTitleOpacity = undefined;
+  }
   const hidden = shop && Map_default.showshop === false;
   if (hidden) {
     if (!this._lastroShopTitleHidden) {
@@ -283098,7 +283142,7 @@ function installLastroItemDrag({ document: doc, mouse, cursor, isEnabled }) {
     cursor.x = mouse.screen.x;
     cursor.y = mouse.screen.y;
     const pointer = doc.querySelector('.cursor');
-    if (pointer) { pointer.style.left = x + 'px'; pointer.style.top = y + 'px'; }
+    if (pointer) pointer.style.translate = `${x}px ${y}px`;
     if (state.ghost) {
       state.ghost.style.left = x - (state.image?.x || 0) + 'px';
       state.ghost.style.top = y - (state.image?.y || 0) + 'px';
@@ -283294,7 +283338,7 @@ function bindMouseEvents() {
   const cursorCSS = `
 		.custom-cursor * { cursor: none!important; }
 		.custom-cursor .cursor { display: block; }
-		.cursor { pointer-events: none; z-index: 9999; position: fixed; width: 50px; height: 50px; overflow: hidden; display: none; }
+		.cursor { pointer-events: none; z-index: 9999; position: fixed; left: 0; top: 0; width: 50px; height: 50px; overflow: hidden; display: none; will-change: transform; }
 		.cursor__sprite { position: absolute; top: 0; left: 0; }
 	`;
   const styleEl = document.createElement("style");
@@ -283383,8 +283427,7 @@ function bindMouseEvents() {
     (e) => {
       Cursor.x = e.pageX;
       Cursor.y = e.pageY;
-      _selector.style.left = `${e.pageX}px`;
-      _selector.style.top = `${e.pageY}px`;
+      _selector.style.translate = `${e.clientX}px ${e.clientY}px`;
     },
     true,
   );
@@ -283596,6 +283639,9 @@ var init_CursorManager = __esmMin(() => {
      * @param {number} animation numero (optional)
      */
     static setType(type, norepeat, animation) {
+      const heldMovement = typeof MapControl !== "undefined" && MapControl._lastroMovementInput?.isHeld?.();
+      if (type === Cursor.ACTION.DEFAULT || type === Cursor.ACTION.NOWALK) Cursor._lastroHeldWalkType = type;
+      if (heldMovement && type !== Cursor.ACTION.DEFAULT && type !== Cursor.ACTION.NOWALK && type !== Cursor.ACTION.TARGET) return;
       if (Cursor.freeze) return;
       _type$4 = type;
       _tick = Date.now();
@@ -283614,6 +283660,7 @@ var init_CursorManager = __esmMin(() => {
      * @return {number} Cursor.ACTION.*
      */
     static getActualType() {
+      if (typeof MapControl !== "undefined" && MapControl._lastroMovementInput?.isHeld?.()) return Cursor._lastroHeldWalkType ?? Cursor.ACTION.DEFAULT;
       return _type$4;
     }
     /**
@@ -283626,11 +283673,12 @@ var init_CursorManager = __esmMin(() => {
       }
       if (_selector && _selector.style.display === "none")
         _selector.style.display = "block";
+      const type = Cursor.getActualType();
       const info =
-        ActionInformations[_type$4] ||
+        ActionInformations[type] ||
         ActionInformations[Cursor.ACTION.DEFAULT];
       const action =
-        _action$2.actions[_type$4] || _action$2.actions[Cursor.ACTION.DEFAULT];
+        _action$2.actions[type] || _action$2.actions[Cursor.ACTION.DEFAULT];
       let anim = _animation;
       const delay = action.delay * info.delayMult;
       let x = info.startX;
@@ -283644,7 +283692,8 @@ var init_CursorManager = __esmMin(() => {
       if (GraphicsSettings.cursor) document.body.classList.add("custom-cursor");
       const animation = action.animations[anim];
       if (!animation) return;
-      if (Cursor.magnetism && !Cursor.blockMagnetism) {
+      const heldMovement = typeof MapControl !== "undefined" && MapControl._lastroMovementInput?.isHeld?.();
+      if (Cursor.magnetism && !Cursor.blockMagnetism && !heldMovement) {
         const entity = EntityManager.getOverEntity();
         if (entity)
           switch (entity.objecttype) {
@@ -283689,7 +283738,7 @@ var init_CursorManager = __esmMin(() => {
         if (cursorSprite) cursorSprite.style.left = `${-_lastStyleId * 50}px`;
         const cursor = document.querySelector(".cursor");
         if (cursor)
-          cursor.style.transform = `translate(-${_lastX}px, -${_lastY}px)`;
+          cursor.style.transform = `translate(${-_lastX}px, ${-_lastY}px)`;
       }
     }
   };
@@ -298555,6 +298604,30 @@ var LastROTools_default;
 var init_LastROTools$1 = __esmMin(() => {
   LastROTools_default =
     ':host {\n right: 12px; bottom: 12px; width: 420px; max-width: calc(100vw - 24px);\n max-height: calc(100vh - 24px); box-sizing: border-box;\n font-family: \'MiSans\', Arial, \'Liberation Sans\', \'Microsoft YaHei\', sans-serif;\n font-size: 12px; color: #e6ecf4;\n}\n[hidden] { display: none !important; }\n.lastro-tools {\n box-sizing: border-box; width: 100%; padding: 11px;\n border: 1px solid rgba(148, 168, 196, 0.22); border-radius: 10px;\n background: #1a212d; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.42);\n}\n.lastro-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; padding-bottom: 9px; border-bottom: 1px solid rgba(148, 168, 196, 0.12); }\n.lastro-header-title { min-width: 0; }\n.lastro-header strong { display: block; font-size: 13.5px; line-height: 1.3; }\n.lastro-header-state { display: block; margin-top: 1px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #7d8ea3; font-size: 11px; }\n.lastro-header-actions { display: flex; gap: 5px; flex: 0 0 auto; }\n.lastro-icon-button {\n display: inline-grid; place-items: center; width: 27px; height: 25px; padding: 0;\n border: 1px solid rgba(148, 168, 196, 0.22); border-radius: 6px;\n background: #26313f; color: #c6d3e0; cursor: pointer; font-size: 13px; line-height: 1;\n}\n.lastro-icon-button:hover { background: #304050; border-color: rgba(232, 184, 75, 0.5); color: #fff; }\n.lastro-icon-close:hover { background: #432624; border-color: rgba(226, 106, 90, 0.6); color: #ffb4a8; }\n.lastro-icon-settings { font-size: 12px; }\n.lastro-button {\n min-height: 28px; padding: 4px 10px; border: 1px solid rgba(148, 168, 196, 0.22);\n border-radius: 6px; background: #26313f; color: #e6ecf4; cursor: pointer;\n font: inherit; font-size: 12px; white-space: nowrap;\n}\n.lastro-button:hover { background: #304050; border-color: rgba(232, 184, 75, 0.45); }\n.lastro-primary { background: #e8b84b; border-color: #c99a26; color: #241a06; font-weight: 700; }\n.lastro-primary:hover { background: #f2c457; }\n.lastro-button:focus-visible, .lastro-icon-button:focus-visible, .lastro-tab:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(232, 184, 75, 0.4); }\n.lastro-compact-status { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px; padding: 7px 9px; border: 1px solid rgba(148, 168, 196, 0.2); border-radius: 8px; background: #202a38; }\n.lastro-compact-status [data-compact-status-text] { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #c6d3e0; font-size: 11px; }\n.lastro-compact-status .lastro-button { min-height: 25px; padding: 3px 10px; }\n.lastro-tools.is-collapsed > *:not(.lastro-compact-status) { display: none !important; }\n.lastro-quick-toggles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-bottom: 8px; }\n.lastro-quick-toggles label { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 6px 8px; border: 1px solid rgba(148, 168, 196, 0.12); border-radius: 6px; background: #18202c; font-size: 11.5px; cursor: pointer; }\n.lastro-switch { appearance: none; -webkit-appearance: none; flex: 0 0 30px; width: 30px; height: 17px; margin: 0; border-radius: 999px; background: #3a4a60; cursor: pointer; position: relative; transition: background 0.15s; }\n.lastro-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: #cfd9e4; transition: transform 0.15s; }\n.lastro-switch:checked { background: #e8b84b; }\n.lastro-switch:checked::after { transform: translateX(13px); background: #241a06; }\n.lastro-card { padding: 9px 10px; border: 1px solid rgba(148, 168, 196, 0.12); border-radius: 8px; background: #202a38; }\n.lastro-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }\n.lastro-card-heading strong { font-size: 12.5px; }\n.lastro-card-heading span { display: block; margin-top: 1px; color: #7d8ea3; font-size: 10.5px; font-weight: 400; }\n.lastro-quick-controls { display: grid; grid-template-columns: 1fr 1.4fr auto; gap: 6px; align-items: end; margin-top: 8px; }\n.lastro-quick-controls label { display: grid; gap: 3px; color: #7d8ea3; font-size: 10.5px; }\n.lastro-quick:not(.expanded) .lastro-quick-controls, .lastro-quick:not(.expanded) .lastro-route-status { display: none; }\n.lastro-route-status { margin-top: 6px; min-height: 14px; color: #9db0c5; font-size: 10.5px; }\n.lastro-route-status::before { content: "\\00b7"; margin-right: 5px; color: #e8b84b; }\n.lastro-status { margin-top: 7px; min-height: 14px; color: #9db0c5; font-size: 10.5px; }\n.lastro-status:not(:empty)::before { content: "\\00b7"; margin-right: 5px; color: #63d68e; }\n.lastro-settings-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }\n.lastro-settings-bar strong { font-size: 13px; }\n.lastro-settings-bar span { display: block; margin-top: 1px; color: #7d8ea3; font-size: 10.5px; }\n.lastro-tabs { display: flex; gap: 2px; padding: 3px; margin-bottom: 9px; border: 1px solid rgba(148, 168, 196, 0.12); border-radius: 7px; background: #18202c; position: sticky; top: 0; z-index: 2; }\n.lastro-tab { flex: 1; min-width: 0; padding: 6px 2px; border: none; border-radius: 5px; background: transparent; color: #9db0c5; cursor: pointer; font: inherit; font-size: 12px; }\n.lastro-tab:hover { color: #e6ecf4; }\n.lastro-tab.is-active { background: #2c3a4e; color: #fff; font-weight: 600; box-shadow: inset 0 -2px 0 #e8b84b; }\n.lastro-settings-body { display: grid; gap: 8px; }\n.lastro-group { padding: 8px 10px; border: 1px solid rgba(148, 168, 196, 0.12); border-radius: 8px; background: #202a38; }\n.lastro-group-title { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; color: #e8b84b; font-size: 11.5px; font-weight: 600; }\n.lastro-group-title::after { content: ""; flex: 1; height: 1px; background: rgba(148, 168, 196, 0.12); }\n.lastro-line { display: flex; align-items: center; gap: 7px; min-height: 29px; min-width: 0; color: #cdd9e6; font-size: 12px; }\n.lastro-line .lt-controls { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 6px; }\n.lastro-line .lt-unit { color: #7d8ea3; font-size: 11px; flex: 0 0 auto; }\n.lastro-line > select { margin-left: auto; flex: 0 1 210px; min-width: 130px; }\n.lastro-line > input[type="checkbox"] { margin-left: auto; }\n.lastro-help { margin: 2px 0 4px; color: #7d8ea3; font-size: 10.5px; line-height: 1.45; }\n.lastro-assist-list { display: flex; flex-wrap: wrap; gap: 4px; min-height: 18px; margin-bottom: 4px; }\n.lastro-assist-chip { padding: 2px 8px; border: 1px solid rgba(232, 184, 75, 0.35); border-radius: 999px; background: rgba(232, 184, 75, 0.12); color: #f0d9a6; font-size: 10.5px; }\n.lastro-assist-submit { min-height: 26px; padding: 3px 10px; }\n.lastro-slot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }\n.only-targets { display: grid; gap: 5px; }\n.only-targets strong { font-size: 12px; }\n.only-targets > span { color: #7d8ea3; font-size: 10.5px; }\n.only-targets [data-targets] { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; max-height: 132px; overflow-y: auto; padding: 6px; border: 1px dashed rgba(148, 168, 196, 0.22); border-radius: 7px; }\n.only-targets [data-targets] label { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #cdd9e6; line-height: 18px; }\n.lastro-tools select, .lastro-tools input[type="text"], .lastro-tools input[type="number"] {\n box-sizing: border-box; width: 100%; min-width: 0; height: 27px; padding: 2px 7px;\n border: 1px solid #3a4a60; border-radius: 5px; background: #10161f; color: #e6ecf4;\n font: inherit; font-size: 12px;\n}\n.lastro-tools select:focus, .lastro-tools input:focus { outline: none; border-color: #e8b84b; box-shadow: 0 0 0 2px rgba(232, 184, 75, 0.2); }\n.lastro-tools input[type="checkbox"] { width: 15px; height: 15px; margin: 0; accent-color: #e8b84b; cursor: pointer; flex: 0 0 15px; }\n.lastro-tools input[type=checkbox].lastro-switch { width: 30px; height: 17px; flex: 0 0 30px; border-radius: 999px; }\n.lastro-line .lt-controls input[type="number"] { flex: 1 1 70px; width: auto; }\n.lastro-line .lt-controls input.lt-small { flex: 0 0 60px; width: 60px; }\n.lastro-line .lt-controls select { flex: 1 1 auto; }\n.lastro-line .lt-controls input[type="checkbox"] { flex: 0 0 15px; }\n[data-targets]::-webkit-scrollbar { width: 8px; }\n[data-targets]::-webkit-scrollbar-thumb { background: #33445c; border-radius: 99px; }\n@media (max-width: 480px) {\n :host { right: 8px !important; bottom: 8px !important; width: calc(100vw - 16px) !important; }\n .lastro-quick-toggles { grid-template-columns: repeat(2, minmax(0, 1fr)); }\n .lastro-quick-controls { grid-template-columns: 1fr 1fr; }\n .lastro-quick-controls .lastro-primary { grid-column: 1 / -1; }\n .lastro-slot-grid, .only-targets [data-targets] { grid-template-columns: 1fr; }\n}';
+  LastROTools_default += `
+.lastro-quick-controls.is-custom { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, .65fr) minmax(0, .65fr); grid-template-areas: "category picker picker picker" "map map x y" "go go save save"; }
+.lastro-quick-controls.is-custom .quick-category-field { grid-area: category; }
+.lastro-quick-controls.is-custom .quick-custom-picker { grid-area: picker; }
+.lastro-quick-controls.is-custom .quick-custom-map { grid-area: map; }
+.lastro-quick-controls.is-custom .quick-custom-x { grid-area: x; }
+.lastro-quick-controls.is-custom .quick-custom-y { grid-area: y; }
+.lastro-quick-controls.is-custom [data-action="run-quick"] { grid-area: go; width: 100%; }
+.lastro-quick-controls.is-custom [data-action="save-quick-place"] { grid-area: save; width: 100%; }
+.quick-custom-picker { display: grid; gap: 3px; min-width: 0; color: #7d8ea3; font-size: 10.5px; }
+.quick-place-picker { position: relative; min-width: 0; }
+.quick-place-picker-toggle { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; text-align: left; }
+.quick-place-picker-toggle span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quick-place-picker-menu { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; right: 0; max-height: 190px; overflow-y: auto; padding: 5px; border: 1px solid #53647b; border-radius: 6px; background: #151c27; box-shadow: 0 8px 18px rgba(0,0,0,.45); }
+.quick-place-picker-group + .quick-place-picker-group { margin-top: 5px; padding-top: 5px; border-top: 1px solid rgba(148,168,196,.18); }
+.quick-place-picker-heading { padding: 3px 5px; color: #e8b84b; font-size: 10.5px; font-weight: 600; }
+.quick-place-picker-row { display: grid; grid-template-columns: minmax(0, 1fr) 30px; gap: 4px; margin-top: 3px; }
+.quick-place-picker-item { width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.quick-place-picker-delete { min-width: 30px; padding: 3px; color: #e89a8e; font-size: 14px; }
+.quick-place-picker-empty { padding: 4px 5px; color: #7d8ea3; font-size: 10.5px; }
+@media (max-width: 480px) {
+ .lastro-quick-controls.is-custom { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, .65fr) minmax(0, .65fr); }
+ .lastro-quick-controls.is-custom .lastro-primary { grid-column: auto; }
+}`;
 });
 //#endregion
 //#region src/UI/Components/LastROTools/LastROTools.js
@@ -298665,15 +298738,15 @@ function patchLastROToolsTemplate() {
   if (typeof LastROTools_default$1 !== "string") return;
   LastROTools_default$1 = `<div class="lastro-tools">
 <div class="lastro-header"><div class="lastro-header-title"><strong>LastRO 工具</strong><span class="lastro-header-state" data-header-state>已就绪</span></div><div class="lastro-header-actions"><button type="button" class="lastro-icon-button lastro-icon-settings" data-action="open-settings" aria-label="打开挂机设置" title="挂机设置">⚙</button><button type="button" class="lastro-icon-button" data-action="minimize" aria-label="最小化工具面板" title="最小化">−</button><button type="button" class="lastro-icon-button lastro-icon-close" data-action="close" aria-label="关闭 LastRO 工具" title="关闭">✕</button></div></div>
-<div class="lastro-compact-status" hidden><span data-compact-status-text>自动战斗：关 · 拾取：关</span><button type="button" class="lastro-button" data-action="compact-settings">设置</button></div>
+<div class="lastro-compact-status" hidden><span data-compact-status-text>战斗：关 · 捡物：关</span><button type="button" class="lastro-button" data-action="compact-settings">设置</button></div>
 <div class="lastro-main-view">
 <div class="lastro-quick-toggles">
-<label><span>自动战斗</span><input type="checkbox" class="lastro-switch" data-option="autoAttack"></label>
-<label><span>自动捡物</span><input type="checkbox" class="lastro-switch" data-option="autoLoot"></label>
-<label><span>自动补给</span><input type="checkbox" class="lastro-switch" data-option="autoPots"></label>
-<label><span>跟随战斗</span><input type="checkbox" class="lastro-switch" data-option="autoFollow"></label>
+<label><span>战斗</span><input type="checkbox" class="lastro-switch" data-option="autoAttack"></label>
+<label><span>捡物</span><input type="checkbox" class="lastro-switch" data-option="autoLoot"></label>
+<label><span>补给</span><input type="checkbox" class="lastro-switch" data-option="autoPots"></label>
+<label><span>跟随</span><input type="checkbox" class="lastro-switch" data-option="autoFollow"></label>
 </div>
-<section class="lastro-quick lastro-card expanded"><div class="lastro-card-heading"><div><strong>快速传送</strong><span>选择分类和目标后直接前往</span></div><button type="button" class="lastro-icon-button" data-action="quick" aria-label="展开或收起快速传送">⌄</button></div><div class="lastro-quick-controls"><label>分类<select class="quick-category" aria-label="快速传送分类"></select></label><label class="quick-route-target">目标<select class="quick-route" aria-label="快速传送目标"></select></label><label class="quick-custom-field quick-custom-map" hidden>地图名<input type="text" data-custom-route-map placeholder="例如 prontera" autocomplete="off"></label><label class="quick-custom-field quick-custom-x" hidden>X 坐标<input type="number" data-custom-route-x min="0" max="65535" step="1" inputmode="numeric"></label><label class="quick-custom-field quick-custom-y" hidden>Y 坐标<input type="number" data-custom-route-y min="0" max="65535" step="1" inputmode="numeric"></label><button type="button" class="lastro-button lastro-primary" data-action="run-quick">前往</button></div><div class="lastro-route-status" data-route-status>尚未选择路线</div></section>
+<section class="lastro-quick lastro-card expanded"><div class="lastro-card-heading"><div><strong>快速传送</strong><span>选择分类和目标后直接前往</span></div><button type="button" class="lastro-icon-button" data-action="quick" aria-label="展开或收起快速传送">⌄</button></div><div class="lastro-quick-controls"><label class="quick-category-field">分类<select class="quick-category" aria-label="快速传送分类"></select></label><label class="quick-route-target">目标<select class="quick-route" aria-label="快速传送目标"></select></label><div class="quick-custom-field quick-custom-picker" hidden><label for="quick-place-picker-toggle">快捷点 / 最近传送</label><div class="quick-place-picker"><button id="quick-place-picker-toggle" type="button" class="lastro-button quick-place-picker-toggle" data-action="toggle-quick-place-picker" aria-expanded="false" aria-controls="quick-place-picker-menu"><span>选择快捷点或最近传送</span><span aria-hidden="true">⌄</span></button><div id="quick-place-picker-menu" class="quick-place-picker-menu" data-quick-place-menu role="group" aria-label="已保存快捷点和最近传送" hidden></div></div></div><label class="quick-custom-field quick-custom-map" hidden>地图名<input type="text" data-custom-route-map maxlength="16" placeholder="例如 prontera" autocomplete="off"></label><label class="quick-custom-field quick-custom-x" hidden>X 坐标<input type="number" data-custom-route-x min="0" max="65535" step="1" inputmode="numeric"></label><label class="quick-custom-field quick-custom-y" hidden>Y 坐标<input type="number" data-custom-route-y min="0" max="65535" step="1" inputmode="numeric"></label><button type="button" class="lastro-button lastro-primary" data-action="run-quick">前往</button><button type="button" class="lastro-button quick-save-place" data-action="save-quick-place" hidden>保存为快捷点</button></div><div class="lastro-route-status" data-route-status>尚未选择路线</div></section>
 <div class="lastro-status" role="status"></div>
 </div>
 <div class="lastro-settings-view" hidden>
@@ -298681,6 +298754,7 @@ function patchLastROToolsTemplate() {
 <div class="lastro-tabs"><button type="button" class="lastro-tab is-active" data-tab="battle">战斗设置</button><button type="button" class="lastro-tab" data-tab="pick">拾取设置</button><button type="button" class="lastro-tab" data-tab="eat">吃药设置</button><button type="button" class="lastro-tab" data-tab="mode">模式设置</button></div>
 <div class="lastro-settings-body">
 <div class="lastro-tab-panel" data-tab-panel="battle">
+<div class="lastro-group"><div class="lastro-group-title">当前地图攻击目标</div><div class="only-targets"><strong>检测目标</strong><span>勾选后只主动攻击这些魔物（最多 20 种）。</span><div data-targets></div></div></div>
 <div class="lastro-group"><div class="lastro-group-title">基础</div>
 <label class="lastro-line">跟随距离：<span class="lt-controls"><input type="number" data-field="disTarget" min="1" max="6" value="0"><span class="lt-unit">格（1-6）</span></span></label>
 <label class="lastro-line">被非目标魔物攻击时：<select data-field="onlynoattack"><option value="0">无视</option><option value="1">瞬移</option><option value="2">还击</option></select></label>
@@ -298720,7 +298794,6 @@ function patchLastROToolsTemplate() {
 <label class="lastro-line">自动使用缰绳：<input type="checkbox" data-field="useBoarding">开启</label>
 <label class="lastro-line">保护队员：<input type="checkbox" data-field="ProtectTeam">开启</label>
 </div>
-<div class="lastro-group"><div class="lastro-group-title">当前地图攻击目标</div><div class="only-targets"><strong>检测目标</strong><span>勾选后只主动攻击这些魔物（最多 20 种）。</span><div data-targets></div></div></div>
 </div>
 <div class="lastro-tab-panel" data-tab-panel="pick" hidden>
 <div class="lastro-group"><div class="lastro-group-title">拾取</div>
@@ -299613,6 +299686,34 @@ var init_LastROTools = __esmMin(() => {
     root
       .querySelector('[data-action="run-quick"]')
       ?.addEventListener("click", () => this.runQuickRoute());
+    root
+      .querySelector('[data-action="save-quick-place"]')
+      ?.addEventListener("click", () => this.saveQuickPlace());
+    const placePickerButton = root.querySelector('[data-action="toggle-quick-place-picker"]');
+    const placePickerMenu = root.querySelector("[data-quick-place-menu]");
+    placePickerButton?.addEventListener("click", () => {
+      const open = placePickerMenu?.hidden ?? true;
+      if (placePickerMenu) placePickerMenu.hidden = !open;
+      placePickerButton.setAttribute("aria-expanded", String(open));
+      if (open) this.renderQuickPlaceMenu();
+    });
+    placePickerMenu?.addEventListener("click", event => {
+      const button = event.target?.closest?.("button[data-action]");
+      if (!button || !placePickerMenu.contains(button)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const place = { map: button.dataset.map, x: button.dataset.x, y: button.dataset.y };
+      if (button.dataset.action === "delete-quick-place") this.deleteQuickPlace(button.dataset.kind, place);
+      else if (button.dataset.action === "select-quick-place") this.selectQuickPlace(place);
+    });
+    root.addEventListener("click", event => {
+      if (!event.target?.closest?.(".quick-place-picker")) closeLastROQuickPlacePicker(root);
+    });
+    root.addEventListener("keydown", event => {
+      if (event.key !== "Escape" || placePickerMenu?.hidden) return;
+      closeLastROQuickPlacePicker(root);
+      placePickerButton?.focus();
+    });
     root.querySelectorAll("[data-option]").forEach((input) => {
       input.addEventListener("change", () => {
         this.setAutomationOption(input.dataset.option, input.checked);
@@ -299658,7 +299759,7 @@ var init_LastROTools = __esmMin(() => {
     const assist = this._assistSkills?.filter((entry) => entry.enabled).length
       ? ` · 辅助 ${this._assistSkills.filter((entry) => entry.enabled).length} 个`
       : "";
-    status.textContent = `自动战斗：${state.autoAttack ? "开" : "关"} · 拾取：${state.autoLoot ? "开" : "关"}${modeText}${active}${assist}`;
+    status.textContent = `战斗：${state.autoAttack ? "开" : "关"} · 捡物：${state.autoLoot ? "开" : "关"}${modeText}${active}${assist}`;
   };
   LastROTools.populateSkillSelects = function populateSkillSelects() {
     const root = this.getRoot?.();
@@ -299895,12 +299996,18 @@ var init_LastROTools = __esmMin(() => {
   };
   LastROTools.onMapChanged = async function onMapChanged() {
     this.collapseDetailedSettings();
+    this._onlyTargets = [];
+    this.getRoot()?.querySelectorAll("[data-target-id]").forEach((checkbox) => {
+      checkbox.checked = false;
+    });
     const mapId = String(MapRenderer.currentMap || "")
       .replace(/\.gat$/i, "")
       .toLowerCase();
     if (!mapId) return;
     const requestId = (this._targetRequestId || 0) + 1;
     this._targetRequestId = requestId;
+    if (PACKET.CZ.NOTIFY_LOADINFO)
+      Network.sendPacket(new PACKET.CZ.NOTIFY_LOADINFO());
     try {
       const { worldData, mobData } = await loadWorldMapData();
       if (this._targetRequestId !== requestId) return;
@@ -299914,12 +300021,200 @@ var init_LastROTools = __esmMin(() => {
   LastROTools.getOptionLabel = function getOptionLabel(option) {
     return (
       {
-        autoAttack: "自动战斗",
-        autoLoot: "自动捡物",
-        autoPots: "自动补给",
-        autoFollow: "跟随战斗",
+        autoAttack: "战斗",
+        autoLoot: "捡物",
+        autoPots: "补给",
+        autoFollow: "跟随",
       }[option] || option
     );
+  };
+  const LASTRO_QUICK_PLACE_STORAGE_KEY = "LastROToolsQuickPlaces.v1";
+  const LASTRO_QUICK_PLACE_LIMIT = 500;
+  const LASTRO_RECENT_QUICK_PLACE_LIMIT = 5;
+  function normalizeLastROQuickPlace(raw) {
+    if (!raw || typeof raw !== "object" || typeof raw.map !== "string") return null;
+    if (!["number", "string"].includes(typeof raw.x) || !["number", "string"].includes(typeof raw.y)
+      || String(raw.x).trim() === "" || String(raw.y).trim() === "") return null;
+    const map = raw.map.trim().replace(/\.gat$/i, "").toLowerCase();
+    const x = Number(raw.x);
+    const y = Number(raw.y);
+    if (!/^[a-z0-9_@#-]{1,16}$/.test(map) || !Number.isInteger(x) || !Number.isInteger(y)
+      || x < 0 || y < 0 || x > 65535 || y > 65535) return null;
+    return { map, x, y };
+  }
+  function lastROQuickPlaceKey(place) {
+    return `${place.map}:${place.x}:${place.y}`;
+  }
+  function normalizeLastROQuickPlaceList(entries, limit) {
+    if (!Array.isArray(entries)) return [];
+    const result = [], seen = new Set();
+    for (const raw of entries) {
+      const place = normalizeLastROQuickPlace(raw);
+      if (!place) continue;
+      const key = lastROQuickPlaceKey(place);
+      if (seen.has(key)) continue;
+      seen.add(key); result.push(place);
+      if (result.length >= limit) break;
+    }
+    return result;
+  }
+  function readLastROQuickPlaces() {
+    try {
+      const stored = JSON.parse(globalThis.localStorage.getItem(LASTRO_QUICK_PLACE_STORAGE_KEY) || "null");
+      if (stored?.version !== 1) return { saved: [], recent: [] };
+      return {
+        saved: normalizeLastROQuickPlaceList(stored.saved, LASTRO_QUICK_PLACE_LIMIT),
+        recent: normalizeLastROQuickPlaceList(stored.recent, LASTRO_RECENT_QUICK_PLACE_LIMIT),
+      };
+    } catch { return { saved: [], recent: [] }; }
+  }
+  function writeLastROQuickPlaces(places) {
+    globalThis.localStorage.setItem(LASTRO_QUICK_PLACE_STORAGE_KEY, JSON.stringify({
+      version: 1,
+      saved: normalizeLastROQuickPlaceList(places.saved, LASTRO_QUICK_PLACE_LIMIT),
+      recent: normalizeLastROQuickPlaceList(places.recent, LASTRO_RECENT_QUICK_PLACE_LIMIT),
+    }));
+  }
+  function readLastROCustomQuickPlace(root) {
+    const map = String(root?.querySelector("input[data-custom-route-map]")?.value || "")
+      .trim().replace(/\.gat$/i, "").toLowerCase();
+    if (!/^[a-z0-9_@#-]{1,16}$/.test(map)) throw new Error("请输入有效地图名");
+    const coordinate = (selector, label) => {
+      const text = String(root?.querySelector(selector)?.value || "").trim();
+      if (!/^\d{1,5}$/.test(text)) throw new Error(`${label} 必须是 0-65535 的整数`);
+      const value = Number(text);
+      if (!Number.isSafeInteger(value) || value < 0 || value > 65535) {
+        throw new Error(`${label} 必须是 0-65535 的整数`);
+      }
+      return value;
+    };
+    return {
+      map,
+      x: coordinate("input[data-custom-route-x]", "X 坐标"),
+      y: coordinate("input[data-custom-route-y]", "Y 坐标"),
+    };
+  }
+  function lastROCustomQuickRoute(place) {
+    return {
+      npc: `${place.map} (${place.x},${place.y})`,
+      desc: `${place.map} ${place.x},${place.y}`,
+      outset: [place.map, place.x, place.y],
+      path: [[place.map, place.x, place.y]],
+    };
+  }
+  function closeLastROQuickPlacePicker(root) {
+    const menu = root?.querySelector("[data-quick-place-menu]");
+    const button = root?.querySelector('[data-action="toggle-quick-place-picker"]');
+    if (menu) menu.hidden = true;
+    if (button) button.setAttribute("aria-expanded", "false");
+  }
+  LastROTools.renderQuickPlaceMenu = function renderQuickPlaceMenu() {
+    const root = this.getRoot?.();
+    const menu = root?.querySelector("[data-quick-place-menu]");
+    if (!menu) return;
+    const doc = root.ownerDocument;
+    const places = readLastROQuickPlaces();
+    menu.replaceChildren();
+    for (const [kind, title, entries, emptyText] of [
+      ["saved", "保存的快捷点", places.saved, "暂无保存的快捷点"],
+      ["recent", "最近传送", places.recent, "暂无最近传送记录"],
+    ]) {
+      const group = doc.createElement("div");
+      group.className = "quick-place-picker-group";
+      group.setAttribute("role", "group");
+      group.setAttribute("aria-label", title);
+      const heading = doc.createElement("div");
+      heading.className = "quick-place-picker-heading";
+      heading.textContent = title;
+      group.appendChild(heading);
+      if (!entries.length) {
+        const empty = doc.createElement("div");
+        empty.className = "quick-place-picker-empty";
+        empty.textContent = emptyText;
+        group.appendChild(empty);
+      }
+      for (const place of entries) {
+        const row = doc.createElement("div");
+        row.className = "quick-place-picker-row";
+        const select = doc.createElement("button");
+        select.type = "button";
+        select.className = "lastro-button quick-place-picker-item";
+        select.dataset.action = "select-quick-place";
+        select.dataset.kind = kind;
+        select.dataset.map = place.map;
+        select.dataset.x = String(place.x);
+        select.dataset.y = String(place.y);
+        select.textContent = `${place.map} ${place.x},${place.y}`;
+        select.setAttribute("aria-label", `填入${title}：${place.map} ${place.x},${place.y}`);
+        const remove = doc.createElement("button");
+        remove.type = "button";
+        remove.className = "lastro-button quick-place-picker-delete";
+        remove.dataset.action = "delete-quick-place";
+        remove.dataset.kind = kind;
+        remove.dataset.map = place.map;
+        remove.dataset.x = String(place.x);
+        remove.dataset.y = String(place.y);
+        remove.textContent = "🗑";
+        remove.title = "删除此条目";
+        remove.setAttribute("aria-label", `删除${title}：${place.map} ${place.x},${place.y}`);
+        row.append(select, remove);
+        group.appendChild(row);
+      }
+      menu.appendChild(group);
+    }
+  };
+  LastROTools.selectQuickPlace = function selectQuickPlace(raw) {
+    const root = this.getRoot?.();
+    const place = normalizeLastROQuickPlace(raw);
+    if (!root || !place) return;
+    root.querySelector("input[data-custom-route-map]").value = place.map;
+    root.querySelector("input[data-custom-route-x]").value = String(place.x);
+    root.querySelector("input[data-custom-route-y]").value = String(place.y);
+    closeLastROQuickPlacePicker(root);
+    this.setStatus(`已填入传送点：${place.map} ${place.x},${place.y}`);
+  };
+  LastROTools.deleteQuickPlace = function deleteQuickPlace(kind, raw) {
+    const place = normalizeLastROQuickPlace(raw);
+    if (!place || !["saved", "recent"].includes(kind)) return;
+    const places = readLastROQuickPlaces(), key = lastROQuickPlaceKey(place);
+    const entries = places[kind].filter(entry => lastROQuickPlaceKey(entry) !== key);
+    if (entries.length === places[kind].length) return;
+    places[kind] = entries;
+    try {
+      writeLastROQuickPlaces(places);
+      this.renderQuickPlaceMenu();
+      this.setStatus(`已删除${kind === "saved" ? "快捷点" : "最近传送记录"}：${place.map} ${place.x},${place.y}`);
+    } catch { this.setStatus("删除失败：本地存储不可用"); }
+  };
+  LastROTools.saveQuickPlace = function saveQuickPlace() {
+    const root = this.getRoot?.();
+    try {
+      const place = readLastROCustomQuickPlace(root);
+      const places = readLastROQuickPlaces(), key = lastROQuickPlaceKey(place);
+      if (places.saved.some(entry => lastROQuickPlaceKey(entry) === key)) {
+        this.setStatus(`快捷点已存在：${place.map} ${place.x},${place.y}`);
+        return;
+      }
+      if (places.saved.length >= LASTRO_QUICK_PLACE_LIMIT) throw new Error("最多保存 500 个快捷点");
+      places.saved.push(place);
+      writeLastROQuickPlaces(places);
+      this.renderQuickPlaceMenu();
+      this.setStatus(`已保存为快捷点：${place.map} ${place.x},${place.y}`);
+    } catch (error) {
+      this.setStatus(`保存快捷点失败：${error.message || "本地存储不可用"}`);
+    }
+  };
+  LastROTools.recordRecentQuickPlace = function recordRecentQuickPlace(raw) {
+    const place = normalizeLastROQuickPlace(raw);
+    if (!place) return false;
+    const places = readLastROQuickPlaces(), key = lastROQuickPlaceKey(place);
+    places.recent = [place, ...places.recent.filter(entry => lastROQuickPlaceKey(entry) !== key)]
+      .slice(0, LASTRO_RECENT_QUICK_PLACE_LIMIT);
+    try {
+      writeLastROQuickPlaces(places);
+      this.renderQuickPlaceMenu();
+      return true;
+    } catch { return false; }
   };
   LastROTools.loadQuickRoutes = function loadQuickRoutes() {
     if (this._quickLoaded) return;
@@ -299963,7 +300258,10 @@ var init_LastROTools = __esmMin(() => {
     const categoryEl = root?.querySelector(".quick-category");
     const routeEl = root?.querySelector(".quick-route");
     if (!categoryEl || !routeEl) return;
+    const controls = root.querySelector(".lastro-quick-controls");
     const routeTarget = root.querySelector(".quick-route-target");
+    const customPicker = root.querySelector(".quick-custom-picker");
+    const savePlaceButton = root.querySelector('[data-action="save-quick-place"]');
     const customFields = [
       root.querySelector(".quick-custom-map"),
       root.querySelector(".quick-custom-x"),
@@ -299984,16 +300282,24 @@ var init_LastROTools = __esmMin(() => {
     }
     const renderEntries = () => {
       const isCustom = categoryEl.value === "custom";
+      controls?.classList.toggle("is-custom", isCustom);
+      if (!isCustom) closeLastROQuickPlacePicker(root);
       if (routeTarget) {
         routeTarget.hidden = isCustom;
         routeTarget.style.display = isCustom ? "none" : "";
       }
+      if (customPicker) {
+        customPicker.hidden = !isCustom;
+        customPicker.style.display = isCustom ? "" : "none";
+      }
+      if (savePlaceButton) savePlaceButton.hidden = !isCustom;
       for (const field of customFields) {
         field.hidden = !isCustom;
         field.style.display = isCustom ? "" : "none";
       }
       routeEl.innerHTML = "";
       if (isCustom) {
+        this.renderQuickPlaceMenu();
         const status = root.querySelector(".lastro-route-status");
         if (status) status.textContent = "请输入地图名和 X/Y 坐标";
         return;
@@ -300127,6 +300433,10 @@ var init_LastROTools = __esmMin(() => {
         route = normalizeRouteEntry(this._quickRoutes?.[category]?.[key]);
       }
       const mode = requestLastROQuickRoute(route);
+      if (category === "custom" && !this.recordRecentQuickPlace(route.outset)) {
+        this.setStatus("已发送请求，但最近记录未保存");
+        return;
+      }
       this.setStatus(`${mode === "teleport" ? "已发送传送请求" : "已发送导航请求"}：${route.npc}`);
     } catch (error) {
       this.setStatus(`快速传送失败：${error.message}`);
@@ -300135,6 +300445,10 @@ var init_LastROTools = __esmMin(() => {
   LastROTools.setOnlyTargetState = function setOnlyTargetState(pkt) {
     const update = mapOnlyTargetPacket(pkt);
     if (!update) return;
+    const selected = new Set(this._onlyTargets || []);
+    if (update.enabled) selected.add(update.mobId);
+    else selected.delete(update.mobId);
+    this._onlyTargets = [...selected];
     const checkbox = this.getRoot()?.querySelector(
       `[data-target-id="${update.mobId}"]`,
     );
@@ -315772,7 +316086,6 @@ function onMapChange(pkt) {
     Navigation_default.append();
     if (Configs.get("lastroCustomPackets", false)) {
       LastROTools.append();
-      LastROTools.onMapChanged();
     }
     Roulette_default.append();
     if (
@@ -315791,6 +316104,8 @@ function onMapChange(pkt) {
       CheckAttendance_default.append();
     Plugins.init();
     Network.sendPacket(new PACKET.CZ.NOTIFY_ACTORINIT());
+    if (Configs.get("lastroCustomPackets", false))
+      LastROTools.onMapChanged();
     if (SessionStorage_default.ratesInfo) {
       Announce_default.append();
       Announce_default.set(SessionStorage_default.ratesInfo, "#FFFF00", true);
@@ -316668,21 +316983,24 @@ var init_MapEngine = __esmMin(() => {
       return submit(input);
     } catch (error) { cancel(); report(error); return false; }
   }
-  return { request, stop, cancel };
+  return { request, stop, cancel, isHeld: () => held };
 })({
           clock: globalThis, now: () => globalThis.performance.now(),
           getTarget: () => ({ x: Mouse.world.x, y: Mouse.world.y }),
           getContext: () => ({ map: MapRenderer.loading ? "" : MapRenderer.currentMap, player: SessionStorage_default.Entity }),
           canMove: (target, phase) => {
             const player = SessionStorage_default.Entity;
-            return !MapRenderer.loading && (phase === "pending" || Mouse.intersect) && !SessionStorage_default.FreezeUI
-              && Mouse.state !== Mouse.MOUSE_STATE.USESKILL && !KEYS.SHIFT
+            const heldMovement = MapControl._lastroMovementInput?.isHeld?.();
+            return !MapRenderer.loading && (heldMovement || phase === "pending" || Mouse.intersect) && !SessionStorage_default.FreezeUI
+              && (heldMovement || Mouse.state !== Mouse.MOUSE_STATE.USESKILL && !KEYS.SHIFT)
               && !!player?.position && Number.isFinite(player.position[0]) && Number.isFinite(player.position[1])
               && player.action !== player.ACTION.SIT && !(player.ACTION.DIE !== undefined && player.action === player.ACTION.DIE)
               && target.x < Altitude.width && target.y < Altitude.height;
           },
           sendMove: walkIntervalProcess,
           onManualMove: () => {
+    EntityManager.setOverEntity(null);
+    Cursor.setType(Cursor.ACTION.DEFAULT);
     if (typeof LastROTools !== "undefined") {
       LastROTools?._lastroPanels?.cancelRoute();
       LastROTools?._lastroQuestRoute?.cancel();
@@ -316725,6 +317043,10 @@ var init_MapEngine = __esmMin(() => {
           Network.hookPacket(PACKET.ZC.NOTIFY_SETTARGET, (pkt) =>
             LastROTools.setOnlyTargetState(pkt),
           );
+          if (PACKET.ZC.NOTIFY_SETTARGET2)
+            Network.hookPacket(PACKET.ZC.NOTIFY_SETTARGET2, (pkt) =>
+              LastROTools.setOnlyTargetState(pkt),
+            );
           CardConnection2.prepare();
           Network.hookPacket(PACKET.ZC.CARDCONNECTION_RECHARGE_LIST, (pkt) =>
             CardConnection2.rechargeList(pkt),
@@ -324665,7 +324987,7 @@ var init_LoginEngine = __esmMin(() => {
 var Intro_default$2;
 var init_Intro$2 = __esmMin(() => {
   Intro_default$2 =
-    '<div id="intro">\r\n\t<div class="intro">\r\n\t\t<!-- Loading overlay -->\r\n\t\t<div class="overlay loading" style="display: none">\r\n\t\t\t<div class="loading-content">\r\n\t\t\t\t<div class="loading-spinner"></div>\r\n\t\t\t\t<p class="loading-text">\r\n\t\t\t\t\t<span style="--i: 0">L</span><span style="--i: 1">o</span><span style="--i: 2">a</span\r\n\t\t\t\t\t><span style="--i: 3">d</span><span style="--i: 4">i</span><span style="--i: 5">n</span\r\n\t\t\t\t\t><span style="--i: 6">g</span><span style="--i: 7">.</span><span style="--i: 8">.</span\r\n\t\t\t\t\t><span style="--i: 9">.</span>\r\n\t\t\t\t</p>\r\n\t\t\t</div>\r\n\t\t</div>\r\n\r\n\t\t<!-- About overlay -->\r\n\t\t<div class="overlay about" style="display: none">\r\n\t\t\t<div class="about-content">\r\n\t\t\t\t<div class="emblem small-emblem">\r\n\t\t\t\t\t<div class="emblem-ring"></div>\r\n\t\t\t\t\t<span class="emblem-icon">&#x2694;&#xFE0F;</span>\r\n\t\t\t\t</div>\r\n\t\t\t\t<h1 class="about-title">roBrowserLegacy</h1>\r\n\t\t\t\t<h2 class="about-subtitle">Open Source Ragnarok Online Web Client</h2>\r\n\t\t\t\t<div class="ornament">\r\n\t\t\t\t\t<div class="ornament-line"></div>\r\n\t\t\t\t\t<div class="ornament-dot"></div>\r\n\t\t\t\t\t<div class="ornament-diamond"></div>\r\n\t\t\t\t\t<div class="ornament-dot"></div>\r\n\t\t\t\t\t<div class="ornament-line"></div>\r\n\t\t\t\t</div>\r\n\t\t\t\t<table class="info">\r\n\t\t\t\t\t<tr>\r\n\t\t\t\t\t\t<td>Author:</td>\r\n\t\t\t\t\t\t<td>Vincent Thibault</td>\r\n\t\t\t\t\t</tr>\r\n\t\t\t\t\t<tr>\r\n\t\t\t\t\t\t<td>Site:</td>\r\n\t\t\t\t\t\t<td><a href="[external reference removed]" target="_blank">robrowser.com</a></td>\r\n\t\t\t\t\t</tr>\r\n\t\t\t\t\t<tr>\r\n\t\t\t\t\t\t<td>Source:</td>\r\n\t\t\t\t\t\t<td>\r\n\t\t\t\t\t\t\t<a href="[external reference removed]" target="_blank"\r\n\t\t\t\t\t\t\t\t>github.com/MrAntares/roBrowserLegacy</a\r\n\t\t\t\t\t\t\t>\r\n\t\t\t\t\t\t</td>\r\n\t\t\t\t\t</tr>\r\n\t\t\t\t</table>\r\n\t\t\t\t<div class="concept">\r\n\t\t\t\t\t<p>\r\n\t\t\t\t\t\troBrowser is an open source project based on the game Ragnarok Online.<br />It\'s not affiliated\r\n\t\t\t\t\t\tin any way with Gravity.\r\n\t\t\t\t\t</p>\r\n\t\t\t\t\t<p>\r\n\t\t\t\t\t\tThe concept is to reproduce the game using web technologies (HTML5, Javascript, WebGL) to bring\r\n\t\t\t\t\t\tit to Web Browsers.\r\n\t\t\t\t\t</p>\r\n\t\t\t\t\t<p>Cross-platform: runs on Windows, Linux, macOS, and any device with WebGL support.</p>\r\n\t\t\t\t</div>\r\n\t\t\t\t<p class="about-hint">Click anywhere to close</p>\r\n\t\t\t</div>\r\n\t\t</div>\r\n\r\n\t\t<!-- Settings overlay -->\r\n\t\t<div class="overlay settings" style="display: none">\r\n\t\t\t<div class="settings-content">\r\n\t\t\t\t<h1 class="settings-title">&#x2699; Settings</h1>\r\n\r\n\t\t\t\t<div class="section-header"><span>Window</span></div>\r\n\t\t\t\t<table class="screen">\r\n\t\t\t\t\t<tr class="resolution">\r\n\t\t\t\t\t\t<td>Screen Resolution</td>\r\n\t\t\t\t\t\t<td colspan="2">\r\n\t\t\t\t\t\t\t<select class="screensize">\r\n\t\t\t\t\t\t\t\t<option value="640x480">640 x 480</option>\r\n\t\t\t\t\t\t\t\t<option value="800x600">800 x 600</option>\r\n\t\t\t\t\t\t\t\t<option value="1024x768">1024 x 768</option>\r\n\t\t\t\t\t\t\t\t<option value="1280x800">1280 x 800</option>\r\n\t\t\t\t\t\t\t\t<option value="1400x900">1400 x 900</option>\r\n\t\t\t\t\t\t\t\t<option value="1680x1050">1680 x 1050</option>\r\n\t\t\t\t\t\t\t\t<option value="full">Full Screen</option>\r\n\t\t\t\t\t\t\t</select>\r\n\t\t\t\t\t\t</td>\r\n\t\t\t\t\t</tr>\r\n\t\t\t\t\t<tr>\r\n\t\t\t\t\t\t<td>Resolution Details</td>\r\n\t\t\t\t\t\t<td><input class="quality" type="range" value="100" max="100" min="25" step="25" /></td>\r\n\t\t\t\t\t\t<td class="quality_result">100%</td>\r\n\t\t\t\t\t</tr>\r\n\t\t\t\t\t<tr>\r\n\t\t\t\t\t\t<td>Cursor</td>\r\n\t\t\t\t\t\t<td>\r\n\t\t\t\t\t\t\t<label><input class="cursor" type="checkbox" /> Show official cursor</label>\r\n\t\t\t\t\t\t</td>\r\n\t\t\t\t\t</tr>\r\n\t\t\t\t</table>\r\n\r\n\t\t\t\t<div class="section-header"><span>Full Client</span></div>\r\n\t\t\t\t<table class="screen">\r\n\t\t\t\t\t<tr>\r\n\t\t\t\t\t\t<td>\r\n\t\t\t\t\t\t\t<label><input class="save" type="checkbox" /> Save Files</label>\r\n\t\t\t\t\t\t</td>\r\n\t\t\t\t\t\t<td><button class="clean">Clean cache</button> <span class="clean-status"></span></td>\r\n\t\t\t\t\t</tr>\r\n\t\t\t\t</table>\r\n\r\n\t\t\t\t<div class="section-header"><span>Sound</span></div>\r\n\t\t\t\t<table class="sound">\r\n\t\t\t\t\t<tr>\r\n\t\t\t\t\t\t<td>BGM</td>\r\n\t\t\t\t\t\t<td><input class="bgmvol" type="range" value="50" max="100" min="0" step="25" /></td>\r\n\t\t\t\t\t\t<td class="bgmvol_result">50%</td>\r\n\t\t\t\t\t</tr>\r\n\t\t\t\t\t<tr>\r\n\t\t\t\t\t\t<td>Sound</td>\r\n\t\t\t\t\t\t<td><input class="soundvol" type="range" value="50" max="100" min="0" step="25" /></td>\r\n\t\t\t\t\t\t<td class="soundvol_result">50%</td>\r\n\t\t\t\t\t</tr>\r\n\t\t\t\t</table>\r\n\r\n\t\t\t\t<div class="serveredit">\r\n\t\t\t\t\t<div class="section-header"><span>Server List</span></div>\r\n\t\t\t\t\t<dl>\r\n\t\t\t\t\t\t<dt>\r\n\t\t\t\t\t\t\t<input class="radio serverdef" type="radio" value="serverfile" name="server" />\r\n\t\t\t\t\t\t\t<span>Using clientinfo.xml file stored in my FullClient</span>\r\n\t\t\t\t\t\t</dt>\r\n\t\t\t\t\t\t<dd>data / <input type="text" value="clientinfo.xml" class="clientinfo" /></dd>\r\n\t\t\t\t\t\t<dt>\r\n\t\t\t\t\t\t\t<input class="radio serverdef" type="radio" value="serverlist" name="server" />\r\n\t\t\t\t\t\t\t<span>Using servers from the current list:</span>\r\n\t\t\t\t\t\t</dt>\r\n\t\t\t\t\t\t<dd>\r\n\t\t\t\t\t\t\t<div class="servercontainer">\r\n\t\t\t\t\t\t\t\t<table class="serverlist">\r\n\t\t\t\t\t\t\t\t\t<thead>\r\n\t\t\t\t\t\t\t\t\t\t<tr>\r\n\t\t\t\t\t\t\t\t\t\t\t<td width="22%">Name</td>\r\n\t\t\t\t\t\t\t\t\t\t\t<td width="25%">Address</td>\r\n\t\t\t\t\t\t\t\t\t\t\t<td width="12%">Version</td>\r\n\t\t\t\t\t\t\t\t\t\t\t<td width="15%">Langtype</td>\r\n\t\t\t\t\t\t\t\t\t\t\t<td width="22%">Packet Ver</td>\r\n\t\t\t\t\t\t\t\t\t\t\t<td width="10px"></td>\r\n\t\t\t\t\t\t\t\t\t\t</tr>\r\n\t\t\t\t\t\t\t\t\t</thead>\r\n\t\t\t\t\t\t\t\t\t<tbody class="servers"></tbody>\r\n\t\t\t\t\t\t\t\t</table>\r\n\t\t\t\t\t\t\t</div>\r\n\t\t\t\t\t\t\t<button class="btn_add">+ Add Server</button>\r\n\t\t\t\t\t\t\t<div class="clear"></div>\r\n\t\t\t\t\t\t</dd>\r\n\t\t\t\t\t</dl>\r\n\t\t\t\t</div>\r\n\r\n\t\t\t\t<button class="btn_save">SAVE SETTINGS</button>\r\n\t\t\t</div>\r\n\t\t</div>\r\n\r\n\t\t<!-- Main UI elements -->\r\n\t\t<button class="btn_about">ℹ</button>\r\n\t\t<div class="ribbon"><span>UNOFFICIAL</span></div>\r\n\t\t<div class="drop-zone">\r\n\t\t\t<div class="drop-zone-icon">📂</div>\r\n\t\t\t<div class="drop-zone-text"><strong>Drop GRF / data files here</strong><br />or click to browse</div>\r\n\t\t</div>\r\n\t\t<div class="msg"></div>\r\n\t\t<input type="file" multiple="multiple" directory="" webkitDirectory="" />\r\n\t\t<button class="btn_play">START NOW</button>\r\n\t\t<button class="btn_settings">⚙</button>\r\n\t\t<canvas width="800" height="600"></canvas>\r\n\t</div>\r\n</div>\r\n';
+    '<div id="intro">\r\n\t<div class="intro">\r\n\t\t<!-- Loading overlay -->\r\n\t\t<div class="overlay loading" style="display: none">\r\n\t\t\t<div class="loading-content">\r\n\t\t\t\t<div class="loading-spinner"></div>\r\n\t\t\t\t<p class="loading-text">\r\n\t\t\t\t\t<span style="--i: 0">L</span><span style="--i: 1">o</span><span style="--i: 2">a</span\r\n\t\t\t\t\t><span style="--i: 3">d</span><span style="--i: 4">i</span><span style="--i: 5">n</span\r\n\t\t\t\t\t><span style="--i: 6">g</span><span style="--i: 7">.</span><span style="--i: 8">.</span\r\n\t\t\t\t\t><span style="--i: 9">.</span>\r\n\t\t\t\t</p>\r\n\t\t\t</div>\r\n\t\t</div>\r\n\r\n\t\t<!-- About overlay -->\r\n\t\t<div class="overlay about" style="display: none">\r\n\t\t\t<div class="about-content">\r\n\t\t\t\t<div class="emblem small-emblem">\r\n\t\t\t\t\t<div class="emblem-ring"></div>\r\n\t\t\t\t\t<span class="emblem-icon">&#x2694;&#xFE0F;</span>\r\n\t\t\t\t</div>\r\n\t\t\t\t<h1 class="about-title">roBrowserLegacy</h1>\r\n\t\t\t\t<h2 class="about-subtitle">Open Source Ragnarok Online Web Client</h2>\r\n\t\t\t\t<div class="ornament">\r\n\t\t\t\t\t<div class="ornament-line"></div>\r\n\t\t\t\t\t<div class="ornament-dot"></div>\r\n\t\t\t\t\t<div class="ornament-diamond"></div>\r\n\t\t\t\t\t<div class="ornament-dot"></div>\r\n\t\t\t\t\t<div class="ornament-line"></div>\r\n\t\t\t\t</div>\r\n\t\t\t\t<table class="info">\r\n\t\t\t\t\t<tr>\r\n\t\t\t\t\t\t<td>Author:</td>\r\n\t\t\t\t\t\t<td>Vincent Thibault</td>\r\n\t\t\t\t\t</tr>\r\n\t\t\t\t\t<tr>\r\n\t\t\t\t\t\t<td>Site:</td>\r\n\t\t\t\t\t\t<td><a href="[external reference removed]" target="_blank">robrowser.com</a></td>\r\n\t\t\t\t\t</tr>\r\n\t\t\t\t\t<tr>\r\n\t\t\t\t\t\t<td>Source:</td>\r\n\t\t\t\t\t\t<td>\r\n\t\t\t\t\t\t\t<a href="[external reference removed]" target="_blank"\r\n\t\t\t\t\t\t\t\t>github.com/MrAntares/roBrowserLegacy</a\r\n\t\t\t\t\t\t\t>\r\n\t\t\t\t\t\t</td>\r\n\t\t\t\t\t</tr>\r\n\t\t\t\t</table>\r\n\t\t\t\t<div class="concept">\r\n\t\t\t\t\t<p>\r\n\t\t\t\t\t\troBrowser is an open source project based on the game Ragnarok Online.<br />It\'s not affiliated\r\n\t\t\t\t\t\tin any way with Gravity.\r\n\t\t\t\t\t</p>\r\n\t\t\t\t\t<p>\r\n\t\t\t\t\t\tThe concept is to reproduce the game using web technologies (HTML5, Javascript, WebGL) to bring\r\n\t\t\t\t\t\tit to Web Browsers.\r\n\t\t\t\t\t</p>\r\n\t\t\t\t\t<p>Cross-platform: runs on Windows, Linux, macOS, and any device with WebGL support.</p>\r\n\t\t\t\t</div>\r\n\t\t\t\t<p class="about-hint">Click anywhere to close</p>\r\n\t\t\t</div>\r\n\t\t</div>\r\n\r\n\t\t<!-- Settings overlay -->\r\n\t\t<div class="overlay settings" style="display: none">\r\n\t\t\t<div class="settings-content">\r\n\t\t\t\t<h1 class="settings-title">&#x2699; Settings</h1>\r\n\r\n\t\t\t\t<div class="section-header"><span>Window</span></div>\r\n\t\t\t\t<table class="screen">\r\n\t\t\t\t\t<tr class="resolution">\r\n\t\t\t\t\t\t<td>Screen Resolution</td>\r\n\t\t\t\t\t\t<td colspan="2">\r\n\t\t\t\t\t\t\t<select class="screensize">\r\n\t\t\t\t\t\t\t\t<option value="640x480">640 x 480</option>\r\n\t\t\t\t\t\t\t\t<option value="800x600">800 x 600</option>\r\n\t\t\t\t\t\t\t\t<option value="1024x768">1024 x 768</option>\r\n\t\t\t\t\t\t\t\t<option value="1280x800">1280 x 800</option>\r\n\t\t\t\t\t\t\t\t<option value="1400x900">1400 x 900</option>\r\n\t\t\t\t\t\t\t\t<option value="1680x1050">1680 x 1050</option>\r\n\t\t\t\t\t\t\t\t<option value="full">Full Screen</option>\r\n\t\t\t\t\t\t\t</select>\r\n\t\t\t\t\t\t</td>\r\n\t\t\t\t\t</tr>\r\n\t\t\t\t\t<tr>\r\n\t\t\t\t\t\t<td>Resolution Details</td>\r\n\t\t\t\t\t\t<td><input class="quality" type="range" value="100" max="100" min="25" step="25" /></td>\r\n\t\t\t\t\t\t<td class="quality_result">100%</td>\r\n\t\t\t\t\t</tr>\r\n\t\t\t\t\t<tr>\r\n\t\t\t\t\t\t<td>Cursor</td>\r\n\t\t\t\t\t\t<td>\r\n\t\t\t\t\t\t\t<label><input class="cursor" type="checkbox" /> Show system cursor</label>\r\n<label style="display:block" title="仅游戏鼠标指针生效"><input class="monster-snap" type="checkbox" /> Monster cursor snap</label>\r\n<label style="display:block" title="仅游戏鼠标指针生效"><input class="item-snap" type="checkbox" /> Item cursor snap</label>\r\n\t\t\t\t\t\t</td>\r\n\t\t\t\t\t</tr>\r\n\t\t\t\t</table>\r\n\r\n\t\t\t\t<div class="section-header"><span>Full Client</span></div>\r\n\t\t\t\t<table class="screen">\r\n\t\t\t\t\t<tr>\r\n\t\t\t\t\t\t<td>\r\n\t\t\t\t\t\t\t<label><input class="save" type="checkbox" /> Save Files</label>\r\n\t\t\t\t\t\t</td>\r\n\t\t\t\t\t\t<td><button class="clean">Clean cache</button> <span class="clean-status"></span></td>\r\n\t\t\t\t\t</tr>\r\n\t\t\t\t</table>\r\n\r\n\t\t\t\t<div class="section-header"><span>Sound</span></div>\r\n\t\t\t\t<table class="sound">\r\n\t\t\t\t\t<tr>\r\n\t\t\t\t\t\t<td>BGM</td>\r\n\t\t\t\t\t\t<td><input class="bgmvol" type="range" value="50" max="100" min="0" step="25" /></td>\r\n\t\t\t\t\t\t<td class="bgmvol_result">50%</td>\r\n\t\t\t\t\t</tr>\r\n\t\t\t\t\t<tr>\r\n\t\t\t\t\t\t<td>Sound</td>\r\n\t\t\t\t\t\t<td><input class="soundvol" type="range" value="50" max="100" min="0" step="25" /></td>\r\n\t\t\t\t\t\t<td class="soundvol_result">50%</td>\r\n\t\t\t\t\t</tr>\r\n\t\t\t\t</table>\r\n\r\n\t\t\t\t<div class="serveredit">\r\n\t\t\t\t\t<div class="section-header"><span>Server List</span></div>\r\n\t\t\t\t\t<dl>\r\n\t\t\t\t\t\t<dt>\r\n\t\t\t\t\t\t\t<input class="radio serverdef" type="radio" value="serverfile" name="server" />\r\n\t\t\t\t\t\t\t<span>Using clientinfo.xml file stored in my FullClient</span>\r\n\t\t\t\t\t\t</dt>\r\n\t\t\t\t\t\t<dd>data / <input type="text" value="clientinfo.xml" class="clientinfo" /></dd>\r\n\t\t\t\t\t\t<dt>\r\n\t\t\t\t\t\t\t<input class="radio serverdef" type="radio" value="serverlist" name="server" />\r\n\t\t\t\t\t\t\t<span>Using servers from the current list:</span>\r\n\t\t\t\t\t\t</dt>\r\n\t\t\t\t\t\t<dd>\r\n\t\t\t\t\t\t\t<div class="servercontainer">\r\n\t\t\t\t\t\t\t\t<table class="serverlist">\r\n\t\t\t\t\t\t\t\t\t<thead>\r\n\t\t\t\t\t\t\t\t\t\t<tr>\r\n\t\t\t\t\t\t\t\t\t\t\t<td width="22%">Name</td>\r\n\t\t\t\t\t\t\t\t\t\t\t<td width="25%">Address</td>\r\n\t\t\t\t\t\t\t\t\t\t\t<td width="12%">Version</td>\r\n\t\t\t\t\t\t\t\t\t\t\t<td width="15%">Langtype</td>\r\n\t\t\t\t\t\t\t\t\t\t\t<td width="22%">Packet Ver</td>\r\n\t\t\t\t\t\t\t\t\t\t\t<td width="10px"></td>\r\n\t\t\t\t\t\t\t\t\t\t</tr>\r\n\t\t\t\t\t\t\t\t\t</thead>\r\n\t\t\t\t\t\t\t\t\t<tbody class="servers"></tbody>\r\n\t\t\t\t\t\t\t\t</table>\r\n\t\t\t\t\t\t\t</div>\r\n\t\t\t\t\t\t\t<button class="btn_add">+ Add Server</button>\r\n\t\t\t\t\t\t\t<div class="clear"></div>\r\n\t\t\t\t\t\t</dd>\r\n\t\t\t\t\t</dl>\r\n\t\t\t\t</div>\r\n\r\n\t\t\t\t<button class="btn_save">SAVE SETTINGS</button>\r\n\t\t\t</div>\r\n\t\t</div>\r\n\r\n\t\t<!-- Main UI elements -->\r\n\t\t<button class="btn_about">ℹ</button>\r\n\t\t<div class="ribbon"><span>UNOFFICIAL</span></div>\r\n\t\t<div class="drop-zone">\r\n\t\t\t<div class="drop-zone-icon">📂</div>\r\n\t\t\t<div class="drop-zone-text"><strong>Drop GRF / data files here</strong><br />or click to browse</div>\r\n\t\t</div>\r\n\t\t<div class="msg"></div>\r\n\t\t<input type="file" multiple="multiple" directory="" webkitDirectory="" />\r\n\t\t<button class="btn_play">START NOW</button>\r\n\t\t<button class="btn_settings">⚙</button>\r\n\t\t<canvas width="800" height="600"></canvas>\r\n\t</div>\r\n</div>\r\n';
 });
 //#endregion
 //#region src/UI/Components/Intro/Intro.css?raw
@@ -324853,7 +325175,10 @@ function load(root) {
   qualityEl.value = GraphicsSettings.quality;
   qualityEl.dispatchEvent(new Event("input"));
   const cursorEl = q(".cursor");
-  if (cursorEl) cursorEl.checked = !!GraphicsSettings.cursor;
+  if (cursorEl) cursorEl.checked = !GraphicsSettings.cursor;
+  const monsterSnap = q(".monster-snap"), itemSnap = q(".item-snap");
+  if (monsterSnap) monsterSnap.checked = Controls_default.snap;
+  if (itemSnap) itemSnap.checked = Controls_default.itemsnap;
   qa(".serverdef").forEach((r) => (r.checked = false));
   const activeRadio = q('.serverdef[value="' + _preferences.serverdef + '"]');
   if (activeRadio) {
@@ -324899,7 +325224,12 @@ function save(root) {
   const qa = (sel) => root.querySelectorAll(sel);
   GraphicsSettings.screensize = q(".screensize").value;
   GraphicsSettings.quality = q(".quality").value;
-  GraphicsSettings.cursor = q(".cursor") ? q(".cursor").checked : false;
+  const cursorEl = q(".cursor");
+  if (cursorEl) GraphicsSettings.cursor = !cursorEl.checked;
+  const monsterSnap = q(".monster-snap"), itemSnap = q(".item-snap");
+  if (monsterSnap) Controls_default.snap = monsterSnap.checked;
+  if (itemSnap) Controls_default.itemsnap = itemSnap.checked;
+  if (monsterSnap || itemSnap) Controls_default.save();
   _preferences.saveFiles = q(".save") ? q(".save").checked : false;
   if (Configs.get("_serverEditMode")) {
     const checkedRadio = q(".serverdef:checked");
@@ -324962,6 +325292,7 @@ var init_Preferences = __esmMin(() => {
   init_Preferences$1();
   init_Audio();
   init_Graphics();
+  init_Controls();
   _preferences = Preferences.get(
     "Window",
     {

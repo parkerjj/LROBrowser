@@ -7,6 +7,7 @@ import { installDebugAccessGuard } from './debug-access';
 import { IS_WEB_BUILD } from './build-target';
 
 export interface BootstrapOptions {
+  assistantEnabled?: boolean;
   mount: HTMLElement;
   profile: AvailableServerProfile;
   credentials: ClientCredentials;
@@ -61,7 +62,7 @@ export async function bootstrapV2Client(options: BootstrapOptions): Promise<void
   globalThis.LastRODirectSocketsSupported = IS_WEB_BUILD ? false : undefined;
   globalThis.LastRODirectSocketFactory = undefined;
   installDebugAccessGuard(window);
-  globalThis.ROConfig = buildClientConfig(options.profile, options.credentials);
+  globalThis.ROConfig = buildClientConfig(options.profile, options.credentials, { assistantEnabled: options.assistantEnabled });
   const mount = options.mount;
   const [manifest] = await Promise.all([loadExecutableManifest(), loadClientFonts()]);
   if (!IS_WEB_BUILD) {

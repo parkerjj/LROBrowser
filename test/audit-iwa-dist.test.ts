@@ -63,6 +63,23 @@ describe('IWA distribution audit', () => {
     } finally { await rm(root, { recursive: true, force: true }); }
   });
 
+  it('accepts the read-only LastRO market API origin', async () => {
+    const root = await fixture();
+    try {
+      await runtime(root, 'fetch("https://ltsd.ro/api/v1/market/search?q=card");');
+      const report = await auditDist(root, path.join(root, 'report.json'));
+      expect(report.externalOrigins).toContain('https://ltsd.ro');
+    } finally { await rm(root, { recursive: true, force: true }); }
+  });
+
+  it('rejects other paths on the LastRO market API origin', async () => {
+    const root = await fixture();
+    try {
+      await runtime(root, 'fetch("https://ltsd.ro/api/v1/items");');
+      await expect(auditDist(root, path.join(root, 'report.json'))).rejects.toThrow('unapproved remote origins');
+    } finally { await rm(root, { recursive: true, force: true }); }
+  });
+
   it('can audit a distribution again when its report contains the WSS CSP directive', async () => {
     const root = await fixture();
     try {

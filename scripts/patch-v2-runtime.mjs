@@ -1,3 +1,4 @@
+import { patchLroAssistantRuntime } from './patch-lro-assistant.mjs';
 import { createHash } from 'node:crypto';
 import { Buffer } from 'node:buffer';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -912,12 +913,13 @@ export function patchRuntimeToolsPanels(source) {
     document: globalThis.document, window: globalThis, GUIComponent, UIManager,
     setHtml: setLastROInnerHTML,
     normalizeRoute: normalizeRouteEntry,
-    requestRoute: route => lastroVerifiedRouteRequest.request(route),
+    requestRoute: route => lastroVerifiedRouteRequest.request(route, { skipPreflight: true }),
     cancelPendingRoute: () => lastroVerifiedRouteRequest.cancelPending(),
     routeMapChanging: () => { lastroVerifiedRouteRequest.cancelPending(); lastroRouteNavigation.onMapChanging(); },
     routeMapChanged: () => lastroRouteNavigation.onMapChanged(),
     cancelRoute: () => lastroVerifiedRouteRequest.cancel(),
     showPrompt: (message, yes, no) => UIManager.showPromptBox(message, "ok", "cancel", yes, no),
+    setTeleportConfirmationEnabled: enabled => setLastroTeleportConfirmationEnabled(enabled),
     shouldConfirmTeleport: () => typeof getLastroTeleportConfirmationEnabled !== "function" || getLastroTeleportConfirmationEnabled(),
     getPresetRoutes: () => {
       const catalog = LastROTeleportPresets.profiles[Configs.get("clientVer", 0)];
@@ -1065,7 +1067,7 @@ let lastroTeleportConfirmationPreferences;
 function getLastroTeleportConfirmationPreferences() {
   init_Preferences$1();
   if (!lastroTeleportConfirmationPreferences) {
-    const defaults = { _key: "LastROTeleportConfirmation", _version: 1, enabled: true };
+    const defaults = { _key: "LastROTeleportConfirmation", _version: 1, enabled: false };
     try { lastroTeleportConfirmationPreferences = Preferences.get("LastROTeleportConfirmation", defaults, 1); }
     catch { lastroTeleportConfirmationPreferences = { ...defaults, save() { return Preferences.save(this); } }; }
   }
@@ -1084,7 +1086,7 @@ async function setLastroTeleportConfirmationEnabled(enabled) {
   return preference + source.slice(0, anchor) + install + source.slice(anchor);
 }
 
-export function patchV2Runtime(source) {
+export function patchV2Runtime(source, { assistant = false } = {}) {
   if (!source.startsWith('import ')) fail('anchor:runtime-imports');
   const normalizedSource = source.replace(/\r\n/g, '\n');
   let output = `import { decorateLastROLoginTemplate, decorateLastROLoginStyles, installLastROLogin, beforeLastROLoginConnect, afterLastROLoginPassword } from "./lastro-account-login.mjs";
@@ -1236,9 +1238,9 @@ ${normalizedSource}`;
     'const renderedHtmlText = decorateLastROLoginTemplate(name, enhanceWinLoginTemplate(name, htmlText));');
   output = replaceOnceAny(output, [
     ['    void 0;\n    populateLoginServerButtons(\n      root,\n      Configs.get("loginServerProfiles", []),\n      Configs.getServer?.().id || "lastro",\n      (profile) => Component.onServerSelect(profile),\n    );',
-      '    installLastROLogin({ root, component: Component, configs: Configs });'],
+      '    installLastROLogin({ root, component: Component, configs: Configs, onAssistantProfileChange: profileId => globalThis.LROAssistantProfileChange?.(profileId) });'],
     ['\t\tvoid 0;\n\t\tpopulateLoginServerButtons(root, Configs.get("loginServerProfiles", []), Configs.getServer?.().id || "lastro", (profile) => Component.onServerSelect(profile));',
-      '\t\tinstallLastROLogin({ root, component: Component, configs: Configs });'],
+      '\t\tinstallLastROLogin({ root, component: Component, configs: Configs, onAssistantProfileChange: profileId => globalThis.LROAssistantProfileChange?.(profileId) });'],
   ]);
   output = replaceOnceAny(output, [
     ['    const pass = _inputPassword.value;\n    applyDebugLoginFields();',
@@ -1277,7 +1279,7 @@ ${normalizedSource}`;
   output = patchRuntimePlainTextSinks(output);
   const finalOutput = patchRuntimeNavigation(patchTrustedTypesDomWrites(output));
   assertRuntimeLocalizationMount(finalOutput, source);
-  return finalOutput;
+  return assistant ? patchLroAssistantRuntime(finalOutput) : finalOutput;
 }
 
 async function main() {
@@ -1287,7 +1289,7 @@ async function main() {
   if (!values.input || !values.output || !values.manifest || !path.isAbsolute(values.input)
     || !path.isAbsolute(values.output) || !path.isAbsolute(values.manifest)) fail('absolute-path-required');
   const input = await readFile(values.input);
-  const output = Buffer.from(patchV2Runtime(input.toString('utf8')));
+  const output = Buffer.from(patchV2Runtime(input.toString('utf8'), { assistant: true }));
   await mkdir(path.dirname(values.output), { recursive: true });
   await writeFile(values.output, output);
   const manifest = {

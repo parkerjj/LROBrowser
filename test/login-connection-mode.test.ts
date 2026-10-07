@@ -36,7 +36,7 @@ function runtimeConfig(id = 'lastro-2x') {
   return { configs, context, select: vm.runInContext('selectLoginServerProfile', context), close, registration };
 }
 
-async function setup(id = 'lastro-2x') {
+async function setup(id = 'lastro-2x', onAssistantProfileChange?: (profileId: string) => void | Promise<void>) {
   saveLoginPreferences({ connectionMode: id === 'lastro-app' ? 'direct' : 'relay', serverProfileId: getAvailableServerProfile(id).id });
   const factory = new IDBFactory();
   vi.stubGlobal('indexedDB', factory);
@@ -48,11 +48,12 @@ async function setup(id = 'lastro-2x') {
     serverProfileId, label: serverProfileId, username: serverProfileId, password: 'fixture-only',
   })));
   const runtime = runtimeConfig(id);
+  runtime.configs.set('connectionMode', id === 'lastro-app' ? 'direct' : 'relay');
   const host = document.createElement('div');
   const root = host.attachShadow({ mode: 'open' });
   root.innerHTML = decorateLastROLoginTemplate('WinLogin', '<div id="WinLogin"><input class="user"><input class="pass"><button class="connect"></button></div>');
   document.body.append(host);
-  installLastROLogin({ root, component: { onServerSelect: runtime.select }, configs: runtime.configs });
+  installLastROLogin({ root, component: { onServerSelect: runtime.select }, configs: runtime.configs, onAssistantProfileChange });
   await vi.waitFor(() => expect(root.querySelector('[data-account-id]')).not.toBeNull());
   const server = (id: string) => root.querySelector<HTMLButtonElement>(`[data-server-profile="${id}"]`)!;
   const mode = (value: string) => root.querySelector<HTMLButtonElement>(`[data-connection-mode="${value}"]`)!;
@@ -190,5 +191,31 @@ describe('login connection mode and live server selection', () => {
     expect(configs.get('connectionMode')).toBe('direct');
     expect(root.querySelector<HTMLElement>('[data-connection-mode="direct"]')!.dataset.selected).toBe('true');
     expect(root.querySelector<HTMLElement>('[data-server-profile="lastro-app"]')!.dataset.selected).toBe('true');
+  });
+
+  it('waits for assistant storage rebinding before changing server without reloading', async () => {
+    let finishRebind!: () => void;
+    const onAssistantProfileChange = vi.fn(() => new Promise<void>(resolve => { finishRebind = resolve; }));
+    const { server, configs, assign } = await setup('lastro-2x', onAssistantProfileChange);
+
+    server('lastro-3x').click();
+    await vi.waitFor(() => expect(onAssistantProfileChange).toHaveBeenCalledWith('lastro-3x'));
+    expect(configs.getServer().id).toBe('lastro-2x');
+    expect(server('lastro-3x').disabled).toBe(true);
+
+    finishRebind();
+    await vi.waitFor(() => expect(configs.getServer().id).toBe('lastro-3x'));
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it('keeps the current server selected if assistant profile rebinding fails', async () => {
+    const onAssistantProfileChange = vi.fn(async () => { throw new Error('storage unavailable'); });
+    const { root, server, configs } = await setup('lastro-2x', onAssistantProfileChange);
+
+    server('lastro-3x').click();
+    await vi.waitFor(() => expect(root.querySelector('[data-lastro-login-message]')?.textContent).toContain('助手数据切换失败'));
+    expect(configs.getServer().id).toBe('lastro-2x');
+    expect(server('lastro-2x').dataset.selected).toBe('true');
+    expect(server('lastro-3x').dataset.selected).toBe('false');
   });
 });

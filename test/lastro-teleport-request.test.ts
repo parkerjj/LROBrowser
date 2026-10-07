@@ -103,6 +103,15 @@ describe('verified teleport requests', () => {
     expect(f.navigation.request).toHaveBeenCalledExactlyOnceWith(route);
   });
 
+  it('can skip resource preflight while preserving the normal navigation request', async () => {
+    const f = fixture(), route = { outset: ['prontera', 153, 192] };
+    f.navigation.request.mockReturnValue('navigation');
+    const result = f.api.request(route, { skipPreflight: true });
+    expect(f.preflight.check).not.toHaveBeenCalled();
+    expect(await result).toBe('navigation');
+    expect(f.navigation.request).toHaveBeenCalledExactlyOnceWith(route);
+  });
+
   it.each(['地图资源不存在', '地图坐标超出范围'])('does not issue a command when validation fails: %s', async message => {
     const f = fixture(); const result = f.api.request({});
     f.pending[0]!.reject(new Error(message));

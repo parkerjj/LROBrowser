@@ -79,6 +79,29 @@ describe('LastRO teleport route navigation', () => {
     expect(f.sendTeleport).not.toHaveBeenCalled();
   });
 
+  it('advances an intermediate route point within five cells but not six', () => {
+    const f = fixture('izlude', [127, 162]);
+    f.controller.request(indoorRoute);
+    f.state.position = [116, 180];
+    vi.advanceTimersByTime(200);
+    expect(f.navigate).toHaveBeenCalledExactlyOnceWith(['izlude', 110, 180]);
+    f.state.position = [115, 180];
+    vi.advanceTimersByTime(200);
+    expect(f.navigate).toHaveBeenLastCalledWith(['izlude_in', 60, 123]);
+  });
+
+  it('still approaches the final destination when five cells away', () => {
+    const f = fixture('izlude', [127, 162]);
+    f.controller.request(npcRoute);
+    f.state.position = [130, 144];
+    vi.advanceTimersByTime(200);
+    expect(f.navigate).toHaveBeenCalledExactlyOnceWith(['izlude', 125, 144]);
+    expect(f.setStatus).not.toHaveBeenCalledWith('已到达目标地点');
+    f.state.position = [125, 144];
+    vi.advanceTimersByTime(200);
+    expect(f.setStatus).toHaveBeenLastCalledWith('已到达目标地点');
+  });
+
   it('continues after a portal loads before its outgoing cell is observed', () => {
     const f = fixture('izlude', [127, 162]);
     f.controller.request(indoorRoute);
