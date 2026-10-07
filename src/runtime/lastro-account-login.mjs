@@ -25,10 +25,11 @@ export function decorateLastROLoginTemplate(name, htmlText) {
   const cleaned = removePrivateLoginPanel(htmlText);
   const closingIndex = cleaned.lastIndexOf('</div>');
   if (closingIndex === -1) return cleaned;
+  const directModeButton = globalThis.LastROWebBuild === true ? '' : '<button type="button" data-connection-mode="direct">直连</button>';
   const panel = '<section class="lastro-login-panel" data-lastro-login-panel>'
     + '<section class="lastro-login-modes"><h3>连接模式</h3>'
     + '<div class="lastro-mode-list"><button type="button" data-connection-mode="relay">传统</button>'
-    + '<button type="button" data-connection-mode="direct">直连</button></div>'
+    + directModeButton + '</div>'
     + '<p class="lastro-mode-description" data-lastro-mode-description></p></section>'
     + '<section class="lastro-login-servers"><h3>服务器</h3><div class="lastro-server-list" data-lastro-server-list></div></section>'
     + '<section class="lastro-account-view" data-lastro-view="list">'
@@ -162,7 +163,7 @@ export function installLastROLogin({ root, component, configs }) {
   let accountsCache = [];
   let selectedAccount;
   let selectedProfileId = currentId;
-  let connectionMode = configs?.get?.('connectionMode', 'relay') === 'direct' ? 'direct' : 'relay';
+  let connectionMode = globalThis.LastROWebBuild === true ? 'relay' : (configs?.get?.('connectionMode', 'relay') === 'direct' ? 'direct' : 'relay');
   let revision = 0;
   let mutationBusy = false;
   let visible = true;

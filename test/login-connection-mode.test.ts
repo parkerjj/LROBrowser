@@ -60,6 +60,11 @@ async function setup(id = 'lastro-2x') {
 }
 
 describe('login connection mode and live server selection', () => {
+  it('hides Direct TCP controls in the Web build', () => {
+    vi.stubGlobal('LastROWebBuild', true);
+    const html = decorateLastROLoginTemplate('WinLogin', '<div id="WinLogin"></div>');
+    expect(html).not.toContain('data-connection-mode="direct"');
+  });
   it('places connection choices above three servers in one row', async () => {
     const { root } = await setup();
     const panel = root.querySelector('[data-lastro-login-panel]')!;

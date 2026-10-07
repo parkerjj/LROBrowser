@@ -41,6 +41,17 @@ function downloadFixture(extension: string): ArrayBuffer {
 }
 
 describe('passive resource resolver', () => {
+  it('allows the Web target to use only the CORS-enabled rodata origin', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>(async (input) => {
+      expect(String(input)).toBe('https://rodata.ltsd.ro/ro/client_re/data/web.bmp');
+      return new Response(new Uint8Array([1, 2, 3]), { headers: { 'content-type': 'application/octet-stream' } });
+    });
+    await expect(resolvePassiveResource('data/web.bmp', {
+      fetch,
+      resourceRoots: ['https://rodata.ltsd.ro/ro/client_re/'],
+    })).resolves.toEqual(new Uint8Array([1, 2, 3]).buffer);
+    expect(fetch).toHaveBeenCalledOnce();
+  });
   it('reuses legacy resource caches without requiring new source or size metadata', async () => {
     const cache = new MemoryResourceCache();
     await cache.put('data/a.bmp', new Uint8Array([9]).buffer, { sourceUrl: 'http://game.lastro.cn/ro/client_re/data/a.bmp', size: 99 });
