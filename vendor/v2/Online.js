@@ -280597,6 +280597,7 @@ var EntityRoom_default$1;
 var init_EntityRoom$2 = __esmMin(() => {
   EntityRoom_default$1 =
     ":host {\r\n\twidth: 140px;\r\n\theight: 26px;\r\n}\r\n\r\n.EntityRoom {\r\n\tbox-sizing: border-box;\r\n\tposition: absolute;\r\n\tz-index: 45;\r\n\twidth: 140px;\r\n\tmax-height: 26px;\r\n\tborder-radius: 5px;\r\n\tbackground-color: white;\r\n\tpadding: 2px;\r\n\tletter-spacing: 0px;\r\n}\r\n\r\n.EntityRoom button {\r\n\twidth: 100%;\r\n\ttext-align: left;\r\n\tpadding: 0px;\r\n\tborder-radius: 5px;\r\n\tborder: 1px solid #c1c6c2;\r\n\tbackground-color: transparent;\r\n\tbackground-repeat: no-repeat;\r\n\tbackground-position: left center;\r\n\twhite-space: nowrap;\r\n\tdisplay: flex;\r\n\talign-items: center;\r\n}\r\n\r\n.EntityRoom button::after {\r\n\tcontent: '';\r\n\tposition: absolute;\r\n\tbottom: -12px;\r\n\tleft: 50%;\r\n\tmargin-left: -10px;\r\n\tz-index: -1;\r\n\twidth: 0;\r\n\theight: 0;\r\n\tborder-style: solid;\r\n\tborder-width: 0 10.5px 26px 10.5px;\r\n\tborder-color: transparent transparent #fff transparent;\r\n\ttransform: rotate(220deg);\r\n}\r\n\r\n.EntityRoom .image {\r\n\twidth: 24px;\r\n\theight: 24px;\r\n\tmargin-right: 5px;\r\n\tmargin-top: -1px;\r\n\tmargin-bottom: -3px;\r\n}\r\n\r\n.EntityRoom .title {\r\n\toverflow: hidden;\r\n\ttext-overflow: ellipsis;\r\n\twhite-space: nowrap;\r\n\tmin-width: 0;\r\n\tflex: 1;\r\n}\r\n\r\n.EntityRoom .overlay {\r\n\tdisplay: none;\r\n\tposition: absolute;\r\n\ttop: 0;\r\n\tleft: 26px;\r\n\tz-index: 900;\r\n\tpadding: 5px;\r\n\tbackground-color: rgba(0, 0, 0, 0.6);\r\n\tcolor: white;\r\n\ttext-shadow: 1px 1px black;\r\n\tborder: 1px solid #5a5a5a;\r\n\twhite-space: nowrap;\r\n}\r\n\n/* LASTRO scoped UI layout: EntityRoom/EntityRoom */\n\n.EntityRoom .overlay { pointer-events: none; }\n";
+  EntityRoom_default$1 += "\n:host { transition: opacity 150ms ease-out; }\n";
 });
 //#endregion
 //#region src/UI/Components/EntityRoom/EntityRoom.js
@@ -280709,6 +280710,7 @@ var init_EntityRoom = __esmMin(() => {
   init_Client();
   init_DBManager();
   init_Map();
+  init_SessionStorage();
   init_EntityRoom$1();
   vec4$1 = gl_matrix_default.vec4;
   _pos$1 = /* @__PURE__ */ new Float32Array(4);
@@ -280831,8 +280833,17 @@ var init_EntityRoom = __esmMin(() => {
     this._lastroShopTitleHost = host;
     this._lastroShopTitleHidden = false;
     this._lastroShopTitleDisplay = undefined;
+    this._lastroShopTitleOpacity = undefined;
   }
   const shop = this.type === Room.Type.BUY_SHOP || this.type === Room.Type.SELL_SHOP;
+  const moving = shop && SessionStorage_default.Entity?.walk?.total > 0;
+  if (moving) {
+    if (this._lastroShopTitleOpacity === undefined) this._lastroShopTitleOpacity = host.style.opacity;
+    if (host.style.opacity !== '0.5') host.style.opacity = '0.5';
+  } else if (this._lastroShopTitleOpacity !== undefined) {
+    if (host.style.opacity !== this._lastroShopTitleOpacity) host.style.opacity = this._lastroShopTitleOpacity;
+    this._lastroShopTitleOpacity = undefined;
+  }
   const hidden = shop && Map_default.showshop === false;
   if (hidden) {
     if (!this._lastroShopTitleHidden) {
@@ -298707,13 +298718,13 @@ function patchLastROToolsTemplate() {
   if (typeof LastROTools_default$1 !== "string") return;
   LastROTools_default$1 = `<div class="lastro-tools">
 <div class="lastro-header"><div class="lastro-header-title"><strong>LastRO 工具</strong><span class="lastro-header-state" data-header-state>已就绪</span></div><div class="lastro-header-actions"><button type="button" class="lastro-icon-button lastro-icon-settings" data-action="open-settings" aria-label="打开挂机设置" title="挂机设置">⚙</button><button type="button" class="lastro-icon-button" data-action="minimize" aria-label="最小化工具面板" title="最小化">−</button><button type="button" class="lastro-icon-button lastro-icon-close" data-action="close" aria-label="关闭 LastRO 工具" title="关闭">✕</button></div></div>
-<div class="lastro-compact-status" hidden><span data-compact-status-text>自动战斗：关 · 拾取：关</span><button type="button" class="lastro-button" data-action="compact-settings">设置</button></div>
+<div class="lastro-compact-status" hidden><span data-compact-status-text>战斗：关 · 捡物：关</span><button type="button" class="lastro-button" data-action="compact-settings">设置</button></div>
 <div class="lastro-main-view">
 <div class="lastro-quick-toggles">
-<label><span>自动战斗</span><input type="checkbox" class="lastro-switch" data-option="autoAttack"></label>
-<label><span>自动捡物</span><input type="checkbox" class="lastro-switch" data-option="autoLoot"></label>
-<label><span>自动补给</span><input type="checkbox" class="lastro-switch" data-option="autoPots"></label>
-<label><span>跟随战斗</span><input type="checkbox" class="lastro-switch" data-option="autoFollow"></label>
+<label><span>战斗</span><input type="checkbox" class="lastro-switch" data-option="autoAttack"></label>
+<label><span>捡物</span><input type="checkbox" class="lastro-switch" data-option="autoLoot"></label>
+<label><span>补给</span><input type="checkbox" class="lastro-switch" data-option="autoPots"></label>
+<label><span>跟随</span><input type="checkbox" class="lastro-switch" data-option="autoFollow"></label>
 </div>
 <section class="lastro-quick lastro-card expanded"><div class="lastro-card-heading"><div><strong>快速传送</strong><span>选择分类和目标后直接前往</span></div><button type="button" class="lastro-icon-button" data-action="quick" aria-label="展开或收起快速传送">⌄</button></div><div class="lastro-quick-controls"><label class="quick-category-field">分类<select class="quick-category" aria-label="快速传送分类"></select></label><label class="quick-route-target">目标<select class="quick-route" aria-label="快速传送目标"></select></label><div class="quick-custom-field quick-custom-picker" hidden><label for="quick-place-picker-toggle">快捷点 / 最近传送</label><div class="quick-place-picker"><button id="quick-place-picker-toggle" type="button" class="lastro-button quick-place-picker-toggle" data-action="toggle-quick-place-picker" aria-expanded="false" aria-controls="quick-place-picker-menu"><span>选择快捷点或最近传送</span><span aria-hidden="true">⌄</span></button><div id="quick-place-picker-menu" class="quick-place-picker-menu" data-quick-place-menu role="group" aria-label="已保存快捷点和最近传送" hidden></div></div></div><label class="quick-custom-field quick-custom-map" hidden>地图名<input type="text" data-custom-route-map maxlength="16" placeholder="例如 prontera" autocomplete="off"></label><label class="quick-custom-field quick-custom-x" hidden>X 坐标<input type="number" data-custom-route-x min="0" max="65535" step="1" inputmode="numeric"></label><label class="quick-custom-field quick-custom-y" hidden>Y 坐标<input type="number" data-custom-route-y min="0" max="65535" step="1" inputmode="numeric"></label><button type="button" class="lastro-button lastro-primary" data-action="run-quick">前往</button><button type="button" class="lastro-button quick-save-place" data-action="save-quick-place" hidden>保存为快捷点</button></div><div class="lastro-route-status" data-route-status>尚未选择路线</div></section>
 <div class="lastro-status" role="status"></div>
@@ -299728,7 +299739,7 @@ var init_LastROTools = __esmMin(() => {
     const assist = this._assistSkills?.filter((entry) => entry.enabled).length
       ? ` · 辅助 ${this._assistSkills.filter((entry) => entry.enabled).length} 个`
       : "";
-    status.textContent = `自动战斗：${state.autoAttack ? "开" : "关"} · 拾取：${state.autoLoot ? "开" : "关"}${modeText}${active}${assist}`;
+    status.textContent = `战斗：${state.autoAttack ? "开" : "关"} · 捡物：${state.autoLoot ? "开" : "关"}${modeText}${active}${assist}`;
   };
   LastROTools.populateSkillSelects = function populateSkillSelects() {
     const root = this.getRoot?.();
@@ -299990,10 +300001,10 @@ var init_LastROTools = __esmMin(() => {
   LastROTools.getOptionLabel = function getOptionLabel(option) {
     return (
       {
-        autoAttack: "自动战斗",
-        autoLoot: "自动捡物",
-        autoPots: "自动补给",
-        autoFollow: "跟随战斗",
+        autoAttack: "战斗",
+        autoLoot: "捡物",
+        autoPots: "补给",
+        autoFollow: "跟随",
       }[option] || option
     );
   };
