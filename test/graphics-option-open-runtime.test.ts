@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
+import { assistantInput } from './assistant-runtime-fixture';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -104,7 +105,7 @@ function runtime(source: string, initialEnabled = true, initialTeleportEnabled?:
   const renderer = { width: 1024, height: 768, resize: vi.fn(), frameLimit: 0, render: vi.fn() };
   const onWindowError = (event: ErrorEvent) => { errors.push(event.error); event.preventDefault(); };
   window.addEventListener('error', onWindowError);
-  const context = vm.createContext({
+  const context = vm.createContext({ ...assistantInput,
     document, window, globalThis: { document }, Event, console, parseInt, parseFloat,
     __esmMin: (initialize: () => void) => {
       let loaded = false;

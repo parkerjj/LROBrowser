@@ -35,7 +35,9 @@ export function buildWorldMapComparisonPair(runtime: string) {
     const loadFile = props.properties.find(node => node.name?.getText(file) === 'loadFile') as ts.PropertyAssignment;
     return `const ${name} = { loadFile: ${loadFile.initializer.getText(file)} };`;
   }).join('\n');
-  const imports = file.statements.filter(ts.isImportDeclaration).slice(0, 3).map(node => node.getText(file)).join('\n');
+  const imports = file.statements.filter((node): node is ts.ImportDeclaration => ts.isImportDeclaration(node)
+    && ts.isStringLiteral(node.moduleSpecifier) && node.moduleSpecifier.text === './lastro-trusted-dom.mjs')
+    .map(node => node.getText(file)).join('\n');
   const inline = (source: string) => source.replaceAll('resolveLastroMapResourceName(filename, DB.mapalias)', `(${resolver})(filename, DB.mapalias)`);
   return {
     before: [imports, diagnostic, inline(oldRegion), inline(loaders), completion].join('\n'),

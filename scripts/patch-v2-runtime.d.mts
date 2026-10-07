@@ -4,7 +4,7 @@ export function patchLegacyScriptSinks(source: string): string;
 export function patchNpcMenuBlankArea(source: string): string;
 export function patchLuaJsonEscapes(source: string): string;
 export function patchAchievementClaimButton(source: string): string;
-export function patchV2Runtime(source: string): string;
+export function patchV2Runtime(source: string, options?: { assistant?: boolean }): string;
 export function patchLuaTableCompletion(source: string): string;
 export function patchRuntimeWorldMapProductActions(source: string): string;
 export function patchRuntimeChatMapLinks(source: string): string;

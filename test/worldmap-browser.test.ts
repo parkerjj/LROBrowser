@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { assistantInput } from './assistant-runtime-fixture';
 import { readFileSync, existsSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
@@ -41,6 +42,7 @@ function mount(loadData = vi.fn(async () => data), itemTable: Record<number, { i
   const navigate = vi.fn(), teleport = vi.fn<(mapid: string, label?: string) => void | Promise<boolean>>(), cancelTeleport = vi.fn();
   const Client = { loadFile: vi.fn((_path: string, _done: (url: string) => void, fail?: () => void) => fail?.()) };
   const api = runInNewContext(`(${fixture.installLastroWorldMap})(component,deps,regions,(${fixture.createWorldMapIndex}))`, {
+    ...assistantInput,
     component, regions: fixture.regions,
     deps: { document, DB: { INTERFACE_PATH: '', getItemInfo: (id: number) => itemTable[id] || {} }, Client, loadData, itemTable: () => itemTable, currentMap: () => 'prontera.gat', navigate, teleport, cancelTeleport, monsterPortrait },
   });
@@ -59,7 +61,7 @@ function mountNative(scale = 1, options: { loadData?: () => Promise<typeof data>
   const frame = document.createElement('iframe'); document.body.append(frame); frames.push(frame);
   const win = frame.contentWindow as Window & typeof globalThis, doc = win.document;
   doc.body.style.zoom = String(scale);
-  const GUI = runInNewContext(`(${guiClass})`, { window: win, document: doc, Event: win.Event,
+  const GUI = runInNewContext(`(${guiClass})`, { ...assistantInput, window: win, document: doc, Event: win.Event,
     MouseMode: { STOP: 1, FREEZE: 2 }, _ensureDeps: () => {}, Common_default$1: commonCss,
     setLastROInnerHTML: (element: HTMLElement, html: string) => { element.innerHTML = html; } });
   // Native prepare/append/focus/key binding remain intact. Asset/renderer services
@@ -85,6 +87,7 @@ function mountNative(scale = 1, options: { loadData?: () => Promise<typeof data>
   const loadData = options.loadData || vi.fn(async () => data);
   const itemTable: Record<number, { identifiedDisplayName: string }> = options.itemTable || items;
   const api = runInNewContext(`(${fixture.installLastroWorldMap})(component,deps,regions,(${fixture.createWorldMapIndex}))`, {
+    ...assistantInput,
     component, regions: fixture.regions,
     deps: { document: doc, DB: { INTERFACE_PATH: '', getItemInfo: (id: number) => itemTable[id] || {} },
       Client: { loadFile: (_path: string, _done: unknown, failed: () => void) => failed() },
