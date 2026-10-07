@@ -26,9 +26,10 @@ function template(version: number, kind = 'Inventory') {
   visit(file); return html;
 }
 const cursorFile = ts.createSourceFile('Cursor.js', region(native, 'src/UI/CursorManager.js'), ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
-let cursorRender = '';
+let cursorRender = '', cursorType = '';
 function findCursorRender(node: ts.Node) {
   if (ts.isMethodDeclaration(node) && node.name.getText(cursorFile) === 'render') cursorRender = node.getText(cursorFile);
+  if (ts.isMethodDeclaration(node) && node.name.getText(cursorFile) === 'getActualType') cursorType = node.getText(cursorFile);
   ts.forEachChild(node, findCursorRender);
 }
 findCursorRender(cursorFile);
@@ -45,7 +46,7 @@ function findDraggable(node: ts.Node) {
 findDraggable(guiFile);
 if (!nativeDraggable) throw new Error('Missing actual native draggable method');
 function cursorFrames(doc: Document) {
-  return vm.runInNewContext(`class Cursor { static ACTION={DEFAULT:0}; ${cursorRender} }; tick => Cursor.render(tick);`, {
+  return vm.runInNewContext(`class Cursor { static ACTION={DEFAULT:0}; ${cursorType} ${cursorRender} }; tick => Cursor.render(tick);`, {
     document: doc, GraphicsSettings: { cursor: true }, _compiledStyle: ['compiled'], _selector: null,
     ActionInformations: [{ delayMult: 1, startX: 0, startY: 0 }], _type$4: 0, _action$2: { actions: [{ delay: 1, animations: [] }] }, _animation: 0, _play: false,
   }) as (tick: number) => void;

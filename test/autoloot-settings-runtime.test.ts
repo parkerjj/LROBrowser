@@ -61,6 +61,7 @@ function fixture() {
   const context = {
     ...migration, document, PACKET, Network: { sendPacket: (packet: Packet) => sent.push(packet) },
     Configs: { get: (key: string, fallback?: unknown) => key === 'lastroNid' ? 5 : fallback },
+    closeLastROQuickPlacePicker() {},
     OPTION_TO_PACKET_ID: runInNewContext(assigned('OPTION_TO_PACKET_ID')),
     SCALAR_FIELD_BY_ID: Object.fromEntries(Object.entries(migration.AUTO_BATTLE_SCALAR_IDS).map(([key, value]) => [String(value), key])),
     installLastRORandomTeleportShortcut() {}, showLastROSettingsView() {}, showLastROMainView() {}, activateLastROSettingsTab() {},
@@ -94,7 +95,7 @@ describe('native autoloot drop-rate setting', () => {
     expect(f.sent).toHaveLength(1);
   });
 
-  it.each([['0', 0], ['0.1', 10], ['100', 10000]])('retains native conversion and display for %s%%', (percent, wire) => {
+  it.each([['0', 0], ['0.1', 10], ['10', 1000], ['100', 10000]])('retains native conversion and display for %s%%', (percent, wire) => {
     const f = fixture(); commit(f.field('autoloot'), percent);
     expect(f.sent).toHaveLength(1); expect(f.sent[0]).toMatchObject({ id: 20, value: wire });
     expect(f.tools._settingState.autoloot).toBe(wire);

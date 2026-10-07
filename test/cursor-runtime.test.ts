@@ -14,10 +14,12 @@ function cursorFixture() {
   const mouse = { screen: { x: 0, y: 0, width: 800, height: 600 } };
   const controls = { snap: true, itemsnap: true, joySense: 25 };
   const settings = { cursor: true, fpslimit: 30 };
+  const movement = { held: false };
   let over: { objecttype: number; boundingRect: { x1: number; x2: number; y1: number; y2: number } } | null = null;
   const context = vm.createContext({ window: win, document: doc, Date, console,
     __exportAll: (value: unknown) => value, __esmMin: (fn: () => void) => fn,
     Mouse: mouse, Controls_default: controls, GraphicsSettings: settings,
+    MapControl: { _lastroMovementInput: { isHeld: () => movement.held } },
     Entity: { TYPE_MOB: 1, TYPE_ITEM: 2 }, EntityManager: { getOverEntity: () => over },
     installLastroItemDrag() {},
   });
@@ -28,7 +30,7 @@ function cursorFixture() {
     + 'bindMouseEvents();', context);
   const pointer = doc.querySelector<HTMLElement>('.cursor')!;
   const sprite = doc.createElement('img'); sprite.className = 'cursor__sprite'; pointer.append(sprite);
-  return { context, mouse, controls, settings, pointer, sprite,
+  return { context, mouse, controls, settings, movement, pointer, sprite,
     move(x: number, y: number) {
       win.dispatchEvent(new win.MouseEvent('pointermove', { clientX: x, clientY: y }));
       mouse.screen.x = x; mouse.screen.y = y;
@@ -39,6 +41,63 @@ function cursorFixture() {
 }
 
 describe('native game cursor', () => {
+  it('keeps the movement cursor and pointer position over clickable signs and entities while held', () => {
+    const h = cursorFixture(), button = h.pointer.ownerDocument.createElement('button');
+    h.pointer.ownerDocument.body.append(button);
+    h.movement.held = true; h.move(320, 240); h.hover(1);
+    button.dispatchEvent(new h.context.window.MouseEvent('mouseover', { bubbles: true }));
+    expect(h.context.Cursor.getActualType()).toBe(h.context.Cursor.ACTION.DEFAULT);
+    for (const type of ['TALK', 'ATTACK', 'PICK', 'TARGET']) {
+      h.context.Cursor.setType(h.context.Cursor.ACTION[type]);
+      expect(h.context.Cursor.getActualType()).toBe(h.context.Cursor.ACTION.DEFAULT);
+    }
+    h.render(); expect(h.pointer.style.transform).toBe('translate(0px, 0px)');
+    h.movement.held = false;
+    button.dispatchEvent(new h.context.window.MouseEvent('mouseover', { bubbles: true }));
+    expect(h.context.Cursor.getActualType()).toBe(h.context.Cursor.ACTION.CLICK);
+    h.context.Cursor.setType(h.context.Cursor.ACTION.DEFAULT); h.render();
+    expect(h.pointer.style.transform).toBe('translate(-100px, -120px)');
+  });
+
+  it('samples mouse coordinates before a sign can swallow the bubbling mousemove', () => {
+    const h = cursorFixture(), win = h.context.window as Window & typeof globalThis;
+    const source = extractVendorRegion('src/Controls/MouseEventHandler.js', vendor);
+    vm.runInContext(source + '\ninit_MouseEventHandler();', h.context);
+    const button = win.document.createElement('button'); win.document.body.append(button);
+    button.addEventListener('mousemove', event => event.stopImmediatePropagation());
+    button.dispatchEvent(new win.MouseEvent('mousemove', { bubbles: true, clientX: 300, clientY: 200, buttons: 1 }));
+    expect(h.context.Mouse.screen).toMatchObject({ x: 300, y: 200 });
+  });
+
+  it('restores a pending skill target cursor after releasing held movement', () => {
+    const h = cursorFixture(), cursor = h.context.Cursor;
+    Object.assign(h.context, {
+      SkillTargetSelection: { TYPE: { PLACE: 2, FRIEND: 4 } },
+      SessionStorage_default: { TouchTargeting: false }, SkillInfo: { 7: { SkillName: 'fixture' } },
+      renderText() {}, renderLevel() {}, _skillName: {}, _skillLevel: {},
+    });
+    Object.assign(h.mouse, { state: 0, MOUSE_STATE: { USESKILL: 2 } });
+    h.context.EntityManager.setSupportPicking = vi.fn();
+    vm.runInContext(extractRuntimeNode(vendor, {
+      region: 'src/UI/Components/SkillTargetSelection/SkillTargetSelection.js', kind: 'assignment', name: 'SkillTargetSelection.set',
+    }), h.context);
+    h.context._action$2.actions[cursor.ACTION.NOWALK] = { delay: 100, animations: [{ compiledStyleIndex: 2 }] };
+    h.context._action$2.actions[cursor.ACTION.TARGET] = { delay: 100, animations: [{ compiledStyleIndex: 1 }] };
+    h.movement.held = true;
+    h.context.SkillTargetSelection.set({ SKID: 7, level: 1 }, 2);
+    expect(h.context.Mouse.state).toBe(2); expect(cursor.freeze).toBe(true);
+    cursor.setType(cursor.ACTION.NOWALK);
+    expect(cursor.getActualType()).toBe(cursor.ACTION.NOWALK);
+    h.render(); expect(h.sprite.style.left).toBe('-100px');
+    h.movement.held = false;
+    expect(cursor.getActualType()).toBe(cursor.ACTION.TARGET);
+    h.render(); expect(h.sprite.style.left).toBe('-50px');
+    cursor.setType(cursor.ACTION.CLICK);
+    expect(cursor.getActualType()).toBe(cursor.ACTION.TARGET);
+    cursor.freeze = false; cursor.setType(cursor.ACTION.DEFAULT);
+    expect(cursor.getActualType()).toBe(cursor.ACTION.DEFAULT);
+  });
+
   it('moves using an independent translation even when the scene skips a frame', () => {
     const h = cursorFixture();
     const renderer = extractRuntimeNode(vendor, { region: 'src/Renderer/Renderer.js', kind: 'class', name: 'Renderer' });

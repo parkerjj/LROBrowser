@@ -79112,7 +79112,7 @@ var init_MouseEventHandler = __esmMin(() => {
       Mouse.screen.x = event.pageX;
       Mouse.screen.y = event.pageY;
     },
-    { passive: true },
+    { passive: true, capture: true },
   );
 });
 //#endregion
@@ -226847,6 +226847,7 @@ var init_MapRenderer = __esmMin(() => {
       fog.use = Map_default.fog;
       const light = MapRenderer.light;
       let x, y;
+      const heldMovement = typeof MapControl !== "undefined" && MapControl._lastroMovementInput?.isHeld?.();
       Mouse.world.x = -1;
       Mouse.world.y = -1;
       Mouse.world.z = -1;
@@ -226857,7 +226858,7 @@ var init_MapRenderer = __esmMin(() => {
       Ground_default.render(gl, modelView, projection, normalMat, fog, light);
       Effects_default.spam(SessionStorage_default.Entity.position, tick);
       if (
-        Mouse.intersect &&
+        (Mouse.intersect || heldMovement) &&
         Altitude.intersect(modelView, projection, _pos$6)
       ) {
         x = _pos$6[0];
@@ -226919,7 +226920,7 @@ var init_MapRenderer = __esmMin(() => {
       SignboardManager.render(gl, modelView, projection);
       ScreenEffectManager.render(gl, modelView, projection, fog, tick);
       Sounds_default.render(SessionStorage_default.Entity.position, tick);
-      if (Mouse.intersect) {
+      if (Mouse.intersect && !heldMovement) {
         const entity = EntityManager.intersect();
         EntityManager.setOverEntity(entity);
       }
@@ -283607,6 +283608,9 @@ var init_CursorManager = __esmMin(() => {
      * @param {number} animation numero (optional)
      */
     static setType(type, norepeat, animation) {
+      const heldMovement = typeof MapControl !== "undefined" && MapControl._lastroMovementInput?.isHeld?.();
+      if (type === Cursor.ACTION.DEFAULT || type === Cursor.ACTION.NOWALK) Cursor._lastroHeldWalkType = type;
+      if (heldMovement && type !== Cursor.ACTION.DEFAULT && type !== Cursor.ACTION.NOWALK && type !== Cursor.ACTION.TARGET) return;
       if (Cursor.freeze) return;
       _type$4 = type;
       _tick = Date.now();
@@ -283625,6 +283629,7 @@ var init_CursorManager = __esmMin(() => {
      * @return {number} Cursor.ACTION.*
      */
     static getActualType() {
+      if (typeof MapControl !== "undefined" && MapControl._lastroMovementInput?.isHeld?.()) return Cursor._lastroHeldWalkType ?? Cursor.ACTION.DEFAULT;
       return _type$4;
     }
     /**
@@ -283637,11 +283642,12 @@ var init_CursorManager = __esmMin(() => {
       }
       if (_selector && _selector.style.display === "none")
         _selector.style.display = "block";
+      const type = Cursor.getActualType();
       const info =
-        ActionInformations[_type$4] ||
+        ActionInformations[type] ||
         ActionInformations[Cursor.ACTION.DEFAULT];
       const action =
-        _action$2.actions[_type$4] || _action$2.actions[Cursor.ACTION.DEFAULT];
+        _action$2.actions[type] || _action$2.actions[Cursor.ACTION.DEFAULT];
       let anim = _animation;
       const delay = action.delay * info.delayMult;
       let x = info.startX;
@@ -283655,7 +283661,8 @@ var init_CursorManager = __esmMin(() => {
       if (GraphicsSettings.cursor) document.body.classList.add("custom-cursor");
       const animation = action.animations[anim];
       if (!animation) return;
-      if (Cursor.magnetism && !Cursor.blockMagnetism) {
+      const heldMovement = typeof MapControl !== "undefined" && MapControl._lastroMovementInput?.isHeld?.();
+      if (Cursor.magnetism && !Cursor.blockMagnetism && !heldMovement) {
         const entity = EntityManager.getOverEntity();
         if (entity)
           switch (entity.objecttype) {
@@ -298566,6 +298573,30 @@ var LastROTools_default;
 var init_LastROTools$1 = __esmMin(() => {
   LastROTools_default =
     ':host {\n right: 12px; bottom: 12px; width: 420px; max-width: calc(100vw - 24px);\n max-height: calc(100vh - 24px); box-sizing: border-box;\n font-family: \'MiSans\', Arial, \'Liberation Sans\', \'Microsoft YaHei\', sans-serif;\n font-size: 12px; color: #e6ecf4;\n}\n[hidden] { display: none !important; }\n.lastro-tools {\n box-sizing: border-box; width: 100%; padding: 11px;\n border: 1px solid rgba(148, 168, 196, 0.22); border-radius: 10px;\n background: #1a212d; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.42);\n}\n.lastro-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; padding-bottom: 9px; border-bottom: 1px solid rgba(148, 168, 196, 0.12); }\n.lastro-header-title { min-width: 0; }\n.lastro-header strong { display: block; font-size: 13.5px; line-height: 1.3; }\n.lastro-header-state { display: block; margin-top: 1px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #7d8ea3; font-size: 11px; }\n.lastro-header-actions { display: flex; gap: 5px; flex: 0 0 auto; }\n.lastro-icon-button {\n display: inline-grid; place-items: center; width: 27px; height: 25px; padding: 0;\n border: 1px solid rgba(148, 168, 196, 0.22); border-radius: 6px;\n background: #26313f; color: #c6d3e0; cursor: pointer; font-size: 13px; line-height: 1;\n}\n.lastro-icon-button:hover { background: #304050; border-color: rgba(232, 184, 75, 0.5); color: #fff; }\n.lastro-icon-close:hover { background: #432624; border-color: rgba(226, 106, 90, 0.6); color: #ffb4a8; }\n.lastro-icon-settings { font-size: 12px; }\n.lastro-button {\n min-height: 28px; padding: 4px 10px; border: 1px solid rgba(148, 168, 196, 0.22);\n border-radius: 6px; background: #26313f; color: #e6ecf4; cursor: pointer;\n font: inherit; font-size: 12px; white-space: nowrap;\n}\n.lastro-button:hover { background: #304050; border-color: rgba(232, 184, 75, 0.45); }\n.lastro-primary { background: #e8b84b; border-color: #c99a26; color: #241a06; font-weight: 700; }\n.lastro-primary:hover { background: #f2c457; }\n.lastro-button:focus-visible, .lastro-icon-button:focus-visible, .lastro-tab:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(232, 184, 75, 0.4); }\n.lastro-compact-status { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px; padding: 7px 9px; border: 1px solid rgba(148, 168, 196, 0.2); border-radius: 8px; background: #202a38; }\n.lastro-compact-status [data-compact-status-text] { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #c6d3e0; font-size: 11px; }\n.lastro-compact-status .lastro-button { min-height: 25px; padding: 3px 10px; }\n.lastro-tools.is-collapsed > *:not(.lastro-compact-status) { display: none !important; }\n.lastro-quick-toggles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-bottom: 8px; }\n.lastro-quick-toggles label { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 6px 8px; border: 1px solid rgba(148, 168, 196, 0.12); border-radius: 6px; background: #18202c; font-size: 11.5px; cursor: pointer; }\n.lastro-switch { appearance: none; -webkit-appearance: none; flex: 0 0 30px; width: 30px; height: 17px; margin: 0; border-radius: 999px; background: #3a4a60; cursor: pointer; position: relative; transition: background 0.15s; }\n.lastro-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: #cfd9e4; transition: transform 0.15s; }\n.lastro-switch:checked { background: #e8b84b; }\n.lastro-switch:checked::after { transform: translateX(13px); background: #241a06; }\n.lastro-card { padding: 9px 10px; border: 1px solid rgba(148, 168, 196, 0.12); border-radius: 8px; background: #202a38; }\n.lastro-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }\n.lastro-card-heading strong { font-size: 12.5px; }\n.lastro-card-heading span { display: block; margin-top: 1px; color: #7d8ea3; font-size: 10.5px; font-weight: 400; }\n.lastro-quick-controls { display: grid; grid-template-columns: 1fr 1.4fr auto; gap: 6px; align-items: end; margin-top: 8px; }\n.lastro-quick-controls label { display: grid; gap: 3px; color: #7d8ea3; font-size: 10.5px; }\n.lastro-quick:not(.expanded) .lastro-quick-controls, .lastro-quick:not(.expanded) .lastro-route-status { display: none; }\n.lastro-route-status { margin-top: 6px; min-height: 14px; color: #9db0c5; font-size: 10.5px; }\n.lastro-route-status::before { content: "\\00b7"; margin-right: 5px; color: #e8b84b; }\n.lastro-status { margin-top: 7px; min-height: 14px; color: #9db0c5; font-size: 10.5px; }\n.lastro-status:not(:empty)::before { content: "\\00b7"; margin-right: 5px; color: #63d68e; }\n.lastro-settings-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }\n.lastro-settings-bar strong { font-size: 13px; }\n.lastro-settings-bar span { display: block; margin-top: 1px; color: #7d8ea3; font-size: 10.5px; }\n.lastro-tabs { display: flex; gap: 2px; padding: 3px; margin-bottom: 9px; border: 1px solid rgba(148, 168, 196, 0.12); border-radius: 7px; background: #18202c; position: sticky; top: 0; z-index: 2; }\n.lastro-tab { flex: 1; min-width: 0; padding: 6px 2px; border: none; border-radius: 5px; background: transparent; color: #9db0c5; cursor: pointer; font: inherit; font-size: 12px; }\n.lastro-tab:hover { color: #e6ecf4; }\n.lastro-tab.is-active { background: #2c3a4e; color: #fff; font-weight: 600; box-shadow: inset 0 -2px 0 #e8b84b; }\n.lastro-settings-body { display: grid; gap: 8px; }\n.lastro-group { padding: 8px 10px; border: 1px solid rgba(148, 168, 196, 0.12); border-radius: 8px; background: #202a38; }\n.lastro-group-title { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; color: #e8b84b; font-size: 11.5px; font-weight: 600; }\n.lastro-group-title::after { content: ""; flex: 1; height: 1px; background: rgba(148, 168, 196, 0.12); }\n.lastro-line { display: flex; align-items: center; gap: 7px; min-height: 29px; min-width: 0; color: #cdd9e6; font-size: 12px; }\n.lastro-line .lt-controls { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 6px; }\n.lastro-line .lt-unit { color: #7d8ea3; font-size: 11px; flex: 0 0 auto; }\n.lastro-line > select { margin-left: auto; flex: 0 1 210px; min-width: 130px; }\n.lastro-line > input[type="checkbox"] { margin-left: auto; }\n.lastro-help { margin: 2px 0 4px; color: #7d8ea3; font-size: 10.5px; line-height: 1.45; }\n.lastro-assist-list { display: flex; flex-wrap: wrap; gap: 4px; min-height: 18px; margin-bottom: 4px; }\n.lastro-assist-chip { padding: 2px 8px; border: 1px solid rgba(232, 184, 75, 0.35); border-radius: 999px; background: rgba(232, 184, 75, 0.12); color: #f0d9a6; font-size: 10.5px; }\n.lastro-assist-submit { min-height: 26px; padding: 3px 10px; }\n.lastro-slot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }\n.only-targets { display: grid; gap: 5px; }\n.only-targets strong { font-size: 12px; }\n.only-targets > span { color: #7d8ea3; font-size: 10.5px; }\n.only-targets [data-targets] { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; max-height: 132px; overflow-y: auto; padding: 6px; border: 1px dashed rgba(148, 168, 196, 0.22); border-radius: 7px; }\n.only-targets [data-targets] label { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #cdd9e6; line-height: 18px; }\n.lastro-tools select, .lastro-tools input[type="text"], .lastro-tools input[type="number"] {\n box-sizing: border-box; width: 100%; min-width: 0; height: 27px; padding: 2px 7px;\n border: 1px solid #3a4a60; border-radius: 5px; background: #10161f; color: #e6ecf4;\n font: inherit; font-size: 12px;\n}\n.lastro-tools select:focus, .lastro-tools input:focus { outline: none; border-color: #e8b84b; box-shadow: 0 0 0 2px rgba(232, 184, 75, 0.2); }\n.lastro-tools input[type="checkbox"] { width: 15px; height: 15px; margin: 0; accent-color: #e8b84b; cursor: pointer; flex: 0 0 15px; }\n.lastro-tools input[type=checkbox].lastro-switch { width: 30px; height: 17px; flex: 0 0 30px; border-radius: 999px; }\n.lastro-line .lt-controls input[type="number"] { flex: 1 1 70px; width: auto; }\n.lastro-line .lt-controls input.lt-small { flex: 0 0 60px; width: 60px; }\n.lastro-line .lt-controls select { flex: 1 1 auto; }\n.lastro-line .lt-controls input[type="checkbox"] { flex: 0 0 15px; }\n[data-targets]::-webkit-scrollbar { width: 8px; }\n[data-targets]::-webkit-scrollbar-thumb { background: #33445c; border-radius: 99px; }\n@media (max-width: 480px) {\n :host { right: 8px !important; bottom: 8px !important; width: calc(100vw - 16px) !important; }\n .lastro-quick-toggles { grid-template-columns: repeat(2, minmax(0, 1fr)); }\n .lastro-quick-controls { grid-template-columns: 1fr 1fr; }\n .lastro-quick-controls .lastro-primary { grid-column: 1 / -1; }\n .lastro-slot-grid, .only-targets [data-targets] { grid-template-columns: 1fr; }\n}';
+  LastROTools_default += `
+.lastro-quick-controls.is-custom { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, .65fr) minmax(0, .65fr); grid-template-areas: "category picker picker picker" "map map x y" "go go save save"; }
+.lastro-quick-controls.is-custom .quick-category-field { grid-area: category; }
+.lastro-quick-controls.is-custom .quick-custom-picker { grid-area: picker; }
+.lastro-quick-controls.is-custom .quick-custom-map { grid-area: map; }
+.lastro-quick-controls.is-custom .quick-custom-x { grid-area: x; }
+.lastro-quick-controls.is-custom .quick-custom-y { grid-area: y; }
+.lastro-quick-controls.is-custom [data-action="run-quick"] { grid-area: go; width: 100%; }
+.lastro-quick-controls.is-custom [data-action="save-quick-place"] { grid-area: save; width: 100%; }
+.quick-custom-picker { display: grid; gap: 3px; min-width: 0; color: #7d8ea3; font-size: 10.5px; }
+.quick-place-picker { position: relative; min-width: 0; }
+.quick-place-picker-toggle { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; text-align: left; }
+.quick-place-picker-toggle span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quick-place-picker-menu { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; right: 0; max-height: 190px; overflow-y: auto; padding: 5px; border: 1px solid #53647b; border-radius: 6px; background: #151c27; box-shadow: 0 8px 18px rgba(0,0,0,.45); }
+.quick-place-picker-group + .quick-place-picker-group { margin-top: 5px; padding-top: 5px; border-top: 1px solid rgba(148,168,196,.18); }
+.quick-place-picker-heading { padding: 3px 5px; color: #e8b84b; font-size: 10.5px; font-weight: 600; }
+.quick-place-picker-row { display: grid; grid-template-columns: minmax(0, 1fr) 30px; gap: 4px; margin-top: 3px; }
+.quick-place-picker-item { width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.quick-place-picker-delete { min-width: 30px; padding: 3px; color: #e89a8e; font-size: 14px; }
+.quick-place-picker-empty { padding: 4px 5px; color: #7d8ea3; font-size: 10.5px; }
+@media (max-width: 480px) {
+ .lastro-quick-controls.is-custom { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, .65fr) minmax(0, .65fr); }
+ .lastro-quick-controls.is-custom .lastro-primary { grid-column: auto; }
+}`;
 });
 //#endregion
 //#region src/UI/Components/LastROTools/LastROTools.js
@@ -298684,7 +298715,7 @@ function patchLastROToolsTemplate() {
 <label><span>自动补给</span><input type="checkbox" class="lastro-switch" data-option="autoPots"></label>
 <label><span>跟随战斗</span><input type="checkbox" class="lastro-switch" data-option="autoFollow"></label>
 </div>
-<section class="lastro-quick lastro-card expanded"><div class="lastro-card-heading"><div><strong>快速传送</strong><span>选择分类和目标后直接前往</span></div><button type="button" class="lastro-icon-button" data-action="quick" aria-label="展开或收起快速传送">⌄</button></div><div class="lastro-quick-controls"><label>分类<select class="quick-category" aria-label="快速传送分类"></select></label><label class="quick-route-target">目标<select class="quick-route" aria-label="快速传送目标"></select></label><label class="quick-custom-field quick-custom-map" hidden>地图名<input type="text" data-custom-route-map placeholder="例如 prontera" autocomplete="off"></label><label class="quick-custom-field quick-custom-x" hidden>X 坐标<input type="number" data-custom-route-x min="0" max="65535" step="1" inputmode="numeric"></label><label class="quick-custom-field quick-custom-y" hidden>Y 坐标<input type="number" data-custom-route-y min="0" max="65535" step="1" inputmode="numeric"></label><button type="button" class="lastro-button lastro-primary" data-action="run-quick">前往</button></div><div class="lastro-route-status" data-route-status>尚未选择路线</div></section>
+<section class="lastro-quick lastro-card expanded"><div class="lastro-card-heading"><div><strong>快速传送</strong><span>选择分类和目标后直接前往</span></div><button type="button" class="lastro-icon-button" data-action="quick" aria-label="展开或收起快速传送">⌄</button></div><div class="lastro-quick-controls"><label class="quick-category-field">分类<select class="quick-category" aria-label="快速传送分类"></select></label><label class="quick-route-target">目标<select class="quick-route" aria-label="快速传送目标"></select></label><div class="quick-custom-field quick-custom-picker" hidden><label for="quick-place-picker-toggle">快捷点 / 最近传送</label><div class="quick-place-picker"><button id="quick-place-picker-toggle" type="button" class="lastro-button quick-place-picker-toggle" data-action="toggle-quick-place-picker" aria-expanded="false" aria-controls="quick-place-picker-menu"><span>选择快捷点或最近传送</span><span aria-hidden="true">⌄</span></button><div id="quick-place-picker-menu" class="quick-place-picker-menu" data-quick-place-menu role="group" aria-label="已保存快捷点和最近传送" hidden></div></div></div><label class="quick-custom-field quick-custom-map" hidden>地图名<input type="text" data-custom-route-map maxlength="16" placeholder="例如 prontera" autocomplete="off"></label><label class="quick-custom-field quick-custom-x" hidden>X 坐标<input type="number" data-custom-route-x min="0" max="65535" step="1" inputmode="numeric"></label><label class="quick-custom-field quick-custom-y" hidden>Y 坐标<input type="number" data-custom-route-y min="0" max="65535" step="1" inputmode="numeric"></label><button type="button" class="lastro-button lastro-primary" data-action="run-quick">前往</button><button type="button" class="lastro-button quick-save-place" data-action="save-quick-place" hidden>保存为快捷点</button></div><div class="lastro-route-status" data-route-status>尚未选择路线</div></section>
 <div class="lastro-status" role="status"></div>
 </div>
 <div class="lastro-settings-view" hidden>
@@ -298692,6 +298723,7 @@ function patchLastROToolsTemplate() {
 <div class="lastro-tabs"><button type="button" class="lastro-tab is-active" data-tab="battle">战斗设置</button><button type="button" class="lastro-tab" data-tab="pick">拾取设置</button><button type="button" class="lastro-tab" data-tab="eat">吃药设置</button><button type="button" class="lastro-tab" data-tab="mode">模式设置</button></div>
 <div class="lastro-settings-body">
 <div class="lastro-tab-panel" data-tab-panel="battle">
+<div class="lastro-group"><div class="lastro-group-title">当前地图攻击目标</div><div class="only-targets"><strong>检测目标</strong><span>勾选后只主动攻击这些魔物（最多 20 种）。</span><div data-targets></div></div></div>
 <div class="lastro-group"><div class="lastro-group-title">基础</div>
 <label class="lastro-line">跟随距离：<span class="lt-controls"><input type="number" data-field="disTarget" min="1" max="6" value="0"><span class="lt-unit">格（1-6）</span></span></label>
 <label class="lastro-line">被非目标魔物攻击时：<select data-field="onlynoattack"><option value="0">无视</option><option value="1">瞬移</option><option value="2">还击</option></select></label>
@@ -298731,7 +298763,6 @@ function patchLastROToolsTemplate() {
 <label class="lastro-line">自动使用缰绳：<input type="checkbox" data-field="useBoarding">开启</label>
 <label class="lastro-line">保护队员：<input type="checkbox" data-field="ProtectTeam">开启</label>
 </div>
-<div class="lastro-group"><div class="lastro-group-title">当前地图攻击目标</div><div class="only-targets"><strong>检测目标</strong><span>勾选后只主动攻击这些魔物（最多 20 种）。</span><div data-targets></div></div></div>
 </div>
 <div class="lastro-tab-panel" data-tab-panel="pick" hidden>
 <div class="lastro-group"><div class="lastro-group-title">拾取</div>
@@ -299624,6 +299655,34 @@ var init_LastROTools = __esmMin(() => {
     root
       .querySelector('[data-action="run-quick"]')
       ?.addEventListener("click", () => this.runQuickRoute());
+    root
+      .querySelector('[data-action="save-quick-place"]')
+      ?.addEventListener("click", () => this.saveQuickPlace());
+    const placePickerButton = root.querySelector('[data-action="toggle-quick-place-picker"]');
+    const placePickerMenu = root.querySelector("[data-quick-place-menu]");
+    placePickerButton?.addEventListener("click", () => {
+      const open = placePickerMenu?.hidden ?? true;
+      if (placePickerMenu) placePickerMenu.hidden = !open;
+      placePickerButton.setAttribute("aria-expanded", String(open));
+      if (open) this.renderQuickPlaceMenu();
+    });
+    placePickerMenu?.addEventListener("click", event => {
+      const button = event.target?.closest?.("button[data-action]");
+      if (!button || !placePickerMenu.contains(button)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const place = { map: button.dataset.map, x: button.dataset.x, y: button.dataset.y };
+      if (button.dataset.action === "delete-quick-place") this.deleteQuickPlace(button.dataset.kind, place);
+      else if (button.dataset.action === "select-quick-place") this.selectQuickPlace(place);
+    });
+    root.addEventListener("click", event => {
+      if (!event.target?.closest?.(".quick-place-picker")) closeLastROQuickPlacePicker(root);
+    });
+    root.addEventListener("keydown", event => {
+      if (event.key !== "Escape" || placePickerMenu?.hidden) return;
+      closeLastROQuickPlacePicker(root);
+      placePickerButton?.focus();
+    });
     root.querySelectorAll("[data-option]").forEach((input) => {
       input.addEventListener("change", () => {
         this.setAutomationOption(input.dataset.option, input.checked);
@@ -299906,12 +299965,18 @@ var init_LastROTools = __esmMin(() => {
   };
   LastROTools.onMapChanged = async function onMapChanged() {
     this.collapseDetailedSettings();
+    this._onlyTargets = [];
+    this.getRoot()?.querySelectorAll("[data-target-id]").forEach((checkbox) => {
+      checkbox.checked = false;
+    });
     const mapId = String(MapRenderer.currentMap || "")
       .replace(/\.gat$/i, "")
       .toLowerCase();
     if (!mapId) return;
     const requestId = (this._targetRequestId || 0) + 1;
     this._targetRequestId = requestId;
+    if (PACKET.CZ.NOTIFY_LOADINFO)
+      Network.sendPacket(new PACKET.CZ.NOTIFY_LOADINFO());
     try {
       const { worldData, mobData } = await loadWorldMapData();
       if (this._targetRequestId !== requestId) return;
@@ -299931,6 +299996,194 @@ var init_LastROTools = __esmMin(() => {
         autoFollow: "跟随战斗",
       }[option] || option
     );
+  };
+  const LASTRO_QUICK_PLACE_STORAGE_KEY = "LastROToolsQuickPlaces.v1";
+  const LASTRO_QUICK_PLACE_LIMIT = 500;
+  const LASTRO_RECENT_QUICK_PLACE_LIMIT = 5;
+  function normalizeLastROQuickPlace(raw) {
+    if (!raw || typeof raw !== "object" || typeof raw.map !== "string") return null;
+    if (!["number", "string"].includes(typeof raw.x) || !["number", "string"].includes(typeof raw.y)
+      || String(raw.x).trim() === "" || String(raw.y).trim() === "") return null;
+    const map = raw.map.trim().replace(/\.gat$/i, "").toLowerCase();
+    const x = Number(raw.x);
+    const y = Number(raw.y);
+    if (!/^[a-z0-9_@#-]{1,16}$/.test(map) || !Number.isInteger(x) || !Number.isInteger(y)
+      || x < 0 || y < 0 || x > 65535 || y > 65535) return null;
+    return { map, x, y };
+  }
+  function lastROQuickPlaceKey(place) {
+    return `${place.map}:${place.x}:${place.y}`;
+  }
+  function normalizeLastROQuickPlaceList(entries, limit) {
+    if (!Array.isArray(entries)) return [];
+    const result = [], seen = new Set();
+    for (const raw of entries) {
+      const place = normalizeLastROQuickPlace(raw);
+      if (!place) continue;
+      const key = lastROQuickPlaceKey(place);
+      if (seen.has(key)) continue;
+      seen.add(key); result.push(place);
+      if (result.length >= limit) break;
+    }
+    return result;
+  }
+  function readLastROQuickPlaces() {
+    try {
+      const stored = JSON.parse(globalThis.localStorage.getItem(LASTRO_QUICK_PLACE_STORAGE_KEY) || "null");
+      if (stored?.version !== 1) return { saved: [], recent: [] };
+      return {
+        saved: normalizeLastROQuickPlaceList(stored.saved, LASTRO_QUICK_PLACE_LIMIT),
+        recent: normalizeLastROQuickPlaceList(stored.recent, LASTRO_RECENT_QUICK_PLACE_LIMIT),
+      };
+    } catch { return { saved: [], recent: [] }; }
+  }
+  function writeLastROQuickPlaces(places) {
+    globalThis.localStorage.setItem(LASTRO_QUICK_PLACE_STORAGE_KEY, JSON.stringify({
+      version: 1,
+      saved: normalizeLastROQuickPlaceList(places.saved, LASTRO_QUICK_PLACE_LIMIT),
+      recent: normalizeLastROQuickPlaceList(places.recent, LASTRO_RECENT_QUICK_PLACE_LIMIT),
+    }));
+  }
+  function readLastROCustomQuickPlace(root) {
+    const map = String(root?.querySelector("input[data-custom-route-map]")?.value || "")
+      .trim().replace(/\.gat$/i, "").toLowerCase();
+    if (!/^[a-z0-9_@#-]{1,16}$/.test(map)) throw new Error("请输入有效地图名");
+    const coordinate = (selector, label) => {
+      const text = String(root?.querySelector(selector)?.value || "").trim();
+      if (!/^\d{1,5}$/.test(text)) throw new Error(`${label} 必须是 0-65535 的整数`);
+      const value = Number(text);
+      if (!Number.isSafeInteger(value) || value < 0 || value > 65535) {
+        throw new Error(`${label} 必须是 0-65535 的整数`);
+      }
+      return value;
+    };
+    return {
+      map,
+      x: coordinate("input[data-custom-route-x]", "X 坐标"),
+      y: coordinate("input[data-custom-route-y]", "Y 坐标"),
+    };
+  }
+  function lastROCustomQuickRoute(place) {
+    return {
+      npc: `${place.map} (${place.x},${place.y})`,
+      desc: `${place.map} ${place.x},${place.y}`,
+      outset: [place.map, place.x, place.y],
+      path: [[place.map, place.x, place.y]],
+    };
+  }
+  function closeLastROQuickPlacePicker(root) {
+    const menu = root?.querySelector("[data-quick-place-menu]");
+    const button = root?.querySelector('[data-action="toggle-quick-place-picker"]');
+    if (menu) menu.hidden = true;
+    if (button) button.setAttribute("aria-expanded", "false");
+  }
+  LastROTools.renderQuickPlaceMenu = function renderQuickPlaceMenu() {
+    const root = this.getRoot?.();
+    const menu = root?.querySelector("[data-quick-place-menu]");
+    if (!menu) return;
+    const doc = root.ownerDocument;
+    const places = readLastROQuickPlaces();
+    menu.replaceChildren();
+    for (const [kind, title, entries, emptyText] of [
+      ["saved", "保存的快捷点", places.saved, "暂无保存的快捷点"],
+      ["recent", "最近传送", places.recent, "暂无最近传送记录"],
+    ]) {
+      const group = doc.createElement("div");
+      group.className = "quick-place-picker-group";
+      group.setAttribute("role", "group");
+      group.setAttribute("aria-label", title);
+      const heading = doc.createElement("div");
+      heading.className = "quick-place-picker-heading";
+      heading.textContent = title;
+      group.appendChild(heading);
+      if (!entries.length) {
+        const empty = doc.createElement("div");
+        empty.className = "quick-place-picker-empty";
+        empty.textContent = emptyText;
+        group.appendChild(empty);
+      }
+      for (const place of entries) {
+        const row = doc.createElement("div");
+        row.className = "quick-place-picker-row";
+        const select = doc.createElement("button");
+        select.type = "button";
+        select.className = "lastro-button quick-place-picker-item";
+        select.dataset.action = "select-quick-place";
+        select.dataset.kind = kind;
+        select.dataset.map = place.map;
+        select.dataset.x = String(place.x);
+        select.dataset.y = String(place.y);
+        select.textContent = `${place.map} ${place.x},${place.y}`;
+        select.setAttribute("aria-label", `填入${title}：${place.map} ${place.x},${place.y}`);
+        const remove = doc.createElement("button");
+        remove.type = "button";
+        remove.className = "lastro-button quick-place-picker-delete";
+        remove.dataset.action = "delete-quick-place";
+        remove.dataset.kind = kind;
+        remove.dataset.map = place.map;
+        remove.dataset.x = String(place.x);
+        remove.dataset.y = String(place.y);
+        remove.textContent = "🗑";
+        remove.title = "删除此条目";
+        remove.setAttribute("aria-label", `删除${title}：${place.map} ${place.x},${place.y}`);
+        row.append(select, remove);
+        group.appendChild(row);
+      }
+      menu.appendChild(group);
+    }
+  };
+  LastROTools.selectQuickPlace = function selectQuickPlace(raw) {
+    const root = this.getRoot?.();
+    const place = normalizeLastROQuickPlace(raw);
+    if (!root || !place) return;
+    root.querySelector("input[data-custom-route-map]").value = place.map;
+    root.querySelector("input[data-custom-route-x]").value = String(place.x);
+    root.querySelector("input[data-custom-route-y]").value = String(place.y);
+    closeLastROQuickPlacePicker(root);
+    this.setStatus(`已填入传送点：${place.map} ${place.x},${place.y}`);
+  };
+  LastROTools.deleteQuickPlace = function deleteQuickPlace(kind, raw) {
+    const place = normalizeLastROQuickPlace(raw);
+    if (!place || !["saved", "recent"].includes(kind)) return;
+    const places = readLastROQuickPlaces(), key = lastROQuickPlaceKey(place);
+    const entries = places[kind].filter(entry => lastROQuickPlaceKey(entry) !== key);
+    if (entries.length === places[kind].length) return;
+    places[kind] = entries;
+    try {
+      writeLastROQuickPlaces(places);
+      this.renderQuickPlaceMenu();
+      this.setStatus(`已删除${kind === "saved" ? "快捷点" : "最近传送记录"}：${place.map} ${place.x},${place.y}`);
+    } catch { this.setStatus("删除失败：本地存储不可用"); }
+  };
+  LastROTools.saveQuickPlace = function saveQuickPlace() {
+    const root = this.getRoot?.();
+    try {
+      const place = readLastROCustomQuickPlace(root);
+      const places = readLastROQuickPlaces(), key = lastROQuickPlaceKey(place);
+      if (places.saved.some(entry => lastROQuickPlaceKey(entry) === key)) {
+        this.setStatus(`快捷点已存在：${place.map} ${place.x},${place.y}`);
+        return;
+      }
+      if (places.saved.length >= LASTRO_QUICK_PLACE_LIMIT) throw new Error("最多保存 500 个快捷点");
+      places.saved.push(place);
+      writeLastROQuickPlaces(places);
+      this.renderQuickPlaceMenu();
+      this.setStatus(`已保存为快捷点：${place.map} ${place.x},${place.y}`);
+    } catch (error) {
+      this.setStatus(`保存快捷点失败：${error.message || "本地存储不可用"}`);
+    }
+  };
+  LastROTools.recordRecentQuickPlace = function recordRecentQuickPlace(raw) {
+    const place = normalizeLastROQuickPlace(raw);
+    if (!place) return false;
+    const places = readLastROQuickPlaces(), key = lastROQuickPlaceKey(place);
+    places.recent = [place, ...places.recent.filter(entry => lastROQuickPlaceKey(entry) !== key)]
+      .slice(0, LASTRO_RECENT_QUICK_PLACE_LIMIT);
+    try {
+      writeLastROQuickPlaces(places);
+      this.renderQuickPlaceMenu();
+      return true;
+    } catch { return false; }
   };
   LastROTools.loadQuickRoutes = function loadQuickRoutes() {
     if (this._quickLoaded) return;
@@ -299974,7 +300227,10 @@ var init_LastROTools = __esmMin(() => {
     const categoryEl = root?.querySelector(".quick-category");
     const routeEl = root?.querySelector(".quick-route");
     if (!categoryEl || !routeEl) return;
+    const controls = root.querySelector(".lastro-quick-controls");
     const routeTarget = root.querySelector(".quick-route-target");
+    const customPicker = root.querySelector(".quick-custom-picker");
+    const savePlaceButton = root.querySelector('[data-action="save-quick-place"]');
     const customFields = [
       root.querySelector(".quick-custom-map"),
       root.querySelector(".quick-custom-x"),
@@ -299995,16 +300251,24 @@ var init_LastROTools = __esmMin(() => {
     }
     const renderEntries = () => {
       const isCustom = categoryEl.value === "custom";
+      controls?.classList.toggle("is-custom", isCustom);
+      if (!isCustom) closeLastROQuickPlacePicker(root);
       if (routeTarget) {
         routeTarget.hidden = isCustom;
         routeTarget.style.display = isCustom ? "none" : "";
       }
+      if (customPicker) {
+        customPicker.hidden = !isCustom;
+        customPicker.style.display = isCustom ? "" : "none";
+      }
+      if (savePlaceButton) savePlaceButton.hidden = !isCustom;
       for (const field of customFields) {
         field.hidden = !isCustom;
         field.style.display = isCustom ? "" : "none";
       }
       routeEl.innerHTML = "";
       if (isCustom) {
+        this.renderQuickPlaceMenu();
         const status = root.querySelector(".lastro-route-status");
         if (status) status.textContent = "请输入地图名和 X/Y 坐标";
         return;
@@ -300138,6 +300402,10 @@ var init_LastROTools = __esmMin(() => {
         route = normalizeRouteEntry(this._quickRoutes?.[category]?.[key]);
       }
       const mode = requestLastROQuickRoute(route);
+      if (category === "custom" && !this.recordRecentQuickPlace(route.outset)) {
+        this.setStatus("已发送请求，但最近记录未保存");
+        return;
+      }
       this.setStatus(`${mode === "teleport" ? "已发送传送请求" : "已发送导航请求"}：${route.npc}`);
     } catch (error) {
       this.setStatus(`快速传送失败：${error.message}`);
@@ -300146,6 +300414,10 @@ var init_LastROTools = __esmMin(() => {
   LastROTools.setOnlyTargetState = function setOnlyTargetState(pkt) {
     const update = mapOnlyTargetPacket(pkt);
     if (!update) return;
+    const selected = new Set(this._onlyTargets || []);
+    if (update.enabled) selected.add(update.mobId);
+    else selected.delete(update.mobId);
+    this._onlyTargets = [...selected];
     const checkbox = this.getRoot()?.querySelector(
       `[data-target-id="${update.mobId}"]`,
     );
@@ -315783,7 +316055,6 @@ function onMapChange(pkt) {
     Navigation_default.append();
     if (Configs.get("lastroCustomPackets", false)) {
       LastROTools.append();
-      LastROTools.onMapChanged();
     }
     Roulette_default.append();
     if (
@@ -315802,6 +316073,8 @@ function onMapChange(pkt) {
       CheckAttendance_default.append();
     Plugins.init();
     Network.sendPacket(new PACKET.CZ.NOTIFY_ACTORINIT());
+    if (Configs.get("lastroCustomPackets", false))
+      LastROTools.onMapChanged();
     if (SessionStorage_default.ratesInfo) {
       Announce_default.append();
       Announce_default.set(SessionStorage_default.ratesInfo, "#FFFF00", true);
@@ -316679,21 +316952,24 @@ var init_MapEngine = __esmMin(() => {
       return submit(input);
     } catch (error) { cancel(); report(error); return false; }
   }
-  return { request, stop, cancel };
+  return { request, stop, cancel, isHeld: () => held };
 })({
           clock: globalThis, now: () => globalThis.performance.now(),
           getTarget: () => ({ x: Mouse.world.x, y: Mouse.world.y }),
           getContext: () => ({ map: MapRenderer.loading ? "" : MapRenderer.currentMap, player: SessionStorage_default.Entity }),
           canMove: (target, phase) => {
             const player = SessionStorage_default.Entity;
-            return !MapRenderer.loading && (phase === "pending" || Mouse.intersect) && !SessionStorage_default.FreezeUI
-              && Mouse.state !== Mouse.MOUSE_STATE.USESKILL && !KEYS.SHIFT
+            const heldMovement = MapControl._lastroMovementInput?.isHeld?.();
+            return !MapRenderer.loading && (heldMovement || phase === "pending" || Mouse.intersect) && !SessionStorage_default.FreezeUI
+              && (heldMovement || Mouse.state !== Mouse.MOUSE_STATE.USESKILL && !KEYS.SHIFT)
               && !!player?.position && Number.isFinite(player.position[0]) && Number.isFinite(player.position[1])
               && player.action !== player.ACTION.SIT && !(player.ACTION.DIE !== undefined && player.action === player.ACTION.DIE)
               && target.x < Altitude.width && target.y < Altitude.height;
           },
           sendMove: walkIntervalProcess,
           onManualMove: () => {
+    EntityManager.setOverEntity(null);
+    Cursor.setType(Cursor.ACTION.DEFAULT);
     if (typeof LastROTools !== "undefined") {
       LastROTools?._lastroPanels?.cancelRoute();
       LastROTools?._lastroQuestRoute?.cancel();
@@ -316736,6 +317012,10 @@ var init_MapEngine = __esmMin(() => {
           Network.hookPacket(PACKET.ZC.NOTIFY_SETTARGET, (pkt) =>
             LastROTools.setOnlyTargetState(pkt),
           );
+          if (PACKET.ZC.NOTIFY_SETTARGET2)
+            Network.hookPacket(PACKET.ZC.NOTIFY_SETTARGET2, (pkt) =>
+              LastROTools.setOnlyTargetState(pkt),
+            );
           CardConnection2.prepare();
           Network.hookPacket(PACKET.ZC.CARDCONNECTION_RECHARGE_LIST, (pkt) =>
             CardConnection2.rechargeList(pkt),

@@ -89,10 +89,10 @@ function region(path: string) {
   return extractVendorRegion(path, vendor);
 }
 const runtime = ['src/Engine/MapEngine.js', 'src/Controls/MapControl.js', 'src/Renderer/MapRenderer.js'].map(region).join('\n');
-interface NativeParts { functions: Map<string, string>; factory: string; init: string; hover: string; setMap: string; navigate: string; }
+interface NativeParts { functions: Map<string, string>; factory: string; init: string; hover: string; setMap: string; navigate: string; renderMap: string; }
 function extract(source: string): NativeParts {
   const file = ts.createSourceFile('Native.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS), functions = new Map<string, string>();
-  let factory = '', init = '', hover = '', setMap = '', navigate = '';
+  let factory = '', init = '', hover = '', setMap = '', navigate = '', renderMap = '';
   const names = new Set(['onRequestWalk', 'onRequestStopWalk', 'walkIntervalProcess', 'checkFreeCell', 'isFreeCell', 'onMouseDown', 'onMouseUp', 'onMouseUpCapture', 'onMapChange', 'cleanGameUI']);
   function visit(node: ts.Node) {
     if (ts.isFunctionDeclaration(node) && names.has(node.name?.text || '')) functions.set(node.name!.text, node.getText(file));
@@ -103,10 +103,11 @@ function extract(source: string): NativeParts {
       if (node.name.getText(file) === 'init' && node.body?.getText(file).includes('Mobile.init')) init = 'MapControl.init = function() ' + node.body.getText(file) + ';';
       if (node.name.getText(file) === '_setupMouseMode') hover = 'component._setupMouseMode = function() ' + node.body!.getText(file) + ';';
       if (node.name.getText(file) === 'setMap') setMap = 'MapRenderer.setMap = function(mapname) ' + node.body!.getText(file) + ';';
+      if (node.name.getText(file) === 'onRender') renderMap = 'MapRenderer.onRender = function(tick, gl) ' + node.body!.getText(file) + ';';
     }
     ts.forEachChild(node, visit);
   }
-  visit(file); return { functions, factory, init, hover, setMap, navigate };
+  visit(file); return { functions, factory, init, hover, setMap, navigate, renderMap };
 }
 const parts = extract(runtime);
 const upstream = readHistoricalRuntime('movement-input-upstream');
@@ -151,7 +152,7 @@ function movementFixture(actualEvents?: 'current' | 'previous', oldSide = false)
   const session = { Entity: player as typeof player | null, FreezeUI: false, moveAction: null, autoFollow: false, TouchTargeting: false,
     captchaGetIdOnEntityClick: false, captchaGetIdOnFloorClick: false, mapState: { isPVP: false, isGVG: false } };
   const mouse = { screen: { x: 5, y: 5, width: 300, height: 300 }, world: { x: 10, y: 20, z: 0 }, intersect: true, state: 0, MOUSE_STATE: { NORMAL: 0, USESKILL: 2 } };
-  const map = { currentMap: 'prontera.gat', loading: false, setMap: vi.fn<(name: string) => void>(), onLoad: () => {} };
+  const map = { currentMap: 'prontera.gat', loading: false, setMap: vi.fn<(name: string) => void>(), onLoad: () => {}, onRender: (() => {}) as (tick: number, gl: object) => void };
   const keys = { SHIFT: false, ALT: false, CTRL: false }, renderer = { tick: 1000, canvas };
   let pickTarget: { x: number; y: number } | null = { x: 30, y: 40 }, free: ((x: number, y: number) => boolean) = () => true;
   const altitude = { width: 300, height: 300, TYPE: { WALKABLE: 1 }, getCellType: (x: number, y: number) => x >= 0 && y >= 0 && x < 300 && y < 300 && free(x, y) ? 1 : 0,
@@ -169,7 +170,7 @@ function movementFixture(actualEvents?: 'current' | 'previous', oldSide = false)
   const entityManager = { getFocusEntity: () => null, getOverEntity: () => overEntity, setFocusEntity: vi.fn(),
     setOverEntity: vi.fn((entity: unknown) => { overEntity = entity; }), intersect: vi.fn<() => unknown>(() => null), forEach: vi.fn() };
   const entities: OccupancyEntity[] = [];
-  const component = { _host: overlay, mouseMode: 0, _setupShadowCursorEvents: vi.fn(), _setupMouseMode: () => {}, focus: vi.fn() };
+  const component = { _host: overlay, getRoot: () => overlay, mouseMode: 0, _setupShadowCursorEvents: vi.fn(), _setupMouseMode: () => {}, focus: vi.fn() };
   class Move { dest = [0, 0]; kind = 'move2'; }
   class LegacyMove extends Move { kind = 'move'; }
   class Direction { kind = 'direction'; }
@@ -203,6 +204,37 @@ function movementFixture(actualEvents?: 'current' | 'previous', oldSide = false)
   const up = (target: HTMLElement = canvas) => target.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, button: 0 }));
   return { context, control, mouse, map, session, keys, renderer, altitude, calls, sent, component, entityManager, entities, canvas, overlay, down, up,
     setPick: (target: typeof pickTarget) => { pickTarget = target; }, setFree: (predicate: typeof free) => { free = predicate; }, setHidden: (value: boolean) => { hidden = value; } };
+}
+
+function renderMovementFrame(f: ReturnType<typeof movementFixture>) {
+  const tiles: number[][] = [];
+  const draw = { render() {} };
+  Object.assign(f.context, {
+    PostProcess: { prepare() {}, render() {} }, Map_default: { fog: false },
+    Ground_default: draw, Effects_default: { spam() {} }, Sky_default: draw, Models_default: draw,
+    AnimatedModels_default: draw, GR2ModelRenderer_default: draw, ScreenEffectManager: draw, EffectManager: draw,
+    Water_default: draw, Damage: draw, SignboardManager: draw, Sounds_default: draw, MemoryManager: { clean() {} },
+    GridSelector_default: { render(_gl: unknown, _view: unknown, _projection: unknown, _fog: unknown, x: number, y: number) { tiles.push([x, y]); } },
+    _pos$6: new Uint16Array(2),
+  });
+  Object.assign(f.map, { fog: { use: false }, light: null });
+  Object.assign(f.context.Cursor, { getActualType: () => 0, ACTION: { DEFAULT: 0, NOWALK: 13 } });
+  Object.assign(f.entityManager, draw); Object.assign(f.context.Camera, { update() {} });
+  vm.runInContext(parts.renderMap, f.context);
+  return { tiles, render: () => f.map.onRender(Date.now(), {}) };
+}
+
+function vendingSign(f: ReturnType<typeof movementFixture>) {
+  f.context.__esmMin = (fn: () => void) => fn;
+  f.context.init_UIManager = f.context.init_GUIComponent = () => {};
+  f.context.UIManager = { addComponent: (component: unknown) => component };
+  f.context.GUIComponent = Object.assign(function () { return f.component; }, { MouseMode: { STOP: 0, CROSS: 1 } });
+  vm.runInContext(['html?raw', 'css?raw', 'js'].map(extension => region('src/UI/Components/EntityRoom/EntityRoom.' + extension)).join('\n')
+    + '\ninit_EntityRoom$1();', f.context);
+  const sign = f.context.EntityRoom as { render(): string; onAppend(): void; onEnter(): void };
+  f.overlay.innerHTML = sign.render(); sign.onAppend(); f.component._setupMouseMode();
+  sign.onEnter = () => { f.sent.push({ kind: 'shop' }); };
+  return f.overlay.querySelector('button')!;
 }
 
 function friendlyPCFixture(baseline = false) {
@@ -415,9 +447,36 @@ describe('actual MapControl and MapEngine movement', () => {
     vi.advanceTimersByTime(150); expect(f.sent).toEqual([{ kind: 'move2', dest: [30, 40] }, { kind: 'move2', dest: [60, 70] }]);
     vi.advanceTimersByTime(1000); expect(f.sent).toHaveLength(2);
   });
-  it('retains the hover protection for a held-button repeat', () => {
-    const f = movementFixture(); f.down(); f.component._setupMouseMode(); f.overlay.dispatchEvent(new MouseEvent('mouseenter'));
-    vi.advanceTimersByTime(1500); expect(f.sent).toHaveLength(1); expect(vi.getTimerCount()).toBe(0);
+  it('keeps following ground beneath a vending sign and after leaving it until release', () => {
+    const f = movementFixture(), frames = renderMovementFrame(f), button = vendingSign(f);
+    f.down(); f.overlay.dispatchEvent(new MouseEvent('mouseenter'));
+    f.setPick({ x: 60, y: 70 }); frames.render(); vi.advanceTimersByTime(500);
+    expect(frames.tiles.at(-1)).toEqual([60, 70]);
+    expect(f.sent).toEqual([{ kind: 'move2', dest: [30, 40] }, { kind: 'move2', dest: [60, 70] }]);
+    f.overlay.dispatchEvent(new MouseEvent('mouseleave'));
+    f.setPick({ x: 80, y: 90 }); frames.render(); vi.advanceTimersByTime(500);
+    expect(f.sent.at(-1)).toEqual({ kind: 'move2', dest: [80, 90] });
+    button.addEventListener('mouseup', event => event.stopImmediatePropagation()); f.up(button);
+    vi.advanceTimersByTime(1500); expect(f.sent).toHaveLength(3);
+    button.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    expect(f.sent.at(-1)?.kind).toBe('shop');
+  });
+  it('keeps a held ground gesture ahead of NPC hover and modifier/skill cursor changes', () => {
+    const f = movementFixture(), frames = renderMovementFrame(f);
+    f.down(); f.keys.SHIFT = true; f.mouse.state = 2;
+    f.entityManager.intersect.mockReturnValue({ objecttype: 6 });
+    f.setPick({ x: 60, y: 70 }); frames.render(); vi.advanceTimersByTime(500);
+    expect(f.entityManager.getOverEntity()).toBeNull();
+    expect(f.sent.at(-1)).toEqual({ kind: 'move2', dest: [60, 70] });
+    f.up(); vi.advanceTimersByTime(1000); expect(f.sent).toHaveLength(2);
+  });
+  it('keeps a held gesture through a temporary ground picker miss', () => {
+    const f = movementFixture(), frames = renderMovementFrame(f);
+    f.down(); f.setPick(null); frames.render(); vi.advanceTimersByTime(1000);
+    expect(f.sent).toHaveLength(1);
+    f.setPick({ x: 60, y: 70 }); frames.render(); vi.advanceTimersByTime(500);
+    expect(f.sent.at(-1)).toEqual({ kind: 'move2', dest: [60, 70] });
+    f.up(); vi.advanceTimersByTime(1000); expect(f.sent).toHaveLength(2);
   });
   it.each(['freeze', 'skill', 'dead', 'loading'])('keeps the %s gate for a captured click even though passive hover is allowed', action => {
     const f = movementFixture(); f.down(); f.up(); vi.advanceTimersByTime(50); f.setPick({ x: 60, y: 70 }); f.down(); f.up(); f.mouse.intersect = false;
