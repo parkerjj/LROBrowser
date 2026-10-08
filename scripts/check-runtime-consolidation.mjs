@@ -330,9 +330,22 @@ export const permanentRuntimeModules = [
 const retiredHostTransforms = ["patchWebAudioPlayback","patchRuntimePreferencesSave","patchRuntimeWorldMap","patchMapLoadFailureRecovery"];
 const reusableCoreModules = ['./lastro-server-walk.mjs', './lastro-costume-loop.mjs'];
 
+// Parsed ASTs of large sources are expensive to rebuild; keep a small LRU cache.
+const MAX_SOURCE_FILE_CACHE_ENTRIES = 4;
+const sourceFileCache = new Map();
 function parseSource(source, fileName) {
-  return ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true,
+  const key = fileName + '\0' + source;
+  const cached = sourceFileCache.get(key);
+  if (cached) {
+    sourceFileCache.delete(key);
+    sourceFileCache.set(key, cached);
+    return cached;
+  }
+  const file = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true,
     fileName.endsWith('.d.mts') ? ts.ScriptKind.TS : ts.ScriptKind.JS);
+  sourceFileCache.set(key, file);
+  while (sourceFileCache.size > MAX_SOURCE_FILE_CACHE_ENTRIES) sourceFileCache.delete(sourceFileCache.keys().next().value);
+  return file;
 }
 
 function diagnosticsFor(fileName, file) {

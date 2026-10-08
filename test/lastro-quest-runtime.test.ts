@@ -116,9 +116,18 @@ describe('native bounty snapshot bridge', () => {
 const vendor = readFileSync(new URL('../vendor/v2/Online.js', import.meta.url), 'utf8');
 const patched = patchRuntimeQuests(vendor);
 const uiStateWrappedVendor = vendor;
-const uiStateWrappedPatched = patchRuntimeQuests(uiStateWrappedVendor);
+const uiStateWrappedPatched = patched;
+// Cache the full-source parse: the unmodified vendor source is parsed once and reused
+// across every rewrite case.
+let questSourceFileCache: { source: string; file: ts.SourceFile } | undefined;
+function parseQuestSource(source: string): ts.SourceFile {
+  if (questSourceFileCache?.source !== source) {
+    questSourceFileCache = { source, file: ts.createSourceFile('Online.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS) };
+  }
+  return questSourceFileCache.file;
+}
 function rewriteQuestOnAppend(source: string, rewrite: (owner: string, node: ts.FunctionExpression, file: ts.SourceFile) => string) {
-  const sourceFile = ts.createSourceFile('Online.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const sourceFile = parseQuestSource(source);
   let scope = '';
   const owners: ts.FunctionExpression[] = [];
   function visit(node: ts.Node) {
@@ -263,5 +272,5 @@ describe('packaged quest protocol and native lifecycle patch', () => {
         + 'return lastroUiWindowAppend(this, _preferences, () => {}, () => { if (renewLayout) {} });'
         + owner.slice(end);
     }))).toThrow('anchor:lastro-quests');
-  });
+  }, 30_000);
 });

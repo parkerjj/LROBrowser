@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { copyFile, readFile, rm as rmAsync, writeFile } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { type Plugin, type ViteDevServer } from 'vite';
 import { defineConfig } from 'vitest/config';
@@ -95,7 +96,9 @@ export default defineConfig({
   },
   test: {
     include: ['test/**/*.test.ts'],
-    // Runtime fixtures parse large bundled sources; keep their memory use bounded.
-    maxWorkers: 2,
+    // Runtime fixtures parse large bundled sources (~1-3GB heap per worker). Scale
+    // workers with available CPU/RAM instead of a fixed low number: CI runners with
+    // few cores stay conservative, local machines parallelize.
+    maxWorkers: Math.max(2, Math.min(8, Math.floor(os.cpus().length / 2), Math.floor(os.freemem() / (4 * 1024 ** 3)))),
   },
 });
