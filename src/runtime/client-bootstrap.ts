@@ -74,6 +74,7 @@ export async function bootstrapV2Client(options: BootstrapOptions): Promise<void
         ...candidate,
         address: profile.loginAddress, port: profile.loginPort,
         version: profile.version, langtype: profile.langtype,
+        relayEndpoint: profile.relayEndpoint,
         packetKeys: profile.packetKeys,
       };
     } catch { return candidate; }
