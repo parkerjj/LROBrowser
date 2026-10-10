@@ -123,7 +123,7 @@ describe('login connection mode and live server selection', () => {
     const { root, configs, server, mode, registration, context, assign } = await setup();
     mode('relay').click();
     server('lastro-3x').click();
-    expect(configs.getServer()).toMatchObject({ id: 'lastro-3x', address: 'port.lastro.cn', port: 28569, langtype: 3 });
+    expect(configs.getServer()).toMatchObject({ id: 'lastro-3x', address: '103.8.222.164', port: 28569, langtype: 3 });
     expect(configs.get('packetKeys')).toEqual([1205481659, 453061308, 592073252]);
     expect(configs.get('clientVer')).toBe(3);
     expect(configs.get('lastroNid')).toBe(3);
