@@ -436,6 +436,9 @@ export function createDirectHttpFetch(options: DirectHttpOptions = {}): typeof g
       const encrypted = await openEncryptedHttpStreams(native, connection, host, {
         tlsClientFactory: options.tlsClientFactory,
         timeoutMs: openTimeoutMs,
+        // Online.js contains server addresses and packet keys: unlike images,
+        // metadata must be authenticated before influencing game connections.
+        verifyServerCertificate: officialProfileRequest,
         signal,
       });
       const parsed = await readResponse(native, encrypted, request, { readTimeoutMs, maxHeaderBytes, maxBodyBytes, signal });
