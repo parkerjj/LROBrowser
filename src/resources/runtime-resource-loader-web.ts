@@ -1,4 +1,5 @@
 import { createResourceCache } from './resource-cache';
+import { createResourceScheduler, resourcePriority } from './resource-scheduler';
 import { normalizeResourcePath } from './resource-policy';
 import { resolvePassiveResource, WEB_RESOURCE_ROOTS } from './resource-resolver';
 
@@ -23,13 +24,15 @@ interface RuntimeResourceOptions {
 export function createRuntimeResourceLoader(options: RuntimeResourceOptions): (path: string) => Promise<ArrayBuffer> {
   const cache = createResourceCache();
   const inFlight = new Map<string, Promise<ArrayBuffer>>();
+  const schedule = createResourceScheduler(16);
+  
   return (path) => {
     const normalizedPath = normalizeResourcePath(path);
     const charset = options.getCharset();
     const key = normalizedPath ? JSON.stringify([normalizedPath, charset]) : null;
     let loading = key ? inFlight.get(key) : undefined;
     if (!loading) {
-      loading = resolvePassiveResource(path, {
+      loading = schedule(() => resolvePassiveResource(path, {
         cache,
         fetch: globalThis.fetch,
         resourceRoots: WEB_RESOURCE_ROOTS,
@@ -47,7 +50,7 @@ export function createRuntimeResourceLoader(options: RuntimeResourceOptions): (p
           }
           return bytes;
         },
-      });
+      }), resourcePriority(path));
       if (key) {
         loading = loading.finally(() => { inFlight.delete(key); });
         inFlight.set(key, loading);
