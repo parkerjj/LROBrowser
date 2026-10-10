@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { copyFile, readFile, rm as rmAsync, writeFile } from 'node:fs/promises';
 import os from 'node:os';
+import ts from 'typescript';
 import path from 'node:path';
 import { type Plugin, type ViteDevServer } from 'vite';
 import { defineConfig } from 'vitest/config';
@@ -88,14 +89,43 @@ function packageRuntime(target: 'iwa' | 'web'): Plugin {
  * metadata/certificate functionality unchanged and fail closed on drift.
  */
 export function cspSafeReflectMetadata(source: string): string {
-  const legacyFunction = /\bFunction\s*\(\s*["']return this;["']\s*\)\s*\(\s*\)/g;
-  const legacyEval = /(?:\(\s*0\s*,\s*eval\s*\)|\beval)\s*\(\s*["']\(function\(\) \{ return this; \}\)\(\)["']\s*\)/g;
-  const functionCount = [...source.matchAll(legacyFunction)].length;
-  const evalCount = [...source.matchAll(legacyEval)].length;
+  // Match the *semantics* of the two known legacy probes. Inlining via a
+  // dependency bundler changes parenthesization and spacing, not their
+  // string-literal arguments. Use an AST rather than post-minify regexes.
+  const ast = ts.createSourceFile('reflect-metadata.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const edits: Array<{ start: number; end: number }> = [];
+  let functionCount = 0;
+  let evalCount = 0;
+  const visit = (node: ts.Node) => {
+    if (ts.isCallExpression(node) && node.arguments.length === 0
+      && ts.isCallExpression(node.expression) && ts.isIdentifier(node.expression.expression)
+      && node.expression.expression.text === 'Function'
+      && node.expression.arguments.length === 1
+      && ts.isStringLiteralLike(node.expression.arguments[0]!)
+      && node.expression.arguments[0]!.text === 'return this;') {
+      functionCount += 1;
+      edits.push({ start: node.getStart(ast), end: node.end });
+      return;
+    }
+    if (ts.isCallExpression(node) && node.arguments.length === 1
+      && ts.isStringLiteralLike(node.arguments[0]!)
+      && node.arguments[0]!.text === '(function() { return this; })()') {
+      if (!/\beval\b/.test(node.expression.getText(ast))) {
+        throw new Error('Unexpected reflection global probe callee');
+      }
+      evalCount += 1;
+      edits.push({ start: node.getStart(ast), end: node.end });
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(ast);
   if (functionCount !== 1 || evalCount !== 1) {
     throw new Error(`Unexpected reflect-metadata global detection: Function=${functionCount}, eval=${evalCount}`);
   }
-  return source.replace(legacyFunction, 'globalThis').replace(legacyEval, 'globalThis');
+  return edits.sort((left, right) => right.start - left.start).reduce(
+    (code, edit) => code.slice(0, edit.start) + 'globalThis' + code.slice(edit.end), source,
+  );
 }
 
 /**
@@ -109,12 +139,9 @@ function browserTlsCrypto(): Plugin {
     name: 'lastro-tls-native-webcrypto',
     enforce: 'pre',
     renderChunk(source) {
-      // Some transitive dependencies inline reflect-metadata's UMD shim.
-      // Rewrite the two *specific* obsolete global probes on the JS chunk
-      // before Rollup finalizes its content hash. Never weaken IWA auditing.
-      const hasFunctionProbe = /\bFunction\s*\(\s*["']return this;["']\s*\)\s*\(\s*\)/.test(source);
-      const hasEvalProbe = /(?:\(\s*0\s*,\s*eval\s*\)|\beval)\s*\(\s*["']\(function\(\) \{ return this; \}\)\(\)["']\s*\)/.test(source);
-      if (!hasFunctionProbe && !hasEvalProbe) return;
+      // Our IWA targets modern Chrome; legacy Reflect globals are unnecessary.
+      if (!source.includes('return this;')) return;
+      if (!source.includes('(function() { return this; })()')) return;
       return { code: cspSafeReflectMetadata(source), map: null };
     },
     transform(source, id) {
