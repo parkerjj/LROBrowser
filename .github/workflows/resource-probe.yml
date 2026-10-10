@@ -1,0 +1,29 @@
+name: Remote resource diagnostics
+
+on:
+  pull_request:
+    paths:
+      - 'src/resources/**'
+      - 'scripts/probe-remote-resources.mjs'
+      - '.github/workflows/resource-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Inspect official and mirrored resource HTTP headers
+        run: node scripts/probe-remote-resources.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lastro-remote-resource-probe
+          path: resource-probe/
+          if-no-files-found: error
