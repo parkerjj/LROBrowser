@@ -160,8 +160,20 @@ async function main() {
       }));
     },
   };
+  // Resolve from the importing package, not the app root: pnpm keeps
+  // reflect-metadata as a transitive dependency of @peculiar/x509.
+  const reflectMetadataLite = {
+    name: 'iwa-reflect-metadata-lite',
+    setup(bundle) {
+      bundle.onResolve({ filter: /^reflect-metadata$/ }, args => bundle.resolve('reflect-metadata/lite', {
+        importer: args.importer,
+        resolveDir: args.resolveDir,
+        kind: args.kind,
+      }));
+    },
+  };
   await build({ entryPoints: [resourceLoaderEntry], bundle: true, format: 'iife',
-    ...(process.env.LASTRO_BUILD_TARGET === 'web' ? {} : { plugins: [nativeWebCrypto] }),
+    ...(process.env.LASTRO_BUILD_TARGET === 'web' ? {} : { plugins: [nativeWebCrypto, reflectMetadataLite] }),
     globalName: 'LastROResources', target: 'es2022', outfile: path.join(output, 'lastro-resource-loader.js') });
   await writeFile(path.join(output, 'ThreadEventHandler.js'), worker);
   await writeFile(path.join(output, 'LastROThreadEventHandler.js'), handler);

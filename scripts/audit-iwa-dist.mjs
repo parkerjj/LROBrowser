@@ -3,6 +3,7 @@ import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 import { auditRuntimeSource } from './audit-runtime-code.mjs';
 import { REQUIRED_HEADERS } from './iwa-security.mjs';
 /* eslint-disable no-control-regex -- Reject control characters in untrusted package paths. */
@@ -47,10 +48,32 @@ function validateProtocolHandlers(manifest) {
   ))) throw new Error('invalid protocol handler');
 }
 
-function urlReferences(source) {
+// Ignore third-party URLs appearing only in JavaScript comments, while
+// preserving actual URL strings and executable network references.
+function javascriptCommentRanges(source) {
+  // A standalone lexer can mistake '/' in regex literals for a comment
+  // delimiter in minified bundles. The syntax tree resolves regex context.
+  const file = ts.createSourceFile('bundle.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const ranges = new Map();
+  const pending = [file];
+  while (pending.length) {
+    const node = pending.pop();
+    for (const range of ts.getLeadingCommentRanges(source, node.pos) ?? []) ranges.set(range.pos, { start: range.pos, end: range.end });
+    for (const range of ts.getTrailingCommentRanges(source, node.end) ?? []) ranges.set(range.pos, { start: range.pos, end: range.end });
+    ts.forEachChild(node, child => { pending.push(child); });
+  }
+  return [...ranges.values()].sort((left, right) => left.start - right.start);
+}
+
+function urlReferences(source, javascript = false, onMatch = () => {}) {
+  const ranges = javascript ? javascriptCommentRanges(source) : [];
   const urls = [];
+  let rangeIndex = 0;
   for (const match of source.matchAll(/(?:https?|wss?):\/\/[^\s"'`<>);]*/gi)) {
-    try { urls.push(new globalThis.URL(match[0])); } catch { /* ignored malformed fragments are handled by the source audit */ }
+    while (rangeIndex < ranges.length && ranges[rangeIndex].end <= match.index) rangeIndex++;
+    const comment = ranges[rangeIndex];
+    if (comment && comment.start <= match.index && match.index < comment.end) continue;
+    try { const url = new globalThis.URL(match[0]); urls.push(url); onMatch(url, match.index); } catch { /* ignored malformed fragments are handled by the source audit */ }
   }
   return urls;
 }
@@ -86,6 +109,8 @@ export async function auditDist(distDirectory, reportPath = path.resolve('releas
   if (relativeFiles.some((file) => file.endsWith('.map'))) throw new Error('source maps are not allowed in the IWA bundle');
 
   const originSet = new Set();
+  const originFiles = new Map();
+  const originSamples = new Map();
   const navigationOrigins = new Set();
   const referencedUrls = [];
   const prohibitedResults = [];
@@ -106,8 +131,16 @@ export async function auditDist(distDirectory, reportPath = path.resolve('releas
       if (navigationOnly && /\bfetch\s*\(|XMLHttpRequest|WebSocket|\.src\s*=|import\s*\(/.test(source)) {
         throw new Error('navigation helper must not load remote resources');
       }
-      const urls = urlReferences(source);
+      const urls = urlReferences(source, /\.(?:js|mjs|cjs)$/i.test(relative), (url, index) => {
+        if (!['http://www.apache.org', 'https://github.com'].includes(url.origin) || originSamples.has(url.origin)) return;
+        const from = Math.max(0, index - 80), to = Math.min(source.length, index + url.href.length + 80);
+        originSamples.set(url.origin, { file: relative, context: source.slice(from, to).replaceAll('\n', ' ') });
+      });
       referencedUrls.push(...urls);
+      for (const url of urls) {
+        if (!originFiles.has(url.origin)) originFiles.set(url.origin, new Set());
+        originFiles.get(url.origin).add(relative);
+      }
       for (const origin of new Set(urls.map((url) => url.origin))) {
         if (navigationOnly && ['https://ro.dvg.cn', 'https://ro.ro321.com'].includes(origin)) navigationOrigins.add(origin);
         else originSet.add(origin);
@@ -129,7 +162,14 @@ export async function auditDist(distDirectory, reportPath = path.resolve('releas
     return referencedUrls.some((url) => url.origin === origin
       && (url.pathname !== allowedPath || url.username || url.password || url.hash));
   });
-  if (unapprovedOrigins.length) throw new Error(`unapproved remote origins: ${unapprovedOrigins.join(', ')}`);
+  if (unapprovedOrigins.length) {
+    const filesByOrigin = unapprovedOrigins.map(origin => {
+      const locations = [...(originFiles.get(origin) ?? [])].join(', ');
+      const example = originSamples.get(origin);
+      return `${origin} in ${locations}${example ? ' [sample ' + JSON.stringify(example) + ']' : ''}`;
+    });
+    throw new Error(`unapproved remote origins: ${filesByOrigin.join('; ')}`);
+  }
   if (prohibitedResults.length) throw new Error(`prohibited bundle content: ${prohibitedResults.map((item) => `${item.name}@${item.file}`).join(', ')}`);
 
   const runtimeAliases = new Map();
