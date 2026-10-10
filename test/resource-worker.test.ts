@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { webcrypto } from 'node:crypto';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { IDBFactory } from 'fake-indexeddb';
@@ -12,7 +13,7 @@ async function loadWorker(responses: Array<Response | Error>, manifest: string[]
   const tcpRequests: { host: string; port: number; request: string }[] = [];
   const saved: ArrayBuffer[] = [];
   const context: Record<string, unknown> = {
-    ArrayBuffer, Promise, URL, TextDecoder, TextEncoder, Uint8Array, Response, Headers, encodeURIComponent,
+    ArrayBuffer, Promise, URL, TextDecoder, TextEncoder, Uint8Array, Response, Headers, encodeURIComponent, crypto: webcrypto,
     indexedDB: new IDBFactory(), AbortController, DOMException, Error, AggregateError, setTimeout, clearTimeout,
     importScripts: () => {},
     ne: { saveFile: (_path: string, bytes: ArrayBuffer) => saved.push(bytes) },
@@ -27,34 +28,16 @@ async function loadWorker(responses: Array<Response | Error>, manifest: string[]
       const response = responses.shift();
       return response instanceof Error ? Promise.reject(response) : Promise.resolve(response);
     },
+    // Resource Worker tests emulate an unreachable primary and a working
+    // CORS mirror. Live TLS handshake and certificate tests are separate:
+    // test/direct-tls-live.test.ts. Never treat plaintext HTTP fixtures as TLS.
     TCPSocket: class {
-      readonly opened: Promise<{ readable: ReadableStream<Uint8Array>; writable: WritableStream<Uint8Array> }>;
-      readonly closed: Promise<void>;
-      private closeHandler: () => void = () => {};
+      readonly opened = Promise.reject(new Error('Mocked official TLS socket unavailable'));
+      readonly closed = Promise.resolve();
       constructor(host: string, port: number) {
-        let resolveOpened!: (value: { readable: ReadableStream<Uint8Array>; writable: WritableStream<Uint8Array> }) => void;
-        this.closed = new Promise<void>(resolve => { this.closeHandler = resolve; });
-        let controller!: ReadableStreamDefaultController<Uint8Array>;
-        const readable = new ReadableStream<Uint8Array>({ start(value) { controller = value; } });
-        const writable = new WritableStream<Uint8Array>({
-          write: async chunk => {
-            tcpRequests.push({ host, port, request: new TextDecoder().decode(chunk) });
-            const response = responses.shift();
-            if (response instanceof Error) { controller.error(response); return; }
-            if (!response) { controller.error(new Error('missing TCP fixture response')); return; }
-            const body = new Uint8Array(await response.arrayBuffer());
-            const headers = [`Content-Length: ${body.byteLength}`];
-            response.headers.forEach((value, name) => {
-              if (name.toLowerCase() !== 'content-length') headers.push(`${name}: ${value}`);
-            });
-            controller.enqueue(new TextEncoder().encode(`HTTP/1.1 ${response.status} ${response.statusText || 'Fixture'}\r\n${headers.join('\r\n')}\r\n\r\n`));
-            controller.enqueue(body);
-            controller.close();
-          },
-        });
-        this.opened = new Promise(resolve => { resolveOpened = resolve; resolveOpened({ readable, writable }); });
+        tcpRequests.push({ host, port, request: '' });
       }
-      close = async () => { this.closeHandler(); };
+      close = async () => {};
     },
   };
   const loader = await readFile('generated/runtime/lastro-resource-loader.js', 'utf8');
@@ -81,14 +64,13 @@ describe('LastRO resource worker', () => {
       'renewalparty/icon_jobs_4016.bmp', 'renewalparty/icon_jobs_0.bmp',
     ];
     for (const file of files) {
-      const worker = await loadWorker([response(404), response(503)]);
+      const worker = await loadWorker([response(503)]);
       const result = await worker.load(`data/texture/유저인터페이스/${file}`);
       const publishedPath = `data/texture/蜡历牢磐其捞胶/${file}`;
       expect(result.data).toBeNull();
-      expect(worker.tcpRequests.map(value => decodeURIComponent(value.request.split('\r\n')[0]!)))
-        .toEqual([`GET /ro/client_re/${publishedPath} HTTP/1.1`]);
+      expect(worker.tcpRequests[0]).toMatchObject({ host: 'game.lastro.cn', port: 443 });
       expect(worker.urls).toEqual([`https://rodata.ltsd.ro/ro/client_re/${encodeURI(publishedPath)}`]);
-      expect(result.error).toContain(`https://game.lastro.cn/ro/client_re/${encodeURI(publishedPath)} [http-404]`);
+      expect(result.error).toContain(`https://game.lastro.cn/ro/client_re/${encodeURI(publishedPath)} [Mocked official TLS socket unavailable]`);
       expect(result.error).toContain(`https://rodata.ltsd.ro/ro/client_re/${encodeURI(publishedPath)} [http-503]`);
     }
   });
@@ -97,17 +79,18 @@ describe('LastRO resource worker', () => {
     const worker = await loadWorker([response(200), response(200)]);
     expect((await worker.load('data/sprite/인간족/몸통/남/초보자_남.spr')).error).toBeUndefined();
     expect((await worker.load('data/wav/버튼소리.wav')).error).toBeUndefined();
-    expect(worker.tcpRequests.map(value => decodeURIComponent(value.request.split('\r\n')[0]!))).toEqual([
-      'GET /ro/client_re/data/sprite/牢埃练/个烹/巢/檬焊磊_巢.spr HTTP/1.1',
-      'GET /ro/client_re/data/wav/滚瓢家府.wav HTTP/1.1',
+    expect(worker.urls.map(value => decodeURIComponent(value))).toEqual([
+      'https://rodata.ltsd.ro/ro/client_re/data/sprite/牢埃练/个烹/巢/檬焊磊_巢.spr',
+      'https://rodata.ltsd.ro/ro/client_re/data/wav/滚瓢家府.wav',
     ]);
   });
 
   it('bundles the Direct TCP HTTP transport for remote passive resources', async () => {
   const loader = await readFile('generated/runtime/lastro-resource-loader.js', 'utf8');
     expect(loader).toContain('function createDirectHttpFetch');
-    expect(loader).toContain('new constructorForSocket(host, 80');
+    expect(loader).toContain('new constructorForSocket(host, 443');
     expect(loader).toContain('nativeFetch');
+    expect(loader).toContain('TLS1_3');
     expect(loader).toContain('Direct HTTP only permits approved resource origins');
   });
 
@@ -122,13 +105,13 @@ describe('LastRO resource worker', () => {
   });
 
   it('races official and backup origins for map resources', async () => {
-    const worker = await loadWorker([response(404), response(200, mapBinaryFixture('gat', 9))]);
+    const worker = await loadWorker([response(200, mapBinaryFixture('gat', 9))]);
     const result = await worker.load('data/map/prt.gat');
     expect(result.error).toBeUndefined();
     expect(result.data).toEqual(mapBinaryFixture('gat', 9));
     expect(worker.urls).toEqual(['https://rodata.ltsd.ro/ro/client_re/data/map/prt.gat']);
     expect(worker.tcpRequests.map(request => [request.host, request.port])).toEqual([
-      ['game.lastro.cn', 80],
+      ['game.lastro.cn', 443],
     ]);
   });
 
@@ -179,13 +162,15 @@ describe('LastRO resource worker', () => {
     expect([worker.urls.length, worker.tcpRequests.length]).toEqual(initialCounts);
   });
 
-  it('falls back after empty and disguised HTML responses without hanging', async () => {
+  it('rejects empty/HTML mirror responses and can retry the same map without hanging', async () => {
     for (const invalid of [new ArrayBuffer(0), new TextEncoder().encode('<!doctype html>').buffer]) {
       const worker = await loadWorker([response(200, invalid), response(200, mapBinaryFixture('gat', 7))]);
-      const result = await worker.load('data/map/prt.gat');
-      expect(result.data).toEqual(mapBinaryFixture('gat', 7));
-      expect(worker.urls).toHaveLength(1);
-      expect(worker.tcpRequests).toHaveLength(1);
+      const first = await worker.load('data/map/prt.gat');
+      expect(first.data).toBeNull();
+      expect(first.error).toBeTruthy();
+      const retry = await worker.load('data/map/prt.gat');
+      expect(retry.data).toEqual(mapBinaryFixture('gat', 7));
+      expect(worker.urls).toHaveLength(2);
     }
   });
 
