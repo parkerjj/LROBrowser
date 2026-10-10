@@ -86,7 +86,7 @@ function packageRuntime(target: 'iwa' | 'web'): Plugin {
  * when Vite bundles the IWA UI, without a Node polyfill or pure-JS fallback.
  */
 function browserTlsCrypto(): Plugin {
-  const id = '\\0lastro-native-tls-webcrypto';
+  const id = String.fromCharCode(0) + 'lastro-native-tls-webcrypto';
   return {
     name: 'lastro-tls-native-webcrypto',
     enforce: 'pre',
