@@ -153,6 +153,7 @@ export function resolveOfficialServerProfile(
     loginPort: latest.port,
     version: latest.version,
     langtype: latest.langtype,
+    ...(latest.relayEndpoint ? { relayEndpoint: latest.relayEndpoint } : {}),
     packetKeys: Object.freeze(validKeys(keys) ? [...keys] as [number, number, number] : [...profile.packetKeys] as [number, number, number]),
   });
 }
