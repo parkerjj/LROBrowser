@@ -241,6 +241,11 @@ function bootstrapFixture(manifest = deferred<Response>()) {
       if (path.endsWith('/client-config')) return { buildClientConfig: () => ({}) };
       if (path.endsWith('/debug-access')) return { installDebugAccessGuard };
       if (path.endsWith('/build-target')) return { IS_WEB_BUILD: false };
+      if (path.endsWith('/server-profiles')) return { getAvailableServerProfile: vi.fn() };
+      if (path.endsWith('/online-profile-cache')) return {
+        resolveOfficialServerProfile: vi.fn(),
+        refreshOfficialOnlineProfiles: vi.fn(async () => undefined),
+      };
       throw new Error('Unexpected startup dependency: ' + path);
     },
   });

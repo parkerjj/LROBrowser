@@ -21,6 +21,8 @@ interface DirectHttpOptions {
   readTimeoutMs?: number;
   maxHeaderBytes?: number;
   maxBodyBytes?: number;
+  /** Restrict the extra executable-text path to the reviewed metadata downloader. */
+  allowOfficialProfileScript?: boolean;
 }
 
 interface DirectHttpResponseParts {
@@ -270,7 +272,9 @@ export function createDirectHttpFetch(options: DirectHttpOptions = {}): typeof g
     const host = RESOURCE_ROOTS.get(url.origin);
     if (!host) throw new Error('Direct HTTP only permits approved resource origins');
     if (url.username || url.password) throw new Error('Public resource requests cannot include credentials');
-    if (!url.pathname.startsWith('/ro/client_re/') || url.search || url.hash) {
+    const officialProfileRequest = options.allowOfficialProfileScript === true
+      && url.origin === 'https://game.lastro.cn' && url.pathname === '/ro/Online.js';
+    if ((!officialProfileRequest && !url.pathname.startsWith('/ro/client_re/')) || url.search || url.hash) {
       throw new Error('Direct HTTP only permits passive resource paths');
     }
     if (requestMethod(input, init) !== 'GET' || init?.body !== undefined) {

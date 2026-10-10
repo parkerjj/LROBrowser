@@ -33,6 +33,7 @@ interface HarnessOptions {
   openTimeoutMs?: number;
   readTimeoutMs?: number;
   nativeFetch?: typeof globalThis.fetch;
+  allowOfficialProfileScript?: boolean;
 }
 
 function harness(options: HarnessOptions = {}) {
@@ -63,6 +64,7 @@ function harness(options: HarnessOptions = {}) {
     ...(options.openTimeoutMs === undefined ? {} : { openTimeoutMs: options.openTimeoutMs }),
     ...(options.readTimeoutMs === undefined ? {} : { readTimeoutMs: options.readTimeoutMs }),
     ...(options.nativeFetch === undefined ? {} : { nativeFetch: options.nativeFetch }),
+    ...(options.allowOfficialProfileScript === undefined ? {} : { allowOfficialProfileScript: options.allowOfficialProfileScript }),
   });
   return { fetch, requests, constructorArgs, close, controller, opened, readable, writable };
 }
@@ -213,6 +215,26 @@ describe('Direct HTTP resource transport', () => {
 
     await expect(h.fetch('https://example.invalid/ro/client_re/data/test.gat')).rejects.toThrow(/approved resource origin/i);
     expect(h.constructorArgs).toEqual([]);
+  });
+
+
+  it('allows only the reviewed official script through the metadata-only downloader', async () => {
+    const body = ascii('case 3:F=[{address:"103.8.222.164",port:28569,version:45,langtype:3}]');
+    const response = responseBytes('HTTP/1.1 200 OK', [
+      'Content-Type: text/javascript',
+      'Content-Length: ' + body.length,
+    ], body);
+    const blocked = harness({ response: [response] });
+    await expect(blocked.fetch('https://game.lastro.cn/ro/Online.js')).rejects.toThrow('passive resource paths');
+    expect(blocked.constructorArgs).toHaveLength(0);
+
+    const allowed = harness({ response: [response], allowOfficialProfileScript: true });
+    allowed.opened.resolve({ readable: allowed.readable, writable: allowed.writable });
+    const text = await (await allowed.fetch('https://game.lastro.cn/ro/Online.js')).text();
+    expect(text).toContain('103.8.222.164');
+    expect(new TextDecoder().decode(allowed.requests[0])).toContain('GET /ro/Online.js HTTP/1.1\r\n');
+    expect(allowed.constructorArgs).toEqual([['game.lastro.cn', 80, { noDelay: true, keepAliveDelay: 60_000 }]]);
+    await expect(allowed.fetch('https://game.lastro.cn/ro/not-allowed.js')).rejects.toThrow('passive resource paths');
   });
 
   it('rejects URL credentials and non-GET resource requests before opening a socket', async () => {

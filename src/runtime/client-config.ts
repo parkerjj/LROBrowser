@@ -3,6 +3,7 @@ import { getAvailableServerProfile, LASTRO_SERVER_PROFILES } from '../servers/se
 import { validateAccountCredentials } from '../accounts/account-storage.mjs';
 import { readLoginPreferences } from './login-preferences.mjs';
 import { IS_WEB_BUILD } from './build-target';
+import { resolveOfficialServerProfile } from '../servers/online-profile-cache';
 
 export interface ClientCredentials {
   username: string;
@@ -56,7 +57,7 @@ export interface V2ClientConfig {
 }
 
 export function buildClientConfig(profile: AvailableServerProfile, credentials: ClientCredentials, options: { assistantEnabled?: boolean } = {}): V2ClientConfig {
-  const available = getAvailableServerProfile(profile.id);
+  const available = resolveOfficialServerProfile(getAvailableServerProfile(profile.id));
   const hasUsername = Boolean(credentials.username);
   const hasPassword = Boolean(credentials.password);
   if (hasUsername !== hasPassword) throw new Error('账号资料不完整');
@@ -69,6 +70,7 @@ export function buildClientConfig(profile: AvailableServerProfile, credentials: 
     port: available.loginPort,
     version: available.version,
     langtype: available.langtype,
+    relayEndpoint: available.relayEndpoint,
     disableKorean: true,
     // Character/map servers can advertise loopback addresses behind the public host.
     forceUseAddress: true,
@@ -80,17 +82,18 @@ export function buildClientConfig(profile: AvailableServerProfile, credentials: 
     lastroNid: available.lastroNid,
   });
   const loginServerProfiles = Object.freeze([
-    ...LASTRO_SERVER_PROFILES.map(candidate => candidate.availability === 'available'
-      ? Object.freeze({
+    ...LASTRO_SERVER_PROFILES.map(original => original.availability === 'available'
+      ? ((candidate) => Object.freeze({
         id: candidate.id, label: candidate.displayName, availability: candidate.availability,
         address: candidate.loginAddress, port: candidate.loginPort, version: candidate.version,
         langtype: candidate.langtype, packetver: candidate.packetver,
+        relayEndpoint: candidate.relayEndpoint,
         disableKorean: true, forceUseAddress: true,
         packetKeys: candidate.packetKeys, clientHash: candidate.clientHash,
         clientVer: candidate.clientVer, lastroNid: candidate.lastroNid,
-      })
-      : Object.freeze({ id: candidate.id, label: candidate.displayName, availability: candidate.availability,
-        unavailableReason: candidate.unavailableReason }),
+      }))(resolveOfficialServerProfile(original))
+      : Object.freeze({ id: original.id, label: original.displayName, availability: original.availability,
+        unavailableReason: original.unavailableReason }),
   )]);
   return Object.freeze({
     connectionMode: IS_WEB_BUILD ? 'relay' : readLoginPreferences().connectionMode,

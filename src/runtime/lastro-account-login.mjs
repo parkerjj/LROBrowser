@@ -391,7 +391,7 @@ export function installLastROLogin({ root, component, configs, onAssistantProfil
   }
 
   function applyProfile(profile) {
-    component.onServerSelect?.(profile);
+    component.onServerSelect?.(globalThis.LastROResolveServerConnection?.(profile) || profile);
     selectedProfileId = profile.id;
     selectedAccount = undefined;
     fillNativeCredentials('', '');
@@ -505,6 +505,19 @@ export function installLastROLogin({ root, component, configs, onAssistantProfil
     if (connectionMode === 'direct' && globalThis.LastRODirectSocketsSupported === false) {
       setMessage('当前页面不支持直连，请从 IWA 应用入口打开，或选择传统。');
       return false;
+    }
+    // A background refresh may finish after the login UI was created. Apply its
+    // validated values immediately before opening the login connection.
+    const selected = currentProfile();
+    if (selected) {
+      const latest = globalThis.LastROResolveServerConnection?.(selected) || selected;
+      const current = configs?.getServer?.();
+      if (latest.address !== current?.address || latest.port !== current?.port
+        || latest.version !== current?.version || latest.langtype !== current?.langtype
+        || latest.relayEndpoint !== current?.relayEndpoint
+        || JSON.stringify(latest.packetKeys) !== JSON.stringify(current?.packetKeys)) {
+        component.onServerSelect?.(latest);
+      }
     }
     if (selectedAccount?.id && selectedAccount.username === username) void storage.markUsed(selectedAccount.id, Date.now()).catch(() => undefined);
     ++revision;
