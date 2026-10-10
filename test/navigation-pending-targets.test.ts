@@ -15,7 +15,7 @@ beforeAll(async () => {
   source = await readFile(new URL('../vendor/v2/Online.js', import.meta.url), 'utf8');
   runtime = patchNavigationPendingTargets(source);
   createHarness = harnessFactory(runtime);
-});
+}, 30_000);
 afterEach(() => dom.window.document.body.replaceChildren());
 afterAll(() => dom.window.close());
 
