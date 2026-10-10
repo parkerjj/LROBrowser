@@ -37,10 +37,12 @@ jobs:
       - run: pnpm prepare:runtime
       - name: Focused HTTPS transport and resource Worker regression tests
         run: pnpm exec vitest run test/direct-http-resource.test.ts test/lastro-login-http.test.ts test/resource-worker.test.ts test/official-online-profiles.test.ts
-      - run: pnpm test
+      # Validate the release artifacts before the slower full test suite,
+      # so packaging failures are visible without waiting for ~4,700 tests.
       - run: pnpm build
       - run: pnpm audit:iwa
       - run: pnpm bundle:iwa -- --out release/lastro-v2-ci.wbn
+      - run: pnpm test
       - uses: actions/upload-artifact@v4
         with:
           name: iwa-ci-${{ github.sha }}
