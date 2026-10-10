@@ -5,6 +5,7 @@
  */
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import process from 'node:process';
 import { mkdir, writeFile } from 'node:fs/promises';
 
 const exec = promisify(execFile);
