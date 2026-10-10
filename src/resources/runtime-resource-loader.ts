@@ -1,7 +1,8 @@
 import { createResourceCache } from './resource-cache';
+import { createResourceScheduler, resourcePriority } from './resource-scheduler';
 import { createDirectHttpFetch } from './direct-http-resource';
 import { normalizeResourcePath } from './resource-policy';
-import { resolvePassiveResource } from './resource-resolver';
+import { resolvePassiveResource, ResourceSourceHealth, RESOURCE_HEDGE_DELAY_MS } from './resource-resolver';
 
 export interface PackageResourceEntry { readonly path: string; }
 
@@ -26,6 +27,9 @@ export function createRuntimeResourceLoader(options: RuntimeResourceOptions): (p
   const cache = createResourceCache();
   const directHttpFetch = createDirectHttpFetch({ nativeFetch: globalThis.fetch });
   const inFlight = new Map<string, Promise<ArrayBuffer>>();
+  const schedule = createResourceScheduler(12);
+  const sourceHealth = new ResourceSourceHealth();
+  const notFoundUntil = new Map<string, number>();
   return (path) => {
     const normalizedPath = normalizeResourcePath(path);
     const charset = options.getCharset();
@@ -34,9 +38,12 @@ export function createRuntimeResourceLoader(options: RuntimeResourceOptions): (p
     const key = normalizedPath ? JSON.stringify([normalizedPath, charset]) : null;
     let loading = key ? inFlight.get(key) : undefined;
     if (!loading) {
-      loading = resolvePassiveResource(path, {
+      loading = schedule(() => resolvePassiveResource(path, {
         cache,
         fetch: directHttpFetch,
+        hedgeDelayMs: RESOURCE_HEDGE_DELAY_MS,
+        sourceHealth,
+        notFoundUntil,
         primaryCharset: charset,
         packageLookup: async (normalizedPath) => {
           const entry = options.getManifest()?.find(file => file.path.toLowerCase() === normalizedPath.toLowerCase());
@@ -51,7 +58,7 @@ export function createRuntimeResourceLoader(options: RuntimeResourceOptions): (p
           }
           return bytes;
         },
-      });
+      }), resourcePriority(path));
       if (key) {
         loading = loading.finally(() => { inFlight.delete(key); });
         inFlight.set(key, loading);
