@@ -5,6 +5,8 @@ import { buildClientConfig, type ClientCredentials, type V2ClientConfig } from '
 import { loadClientFonts } from './client-fonts';
 import { installDebugAccessGuard } from './debug-access';
 import { IS_WEB_BUILD } from './build-target';
+import { getAvailableServerProfile } from '../servers/server-profiles';
+import { resolveOfficialServerProfile, refreshOfficialOnlineProfiles } from '../servers/online-profile-cache';
 
 export interface BootstrapOptions {
   assistantEnabled?: boolean;
@@ -25,6 +27,7 @@ declare global {
   var LastROLoginRegistration: ((phase: LastROLoginPhase, nid: number, username: string, password: string) => void) | undefined;
   var LastRODirectSocketsSupported: boolean | undefined;
   var LastROWebBuild: boolean | undefined;
+  var LastROResolveServerConnection: ((profile: Record<string, unknown>) => Record<string, unknown>) | undefined;
   var LastROResourceRoots: readonly string[] | undefined;
   var LastROExecutableManifest: ExecutableAssetManifest | undefined;
 }
@@ -62,7 +65,22 @@ export async function bootstrapV2Client(options: BootstrapOptions): Promise<void
   globalThis.LastRODirectSocketsSupported = IS_WEB_BUILD ? false : undefined;
   globalThis.LastRODirectSocketFactory = undefined;
   installDebugAccessGuard(window);
+  globalThis.LastROResolveServerConnection = (candidate) => {
+    const id = candidate.id;
+    if (typeof id !== 'string') return candidate;
+    try {
+      const profile = resolveOfficialServerProfile(getAvailableServerProfile(id));
+      return {
+        ...candidate,
+        address: profile.loginAddress, port: profile.loginPort,
+        version: profile.version, langtype: profile.langtype,
+        packetKeys: profile.packetKeys,
+      };
+    } catch { return candidate; }
+  };
   globalThis.ROConfig = buildClientConfig(options.profile, options.credentials, { assistantEnabled: options.assistantEnabled });
+  // Do not block the UI or load downloaded scripts as executable code.
+  if (!IS_WEB_BUILD) void refreshOfficialOnlineProfiles().catch(() => undefined);
   const mount = options.mount;
   const [manifest] = await Promise.all([loadExecutableManifest(), loadClientFonts()]);
   if (!IS_WEB_BUILD) {
