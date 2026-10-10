@@ -10,8 +10,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 
 const exec = promisify(execFile);
 const roots = Object.freeze({
-  official: 'http://game.lastro.cn/ro/client_re/',
-  officialHttps: 'https://game.lastro.cn/ro/client_re/',
+  official: 'https://game.lastro.cn/ro/client_re/',
   mirror: 'https://rodata.ltsd.ro/ro/client_re/',
 });
 const paths = new Set();
