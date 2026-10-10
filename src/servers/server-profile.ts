@@ -16,6 +16,8 @@ export interface AvailableServerProfile extends BaseProfile {
   readonly version: number;
   readonly langtype: number;
   readonly packetver: number;
+  /** Trusted HTTPS/WebSocket relay origin from the official nid entry, if present. */
+  readonly relayEndpoint?: string;
   readonly packetKeys: readonly [number, number, number];
   readonly clientHash: string;
   readonly clientVer: number;
