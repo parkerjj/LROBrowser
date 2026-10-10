@@ -209,8 +209,18 @@ function parseResponse(bytes: Uint8Array, maxHeaderBytes: number, maxBodyBytes: 
   };
 }
 
-async function closeNative(native: DirectTcpConnection): Promise<void> {
-  try { await native.close(); } catch { /* best effort */ }
+const nativeCloseTasks = new WeakMap<DirectTcpConnection, Promise<void>>();
+
+/** Cancelling both sides of a TLS stream must not close one Direct Socket repeatedly. */
+function closeNative(native: DirectTcpConnection): Promise<void> {
+  const existing = nativeCloseTasks.get(native);
+  if (existing) return existing;
+  const closing = Promise.resolve().then(() => native.close()).then(
+    () => undefined,
+    () => undefined, // best effort; error is already surfaced through the fetch path
+  );
+  nativeCloseTasks.set(native, closing);
+  return closing;
 }
 
 async function waitFor<T>(promise: Promise<T>, timeoutMs: number, signal: AbortSignal | undefined, phase: 'open' | 'read'): Promise<T> {
@@ -337,7 +347,7 @@ export async function openEncryptedHttpStreams(
     logger: SILENT_TLS_LOGGER,
     async write({ header, content }) {
       await networkWriter.write(header);
-      await networkWriter.write(content);
+      if (content.byteLength) await networkWriter.write(content);
     },
     onHandshake() {
       handshakeFinished = true;
