@@ -41,6 +41,7 @@ const encodePath = (path) => path.split('/').map(encodeURIComponent).join('/');
 async function requestHeaders(url, method) {
   const args = [
     '-sS', '--max-time', '7', '--connect-timeout', '4',
+    '-H', 'Origin: isolated-app://nuqzolbnqymznffqhrx7ylosbqvbzekt4eybubmopsmsbjz5z2uqaaic',
     '--max-redirs', '0', '-D', '-', '-o', '/dev/null',
     '-w', '\n__CURL_CODE__:%{http_code}\n',
   ];
@@ -59,7 +60,9 @@ async function requestHeaders(url, method) {
   const size = /^(?:content-length):\s*(.+)$/im.exec(headerBlock)?.[1] ?? '';
   const type = /^content-type:\s*(.+)$/im.exec(headerBlock)?.[1] ?? '';
   const location = /^location:\s*(.+)$/im.exec(headerBlock)?.[1] ?? '';
-  return { method, status: code, size, type, location, ...(error ? { error } : {}) };
+  const cors = /^access-control-allow-origin:\s*(.+)$/im.exec(headerBlock)?.[1] ?? '';
+  const corp = /^cross-origin-resource-policy:\s*(.+)$/im.exec(headerBlock)?.[1] ?? '';
+  return { method, status: code, size, type, location, cors, corp, ...(error ? { error } : {}) };
 }
 async function probe(source, path) {
   const url = roots[source] + encodePath(path);
@@ -88,9 +91,9 @@ const lines = [
   '',
   'This is an independent HEAD + (when necessary) Range GET diagnostic from the GitHub Actions runner, not the client.',
   '',
-  '| Origin | Path | HEAD | GET fallback | Result |',
-  '| --- | --- | --- | --- | --- |',
-  ...results.map(r => `| ${r.source} | \`${r.path}\` | ${r.head.status || r.head.error || 'network error'} | ${r.get ? (r.get.status || r.get.error || 'network error') : '-'} | ${r.found ? 'FOUND' : 'not confirmed'} |`),
+  '| Origin | Path | HEAD | GET fallback | CORS | Result |',
+  '| --- | --- | --- | --- | --- | --- |',
+  ...results.map(r => `| ${r.source} | \`${r.path}\` | ${r.head.status || r.head.error || 'network error'} | ${r.get ? (r.get.status || r.get.error || 'network error') : '-'} | ${r.head.cors || r.get?.cors || '-'} | ${r.found ? 'FOUND' : 'not confirmed'} |`),
   '',
   `Found: ${found.length}/${results.length}. A negative result can also mean this runner is blocked by DNS/firewall.`,
 ];
