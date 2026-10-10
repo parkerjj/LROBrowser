@@ -1,7 +1,7 @@
 import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { IndexedDbResourceCache, MemoryResourceCache } from '../src/resources/resource-cache';
-import { buildResourcePathCandidates, DEFAULT_RESOURCE_ROOTS, ResourceResolutionError, resolvePassiveResource } from '../src/resources/resource-resolver';
+import { buildResourcePathCandidates, DEFAULT_RESOURCE_ROOTS, ResourceResolutionError, ResourceSourceHealth, resolvePassiveResource } from '../src/resources/resource-resolver';
 import { mapBinaryFixture } from './map-binary-fixture';
 
 function response(status: number, bytes = new Uint8Array([1, 2]).buffer, contentType = 'application/octet-stream'): Response {
@@ -321,6 +321,66 @@ describe('passive resource resolver', () => {
     await resolvePassiveResource(input, { cache: new MemoryResourceCache(), fetch: fetch as typeof globalThis.fetch });
     expect(urls).toEqual(DEFAULT_RESOURCE_ROOTS.map(root => root + encodeURI(expected)));
     expect(urls.map(decodeURIComponent).join('\n')).not.toMatch(/[\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]/);
+  });
+});
+
+
+describe('adaptive resource origins', () => {
+  it('starts a backup sprite after the hedge delay and cancels the stalled primary', async () => {
+    vi.useFakeTimers();
+    try {
+      let aborted = false;
+      const fetch = vi.fn((url: string, init?: RequestInit) => {
+        if (url.startsWith(DEFAULT_RESOURCE_ROOTS[1])) return Promise.resolve(response(200, new Uint8Array([7, 8]).buffer));
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => {
+            aborted = true;
+            reject(new DOMException('Aborted', 'AbortError'));
+          }, { once: true });
+        });
+      });
+      const pending = resolvePassiveResource('data/sprite/ill_permeter.spr', {
+        cache: new MemoryResourceCache(), fetch: fetch as typeof globalThis.fetch,
+        hedgeDelayMs: 350
+      });
+      await vi.advanceTimersByTimeAsync(349);
+      expect(fetch).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(new Uint8Array(await pending)).toEqual(new Uint8Array([7, 8]));
+      expect(fetch).toHaveBeenCalledTimes(2);
+      expect(aborted).toBe(true);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('starts the mirror immediately when the primary errors before the hedge', async () => {
+    const fetch = vi.fn(async (url: string) =>
+      response(url.startsWith(DEFAULT_RESOURCE_ROOTS[0]) ? 503 : 200, new Uint8Array([9]).buffer));
+    await expect(resolvePassiveResource('data/sprite/ill_solider.spr', {
+      cache: new MemoryResourceCache(), fetch: fetch as typeof globalThis.fetch,
+      hedgeDelayMs: 5_000
+    })).resolves.toEqual(new Uint8Array([9]).buffer);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('remembers only 404 URLs for five minutes without caching network errors', async () => {
+    const notFoundUntil = new Map<string, number>();
+    const fetch = vi.fn(async (url: string) => response(url.startsWith(DEFAULT_RESOURCE_ROOTS[0]) ? 404 : 503));
+    const opts = { cache: new MemoryResourceCache(), fetch: fetch as typeof globalThis.fetch, notFoundUntil };
+    await expect(resolvePassiveResource('data/sprite/missing.act', opts)).rejects.toThrow('Unable to resolve');
+    expect(notFoundUntil.size).toBe(1);
+    await expect(resolvePassiveResource('data/sprite/missing.act', opts)).rejects.toThrow('http-404-cached');
+    expect(fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it('prefers a known fast source without allowing untrusted origins', () => {
+    const health = new ResourceSourceHealth();
+    expect(health.order(DEFAULT_RESOURCE_ROOTS)).toEqual([...DEFAULT_RESOURCE_ROOTS]);
+    health.success(DEFAULT_RESOURCE_ROOTS[1], 100);
+    expect(health.order(DEFAULT_RESOURCE_ROOTS)[0]).toBe(DEFAULT_RESOURCE_ROOTS[1]);
+    health.failure(DEFAULT_RESOURCE_ROOTS[1]);
+    health.failure(DEFAULT_RESOURCE_ROOTS[1]);
+    health.success(DEFAULT_RESOURCE_ROOTS[0], 200);
+    expect(health.order(DEFAULT_RESOURCE_ROOTS)[0]).toBe(DEFAULT_RESOURCE_ROOTS[0]);
   });
 });
 

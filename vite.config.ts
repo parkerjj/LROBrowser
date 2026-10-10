@@ -80,12 +80,31 @@ function packageRuntime(target: 'iwa' | 'web'): Plugin {
   };
 }
 
+/**
+ * The TLS package's WebCrypto implementation imports Node's "crypto" solely
+ * for its standard "webcrypto" export. Use the native browser implementation
+ * when Vite bundles the IWA UI, without a Node polyfill or pure-JS fallback.
+ */
+function browserTlsCrypto(): Plugin {
+  const id = String.fromCharCode(0) + 'lastro-native-tls-webcrypto';
+  return {
+    name: 'lastro-tls-native-webcrypto',
+    enforce: 'pre',
+    resolveId(source, importer) {
+      if ((source === 'crypto' || source === 'node:crypto') && importer?.includes('@reclaimprotocol')) return id;
+    },
+    load(source) {
+      if (source === id) return 'export const webcrypto = globalThis.crypto;';
+    },
+  };
+}
+
 const buildTarget = process.env.LASTRO_BUILD_TARGET === 'web' ? 'web' : 'iwa';
 
 export default defineConfig({
   base: './',
   define: { __LASTRO_BUILD_TARGET__: JSON.stringify(buildTarget) },
-  plugins: [packageRuntime(buildTarget)],
+  plugins: [browserTlsCrypto(), packageRuntime(buildTarget)],
   optimizeDeps: { entries: ['index.html'], exclude: ['/runtime/Online.js'] },
   build: { target: 'es2022', sourcemap: false, rollupOptions: { external: ['/runtime/Online.js'] } },
   server: {

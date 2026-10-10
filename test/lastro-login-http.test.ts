@@ -1,5 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { makeTLSClient } from '@reclaimprotocol/tls';
 import { buildLastROLoginRequest, prepareLastROLoginSession, sendLastROLoginPost } from '../src/network/lastro-login-http';
+
+const verified = vi.fn();
+const transparentTls = ((opts: Parameters<typeof makeTLSClient>[0]) => ({
+  async startHandshake() { verified(opts.verifyServerCertificate); opts.onHandshake?.(); },
+  async handleReceivedBytes(data: Uint8Array) { opts.onApplicationData?.(data); },
+  async write(data: Uint8Array) {
+    await opts.write({ header: data, content: new Uint8Array() }, { type: 'plaintext' });
+  },
+})) as typeof makeTLSClient;
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -15,7 +25,7 @@ describe('LastRO login HTTP transport', () => {
     expect(buildLastROLoginRequest('checkin', 4, 'user', 'pass').path).toBe('/?r=mg/checkin&nid=4');
   });
 
-  it('bootstraps Yii2 csrf state before sending the registration POST', async () => {
+  it('bootstraps Yii2 csrf over verified TLS before sending the registration POST', async () => {
     const csrfToken = 'csrf-token/with+chars=';
     const csrfCookie = 'cookie-value%3A2%3A%7Bi%3A0%3Bs%3A5%3A%22_csrf%22%3B%7D';
     const page = `<input name="_csrf" type="hidden" id="_csrf" value="${csrfToken}" />`;
@@ -31,7 +41,7 @@ describe('LastRO login HTTP transport', () => {
     ].join('\r\n'));
     const requests: string[] = [];
     const constructorArgs: unknown[][] = [];
-    const postReadable = { getReader: vi.fn() } as unknown as ReadableStream<Uint8Array>;
+    const postReadable = new ReadableStream<Uint8Array>();
     let instance = 0;
     class Native {
       opened: Promise<{ readable: ReadableStream<Uint8Array>; writable: WritableStream<Uint8Array> }>;
@@ -40,24 +50,29 @@ describe('LastRO login HTTP transport', () => {
       constructor(...args: unknown[]) {
         constructorArgs.push(args);
         const current = instance++;
+        let emitBootstrap: (() => void) | undefined;
         const readable = current === 0
           ? new ReadableStream<Uint8Array>({
-            start(controller) { controller.enqueue(response); controller.close(); },
+            start(controller) { emitBootstrap = () => { controller.enqueue(response); controller.close(); }; },
           })
           : postReadable;
         const writable = new WritableStream<Uint8Array>({
-          write(chunk) { requests.push(new TextDecoder().decode(chunk)); },
+          write(chunk) {
+            const text = new TextDecoder().decode(chunk);
+            if (text.length) requests.push(text);
+            if (current === 0 && text.startsWith('GET ')) emitBootstrap?.();
+          },
         });
         this.opened = Promise.resolve({ readable, writable });
       }
     }
 
-    await sendLastROLoginPost('checkin', 5, 'testbot1', '5158951589', { TCPSocket: Native });
+    await sendLastROLoginPost('checkin', 5, 'testbot1', '5158951589', { TCPSocket: Native, tlsClientFactory: transparentTls });
 
     expect(requests).toHaveLength(2);
     expect(constructorArgs).toEqual([
-      ['game.lastro.cn', 80, { noDelay: true, keepAliveDelay: 60_000 }],
-      ['game.lastro.cn', 80, { noDelay: true, keepAliveDelay: 60_000 }],
+      ['game.lastro.cn', 443, { noDelay: true, keepAliveDelay: 60_000 }],
+      ['game.lastro.cn', 443, { noDelay: true, keepAliveDelay: 60_000 }],
     ]);
     expect(requests[0]).toContain('GET /?r=pc/index HTTP/1.1\r\n');
     expect(requests[1]).toContain('POST /?r=mg/checkin&nid=5 HTTP/1.1\r\n');
@@ -66,7 +81,7 @@ describe('LastRO login HTTP transport', () => {
     const expectedBody = `_csrf=${encodeURIComponent(csrfToken).replace(/%20/g, '+')}&Login_debug%5Buserid%5D=testbot1&Login_debug%5Buser_pass%5D=5158951589`;
     expect(requests[1]).toContain(`Content-Length: ${new TextEncoder().encode(expectedBody).byteLength}\r\n`);
     expect(requests[1]).toContain('Login_debug%5Buserid%5D=testbot1&Login_debug%5Buser_pass%5D=5158951589');
-    expect(postReadable.getReader).not.toHaveBeenCalled();
+    expect(verified).toHaveBeenCalledWith(true);
   });
 
   it('reuses a session prepared before login instead of delaying the POST for bootstrap', async () => {
@@ -90,20 +105,25 @@ describe('LastRO login HTTP transport', () => {
       close = vi.fn(async () => {});
       constructor() {
         const current = instance++;
+        let emitBootstrap: (() => void) | undefined;
         const readable = current === 0
           ? new ReadableStream<Uint8Array>({
-            start(controller) { controller.enqueue(response); controller.close(); },
+            start(controller) { emitBootstrap = () => { controller.enqueue(response); controller.close(); }; },
           })
           : new ReadableStream<Uint8Array>();
         const writable = new WritableStream<Uint8Array>({
-          write(chunk) { requests.push(new TextDecoder().decode(chunk)); },
+          write(chunk) {
+            const text = new TextDecoder().decode(chunk);
+            if (text.length) requests.push(text);
+            if (current === 0 && text.startsWith('GET ')) emitBootstrap?.();
+          },
         });
         this.opened = Promise.resolve({ readable, writable });
       }
     }
 
-    await prepareLastROLoginSession({ TCPSocket: Native });
-    await sendLastROLoginPost('checkin', 5, 'testbot1', '5158951589', { TCPSocket: Native });
+    await prepareLastROLoginSession({ TCPSocket: Native, tlsClientFactory: transparentTls });
+    await sendLastROLoginPost('checkin', 5, 'testbot1', '5158951589', { TCPSocket: Native, tlsClientFactory: transparentTls });
 
     expect(requests).toHaveLength(2);
     expect(requests[0]).toContain('GET /?r=pc/index HTTP/1.1\r\n');
@@ -120,7 +140,7 @@ describe('LastRO login HTTP transport', () => {
       closed = closed.promise;
       close = close;
     }
-    const pending = sendLastROLoginPost('check', 5, 'user', 'pass', { TCPSocket: Native });
+    const pending = sendLastROLoginPost('check', 5, 'user', 'pass', { TCPSocket: Native, tlsClientFactory: transparentTls });
     opened.reject(new Error('denied'));
     await expect(pending).rejects.toThrow('denied');
     expect(close).toHaveBeenCalledOnce();

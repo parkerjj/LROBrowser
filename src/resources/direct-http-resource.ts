@@ -1,3 +1,6 @@
+import { makeTLSClient, setCryptoImplementation } from '@reclaimprotocol/tls';
+import { webcryptoCrypto } from '@reclaimprotocol/tls/webcrypto';
+
 const RESOURCE_ROOTS = new Map([
   ['https://game.lastro.cn', 'game.lastro.cn'],
   ['https://rodata.ltsd.ro', 'rodata.ltsd.ro'],
@@ -23,6 +26,8 @@ interface DirectHttpOptions {
   maxBodyBytes?: number;
   /** Restrict the extra executable-text path to the reviewed metadata downloader. */
   allowOfficialProfileScript?: boolean;
+  /** Test seam: production always uses the bundled TLS 1.2/1.3 client. */
+  tlsClientFactory?: typeof makeTLSClient;
 }
 
 interface DirectHttpResponseParts {
@@ -204,8 +209,18 @@ function parseResponse(bytes: Uint8Array, maxHeaderBytes: number, maxBodyBytes: 
   };
 }
 
-async function closeNative(native: DirectTcpConnection): Promise<void> {
-  try { await native.close(); } catch { /* best effort */ }
+const nativeCloseTasks = new WeakMap<DirectTcpConnection, Promise<void>>();
+
+/** Cancelling both sides of a TLS stream must not close one Direct Socket repeatedly. */
+function closeNative(native: DirectTcpConnection): Promise<void> {
+  const existing = nativeCloseTasks.get(native);
+  if (existing) return existing;
+  const closing = Promise.resolve().then(() => native.close()).then(
+    () => undefined,
+    () => undefined, // best effort; error is already surfaced through the fetch path
+  );
+  nativeCloseTasks.set(native, closing);
+  return closing;
 }
 
 async function waitFor<T>(promise: Promise<T>, timeoutMs: number, signal: AbortSignal | undefined, phase: 'open' | 'read'): Promise<T> {
@@ -234,20 +249,36 @@ async function readResponse(
   const reader = opened.readable.getReader();
   const writer = opened.writable.getWriter();
   const chunks: Uint8Array[] = [];
+  const pendingHeader: Uint8Array[] = [];
   let total = 0;
+  let head: ParsedResponseHead | null = null;
   try {
     await waitFor(writer.write(request), options.readTimeoutMs, options.signal, 'read');
     while (true) {
       const result = await waitFor(reader.read(), options.readTimeoutMs, options.signal, 'read');
       if (result.done) break;
-      if (!result.value) continue;
+      if (!result.value?.byteLength) continue;
       total += result.value.byteLength;
       if (total > options.maxHeaderBytes + options.maxBodyBytes) throw new Error('Direct HTTP response is too large');
-      chunks.push(result.value.slice());
-      const bytes = joinBytes(chunks, options.maxHeaderBytes + options.maxBodyBytes);
-      const head = parseResponseHead(bytes, options.maxHeaderBytes);
-      if (head?.contentLength !== undefined && bytes.byteLength - head.bodyStart >= head.contentLength) {
-        return parseResponse(bytes, options.maxHeaderBytes, options.maxBodyBytes);
+      const chunk = result.value.slice();
+      chunks.push(chunk);
+      if (!head) {
+        // Header parsing may span several TCP chunks, but its size is bounded.
+        // Once found, NEVER rejoin all received body chunks on each read:
+        // repeated joins used O(n^2) memory copies for large map files.
+        pendingHeader.push(chunk);
+        head = parseResponseHead(
+          joinBytes(pendingHeader, options.maxHeaderBytes + options.maxBodyBytes),
+          options.maxHeaderBytes,
+        );
+        if (head) pendingHeader.length = 0;
+      }
+      if (head?.contentLength !== undefined && total - head.bodyStart >= head.contentLength) {
+        return parseResponse(
+          joinBytes(chunks, options.maxHeaderBytes + options.maxBodyBytes),
+          options.maxHeaderBytes,
+          options.maxBodyBytes,
+        );
       }
     }
     return parseResponse(joinBytes(chunks, options.maxHeaderBytes + options.maxBodyBytes), options.maxHeaderBytes, options.maxBodyBytes);
@@ -258,6 +289,113 @@ async function readResponse(
     writer.releaseLock();
     await closeNative(native);
   }
+}
+
+/**
+ * A Direct Socket is raw TCP, never implicitly HTTPS. TLS is implemented at
+ * this boundary only for the approved official host on port 443. Web builds
+ * never include this module; they download from the CORS-enabled mirror.
+ */
+const SILENT_TLS_LOGGER = {
+  info() {}, debug() {}, trace() {}, warn() {}, error() {},
+};
+
+type OpenedDirectSocket = { readable: ReadableStream<Uint8Array>; writable: WritableStream<Uint8Array> };
+
+export async function openEncryptedHttpStreams(
+  native: DirectTcpConnection,
+  opened: OpenedDirectSocket,
+  host: string,
+  options: { tlsClientFactory?: typeof makeTLSClient; timeoutMs: number; signal?: AbortSignal; verifyServerCertificate?: boolean },
+): Promise<OpenedDirectSocket> {
+  const networkReader = opened.readable.getReader();
+  const networkWriter = opened.writable.getWriter();
+  let controller!: ReadableStreamDefaultController<Uint8Array>;
+  let terminated = false;
+  let streamCancelled = false;
+  let handshakeFinished = false;
+  let resolveHandshake!: () => void;
+  let rejectHandshake!: (reason: Error) => void;
+  const handshake = new Promise<void>((resolve, reject) => {
+    resolveHandshake = resolve;
+    rejectHandshake = reject;
+  });
+  // A closed/cancelled plaintext stream also closes the underlying native
+  // socket. readResponse's existing finally block handles all other cleanup.
+  const readable = new ReadableStream<Uint8Array>({
+    start(value) { controller = value; },
+    cancel() {
+      streamCancelled = true;
+      terminated = true;
+      void closeNative(native);
+    },
+  });
+  const fail = (error: Error) => {
+    if (terminated || streamCancelled) return;
+    terminated = true;
+    rejectHandshake(error);
+    controller.error(error);
+  };
+  if (!options.tlsClientFactory) setCryptoImplementation(webcryptoCrypto);
+  const client = (options.tlsClientFactory ?? makeTLSClient)({
+    host,
+    // The connection is restricted to one public passive-resource hostname.
+    // This does not authenticate its certificate (see documentation).
+    verifyServerCertificate: options.verifyServerCertificate ?? false,
+    supportedProtocolVersions: ['TLS1_3', 'TLS1_2'],
+    applicationLayerProtocols: ['http/1.1'],
+    logger: SILENT_TLS_LOGGER,
+    async write({ header, content }) {
+      await networkWriter.write(header);
+      if (content.byteLength) await networkWriter.write(content);
+    },
+    onHandshake() {
+      handshakeFinished = true;
+      resolveHandshake();
+    },
+    onApplicationData(data) {
+      if (!terminated) controller.enqueue(data.slice());
+    },
+    onTlsEnd(error) {
+      if (error) fail(error);
+      else if (!handshakeFinished) fail(new Error('TLS connection ended before handshake'));
+      else if (!terminated && !streamCancelled) {
+        terminated = true;
+        controller.close();
+      }
+    },
+  });
+  // TLS records can be split or combined arbitrarily across TCP reads;
+  // the library owns framing, decryption and key updates.
+  void (async () => {
+    try {
+      while (!terminated) {
+        const result = await networkReader.read();
+        if (result.done) {
+          if (!handshakeFinished) fail(new Error('TLS socket closed before handshake'));
+          else if (!terminated && !streamCancelled) { terminated = true; controller.close(); }
+          break;
+        }
+        if (result.value?.byteLength) await client.handleReceivedBytes(result.value);
+      }
+    } catch (error) {
+      fail(error instanceof Error ? error : new Error(String(error)));
+    } finally {
+      networkReader.releaseLock();
+      networkWriter.releaseLock();
+    }
+  })();
+  try {
+    await waitFor(client.startHandshake().then(() => handshake), options.timeoutMs, options.signal, 'open');
+  } catch (error) {
+    await closeNative(native);
+    throw error;
+  }
+  const writable = new WritableStream<Uint8Array>({
+    async write(bytes) { await client.write(bytes); },
+    abort() { void closeNative(native); },
+  });
+  return { readable, writable };
 }
 
 export function createDirectHttpFetch(options: DirectHttpOptions = {}): typeof globalThis.fetch {
@@ -291,7 +429,7 @@ export function createDirectHttpFetch(options: DirectHttpOptions = {}): typeof g
       });
     }
     if (!constructorForSocket) throw new Error('Direct TCP is unavailable');
-    const native = new constructorForSocket(host, 80, { noDelay: true, keepAliveDelay: 60_000 });
+    const native = new constructorForSocket(host, 443, { noDelay: true, keepAliveDelay: 60_000 });
     void native.closed.catch(() => undefined);
     let opened = false;
     try {
@@ -304,7 +442,16 @@ export function createDirectHttpFetch(options: DirectHttpOptions = {}): typeof g
         '',
         '',
       ].join('\r\n'));
-      const parsed = await readResponse(native, connection, request, { readTimeoutMs, maxHeaderBytes, maxBodyBytes, signal });
+      // Keep TLS bundled in the IWA worker, never load code from a remote URL.
+      const encrypted = await openEncryptedHttpStreams(native, connection, host, {
+        tlsClientFactory: options.tlsClientFactory,
+        timeoutMs: openTimeoutMs,
+        // Online.js contains server addresses and packet keys: unlike images,
+        // metadata must be authenticated before influencing game connections.
+        verifyServerCertificate: officialProfileRequest,
+        signal,
+      });
+      const parsed = await readResponse(native, encrypted, request, { readTimeoutMs, maxHeaderBytes, maxBodyBytes, signal });
       const body = parsed.status === 204 || parsed.status === 205 || parsed.status === 304 ? null : parsed.body;
       return new Response(body, { status: parsed.status, statusText: parsed.statusText, headers: parsed.headers });
     } catch (error) {

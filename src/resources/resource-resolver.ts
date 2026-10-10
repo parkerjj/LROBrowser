@@ -5,6 +5,8 @@ import { validateMapBinary } from './map-binary-validation';
 export const RESOURCE_CACHE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 export const MAP_RESOURCE_TIMEOUT_MS = 60_000;
 export const RESOURCE_TIMEOUT_MS = 8_000;
+export const RESOURCE_HEDGE_DELAY_MS = 350;
+export const NEGATIVE_RESOURCE_CACHE_MS = 5 * 60 * 1000;
 
 export const DEFAULT_RESOURCE_ROOTS = Object.freeze([
   'https://game.lastro.cn/ro/client_re/',
@@ -44,6 +46,39 @@ export interface ResourceAttempt {
   reason: string;
 }
 
+/**
+ * Per-worker source measurements; a slow/failed server no longer has to be
+ * contacted first for every sprite. This never adds a new trusted origin.
+ */
+export class ResourceSourceHealth {
+  private readonly metrics = new Map<string, { latency: number; failures: number }>();
+
+  order(roots: readonly string[]): string[] {
+    return [...roots].sort((a, b) => this.score(a) - this.score(b));
+  }
+
+  private score(root: string): number {
+    const metric = this.metrics.get(root);
+    return metric ? metric.latency + metric.failures * 1_000 : 10_000;
+  }
+
+  success(root: string, durationMs: number): void {
+    const old = this.metrics.get(root);
+    this.metrics.set(root, {
+      latency: old ? old.latency * 0.7 + durationMs * 0.3 : durationMs,
+      failures: 0
+    });
+  }
+
+  failure(root: string): void {
+    const old = this.metrics.get(root);
+    this.metrics.set(root, {
+      latency: old?.latency ?? 8_000,
+      failures: Math.min((old?.failures ?? 0) + 1, 10)
+    });
+  }
+}
+
 export interface ResolvePassiveResourceOptions {
   cache?: ResourceCache;
   fetch?: typeof globalThis.fetch;
@@ -52,6 +87,11 @@ export interface ResolvePassiveResourceOptions {
   primaryCharset?: string;
   fallbackCharset?: string;
   timeoutMs?: number;
+  /** A second origin begins after this delay, or immediately after the first fails. */
+  hedgeDelayMs?: number;
+  sourceHealth?: ResourceSourceHealth;
+  /** Per-worker, bounded cache of URLs which returned an actual HTTP 404. */
+  notFoundUntil?: Map<string, number>;
 }
 
 function hasSingleByteMojibake(segment: string): boolean {
@@ -219,24 +259,41 @@ export async function resolvePassiveResource(resourcePath: string, options: Reso
   const isDefaultRoots = allRoots.join('|') === DEFAULT_RESOURCE_ROOTS.join('|');
   const isWebRoots = allRoots.join('|') === WEB_RESOURCE_ROOTS.join('|');
   if (!isDefaultRoots && !isWebRoots) throw new Error('Resource root order is fixed');
-  const roots = backdropOnly ? allRoots.filter((root) => root.startsWith(CLEAN_BACKDROP_ROOT)) : allRoots;
+  const allowedRoots = backdropOnly ? allRoots.filter((root) => root.startsWith(CLEAN_BACKDROP_ROOT)) : allRoots;
+  const roots = options.sourceHealth?.order(allowedRoots) ?? allowedRoots;
   const controller = new AbortController();
   const loadRoot = async (root: string) => {
     const failures: ResourceAttempt[] = [];
+    const startedAt = Date.now();
     for (const candidate of candidates) {
       const url = root + candidate;
+      const negativeExpiry = options.notFoundUntil?.get(url);
+      if (negativeExpiry && negativeExpiry > Date.now()) {
+        failures.push({ url, reason: 'http-404-cached' });
+        continue;
+      }
+      if (negativeExpiry) options.notFoundUntil?.delete(url);
       try {
         const timeoutMs = options.timeoutMs ?? (/\.(?:gat|gnd|rsw|rsm2?|str)$/i.test(normalizedPath) ? MAP_RESOURCE_TIMEOUT_MS : RESOURCE_TIMEOUT_MS);
         const result = await fetchResource(url, { ...options, timeoutMs }, controller.signal);
         validateMapBinary(normalizedPath, result.bytes);
+        options.sourceHealth?.success(root, Date.now() - startedAt);
         return { url, ...result };
       } catch (error) {
         if (controller.signal.aborted) throw error;
         const reason = error instanceof Error ? error.message : 'fetch-failed';
         failures.push({ url, reason });
+        if (reason === 'http-404' && options.notFoundUntil) {
+          if (options.notFoundUntil.size >= 2_048) {
+            const oldest = options.notFoundUntil.keys().next().value;
+            if (oldest) options.notFoundUntil.delete(oldest);
+          }
+          options.notFoundUntil.set(url, Date.now() + NEGATIVE_RESOURCE_CACHE_MS);
+        }
         if (reason !== 'http-404' && reason !== 'html-response' && !reason.startsWith('invalid-map-')) break;
       }
     }
+    options.sourceHealth?.failure(root);
     throw new ResourceResolutionError(normalizedPath, failures);
   };
   const save = async (result: Awaited<ReturnType<typeof loadRoot>>) => {
@@ -248,11 +305,36 @@ export async function resolvePassiveResource(resourcePath: string, options: Reso
     await cache.put(normalizedPath, result.bytes, metadata).catch(() => {});
     return result.bytes;
   };
-  if (/\.(?:gat|gnd|rsw|rsm2?|str)$/i.test(normalizedPath)) {
-    // Each origin advances through its own path candidates independently.
-    // A failed origin must not prevent the other from finding a valid variant.
+  const isMapOrModel = /\.(?:gat|gnd|rsw|rsm2?|str)$/i.test(normalizedPath);
+  if (isMapOrModel || (roots.length === 2 && options.hedgeDelayMs !== undefined)) {
+    // Each origin advances through its candidates independently. For small assets
+    // hedge after a short delay rather than imposing a full eight-second timeout
+    // before trying the mirror. Map/model assets retain immediate racing.
     try {
-      const result = await Promise.any(roots.map(loadRoot));
+      const candidates = isMapOrModel || roots.length < 2
+        ? roots.map(loadRoot)
+        : (() => {
+          const primary = loadRoot(roots[0]!);
+          const secondary = new Promise<Awaited<ReturnType<typeof loadRoot>>>((resolve, reject) => {
+            let started = false;
+            const start = () => {
+              if (started) return;
+              started = true;
+              clearTimeout(timer);
+              controller.signal.removeEventListener('abort', onAbort);
+              if (controller.signal.aborted) { reject(new Error('hedge-cancelled')); return; }
+              void loadRoot(roots[1]!).then(resolve, reject);
+            };
+            const onAbort = () => {
+              if (!started) { clearTimeout(timer); reject(new Error('hedge-cancelled')); }
+            };
+            const timer = setTimeout(start, Math.max(0, options.hedgeDelayMs!));
+            controller.signal.addEventListener('abort', onAbort, { once: true });
+            void primary.catch(start);
+          });
+          return [primary, secondary];
+        })();
+      const result = await Promise.any(candidates);
       controller.abort();
       return await save(result);
     } catch (error) {

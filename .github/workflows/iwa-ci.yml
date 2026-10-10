@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: iwa-ci-${{ github.workflow }}-${{ github.ref }}
+  group: iwa-ci-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -30,10 +30,19 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck
-      - run: pnpm test
+      - name: Verify official HTTPS via real JavaScript TLS on Direct TCP/443
+        env:
+          LASTRO_TLS_LIVE: '1'
+        run: pnpm exec vitest run test/direct-tls-live.test.ts --testTimeout 30000
+      - run: pnpm prepare:runtime
+      - name: Focused HTTPS transport and resource Worker regression tests
+        run: pnpm exec vitest run test/direct-http-resource.test.ts test/lastro-login-http.test.ts test/resource-worker.test.ts test/official-online-profiles.test.ts
+      # Validate the release artifacts before the slower full test suite,
+      # so packaging failures are visible without waiting for ~4,700 tests.
       - run: pnpm build
       - run: pnpm audit:iwa
       - run: pnpm bundle:iwa -- --out release/lastro-v2-ci.wbn
+      - run: pnpm test
       - uses: actions/upload-artifact@v4
         with:
           name: iwa-ci-${{ github.sha }}

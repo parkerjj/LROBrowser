@@ -1,5 +1,8 @@
+import type { makeTLSClient } from '@reclaimprotocol/tls';
+import { openEncryptedHttpStreams } from '../resources/direct-http-resource';
+
 const LASTRO_LOGIN_HOST = 'game.lastro.cn';
-const LASTRO_LOGIN_PORT = 80;
+const LASTRO_LOGIN_PORT = 443;
 const LASTRO_LOGIN_BOOTSTRAP_PATH = '/?r=pc/index';
 const DEFAULT_OPEN_TIMEOUT_MS = 8_000;
 const DEFAULT_READ_TIMEOUT_MS = 8_000;
@@ -19,6 +22,8 @@ export interface LastROLoginHttpOptions {
   TCPSocket?: DirectTcpConstructor;
   openTimeoutMs?: number;
   readTimeoutMs?: number;
+  /** Test seam; production uses the bundled browser WebCrypto TLS client. */
+  tlsClientFactory?: typeof makeTLSClient;
 }
 
 interface LastROLoginSession {
@@ -210,16 +215,22 @@ function parseCsrfCookie(headers: Map<string, string[]>): string {
 
 async function loadLastROLoginSession(
   constructorForSocket: DirectTcpConstructor,
-  openTimeoutMs: number,
-  readTimeoutMs: number,
+  options: LastROLoginHttpOptions,
 ): Promise<LastROLoginSession> {
   const native = new constructorForSocket(LASTRO_LOGIN_HOST, LASTRO_LOGIN_PORT, { noDelay: true, keepAliveDelay: 60_000 });
   void native.closed.catch(() => undefined);
   let opened = false;
   try {
-    const connection = await waitFor(native.opened, openTimeoutMs, 'LastRO login HTTP bootstrap open timeout');
+    const openTimeoutMs = Math.max(1, options.openTimeoutMs ?? DEFAULT_OPEN_TIMEOUT_MS);
+    const readTimeoutMs = Math.max(1, options.readTimeoutMs ?? DEFAULT_READ_TIMEOUT_MS);
+    const connection = await waitFor(native.opened, openTimeoutMs, 'LastRO login TLS bootstrap open timeout');
     opened = true;
-    const response = await readResponse(native, connection, buildBootstrapRequest(), readTimeoutMs);
+    const encrypted = await openEncryptedHttpStreams(native, connection, LASTRO_LOGIN_HOST, {
+      timeoutMs: openTimeoutMs,
+      tlsClientFactory: options.tlsClientFactory,
+      verifyServerCertificate: true,
+    });
+    const response = await readResponse(native, encrypted, buildBootstrapRequest(), readTimeoutMs);
     if (response.status < 200 || response.status >= 300) {
       throw new Error(`LastRO login HTTP bootstrap failed (${response.status})`);
     }
@@ -237,11 +248,7 @@ function getLastROLoginSession(
 ): Promise<LastROLoginSession> {
   const cached = sessionCache.get(constructorForSocket);
   if (cached) return cached;
-  const session = loadLastROLoginSession(
-    constructorForSocket,
-    Math.max(1, options.openTimeoutMs ?? DEFAULT_OPEN_TIMEOUT_MS),
-    Math.max(1, options.readTimeoutMs ?? DEFAULT_READ_TIMEOUT_MS),
-  );
+  const session = loadLastROLoginSession(constructorForSocket, options);
   sessionCache.set(constructorForSocket, session);
   session.catch(() => {
     if (sessionCache.get(constructorForSocket) === session) sessionCache.delete(constructorForSocket);
@@ -319,10 +326,16 @@ export async function sendLastROLoginPost(
   const native = new constructorForSocket(request.host, request.port, { noDelay: true, keepAliveDelay: 60_000 });
   void native.closed.catch(() => undefined);
   try {
-    const connection = await waitFor(native.opened, Math.max(1, options.openTimeoutMs ?? DEFAULT_OPEN_TIMEOUT_MS), 'LastRO login HTTP open timeout');
-    const writer = connection.writable.getWriter();
+    const openTimeoutMs = Math.max(1, options.openTimeoutMs ?? DEFAULT_OPEN_TIMEOUT_MS);
+    const connection = await waitFor(native.opened, openTimeoutMs, 'LastRO login TLS open timeout');
+    const encrypted = await openEncryptedHttpStreams(native, connection, LASTRO_LOGIN_HOST, {
+      timeoutMs: openTimeoutMs,
+      tlsClientFactory: options.tlsClientFactory,
+      verifyServerCertificate: true,
+    });
+    const writer = encrypted.writable.getWriter();
     try {
-      await writer.write(request.bytes);
+      await waitFor(writer.write(request.bytes), Math.max(1, options.readTimeoutMs ?? DEFAULT_READ_TIMEOUT_MS), 'LastRO login TLS write timeout');
       await writer.close();
     } finally {
       writer.releaseLock();

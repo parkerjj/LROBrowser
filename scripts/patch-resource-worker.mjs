@@ -145,7 +145,23 @@ async function main() {
   const resourceLoaderEntry = process.env.LASTRO_BUILD_TARGET === 'web'
     ? 'src/resources/runtime-resource-loader-web.ts'
     : 'src/resources/runtime-resource-loader.ts';
+  // @reclaimprotocol/tls/webcrypto imports Node's "crypto" to obtain WebCrypto.
+  // In the IWA worker map ONLY that built-in to Chrome's native WebCrypto,
+  // instead of bundling Node crypto polyfills or a pure-JS crypto fallback.
+  const nativeWebCrypto = {
+    name: 'iwa-native-webcrypto',
+    setup(bundle) {
+      bundle.onResolve({ filter: /^(node:)?crypto$/ }, () => ({
+        path: 'iwa-webcrypto', namespace: 'iwa-webcrypto',
+      }));
+      bundle.onLoad({ filter: /.*/, namespace: 'iwa-webcrypto' }, () => ({
+        contents: 'export const webcrypto = globalThis.crypto;',
+        loader: 'js',
+      }));
+    },
+  };
   await build({ entryPoints: [resourceLoaderEntry], bundle: true, format: 'iife',
+    ...(process.env.LASTRO_BUILD_TARGET === 'web' ? {} : { plugins: [nativeWebCrypto] }),
     globalName: 'LastROResources', target: 'es2022', outfile: path.join(output, 'lastro-resource-loader.js') });
   await writeFile(path.join(output, 'ThreadEventHandler.js'), worker);
   await writeFile(path.join(output, 'LastROThreadEventHandler.js'), handler);
