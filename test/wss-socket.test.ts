@@ -17,7 +17,7 @@ class FakeWebSocket {
   send(buffer: ArrayBuffer) { this.sent.push(buffer); }
 }
 
-function harness(mode = 'relay', serverId = 'lastro-2x') {
+function harness(mode = 'relay', serverId = 'lastro-2x', relayEndpoint?: string) {
   FakeWebSocket.instances = [];
   const source = readFileSync('generated/runtime/Online.js', 'utf8');
   const start = source.indexOf('function Socket$1(');
@@ -27,7 +27,7 @@ function harness(mode = 'relay', serverId = 'lastro-2x') {
   const direct = vi.fn(() => ({ direct: true }));
   const context = vm.createContext({
     __esmMin: (init: () => void) => init, WebSocket: FakeWebSocket, URL,
-    Configs: { get: (key: string, fallback: unknown) => ({ connectionMode: mode, id: serverId }[key] ?? fallback) },
+    Configs: { get: (key: string, fallback: unknown) => ({ connectionMode: mode, id: serverId, relayEndpoint }[key] ?? fallback) },
     LastRODirectSocketFactory: direct,
   });
   vm.runInContext(`${socket}\nif (typeof init_WebSocket === 'function') init_WebSocket();\n${factory}`, context);
@@ -85,6 +85,16 @@ describe('explicit WSS relay transport', () => {
       'wss://port.lastro.cn/103.8.222.164:28569',
       'wss://port.lastro.cn/103.8.222.164:28570',
     ]);
+  });
+
+  it('uses approved official relay metadata and rejects a proxy outside LastRO domains', () => {
+    const approved = harness('relay', 'lastro-3x', 'wss://edge.lastro.cn/');
+    approved.create('103.8.222.164', 28569);
+    expect(FakeWebSocket.instances[0]!.url).toBe('wss://edge.lastro.cn/103.8.222.164:28569');
+
+    const rejected = harness('relay', 'lastro-3x', 'wss://attacker.invalid/');
+    rejected.create('103.8.222.164', 28569);
+    expect(FakeWebSocket.instances[0]!.url).toBe('wss://port.lastro.cn/103.8.222.164:28569');
   });
 
   it('rejects relay use for App even for character/map ports', () => {
