@@ -51,22 +51,16 @@ function harness() {
       }
       return new Response(tableBytes, { headers: { 'content-type': 'application/octet-stream' } });
     },
+    // The official origin speaks TLS on 443, never plaintext HTTP. This
+    // integration harness deliberately makes that origin unavailable and
+    // exercises the real resource Worker fallback to the HTTPS mirror.
+    // Actual TLS handshake/HTTP framing is covered by direct-tls-live.test.ts.
     TCPSocket: class {
       readonly opened: Promise<{ readable: ReadableStream<Uint8Array>; writable: WritableStream<Uint8Array> }>;
-      readonly closed = new Promise<void>(() => {});
+      readonly closed = Promise.resolve();
       constructor(host: string, port: number) {
-        let controller!: ReadableStreamDefaultController<Uint8Array>;
-        const readable = new ReadableStream<Uint8Array>({ start(value) { controller = value; } });
-        const writable = new WritableStream<Uint8Array>({
-          write: (chunk) => {
-            tcpRequests.push({ host, port, request: new TextDecoder().decode(chunk) });
-            const body = new TextEncoder().encode('test#table#');
-            controller.enqueue(new TextEncoder().encode(`HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: ${body.byteLength}\r\nConnection: close\r\n\r\n`));
-            controller.enqueue(body);
-            controller.close();
-          },
-        });
-        this.opened = Promise.resolve({ readable, writable });
+        tcpRequests.push({ host, port, request: '' });
+        this.opened = Promise.reject(new Error('Simulated official TLS connection unavailable'));
       }
       close = async () => {};
     },
@@ -149,13 +143,11 @@ describe('V2 native resource startup', () => {
     expect(table).toBeInstanceOf(Uint8Array);
     const script = await vm.runInContext('new Promise((resolve, reject) => Client.getFile("System/test.lua", resolve, reject));', runtime.main);
     expect(script).toBeInstanceOf(ArrayBuffer);
-    expect(runtime.requests).toEqual(['https://iwa.invalid/core/System/test.lua']);
-    expect(runtime.tcpRequests).toHaveLength(1);
-    expect(runtime.tcpRequests[0]).toMatchObject({ host: 'game.lastro.cn', port: 80 });
-    const request = runtime.tcpRequests[0]!.request;
-    expect(request).toContain('GET /ro/client_re/data/mp3nametable.txt HTTP/1.1\r\n');
-    expect(request).not.toMatch(/^(?:authorization|cookie):/im);
-    expect(request.endsWith('\r\n\r\n')).toBe(true);
+    expect(runtime.requests).toEqual([
+      'https://rodata.ltsd.ro/ro/client_re/data/mp3nametable.txt',
+      'https://iwa.invalid/core/System/test.lua',
+    ]);
+    expect(runtime.tcpRequests).toEqual([{ host: 'game.lastro.cn', port: 443, request: '' }]);
   });
 
   it('loads the packaged achievement Lua through the real LOAD_FILE path', async () => {
