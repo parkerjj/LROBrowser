@@ -5,6 +5,7 @@ import process from 'node:process';
 import ts from 'typescript';
 import { build } from 'esbuild';
 import { patchElectronRequireFallbacks } from './patch-csp-runtime.mjs';
+import { patchCspReflectGlobals } from './csp-reflect-global.mjs';
 
 function replaceOnce(source, needle, replacement) {
   const count = source.split(needle).length - 1;
@@ -160,9 +161,16 @@ async function main() {
       }));
     },
   };
+  const loaderOutput = path.join(output, 'lastro-resource-loader.js');
   await build({ entryPoints: [resourceLoaderEntry], bundle: true, format: 'iife',
     ...(process.env.LASTRO_BUILD_TARGET === 'web' ? {} : { plugins: [nativeWebCrypto] }),
-    globalName: 'LastROResources', target: 'es2022', outfile: path.join(output, 'lastro-resource-loader.js') });
+    globalName: 'LastROResources', target: 'es2022', outfile: loaderOutput });
+  if (process.env.LASTRO_BUILD_TARGET !== 'web') {
+    // The esbuild-produced TLS resource Worker contains the same legacy
+    // reflection probes as the Vite UI. Patch before core asset import hashes
+    // this file into the signed executable manifest.
+    await writeFile(loaderOutput, patchCspReflectGlobals(await readFile(loaderOutput, 'utf8')));
+  }
   await writeFile(path.join(output, 'ThreadEventHandler.js'), worker);
   await writeFile(path.join(output, 'LastROThreadEventHandler.js'), handler);
   process.stdout.write(JSON.stringify({ output, files: 3 }) + '\n');
