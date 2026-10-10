@@ -1133,7 +1133,20 @@ ${normalizedSource}`;
     if (Configs.get("id") === "lastro-app") throw new Error("App服不支持中转");
     // Online_new.js routes the public host through this upstream address.
     const targetHost = host === "port.lastro.cn" ? "45.248.10.247" : host;
-    return new Socket$1("wss://port.lastro.cn/" + targetHost + ":" + port);
+    let relayBase = "wss://port.lastro.cn/";
+    const officialRelay = Configs.get("relayEndpoint");
+    if (typeof officialRelay === "string") {
+      try {
+        const url = new URL(officialRelay);
+        // Never follow an arbitrary proxy learned over plaintext HTTP.
+        if (url.protocol === "wss:" && (url.hostname === "lastro.cn" || url.hostname.endsWith(".lastro.cn"))
+            && (!url.port || url.port === "443") && url.pathname === "/"
+            && !url.search && !url.hash && !url.username && !url.password) {
+          relayBase = url.href;
+        }
+      } catch { /* keep the built-in proxy */ }
+    }
+    return new Socket$1(relayBase + targetHost + ":" + port);
   }
   if (Configs.get("id") !== "lastro-app") throw new Error("直连暂时仅App服可用");
   if (typeof globalThis.LastRODirectSocketFactory !== "function") throw new Error("Direct TCP factory unavailable");
