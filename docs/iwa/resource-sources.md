@@ -5,7 +5,7 @@ Phase A 的 Worker 只允许使用以下两个被动资源源，并按顺序尝�
 1. `https://game.lastro.cn/ro/client_re/`
 2. `https://rodata.ltsd.ro/ro/client_re/`
 
-浏览器 Fetch 不能读取官方源的跨域响应，因为响应没有 `Access-Control-Allow-Origin`。因此官方源 cache miss 时由 IWA `TCPSocket` 连接 `game.lastro.cn:443`，通过内置 `@reclaimprotocol/tls` 的 TLS 1.3/1.2 握手后发送受限的 HTTP/1.1 `GET`；不依赖官方 CORS，也不新增服务端代理。被动资源不包含凭据，当前该路径禁用证书链校验；`Online.js` 也是只读取文本、不执行的元数据。登录辅助 POST 则独立启用证书校验。备用源 `rodata.ltsd.ro` 使用浏览器原生 HTTPS `fetch`，由 Chrome 自己完成 TLS；它不创建 Direct TCP 连接，也不需要代理、WebSocket 或中转服务。两条路径返回的数据统一交给 resolver。测试使用 fake `TCPSocket` 和 fake `fetch` 覆盖官方失败、备用成功、HTML、网络错误和 HTTP 错误路径。
+浏览器 Fetch 不能读取官方源的跨域响应，因为响应没有 `Access-Control-Allow-Origin`。因此官方源 cache miss 时由 IWA `TCPSocket` 连接 `game.lastro.cn:443`，通过内置 `@reclaimprotocol/tls` 的 TLS 1.3/1.2 握手后发送受限的 HTTP/1.1 `GET`；不依赖官方 CORS，也不新增服务端代理。被动资源不包含凭据，当前该路径禁用证书链校验；`Online.js` 虽只作为文本解析、不执行，但因包含服务器地址和密钥元数据，其下载强制校验证书。登录辅助 GET/POST 也强制校验证书。备用源 `rodata.ltsd.ro` 使用浏览器原生 HTTPS `fetch`，由 Chrome 自己完成 TLS；它不创建 Direct TCP 连接，也不需要代理、WebSocket 或中转服务。两条路径返回的数据统一交给 resolver。测试使用 fake `TCPSocket` 和 fake `fetch` 覆盖官方失败、备用成功、HTML、网络错误和 HTTP 错误路径。
 
 `.js`、`.mjs`、`.cjs`、`.wasm`、`.lua` 和 `.lub` 永远只从 IWA 包内的 `core/executable-assets.json` 清单读取。远程响应不会被当作脚本、模块、WASM 或 Lua 执行。未知扩展名和路径穿越会被拒绝；地图、模型、精灵、纹理和音频等明确列出的被动扩展名才允许远程解析。
 
