@@ -30,11 +30,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck
-      - run: pnpm test
       - name: Verify official HTTPS via real JavaScript TLS on Direct TCP/443
         env:
           LASTRO_TLS_LIVE: '1'
         run: pnpm exec vitest run test/direct-tls-live.test.ts --testTimeout 30000
+      - run: pnpm test
       - run: pnpm build
       - run: pnpm audit:iwa
       - run: pnpm bundle:iwa -- --out release/lastro-v2-ci.wbn
