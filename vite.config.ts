@@ -99,12 +99,27 @@ function browserTlsCrypto(): Plugin {
   };
 }
 
+/**
+ * The TLS dependency tree imports reflect-metadata via @peculiar/x509.
+ * Its regular entry point uses eval/Function as a legacy global fallback.
+ * Chrome IWAs can use the official lite entry point instead.
+ */
+function browserReflectMetadataLite(): Plugin {
+  return {
+    name: 'lastro-reflect-metadata-lite',
+    enforce: 'pre',
+    resolveId(source, importer) {
+      if (source === 'reflect-metadata') return this.resolve('reflect-metadata/lite', importer, { skipSelf: true });
+    },
+  };
+}
+
 const buildTarget = process.env.LASTRO_BUILD_TARGET === 'web' ? 'web' : 'iwa';
 
 export default defineConfig({
   base: './',
   define: { __LASTRO_BUILD_TARGET__: JSON.stringify(buildTarget) },
-  plugins: [browserTlsCrypto(), packageRuntime(buildTarget)],
+  plugins: [browserTlsCrypto(), browserReflectMetadataLite(), packageRuntime(buildTarget)],
   optimizeDeps: { entries: ['index.html'], exclude: ['/runtime/Online.js'] },
   build: { target: 'es2022', sourcemap: false, rollupOptions: { external: ['/runtime/Online.js'] } },
   server: {

@@ -45,6 +45,32 @@ describe('IWA distribution audit', () => {
     } finally { await rm(root, { recursive: true, force: true }); }
   });
 
+  it('ignores provenance URLs inside JavaScript comments without whitelisting these hosts', async () => {
+    const root = await fixture();
+    try {
+      await runtime(root, [
+        '/*! Licensed under http://www.apache.org/licenses/LICENSE-2.0 */',
+        '// Source: https://github.com/example/library',
+        'const approved = "https://rodata.ltsd.ro/ro/";',
+      ].join('\n'));
+      await expect(auditDist(root, path.join(root, 'report.json'))).resolves.toBeDefined();
+    } finally { await rm(root, { recursive: true, force: true }); }
+  });
+
+  it.each([
+    'fetch("https://github.com/example/library");',
+    'const source = "https://github.com/example/library";',
+    'const source = `https://github.com/example/library`;',
+    'const source = "/* https://github.com/example/library */";',
+    'const source = "https://evil.invalid/data"; // https://github.com/example',
+  ])('rejects non-comment remote origins: %s', async (source) => {
+    const root = await fixture();
+    try {
+      await runtime(root, source);
+      await expect(auditDist(root, path.join(root, 'report.json'))).rejects.toThrow('unapproved remote origins');
+    } finally { await rm(root, { recursive: true, force: true }); }
+  });
+
   it('rejects unapproved origins and update manifests', async () => {
     const root = await fixture();
     try {
