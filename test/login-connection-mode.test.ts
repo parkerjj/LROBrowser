@@ -137,6 +137,24 @@ describe('login connection mode and live server selection', () => {
     expect(assign).not.toHaveBeenCalled();
   });
 
+  it('applies a newly downloaded official server entry immediately before login', async () => {
+    const { configs, root } = await setup('lastro-2x');
+    vi.stubGlobal('LastROResolveServerConnection', (candidate: Record<string, unknown>) => ({
+      ...candidate,
+      address: '103.8.222.200',
+      port: 26599,
+      version: 45,
+      langtype: 3,
+      packetKeys: [1205481642, 453065386, 592073252],
+    }));
+    expect(configs.getServer().port).toBe(26569);
+    expect(beforeLastROLoginConnect('fixture-user', 'fixture-only')).toBe(true);
+    expect(configs.getServer()).toMatchObject({
+      id: 'lastro-2x', address: '103.8.222.200', port: 26599, langtype: 3,
+    });
+    expect(root.querySelector('[data-lastro-login-message]')).not.toBeNull();
+  });
+
   it('allows relay login when Direct TCP is unavailable and blocks only direct login', async () => {
     const { root, mode } = await setup();
     vi.stubGlobal('LastRODirectSocketsSupported', false);
