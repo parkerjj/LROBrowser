@@ -108,6 +108,15 @@ function browserTlsCrypto(): Plugin {
   return {
     name: 'lastro-tls-native-webcrypto',
     enforce: 'pre',
+    renderChunk(source) {
+      // Some transitive dependencies inline reflect-metadata's UMD shim.
+      // Rewrite the two *specific* obsolete global probes on the JS chunk
+      // before Rollup finalizes its content hash. Never weaken IWA auditing.
+      const hasFunctionProbe = /\\bFunction\\s*\\(\\s*["']return this;["']\\s*\\)\\s*\\(\\s*\\)/.test(source);
+      const hasEvalProbe = /(?:\\(\\s*0\\s*,\\s*eval\\s*\\)|\\beval)\\s*\\(\\s*["']\\(function\\(\\) \\{ return this; \\}\\)\\(\\)["']\\s*\\)/.test(source);
+      if (!hasFunctionProbe && !hasEvalProbe) return;
+      return { code: cspSafeReflectMetadata(source), map: null };
+    },
     transform(source, id) {
       // Only rewrite the installed reflect-metadata polyfill, never game code.
       if (!/(?:^|[/\\\\])reflect-metadata[/\\\\]Reflect(?:NoConflict)?\\.js(?:$|\\?)/.test(id)) return;
