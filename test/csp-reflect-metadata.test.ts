@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import vm from 'node:vm';
 import { cspSafeReflectMetadata } from '../vite.config';
 
 describe('CSP-safe TLS certificate metadata polyfill', () => {
@@ -15,8 +16,7 @@ describe('CSP-safe TLS certificate metadata polyfill', () => {
     expect(patched).not.toMatch(/\bFunction\s*\(|\beval\s*\(/);
     expect(patched).toContain('return globalThis');
     expect(patched).toContain('Reflect.defineMetadata = metadata => metadata;');
-    expect(() => new Function('globalThis', patched + '\nreturn GetGlobal();')(globalThis)).not.toThrow();
-    expect(new Function('globalThis', patched + '\nreturn GetGlobal();')(globalThis)).toBe(globalThis);
+    expect(vm.runInNewContext(patched + '\nGetGlobal() === globalThis;')).toBe(true);
   });
 
   it('requires both known replacements so dependency upgrades cannot silently bypass IWA audit', () => {
