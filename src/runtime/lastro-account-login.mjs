@@ -514,6 +514,7 @@ export function installLastROLogin({ root, component, configs, onAssistantProfil
       const current = configs?.getServer?.();
       if (latest.address !== current?.address || latest.port !== current?.port
         || latest.version !== current?.version || latest.langtype !== current?.langtype
+        || latest.relayEndpoint !== current?.relayEndpoint
         || JSON.stringify(latest.packetKeys) !== JSON.stringify(current?.packetKeys)) {
         component.onServerSelect?.(latest);
       }
