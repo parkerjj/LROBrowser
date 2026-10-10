@@ -292,16 +292,17 @@ const SILENT_TLS_LOGGER = {
 
 type OpenedDirectSocket = { readable: ReadableStream<Uint8Array>; writable: WritableStream<Uint8Array> };
 
-async function openEncryptedHttpStreams(
+export async function openEncryptedHttpStreams(
   native: DirectTcpConnection,
   opened: OpenedDirectSocket,
   host: string,
-  options: { tlsClientFactory: typeof makeTLSClient; timeoutMs: number; signal?: AbortSignal },
+  options: { tlsClientFactory?: typeof makeTLSClient; timeoutMs: number; signal?: AbortSignal; verifyServerCertificate?: boolean },
 ): Promise<OpenedDirectSocket> {
   const networkReader = opened.readable.getReader();
   const networkWriter = opened.writable.getWriter();
   let controller!: ReadableStreamDefaultController<Uint8Array>;
   let terminated = false;
+  let streamCancelled = false;
   let handshakeFinished = false;
   let resolveHandshake!: () => void;
   let rejectHandshake!: (reason: Error) => void;
@@ -313,19 +314,24 @@ async function openEncryptedHttpStreams(
   // socket. readResponse's existing finally block handles all other cleanup.
   const readable = new ReadableStream<Uint8Array>({
     start(value) { controller = value; },
-    cancel() { void closeNative(native); },
+    cancel() {
+      streamCancelled = true;
+      terminated = true;
+      void closeNative(native);
+    },
   });
   const fail = (error: Error) => {
-    if (terminated) return;
+    if (terminated || streamCancelled) return;
     terminated = true;
     rejectHandshake(error);
     controller.error(error);
   };
-  const client = options.tlsClientFactory({
+  if (!options.tlsClientFactory) setCryptoImplementation(webcryptoCrypto);
+  const client = (options.tlsClientFactory ?? makeTLSClient)({
     host,
     // The connection is restricted to one public passive-resource hostname.
     // This does not authenticate its certificate (see documentation).
-    verifyServerCertificate: false,
+    verifyServerCertificate: options.verifyServerCertificate ?? false,
     supportedProtocolVersions: ['TLS1_3', 'TLS1_2'],
     applicationLayerProtocols: ['http/1.1'],
     logger: SILENT_TLS_LOGGER,
@@ -343,7 +349,7 @@ async function openEncryptedHttpStreams(
     onTlsEnd(error) {
       if (error) fail(error);
       else if (!handshakeFinished) fail(new Error('TLS connection ended before handshake'));
-      else if (!terminated) {
+      else if (!terminated && !streamCancelled) {
         terminated = true;
         controller.close();
       }
@@ -357,7 +363,7 @@ async function openEncryptedHttpStreams(
         const result = await networkReader.read();
         if (result.done) {
           if (!handshakeFinished) fail(new Error('TLS socket closed before handshake'));
-          else if (!terminated) { terminated = true; controller.close(); }
+          else if (!terminated && !streamCancelled) { terminated = true; controller.close(); }
           break;
         }
         if (result.value?.byteLength) await client.handleReceivedBytes(result.value);
@@ -427,9 +433,8 @@ export function createDirectHttpFetch(options: DirectHttpOptions = {}): typeof g
         '',
       ].join('\r\n'));
       // Keep TLS bundled in the IWA worker, never load code from a remote URL.
-      if (!options.tlsClientFactory) setCryptoImplementation(webcryptoCrypto);
       const encrypted = await openEncryptedHttpStreams(native, connection, host, {
-        tlsClientFactory: options.tlsClientFactory ?? makeTLSClient,
+        tlsClientFactory: options.tlsClientFactory,
         timeoutMs: openTimeoutMs,
         signal,
       });
