@@ -40,6 +40,29 @@ jobs:
       # Validate the release artifacts before the slower full test suite,
       # so packaging failures are visible without waiting for ~4,700 tests.
       - run: pnpm build
+      - name: Locate forbidden dynamic-code call sites in bundled app
+        run: |
+          node --input-type=module <<'NODE'
+          import ts from 'typescript';
+          import { readFileSync, readdirSync } from 'node:fs';
+          const files = readdirSync('dist/assets').filter(name => name.endsWith('.js'));
+          for (const name of files) {
+            const source = readFileSync('dist/assets/' + name, 'utf8');
+            const ast = ts.createSourceFile(name, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+            let count = 0;
+            function inspect(node) {
+              if ((ts.isCallExpression(node) || ts.isNewExpression(node)) &&
+                  ts.isIdentifier(node.expression) && ['eval', 'Function'].includes(node.expression.text) &&
+                  count++ < 8) {
+                const start = Math.max(0, node.getStart(ast) - 180);
+                const end = Math.min(source.length, node.end + 160);
+                console.log(name + ':' + node.getStart(ast) + ' ' + source.slice(start, end));
+              }
+              ts.forEachChild(node, inspect);
+            }
+            inspect(ast);
+          }
+          NODE
       - run: pnpm audit:iwa
       - run: pnpm bundle:iwa -- --out release/lastro-v2-ci.wbn
       - run: pnpm test
