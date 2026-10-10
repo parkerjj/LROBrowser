@@ -81,6 +81,24 @@ function packageRuntime(target: 'iwa' | 'web'): Plugin {
 }
 
 /**
+ * reflect-metadata is shipped as an ES3 compatibility polyfill. Its fallback
+ * global-object probes use Function("return this;") and indirect eval(), both
+ * prohibited by IWA CSP. Chrome 154 always provides globalThis: substitute
+ * that standard primitive before Vite minifies the dependency. Leave all
+ * metadata/certificate functionality unchanged and fail closed on drift.
+ */
+export function cspSafeReflectMetadata(source: string): string {
+  const legacyFunction = /\bFunction\s*\(\s*["']return this;["']\s*\)\s*\(\s*\)/g;
+  const legacyEval = /(?:\(\s*0\s*,\s*eval\s*\)|\beval)\s*\(\s*["']\(function\(\) \{ return this; \}\)\(\)["']\s*\)/g;
+  const functionCount = [...source.matchAll(legacyFunction)].length;
+  const evalCount = [...source.matchAll(legacyEval)].length;
+  if (functionCount !== 1 || evalCount !== 1) {
+    throw new Error(`Unexpected reflect-metadata global detection: Function=${functionCount}, eval=${evalCount}`);
+  }
+  return source.replace(legacyFunction, 'globalThis').replace(legacyEval, 'globalThis');
+}
+
+/**
  * The TLS package's WebCrypto implementation imports Node's "crypto" solely
  * for its standard "webcrypto" export. Use the native browser implementation
  * when Vite bundles the IWA UI, without a Node polyfill or pure-JS fallback.
@@ -90,6 +108,11 @@ function browserTlsCrypto(): Plugin {
   return {
     name: 'lastro-tls-native-webcrypto',
     enforce: 'pre',
+    transform(source, id) {
+      // Only rewrite the installed reflect-metadata polyfill, never game code.
+      if (!/(?:^|[/\\\\])reflect-metadata[/\\\\]Reflect(?:NoConflict)?\\.js(?:$|\\?)/.test(id)) return;
+      return { code: cspSafeReflectMetadata(source), map: null };
+    },
     resolveId(source, importer) {
       if ((source === 'crypto' || source === 'node:crypto') && importer?.includes('@reclaimprotocol')) return id;
     },
