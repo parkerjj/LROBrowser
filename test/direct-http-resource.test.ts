@@ -1,5 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createDirectHttpFetch } from '../src/resources/direct-http-resource';
+import type { makeTLSClient } from '@reclaimprotocol/tls';
+
+// Exercise HTTP framing independently of TLS internals. A separate networked
+// integration test verifies the real bundled TLS handshake over TCP/443.
+const transparentTls = ((opts: Parameters<typeof makeTLSClient>[0]) => ({
+  async startHandshake() { opts.onHandshake?.(); },
+  async handleReceivedBytes(data: Uint8Array) { opts.onApplicationData?.(data); },
+  async write(data: Uint8Array) {
+    await opts.write({ header: data, content: new Uint8Array() }, { type: 'plaintext' });
+  },
+})) as typeof makeTLSClient;
+
 
 function concatBytes(...parts: Uint8Array[]): Uint8Array {
   const length = parts.reduce((total, part) => total + part.byteLength, 0);
@@ -61,6 +73,7 @@ function harness(options: HarnessOptions = {}) {
   }
   const fetch = createDirectHttpFetch({
     TCPSocket: Native,
+    tlsClientFactory: transparentTls,
     ...(options.openTimeoutMs === undefined ? {} : { openTimeoutMs: options.openTimeoutMs }),
     ...(options.readTimeoutMs === undefined ? {} : { readTimeoutMs: options.readTimeoutMs }),
     ...(options.nativeFetch === undefined ? {} : { nativeFetch: options.nativeFetch }),
@@ -70,7 +83,7 @@ function harness(options: HarnessOptions = {}) {
 }
 
 describe('Direct HTTP resource transport', () => {
-  it('sends an allowlisted HTTP request and parses split binary responses', async () => {
+  it('sends an allowlisted HTTPS request over TLS on port 443 and parses split binary responses', async () => {
     const body = new Uint8Array([0, 255, 1, 2]);
     const response = responseBytes('HTTP/1.1 200 OK', [
       'Content-Type: application/octet-stream',
@@ -88,7 +101,7 @@ describe('Direct HTTP resource transport', () => {
     expect(result.status).toBe(200);
     expect(result.headers.get('etag')).toBe('"fixture"');
     expect(new Uint8Array(await result.arrayBuffer())).toEqual(body);
-    expect(h.constructorArgs).toEqual([['game.lastro.cn', 80, { noDelay: true, keepAliveDelay: 60_000 }]]);
+    expect(h.constructorArgs).toEqual([['game.lastro.cn', 443, { noDelay: true, keepAliveDelay: 60_000 }]]);
     const request = new TextDecoder().decode(h.requests[0]);
     expect(request).toContain('GET /ro/client_re/data/test.gat HTTP/1.1\r\n');
     expect(request).toContain('Host: game.lastro.cn\r\n');
@@ -191,7 +204,7 @@ describe('Direct HTTP resource transport', () => {
     await expect(h.fetch('https://game.lastro.cn/ro/client_re/data/bad.gat')).rejects.toThrow(/transfer encoding/i);
   });
 
-  it('closes the native socket when opening exceeds the timeout', async () => {
+  it('closes the native TLS socket when opening exceeds the timeout', async () => {
     const h = harness({ openTimeoutMs: 1 });
 
     await expect(h.fetch('https://game.lastro.cn/ro/client_re/data/slow.gat')).rejects.toThrow(/open timeout/i);
