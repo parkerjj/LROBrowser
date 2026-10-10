@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRuntimeResourceLoader, snapshotPackageManifest } from '../src/resources/runtime-resource-loader';
 import { resolvePassiveResource } from '../src/resources/resource-resolver';
 
-vi.mock('../src/resources/resource-resolver', () => ({ resolvePassiveResource: vi.fn() }));
+vi.mock('../src/resources/resource-resolver', async (importOriginal) => ({ ...await importOriginal<typeof import('../src/resources/resource-resolver')>(), resolvePassiveResource: vi.fn() }));
 
 const resolver = vi.mocked(resolvePassiveResource);
 const bytes = () => new Uint8Array([1, 2, 3]).buffer;
