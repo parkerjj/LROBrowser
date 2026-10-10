@@ -43,5 +43,8 @@
     "vitest": "4.1.11",
     "wbn": "0.0.9",
     "wbn-sign": "0.3.1"
+  },
+  "dependencies": {
+    "@reclaimprotocol/tls": "0.1.4"
   }
 }
