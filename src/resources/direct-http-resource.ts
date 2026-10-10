@@ -234,20 +234,36 @@ async function readResponse(
   const reader = opened.readable.getReader();
   const writer = opened.writable.getWriter();
   const chunks: Uint8Array[] = [];
+  const pendingHeader: Uint8Array[] = [];
   let total = 0;
+  let head: ParsedResponseHead | null = null;
   try {
     await waitFor(writer.write(request), options.readTimeoutMs, options.signal, 'read');
     while (true) {
       const result = await waitFor(reader.read(), options.readTimeoutMs, options.signal, 'read');
       if (result.done) break;
-      if (!result.value) continue;
+      if (!result.value?.byteLength) continue;
       total += result.value.byteLength;
       if (total > options.maxHeaderBytes + options.maxBodyBytes) throw new Error('Direct HTTP response is too large');
-      chunks.push(result.value.slice());
-      const bytes = joinBytes(chunks, options.maxHeaderBytes + options.maxBodyBytes);
-      const head = parseResponseHead(bytes, options.maxHeaderBytes);
-      if (head?.contentLength !== undefined && bytes.byteLength - head.bodyStart >= head.contentLength) {
-        return parseResponse(bytes, options.maxHeaderBytes, options.maxBodyBytes);
+      const chunk = result.value.slice();
+      chunks.push(chunk);
+      if (!head) {
+        // Header parsing may span several TCP chunks, but its size is bounded.
+        // Once found, NEVER rejoin all received body chunks on each read:
+        // repeated joins used O(n^2) memory copies for large map files.
+        pendingHeader.push(chunk);
+        head = parseResponseHead(
+          joinBytes(pendingHeader, options.maxHeaderBytes + options.maxBodyBytes),
+          options.maxHeaderBytes,
+        );
+        if (head) pendingHeader.length = 0;
+      }
+      if (head?.contentLength !== undefined && total - head.bodyStart >= head.contentLength) {
+        return parseResponse(
+          joinBytes(chunks, options.maxHeaderBytes + options.maxBodyBytes),
+          options.maxHeaderBytes,
+          options.maxBodyBytes,
+        );
       }
     }
     return parseResponse(joinBytes(chunks, options.maxHeaderBytes + options.maxBodyBytes), options.maxHeaderBytes, options.maxBodyBytes);
