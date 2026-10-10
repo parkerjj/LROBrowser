@@ -14,7 +14,10 @@ export function createResourceScheduler(maxConcurrent: number) {
     return new Promise<T>((resolve, reject) => {
       const start = () => {
         active += 1;
-        void Promise.resolve().then(work).then(resolve, reject).finally(() => {
+        let pending: Promise<T>;
+        try { pending = work(); }
+        catch (error) { pending = Promise.reject(error); }
+        void pending.then(resolve, reject).finally(() => {
           active -= 1;
           drain();
         });
