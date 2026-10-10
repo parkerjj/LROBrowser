@@ -77,6 +77,16 @@ describe('explicit WSS relay transport', () => {
     ]);
   });
 
+  it('forwards a refreshed official numeric host to the relay without old IP substitution', () => {
+    const { create } = harness('relay', 'lastro-3x');
+    create('103.8.222.164', 28569);
+    create('103.8.222.164', 28570);
+    expect(FakeWebSocket.instances.map(ws => ws.url)).toEqual([
+      'wss://port.lastro.cn/103.8.222.164:28569',
+      'wss://port.lastro.cn/103.8.222.164:28570',
+    ]);
+  });
+
   it('rejects relay use for App even for character/map ports', () => {
     const { create } = harness('relay', 'lastro-app');
     expect(() => create('port.lastro.cn', 27570)).toThrow(/App/);
