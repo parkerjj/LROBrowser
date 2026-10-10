@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: iwa-ci-${{ github.workflow }}-${{ github.ref }}
+  group: iwa-ci-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -34,6 +34,9 @@ jobs:
         env:
           LASTRO_TLS_LIVE: '1'
         run: pnpm exec vitest run test/direct-tls-live.test.ts --testTimeout 30000
+      - run: pnpm prepare:runtime
+      - name: Focused HTTPS transport and resource Worker regression tests
+        run: pnpm exec vitest run test/direct-http-resource.test.ts test/lastro-login-http.test.ts test/resource-worker.test.ts test/official-online-profiles.test.ts
       - run: pnpm test
       - run: pnpm build
       - run: pnpm audit:iwa
