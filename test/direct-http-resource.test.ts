@@ -4,13 +4,17 @@ import type { makeTLSClient } from '@reclaimprotocol/tls';
 
 // Exercise HTTP framing independently of TLS internals. A separate networked
 // integration test verifies the real bundled TLS handshake over TCP/443.
-const transparentTls = ((opts: Parameters<typeof makeTLSClient>[0]) => ({
+const tlsCertificateVerification = vi.fn();
+const transparentTls = ((opts: Parameters<typeof makeTLSClient>[0]) => {
+  tlsCertificateVerification(opts.verifyServerCertificate);
+  return ({
   async startHandshake() { opts.onHandshake?.(); },
   async handleReceivedBytes(data: Uint8Array) { opts.onApplicationData?.(data); },
   async write(data: Uint8Array) {
     await opts.write({ header: data, content: new Uint8Array() }, { type: 'plaintext' });
   },
-})) as typeof makeTLSClient;
+  });
+}) as typeof makeTLSClient;
 
 
 function concatBytes(...parts: Uint8Array[]): Uint8Array {
@@ -102,6 +106,7 @@ describe('Direct HTTP resource transport', () => {
     expect(result.headers.get('etag')).toBe('"fixture"');
     expect(new Uint8Array(await result.arrayBuffer())).toEqual(body);
     expect(h.constructorArgs).toEqual([['game.lastro.cn', 443, { noDelay: true, keepAliveDelay: 60_000 }]]);
+    expect(tlsCertificateVerification).toHaveBeenLastCalledWith(false);
     const request = new TextDecoder().decode(h.requests[0]);
     expect(request).toContain('GET /ro/client_re/data/test.gat HTTP/1.1\r\n');
     expect(request).toContain('Host: game.lastro.cn\r\n');
@@ -246,7 +251,8 @@ describe('Direct HTTP resource transport', () => {
     const text = await (await allowed.fetch('https://game.lastro.cn/ro/Online.js')).text();
     expect(text).toContain('103.8.222.164');
     expect(new TextDecoder().decode(allowed.requests[0])).toContain('GET /ro/Online.js HTTP/1.1\r\n');
-    expect(allowed.constructorArgs).toEqual([['game.lastro.cn', 80, { noDelay: true, keepAliveDelay: 60_000 }]]);
+    expect(allowed.constructorArgs).toEqual([['game.lastro.cn', 443, { noDelay: true, keepAliveDelay: 60_000 }]]);
+    expect(tlsCertificateVerification).toHaveBeenLastCalledWith(true);
     await expect(allowed.fetch('https://game.lastro.cn/ro/not-allowed.js')).rejects.toThrow('passive resource paths');
   });
 
