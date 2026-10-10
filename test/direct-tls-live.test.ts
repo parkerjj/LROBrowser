@@ -1,6 +1,7 @@
 import { connect, type Socket } from 'node:net';
 import { describe, expect, it } from 'vitest';
 import { createDirectHttpFetch } from '../src/resources/direct-http-resource';
+import { prepareLastROLoginSession } from '../src/network/lastro-login-http';
 
 // This is a network integration test, separate from the hermetic CI suite.
 // It uses Node's TCP socket ONLY as a transport test double; the TLS handshake
@@ -56,5 +57,23 @@ describe('official HTTPS via raw TCP and JavaScript TLS', () => {
     expect(response.status).toBe(200);
     const body = new Uint8Array(await response.arrayBuffer());
     expect(body.byteLength).toBeGreaterThan(4);
+    const metadata = createDirectHttpFetch({
+      TCPSocket: LiveSocketShim as unknown as NonNullable<Parameters<typeof createDirectHttpFetch>[0]>['TCPSocket'],
+      allowOfficialProfileScript: true,
+      maxBodyBytes: 4 * 1024 * 1024,
+      openTimeoutMs: 12_000,
+      readTimeoutMs: 12_000,
+    });
+    const online = await metadata('https://game.lastro.cn/ro/Online.js');
+    expect(online.status).toBe(200);
+    expect((await online.text()).length).toBeGreaterThan(1000);
+  }, 30_000);
+
+  it.skipIf(!live)('authenticates the official HTTPS certificate before bootstrap', async () => {
+    await prepareLastROLoginSession({
+      TCPSocket: LiveSocketShim as unknown as NonNullable<Parameters<typeof createDirectHttpFetch>[0]>['TCPSocket'],
+      openTimeoutMs: 12_000,
+      readTimeoutMs: 12_000,
+    });
   }, 30_000);
 });
