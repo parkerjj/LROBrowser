@@ -11,11 +11,13 @@ import { mkdir, writeFile } from 'node:fs/promises';
 const exec = promisify(execFile);
 const roots = Object.freeze({
   official: 'http://game.lastro.cn/ro/client_re/',
+  officialHttps: 'https://game.lastro.cn/ro/client_re/',
   mirror: 'https://rodata.ltsd.ro/ro/client_re/',
 });
 const paths = new Set();
 const add = (value) => paths.add(value);
 const spriteDir = 'data/sprite/阁胶磐/';
+add('data/mp3nametable.txt'); // Known-good control: distinguish unreachable origin from missing files.
 for (const name of ['ill_assulter', 'ill_permeter', 'ill_freezer', 'ill_solider', 'ill_heater', 'ill_turtle_general']) {
   for (const ext of ['spr', 'act']) add(spriteDir + name + '.' + ext);
 }
@@ -28,6 +30,8 @@ for (const name of ['ill_permeter', 'ill_solider']) {
 for (let i = 1; i <= 6; i++) {
   add('data/texture/扁鸥付阑/TUR_H_0' + i + '.BMP');
 }
+add('data/sprite/阁胶磐/ill_soldier.act');
+add('data/sprite/阁胶磐/ill_soldier.spr');
 add('data/texture/扁鸥付阑/TUR_H_03.bmp');
 add('data/texture/기타마을/TUR_H_03.BMP');
 add('data/texture/蜡历牢磐其捞胶/item/i8white.bmp');
