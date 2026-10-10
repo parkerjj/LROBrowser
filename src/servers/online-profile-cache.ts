@@ -62,9 +62,9 @@ function validateSnapshot(raw: unknown): OfficialOnlineProfiles | null {
   return value as OfficialOnlineProfiles;
 }
 
-export function readOfficialOnlineProfiles(storage: Pick<Storage, 'getItem'> | undefined = globalThis.localStorage): OfficialOnlineProfiles | null {
+export function readOfficialOnlineProfiles(storage?: Pick<Storage, 'getItem'>): OfficialOnlineProfiles | null {
   try {
-    const json = storage?.getItem(CACHE_KEY);
+    const json = (storage ?? globalThis.localStorage)?.getItem(CACHE_KEY);
     return json ? validateSnapshot(JSON.parse(json)) : null;
   } catch { return null; }
 }
@@ -129,8 +129,8 @@ export function parseOfficialOnlineJs(source: string, fetchedAt = Date.now()): O
     }
     const ternary = /3\s*={2,3}\s*[a-zA-Z_$][\w$]*\.get\(\s*["']ClientVer["']\s*\)\s*\?\s*(\[[^\]]+\])\s*:\s*(\[[^\]]+\])/i.exec(crypt);
     if (ternary) {
-      clientVer3Keys = parseKeys(ternary[1]);
-      otherClientVerKeys = parseKeys(ternary[2]);
+      clientVer3Keys = parseKeys(ternary[1]!);
+      otherClientVerKeys = parseKeys(ternary[2]!);
     }
   }
   return {
