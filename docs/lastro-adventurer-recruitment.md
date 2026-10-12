@@ -2,7 +2,7 @@
 
 ## 来源与可信范围
 
-依据用户提供的 LastRO 官方浏览器 `Online.js`（2026-10-12，注意这不是本仓库 vendored V2 运行时）。官方模块包含 `UI/Components/PartyBooking/PartyBooking`、`PartyBookingReg`、`BookingDescription`。**原文件只引用 `DB/AgencyTable`，没有给出这张表的实现或完整 IID 对照表，因此不能从它还原默认副本目录。**
+依据用户提供的 LastRO 官方浏览器 `Online.js`（2026-10-12，注意这不是本仓库 vendored V2 运行时）。官方模块包含 `UI/Components/PartyBooking/PartyBooking`、`PartyBookingReg`、`BookingDescription`。原文件只引用 `DB/AgencyTable`；现已从其 RequireJS base URL 解出公开路径 `https://game.lastro.cn/ro/src/DB/AgencyTable.js`，并在 GitHub Actions 中通过 `curl` 成功取得实际源码（HTTP 200）。
 
 该功能不是标准 Ragnarok Online 募集 UI 的纯样式更换：它是**独立 HTTPS 招募板 + LastRO 扩展游戏封包**的组合。游戏内加入队伍和副本校验仍是游戏服务器负责。
 
@@ -35,14 +35,14 @@ HTTP: `POST https://game.lastro.cn/{webserver|webserver2}/party/{action}`，`Cli
 - 招募中 / 挑战中 / 我的募集三标签、服务端 HTTP 列表及搜索、10 条分页、查看详情、队伍申请/副本进入。
 - 已登录队长创建：必须先由游戏服务器响应确认副本建立，才向 HTTP 公告板登记，不伪造成功。
 - 编辑、关闭公告及关闭副本：不同公告类型分别使用 HTTP / 游戏封包操作。
-- 默认目录来自原版的 `DB/AgencyTable[ClientVer]`；这个源文件**没有这张表的数值数据**。本版因此没有编造选项。支持用户自行维护 `IID`、副本名称和分类的本地目录（按照服务器 profile 分开），不向服务器擅自发布新类型。
+- 默认目录从原版 `DB/AgencyTable[ClientVer]` 提取并内置：ClientVer 3/5 均启用官方副本「无尽之塔」IID=1 与特色副本 IID=301–332 共计 33 项。注释中的另外 45 项不默认启用。支持用户自行维护 `IID`、副本名称和分类的本地目录（按照服务器 profile 分开），不会更改服务器本身。
 
 ## 局限 / 后续联调
 
-1. **真实服游戏封包支持**：本仓库当前 vendor V2 核心能否解析/编码三对 LastRO 扩展封包，尚未通过真实运行时检查。控制器会检查封包构造器和 ACK，缺少时明确报错而不是假成功。全功能移植还需要注册这些结构及对应 `ZC` 回调；仅新增面板还不代表联调完成。
-2. **跨域**：独立 IWA `isolated-app://` 和浏览器网页不是 LastRO 官方 `https://game.lastro.cn` 同源环境。服务端是否对其提供 CORS 及 cookie/CSRF 许可无法从 `Online.js` 推出；实际 HTTP 需要登录游戏后验证。遵守仓库限制：未新增代理、bridge、或可执行远程脚本。
-3. **缺少官方副本白名单**：从官方发行物中的 `DB/AgencyTable` 补齐 IID–名称表之后才能无缝显示旧版所有副本且直接选择创建。
+1. **扩展封包已实现，未真服联调**：已经直接核实原 V2 完全缺少 REQ_CREATE/DEL/ENTER_INSTANCE 三对结构。`patchLastROInstancePackets` 在运行时补入 3057、3059、3061 请求编码、3058、3060、3062 响应解析、PacketRegister 与 PacketLength 长度表；对完整 13.2MB V2 源码的 patch anchor 测试已通过。真实服务器响应和行为仍待游戏账号验证。
+2. **IWA HTTP 使用独立 TLS/TCP POST，认证仍需实测**：`requestLastROPartyOverTLS` 复用仓库现有 `@reclaimprotocol/tls` 与 `TCPSocket`，固定主机、六个白名单端点和响应大小，强制验证服务器证书；不会修改静态资源 GET 下载器。已有登录流程的 Yii2 CSRF Cookie/Token 会优先复用，但是否符合 LastRO party 接口的会话及权限检查，尚不能在未登录角色情况下证实。Web 浏览器版本仍使用原生 fetch，受 CORS 约束。
+3. **已验证目录**：官方 `DB/AgencyTable.js` 两组（ClientVer 3 和 5）启用条目均为 33 项；特色 IID=301–332，官方 IID=1。被 block comment 包裹的 45 个原版副本只是禁用配置，不能当作服务器支持的证据。
 4. **新增副本的服务端限制**：客户端自定义目录只映射 IID 与名称。若 LastRO 使用类似 rAthena 的实例框架，实际新实例还需要服务器实例数据库、地图/NPC 脚本及服务端校验支持；客户机 Lua 文件 `seekparty/party_booking_config.lub` 只是另一套招募/目标地图资料，不能实现真正的新副本。
-5. **禁止声称已联通**：协议/静态检查不等于在官方登录角色上完成端到端测试；必须在测试账号上依次测试查询、详情、创建、关闭、进本、中文备注。
+5. **禁止声称已联通**：协议/静态检查不等于在官方登录角色上完成端到端测试；必须在测试账号上依次测试查询、详情、创建、关闭、进本、中文备注，并验证 CSRF Cookie 与 LastRO HTTP API 的实际认证流程。
 
 > 安全边界：认证信息仅发送给源码确认的 `game.lastro.cn` 主机；服务器字符串全部通过 `textContent` 写入；不进行自动创建、自动删除或后台轮询。
