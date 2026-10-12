@@ -13,7 +13,7 @@ export function decodePartyText(value) {
   try { return decodeURIComponent(text); } catch {
     // Official UrlTools uses percent-encoded GBK bytes for Chinese.
     try {
-      const decoder = new TextDecoder('gbk');
+      const decoder = new globalThis.TextDecoder('gbk');
       return text.replace(/(?:%[0-9a-f]{2})+/gi, part => {
         const bytes = part.match(/[0-9a-f]{2}/gi).map(x => parseInt(x, 16));
         return decoder.decode(Uint8Array.from(bytes));
@@ -39,7 +39,7 @@ export function normalizePartyEntry(value, decoder = decodePartyText) {
 export function makePartyFields(session, action, extra = {}, encoder = encodeURIComponent) {
   const entity = session?.Entity;
   if (!entity || !session?.AuthToken) throw new Error('请先登录角色后使用冒险者募集');
-  const form = new FormData();
+  const form = new globalThis.FormData();
   const editing = action === 'add' || action === 'search';
   const common = {
     AuthToken: session.AuthToken,
