@@ -1,4 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
+import { getLastROAgencyCatalog, LASTRO_AGENCY_ACTIVE_COUNT } from '../src/assistant/lro-party-catalog.mjs';
+import { patchLastROInstancePackets } from '../scripts/patch-v2-runtime.mjs';
 import {
   partyWebPath, decodePartyText, encodePartyText, normalizePartyEntry, makePartyFields, requestParty,
 } from '../src/assistant/lro-party-booking.mjs';
@@ -72,5 +74,38 @@ describe('LastRO recruitment protocol', () => {
       { CharName: 'test', IID: 9, Type: 1, Memo: 'abc' });
     expect(result.Type).toBe(0);
     expect(fetch.mock.calls[0][0]).toBe('https://game.lastro.cn/webserver/party/add');
+  });
+});
+
+describe('LastRO official AgencyTable and six packet compatibility', () => {
+  it('preserves the 33 active official AgencyTable items only', () => {
+    expect(LASTRO_AGENCY_ACTIVE_COUNT).toBe(33);
+    for (const version of [3, 5]) {
+      const options = getLastROAgencyCatalog(version);
+      expect(options).toHaveLength(33);
+      expect(options[0]).toEqual({ name: '无尽之塔', iid: 1, category: '官方副本' });
+      expect(options[1]).toEqual({ name: '黄金虫', iid: 301, category: '特色副本' });
+      expect(options.at(-1)).toEqual({ name: '贝雷杰', iid: 332, category: '特色副本' });
+      expect(options.some(row => row.name === '封印神殿')).toBe(false);
+    }
+    expect(getLastROAgencyCatalog(6)).toEqual([]);
+  });
+
+  it('patches all request/reply structures, receives, and three packet lengths', () => {
+    const upstream = [
+      '  PACKET.ZC.NOTIFY_OFFLINEMSG.size = 30;',
+      '    Object.assign(PacketRegister, {\\n      2773: PACKET.ZC.SECOND_CHECK,',
+      '          2812: 30,',
+    ].join('\\n').replaceAll('\\n', '\n');
+    const result = patchLastROInstancePackets(upstream);
+    for (const symbol of [
+      'REQ_CREATE_INSTANCE', 'RS_CREATE_INSTANCE',
+      'REQ_DEL_INSTANCE', 'RS_DEL_INSTANCE',
+      'REQ_ENTER_INSTANCE', 'RS_ENTER_INSTANCE',
+    ]) expect(result).toContain('PACKET.' + (symbol.startsWith('RS_') ? 'ZC.' : 'CZ.') + symbol);
+    for (const id of [3058, 3060, 3062]) {
+      expect(result).toContain(id + ': 3');
+      expect(result).toContain(id + ': PACKET.ZC.');
+    }
   });
 });
