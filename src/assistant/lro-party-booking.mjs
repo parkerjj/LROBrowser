@@ -8,6 +8,31 @@ export function partyWebPath(nid) {
   return Number(nid) === 5 ? 'webserver2' : 'webserver';
 }
 
+let gbkReverse;
+export function encodePartyText(value) {
+  if (!gbkReverse) {
+    // Same GBK percent-byte convention as the official UrlTools encoder.
+    const decoder = new globalThis.TextDecoder('gbk');
+    const bytes = new Uint8Array(2);
+    const table = new Map();
+    for (let high = 0x81; high <= 0xfe; high++) {
+      for (let low = 0x40; low <= 0xfe; low++) {
+        if (low === 0x7f) continue;
+        bytes[0] = high; bytes[1] = low;
+        const char = decoder.decode(bytes);
+        if (char.length === 1 && char !== '\ufffd' && !table.has(char)) {
+          table.set(char, '%' + high.toString(16).padStart(2, '0').toUpperCase()
+            + '%' + low.toString(16).padStart(2, '0').toUpperCase());
+        }
+      }
+    }
+    gbkReverse = table;
+  }
+  return String(value ?? '').replace(/./g, char => {
+    const code = char.charCodeAt(0);
+    return code <= 0x7f || code === 8364 ? encodeURIComponent(char) : (gbkReverse.get(char) || char);
+  });
+}
 export function decodePartyText(value) {
   const text = String(value ?? '').replace(/%20/gi, ' ');
   try { return decodeURIComponent(text); } catch {
@@ -159,7 +184,7 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
     return Array.isArray(data) ? data.filter(x => x && Number.isSafeInteger(Number(x.iid)) && Number(x.iid) > 0 && typeof x.name === 'string').slice(0, 200) : [];
   } catch { return []; } };
   const findName = iid => catalog().find(x => Number(x.iid) === Number(iid))?.name || '';
-  const encode = value => typeof codec?.encode === 'function' ? codec.encode(value) : encodeURIComponent(value);
+  const encode = value => typeof codec?.encode === 'function' ? codec.encode(value) : encodePartyText(value);
   const decode = value => typeof codec?.decode === 'function' ? codec.decode(String(value ?? '').replace(/%20/gi, ' ')) : decodePartyText(value);
   const parseEntry = value => normalizePartyEntry(value, decode);
   const status = msg => { if (shadow) shadow.querySelector('.status').textContent = msg; };
