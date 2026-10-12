@@ -27,6 +27,19 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+      - name: Probe official AgencyTable public module (temporary diagnostic)
+        run: |
+          set +e
+          URL='https://game.lastro.cn/ro/src/DB/AgencyTable.js'
+          curl --show-error --fail --location --connect-timeout 5 --max-time 15 --compressed --output /tmp/lastro-agency.js --write-out 'agency_http=%{http_code} bytes=%{size_download} content_type=%{content_type}\n' "$URL"
+          status=$?
+          echo "agency_curl_status=$status"
+          if [ "$status" -eq 0 ]; then
+            echo '--- BEGIN PUBLIC AGENCYTABLE ---'
+            head -c 65000 /tmp/lastro-agency.js
+            echo
+            echo '--- END PUBLIC AGENCYTABLE ---'
+          fi
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck
