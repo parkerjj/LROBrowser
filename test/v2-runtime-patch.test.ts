@@ -35,7 +35,7 @@ describe('V2 runtime patch', () => {
       expect(definitions.get(name), name).toBe(1);
     }
     expect(unlocks).toBe(1);
-    expect(() => patchV2Runtime(first)).toThrow('anchor:');
+    expect(() => patchV2Runtime(first)).toThrow('STR lifecycle patch: expected 1 occurrence');
     for (const path of ['src/Core/MemoryItem.js', 'src/Core/MemoryManager.js', 'src/Core/Preferences.js',
       'src/Audio/BGM.js', 'src/Audio/SoundManager.js', 'src/Renderer/Effects/RainWeather.js', 'src/UI/Common.css?raw']) {
       expect(extractVendorRegion(path, source)).toBe(extractVendorRegion(path));

@@ -83,18 +83,35 @@ function packageRuntime(target: 'iwa' | 'web'): Plugin {
 /**
  * The TLS package's WebCrypto implementation imports Node's "crypto" solely
  * for its standard "webcrypto" export. Use the native browser implementation
- * when Vite bundles the IWA UI, without a Node polyfill or pure-JS fallback.
+ * for both production builds and dev dependency prebundling, without a Node
+ * polyfill or pure-JS fallback.
  */
 function browserTlsCrypto(): Plugin {
-  const id = String.fromCharCode(0) + 'lastro-native-tls-webcrypto';
+  const namespace = 'lastro-native-tls-webcrypto';
+  const id = String.fromCharCode(0) + namespace;
+  const contents = 'export const webcrypto = globalThis.crypto;';
+  const isTlsCrypto = (source: string, importer?: string) =>
+    (source === 'crypto' || source === 'node:crypto') && importer?.includes('@reclaimprotocol');
   return {
     name: 'lastro-tls-native-webcrypto',
     enforce: 'pre',
+    // Vite's esbuild dependency optimizer does not run resolveId/load hooks.
+    config() {
+      return { optimizeDeps: { esbuildOptions: { plugins: [{
+        name: 'lastro-tls-native-webcrypto',
+        setup(build) {
+          build.onResolve({ filter: /^(?:node:)?crypto$/ }, ({ path: source, importer }) => {
+            if (isTlsCrypto(source, importer)) return { path: source, namespace };
+          });
+          build.onLoad({ filter: /.*/, namespace }, () => ({ contents, loader: 'js' }));
+        },
+      }] } } };
+    },
     resolveId(source, importer) {
-      if ((source === 'crypto' || source === 'node:crypto') && importer?.includes('@reclaimprotocol')) return id;
+      if (isTlsCrypto(source, importer)) return id;
     },
     load(source) {
-      if (source === id) return 'export const webcrypto = globalThis.crypto;';
+      if (source === id) return contents;
     },
   };
 }

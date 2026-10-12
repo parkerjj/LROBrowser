@@ -1,4 +1,8 @@
-import { readFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { optimizeDeps, resolveConfig } from 'vite';
 import { describe, expect, it } from 'vitest';
 import { stripViteClientInjection } from '../vite.config';
 
@@ -24,4 +28,38 @@ describe('IWA development entry', () => {
     expect(html).toContain('href="/src/styles.css"');
     expect(main).not.toContain("import './styles.css'");
   });
+
+  it('prebundles TLS WebCrypto with working native crypto in development', async () => {
+    const cacheDir = await mkdtemp(path.resolve('node_modules/.vite-tls-test-'));
+    try {
+      const config = await resolveConfig({
+        cacheDir,
+        logLevel: 'silent',
+        optimizeDeps: {
+          entries: [],
+          include: ['@reclaimprotocol/tls', '@reclaimprotocol/tls/webcrypto'],
+          noDiscovery: true,
+        },
+      }, 'serve');
+      const metadata = await optimizeDeps(config, true);
+      const optimized = metadata.optimized['@reclaimprotocol/tls/webcrypto'];
+      expect(optimized).toBeDefined();
+      const moduleUrl = pathToFileURL(optimized!.file).href;
+      const output = execFileSync(process.execPath, ['--input-type=module', '--eval', `
+        const { webcryptoCrypto } = await import(${JSON.stringify(moduleUrl)});
+        const digest = await webcryptoCrypto.hash('SHA-256', new Uint8Array());
+        console.log(JSON.stringify({
+          digest: Array.from(digest, byte => byte.toString(16).padStart(2, '0')).join(''),
+          randomLength: webcryptoCrypto.randomBytes(32).length,
+        }));
+      `], { encoding: 'utf8' });
+
+      expect(JSON.parse(output)).toEqual({
+        digest: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+        randomLength: 32,
+      });
+    } finally {
+      await rm(cacheDir, { recursive: true, force: true });
+    }
+  }, 30_000);
 });
