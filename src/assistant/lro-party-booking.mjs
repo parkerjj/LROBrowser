@@ -1,3 +1,4 @@
+import { getLastROAgencyCatalog } from './lro-party-catalog.mjs';
 // LastRO's adventurer recruitment is an HTTP board plus native instance packets.
 // This client keeps the two operations separate: never advertise a dungeon before the server ACK.
 const ENDPOINT = 'https://game.lastro.cn/';
@@ -155,7 +156,7 @@ const TEMPLATE = `
     <div class="content"><div class="cards"></div></div>
     <section class="view" hidden><div class="view-body"></div><div class="actions view-actions"></div></section>
     <section class="view form-view" hidden>
-      <div class="notice">副本列表属于客户端资料；只有服务器已经开放的副本才可以真正创建。可以自行添加名称和 IID，但不会修改服务器。</div>
+      <div class="notice">已预置官方 AgencyTable 启用的 33 个副本；你可以扩充本地目录，但实际创建仍由 LastRO 游戏服务器决定。</div>
       <div class="fields">
         <label>副本类型 / 分类<input name="category" placeholder="例如：经典副本" maxlength="40"></label>
         <label>副本玩法名称（须与服务器名称一致）<input name="instanceName" list="party-instances" required maxlength="100"><datalist id="party-instances"></datalist></label>
@@ -182,10 +183,15 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
   const getNetwork = () => modules.get('Network/NetworkManager');
   const getNid = () => Number(page.ROConfig?.clientVer ?? page.ROConfig?.lastroNid ?? 3);
   const catalogKey = () => 'lastro-party-catalog-v1:' + currentProfile;
-  const catalog = () => { try {
+  const customCatalog = () => { try {
     const data = JSON.parse(page.localStorage.getItem(catalogKey()) || '[]');
     return Array.isArray(data) ? data.filter(x => x && Number.isSafeInteger(Number(x.iid)) && Number(x.iid) > 0 && typeof x.name === 'string').slice(0, 200) : [];
   } catch { return []; } };
+  const catalog = () => {
+    const merged = new Map(getLastROAgencyCatalog(getNid()).map(row => [row.iid, row]));
+    for (const row of customCatalog()) merged.set(Number(row.iid), row);
+    return [...merged.values()];
+  };
   const findName = iid => catalog().find(x => Number(x.iid) === Number(iid))?.name || '';
   const encode = value => typeof codec?.encode === 'function' ? codec.encode(value) : encodePartyText(value);
   const decode = value => typeof codec?.decode === 'function' ? codec.decode(String(value ?? '').replace(/%20/gi, ' ')) : decodePartyText(value);
@@ -331,7 +337,7 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
   }
   function saveCatalog(value) {
     if (!value.name || !Number.isSafeInteger(value.iid) || value.iid < 1) throw new Error('名称及 IID 均为必填');
-    const current = catalog().filter(x => Number(x.iid) !== value.iid);
+    const current = customCatalog().filter(x => Number(x.iid) !== value.iid);
     current.push({ category: value.category, name: value.name, iid: value.iid });
     page.localStorage.setItem(catalogKey(), JSON.stringify(current.slice(-200)));
     buildCatalogHints();
