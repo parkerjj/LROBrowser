@@ -93,6 +93,9 @@ export function makePartyFields(session, action, extra = {}, encoder = encodeURI
 
 export async function requestParty(page, session, nid, action, extra = {}, encoder) {
   if (!['list', 'get', 'info', 'search', 'add', 'del'].includes(action)) throw new Error('未知募集操作');
+  if (typeof page.LastROPartyHttpRequest === 'function') {
+    return page.LastROPartyHttpRequest(nid, action, makePartyFields(session, action, extra, encoder));
+  }
   const response = await page.fetch(ENDPOINT + partyWebPath(nid) + '/party/' + action, {
     method: 'POST',
     body: makePartyFields(session, action, extra, encoder),
