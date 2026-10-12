@@ -64,11 +64,14 @@ export function normalizePartyEntry(value, decoder = decodePartyText) {
 
 export function makePartyFields(session, action, extra = {}, encoder = encodeURIComponent) {
   const entity = session?.Entity;
-  if (!entity || !session?.AuthToken) throw new Error('请先登录角色后使用冒险者募集');
+  // Official Online.js stores AC.ACCEPT_LOGIN3.AuthToken; V2 keeps the same
+  // 17-byte login token as SessionStorage.WebToken (webAuthToken on packet).
+  const token = session?.AuthToken || session?.WebToken;
+  if (!entity || !token) throw new Error('请先登录角色后使用冒险者募集');
   const form = new globalThis.FormData();
   const editing = action === 'add' || action === 'search';
   const common = {
-    AuthToken: session.AuthToken,
+    AuthToken: token,
     AID: editing ? session.AID : entity.GID,
     GDID: entity.GUID,
     ...(editing ? { GID: session.GID } : {}),
