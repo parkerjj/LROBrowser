@@ -13,6 +13,7 @@ export interface ClientCredentials {
 export interface V2ClientConfig {
   readonly connectionMode: 'direct' | 'relay';
   readonly lroAssistantEnabled: boolean;
+  readonly enableAdventurerAgency: true;
   readonly lroAssistantProfile: string;
   readonly servers: readonly [Readonly<Record<string, unknown>>];
   readonly autoLogin: readonly [string, string] | null;
@@ -98,6 +99,7 @@ export function buildClientConfig(profile: AvailableServerProfile, credentials: 
   return Object.freeze({
     connectionMode: IS_WEB_BUILD ? 'relay' : readLoginPreferences().connectionMode,
     lroAssistantEnabled: options.assistantEnabled !== false,
+    enableAdventurerAgency: true,
     lroAssistantProfile: available.id,
     servers: Object.freeze([server] as const),
     get autoLogin() { const value = pendingLogin; pendingLogin = null; return value; },
