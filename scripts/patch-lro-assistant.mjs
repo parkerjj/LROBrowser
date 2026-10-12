@@ -74,7 +74,7 @@ if (globalThis.ROConfig?.lroAssistantEnabled === true) {
     console.error('[LRO助手] 启动失败，客户端继续启动', error?.message);
   }
 }
-if (globalThis.ROConfig?.lroAssistantEnabled === true) {
+if (globalThis.ROConfig?.enableAdventurerAgency === true) {
   try {
     const booking = installLastroPartyBooking({
       page: window, modules: lroAssistantModules,
@@ -137,10 +137,10 @@ export function patchLroAssistantRuntime(source) {
       if (offset < 0) throw new Error('BasicInfo assistant entry anchor changed');
       const at = node.getStart(parsed) + offset;
       edits.push({ start: at, end: at, text: `
-    if (globalThis.ROConfig?.lroAssistantEnabled === true) {
+    if (globalThis.ROConfig?.lroAssistantEnabled === true || globalThis.ROConfig?.enableAdventurerAgency === true) {
       const buttons = root.querySelector('.buttons') || root.querySelector(innerId);
       buttons?.querySelector('#attendance')?.remove();
-      if (buttons && !root.querySelector('[data-lro-assistant-entry]')) {
+      if (buttons && globalThis.ROConfig?.lroAssistantEnabled === true && !root.querySelector('[data-lro-assistant-entry]')) {
         const entry = document.createElement(buttonKeyBy === 'id' ? 'div' : 'button');
         entry.id = 'lro-assistant';
         entry.className = 'lro-assistant event_add_cursor item-link';
@@ -161,7 +161,8 @@ export function patchLroAssistantRuntime(source) {
           UIManager.getComponent('LROAssistant')?.open?.();
         });
         buttons.appendChild(entry);
-        if (!root.querySelector('[data-lro-party-booking-entry]')) {
+      }
+      if (buttons && globalThis.ROConfig?.enableAdventurerAgency === true && !root.querySelector('[data-lro-party-booking-entry]')) {
           const booking = document.createElement(buttonKeyBy === 'id' ? 'div' : 'button');
           booking.id = 'lro-party-booking-entry';
           booking.dataset.lroPartyBookingEntry = 'true';
@@ -177,7 +178,6 @@ export function patchLroAssistantRuntime(source) {
             globalThis.LROPartyBookingOpen?.();
           });
           buttons.appendChild(booking);
-        }
       }
     }
 ` });
