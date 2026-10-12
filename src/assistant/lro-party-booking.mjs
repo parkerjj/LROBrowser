@@ -10,10 +10,19 @@ export function partyWebPath(nid) {
 
 export function decodePartyText(value) {
   const text = String(value ?? '').replace(/%20/gi, ' ');
-  try { return decodeURIComponent(text); } catch { return text; }
+  try { return decodeURIComponent(text); } catch {
+    // Official UrlTools uses percent-encoded GBK bytes for Chinese.
+    try {
+      const decoder = new TextDecoder('gbk');
+      return text.replace(/(?:%[0-9a-f]{2})+/gi, part => {
+        const bytes = part.match(/[0-9a-f]{2}/gi).map(x => parseInt(x, 16));
+        return decoder.decode(Uint8Array.from(bytes));
+      });
+    } catch { return text; }
+  }
 }
 
-export function normalizePartyEntry(value) {
+export function normalizePartyEntry(value, decoder = decodePartyText) {
   if (!value || typeof value !== 'object') return null;
   const aid = Number(value.AID), cid = Number(value.GID);
   if (!Number.isSafeInteger(aid) || aid <= 0 || !Number.isSafeInteger(cid) || cid < 0) return null;
@@ -22,8 +31,8 @@ export function normalizePartyEntry(value) {
     type: Number(value.Type) === 1 ? 1 : 0,
     state: Number(value.ISTATE) === 1 ? 1 : 0,
     min: Number(value.MinLV) || 1, max: Number(value.MaxLV) || 200,
-    name: decodePartyText(value.CharName),
-    memo: decodePartyText(value.Memo), map: decodePartyText(value.WorldName),
+    name: decoder(value.CharName),
+    memo: decoder(value.Memo), map: decoder(value.WorldName),
   };
 }
 
@@ -96,6 +105,7 @@ input:focus,select:focus,textarea:focus{border-color:#40c7e0}
 .card small,.muted{color:#94abc2}.card p{margin:8px 0;overflow-wrap:anywhere}
 .chip{display:inline-block;border-radius:20px;padding:2px 8px;background:#17566c;color:#87e8e4;font-size:12px}
 footer{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:13px 20px;border-top:1px solid #314a69}
+footer[hidden],.tools[hidden],.content[hidden]{display:none}
 .status{color:#aac1d9;font-size:12px;flex:1;min-width:180px}
 .view{padding:12px 20px;overflow:auto}
 .view[hidden]{display:none}
@@ -133,7 +143,7 @@ const TEMPLATE = `
   </div>
 </div>`;
 
-export function installLastroPartyBooking({ page, modules, subscribePackets, profile }) {
+export function installLastroPartyBooking({ page, modules, subscribePackets, profile, codec }) {
   if (!page?.document || !modules?.get) throw new Error('缺少原生客户端模块');
   const document = page.document;
   let host, shadow, native;
@@ -149,7 +159,9 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
     return Array.isArray(data) ? data.filter(x => x && Number.isSafeInteger(Number(x.iid)) && Number(x.iid) > 0 && typeof x.name === 'string').slice(0, 200) : [];
   } catch { return []; } };
   const findName = iid => catalog().find(x => Number(x.iid) === Number(iid))?.name || '';
-  const encode = value => typeof page.UrlTools?.encode === 'function' ? page.UrlTools.encode(value) : encodeURIComponent(value);
+  const encode = value => typeof codec?.encode === 'function' ? codec.encode(value) : encodeURIComponent(value);
+  const decode = value => typeof codec?.decode === 'function' ? codec.decode(String(value ?? '').replace(/%20/gi, ' ')) : decodePartyText(value);
+  const parseEntry = value => normalizePartyEntry(value, decode);
   const status = msg => { if (shadow) shadow.querySelector('.status').textContent = msg; };
   const showError = error => status((error?.message || '操作失败') + (error instanceof TypeError ? '；请检查官方站点跨域访问权限（CORS）。' : ''));
   const ui = selector => shadow.querySelector(selector);
@@ -202,10 +214,10 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
     try {
       const session = getSession();
       const reply = await requestParty(page, session, getNid(), action, { Memo: memo }, encode);
-      rows = (Array.isArray(reply.data) ? reply.data : []).map(normalizePartyEntry).filter(Boolean);
+      rows = (Array.isArray(reply.data) ? reply.data : []).map(parseEntry).filter(Boolean);
       pageIndex = 0; renderRows();
       const mine = await requestParty(page, session, getNid(), 'get', {}, encode);
-      own = mine.data ? normalizePartyEntry(mine.data) : null;
+      own = mine.data ? parseEntry(mine.data) : null;
       ui('[data-action="create"]').hidden = Boolean(own);
       status('已同步 ' + rows.length + ' 条募集信息');
     } catch (error) { showError(error); }
@@ -215,7 +227,7 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
     status('正在读取募集详情…');
     try {
       const response = await requestParty(page, getSession(), getNid(), 'info', { QueryAID: item.aid }, encode);
-      selected = normalizePartyEntry(response.data);
+      selected = parseEntry(response.data);
       if (!selected) throw new Error('该募集已失效');
       showView('details');
       const data = selected;
@@ -234,6 +246,12 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
       join.disabled = data.state === 1 && Number(getSession()?.partyLeaderAID) !== data.aid;
       join.addEventListener('click', () => enter(data));
       actions.append(join);
+      if (own && data.aid === own.aid) {
+        const edit = document.createElement('button'); edit.textContent = '编辑募集';
+        edit.addEventListener('click', () => openForm(own)); actions.append(edit);
+        const remove = document.createElement('button'); remove.textContent = '删除 / 关闭副本';
+        remove.addEventListener('click', () => { void closeOwned(); }); actions.append(remove);
+      }
       const back = document.createElement('button'); back.textContent = '返回'; back.addEventListener('click', () => showView('')); actions.append(back);
     } catch (error) { showError(error); }
   }
@@ -269,7 +287,7 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
       iid: value?.iid || '', state: value?.state || 0,
       min: value?.min || 1, max: value?.max || 200, memo: value?.memo || '无',
     })) form.querySelector('[name="' + name + '"]').value = text;
-    if (value?.type === 0) { status('普通招募暂不支持新建，仍可编辑原有记录'); }
+    if (value?.type === 0) { status('普通招募原有记录可编辑；原版客户端禁止新建普通募集。'); }
     showView('form');
   }
   function formValues() {
@@ -384,6 +402,10 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
     shadow.addEventListener('click', event => { event.stopPropagation(); void onAction(event); });
     shadow.addEventListener('pointerdown', event => event.stopPropagation(), true);
     ui('.search').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); void load('search', event.target.value); } });
+    ui('[name="instanceName"]').addEventListener('change', event => {
+      const match = catalog().find(row => row.name === event.target.value);
+      if (match) { ui('[name="iid"]').value = match.iid; ui('[name="category"]').value = match.category || ''; }
+    });
     shadow.querySelectorAll('[data-tab]').forEach(button => button.addEventListener('click', () => {
       tab = Number(button.dataset.tab); pageIndex = 0; shadow.querySelectorAll('[data-tab]').forEach(b => b.setAttribute('aria-selected', String(b === button))); renderRows();
     }));
