@@ -389,7 +389,7 @@ export async function requestLastROPartyOverTLS(
     'Connection: close',
   ];
   if (session) headers.push(`Cookie: ${session.cookie}`);
-  const head = new TextEncoder().encode(headers.join('\\r\\n') + '\\r\\n\\r\\n');
+  const head = new TextEncoder().encode(headers.join('\r\n') + '\r\n\r\n');
   const bytes = new Uint8Array(head.length + body.length);
   bytes.set(head); bytes.set(body, head.length);
   const native = new ctor(LASTRO_LOGIN_HOST, LASTRO_LOGIN_PORT, { noDelay: true, keepAliveDelay: 60_000 });
