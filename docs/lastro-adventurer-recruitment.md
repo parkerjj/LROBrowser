@@ -21,6 +21,8 @@ HTTP: `POST https://game.lastro.cn/{webserver|webserver2}/party/{action}`，`Cli
 
 普通募集 `Type=0`，副本募集 `Type=1`；`ISTATE=0` 表示招募中，`1` 表示挑战中。原版“创建冒险家募集”按钮已禁用，只允许队长创建副本公告。字符串使用 LastRO `UrlTools` GBK 百分号转义约定。
 
+**V1→V2 Token 字段映射**：官方 `AC.ACCEPT_LOGIN3` 将令牌写入 `SessionStorage.AuthToken`；V2 同一 17 字节字段叫 `webAuthToken`，在 `onConnectionAccepted` 时保存为 `SessionStorage.WebToken`。已在 `makePartyFields` 中优先取 `AuthToken`，缺失则取 `WebToken`，避免 IWA 登录后接口因字段名差异直接失败。
+
 | 发出封包 | 数值 ID | 响应 | 功能 |
 |---|---|---|---|
 | `CZ.REQ_CREATE_INSTANCE` | 3057 (0x0BF1) | `ZC.RS_CREATE_INSTANCE` 3058 | 队长创建副本；响应 `rs=1` 后才能向 HTTPS `party/add` 注册 |
