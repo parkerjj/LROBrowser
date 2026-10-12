@@ -80,6 +80,7 @@ if (globalThis.ROConfig?.lroAssistantEnabled === true) {
       page: window, modules: lroAssistantModules,
       subscribePackets: lroAssistantPackets.subscribe,
       profile: globalThis.ROConfig?.lroAssistantProfile,
+      codec: typeof UrlTools === 'object' ? UrlTools : null,
     });
     globalThis.LROPartyBookingOpen = booking.open;
   } catch (error) {
