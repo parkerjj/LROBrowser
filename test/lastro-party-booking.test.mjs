@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
-  partyWebPath, decodePartyText, normalizePartyEntry, makePartyFields, requestParty,
+  partyWebPath, decodePartyText, encodePartyText, normalizePartyEntry, makePartyFields, requestParty,
 } from '../src/assistant/lro-party-booking.mjs';
 
 const session = Object.freeze({
@@ -23,6 +23,7 @@ describe('LastRO recruitment protocol', () => {
   it('decodes UTF-8, GBK and already decoded text', () => {
     expect(decodePartyText('%E6%B5%8B%E8%AF%95')).toBe('测试');
     expect(decodePartyText('%B2%E2%CA%D4')).toBe('测试');
+    expect(encodePartyText('测试')).toBe('%B2%E2%CA%D4');
     expect(decodePartyText('冒险者%20募集')).toBe('冒险者 募集');
   });
 
