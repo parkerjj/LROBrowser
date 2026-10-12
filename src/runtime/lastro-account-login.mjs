@@ -56,7 +56,12 @@ export function decorateLastROLoginTemplate(name, htmlText) {
     + '<button type="button" data-lastro-action="login-only">仅登录不保存</button>'
     + '<button type="button" class="lastro-primary" data-lastro-action="save">保存</button>'
     + '</div></form>'
-    + '<p class="lastro-login-message" data-lastro-login-message role="status"></p></section>';
+    + '<p class="lastro-login-message" data-lastro-login-message role="status"></p>'
+    + '<footer class="lastro-login-dedication">'
+    + '<span class="lastro-dedication-heart" aria-hidden="true">♥</span>'
+    + '<span class="lastro-dedication-text"><span>此项目献给最珍爱的</span> <strong>北京Sara服 · 寳包</strong></span>'
+    + '<span class="lastro-dedication-heart" aria-hidden="true">♥</span>'
+    + '</footer></section>';
   return `${cleaned.slice(0, closingIndex)}${panel}${cleaned.slice(closingIndex)}`;
 }
 
@@ -65,7 +70,7 @@ export function decorateLastROLoginStyles(name, cssText) {
   // The legacy skin positions every #WinLogin input, including panel descendants.
   cssText += '\n#WinLogin .lastro-login-panel input { position: static; left: auto; top: auto; width: 100%; height: auto; min-height: 30px; box-sizing: border-box; margin-top: 4px; padding: 5px 9px; border: 1px solid #d7e0ea; border-radius: 6px; background: #fff; color: #243447; font: 12px/1.4 "Segoe UI", "Microsoft YaHei", sans-serif; }';
   return `${cssText}
-.lastro-login-panel { position: absolute; top: 0; left: calc(100% + 12px); z-index: 20; width: 400px; max-height: 400px; overflow-y: auto; box-sizing: border-box; padding: 14px; background: #fff; border: 1px solid #e3e9f2; border-radius: 10px; box-shadow: 0 10px 28px rgba(30, 55, 90, .18); color: #243447; font: 12px/1.5 "Segoe UI", "Microsoft YaHei", sans-serif; }
+.lastro-login-panel { position: absolute; top: 0; left: calc(100% + 12px); z-index: 20; width: 400px; max-height: min(400px, calc(50dvh - 22px)); overflow-y: auto; box-sizing: border-box; padding: 14px; background: #fff; border: 1px solid #e3e9f2; border-radius: 10px; box-shadow: 0 10px 28px rgba(30, 55, 90, .18); color: #243447; font: 12px/1.5 "Segoe UI", "Microsoft YaHei", sans-serif; }
 .lastro-login-panel h3 { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: #55677c; }
 .lastro-login-message { min-height: 16px; margin: 0 0 8px; font-size: 11px; color: #7a8ba0; white-space: pre-wrap; }
 .lastro-login-message { margin: 8px 0 0; }
@@ -106,7 +111,19 @@ export function decorateLastROLoginStyles(name, cssText) {
 .lastro-edit-server b { color: #243447; }
 .lastro-login-panel label { display: block; margin: 8px 0 0; font-size: 12px; color: #55677c; }
 .lastro-login-panel input:focus { border-color: #4a90d9; outline: 2px solid rgba(74, 144, 217, .2); }
-.lastro-edit-actions { flex-wrap: wrap; }`;
+.lastro-edit-actions { flex-wrap: wrap; }
+.lastro-login-dedication { position: fixed; left: 50%; bottom: max(20px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; align-items: center; justify-content: center; gap: 14px; width: 560px; max-width: calc(100vw - 32px); min-height: 46px; box-sizing: border-box; padding: 10px 24px; border: 1px solid rgba(255, 255, 255, .95); border-radius: 24px; background: rgba(255, 250, 252, .9); backdrop-filter: blur(8px); box-shadow: 0 3px 14px rgba(83, 42, 65, .12); color: #735766; font: 16px/1.5 Arial, "Microsoft YaHei", "MiSans", "LastRO Glyph Fallback", sans-serif; text-align: center; pointer-events: none; }
+.lastro-dedication-text { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 8px; }
+.lastro-dedication-text > span, .lastro-dedication-text > strong { white-space: nowrap; }
+.lastro-dedication-text strong { color: #c74c70; font-weight: 600; }
+.lastro-dedication-heart { flex: none; color: #ec7090; font: 20px/1 Arial, sans-serif; }
+@media (max-width: 760px), (max-height: 560px) {
+  :host { top: 16px; left: calc(50% - 140px); }
+  #WinLogin { top: 0; }
+  .lastro-login-panel { top: calc(100% + 12px); left: 50%; transform: translateX(-50%); width: min(400px, calc(100vw - 24px)); max-height: calc(100dvh - 164px); }
+  .lastro-mode-description { white-space: normal; }
+  .lastro-login-dedication { position: static; transform: none; width: 100%; max-width: none; margin-top: 16px; padding: 10px 12px; gap: 10px; font-size: 14px; }
+}`;
 }
 
 function sendLoginRegistration(configs, sender, phase, username, password, reportFailure) {
