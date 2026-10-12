@@ -37,6 +37,12 @@ describe('LastRO recruitment protocol', () => {
     expect(normalizePartyEntry({ AID: 'invalid', GID: 20 })).toBeNull();
   });
 
+  it('accepts the V2 WebToken (the original V1 AuthToken) for signed requests', () => {
+    const v2 = { ...session, AuthToken: undefined, WebToken: 'v2-web-token' };
+    expect(makePartyFields(v2, 'list').get('AuthToken')).toBe('v2-web-token');
+    expect(() => makePartyFields({ ...v2, WebToken: undefined }, 'list')).toThrow();
+  });
+
   it('uses entity GID for list/get/info/del and AID for add/search', () => {
     for (const action of ['list', 'get', 'info', 'del']) {
       const form = makePartyFields(session, action, { QueryAID: 999 });
