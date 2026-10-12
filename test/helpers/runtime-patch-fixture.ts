@@ -94,6 +94,8 @@ export function buildRuntimePatchFixture(vendorSource: string): string {
     commonCss,
     'function drawLabel(ctx) { ctx.font = "10px Arial"; }',
     ...audioRegions,
+    extractVendorRegion('src/Renderer/EffectManager.js', vendorSource),
+    extractVendorRegion('src/Renderer/Effects/StrEffect.js', vendorSource),
     'function compileTemplate(importsKeys, sourceURL, source, importsValues) { return Function(importsKeys, sourceURL + "return " + source).apply(undefined, importsValues); }',
     'function addPreloader(el) { el.innerHTML = PRELOADER_INNER_HTML; }',
     '/** Earlier runtime documentation */\nconst retainedRuntime = 1;',

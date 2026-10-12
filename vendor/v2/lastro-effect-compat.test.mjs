@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { applyLegacyDoramEffects, resolveStrTexturePath } from "./lastro-effect-compat.mjs";
+import { readFileSync } from "node:fs";
+import vm from "node:vm";
+import { applyLegacyDoramEffects, resolveStrTexturePath, patchStrEffectLifecycle } from "./lastro-effect-compat.mjs";
 
 test("rebases legacy STR texture basenames to the STR directory", () => {
   assert.equal(
@@ -73,4 +75,124 @@ test("covers V1 skill-effect aliases used by Doram support skills", () => {
   assert.equal(skillEffect[5051].effectId, "legacy_su_shrimparty");
   assert.equal(skillEffect[5050].effectId, "legacy_su_purring");
   assert.equal(skillEffect[5053].effectId, "legacy_su_meowmeow");
+});
+
+function sourceRegion(source, name) {
+  const start = source.indexOf(`//#region ${name}\n`);
+  assert.ok(start >= 0, `Missing ${name}`);
+  const end = source.indexOf("//#endregion", start);
+  assert.ok(end > start);
+  return source.slice(start, end);
+}
+
+function lifecycleFixture() {
+  const source = readFileSync(new URL("./Online.js", import.meta.url), "utf8");
+  const patched = patchStrEffectLifecycle(source);
+  return { source, patched };
+}
+
+test("bounds the live effect render pass and rejects failed STR repeats", () => {
+  const { source, patched } = lifecycleFixture();
+  assert.notEqual(patched, source);
+  const manager = sourceRegion(patched, "src/Renderer/EffectManager.js");
+  assert.equal(manager.includes("size += repeatEffect(effect);"), false);
+  assert.equal(manager.match(/\brepeatEffect\(effect\);/g)?.length, 2);
+  assert.ok(manager.includes("if (list.length === 0)"));
+  assert.ok(manager.includes("!Params.Inst || effect.loadFailed"));
+
+  const repeatCode = manager.match(/function repeatEffect\(effect\) \{[\s\S]*?\n\}/)?.[0];
+  const renderBlock = manager.match(/    static render\(gl, modelView, projection, fog, tick, renderBeforeEntities\) \{[\s\S]*?\n    \}\n    \/\*\*/)?.[0];
+  assert.ok(repeatCode);
+  assert.ok(renderBlock);
+  const renderMethod = renderBlock.slice(0, -7);
+  const context = {
+    Renderer: { tick: 123 },
+    SessionStorage_default: { Entity: { position: [0, 0, 0] } },
+    GraphicsSettings: { performanceMode: false, viewArea: 20 },
+    _list$4: {},
+  };
+  const EffectManager = vm.runInNewContext(
+    `${repeatCode}\nclass EffectManager {\n${renderMethod}\n}\nEffectManager`,
+    context,
+  );
+  let rendered = 0;
+  let spawned = 0;
+  let released = 0;
+  class MockEffect {
+    static ready = true;
+    static beforeRender() {}
+    static afterRender() {}
+    static free() { released++; }
+  }
+  function createEffect(loadFailed) {
+    return {
+      constructor: MockEffect,
+      ready: true,
+      needCleanUp: true,
+      loadFailed,
+      renderBeforeEntities: false,
+      _Params: {
+        Init: { ownerAID: 1 },
+        Inst: {
+          position: [0, 0, 0], effectID: 12, duplicateID: 0,
+          persistent: true, repeatEnd: 0, repeatDelay: 0, duration: -1, endTick: -1,
+        },
+        effect: { type: "STR" },
+      },
+      render() { rendered++; this.needCleanUp = true; },
+      free() {},
+    };
+  }
+  context._list$4.MockEffect = [createEffect(false)];
+  EffectManager.spamEffect = (params) => {
+    spawned++;
+    const failed = createEffect(true);
+    failed._Params = { ...failed._Params, Init: params.Init, effect: params.effect };
+    context._list$4.MockEffect.push(failed);
+  };
+  EffectManager.render(null, null, null, {}, 123, false);
+  assert.equal(rendered, 1, "a replacement must not render in its creation frame");
+  assert.equal(spawned, 1);
+  assert.equal(context._list$4.MockEffect.length, 1, "replacement must stay registered");
+  assert.equal(released, 0, "renderer must not be freed while a replacement remains");
+  EffectManager.render(null, null, null, {}, 124, false);
+  assert.equal(rendered, 2);
+  assert.equal(spawned, 1, "a failed replacement must not spawn another");
+  assert.equal(context._list$4.MockEffect, undefined);
+  assert.equal(released, 1);
+});
+
+test("stops STR rendering before sampling past the final frame", () => {
+  const { patched } = lifecycleFixture();
+  const str = sourceRegion(patched, "src/Renderer/Effects/StrEffect.js");
+  assert.ok(str.includes("this.loadFailed = true;\n          this.needCleanUp = true;"));
+  const match = str.match(/    render\(gl, tick\) \{[\s\S]*?\n    \}\n    \/\*\*/);
+  assert.ok(match);
+  const renderMethod = match[0].slice(0, -7);
+  const loaded = { fps: 10, maxKey: 20, layernum: 1,
+    get layers() { throw new Error("must not sample beyond maxKey"); } };
+  const StrEffect = vm.runInNewContext(
+    `class StrEffect {\n${renderMethod}\n}\nStrEffect`,
+    { Client: { loadFile: () => loaded } },
+  );
+  const effect = Object.create(StrEffect.prototype);
+  effect.filename = "ranger.str";
+  effect.startTick = 0;
+  effect.render(null, 2000);
+  assert.equal(effect.needCleanUp, true);
+  loaded.maxKey = 0;
+  const malformed = Object.create(StrEffect.prototype);
+  malformed.filename = "broken.str";
+  malformed.startTick = 0;
+  malformed.render(null, 100);
+  assert.equal(malformed.needCleanUp, true);
+  assert.equal(malformed.loadFailed, true);
+});
+
+test("fails safely if the pinned STR lifecycle patch anchors drift", () => {
+  const { source } = lifecycleFixture();
+  assert.throws(
+    () => patchStrEffectLifecycle(source.replace("size += repeatEffect(effect);", "repeatEffect(effect);")),
+    /STR lifecycle patch: expected 2 occurrence/,
+  );
 });

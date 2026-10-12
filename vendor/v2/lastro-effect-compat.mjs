@@ -142,4 +142,62 @@ export function resolveStrTexturePath(filename, textureName, texturePath = "") {
   return basename ? `${parent}/${basename}` : textureName;
 }
 
+
+/**
+ * Keep the V2 effect render pass bounded to the effects present at its start.
+ *
+ * The upstream manager increases its live loop bound when repeatEffect()
+ * appends a replacement. If that replacement is already at its terminal
+ * frame, or an absent STR resource fails synchronously from cache, it can
+ * repeatedly append/remove effects without yielding to the browser.
+ *
+ * Apply this as a source transform during prepare:runtime so the vendored
+ * Online.js remains a reproducible upstream snapshot.
+ */
+export function patchStrEffectLifecycle(source) {
+  function patchRegion(input, path, edit) {
+    const marker = `//#region ${path}\n`;
+    const start = input.indexOf(marker);
+    if (start < 0 || input.indexOf(marker, start + marker.length) >= 0) {
+      throw new Error(`STR lifecycle patch: missing or duplicate region ${path}`);
+    }
+    const end = input.indexOf("//#endregion", start + marker.length);
+    if (end < 0) throw new Error(`STR lifecycle patch: unclosed region ${path}`);
+    const fragment = input.slice(start, end);
+    return input.slice(0, start) + edit(fragment) + input.slice(end);
+  }
+
+  function replaceCount(text, before, after, expected = 1) {
+    const actual = text.split(before).length - 1;
+    if (actual !== expected) {
+      throw new Error(`STR lifecycle patch: expected ${expected} occurrence(s) of ${JSON.stringify(before)}, got ${actual}`);
+    }
+    return text.split(before).join(after);
+  }
+
+  let output = patchRegion(source, "src/Renderer/EffectManager.js", (region) => {
+    // A failed resource must not be re-spawned indefinitely by repeatEffect.
+    region = replaceCount(region,
+      "if (!Params || !Params.Inst) return 0;",
+      "if (!Params || !Params.Inst || effect.loadFailed) return 0;");
+    // Appended replacements are rendered next frame, never in this live pass.
+    region = replaceCount(region, "size += repeatEffect(effect);", "repeatEffect(effect);", 2);
+    // size is the original work budget; it is not the number of survivors.
+    return replaceCount(region, "if (size === 0)", "if (list.length === 0)");
+  });
+
+  output = patchRegion(output, "src/Renderer/Effects/StrEffect.js", (region) => {
+    // The error callback also runs for 404s cached by the resource loader.
+    region = replaceCount(region,
+      "        () => {\n          this.needCleanUp = true;\n        },",
+      "        () => {\n          this.loadFailed = true;\n          this.needCleanUp = true;\n        },");
+    // Never sample one frame past maxKey. Reject unusable STR metadata too.
+    region = replaceCount(region,
+      "      if (!this._lastValidAnim) this._lastValidAnim = {};",
+      "      if (!Number.isFinite(keyIndex) || !(strFile.maxKey > 0)) {\n        this.loadFailed = true;\n        this.needCleanUp = true;\n        return;\n      }\n      if (keyIndex >= strFile.maxKey) {\n        this.needCleanUp = true;\n        return;\n      }\n      if (!this._lastValidAnim) this._lastValidAnim = {};");
+    return replaceCount(region, "      if (keyIndex >= strFile.maxKey) this.needCleanUp = true;\n", "");
+  });
+  return output;
+}
+
 export { LEGACY_GROUND_EFFECTS, LEGACY_STR_SKILLS };
