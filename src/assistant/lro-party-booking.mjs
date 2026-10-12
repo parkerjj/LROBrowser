@@ -270,7 +270,6 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
         if (s.hasParty) packet('PRIVATE_AIRSHIP_REQUEST', { mapname: item.map, itemid: 14527 });
         else packet('PARTY_REQ_MASTER_TO_JOIN', { CID: item.cid, AID: item.aid });
       } else {
-        if (s.hasParty && Number(s.partyLeaderAID) !== item.aid) throw new Error('请先退出当前队伍');
         const name = findName(item.iid);
         if (!name) throw new Error('未知副本名称，请先在本地副本列表登记准确的 IID 和名称');
         packet('REQ_ENTER_INSTANCE', { CID: item.cid, AID: item.aid, instanceName: name });
@@ -282,6 +281,9 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
     editing = Boolean(value);
     buildCatalogHints();
     const form = ui('.form-view');
+    form.querySelector('[name="iid"]').disabled = editing && value?.type === 1;
+    form.querySelector('[name="instanceName"]').disabled = editing && value?.type === 1;
+    form.querySelector('[name="state"]').disabled = !editing;
     for (const [name, text] of Object.entries({
       category: '', instanceName: value ? findName(value.iid) : '',
       iid: value?.iid || '', state: value?.state || 0,
@@ -321,7 +323,7 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
         if (pending) throw new Error('服务器仍在处理上一次副本创建请求');
         const P = getPacket();
         if (!P?.ZC?.RS_CREATE_INSTANCE) throw new Error('缺少副本创建结果封包，不能安全登记募集');
-        pending = { action: 'create', value };
+        pending = { action: 'create', value: { ...value, state: 0 } };
         try { packet('REQ_CREATE_INSTANCE', { instanceName: value.name }); }
         catch (error) { pending = null; throw error; }
         status('创建指令已发出，正在等待游戏服务器确认…');
