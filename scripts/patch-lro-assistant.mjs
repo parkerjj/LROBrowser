@@ -2,6 +2,7 @@ import ts from 'typescript';
 
 const IMPORTS = `import { assistantIcon } from "./lro-assistant-icon.mjs";
 import { installLroAssistant } from "./lro-assistant.mjs";
+import { installLastroPartyBooking } from "./lro-party-booking.mjs";
 import { createAssistantPacketBus } from "./lro-assistant-packets.mjs";
 import { installAssistantInputTracking, addAssistantAwareListener, removeAssistantAwareListener, guardAssistantInputHandler } from "./lro-assistant-input.mjs";
 const lroAssistantPackets = createAssistantPacketBus();
@@ -71,6 +72,18 @@ if (globalThis.ROConfig?.lroAssistantEnabled === true) {
     UIManager.getComponent('LROAssistant').open = assistant.open;
   } catch (error) {
     console.error('[LRO助手] 启动失败，客户端继续启动', error?.message);
+  }
+}
+if (globalThis.ROConfig?.lroAssistantEnabled === true) {
+  try {
+    const booking = installLastroPartyBooking({
+      page: window, modules: lroAssistantModules,
+      subscribePackets: lroAssistantPackets.subscribe,
+      profile: globalThis.ROConfig?.lroAssistantProfile,
+    });
+    globalThis.LROPartyBookingOpen = booking.open;
+  } catch (error) {
+    console.error('[冒险者募集] 初始化失败', error?.message);
   }
 }
 `;
@@ -147,6 +160,23 @@ export function patchLroAssistantRuntime(source) {
           UIManager.getComponent('LROAssistant')?.open?.();
         });
         buttons.appendChild(entry);
+        if (!root.querySelector('[data-lro-party-booking-entry]')) {
+          const booking = document.createElement(buttonKeyBy === 'id' ? 'div' : 'button');
+          booking.id = 'lro-party-booking-entry';
+          booking.dataset.lroPartyBookingEntry = 'true';
+          booking.className = 'event_add_cursor item-link';
+          booking.title = '冒险者募集';
+          booking.setAttribute('aria-label', '冒险者募集');
+          if (booking.tagName === 'BUTTON') booking.type = 'button';
+          booking.textContent = '募';
+          booking.style.cssText = 'position:relative;width:32px;height:32px;line-height:32px;padding:0;margin:6px;border:1px solid #31bccf;border-radius:8px;background:linear-gradient(135deg,#12253d,#147489);color:#fff;text-align:center;cursor:pointer;font-size:16px;font-weight:700;';
+          booking.addEventListener('mousedown', event => event.stopImmediatePropagation());
+          booking.addEventListener('click', event => {
+            event.stopImmediatePropagation();
+            globalThis.LROPartyBookingOpen?.();
+          });
+          buttons.appendChild(booking);
+        }
       }
     }
 ` });
