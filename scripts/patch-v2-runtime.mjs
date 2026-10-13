@@ -39,6 +39,7 @@ import { patchPetDialogueDecoding } from './patch-pet-dialogue.mjs';
 
 
 import { patchRuntimeHotkeys } from './lastro-hotkeys.mjs';
+import { patchRuntimeQuickCast } from './lastro-quick-cast.mjs';
 import { patchRuntimeCardDeckHotkeys } from './lastro-card-deck-hotkeys.mjs';
 import { patchRuntimeCardCollection } from './lastro-card-collection.mjs';
 import { patchRuntimeQuests } from './lastro-quest-runtime.mjs';
@@ -1382,6 +1383,7 @@ ${normalizedSource}`;
   output = patchRuntimeAutolootSettings(output);
   output = patchRuntimeToolsPanels(output);
   output = patchRuntimeShortcutSettings(output);
+  output = patchRuntimeQuickCast(output);
   output = patchRuntimeQuests(output);
   output = patchRuntimeItemName(output);
   output = patchRuntimeEmoticons(output);
