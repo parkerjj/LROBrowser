@@ -240,7 +240,7 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
   } catch { return []; } };
   const catalog = () => {
     const merged = new Map(getLastROAgencyCatalog(getNid()).map(row => [row.iid, row]));
-    for (const row of customCatalog()) merged.set(Number(row.iid), row);
+    for (const row of customCatalog()) merged.set(Number(row.iid), { ...(merged.get(Number(row.iid)) || {}), ...row });
     return [...merged.values()];
   };
   const findName = iid => catalog().find(x => Number(x.iid) === Number(iid))?.name || '';
