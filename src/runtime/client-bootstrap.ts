@@ -25,6 +25,7 @@ declare global {
   var ROConfig: V2ClientConfig | undefined;
   var LastRODirectSocketFactory: ((host: string, port: number) => LegacyClientSocket) | undefined;
   var LastROLoginRegistration: ((phase: LastROLoginPhase, nid: number, username: string, password: string) => void) | undefined;
+  var LastROPartyHttpRequest: ((nid: number, action: 'list' | 'get' | 'info' | 'search' | 'add' | 'del', form: FormData) => Promise<Record<string, unknown>>) | undefined;
   var LastRODirectSocketsSupported: boolean | undefined;
   var LastROWebBuild: boolean | undefined;
   var LastROResolveServerConnection: ((profile: Record<string, unknown>) => Record<string, unknown>) | undefined;
@@ -64,6 +65,7 @@ export async function bootstrapV2Client(options: BootstrapOptions): Promise<void
   let prepareLastROLoginSession: (() => Promise<void>) | undefined;
   globalThis.LastRODirectSocketsSupported = IS_WEB_BUILD ? false : undefined;
   globalThis.LastRODirectSocketFactory = undefined;
+  globalThis.LastROPartyHttpRequest = undefined;
   installDebugAccessGuard(window);
   globalThis.LastROResolveServerConnection = (candidate) => {
     const id = candidate.id;
@@ -90,6 +92,7 @@ export async function bootstrapV2Client(options: BootstrapOptions): Promise<void
     globalThis.LastRODirectSocketsSupported = socketFactory.isDirectSocketsSupported();
     globalThis.LastRODirectSocketFactory = options.socketFactory ?? socketFactory.createDirectSocket;
     sendLastROLoginPost = loginHttp.sendLastROLoginPost;
+    globalThis.LastROPartyHttpRequest = (nid, action, form) => loginHttp.requestLastROPartyOverTLS(nid, action, form);
     prepareLastROLoginSession = loginHttp.prepareLastROLoginSession;
     globalThis.LastROLoginRegistration = (phase, nid, username, password) => {
       void Promise.resolve(sendLastROLoginPost?.(phase, nid, username, password)).catch(() => {

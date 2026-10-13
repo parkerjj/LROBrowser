@@ -1087,6 +1087,54 @@ async function setLastroTeleportConfirmationEnabled(enabled) {
   return preference + source.slice(0, anchor) + install + source.slice(anchor);
 }
 
+// LastRO's instance protocol is absent from upstream V2. Keep it distinct
+// from Gravity's standard PARTY_BOOKING protocol.
+export function patchLastROInstancePackets(source) {
+  const structures = `
+  PACKET.CZ.REQ_CREATE_INSTANCE = function PACKET_CZ_REQ_CREATE_INSTANCE() { this.instanceName = ''; };
+  PACKET.CZ.REQ_CREATE_INSTANCE.prototype.build = function () {
+    const name = String(this.instanceName ?? '');
+    if (!name || name.length > 200) throw new Error('Invalid LastRO instance name');
+    const pkt = new BinaryWriter(4 + name.length + 1);
+    pkt.writeShort(3057); pkt.writeShort(0); pkt.writeString(name); pkt.writeUChar(0);
+    pkt.view.setUint16(2, pkt.buffer.byteLength, true);
+    return pkt;
+  };
+  PACKET.ZC.RS_CREATE_INSTANCE = function PACKET_ZC_RS_CREATE_INSTANCE(fp) { this.rs = fp.readUChar(); };
+  PACKET.ZC.RS_CREATE_INSTANCE.size = 3;
+  PACKET.CZ.REQ_DEL_INSTANCE = function PACKET_CZ_REQ_DEL_INSTANCE() {};
+  PACKET.CZ.REQ_DEL_INSTANCE.prototype.build = function () {
+    const pkt = new BinaryWriter(2); pkt.writeShort(3059); return pkt;
+  };
+  PACKET.ZC.RS_DEL_INSTANCE = function PACKET_ZC_RS_DEL_INSTANCE(fp) { this.rs = fp.readUChar(); };
+  PACKET.ZC.RS_DEL_INSTANCE.size = 3;
+  PACKET.CZ.REQ_ENTER_INSTANCE = function PACKET_CZ_REQ_ENTER_INSTANCE() {
+    this.CID = 0; this.AID = 0; this.instanceName = '';
+  };
+  PACKET.CZ.REQ_ENTER_INSTANCE.prototype.build = function () {
+    const name = String(this.instanceName ?? '');
+    if (!name || name.length > 200) throw new Error('Invalid LastRO instance name');
+    const pkt = new BinaryWriter(12 + name.length + 1);
+    pkt.writeShort(3061); pkt.writeShort(0);
+    pkt.writeLong(this.CID); pkt.writeLong(this.AID);
+    pkt.writeString(name); pkt.writeUChar(0);
+    pkt.view.setUint16(2, pkt.buffer.byteLength, true);
+    return pkt;
+  };
+  PACKET.ZC.RS_ENTER_INSTANCE = function PACKET_ZC_RS_ENTER_INSTANCE(fp) { this.rs = fp.readUChar(); };
+  PACKET.ZC.RS_ENTER_INSTANCE.size = 3;
+`;
+  source = replaceOnce(source,
+    '  PACKET.ZC.NOTIFY_OFFLINEMSG.size = 30;',
+    '  PACKET.ZC.NOTIFY_OFFLINEMSG.size = 30;' + structures);
+  source = replaceOnce(source,
+    '    Object.assign(PacketRegister, {\n      2773: PACKET.ZC.SECOND_CHECK,',
+    '    Object.assign(PacketRegister, {\n      3058: PACKET.ZC.RS_CREATE_INSTANCE,\n      3060: PACKET.ZC.RS_DEL_INSTANCE,\n      3062: PACKET.ZC.RS_ENTER_INSTANCE,\n      2773: PACKET.ZC.SECOND_CHECK,');
+  source = replaceOnce(source, '          2812: 30,',
+    '          2812: 30,\n          3058: 3,\n          3060: 3,\n          3062: 3,');
+  return source;
+}
+
 export function patchV2Runtime(source, { assistant = false } = {}) {
   if (!source.startsWith('import ')) fail('anchor:runtime-imports');
   const normalizedSource = source.replace(/\r\n/g, '\n');
@@ -1288,6 +1336,7 @@ ${normalizedSource}`;
   output = patchRuntimeEmoticons(output);
   output = patchRuntimeTeleportFade(output);
   if (/\bws:\/\/|socketProxy|electronAPI|NodeSocket/i.test(output)) fail('legacy-transport');
+  output = patchLastROInstancePackets(output);
   output = patchRuntimeCredentialSecurity(output);
   output = patchRuntimePluginLoader(output);
   output = patchRuntimeDebugAccess(output);
