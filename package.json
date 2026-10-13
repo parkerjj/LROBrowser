@@ -13,6 +13,8 @@
     "build": "pnpm prepare:runtime && vite build",
     "build:web": "LASTRO_BUILD_TARGET=web pnpm prepare:runtime && LASTRO_BUILD_TARGET=web vite build --outDir dist-web",
     "test": "pnpm prepare:runtime && vitest run --exclude test/release-smoke.test.ts",
+    "test:vendor": "node scripts/run-v2-regressions.mjs",
+    "test:full": "pnpm test && pnpm test:vendor",
     "test:release": "pnpm build && vitest run test/release-smoke.test.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
