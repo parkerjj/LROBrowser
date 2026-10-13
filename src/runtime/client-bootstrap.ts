@@ -25,6 +25,7 @@ declare global {
   var ROConfig: V2ClientConfig | undefined;
   var LastRODirectSocketFactory: ((host: string, port: number) => LegacyClientSocket) | undefined;
   var LastROLoginRegistration: ((phase: LastROLoginPhase, nid: number, username: string, password: string) => void) | undefined;
+  var LastROPartyRequest: ((path: string, data: FormData) => Promise<Record<string, unknown>>) | undefined;
   var LastROPartyHttpRequest: ((nid: number, action: 'list' | 'get' | 'info' | 'search' | 'add' | 'del', form: FormData) => Promise<Record<string, unknown>>) | undefined;
   var LastRODirectSocketsSupported: boolean | undefined;
   var LastROWebBuild: boolean | undefined;
@@ -61,6 +62,11 @@ async function loadExecutableManifest(): Promise<ExecutableAssetManifest> {
 export async function bootstrapV2Client(options: BootstrapOptions): Promise<void> {
   if (options.runtimeUrl !== undefined && options.runtimeUrl !== '/runtime/Online.js') throw new Error('只能加载客户端内置运行程序');
   globalThis.LastROWebBuild = IS_WEB_BUILD;
+  // IWA-only trusted POST capability. Scope the destination to LastRO's six
+  // party endpoints in the transport itself, never hand out a general proxy.
+  globalThis.LastROPartyRequest = IS_WEB_BUILD ? undefined
+    : async (partyPath, data) => (await import('../network/lastro-party-http')).postLastROPartyRequest(partyPath, data);
+
   let sendLastROLoginPost: ((phase: LastROLoginPhase, nid: number, username: string, password: string) => void) | undefined;
   let prepareLastROLoginSession: (() => Promise<void>) | undefined;
   globalThis.LastRODirectSocketsSupported = IS_WEB_BUILD ? false : undefined;
