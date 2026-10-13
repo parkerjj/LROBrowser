@@ -12,7 +12,7 @@ Phase A 支持本地构建、审计、unsigned Web Bundle 和被 Git 忽略的�
 
 `pnpm build:web` 生成普通 HTTPS 静态站点到 `dist-web/`。Web 构建只使用 `https://rodata.ltsd.ro/ro/client_re/` 资源源和 `wss://port.lastro.cn/` 传统连接，隐藏 Direct TCP 控件，不输出 IWA manifest；`200.html` 用于 Surge 的深层 URL 回退。现有 `pnpm build` 仍生成 IWA 输出并保留 Direct TCP 能力。
 
-`.github/workflows/web-deploy.yml` 在 `main` push、`v*` tag 或手动触发时构建并上传 `dist-web` artifact，再通过 `production-web` Environment 使用固定版本 `surge@0.24.6` 部署到 `game.ltsd.ro`。仅从 GitHub Secrets 读取可选的 `SURGE_TOKEN` 和 `SURGE_LOGIN`，仓库不包含任何凭据。Surge 项目约定记录在 `surge.json`。
+`.github/workflows/ci-release.yml` 统一所有校验与发布：PR、`Development` 和普通分支只运行一次并行的 lint/typecheck 与全量测试，并构建未签名 IWA 包（artifact 保留 14 天，不签名、不外发）；`main` push、`v*` tag 或手动触发时额外构建 `dist-web`，通过 `production-web` Environment 使用固定版本 `surge@0.24.6` 部署到 `game.ltsd.ro`，`main` push 或手动触发时还会签名 IWA 并发布到 R2。仅从 GitHub Secrets 读取可选的 `SURGE_TOKEN`、`SURGE_LOGIN` 及生产发布密钥，仓库不包含任何凭据。Surge 项目约定记录在 `surge.json`。
 
 ## 仓库边界
 
