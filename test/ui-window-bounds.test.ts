@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
 import { patchRuntimeWindowBounds } from '../scripts/patch-v2-runtime.mjs';

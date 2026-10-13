@@ -1179,8 +1179,8 @@ export function patchRuntimeWindowBounds(source) {
   const targetY = magnet.TOP ? 0 : magnet.BOTTOM ? vh - rect.height : (vh - rect.height) / 2;
   const baseX = Number.isFinite(host.offsetLeft) ? host.offsetLeft : 0;
   const baseY = Number.isFinite(host.offsetTop) ? host.offsetTop : 0;
-  host.style.left = (baseX + (targetX - (Number.isFinite(rect.left) ? rect.left : 0)) / sx) + 'px';
-  host.style.top = (baseY + (targetY - (Number.isFinite(rect.top) ? rect.top : 0)) / sy) + 'px';
+  host.style.left = (baseX + (targetX - (Number.isFinite(rect.left) ? rect.left : 0))) + 'px';
+  host.style.top = (baseY + (targetY - (Number.isFinite(rect.top) ? rect.top : 0))) + 'px';
 }
 ${marker}`);
 }
