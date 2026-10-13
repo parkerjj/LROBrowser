@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
       - run: pnpm lint
       - run: pnpm typecheck
@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
       - name: Verify official HTTPS via real JavaScript TLS on Direct TCP/443
         env:
@@ -54,7 +54,7 @@ jobs:
     env:
       RELEASE_BUILD: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
       - run: pnpm build
       - name: Minify production JavaScript
@@ -78,7 +78,7 @@ jobs:
           fi
         env:
           IWA_ALLOW_UPDATE_MANIFEST: ${{ (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')) && '1' || '' }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: iwa-bundle
           path: |
@@ -98,9 +98,9 @@ jobs:
       contents: write
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: iwa-bundle
       - name: Prepare production signing key
@@ -170,10 +170,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
       - run: pnpm build:web
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: web-dist
           path: dist-web/
@@ -190,11 +190,11 @@ jobs:
       url: https://game.ltsd.ro
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
         with:
           install: "false"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: web-dist
       - name: Deploy to Surge
