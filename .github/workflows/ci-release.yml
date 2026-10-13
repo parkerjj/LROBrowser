@@ -109,6 +109,7 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           name: iwa-bundle
+          path: release
       - name: Prepare production signing key
         id: key
         env:
@@ -207,6 +208,7 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           name: web-dist
+          path: dist-web
       - name: Deploy to Surge
         env:
           SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }}
