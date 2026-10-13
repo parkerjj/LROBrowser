@@ -3,7 +3,8 @@
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, URL } from 'node:url';
+import process from 'node:process';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const inventory = JSON.parse(readFileSync(new URL('../config/lastro-module-inventory.json', import.meta.url), 'utf8'));
