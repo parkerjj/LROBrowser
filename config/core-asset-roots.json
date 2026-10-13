@@ -8,7 +8,6 @@
     "src/accounts/account-storage.mjs",
     "src/assistant/lro-assistant.mjs",
     "src/assistant/lro-party-booking.mjs",
-    "src/assistant/lro-party-packets.mjs",
     "src/assistant/lro-party-catalog.mjs",
     "src/assistant/lro-assistant-standard.mjs",
     "src/assistant/lro-assistant-storage.mjs",
