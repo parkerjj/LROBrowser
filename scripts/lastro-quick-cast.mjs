@@ -101,18 +101,22 @@ function installShortcutQuickCast(component, doc, controls) {
   };
 }
 
-function installQuickCastShortcut(shortcut, controls, selector, session, entities, types) {
+function installQuickCastShortcut(shortcut, controls, selector, session, entities, types, mouse, getNetwork) {
   const originalUseSkill = shortcut.useSkill;
   shortcut.useSkill = function (id, requestedLevel) {
-    if (controls.quickCast === false) return originalUseSkill.apply(this, arguments);
+    // Always perform native skill selection first. It sets the target cursor,
+    // retains the chosen skill level, and gives us a working manual fallback.
+    const result = originalUseSkill.apply(this, arguments);
+    if (controls.quickCast === false || !session.Entity ||
+        mouse.state !== mouse.MOUSE_STATE.USESKILL ||
+        typeof selector.onUseSkillToId !== 'function') return result;
+
     const skill = shortcut.getSkillById?.(id);
     const flags = Number(skill?.type);
-    const unsafeFlags = selector.TYPE.PLACE | selector.TYPE.SELF | selector.TYPE.FRIEND |
+    const excluded = selector.TYPE.PLACE | selector.TYPE.SELF | selector.TYPE.FRIEND |
       selector.TYPE.TRAP | selector.TYPE.PET | selector.TYPE.HOMUN;
-    // Auto select only unambiguously enemy-targeted skills.
-    if (!skill || !(flags & selector.TYPE.ENEMY) || (flags & unsafeFlags) ||
-        !session.Entity || typeof selector.onUseSkillToId !== 'function')
-      return originalUseSkill.apply(this, arguments);
+    // Mixed-target, support and ground skills stay in native selection mode.
+    if (!skill || !(flags & selector.TYPE.ENEMY) || (flags & excluded)) return result;
 
     const player = session.Entity;
     const validMob = entity =>
@@ -121,20 +125,53 @@ function installQuickCastShortcut(shortcut, controls, selector, session, entitie
       entity.action !== entity.ACTION?.DIE && !entity.remove_tick &&
       entity.position != null && Number.isFinite(entity.position[0]) &&
       Number.isFinite(entity.position[1]);
-
     const mode = controls.quickCastTargetMode;
     let target = mode === 'nearest-only' ? null : entities.getOverEntity?.();
     if (!validMob(target)) target = null;
     if (!target && mode !== 'hover-only')
       target = entities.getClosestEntity?.(player, types.TYPE_MOB);
-    if (!validMob(target)) return originalUseSkill.apply(this, arguments);
+    // No monster / no reachable monster: leave the native target cursor open.
+    if (!validMob(target)) return result;
 
     const level = Number(requestedLevel || skill.selectedLevel || skill.level);
-    if (!Number.isInteger(level) || level < 1 || level > skill.level)
-      return originalUseSkill.apply(this, arguments);
+    if (!Number.isInteger(level) || level < 1 || level > skill.level) return result;
 
-    // Delegate casting, range checks, movement and versioned packets to native SkillEngine.
-    selector.onUseSkillToId(id, level, target.GID);
+    // The native SkillEngine returns undefined both when it sends and when it
+    // fails (path unreachable, casting delay, or the handler is still a stub).
+    // Observe the actual synchronous packet call instead of trusting its return.
+    const network = getNetwork();
+    if (!network || typeof network.sendPacket !== 'function') return result;
+    const nativeSendPacket = network.sendPacket;
+    let dispatched = false;
+    const targetID = target.GID;
+    let observing = false;
+    try {
+      network.sendPacket = function (packet) {
+        const pending = session.moveAction;
+        const direct = packet?.SKID === id && packet?.targetID === targetID;
+        const walking = pending?.SKID === id && pending?.targetID === targetID &&
+          (packet?.dest != null);
+        const sentResult = nativeSendPacket.apply(this, arguments);
+        if (sentResult !== false && (direct || walking)) dispatched = true;
+        return sentResult;
+      };
+      observing = network.sendPacket !== nativeSendPacket;
+      if (!observing) return result;
+      selector.onUseSkillToId(id, level, targetID);
+    } catch (error) {
+      // Never swallow the user's hotkey. The native targeting cursor is still
+      // active so they can click the target manually.
+      console.warn('[LastRO quick cast] automatic cast failed; manual selection remains', error);
+      return result;
+    } finally {
+      if (observing) network.sendPacket = nativeSendPacket;
+    }
+
+    if (dispatched) selector.remove();
+    else console.debug('[LastRO quick cast] no cast or movement packet; manual selection remains', {
+      skillId: id, level, targetID
+    });
+    return result;
   };
 }
 
@@ -148,7 +185,7 @@ function patchRuntimeQuickCast(source) {
   );
   source = insertAfterAssignment(
     source, 'src/UI/Components/ShortCut/ShortCut.js', 'ShortCut.useSkill',
-    '(' + installQuickCastShortcut.toString() + ')(ShortCut, Controls_default, SkillTargetSelection, SessionStorage_default, EntityManager, Entity);'
+    '(' + installQuickCastShortcut.toString() + ')(ShortCut, Controls_default, SkillTargetSelection, SessionStorage_default, EntityManager, Entity, Mouse, () => Network);'
   );
   const checked = ts.createSourceFile('quick-cast-runtime.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
   if (checked.parseDiagnostics.length)
