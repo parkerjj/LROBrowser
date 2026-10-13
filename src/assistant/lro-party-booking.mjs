@@ -115,8 +115,9 @@ export async function requestParty(page, session, nid, action, extra = {}, encod
 }
 
 const CSS = `
-:host{all:initial;color:#e4edf9;font:14px/1.55 system-ui,"Microsoft YaHei",sans-serif}
+:host{all:initial;cursor:auto!important;color:#e4edf9;font:14px/1.55 system-ui,"Microsoft YaHei",sans-serif}
 *{box-sizing:border-box}
+.screen,.screen *{cursor:default!important}.screen button,.screen select{cursor:pointer!important}.screen input,.screen textarea{cursor:text!important}.screen button:disabled{cursor:not-allowed!important}
 .screen{position:fixed;inset:0;z-index:99999;background:rgba(4,9,24,.72);backdrop-filter:blur(8px);display:grid;place-items:center;padding:16px}
 .screen[hidden]{display:none}
 .window{width:min(930px,100%);max-height:92vh;display:flex;flex-direction:column;overflow:hidden;background:linear-gradient(150deg,#18273c,#0c1526 70%);border:1px solid #4a6688;border-radius:18px;box-shadow:0 26px 75px #000a}
@@ -161,10 +162,10 @@ const TEMPLATE = `
     <div class="content"><div class="cards"></div></div>
     <section class="view" hidden><div class="view-body"></div><div class="actions view-actions"></div></section>
     <section class="view form-view" hidden>
-      <div class="notice">已预置官方 AgencyTable 启用的 33 个副本；你可以扩充本地目录，但实际创建仍由 LastRO 游戏服务器决定。</div>
+      <div class="notice">从官方 AgencyTable 提取副本目录；部分被注释的条目可能无法在服务器实际创建。</div>
       <div class="fields">
-        <label>副本类型 / 分类<input name="category" placeholder="例如：经典副本" maxlength="40"></label>
-        <label>副本玩法名称（须与服务器名称一致）<input name="instanceName" list="party-instances" required maxlength="100"><datalist id="party-instances"></datalist></label>
+        <label>副本类型 / 分类<select name="category"><option value="">全部分类</option></select></label>
+        <label>副本玩法名称（须与服务器名称一致）<select name="instanceName" required><option value="">请选择副本</option></select></label>
         <label>副本 IID（募集公告使用）<input name="iid" type="number" min="1" step="1" required></label>
         <label>状态<select name="state"><option value="0">招募中</option><option value="1">挑战中</option></select></label>
         <label>最低等级<input name="min" type="number" min="1" max="999" value="1"></label>
@@ -182,6 +183,9 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
   const document = page.document;
   let host, shadow, native;
   let pageIndex = 0, tab = 0, rows = [], own = null, selected = null, editing = false, pending = null, busy = false;
+  let pendingTimer = null;
+  const clearPending = () => { if (pendingTimer !== null) { page.clearTimeout(pendingTimer); pendingTimer = null; } };
+  const awaitInstanceResponse = () => { clearPending(); pendingTimer = page.setTimeout(() => { if (!pending) return; const action = pending.action; pending = null; status(`等待游戏服务器${action === "create" ? "创建" : "关闭"}副本确认超时。请检查网络封包或服务器是否支持该副本，不要重复提交。`); }, 12000); };
   let currentProfile = profile ?? 'lastro-public';
   const getSession = () => modules.get('Engine/SessionStorage');
   const getPacket = () => modules.get('Network/PacketStructure');
@@ -246,11 +250,28 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
     ui('.form-view').hidden = kind !== 'form';
     ui('footer').hidden = Boolean(kind);
   }
-  function buildCatalogHints() {
-    const list = ui('#party-instances'); list.replaceChildren();
-    for (const row of catalog()) {
-      const option = document.createElement('option'); option.value = row.name; list.append(option);
+  function buildCatalogHints(category = '', selectedName = '') {
+    const categories = ui('[name="category"]');
+    const instances = ui('[name="instanceName"]');
+    const rows = catalog();
+    categories.replaceChildren();
+    for (const value of ['', ...new Set(rows.map(row => row.category || '其他'))]) {
+      const option = document.createElement('option');
+      option.value = value; option.textContent = value || '全部分类';
+      categories.append(option);
     }
+    categories.value = category;
+    instances.replaceChildren();
+    const placeholder = document.createElement('option');
+    placeholder.value = ''; placeholder.textContent = '请选择副本';
+    instances.append(placeholder);
+    for (const row of rows.filter(row => !category || (row.category || '其他') === category)) {
+      const option = document.createElement('option');
+      option.value = row.name; option.textContent = row.name + ' (IID ' + row.iid + ')';
+      instances.append(option);
+    }
+    instances.value = selectedName;
+    if (!instances.value) instances.value = '';
   }
   async function load(action = 'list', memo = '') {
     if (busy) return;
@@ -323,13 +344,13 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
   }
   function openForm(value = null) {
     editing = Boolean(value);
-    buildCatalogHints();
+    buildCatalogHints(value ? (catalog().find(x => x.iid === value.iid)?.category || '') : '', value ? findName(value.iid) : '');
     const form = ui('.form-view');
     form.querySelector('[name="iid"]').disabled = editing && value?.type === 1;
     form.querySelector('[name="instanceName"]').disabled = editing && value?.type === 1;
     form.querySelector('[name="state"]').disabled = !editing;
     for (const [name, text] of Object.entries({
-      category: '', instanceName: value ? findName(value.iid) : '',
+      category: value ? (catalog().find(x => x.iid === value.iid)?.category || '') : '', instanceName: value ? findName(value.iid) : '',
       iid: value?.iid || '', state: value?.state || 0,
       min: value?.min || 1, max: value?.max || 200, memo: value?.memo || '无',
     })) form.querySelector('[name="' + name + '"]').value = text;
@@ -350,7 +371,7 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
     const current = customCatalog().filter(x => Number(x.iid) !== value.iid);
     current.push({ category: value.category, name: value.name, iid: value.iid });
     page.localStorage.setItem(catalogKey(), JSON.stringify(current.slice(-200)));
-    buildCatalogHints();
+    buildCatalogHints(value.category, value.name);
   }
   function fields(value, type) {
     return { CharName: getSession()?.Entity?.display?.name || '', Type: type,
@@ -370,7 +391,8 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
         pending = { action: 'create', value: { ...value, state: 0 } };
         try { packet('REQ_CREATE_INSTANCE', { instanceName: value.name }); }
         catch (error) { pending = null; throw error; }
-        status('创建指令已发出，正在等待游戏服务器确认…');
+        status('创建指令已发出，正在等待游戏服务器确认（最长 12 秒）…');
+        awaitInstanceResponse();
       } else {
         const old = own;
         if (!old) throw new Error('没有可修改的募集记录');
@@ -392,15 +414,16 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
         if (!getPacket()?.ZC?.RS_DEL_INSTANCE) throw new Error('缺少副本关闭结果封包');
         pending = { action: 'delete' };
         packet('REQ_DEL_INSTANCE');
-        status('正在等待服务器关闭副本确认…');
+        status('正在等待服务器关闭副本确认（最长 12 秒）…');
+        awaitInstanceResponse();
       }
-    } catch (error) { pending = null; showError(error); }
+    } catch (error) { pending = null; clearPending(); showError(error); }
   }
   async function acknowledge(structure, result, phase) {
     if (phase !== 'after' || !pending || !result) return;
     const P = getPacket()?.ZC;
     if (pending.action === 'create' && structure === P?.RS_CREATE_INSTANCE) {
-      const value = pending.value; pending = null;
+      const value = pending.value; pending = null; clearPending();
       if (Number(result.rs) !== 1) { status('游戏服务器拒绝创建副本（结果码：' + result.rs + '）'); return; }
       try {
         const created = await requestParty(page, getSession(), getNid(), 'add',
@@ -409,7 +432,7 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
         showView(''); await load();
       } catch (error) { showError(error); }
     } else if (pending.action === 'delete' && structure === P?.RS_DEL_INSTANCE) {
-      pending = null;
+      pending = null; clearPending();
       if (![1, 2].includes(Number(result.rs))) { status('服务器拒绝关闭副本（结果码：' + result.rs + '）'); return; }
       try {
         if (Number(result.rs) === 1) {
@@ -447,7 +470,12 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
     shadow.append(style, template.content);
     shadow.addEventListener('click', event => { event.stopPropagation(); void onAction(event); });
     shadow.addEventListener('pointerdown', event => event.stopPropagation(), true);
+    shadow.addEventListener('mousemove', event => event.stopPropagation(), true);
     ui('.search').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); void load('search', event.target.value); } });
+    ui('[name="category"]').addEventListener('change', event => {
+      buildCatalogHints(event.target.value);
+      ui('[name="iid"]').value = '';
+    });
     ui('[name="instanceName"]').addEventListener('change', event => {
       const match = catalog().find(row => row.name === event.target.value);
       if (match) { ui('[name="iid"]').value = match.iid; ui('[name="category"]').value = match.category || ''; }
@@ -473,5 +501,5 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
     showView('');
     void load();
   }
-  return Object.freeze({ open, setProfile(id) { currentProfile = String(id); rows = []; own = null; selected = null; pending = null; } });
+  return Object.freeze({ open, setProfile(id) { currentProfile = String(id); rows = []; own = null; selected = null; pending = null; clearPending(); } });
 }
