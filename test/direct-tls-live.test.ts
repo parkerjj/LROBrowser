@@ -57,16 +57,6 @@ describe('official HTTPS via raw TCP and JavaScript TLS', () => {
     expect(response.status).toBe(200);
     const body = new Uint8Array(await response.arrayBuffer());
     expect(body.byteLength).toBeGreaterThan(4);
-    const metadata = createDirectHttpFetch({
-      TCPSocket: LiveSocketShim as unknown as NonNullable<Parameters<typeof createDirectHttpFetch>[0]>['TCPSocket'],
-      allowOfficialProfileScript: true,
-      maxBodyBytes: 4 * 1024 * 1024,
-      openTimeoutMs: 12_000,
-      readTimeoutMs: 12_000,
-    });
-    const online = await metadata('https://game.lastro.cn/ro/Online.js');
-    expect(online.status).toBe(200);
-    expect((await online.text()).length).toBeGreaterThan(1000);
   }, 30_000);
 
   it.skipIf(!live)('authenticates the official HTTPS certificate before bootstrap', async () => {

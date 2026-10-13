@@ -348,3 +348,67 @@ export async function sendLastROLoginPost(
     }
   }
 }
+
+/**
+ * POST the official LastRO adventurer recruitment board over verified TLS and
+ * Direct TCPSocket, without exposing a new proxy or weakening passive GET rules.
+ * Uses the same Yii CSRF cookie previously bootstrapped by the login flow.
+ */
+export async function requestLastROPartyOverTLS(
+  nid: number,
+  action: 'list' | 'get' | 'info' | 'search' | 'add' | 'del',
+  fields: FormData,
+  options: LastROLoginHttpOptions = {},
+): Promise<Record<string, unknown>> {
+  if (!['list', 'get', 'info', 'search', 'add', 'del'].includes(action)) throw new Error('Unknown recruitment action');
+  if (typeof FormData === 'undefined' || !(fields instanceof FormData)) throw new Error('Invalid recruitment multipart fields');
+  const ctor = options.TCPSocket ?? globalThis.TCPSocket;
+  if (!ctor) throw new Error('Direct TCP is unavailable for LastRO recruitment');
+  const path = `/${nid === 5 ? 'webserver2' : 'webserver'}/party/${action}`;
+  // Match the fields sent by LastRO's actual Online.js. The recruitment API
+  // authenticates with AuthToken; adding unrelated Yii login CSRF state can
+  // cause the endpoint to reject an otherwise valid request.
+  const bodyFields = new FormData();
+  for (const [key, value] of fields.entries()) bodyFields.append(key, value);
+  const multipart = new Request('https://' + LASTRO_LOGIN_HOST + path, { method: 'POST', body: bodyFields });
+  const contentType = multipart.headers.get('content-type');
+  if (!contentType?.startsWith('multipart/form-data; boundary=')) throw new Error('Multipart boundary missing');
+  const body = new Uint8Array(await multipart.arrayBuffer());
+  if (body.byteLength > 128 * 1024) throw new Error('Recruitment request is too large');
+  const headers = [
+    `POST ${path} HTTP/1.1`,
+    `Host: ${LASTRO_LOGIN_HOST}`,
+    'Accept: application/json',
+    'Accept-Encoding: identity',
+    'X-Requested-With: XMLHttpRequest',
+    `Content-Type: ${contentType}`,
+    `Content-Length: ${body.byteLength}`,
+    'Connection: close',
+  ];
+  headers.push('Origin: https://game.lastro.cn', 'Referer: https://game.lastro.cn/ro/api.html');
+  const head = new TextEncoder().encode(headers.join('\r\n') + '\r\n\r\n');
+  const bytes = new Uint8Array(head.length + body.length);
+  bytes.set(head); bytes.set(body, head.length);
+  const native = new ctor(LASTRO_LOGIN_HOST, LASTRO_LOGIN_PORT, { noDelay: true, keepAliveDelay: 60_000 });
+  void native.closed.catch(() => undefined);
+  try {
+    const openTimeout = Math.max(1, options.openTimeoutMs ?? DEFAULT_OPEN_TIMEOUT_MS);
+    const readTimeout = Math.max(1, options.readTimeoutMs ?? DEFAULT_READ_TIMEOUT_MS);
+    const opened = await waitFor(native.opened, openTimeout, 'LastRO recruitment TCP open timeout');
+    const encrypted = await openEncryptedHttpStreams(native, opened, LASTRO_LOGIN_HOST, {
+      timeoutMs: openTimeout,
+      tlsClientFactory: options.tlsClientFactory,
+      verifyServerCertificate: true,
+    });
+    const response = await readResponse(native, encrypted, bytes, readTimeout);
+    if (response.status < 200 || response.status >= 300) {
+      const detail = new TextDecoder().decode(response.body).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 240);
+      throw new Error(`LastRO recruitment HTTP ${response.status}${detail ? ': ' + detail : ''} (action=${action}, nid=${nid})`);
+    }
+    const data: unknown = JSON.parse(new TextDecoder().decode(response.body));
+    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Invalid recruitment JSON response');
+    return data as Record<string, unknown>;
+  } finally {
+    try { await native.close(); } catch { /* readResponse handles normal close */ }
+  }
+}

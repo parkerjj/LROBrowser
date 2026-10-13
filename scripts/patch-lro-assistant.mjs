@@ -1,7 +1,9 @@
 import ts from 'typescript';
 
 const IMPORTS = `import { assistantIcon } from "./lro-assistant-icon.mjs";
+import { partyBookingIcon } from "./lro-party-icon.mjs";
 import { installLroAssistant } from "./lro-assistant.mjs";
+import { installLastroPartyBooking } from "./lro-party-booking.mjs";
 import { createAssistantPacketBus } from "./lro-assistant-packets.mjs";
 import { installAssistantInputTracking, addAssistantAwareListener, removeAssistantAwareListener, guardAssistantInputHandler } from "./lro-assistant-input.mjs";
 const lroAssistantPackets = createAssistantPacketBus();
@@ -73,6 +75,19 @@ if (globalThis.ROConfig?.lroAssistantEnabled === true) {
     console.error('[LRO助手] 启动失败，客户端继续启动', error?.message);
   }
 }
+if (globalThis.ROConfig?.enableAdventurerAgency === true) {
+  try {
+    const booking = installLastroPartyBooking({
+      page: window, modules: lroAssistantModules,
+      subscribePackets: lroAssistantPackets.subscribe,
+      profile: globalThis.ROConfig?.lroAssistantProfile,
+      codec: typeof UrlTools === 'object' ? UrlTools : null,
+    });
+    globalThis.LROPartyBookingOpen = booking.open;
+  } catch (error) {
+    console.error('[冒险者募集] 初始化失败', error?.message);
+  }
+}
 `;
 
 export function patchLroAssistantRuntime(source) {
@@ -123,10 +138,10 @@ export function patchLroAssistantRuntime(source) {
       if (offset < 0) throw new Error('BasicInfo assistant entry anchor changed');
       const at = node.getStart(parsed) + offset;
       edits.push({ start: at, end: at, text: `
-    if (globalThis.ROConfig?.lroAssistantEnabled === true) {
+    if (globalThis.ROConfig?.lroAssistantEnabled === true || globalThis.ROConfig?.enableAdventurerAgency === true) {
       const buttons = root.querySelector('.buttons') || root.querySelector(innerId);
       buttons?.querySelector('#attendance')?.remove();
-      if (buttons && !root.querySelector('[data-lro-assistant-entry]')) {
+      if (buttons && globalThis.ROConfig?.lroAssistantEnabled === true && !root.querySelector('[data-lro-assistant-entry]')) {
         const entry = document.createElement(buttonKeyBy === 'id' ? 'div' : 'button');
         entry.id = 'lro-assistant';
         entry.className = 'lro-assistant event_add_cursor item-link';
@@ -147,6 +162,23 @@ export function patchLroAssistantRuntime(source) {
           UIManager.getComponent('LROAssistant')?.open?.();
         });
         buttons.appendChild(entry);
+      }
+      if (buttons && globalThis.ROConfig?.enableAdventurerAgency === true && !root.querySelector('[data-lro-party-booking-entry]')) {
+          const booking = document.createElement(buttonKeyBy === 'id' ? 'div' : 'button');
+          booking.id = 'lro-party-booking-entry';
+          booking.dataset.lroPartyBookingEntry = 'true';
+          booking.className = 'event_add_cursor item-link';
+          booking.title = '冒险者募集';
+          booking.setAttribute('aria-label', '冒险者募集');
+          if (booking.tagName === 'BUTTON') booking.type = 'button';
+          const bookingIcon = document.createElement('img'); bookingIcon.src = partyBookingIcon; bookingIcon.alt = ''; bookingIcon.width = 32; bookingIcon.height = 32; bookingIcon.style.cssText = 'display:block;width:32px;height:32px;pointer-events:none'; booking.appendChild(bookingIcon);
+          booking.style.cssText = 'position:relative;width:32px;height:32px;padding:0;margin:6px;border:0;background:transparent;cursor:pointer;';
+          booking.addEventListener('mousedown', event => event.stopImmediatePropagation());
+          booking.addEventListener('click', event => {
+            event.stopImmediatePropagation();
+            globalThis.LROPartyBookingOpen?.();
+          });
+          buttons.appendChild(booking);
       }
     }
 ` });
