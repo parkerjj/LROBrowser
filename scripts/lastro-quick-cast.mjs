@@ -101,53 +101,54 @@ function installShortcutQuickCast(component, doc, controls) {
   };
 }
 
-function installSkillQuickCast(selector, controls, session, mouse, entityManager, entityTypes) {
-  const nativeSet = selector.set;
-  selector.set = function (skill, targetType) {
-    const result = nativeSet.apply(this, arguments);
-    if (controls.quickCast === false ||
-        targetType !== selector.TYPE.ENEMY ||
-        !skill || !Number.isInteger(skill.SKID) || skill.SKID <= 0 ||
-        !session.Entity || mouse.state !== mouse.MOUSE_STATE.USESKILL ||
-        typeof selector.onUseSkillToId !== 'function') return result;
+function installQuickCastShortcut(shortcut, controls, selector, session, entities, types) {
+  const originalUseSkill = shortcut.useSkill;
+  shortcut.useSkill = function (id, requestedLevel) {
+    if (controls.quickCast === false) return originalUseSkill.apply(this, arguments);
+    const skill = shortcut.getSkillById?.(id);
+    const flags = Number(skill?.type);
+    const unsafeFlags = selector.TYPE.PLACE | selector.TYPE.SELF | selector.TYPE.FRIEND |
+      selector.TYPE.TRAP | selector.TYPE.PET | selector.TYPE.HOMUN;
+    // Auto select only unambiguously enemy-targeted skills.
+    if (!skill || !(flags & selector.TYPE.ENEMY) || (flags & unsafeFlags) ||
+        !session.Entity || typeof selector.onUseSkillToId !== 'function')
+      return originalUseSkill.apply(this, arguments);
 
     const player = session.Entity;
-    const isMonster = entity =>
-      !!entity && entity !== player &&
-      entity.objecttype === entityTypes.TYPE_MOB &&
-      Number.isInteger(entity.GID) && entity.GID > 0 &&
-      entity.action !== entity.ACTION?.DIE &&
-      !entity.remove_tick &&
-      // glMatrix.vec3.create() returns a Float32Array, not a JavaScript Array.
-      entity.position != null &&
-      Number.isFinite(entity.position[0]) && Number.isFinite(entity.position[1]);
+    const validMob = entity =>
+      !!entity && entity !== player && entity.objecttype === types.TYPE_MOB &&
+      Number.isFinite(entity.GID) && entity.GID > 0 &&
+      entity.action !== entity.ACTION?.DIE && !entity.remove_tick &&
+      entity.position != null && Number.isFinite(entity.position[0]) &&
+      Number.isFinite(entity.position[1]);
 
     const mode = controls.quickCastTargetMode;
-    let target = mode === 'nearest-only' ? null : entityManager.getOverEntity?.();
-    if (!isMonster(target)) target = null;
+    let target = mode === 'nearest-only' ? null : entities.getOverEntity?.();
+    if (!validMob(target)) target = null;
     if (!target && mode !== 'hover-only')
-      target = entityManager.getClosestEntity?.(player, entityTypes.TYPE_MOB);
-    if (!isMonster(target)) return result;
+      target = entities.getClosestEntity?.(player, types.TYPE_MOB);
+    if (!validMob(target)) return originalUseSkill.apply(this, arguments);
 
-    const level = skill.useLevel || skill.level;
-    if (!Number.isFinite(level) || level <= 0) return result;
-    selector.onUseSkillToId(skill.SKID, level, target.GID);
-    selector.remove();
-    return result;
+    const level = Number(requestedLevel || skill.selectedLevel || skill.level);
+    if (!Number.isInteger(level) || level < 1 || level > skill.level)
+      return originalUseSkill.apply(this, arguments);
+
+    // Delegate casting, range checks, movement and versioned packets to native SkillEngine.
+    selector.onUseSkillToId(id, level, target.GID);
   };
 }
 
 function patchRuntimeQuickCast(source) {
   if (source.includes('lastroQuickCastNativeSet') ||
-      source.includes('installSkillQuickCast('))
+      source.includes('installQuickCastShortcut('))
     throw new Error('anchor:quick-cast:already-patched');
   source = insertAfterAssignment(
     source, 'src/UI/Components/ShortCutOption/ShortCutOption.js', 'ShortCutOption.init',
     '(' + installShortcutQuickCast.toString() + ')(ShortCutOption, globalThis.document, Controls_default);'
   );
   source = insertAfterAssignment(
-    source, 'src/UI/Components/SkillTargetSelection/SkillTargetSelection.js', 'SkillTargetSelection.set',
-    '(' + installSkillQuickCast.toString() + ')(SkillTargetSelection, Controls_default, SessionStorage_default, Mouse, EntityManager, Entity);'
+    source, 'src/UI/Components/ShortCut/ShortCut.js', 'ShortCut.useSkill',
+    '(' + installQuickCastShortcut.toString() + ')(ShortCut, Controls_default, SkillTargetSelection, SessionStorage_default, EntityManager, Entity);'
   );
   const checked = ts.createSourceFile('quick-cast-runtime.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
   if (checked.parseDiagnostics.length)
