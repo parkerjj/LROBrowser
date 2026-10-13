@@ -198,7 +198,7 @@ const TEMPLATE = `
         <label>副本类型 / 分类<select name="category"><option value="">全部分类</option></select></label>
         <label>副本玩法名称<select name="instanceName" required><option value="">请选择副本</option></select></label>
         <label>创建副本方式<select name="serverNameMode"><option value="zh">方式一</option><option value="en">方式二</option></select></label>
-        <label>副本 IID（募集公告使用）<input name="iid" type="number" min="1" step="1" required></label>
+        <input name="iid" type="hidden">
         <label>状态<select name="state"><option value="0">招募中</option><option value="1">挑战中</option></select></label>
         <label>最低等级<input name="min" type="number" min="1" max="999" value="1"></label>
         <label>最高等级<input name="max" type="number" min="1" max="999" value="200"></label>
