@@ -103,7 +103,7 @@ function installShortcutQuickCast(component, doc, controls) {
 
 function installSkillQuickCast(selector, controls, session, mouse, entityManager, entityTypes) {
   const nativeSet = selector.set;
-  selector.set = function (skill, targetType, description) {
+  selector.set = function (skill, targetType) {
     const result = nativeSet.apply(this, arguments);
     if (controls.quickCast === false ||
         targetType !== selector.TYPE.ENEMY ||
