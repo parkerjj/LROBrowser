@@ -240,7 +240,7 @@ async function waitFor<T>(promise: Promise<T>, timeoutMs: number, signal: AbortS
   }
 }
 
-async function readResponse(
+export async function readResponse(
   native: DirectTcpConnection,
   opened: { readable: ReadableStream<Uint8Array>; writable: WritableStream<Uint8Array> },
   request: Uint8Array,
