@@ -85,8 +85,11 @@ describe('map load failure recovery', () => {
   it('requires one actual permanent failure callback and diagnostic helper', () => {
     for (const name of ['onMapComplete', 'describeLastroMapLoadFailure']) {
       expect(() => extractRuntimeNode('', { kind: 'function', name })).toThrow('Expected exactly one');
-      const node = extractRuntimeNode(source, { kind: 'function', name });
-      expect(() => extractRuntimeNode(source + '\n' + node, { kind: 'function', name })).toThrow('found 2');
+      // Both owners are extracted from the actual vendor source at module load.
+      // Test duplicate detection on the small owner instead of reparsing 16 MB.
+      const node = name === 'onMapComplete' ? callback : diagnostic;
+      expect(node).toContain('function ' + name);
+      expect(() => extractRuntimeNode(node + '\n' + node, { kind: 'function', name })).toThrow('found 2');
     }
   }, 30_000);
 });

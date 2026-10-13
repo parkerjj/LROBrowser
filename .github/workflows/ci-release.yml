@@ -32,7 +32,7 @@ jobs:
       - run: pnpm typecheck
 
   test:
-    name: TLS probe & full test suite
+    name: TLS probe & streamlined test suite
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -45,9 +45,7 @@ jobs:
           LASTRO_TLS_LIVE: "1"
         run: pnpm exec vitest run test/direct-tls-live.test.ts --testTimeout 30000
       - run: pnpm prepare:runtime
-      - name: Focused HTTPS transport and resource Worker regression tests
-        run: pnpm exec vitest run test/direct-http-resource.test.ts test/lastro-login-http.test.ts test/resource-worker.test.ts test/official-online-profiles.test.ts
-      - name: Full test suite
+      - name: Unit test suite (each file runs once)
         run: pnpm exec vitest run --exclude test/release-smoke.test.ts
 
   build-iwa:
