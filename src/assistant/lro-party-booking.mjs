@@ -121,9 +121,10 @@ const CSS = `
 :host{all:initial;cursor:auto!important;color:#1a2a3f;font:14px/1.55 system-ui,"Microsoft YaHei","PingFang SC",sans-serif}
 *{box-sizing:border-box}
 .screen,.screen *{cursor:default!important}.screen button,.screen select{cursor:pointer!important}.screen input,.screen textarea{cursor:text!important}.screen button:disabled{cursor:not-allowed!important}
-.screen{position:fixed;inset:0;z-index:99999;background:linear-gradient(135deg,rgba(232,238,245,.85),rgba(213,224,237,.85));backdrop-filter:blur(8px);display:grid;place-items:center;padding:clamp(64px,14vh,140px) 16px clamp(16px,3vh,40px)}
+.screen{position:fixed;inset:0;z-index:99999;background:linear-gradient(135deg,rgba(232,238,245,.85),rgba(213,224,237,.85));backdrop-filter:blur(8px);display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);place-items:center;padding:clamp(64px,14vh,140px) 16px clamp(16px,3vh,40px)}
 .screen[hidden]{display:none}
-.window{width:min(930px,100%);max-height:100%;display:flex;flex-direction:column;overflow:visible;position:relative;background:#fff;border:1px solid #d0dae8;border-radius:20px;box-shadow:0 20px 60px rgba(74,144,217,.18),0 4px 12px rgba(0,0,0,.05)}
+.screen.no-hero{padding-top:clamp(12px,3vh,32px)}
+.window{width:min(930px,100%);min-height:0;max-height:100%;display:flex;flex-direction:column;overflow:visible;position:relative;background:#fff;border:1px solid #d0dae8;border-radius:20px;box-shadow:0 20px 60px rgba(74,144,217,.18),0 4px 12px rgba(0,0,0,.05)}
 .hero{position:absolute;top:calc(-0.5 * min(220px,24vh));left:50%;transform:translateX(-50%);z-index:10;pointer-events:none}
 .hero img{display:block;height:min(220px,24vh);width:auto;filter:drop-shadow(0 8px 20px rgba(74,144,217,.22))}
 .hero.hidden{display:none}
@@ -172,16 +173,19 @@ footer{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:13px 22px;
 footer[hidden],.tools[hidden],.content[hidden]{display:none}
 .status{color:#5a7088;font-size:12px;flex:1;min-width:180px}
 .page-number{color:#5a7088;font-size:12px;min-width:50px;text-align:center}
-.view{flex:1 1 auto;min-height:0;padding:12px 22px;overflow:auto}
+.view{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;padding:0;overflow:hidden}
 .view[hidden]{display:none}
+.view-body,.form-scroll{flex:1 1 auto;min-height:0;overflow:auto;padding:12px 22px}
+.view-actions,.form-actions{flex:none;margin-top:0;padding:12px 22px;border-top:1px solid #d0dae8;background:#f5f8fc;border-radius:0 0 20px 20px}
+.view-actions:empty{display:none}
 .fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 label{display:grid;gap:4px;color:#5a7088;font-size:12px}
 label.wide{grid-column:1/-1}
 textarea{width:100%;resize:vertical}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
 .notice{padding:10px;border-left:3px solid #4a90d9;background:#e4f0fb;color:#3a5878;margin:12px 0;border-radius:0 6px 6px 0}
-@media(max-width:540px){.fields{grid-template-columns:1fr}nav,.tools,footer,.content,.view{padding-left:14px;padding-right:14px}}
-@media(max-height:640px){.hero{display:none}header{padding-top:16px}}
+@media(max-width:540px){.screen{font-size:15px;padding-left:8px;padding-right:8px}.window{border-radius:14px}header{border-radius:14px 14px 0 0;padding-top:14px;padding-bottom:12px}h2{font-size:20px}.subtitle{font-size:10px;letter-spacing:1.4px}footer,.view-actions,.form-actions{border-radius:0 0 14px 14px}nav{padding-top:8px}nav button{font-size:15px;padding:10px 14px}button{padding:11px 16px}input,select,textarea{font-size:16px;padding:11px 12px}label{font-size:13px}.notice{font-size:13px;line-height:1.6;padding:9px 12px}.fields{grid-template-columns:1fr;gap:14px}.cards{grid-template-columns:1fr}.card{padding:14px 16px}.card strong{font-size:16px}.card p{font-size:14px}.chip{font-size:12px;padding:3px 10px}.card .level{font-size:12px}.tools{flex-wrap:wrap;gap:8px}.tools input{min-width:0;flex:1 1 140px}.status{min-width:120px;font-size:13px}.page-number{font-size:13px}header,nav,.tools,footer,.view-body,.form-scroll,.view-actions,.form-actions{padding-left:14px;padding-right:14px}.view-actions button,.form-actions button{flex:1 1 auto;padding-top:12px;padding-bottom:12px}.close-btn{top:10px;right:10px;width:36px;height:36px;font-size:18px}}
+@media(max-height:640px){.hero{display:none}.screen{padding-top:clamp(12px,3vh,32px)}header{padding-top:16px}.subtitle{display:none}.view-body,.form-scroll{padding-top:10px;padding-bottom:10px}.notice{font-size:12px;padding:8px 10px}}
 `;
 
 const TEMPLATE = `
@@ -194,19 +198,21 @@ const TEMPLATE = `
     <div class="content"><div class="cards"></div></div>
     <section class="view" hidden><div class="view-body"></div><div class="actions view-actions"></div></section>
     <section class="view form-view" hidden>
-      <div class="notice">本功能是通用客户端提供的副本选择入口，并不代表 LastRO 官方支持列表中的所有副本。特别是标记为「非LRO官方」的副本，可能无法使用。请先尝试「方式一」创建及进入副本；如果无法进入，再尝试「方式二」。两种方式均无法进入时，通常意味着服务器不支持该副本。选择副本后将自动填写 IID。</div>
-      <div class="fields">
-        <label>副本类型 / 分类<select name="category"><option value="">全部分类</option></select></label>
-        <label>副本玩法名称<select name="instanceName" required><option value="">请选择副本</option></select></label>
-        <label>创建副本方式<select name="serverNameMode"><option value="zh">方式一</option><option value="en">方式二</option></select></label>
-        <input name="iid" type="hidden">
-        <label>状态<select name="state"><option value="0">招募中</option><option value="1">挑战中</option></select></label>
-        <label>最低等级<input name="min" type="number" min="1" max="999" value="1"></label>
-        <label>最高等级<input name="max" type="number" min="1" max="999" value="200"></label>
-        <label class="wide">备注<textarea name="memo" rows="3" maxlength="250" required></textarea></label>
+      <div class="form-scroll">
+        <div class="notice">本功能是通用客户端提供的副本选择入口，并不代表 LastRO 官方支持列表中的所有副本。特别是标记为「非LRO官方」的副本，可能无法使用。请先尝试「方式一」创建及进入副本；如果无法进入，再尝试「方式二」。两种方式均无法进入时，通常意味着服务器不支持该副本。选择副本后将自动填写 IID。</div>
+        <div class="fields">
+          <label>副本类型 / 分类<select name="category"><option value="">全部分类</option></select></label>
+          <label>副本玩法名称<select name="instanceName" required><option value="">请选择副本</option></select></label>
+          <label>创建副本方式<select name="serverNameMode"><option value="zh">方式一</option><option value="en">方式二</option></select></label>
+          <input name="iid" type="hidden">
+          <label>状态<select name="state"><option value="0">招募中</option><option value="1">挑战中</option></select></label>
+          <label>最低等级<input name="min" type="number" min="1" max="999" value="1"></label>
+          <label>最高等级<input name="max" type="number" min="1" max="999" value="200"></label>
+          <label class="wide">备注<textarea name="memo" rows="3" maxlength="250" required></textarea></label>
+        </div>
+        <div class="notice form-status" role="status" aria-live="polite">请选择副本，填写等级和备注后提交。上次的选择已自动恢复。</div>
       </div>
-      <div class="notice form-status" role="status" aria-live="polite">请选择副本，填写等级和备注后提交。上次的选择已自动恢复。</div>
-      <div class="actions"><button class="primary" data-action="submit">提交</button><button class="gold" data-action="saveCatalog">收藏此副本到本地目录</button><button class="flat" data-action="cancel">返回</button></div>
+      <div class="actions form-actions"><button class="primary" data-action="submit">提交</button><button class="gold" data-action="saveCatalog">收藏此副本到本地目录</button><button class="flat" data-action="cancel">返回</button></div>
     </section>
     <footer><span class="status" role="status" aria-live="polite"></span><button class="flat" data-action="previous">上一页</button><span class="page-number">1 / 1</span><button class="flat" data-action="next">下一页</button><button class="primary" data-action="create">创建游戏副本</button></footer>
   </div>
@@ -543,7 +549,7 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
     // COEP: require-corp blocks cross-origin <img> that lack CORP headers.
     // Fetch the image as a blob and use a same-origin blob: URL to bypass it.
     const heroImg = ui('.hero img');
-    const hideHero = () => { ui('.hero').classList.add('hidden'); ui('header').style.paddingTop = '18px'; };
+    const hideHero = () => { ui('.hero').classList.add('hidden'); ui('header').style.paddingTop = '18px'; ui('.screen').classList.add('no-hero'); };
     if (page.fetch) {
       page.fetch(HEADER_IMAGE, { mode: 'cors' })
         .then(r => r.ok ? r.blob() : Promise.reject(new Error('HTTP ' + r.status)))
