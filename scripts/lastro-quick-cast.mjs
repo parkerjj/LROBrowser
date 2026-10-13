@@ -109,7 +109,7 @@ function installQuickCastShortcut(shortcut, controls, selector, session, entitie
     const result = originalUseSkill.apply(this, arguments);
     if (controls.quickCast === false || !session.Entity ||
         mouse.state !== mouse.MOUSE_STATE.USESKILL ||
-        typeof selector.onUseSkillToId !== 'function') return result;
+        typeof selector.intersectEntityId !== 'function') return result;
 
     const skill = shortcut.getSkillById?.(id);
     const flags = Number(skill?.type);
@@ -133,8 +133,8 @@ function installQuickCastShortcut(shortcut, controls, selector, session, entitie
     // No monster / no reachable monster: leave the native target cursor open.
     if (!validMob(target)) return result;
 
-    const level = Number(requestedLevel || skill.selectedLevel || skill.level);
-    if (!Number.isInteger(level) || level < 1 || level > skill.level) return result;
+    // The native selector already validated the skill and selected level.
+    const level = skill.useLevel || requestedLevel || skill.selectedLevel || skill.level;
 
     // The native SkillEngine returns undefined both when it sends and when it
     // fails (path unreachable, casting delay, or the handler is still a stub).
@@ -157,7 +157,9 @@ function installQuickCastShortcut(shortcut, controls, selector, session, entitie
       };
       observing = network.sendPacket !== nativeSendPacket;
       if (!observing) return result;
-      selector.onUseSkillToId(id, level, targetID);
+      // Invoke exactly the same native entity-selection validation as a manual
+      // click, rather than bypassing it with onUseSkillToId directly.
+      selector.intersectEntityId(targetID);
     } catch (error) {
       // Never swallow the user's hotkey. The native targeting cursor is still
       // active so they can click the target manually.
