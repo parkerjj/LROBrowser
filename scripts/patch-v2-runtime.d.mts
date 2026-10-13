@@ -11,3 +11,5 @@ export function patchRuntimeChatMapLinks(source: string): string;
 export function patchNavigationPendingTargets(source: string): string;
 export function patchRuntimeToolsPanels(source: string): string;
 export function patchRuntimeShortcutSettings(source: string): string;
+export function patchLastROInstancePackets(source: string): string;
+export function patchRuntimeWindowBounds(source: string): string;

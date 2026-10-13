@@ -111,7 +111,33 @@ export function buildRuntimePatchFixture(vendorSource: string): string {
     'function onMapClick(event, mapLink) { if (requestChatMapTeleport(mapLink)) { event.preventDefault(); event.stopImmediatePropagation(); } }',
     'UIManager.addComponent(LastROTools);',
     uiWindowAppend,
+    '//#region src/UI/GUIComponent.js\n'
+    + 'var GUIComponent = class GUIComponent {\n'
+    + '  static processDataAttrs(node) {\n'
+    + '    node.textContent = _DB?.getMessage(msgId, "");\n'
+    + '  }\n'
+    + '  append() { this._fixPositionOverflow(); }\n'
+    + '    _fixPositionOverflow() {\n'
+    + '      if (!this._host || !this._isDraggable) return;\n'
+    + '      const WIDTH = _Renderer?.width ?? window.innerWidth;\n'
+    + '      const HEIGHT = _Renderer?.height ?? window.innerHeight;\n'
+    + '      UIClamp(this._host, WIDTH, HEIGHT, this.magnet);\n'
+    + '    }\n'
+    + '};\n'
+    + '//#endregion',
     graphicsOption,
+    '//#region src/UI/Components/ShortCutOption/ShortCutOption.js\n'
+    + 'var ShortCutOption = {};\n'
+    + 'ShortCutOption.init = function () {\n'
+    + '  this.getRoot().querySelector(".panel");\n'
+    + '};\n'
+    + '//#endregion',
+    '//#region src/UI/Components/ShortCut/ShortCut.js\n'
+    + 'var ShortCut = {};\n'
+    + 'ShortCut.useSkill = function useSkill(id, level) {\n'
+    + '  SkillTargetSelection.set();\n'
+    + '};\n'
+    + '//#endregion',
     'Navigation.waitForMapData = function waitForMapData(callback) { setTimeout(() => Navigation.waitForMapData(callback), 100); };',
     'Navigation.navigateTo = function navigateTo(options) { _finalTargetData = {map: options.endMap}; this.waitForMapData(function () { this.findPath(); }); };',
     'var MapRenderer = class MapRenderer { static setMap(mapname) { UIManager.removeComponents(); } };',

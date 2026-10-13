@@ -1,6 +1,6 @@
 # GitHub Actions 正式发布配置
 
-正式发布由 `.github/workflows/iwa-release.yml` 执行，PR 和普通分支由 `.github/workflows/iwa-ci.yml` 检查。PR workflow 不读取生产签名密钥，也不会写入 R2。
+校验与发布统一由 `.github/workflows/ci-release.yml` 执行：`release-iwa` 作业负责正式发布，PR、`Development` 和普通分支只运行同一工作流中的 lint/test/构建作业。校验与非发布构建作业不读取生产签名密钥，也不会写入 R2，未签名 IWA 包仅作为 workflow artifact 保留 14 天。
 
 ## GitHub Environment
 
@@ -71,7 +71,7 @@ releases/<version>/audit-report.json
 
 ## 手动发布
 
-在 GitHub Actions 选择 `IWA Release` → `Run workflow`。发布前确认：
+在 GitHub Actions 选择 `IWA CI & Release` → `Run workflow`。发布前确认：
 
 - `IWA_WEB_BUNDLE_ID` 与生产 key 对应；
 - `IWA_UPDATE_MANIFEST_URL` 和 `IWA_BUNDLE_BASE_URL` 是 HTTPS；
