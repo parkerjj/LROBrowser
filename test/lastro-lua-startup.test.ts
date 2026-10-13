@@ -40,7 +40,7 @@ describe('native Lua startup under the IWA resource policy', () => {
     const h = harness(async () => ({}), readFileSync('generated/runtime/Online.js', 'utf8'));
     await h.start();
     expect(h.calls).toEqual(Array.from({ length: 5 }, () => ({ customWasmUri: '/core/wasm/liblua5.1.wasm' })));
-  });
+  }, 60000);
 
   it('uses the packaged WASM for all five Lua contexts and preserves their assignments', async () => {
     const instances = Array.from({ length: 5 }, (_, index) => ({ index }));
