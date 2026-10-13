@@ -147,9 +147,11 @@ export default defineConfig({
   },
   test: {
     include: ['test/**/*.test.ts'],
-    // Runtime fixtures parse large bundled sources (~1-3GB heap per worker). Scale
-    // workers with available CPU/RAM instead of a fixed low number: CI runners with
-    // few cores stay conservative, local machines parallelize.
-    maxWorkers: Math.max(2, Math.min(8, Math.floor(os.cpus().length / 2), Math.floor(os.freemem() / (4 * 1024 ** 3)))),
+    // Public GitHub ubuntu-24.04 runners have 4 vCPUs / 16 GB RAM.
+    // Use all 4 cores in CI, rather than the previous half-CPU (2-worker) cap.
+    // Locally, remain conservative with large TypeScript AST fixtures.
+    maxWorkers: process.env.CI
+      ? Math.min(4, os.availableParallelism())
+      : Math.max(2, Math.min(8, Math.floor(os.availableParallelism() / 2), Math.floor(os.totalmem() / (4 * 1024 ** 3)))),
   },
 });
