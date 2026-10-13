@@ -1,12 +1,27 @@
 // Keyboard and mouse quick cast. Keep the native skill send/range/path flow.
-function replaceRegion(source, name, install) {
+import ts from 'typescript';
+
+function replaceRegion(source, name, install, target) {
   const marker = '//#region ' + name;
   const start = source.indexOf(marker);
   if (start < 0 || source.indexOf(marker, start + marker.length) !== -1)
     throw new Error('anchor:quick-cast:' + name);
   const end = source.indexOf('//#endregion', start);
   if (end < 0) throw new Error('anchor:quick-cast:end:' + name);
-  return source.slice(0, end) + install + '\n' + source.slice(end);
+  const region = source.slice(start, end);
+  const file = ts.createSourceFile(name, region, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const assignments = [];
+  function visit(node) {
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+        node.left.getText(file) === target && ts.isFunctionExpression(node.right)) assignments.push(node);
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  if (assignments.length !== 1 || !ts.isExpressionStatement(assignments[0].parent))
+    throw new Error('anchor:quick-cast:assignment:' + target);
+  const position = start + assignments[0].parent.end;
+  // Insert within the native lazy initializer, immediately after the method exists.
+  return source.slice(0, position) + '\\n' + install + '\\n' + source.slice(position);
 }
 
 export function patchRuntimeQuickCast(source) {
@@ -45,7 +60,7 @@ export function patchRuntimeQuickCast(source) {
       return result;
     };
   }
-  `);
+  `, 'GraphicsOption.init');
 
   source = replaceRegion(source, 'src/UI/Components/SkillTargetSelection/SkillTargetSelection.js', `
   // Only pure ENEMY-targeted skills are eligible. FRIEND, PLACE, PET, TRAP,
@@ -81,7 +96,7 @@ export function patchRuntimeQuickCast(source) {
     SkillTargetSelection.remove();
     return result;
   };
-  `);
+  `, 'SkillTargetSelection.set');
 
   return source;
 }
