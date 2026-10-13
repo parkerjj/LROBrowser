@@ -161,14 +161,14 @@ function installQuickCastShortcut(shortcut, controls, selector, session, entitie
     } catch (error) {
       // Never swallow the user's hotkey. The native targeting cursor is still
       // active so they can click the target manually.
-      console.warn('[LastRO quick cast] automatic cast failed; manual selection remains', error);
+      globalThis.console?.warn('[LastRO quick cast] automatic cast failed; manual selection remains', error);
       return result;
     } finally {
       if (observing) network.sendPacket = nativeSendPacket;
     }
 
     if (dispatched) selector.remove();
-    else console.debug('[LastRO quick cast] no cast or movement packet; manual selection remains', {
+    else globalThis.console?.debug('[LastRO quick cast] no cast or movement packet; manual selection remains', {
       skillId: id, level, targetID
     });
     return result;
