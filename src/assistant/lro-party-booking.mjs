@@ -352,7 +352,19 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
       const join = document.createElement('button'); join.textContent = data.type ? '进入副本' : '加入队伍';
       join.className = 'primary';
       join.disabled = data.state === 1 && partyLeader() !== data.aid;
-      join.addEventListener('click', () => enter(data));
+      if (data.type === 1) {
+        const modeLabel = document.createElement('label');
+        modeLabel.textContent = '进入副本方式';
+        const mode = document.createElement('select');
+        mode.dataset.enterMode = 'true';
+        for (const [value, text] of [['zh', '方式一'], ['en', '方式二']]) {
+          const option = document.createElement('option'); option.value = value; option.textContent = text; mode.append(option);
+        }
+        mode.value = 'zh';
+        modeLabel.append(mode);
+        actions.append(modeLabel);
+      }
+      join.addEventListener('click', () => enter(data, actions.querySelector('[data-enter-mode]')?.value || 'zh'));
       actions.append(join);
       if (own && data.aid === own.aid) {
         const edit = document.createElement('button'); edit.textContent = '编辑募集';
@@ -370,7 +382,7 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
     Object.assign(output, fields);
     getNetwork().sendPacket(output);
   }
-  function enter(item) {
+  function enter(item, mode = 'zh') {
     const s = getSession();
     try {
       if (item.type === 0) {
@@ -378,11 +390,11 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
         if (s.hasParty) packet('PRIVATE_AIRSHIP_REQUEST', { mapname: item.map, itemid: 14527 });
         else packet('PARTY_REQ_MASTER_TO_JOIN', { CID: item.cid, AID: item.aid });
       } else {
-        const name = findName(item.iid);
+        const name = serverNameFor(item.iid, mode);
         if (!name) throw new Error('未知副本名称，请先在本地副本列表登记准确的 IID 和名称');
         packet('REQ_ENTER_INSTANCE', { CID: item.cid, AID: item.aid, instanceName: name });
       }
-      showView(''); status('已向游戏服务器发送请求，结果以服务器响应为准');
+      showView(''); status('已使用' + (mode === 'en' ? '方式二' : '方式一') + '发送请求，结果以服务器响应为准');
     } catch (error) { showError(error); }
   }
   function openForm(value = null) {
