@@ -21,7 +21,7 @@ function replaceRegion(source, name, install, target) {
     throw new Error('anchor:quick-cast:assignment:' + target);
   const position = start + assignments[0].parent.end;
   // Insert within the native lazy initializer, immediately after the method exists.
-  return source.slice(0, position) + '\\n' + install + '\\n' + source.slice(position);
+  return source.slice(0, position) + '\n' + install + '\n' + source.slice(position);
 }
 
 export function patchRuntimeQuickCast(source) {
