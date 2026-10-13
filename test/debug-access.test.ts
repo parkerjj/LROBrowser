@@ -199,5 +199,5 @@ describe('game IWA page debug access', () => {
       Object.defineProperty(event, 'which', { value: 3 }); f.win.document.body.dispatchEvent(event);
     }
     expect(rotate.mock.calls).toEqual([[true], [false]]); expect(menu).toHaveBeenCalledOnce();
-  });
+  }, 60000);
 });

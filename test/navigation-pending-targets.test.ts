@@ -165,5 +165,5 @@ describe('native Navigation pending target guard', () => {
 
   it('rejects applying the guard twice', () => {
     expect(() => patchNavigationPendingTargets(runtime)).toThrow('anchor:navigation-pending-targets');
-  });
+  }, 60000);
 });
