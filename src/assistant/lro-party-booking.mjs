@@ -244,7 +244,15 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
     return [...merged.values()];
   };
   const findName = iid => catalog().find(x => Number(x.iid) === Number(iid))?.name || '';
-  const serverNameFor = (iid, mode) => { const row = catalog().find(x => Number(x.iid) === Number(iid)); return mode === 'en' ? (row?.serverNameEn || row?.nameEn || row?.serverNameZh || row?.nameZh || row?.name) : (row?.serverNameZh || row?.nameZh || row?.name); };
+  const serverNameFor = (iid, mode) => {
+    const row = catalog().find(x => Number(x.iid) === Number(iid));
+    if (!row) return '';
+    const candidate = mode === 'en'
+      ? (row.serverNameEn || row.nameEn || row.serverNameZh || row.nameZh || row.name)
+      : (row.serverNameZh || row.nameZh || row.name);
+    // The suffix is purely a UI warning, never part of a server instance name.
+    return String(candidate || '').replace(/\s*[（(]非LRO官方[）)]\s*$/u, '').trim();
+  };
   const encode = value => typeof codec?.encode === 'function' ? codec.encode(value) : encodePartyText(value);
   const decode = value => typeof codec?.decode === 'function' ? codec.decode(String(value ?? '').replace(/%20/gi, ' ')) : decodePartyText(value);
   const parseEntry = value => normalizePartyEntry(value, decode);
