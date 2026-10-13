@@ -72,7 +72,9 @@ describe('persistent native shortcut preference adapter', () => {
   it('requires one graphics initialization anchor on upstream updates', () => {
     expect(() => patchRuntimeShortcutSettings('')).toThrow('anchor:lastro-shortcut-settings');
     expect(() => patchRuntimeShortcutSettings('UIManager.addComponent(GraphicsOption); UIManager.addComponent(GraphicsOption);')).toThrow('anchor:lastro-shortcut-settings');
-    const output = patchRuntimeShortcutSettings(native);
+    // The scoped GraphicsOption fixture was already patched and validated above.
+    // Avoid parsing the entire 16 MB native bundle again just for UI labels.
+    const output = patched;
     expect(output).toContain('checkbox.className = \'lastro-shortcut-entry\'');
     expect(output).toContain('启用新版快捷入口');
   }, 60000);
