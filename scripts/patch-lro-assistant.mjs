@@ -1,6 +1,7 @@
 import ts from 'typescript';
 
 const IMPORTS = `import { assistantIcon } from "./lro-assistant-icon.mjs";
+import { partyBookingIcon } from "./lro-party-icon.mjs";
 import { installLroAssistant } from "./lro-assistant.mjs";
 import { installLastroPartyBooking } from "./lro-party-booking.mjs";
 import { createAssistantPacketBus } from "./lro-assistant-packets.mjs";
@@ -170,8 +171,8 @@ export function patchLroAssistantRuntime(source) {
           booking.title = '冒险者募集';
           booking.setAttribute('aria-label', '冒险者募集');
           if (booking.tagName === 'BUTTON') booking.type = 'button';
-          booking.textContent = '募';
-          booking.style.cssText = 'position:relative;width:32px;height:32px;line-height:32px;padding:0;margin:6px;border:1px solid #31bccf;border-radius:8px;background:linear-gradient(135deg,#12253d,#147489);color:#fff;text-align:center;cursor:pointer;font-size:16px;font-weight:700;';
+          const bookingIcon = document.createElement('img'); bookingIcon.src = partyBookingIcon; bookingIcon.alt = ''; bookingIcon.width = 32; bookingIcon.height = 32; bookingIcon.style.cssText = 'display:block;width:32px;height:32px;pointer-events:none'; booking.appendChild(bookingIcon);
+          booking.style.cssText = 'position:relative;width:32px;height:32px;padding:0;margin:6px;border:0;background:transparent;cursor:pointer;';
           booking.addEventListener('mousedown', event => event.stopImmediatePropagation());
           booking.addEventListener('click', event => {
             event.stopImmediatePropagation();
