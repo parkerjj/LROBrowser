@@ -10,7 +10,8 @@ const original = `    _fixPositionOverflow() {
       UIClamp(this._host, WIDTH, HEIGHT, this.magnet);
     }`;
 const patched = patchRuntimeWindowBounds(original + '\n//#region src/UI/GUIComponent.js');
-const recover = vm.runInNewContext(patched.slice(0, patched.indexOf('//#region')) + '\nlastroRecoverWindowBounds');
+const helper = patched.slice(patched.indexOf('function lastroRecoverWindowBounds'), patched.indexOf('//#region'));
+const recover = vm.runInNewContext(helper + '\nlastroRecoverWindowBounds');
 
 function make(left: number, top: number, width = 200, height = 120, vw = 800, vh = 600) {
   const host = {
