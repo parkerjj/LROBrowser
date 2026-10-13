@@ -101,7 +101,7 @@ function installShortcutQuickCast(component, doc, controls) {
   };
 }
 
-function installQuickCastShortcut(shortcut, controls, selector, session, entities, types, mouse, getNetwork) {
+function installQuickCastShortcut(shortcut, controls, selector, session, getEntities, getTypes, mouse, getNetwork) {
   const originalUseSkill = shortcut.useSkill;
   shortcut.useSkill = function (id, requestedLevel) {
     // Always perform native skill selection first. It sets the target cursor,
@@ -118,6 +118,20 @@ function installQuickCastShortcut(shortcut, controls, selector, session, entitie
     // Mixed-target, support and ground skills stay in native selection mode.
     if (!skill || !(flags & selector.TYPE.ENEMY) || (flags & excluded)) return result;
 
+    // ShortCut initializes during a dependency cycle with EntityManager.
+    // Capturing EntityManager at module init permanently captures undefined.
+    // Resolve these lazy exports only when the hotkey is actually pressed.
+    let entities;
+    let types;
+    try {
+      entities = getEntities();
+      types = getTypes();
+    } catch (error) {
+      globalThis.console?.warn('[LastRO quick cast] target manager unavailable; manual mode remains', error);
+      return result;
+    }
+    if (!entities?.getOverEntity || !entities?.getClosestEntity || !types) return result;
+
     const player = session.Entity;
     const validMob = entity =>
       !!entity && entity !== player && entity.objecttype === types.TYPE_MOB &&
@@ -126,10 +140,16 @@ function installQuickCastShortcut(shortcut, controls, selector, session, entitie
       entity.position != null && Number.isFinite(entity.position[0]) &&
       Number.isFinite(entity.position[1]);
     const mode = controls.quickCastTargetMode;
-    let target = mode === 'nearest-only' ? null : entities.getOverEntity?.();
-    if (!validMob(target)) target = null;
-    if (!target && mode !== 'hover-only')
-      target = entities.getClosestEntity?.(player, types.TYPE_MOB);
+    let target;
+    try {
+      target = mode === 'nearest-only' ? null : entities.getOverEntity();
+      if (!validMob(target)) target = null;
+      if (!target && mode !== 'hover-only')
+        target = entities.getClosestEntity(player, types.TYPE_MOB);
+    } catch (error) {
+      globalThis.console?.warn('[LastRO quick cast] target lookup failed; manual mode remains', error);
+      return result;
+    }
     // No monster / no reachable monster: leave the native target cursor open.
     if (!validMob(target)) return result;
 
@@ -187,7 +207,7 @@ function patchRuntimeQuickCast(source) {
   );
   source = insertAfterAssignment(
     source, 'src/UI/Components/ShortCut/ShortCut.js', 'ShortCut.useSkill',
-    '(' + installQuickCastShortcut.toString() + ')(ShortCut, Controls_default, SkillTargetSelection, SessionStorage_default, EntityManager, Entity, Mouse, () => Network);'
+    '(' + installQuickCastShortcut.toString() + ')(ShortCut, Controls_default, SkillTargetSelection, SessionStorage_default, () => { init_EntityManager(); return EntityManager; }, () => { init_Entity$1(); return Entity; }, Mouse, () => Network);'
   );
   const checked = ts.createSourceFile('quick-cast-runtime.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
   if (checked.parseDiagnostics.length)
