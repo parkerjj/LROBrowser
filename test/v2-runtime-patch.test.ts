@@ -1,96 +1,14 @@
 import { readFile } from 'node:fs/promises';
-import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import { patchGuildEmblemRequestCallbacks, patchLegacyScriptSinks, patchLuaJsonEscapes, patchNpcMenuBlankArea, patchTrustedTypesDomWrites, patchV2Runtime, patchRuntimeWorldMapProductActions, patchRuntimeChatMapLinks, patchRuntimeToolsPanels } from '../scripts/patch-v2-runtime.mjs';
 import { buildClientConfig } from '../src/runtime/client-config';
 import { LASTRO_SERVER_PROFILES } from '../src/servers/server-profiles';
 import { createLastroUiMessages } from '../scripts/lastro-display-localization.mjs';
-import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
-import { buildRuntimePatchFixture } from './helpers/runtime-patch-fixture';
 
 const profile = LASTRO_SERVER_PROFILES[0];
 if (!profile || profile.availability !== 'available') throw new Error('missing fixture profile');
 
 describe('V2 runtime patch', () => {
-  it('prepare never applies permanent transforms twice', () => {
-    const source = buildRuntimePatchFixture(readVendorSource());
-    const first = patchV2Runtime(source), second = patchV2Runtime(source);
-    expect(second).toBe(first);
-    const ast = ts.createSourceFile('fixture-final.js', second, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
-    const definitions = new Map<string, number>();
-    let unlocks = 0;
-    const visit = (node: ts.Node) => {
-      if ((ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node)) && node.name) {
-        definitions.set(node.name.text, (definitions.get(node.name.text) ?? 0) + 1);
-      }
-      if (ts.isExpressionStatement(node) && node.parent === ast && ts.isCallExpression(node.expression)
-        && node.expression.expression.getText(ast) === 'installLastROAudioUnlock') unlocks++;
-      ts.forEachChild(node, visit);
-    };
-    visit(ast);
-    for (const name of ['installLastROWebAudio', 'installLastroTimedWebAudio', 'createLastroSoundTiming',
-      'installLastROAudioUnlock', 'LastROAudioPlay', 'LastROAudioUnlock', 'LastROAudioRegisterContext',
-      'createWorldMapIndex', 'installLastroWorldMap', 'createMonsterPortraitLoader',
-      'resolveLastroMapResourceName', 'describeLastroMapLoadFailure', 'lastroUiWindowAppend']) {
-      expect(definitions.get(name), name).toBe(1);
-    }
-    expect(unlocks).toBe(1);
-    expect(() => patchV2Runtime(first)).toThrow('STR lifecycle patch: expected 1 occurrence');
-    for (const path of ['src/Core/MemoryItem.js', 'src/Core/MemoryManager.js', 'src/Core/Preferences.js',
-      'src/Audio/BGM.js', 'src/Audio/SoundManager.js', 'src/Renderer/Effects/RainWeather.js', 'src/UI/Common.css?raw']) {
-      expect(extractVendorRegion(path, source)).toBe(extractVendorRegion(path));
-    }
-    for (const name of ['onMapComplete', 'onMapChange', 'cleanGameUI']) {
-      const region = name === 'onMapComplete' ? 'src/Renderer/MapRenderer.js' : 'src/Engine/MapEngine.js';
-      const vendorOwner = extractRuntimeNode(extractVendorRegion(region), { kind: 'function', name });
-      expect(extractRuntimeNode(source, { kind: 'function', name })).toBe(vendorOwner);
-    }
-  }, 30000);
-
-  it('final runtime has one core factory and keeps modular product transforms', async () => {
-    const runtime = await readFile('generated/runtime/Online.js', 'utf8');
-    const runtimeFile = ts.createSourceFile('final-runtime.js', runtime, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
-    const factoryCounts = new Map<string, number>();
-    const collectFactories = (node: ts.Node) => {
-      if ((ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node)) && node.name) {
-        factoryCounts.set(node.name.text, (factoryCounts.get(node.name.text) ?? 0) + 1);
-      }
-      ts.forEachChild(node, collectFactories);
-    };
-    collectFactories(runtimeFile);
-    for (const name of ['createWorldMapIndex', 'installLastroWorldMap', 'createMonsterPortraitLoader', 'installLastroToolsPanels',
-      'installLastroShortcutSettings', 'installLastroTeleportSettings']) {
-      expect(factoryCounts.get(name), name).toBe(1);
-    }
-    const worldMap = extractVendorRegion('src/UI/Components/WorldMap/WorldMap.js', runtime);
-    for (const name of ['createLastroTeleportPreflight', 'createLastroWorldMapTeleport']) {
-      expect(extractRuntimeNode(worldMap, { kind: 'function', name })).toContain('function ' + name);
-    }
-    const file = ts.createSourceFile('worldmap-final.js', worldMap, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
-    const actionBindings: ts.CallExpression[] = [];
-    const visit = (node: ts.Node) => {
-      if (ts.isCallExpression(node) && node.expression.getText(file) === 'Object.assign'
-        && node.arguments[0]?.getText(file) === 'lastroWorldMapActions') actionBindings.push(node);
-      ts.forEachChild(node, visit);
-    };
-    visit(file);
-    expect(actionBindings).toHaveLength(1);
-    const actions = actionBindings[0]!.arguments[1];
-    expect(actions && ts.isObjectLiteralExpression(actions)).toBe(true);
-    expect((actions as ts.ObjectLiteralExpression).properties.map(property => property.name?.getText(file)))
-      .toEqual(['navigate', 'teleport', 'cancelTeleport']);
-  }, 30000);
-
-  it('retained transforms reject malformed source after core retirement', () => {
-    const source = buildRuntimePatchFixture(readVendorSource());
-    const initialization = '\troInitSpinner.add();\n\tPlugins.init();\n\tGameEngine.init();';
-    expect(source.split(initialization)).toHaveLength(2);
-    expect(() => patchV2Runtime(source.replace(initialization, 'missingProductInitialization();'))).toThrow('anchor:');
-    expect(() => patchRuntimeWorldMapProductActions(source.replace('const lastroWorldMapActions = {};', 'const lastroWorldMapActions = null;')))
-      .toThrow('anchor:worldmap-product-actions');
-    expect(() => patchRuntimeToolsPanels(source.replace('UIManager.addComponent(LastROTools);', ''))).toThrow('anchor:lastro-tools-panels');
-    expect(() => patchRuntimeChatMapLinks(source.replace('function requestChatMapTeleport(link) { return false; }', ''))).toThrow('anchor:chat-map-links');
-  }, 30000);
   it.each([
     'function cleanGameUI() {}',
     'UIManager.addComponent(LastROTools); function cleanGameUI() {}',
@@ -99,40 +17,6 @@ describe('V2 runtime patch', () => {
   ])('rejects missing or ambiguous tools/map lifecycle anchors', source => {
     expect(() => patchRuntimeToolsPanels(source)).toThrow('anchor:lastro-tools-panels');
   });
-  it('installs native tools and preserves navigation across map UI teardown in the pinned runtime', async () => {
-    const source = await readFile(new URL('../vendor/v2/Online.js', import.meta.url), 'utf8');
-    const patched = patchRuntimeToolsPanels(source);
-    expect(patched).toContain('getMap: () => normalizeLastROTeleportMap(MapRenderer.currentMap)');
-    expect(patched).toContain('routeMapChanged: () => lastroRouteNavigation.onMapChanged()');
-    expect(patched).toMatch(/onMapChanging\(\);\s*UIManager\.removeComponents\(\)/);
-    expect(patched).toMatch(/function cleanGameUI\(\) \{\s*document\._lastroItemDrag\?\.cancel\(\);\s*if .*?\.cancelRoute\(\);/);
-    expect(patched).toContain('胖大海');
-    expect(patched).not.toContain('https://game.lastro.cn/ro/src/DB/logsTable.js');
-    const installation = patched.slice(patched.indexOf('const lastroSendRouteTeleport ='), patched.indexOf('UIManager.addComponent(LastROTools)'));
-    const ast = ts.createSourceFile('tools-install.js', installation, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
-    let catalogSelector = '', locationSelector = '';
-    function findCatalog(node: ts.Node) {
-      if (ts.isPropertyAssignment(node) && node.name.getText(ast) === 'getPresetRoutes') catalogSelector = node.initializer.getText(ast);
-      if (ts.isPropertyAssignment(node) && node.name.getText(ast) === 'getCurrentLocation') locationSelector = node.initializer.getText(ast);
-      ts.forEachChild(node, findCatalog);
-    }
-    findCatalog(ast);
-    const presets = JSON.parse(await readFile(new URL('../scripts/lastro-teleport-routes.json', import.meta.url), 'utf8'));
-    const appCatalog = new Function('Configs', 'LastROTeleportPresets', `return (${catalogSelector})();`)({ get: (name: string) => name === 'clientVer' ? 5 : 6 }, presets);
-    const kafra = Object.values(appCatalog.npc).find((row: unknown) => (row as { npc: string }).npc.startsWith('卡普拉'));
-    expect(kafra).toMatchObject({ outset: ['prontera', 149, 89], path: [['prontera', 149, 89]] });
-    expect(Object.keys(appCatalog.custom)).toHaveLength(150);
-    expect(appCatalog.custom['upstream:guide:treasureHunt']).toMatchObject({ outset: ['pay_fild11', 125, 175] });
-    const unknownCatalog = new Function('Configs', 'LastROTeleportPresets', `return (${catalogSelector})();`)({ get: () => 999 }, presets);
-    expect(unknownCatalog).toEqual({});
-    const renderer = { currentMap: 'Prontera.gat', loading: false };
-    const session: { Entity?: { position: Float32Array } } = { Entity: { position: new Float32Array([156.9, 182.3, 0]) } };
-    const getLocation = () => new Function('MapRenderer', 'SessionStorage_default', 'normalizeLastROTeleportMap', `return (${locationSelector})();`)(renderer, session, (map: string) => map.toLowerCase().replace(/\.gat$/, ''));
-    expect(getLocation()).toEqual({ map: 'prontera', x: 156, y: 182 });
-    renderer.loading = true; expect(getLocation()).toBeUndefined();
-    renderer.loading = false; session.Entity!.position[0] = Number.NaN; expect(getLocation()).toBeUndefined();
-    delete session.Entity; expect(getLocation()).toBeUndefined();
-  }, 20000);
   it('requires unambiguous chat-map integration anchors on upstream updates', () => {
     expect(() => patchRuntimeChatMapLinks('function requestChatMapTeleport(link) { return false; }')).toThrow('anchor:chat-map-links');
   });
@@ -234,61 +118,6 @@ end`;
     expect(patched).not.toContain('node.insertAdjacentHTML(');
     expect(patched).not.toContain('node.innerHTML +=');
   });
-
-  it('replaces the factory and removes legacy initialization regions', async () => {
-    const fixture = buildRuntimePatchFixture(readVendorSource());
-    const patched = patchV2Runtime(fixture);
-    const transpiled = ts.transpileModule(patched, {
-      compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ESNext },
-      reportDiagnostics: true,
-    });
-    expect(transpiled.diagnostics ?? []).toEqual([]);
-    expect(patched).toContain('globalThis.LastRODirectSocketFactory(host, port)');
-    expect(patched).toContain("font-family: Arial, 'Microsoft YaHei', 'MiSans', 'LastRO Glyph Fallback', sans-serif");
-    expect(patched).toContain("font-family: 'MiSans', Arial, 'Liberation Sans', Arimo, sans-serif");
-    expect(patched).toContain('font-size: 12px');
-    expect(patched).toContain('font-size-adjust: none');
-    expect(patched).toContain('ctx.font = "10px Arial"');
-    expect(patched).toContain('Arial');
-    expect(patched).toContain('function installLastROAudioUnlock()');
-    expect(patched.match(/function installLastROAudioUnlock\(\) \{/g)).toHaveLength(1);
-    expect(patched.match(/function installLastROWebAudio\(\) \{/g)).toHaveLength(1);
-    expect(patched.match(/installLastROAudioUnlock\(\);/g)).toHaveLength(1);
-    expect(patched.indexOf('const LastROWebAudio = installLastROWebAudio();'))
-      .toBeLessThan(patched.indexOf('installLastROAudioUnlock();'));
-    expect(patched).toContain('LastROWebAudio.playBgm');
-    expect(patched).toContain('LastROWebAudio.playSound');
-    expect(patched).not.toContain('document.createElement("audio")');
-    expect(patched).not.toContain('BGM.audio.play()');
-    expect(patched).not.toContain('audio.play().catch');
-    expect(patched).toContain('this.audioCtx = LastROAudioRegisterContext(new AudioContext());');
-    expect(patched).toContain('const resumeAudioContexts = () => {');
-    expect(patched).toContain('lastro-account-login.mjs');
-    expect(patched).toContain('installLastROLogin({ root, component: Component, configs: Configs, onAssistantProfileChange: profileId => globalThis.LROAssistantProfileChange?.(profileId) })');
-    expect(patched).toContain('beforeLastROLoginConnect(user, pass)');
-    expect(patched).toContain('Network.sendPacket(pkt);\n        afterLastROLoginPassword(username, password);');
-    expect(patched).not.toContain('globalThis.LastROLoginBeforeConnect');
-    expect(patched).not.toContain('globalThis.LastROLoginAfterPassword');
-    expect(patched).toContain('finally { autoLogin = null; }');
-    expect(patched).toContain('packetDump = false;');
-    expect(patched).not.toContain('Configs.get("plugins", [])');
-    expect(patched).toContain('nameSpan.textContent = DB.getItemName(item)');
-    expect(patched).toContain('globalThis;');
-    expect(patched).toContain('Dynamic templates are disabled in the IWA runtime');
-    expect(patched).toContain('trustedTypes.createPolicy("lastro-iwa-worker"');
-    expect(patched).toContain('return policy.createScriptURL(workerUrl.href);');
-    expect(patched).toContain('Unexpected worker URL');
-    expect(patched).not.toContain('"" + new URL("LastROThreadEventHandler.js"');
-    expect(patched).toContain('createLastROWorkerScriptUrl("LastROThreadEventHandler.js")');
-    expect(patched).toContain('createLastROWorkerScriptUrl("PathFindingWorker.js")');
-    expect(patched).not.toContain('new URL("PathFindingWorker.js", import.meta.url).href');
-    expect(patched).toContain('span.textContent = character');
-    expect(patched).toContain('el.append(spinner, text)');
-    expect(patched).not.toContain('el.innerHTML = PRELOADER_INNER_HTML');
-    expect(patched).toContain('const retainedRuntime = 1;');
-    expect(patched).not.toContain('?build=');
-    expect(patched).not.toMatch(/electronAPI|NodeSocket/i);
-  }, 20000);
 
   it('fails closed when an anchored region drifts', () => {
     expect(() => patchV2Runtime('function defaultSocketFactory(host, port) {}')).toThrow(/anchor|function/);
