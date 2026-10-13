@@ -370,7 +370,7 @@ export async function requestLastROPartyOverTLS(
   // cause the endpoint to reject an otherwise valid request.
   const bodyFields = new FormData();
   for (const [key, value] of fields.entries()) bodyFields.append(key, value);
-  const multipart = new Request(`https://${LASTRO_LOGIN_HOST}${path}`, { method: 'POST', body: bodyFields });
+  const multipart = new Request('https://' + LASTRO_LOGIN_HOST + path, { method: 'POST', body: bodyFields });
   const contentType = multipart.headers.get('content-type');
   if (!contentType?.startsWith('multipart/form-data; boundary=')) throw new Error('Multipart boundary missing');
   const body = new Uint8Array(await multipart.arrayBuffer());

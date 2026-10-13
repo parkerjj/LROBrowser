@@ -4,6 +4,9 @@ import { getLastROAgencyCatalog } from './lro-party-catalog.mjs';
 const ENDPOINT = 'https://game.lastro.cn/';
 const ROLES = Object.freeze({ Assist: 1, Dealer: 1, Healer: 1, Tanker: 1 });
 const MAX_PAGE = 10;
+// Header banner image hosted on the allowed passive-resource origin.
+// Upload the PNG to https://rodata.ltsd.ro/assets/party-booking-header.png
+const HEADER_IMAGE = 'https://rodata.ltsd.ro/assets/party-booking-header.png';
 
 export function partyWebPath(nid) {
   return Number(nid) === 5 ? 'webserver2' : 'webserver';
@@ -115,54 +118,82 @@ export async function requestParty(page, session, nid, action, extra = {}, encod
 }
 
 const CSS = `
-:host{all:initial;cursor:auto!important;color:#e4edf9;font:14px/1.55 system-ui,"Microsoft YaHei",sans-serif}
+:host{all:initial;cursor:auto!important;color:#1a2a3f;font:14px/1.55 system-ui,"Microsoft YaHei","PingFang SC",sans-serif}
 *{box-sizing:border-box}
 .screen,.screen *{cursor:default!important}.screen button,.screen select{cursor:pointer!important}.screen input,.screen textarea{cursor:text!important}.screen button:disabled{cursor:not-allowed!important}
-.screen{position:fixed;inset:0;z-index:99999;background:rgba(4,9,24,.72);backdrop-filter:blur(8px);display:grid;place-items:center;padding:16px}
+.screen{position:fixed;inset:0;z-index:99999;background:linear-gradient(135deg,rgba(232,238,245,.85),rgba(213,224,237,.85));backdrop-filter:blur(8px);display:grid;place-items:center;padding:140px 16px 40px}
 .screen[hidden]{display:none}
-.window{width:min(930px,100%);max-height:92vh;display:flex;flex-direction:column;overflow:hidden;background:linear-gradient(150deg,#18273c,#0c1526 70%);border:1px solid #4a6688;border-radius:18px;box-shadow:0 26px 75px #000a}
-header{padding:18px 22px;border-bottom:1px solid #314a69;display:flex;align-items:center;gap:12px}
-h2{font-size:20px;font-weight:700;margin:0;letter-spacing:.6px} .subtitle{color:#91aec8;font-size:12px}
-.grow{flex:1} button,input,select,textarea{font:inherit;border-radius:8px}
-button{border:1px solid #50749b;background:#213c59;color:#e7f5ff;cursor:pointer;padding:8px 12px}
-button:hover{border-color:#71daf0;background:#2a5872} button:disabled{opacity:.5;cursor:not-allowed}
-button.primary{background:linear-gradient(135deg,#087f99,#1254a0);border-color:#2b9fbe}
-button.flat{background:transparent;border-color:transparent}
-nav{display:flex;gap:8px;padding:14px 20px 0;flex-wrap:wrap}
-nav button[aria-selected=true]{color:#70f1ed;border-color:#3ac8d9}
-.tools{padding:12px 20px;display:flex;gap:8px}
-input,select,textarea{min-width:0;background:#0c1b2c;border:1px solid #3d5878;color:#edfaff;padding:9px 10px;outline:none}
-input:focus,select:focus,textarea:focus{border-color:#40c7e0}
-.tools input{flex:1}.content{padding:4px 20px 16px;overflow:auto;min-height:220px;max-height:53vh}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:10px}
-.card{min-width:0;text-align:left;padding:14px;border-radius:12px;background:#152c43;border:1px solid #324d6c}
-.card strong{display:block;color:#f0f9ff;font-size:15px;overflow-wrap:anywhere}
-.card small,.muted{color:#94abc2}.card p{margin:8px 0;overflow-wrap:anywhere}
-.chip{display:inline-block;border-radius:20px;padding:2px 8px;background:#17566c;color:#87e8e4;font-size:12px}
-footer{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:13px 20px;border-top:1px solid #314a69}
+.window{width:min(930px,100%);max-height:88vh;display:flex;flex-direction:column;overflow:visible;position:relative;background:#fff;border:1px solid #d0dae8;border-radius:20px;box-shadow:0 20px 60px rgba(74,144,217,.18),0 4px 12px rgba(0,0,0,.05)}
+.hero{position:absolute;top:-110px;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none}
+.hero img{display:block;height:220px;width:auto;filter:drop-shadow(0 8px 20px rgba(74,144,217,.22))}
+.hero.hidden{display:none}
+header{padding:124px 22px 16px;border-bottom:1px solid #d0dae8;display:flex;align-items:flex-end;gap:12px;background:linear-gradient(180deg,transparent,rgba(228,240,251,.4));border-radius:20px 20px 0 0}
+h2{font-size:22px;font-weight:700;margin:0;letter-spacing:1.2px;color:#4a90d9;text-shadow:0 1px 2px rgba(0,0,0,.06)}
+.subtitle{color:#8a9bb0;font-size:11px;letter-spacing:1.8px;margin-top:3px;text-transform:uppercase}
+.title-group{text-align:center;flex:1} .grow{flex:1}
+button,input,select,textarea{font:inherit}
+button{border:1px solid #a8c0d8;background:#fff;color:#1a2a3f;cursor:pointer;padding:9px 14px;border-radius:8px;box-shadow:0 2px 8px rgba(26,42,63,.06)}
+button:hover{border-color:#4a90d9;color:#4a90d9;background:#e4f0fb}
+button:disabled{opacity:.5;cursor:not-allowed}
+button.primary{background:linear-gradient(135deg,#4a90d9,#3a7cc0);border-color:#4a90d9;color:#fff;font-weight:600;box-shadow:0 2px 10px rgba(74,144,217,.3)}
+button.primary:hover{background:linear-gradient(135deg,#6baae8,#4a90d9);color:#fff;box-shadow:0 4px 16px rgba(74,144,217,.4)}
+button.gold{background:linear-gradient(135deg,#d4ac4e,#a08030);border-color:#c8a040;color:#3a2a08;font-weight:600;box-shadow:0 2px 10px rgba(200,160,64,.3)}
+button.gold:hover{background:linear-gradient(135deg,#c8a040,#a08030);color:#3a2a08;box-shadow:0 4px 16px rgba(200,160,64,.4)}
+button.flat{background:transparent;border-color:transparent;color:#5a7088;box-shadow:none}
+button.flat:hover{color:#4a90d9;background:#e4f0fb}
+.close-btn{position:absolute;top:14px;right:14px;width:30px;height:30px;border:1px solid #d0dae8;border-radius:8px;background:#fff;color:#5a7088;font-size:16px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(26,42,63,.06)}
+.close-btn:hover{border-color:#4a90d9;color:#4a90d9;background:#e4f0fb}
+nav{display:flex;gap:2px;padding:14px 22px 0;border-bottom:1px solid #d0dae8;flex-wrap:wrap}
+nav button{background:transparent;border:none;border-bottom:2px solid transparent;border-radius:0;color:#5a7088;padding:8px 18px;box-shadow:none}
+nav button:hover{color:#4a90d9;background:transparent}
+nav button[aria-selected=true]{color:#4a90d9;border-bottom-color:#4a90d9;font-weight:600}
+nav button .count{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:10px;background:#e4f0fb;color:#4a90d9;font-size:11px;font-weight:500}
+nav button[aria-selected=true] .count{background:#4a90d9;color:#fff}
+.tools{padding:14px 22px;display:flex;gap:8px}
+input,select,textarea{min-width:0;background:#f5f8fc;border:1px solid #d0dae8;color:#1a2a3f;padding:9px 10px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:#4a90d9;background:#fff;box-shadow:0 0 0 3px rgba(74,144,217,.12)}
+.tools input{flex:1}
+.content{padding:8px 22px 16px;overflow:auto;min-height:220px;max-height:50vh}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:10px}
+.card{min-width:0;text-align:left;padding:14px;border-radius:12px;background:#f5f8fc;border:1px solid #d0dae8;cursor:pointer;position:relative;overflow:hidden;box-shadow:0 2px 8px rgba(26,42,63,.06);transition:all .2s ease}
+.card::before{content:"";position:absolute;top:0;left:0;width:3px;height:100%;background:#2bb8a8}
+.card.instance::before{background:#c8a040}
+.card:hover{border-color:#4a90d9;background:#fff;box-shadow:0 6px 20px rgba(74,144,217,.12),0 0 0 1px rgba(74,144,217,.08);transform:translateY(-2px)}
+.card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px}
+.card strong{display:block;color:#1a2a3f;font-size:15px;overflow-wrap:anywhere}
+.card.instance strong{color:#a08030}
+.card small,.muted{color:#8a9bb0}.card p{margin:6px 0;overflow-wrap:anywhere;color:#5a7088;font-size:13px}
+.chip{display:inline-flex;align-items:center;gap:4px;border-radius:20px;padding:2px 9px;background:#e0f5f2;color:#2bb8a8;border:1px solid rgba(43,184,168,.25);font-size:11px;white-space:nowrap}
+.chip.instance{background:#faf2dc;color:#a08030;border-color:rgba(200,160,64,.3)}
+.chip.active::before{content:"●";font-size:8px}
+.chip.challenge{background:#fde8d8;color:#e87830;border-color:rgba(232,120,48,.25)}
+.card .level{display:inline-block;margin-top:6px;padding:1px 7px;border-radius:6px;background:#e4f0fb;color:#4a90d9;font-size:11px;font-weight:500}
+footer{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:13px 22px;border-top:1px solid #d0dae8;background:#f5f8fc;border-radius:0 0 20px 20px}
 footer[hidden],.tools[hidden],.content[hidden]{display:none}
-.status{color:#aac1d9;font-size:12px;flex:1;min-width:180px}
-.view{padding:12px 20px;overflow:auto}
+.status{color:#5a7088;font-size:12px;flex:1;min-width:180px}
+.page-number{color:#5a7088;font-size:12px;min-width:50px;text-align:center}
+.view{padding:12px 22px;overflow:auto}
 .view[hidden]{display:none}
 .fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-label{display:grid;gap:4px;color:#b1cadd;font-size:12px}
+label{display:grid;gap:4px;color:#5a7088;font-size:12px}
 label.wide{grid-column:1/-1}
 textarea{width:100%;resize:vertical}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
-.notice{padding:10px;border-left:3px solid #60b4d7;background:#12283b;color:#adc8d8;margin:12px 0}
-@media(max-width:540px){.fields{grid-template-columns:1fr}header{padding:12px}nav,.tools,footer{padding-left:12px;padding-right:12px}.content{padding-left:12px;padding-right:12px}}
+.notice{padding:10px;border-left:3px solid #4a90d9;background:#e4f0fb;color:#3a5878;margin:12px 0;border-radius:0 6px 6px 0}
+@media(max-width:540px){.fields{grid-template-columns:1fr}.screen{padding:100px 12px 24px}.hero img{height:160px}.hero{top:-80px}header{padding-top:90px}nav,.tools,footer,.content,.view{padding-left:14px;padding-right:14px}}
 `;
 
 const TEMPLATE = `
 <div class="screen" hidden>
   <div class="window" role="dialog" aria-modal="true" aria-label="冒险者募集">
-    <header><div><h2>冒险者募集</h2><div class="subtitle">LASTRO · ADVENTURER AGENCY</div></div><span class="grow"></span><button class="flat" data-action="close" aria-label="关闭">✕</button></header>
+    <div class="hero"><img alt=""></div>
+    <header><div class="title-group"><h2>冒险者募集</h2><div class="subtitle">LastRO · Adventurer Agency</div></div><button class="close-btn" data-action="close" aria-label="关闭">✕</button></header>
     <nav aria-label="募集分类"><button data-tab="0" aria-selected="true">招募中</button><button data-tab="1" aria-selected="false">挑战中</button><button data-tab="2" aria-selected="false">我的募集</button></nav>
-    <div class="tools"><input class="search" aria-label="备注搜索" placeholder="搜索备注关键词"><button data-action="search">搜索</button><button data-action="reload">刷新</button></div>
+    <div class="tools"><input class="search" aria-label="备注搜索" placeholder="搜索备注关键词"><button data-action="search">搜索</button><button class="flat" data-action="reload">刷新</button></div>
     <div class="content"><div class="cards"></div></div>
     <section class="view" hidden><div class="view-body"></div><div class="actions view-actions"></div></section>
     <section class="view form-view" hidden>
-      <div class="notice">从官方 AgencyTable 提取副本目录；部分被注释的条目可能无法在服务器实际创建。</div>
+      <div class="notice">从官方 AgencyTable 提取副本目录；部分被注释的条目可能无法在服务器实际创建。选择副本后会自动填写 IID。</div>
       <div class="fields">
         <label>副本类型 / 分类<select name="category"><option value="">全部分类</option></select></label>
         <label>副本玩法名称（须与服务器名称一致）<select name="instanceName" required><option value="">请选择副本</option></select></label>
@@ -172,10 +203,10 @@ const TEMPLATE = `
         <label>最高等级<input name="max" type="number" min="1" max="999" value="200"></label>
         <label class="wide">备注<textarea name="memo" rows="3" maxlength="250" required></textarea></label>
       </div>
-      <div class="notice form-status" role="status" aria-live="polite">请选择副本，填写等级和备注后提交。</div>
-      <div class="actions"><button class="primary" data-action="submit">提交</button><button data-action="saveCatalog">保存到本地副本列表</button><button data-action="cancel">返回</button></div>
+      <div class="notice form-status" role="status" aria-live="polite">请选择副本，填写等级和备注后提交。上次的选择已自动恢复。</div>
+      <div class="actions"><button class="primary" data-action="submit">提交</button><button class="gold" data-action="saveCatalog">收藏此副本到本地目录</button><button class="flat" data-action="cancel">返回</button></div>
     </section>
-    <footer><span class="status" role="status" aria-live="polite"></span><button data-action="previous">上一页</button><span class="page-number">1 / 1</span><button data-action="next">下一页</button><button class="primary" data-action="create">创建游戏副本</button></footer>
+    <footer><span class="status" role="status" aria-live="polite"></span><button class="flat" data-action="previous">上一页</button><span class="page-number">1 / 1</span><button class="flat" data-action="next">下一页</button><button class="primary" data-action="create">创建游戏副本</button></footer>
   </div>
 </div>`;
 
@@ -198,6 +229,10 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
     return Number(leader?.AID) || (getSession()?.isPartyLeader ? Number(getSession()?.AID) : 0);
   };
   const catalogKey = () => 'lastro-party-catalog-v1:' + currentProfile;
+  // Remember the user's last form selections so reopening the form restores them.
+  const selectionKey = () => 'lastro-party-selection-v1:' + currentProfile;
+  const saveSelection = value => { try { page.localStorage.setItem(selectionKey(), JSON.stringify(value)); } catch { /* storage may be unavailable */ } };
+  const loadSelection = () => { try { const data = JSON.parse(page.localStorage.getItem(selectionKey()) || 'null'); return data && typeof data === 'object' ? data : null; } catch { return null; } };
   const customCatalog = () => { try {
     const data = JSON.parse(page.localStorage.getItem(catalogKey()) || '[]');
     return Array.isArray(data) ? data.filter(x => x && Number.isSafeInteger(Number(x.iid)) && Number(x.iid) > 0 && typeof x.name === 'string').slice(0, 200) : [];
@@ -229,13 +264,18 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
     pageIndex = Math.min(pageIndex, count - 1);
     for (const item of visible.slice(pageIndex * MAX_PAGE, (pageIndex + 1) * MAX_PAGE)) {
       const button = document.createElement('button');
-      button.className = 'card';
+      button.className = 'card' + (item.type ? ' instance' : '');
       const name = item.type ? (findName(item.iid) || '副本 IID ' + item.iid) : (item.map || '普通招募');
+      const head = document.createElement('div'); head.className = 'card-head';
       const title = document.createElement('strong'); title.textContent = name;
-      const badge = document.createElement('span'); badge.className = 'chip'; badge.textContent = item.state ? '挑战中' : '招募中';
+      const badge = document.createElement('span');
+      badge.className = 'chip' + (item.type ? ' instance' : '') + (item.state ? ' challenge' : ' active');
+      badge.textContent = item.state ? '挑战中' : '招募中';
+      head.append(title, badge);
       const description = document.createElement('p'); description.textContent = item.memo || '无备注';
       const foot = document.createElement('small'); foot.textContent = item.name + ' · Lv.' + item.min + '–' + item.max;
-      button.append(title, badge, description, foot);
+      button.append(head, description, foot);
+      if (item.type) { const level = document.createElement('div'); const span = document.createElement('span'); span.className = 'level'; span.textContent = 'IID ' + item.iid; level.append(span); button.append(level); }
       button.addEventListener('click', () => { void details(item); });
       target.append(button);
     }
@@ -345,17 +385,23 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
   }
   function openForm(value = null) {
     editing = Boolean(value);
-    buildCatalogHints(value ? (catalog().find(x => x.iid === value.iid)?.category || '') : '', value ? findName(value.iid) : '');
+    // When creating new (not editing), restore the user's last form selections.
+    const saved = !editing ? loadSelection() : null;
+    const initCategory = value ? (catalog().find(x => x.iid === value.iid)?.category || '') : (saved?.category || '');
+    const initName = value ? findName(value.iid) : (saved?.instanceName || '');
+    buildCatalogHints(initCategory, initName);
     const form = ui('.form-view');
     form.querySelector('[name="iid"]').disabled = editing && value?.type === 1;
     form.querySelector('[name="instanceName"]').disabled = editing && value?.type === 1;
     form.querySelector('[name="state"]').disabled = !editing;
     for (const [name, text] of Object.entries({
-      category: value ? (catalog().find(x => x.iid === value.iid)?.category || '') : '', instanceName: value ? findName(value.iid) : '',
-      iid: value?.iid || '', state: value?.state || 0,
-      min: value?.min || 1, max: value?.max || 200, memo: value?.memo || '无',
+      category: initCategory, instanceName: initName,
+      iid: value?.iid || saved?.iid || '', state: value?.state ?? saved?.state ?? 0,
+      min: value?.min || saved?.min || 1, max: value?.max || saved?.max || 200,
+      memo: value?.memo || saved?.memo || '无',
     })) form.querySelector('[name="' + name + '"]').value = text;
     if (value?.type === 0) { status('普通招募原有记录可编辑；原版客户端禁止新建普通募集。'); }
+    else if (!editing && saved) { status('已恢复上次的选择，可直接修改后提交。'); }
     showView('form');
   }
   function formValues() {
@@ -382,6 +428,7 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
   async function createOrUpdate() {
     try {
       const value = formValues();
+      saveSelection({ category: value.category, instanceName: value.name, iid: value.iid, min: value.min, max: value.max, memo: value.memo, state: value.state });
       if (value.name && value.iid) saveCatalog(value);
       if (!editing) {
         const session = getSession();
@@ -458,7 +505,7 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
     if (action === 'next') { pageIndex++; renderRows(); return; }
     if (action === 'create') { openForm(); return; }
     if (action === 'submit') { await createOrUpdate(); return; }
-    if (action === 'saveCatalog') { try { saveCatalog(formValues()); status('本地副本名称与 IID 已保存，服务器配置不会改变'); } catch (e) { showError(e); } }
+    if (action === 'saveCatalog') { try { const value = formValues(); saveSelection({ category: value.category, instanceName: value.name, iid: value.iid, min: value.min, max: value.max, memo: value.memo, state: value.state }); saveCatalog(value); status('副本已收藏到本地目录，下次可直接从下拉菜单选择。表单选择也已自动记住。'); } catch (e) { showError(e); } }
   }
   function ensureUI() {
     if (host) { if (!host.isConnected) document.body.append(host); return; }
@@ -469,6 +516,16 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
     const style = document.createElement('style'); style.textContent = CSS;
     const template = document.createElement('template'); template.innerHTML = TEMPLATE;
     shadow.append(style, template.content);
+    // COEP: require-corp blocks cross-origin <img> that lack CORP headers.
+    // Fetch the image as a blob and use a same-origin blob: URL to bypass it.
+    const heroImg = ui('.hero img');
+    const hideHero = () => { ui('.hero').classList.add('hidden'); ui('header').style.paddingTop = '18px'; };
+    if (page.fetch) {
+      page.fetch(HEADER_IMAGE, { mode: 'cors' })
+        .then(r => r.ok ? r.blob() : Promise.reject(new Error('HTTP ' + r.status)))
+        .then(blob => { heroImg.src = page.URL.createObjectURL(blob); heroImg.addEventListener('error', hideHero); })
+        .catch(hideHero);
+    } else { hideHero(); }
     shadow.addEventListener('click', event => { event.stopPropagation(); void onAction(event); });
     shadow.addEventListener('pointerdown', event => event.stopPropagation(), true);
     shadow.addEventListener('mousemove', event => event.stopPropagation(), true);

@@ -2,7 +2,193 @@
 // Source: https://game.lastro.cn/ro/src/DB/AgencyTable.js
 // Only active entries are included; 45 additional official dungeons are
 // present upstream but inside a block comment, so MUST NOT be enabled by default.
-const OFFICIAL = Object.freeze([{ name: '无尽之塔', iid: 1, category: '官方副本' }]);
+const OFFICIAL = Object.freeze([ {
+					[0] : {
+						name:"无尽之塔",
+						id:1,
+					},
+					[1] : {
+						name:"封印神殿",
+						id:2,
+					},
+					[2] : {
+						name:"兽人的回忆",
+						id:3,
+					},
+					[3] : {
+						name:"尼德霍格巢穴",
+						id:4,
+					},
+					[4] : {
+						name:"吉芬魔法大赛",
+						id:15,
+					},
+					[5] : {
+						name:"古代的克雷斯特汉姆",
+						id:12,
+					},
+					[6] : {
+						name:"魔神之塔",
+						id:19,
+					},
+					[7] : {
+						name:"莎拉的记忆",
+						id:14,
+					},
+					[8] : {
+						name:"幽灵皇宫",
+						id:18,
+					},
+					[9] : {
+						name:"拜欧斯之岛",
+						id:25,
+					},
+					[10] : {
+						name:"噩梦吉特巴",
+						id:24,
+					},
+					[11] : {
+						name:"恐怖玩具工厂",
+						id:16,
+					},
+					[12] : {
+						name:"摩尔斯洞穴",
+						id:26,
+					},
+					[13] : {
+						name:"魔神殿",
+						id:27,
+					},
+					[14] : {
+						name:"人面虫巢穴",
+						id:17,
+					},
+					[15] : {
+						name:"查尔斯顿危机",
+						id:30,
+					},
+					[16] : {
+						name:"飞空艇袭击",
+						id:20,
+					},
+					[17] : {
+						name:"莎拉与芬里尔",
+						id:21,
+					},
+					[18] : {
+						name:"尽头的房间",
+						id:29,
+					},
+					[19] : {
+						name:"中央实验室",
+						id:28,
+					},
+					[20] : {
+						name:"无限空间",
+						id:38,
+					},
+					[21] : {
+						name:"迷雾森林",
+						id:5,
+					},
+					[22] : {
+						name:"排水沟",
+						id:6,
+					},
+					[23] : {
+						name:"八爪鱼巢穴",
+						id:7,
+					},
+					[24] : {
+						name:"噩梦医院",
+						id:8,
+					},
+					[25] : {
+						name:"宝箱巨鳄之巢",
+						id:9,
+					},
+					[26] : {
+						name:"食月暴龙湖泊",
+						id:10,
+					},
+					[27] : {
+						name:"生命体研究所",
+						id:11,
+					},
+					[28] : {
+						name:"艾卡拉奇",
+						id:13,
+					},
+					[29] : {
+						name:"极限挑战 - 森林",
+						id:22,
+					},
+					[30] : {
+						name:"极限挑战 - 天空",
+						id:23,
+					},
+					[31] : {
+						name:"天使之赐福",
+						id:31,
+					},
+					[32] : {
+						name:"过去的仪式之屋",
+						id:32,
+					},
+					[33] : {
+						name:"空中要塞",
+						id:33,
+					},
+					[34] : {
+						name:"邪心猎人军事基地1",
+						id:34,
+					},
+					[35] : {
+						name:"邪心猎人军事基地2",
+						id:35,
+					},
+					[36] : {
+						name:"维尔纳研究所1",
+						id:36,
+					},
+					[37] : {
+						name:"维尔纳研究所2",
+						id:37,
+					},
+					[38] : {
+						name:"周五副本",
+						id:46,
+					},
+					[39] : {
+						name:"周末副本",
+						id:45,
+					},
+					[40] : {
+						name:"被时间遗忘的饲养场",
+						id:55,
+					},
+					[41] : {
+						name:"波利村",
+						id:47,
+					},
+					[42] : {
+						name:"水上花园",
+						id:56,
+					},
+					[43] : {
+						name:"水上花园困难",
+						id:57,
+					},
+					[44] : {
+						name:"秘密花园",
+						id:58,
+					},
+					[45] : {
+						name:"白天出来的半月",
+						id:44,
+					},
+				}
+			]);
 const FEATURED = Object.freeze([
   {
     "name": "黄金虫",
