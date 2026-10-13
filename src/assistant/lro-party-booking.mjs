@@ -100,9 +100,16 @@ export async function requestParty(page, session, nid, action, extra = {}, encod
   if (typeof page.LastROPartyHttpRequest === 'function') {
     return page.LastROPartyHttpRequest(nid, action, makePartyFields(session, action, extra, encoder));
   }
-  const response = await page.fetch(ENDPOINT + partyWebPath(nid) + '/party/' + action, {
+  const path = '/' + partyWebPath(nid) + '/party/' + action;
+  const body = makePartyFields(session, action, extra, encoder);
+  // IWA Direct TCP/TLS is the primary path: it has no CORS dependency.
+  // The web build may fall back to browser fetch when the server permits CORS.
+  if (typeof page.LastROPartyRequest === 'function') {
+    return await page.LastROPartyRequest(path, body);
+  }
+  const response = await page.fetch(ENDPOINT + path.slice(1), {
     method: 'POST',
-    body: makePartyFields(session, action, extra, encoder),
+    body,
     credentials: 'include',
     cache: 'no-store',
   });
