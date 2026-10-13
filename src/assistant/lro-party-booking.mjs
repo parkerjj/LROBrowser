@@ -102,11 +102,6 @@ export async function requestParty(page, session, nid, action, extra = {}, encod
   }
   const path = '/' + partyWebPath(nid) + '/party/' + action;
   const body = makePartyFields(session, action, extra, encoder);
-  // IWA Direct TCP/TLS is the primary path: it has no CORS dependency.
-  // The web build may fall back to browser fetch when the server permits CORS.
-  if (typeof page.LastROPartyRequest === 'function') {
-    return await page.LastROPartyRequest(path, body);
-  }
   const response = await page.fetch(ENDPOINT + path.slice(1), {
     method: 'POST',
     body,
@@ -192,6 +187,11 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
   const getPacket = () => modules.get('Network/PacketStructure');
   const getNetwork = () => modules.get('Network/NetworkManager');
   const getNid = () => Number(page.ROConfig?.clientVer ?? page.ROConfig?.lastroNid ?? 3);
+  const partyLeader = () => {
+    const members = modules.get('UI/Components/PartyFriends/PartyFriends')?.lroReadParty?.() || [];
+    const leader = members.find(member => Number(member.role ?? member.Role) === 0);
+    return Number(leader?.AID) || (getSession()?.isPartyLeader ? Number(getSession()?.AID) : 0);
+  };
   const catalogKey = () => 'lastro-party-catalog-v1:' + currentProfile;
   const customCatalog = () => { try {
     const data = JSON.parse(page.localStorage.getItem(catalogKey()) || '[]');
@@ -214,7 +214,7 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
     const session = getSession();
     if (tab === 0) return rows.filter(x => x.state === 0);
     if (tab === 1) return rows.filter(x => x.state === 1);
-    return rows.filter(x => x.aid === Number(session?.AID) || x.aid === Number(session?.partyLeaderAID));
+    return rows.filter(x => x.aid === Number(session?.AID) || x.aid === partyLeader());
   }
   function renderRows() {
     const target = ui('.cards');
@@ -287,7 +287,7 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
       const actions = ui('.view-actions'); actions.replaceChildren();
       const join = document.createElement('button'); join.textContent = data.type ? '进入副本' : '加入队伍';
       join.className = 'primary';
-      join.disabled = data.state === 1 && Number(getSession()?.partyLeaderAID) !== data.aid;
+      join.disabled = data.state === 1 && partyLeader() !== data.aid;
       join.addEventListener('click', () => enter(data));
       actions.append(join);
       if (own && data.aid === own.aid) {
@@ -310,7 +310,7 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
     const s = getSession();
     try {
       if (item.type === 0) {
-        if (s.hasParty && Number(s.partyLeaderAID) !== item.aid) throw new Error('请先退出当前队伍');
+        if (s.hasParty && partyLeader() !== item.aid) throw new Error('请先退出当前队伍');
         if (s.hasParty) packet('PRIVATE_AIRSHIP_REQUEST', { mapname: item.map, itemid: 14527 });
         else packet('PARTY_REQ_MASTER_TO_JOIN', { CID: item.cid, AID: item.aid });
       } else {
