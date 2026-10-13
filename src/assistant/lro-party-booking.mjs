@@ -196,7 +196,8 @@ const TEMPLATE = `
       <div class="notice">从官方 AgencyTable 提取副本目录；部分被注释的条目可能无法在服务器实际创建。选择副本后会自动填写 IID。</div>
       <div class="fields">
         <label>副本类型 / 分类<select name="category"><option value="">全部分类</option></select></label>
-        <label>副本玩法名称（须与服务器名称一致）<select name="instanceName" required><option value="">请选择副本</option></select></label>
+        <label>副本玩法名称<select name="instanceName" required><option value="">请选择副本</option></select></label>
+        <label>创建封包名称<select name="serverNameMode"><option value="zh">中文名称（测试）</option><option value="en">英文名称（测试）</option></select></label>
         <label>副本 IID（募集公告使用）<input name="iid" type="number" min="1" step="1" required></label>
         <label>状态<select name="state"><option value="0">招募中</option><option value="1">挑战中</option></select></label>
         <label>最低等级<input name="min" type="number" min="1" max="999" value="1"></label>
@@ -243,6 +244,7 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
     return [...merged.values()];
   };
   const findName = iid => catalog().find(x => Number(x.iid) === Number(iid))?.name || '';
+  const serverNameFor = (iid, mode) => { const row = catalog().find(x => Number(x.iid) === Number(iid)); return mode === 'en' ? (row?.serverNameEn || row?.nameEn || row?.serverNameZh || row?.nameZh || row?.name) : (row?.serverNameZh || row?.nameZh || row?.name); };
   const encode = value => typeof codec?.encode === 'function' ? codec.encode(value) : encodePartyText(value);
   const decode = value => typeof codec?.decode === 'function' ? codec.decode(String(value ?? '').replace(/%20/gi, ' ')) : decodePartyText(value);
   const parseEntry = value => normalizePartyEntry(value, decode);
@@ -395,7 +397,7 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
     form.querySelector('[name="instanceName"]').disabled = editing && value?.type === 1;
     form.querySelector('[name="state"]').disabled = !editing;
     for (const [name, text] of Object.entries({
-      category: initCategory, instanceName: initName,
+      category: initCategory, instanceName: initName, serverNameMode: saved?.serverNameMode || 'zh',
       iid: value?.iid || saved?.iid || '', state: value?.state ?? saved?.state ?? 0,
       min: value?.min || saved?.min || 1, max: value?.max || saved?.max || 200,
       memo: value?.memo || saved?.memo || '无',
@@ -411,7 +413,7 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
     if (!Number.isSafeInteger(min) || !Number.isSafeInteger(max) || min < 1 || max < min || max > 999) throw new Error('等级范围无效');
     if (!val('memo')) throw new Error('备注不能为空');
     if (!editing && (!Number.isSafeInteger(iid) || iid < 1 || !val('instanceName'))) throw new Error('必须填写准确的副本名称及 IID');
-    return { category: val('category'), name: val('instanceName'), iid, min, max, memo: val('memo'), state: Number(val('state')) };
+    return { category: val('category'), name: val('instanceName'), iid, min, max, memo: val('memo'), state: Number(val('state')), serverNameMode: val('serverNameMode'), serverName: serverNameFor(iid, val('serverNameMode')) };
   }
   function saveCatalog(value) {
     if (!value.name || !Number.isSafeInteger(value.iid) || value.iid < 1) throw new Error('名称及 IID 均为必填');
@@ -437,9 +439,10 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
         const P = getPacket();
         if (!P?.ZC?.RS_CREATE_INSTANCE) throw new Error('缺少副本创建结果封包，不能安全登记募集');
         pending = { action: 'create', value: { ...value, state: 0 } };
-        try { packet('REQ_CREATE_INSTANCE', { instanceName: value.name }); }
+        if (!value.serverName) throw new Error('找不到对应的服务器副本名称');
+        try { packet('REQ_CREATE_INSTANCE', { instanceName: value.serverName }); }
         catch (error) { pending = null; throw error; }
-        status('创建指令已发出，正在等待游戏服务器确认（最长 12 秒）…');
+        status('已发送' + (value.serverNameMode === 'en' ? '英文' : '中文') + '副本名：' + value.serverName + '；等待服务器确认（最长 12 秒）…');
         awaitInstanceResponse();
       } else {
         const old = own;
