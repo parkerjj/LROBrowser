@@ -461,7 +461,7 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
     if (action === 'saveCatalog') { try { saveCatalog(formValues()); status('本地副本名称与 IID 已保存，服务器配置不会改变'); } catch (e) { showError(e); } }
   }
   function ensureUI() {
-    if (host) return;
+    if (host) { if (!host.isConnected) document.body.append(host); return; }
     host = document.createElement('div');
     host.id = 'lastro-party-booking';
     host.dataset.lroAssistantRoot = 'true';
@@ -495,12 +495,12 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
     }
   }
   function open() {
-    if (!getSession()?.Entity) return;
     ensureUI();
     ui('.screen').hidden = false;
-    native?.focus?.();
+    try { native?.focus?.(); } catch { /* Runtime UI manager may have reset after character selection. */ }
     showView('');
-    void load();
+    if (getSession()?.Entity) void load();
+    else status('角色尚未加载完成，请进入地图后刷新募集信息。');
   }
   return Object.freeze({ open, setProfile(id) { currentProfile = String(id); rows = []; own = null; selected = null; pending = null; clearPending(); } });
 }
