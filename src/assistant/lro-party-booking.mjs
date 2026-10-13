@@ -193,11 +193,11 @@ const TEMPLATE = `
     <div class="content"><div class="cards"></div></div>
     <section class="view" hidden><div class="view-body"></div><div class="actions view-actions"></div></section>
     <section class="view form-view" hidden>
-      <div class="notice">从官方 AgencyTable 提取副本目录；部分被注释的条目可能无法在服务器实际创建。选择副本后会自动填写 IID。</div>
+      <div class="notice">本功能是通用客户端提供的副本选择入口，并不代表 LastRO 官方支持列表中的所有副本。特别是标记为「非LRO官方」的副本，可能无法使用。请先尝试「方式一」创建及进入副本；如果无法进入，再尝试「方式二」。两种方式均无法进入时，通常意味着服务器不支持该副本。选择副本后将自动填写 IID。</div>
       <div class="fields">
         <label>副本类型 / 分类<select name="category"><option value="">全部分类</option></select></label>
         <label>副本玩法名称<select name="instanceName" required><option value="">请选择副本</option></select></label>
-        <label>创建封包名称<select name="serverNameMode"><option value="zh">中文名称（测试）</option><option value="en">英文名称（测试）</option></select></label>
+        <label>创建副本方式<select name="serverNameMode"><option value="zh">方式一</option><option value="en">方式二</option></select></label>
         <label>副本 IID（募集公告使用）<input name="iid" type="number" min="1" step="1" required></label>
         <label>状态<select name="state"><option value="0">招募中</option><option value="1">挑战中</option></select></label>
         <label>最低等级<input name="min" type="number" min="1" max="999" value="1"></label>
@@ -442,7 +442,7 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
         if (!value.serverName) throw new Error('找不到对应的服务器副本名称');
         try { packet('REQ_CREATE_INSTANCE', { instanceName: value.serverName }); }
         catch (error) { pending = null; throw error; }
-        status('已发送' + (value.serverNameMode === 'en' ? '英文' : '中文') + '副本名：' + value.serverName + '；等待服务器确认（最长 12 秒）…');
+        status('已使用' + (value.serverNameMode === 'en' ? '方式二' : '方式一') + '发送副本创建请求；等待服务器确认（最长 12 秒）…');
         awaitInstanceResponse();
       } else {
         const old = own;
