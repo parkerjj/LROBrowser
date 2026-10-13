@@ -84,15 +84,25 @@ describe('LastRO recruitment protocol', () => {
 });
 
 describe('LastRO official AgencyTable and six packet compatibility', () => {
-  it('preserves the 33 active official AgencyTable items only', () => {
-    expect(LASTRO_AGENCY_ACTIVE_COUNT).toBe(33);
+  it('offers every rAthena Renewal instance and the original LastRO featured catalog', () => {
+    expect(LASTRO_AGENCY_ACTIVE_COUNT).toBe(110);
     for (const version of [3, 5]) {
       const options = getLastROAgencyCatalog(version);
-      expect(options).toHaveLength(33);
-      expect(options[0]).toEqual({ name: '无尽之塔', iid: 1, category: '官方副本' });
-      expect(options[1]).toEqual({ name: '黄金虫', iid: 301, category: '特色副本' });
-      expect(options.at(-1)).toEqual({ name: '贝雷杰', iid: 332, category: '特色副本' });
-      expect(options.some(row => row.name === '封印神殿')).toBe(false);
+      expect(options).toHaveLength(110);
+      expect(new Set(options.map(x => x.iid)).size).toBe(110);
+      expect(options.find(x => x.iid === 1)).toMatchObject({
+        name: '无尽之塔', nameEn: 'Endless Tower', serverNameZh: '无尽之塔',
+      });
+      expect(options.find(x => x.iid === 62)).toMatchObject({
+        name: '星座之塔 (非LRO官方)',
+        nameEn: 'Constellation Tower',
+        serverNameEn: 'Constellation Tower',
+        source: 'rathena',
+      });
+      expect(options.find(x => x.iid === 301)).toMatchObject({
+        name: '黄金虫', category: '特色副本',
+      });
+      expect(options.some(x => x.iid === 48)).toBe(false);
     }
     expect(getLastROAgencyCatalog(6)).toEqual([]);
   });
