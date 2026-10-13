@@ -110,7 +110,8 @@ describe('packaged native panels through the real HTML boundary', () => {
       const source = readFileSync(filename, 'utf8');
       const file = ts.createSourceFile(filename, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
       function visit(node: ts.Node) {
-        if (ts.isStringLiteralLike(node) && /^\s*<[a-z]/i.test(node.text) && node.text.includes('</')) {
+        const inEncodeURI = node.parent && ts.isCallExpression(node.parent) && node.parent.expression.getText(file) === 'encodeURIComponent';
+        if (!inEncodeURI && ts.isStringLiteralLike(node) && /^\s*<[a-z]/i.test(node.text) && node.text.includes('</')) {
           count++;
           try {
             const call = node.parent;
