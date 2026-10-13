@@ -126,6 +126,18 @@ export function buildRuntimePatchFixture(vendorSource: string): string {
     + '};\n'
     + '//#endregion',
     graphicsOption,
+    '//#region src/UI/Components/ShortCutOption/ShortCutOption.js\n'
+    + 'var ShortCutOption = {};\n'
+    + 'ShortCutOption.init = function () {\n'
+    + '  this.getRoot().querySelector(".panel");\n'
+    + '};\n'
+    + '//#endregion',
+    '//#region src/UI/Components/ShortCut/ShortCut.js\n'
+    + 'var ShortCut = {};\n'
+    + 'ShortCut.useSkill = function useSkill(id, level) {\n'
+    + '  SkillTargetSelection.set();\n'
+    + '};\n'
+    + '//#endregion',
     'Navigation.waitForMapData = function waitForMapData(callback) { setTimeout(() => Navigation.waitForMapData(callback), 100); };',
     'Navigation.navigateTo = function navigateTo(options) { _finalTargetData = {map: options.endMap}; this.waitForMapData(function () { this.findPath(); }); };',
     'var MapRenderer = class MapRenderer { static setMap(mapname) { UIManager.removeComponents(); } };',
