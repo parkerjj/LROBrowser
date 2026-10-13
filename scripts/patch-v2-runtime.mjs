@@ -1137,7 +1137,7 @@ export function patchLastROInstancePackets(source) {
 
 // Recover off-screen movable UI panels when they are appended or shown.
 // Do this in the generated runtime rather than modifying the large vendor snapshot.
-function patchRuntimeWindowBounds(source) {
+export function patchRuntimeWindowBounds(source) {
   const original = `    _fixPositionOverflow() {
       if (!this._host || !this._isDraggable) return;
       const WIDTH = _Renderer?.width ?? window.innerWidth;
