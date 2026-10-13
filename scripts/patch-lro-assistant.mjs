@@ -3,7 +3,6 @@ import ts from 'typescript';
 const IMPORTS = `import { assistantIcon } from "./lro-assistant-icon.mjs";
 import { installLroAssistant } from "./lro-assistant.mjs";
 import { installLastroPartyBooking } from "./lro-party-booking.mjs";
-import { installLastroInstancePackets } from "./lro-party-packets.mjs";
 import { createAssistantPacketBus } from "./lro-assistant-packets.mjs";
 import { installAssistantInputTracking, addAssistantAwareListener, removeAssistantAwareListener, guardAssistantInputHandler } from "./lro-assistant-input.mjs";
 const lroAssistantPackets = createAssistantPacketBus();
@@ -11,14 +10,6 @@ if (globalThis.ROConfig?.lroAssistantEnabled === true) installAssistantInputTrac
 `;
 
 const START = `
-// Install only after V2's packet manager has initialized, before starting the game.
-// The official LastRO instance ACKs have fixed 3-byte frames in the map socket.
-if (globalThis.ROConfig?.enableAdventurerAgency === true) {
-  installLastroInstancePackets({
-    packet: PACKET, network: Network, packetLengths: PacketLength_default,
-    BinaryWriter, enabled: globalThis.ROConfig?.lastroProtocol === true,
-  });
-}
 // Deliberately narrow compatibility map. Nothing is installed on window.require.
 // Versioned UI components are resolved afresh through the client's own aliases.
 const lroAssistantModules = {
