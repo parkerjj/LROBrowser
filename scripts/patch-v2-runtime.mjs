@@ -1135,6 +1135,56 @@ export function patchLastROInstancePackets(source) {
   return source;
 }
 
+// Recover off-screen movable UI panels when they are appended or shown.
+// Do this in the generated runtime rather than modifying the large vendor snapshot.
+function patchRuntimeWindowBounds(source) {
+  const original = `    _fixPositionOverflow() {
+      if (!this._host || !this._isDraggable) return;
+      const WIDTH = _Renderer?.width ?? window.innerWidth;
+      const HEIGHT = _Renderer?.height ?? window.innerHeight;
+      UIClamp(this._host, WIDTH, HEIGHT, this.magnet);
+    }`;
+  const replacement = `    _fixPositionOverflow() {
+      if (!this._host || !this._isDraggable) return;
+      lastroRecoverWindowBounds(this);
+    }`;
+  if (source.split(original).length !== 2) fail('anchor:gui-window-overflow');
+  source = source.replace(original, replacement);
+  const marker = '//#region src/UI/GUIComponent.js';
+  if (source.split(marker).length !== 2) fail('anchor:gui-window-region');
+  return source.replace(marker, `function lastroRecoverWindowBounds(component) {
+  const host = component._host;
+  const win = host?.ownerDocument?.defaultView;
+  // Windows with their own persistence helper already perform a scale-aware fit.
+  if (!win || component._lastroWindowState || !host.isConnected || host.style.display === 'none') return;
+  const vw = win.innerWidth, vh = win.innerHeight;
+  if (!(vw > 0 && vh > 0)) return;
+  let rect = host.getBoundingClientRect();
+  if (!(rect.width > 0 && rect.height > 0)) return;
+  const invalid = ![rect.left, rect.top, rect.right, rect.bottom].every(Number.isFinite);
+  if (!invalid && rect.left >= 0 && rect.top >= 0 && rect.right <= vw && rect.bottom <= vh) return;
+  // Oversized windows must also keep their title bar reachable.
+  if (rect.width > vw || rect.height > vh) {
+    const scale = Math.min(1, vw / rect.width, vh / rect.height);
+    host.style.transformOrigin = '0 0';
+    host.style.scale = String(scale);
+    rect = host.getBoundingClientRect();
+  }
+  const width = host.offsetWidth, height = host.offsetHeight;
+  const sx = width > 0 ? rect.width / width : 1;
+  const sy = height > 0 ? rect.height / height : 1;
+  if (!(sx > 0 && sy > 0)) return;
+  const magnet = component.magnet || {};
+  const targetX = magnet.LEFT ? 0 : magnet.RIGHT ? vw - rect.width : (vw - rect.width) / 2;
+  const targetY = magnet.TOP ? 0 : magnet.BOTTOM ? vh - rect.height : (vh - rect.height) / 2;
+  const baseX = Number.isFinite(host.offsetLeft) ? host.offsetLeft : 0;
+  const baseY = Number.isFinite(host.offsetTop) ? host.offsetTop : 0;
+  host.style.left = (baseX + (targetX - (Number.isFinite(rect.left) ? rect.left : 0)) / sx) + 'px';
+  host.style.top = (baseY + (targetY - (Number.isFinite(rect.top) ? rect.top : 0)) / sy) + 'px';
+}
+${marker}`);
+}
+
 export function patchV2Runtime(source, { assistant = false } = {}) {
   if (!source.startsWith('import ')) fail('anchor:runtime-imports');
   const normalizedSource = source.replace(/\r\n/g, '\n');
@@ -1322,6 +1372,7 @@ ${normalizedSource}`;
   output = patchRuntimeLuaStartup(output);
   output = patchLuaTableCompletion(output);
   output = patchRuntimeUiLayout(output);
+  output = patchRuntimeWindowBounds(output);
   output = patchPetDialogueDecoding(output);
   output = patchRuntimeWorldMapProductActions(output);
   output = patchRuntimeChatMapLinks(output);
