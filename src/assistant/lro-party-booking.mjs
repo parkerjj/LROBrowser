@@ -172,6 +172,7 @@ const TEMPLATE = `
         <label>最高等级<input name="max" type="number" min="1" max="999" value="200"></label>
         <label class="wide">备注<textarea name="memo" rows="3" maxlength="250" required></textarea></label>
       </div>
+      <div class="notice form-status" role="status" aria-live="polite">请选择副本，填写等级和备注后提交。</div>
       <div class="actions"><button class="primary" data-action="submit">提交</button><button data-action="saveCatalog">保存到本地副本列表</button><button data-action="cancel">返回</button></div>
     </section>
     <footer><span class="status" role="status" aria-live="polite"></span><button data-action="previous">上一页</button><span class="page-number">1 / 1</span><button data-action="next">下一页</button><button class="primary" data-action="create">创建游戏副本</button></footer>
@@ -210,7 +211,7 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
   const encode = value => typeof codec?.encode === 'function' ? codec.encode(value) : encodePartyText(value);
   const decode = value => typeof codec?.decode === 'function' ? codec.decode(String(value ?? '').replace(/%20/gi, ' ')) : decodePartyText(value);
   const parseEntry = value => normalizePartyEntry(value, decode);
-  const status = msg => { if (shadow) shadow.querySelector('.status').textContent = msg; };
+  const status = msg => { if (!shadow) return; for (const element of shadow.querySelectorAll('.status,.form-status')) element.textContent = msg; };
   const showError = error => status((error?.message || '操作失败') + (error instanceof TypeError ? '；请检查官方站点跨域访问权限（CORS）。' : ''));
   const ui = selector => shadow.querySelector(selector);
 
