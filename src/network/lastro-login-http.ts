@@ -365,14 +365,11 @@ export async function requestLastROPartyOverTLS(
   const ctor = options.TCPSocket ?? globalThis.TCPSocket;
   if (!ctor) throw new Error('Direct TCP is unavailable for LastRO recruitment');
   const path = `/${nid === 5 ? 'webserver2' : 'webserver'}/party/${action}`;
-  // The official page submits AuthToken/AID/GDID. The site cookie is an
-  // independent Yii session; do not infer it from the game account token.
-  let session: LastROLoginSession | undefined;
-  try { session = await getLastROLoginSession(ctor, options); }
-  catch { /* AuthToken-only deployments may not require an HTTP CSRF cookie. */ }
+  // Match the fields sent by LastRO's actual Online.js. The recruitment API
+  // authenticates with AuthToken; adding unrelated Yii login CSRF state can
+  // cause the endpoint to reject an otherwise valid request.
   const bodyFields = new FormData();
   for (const [key, value] of fields.entries()) bodyFields.append(key, value);
-  if (session && !bodyFields.has('_csrf')) bodyFields.append('_csrf', session.csrfToken);
   const multipart = new Request(`https://${LASTRO_LOGIN_HOST}${path}`, { method: 'POST', body: bodyFields });
   const contentType = multipart.headers.get('content-type');
   if (!contentType?.startsWith('multipart/form-data; boundary=')) throw new Error('Multipart boundary missing');
@@ -388,7 +385,7 @@ export async function requestLastROPartyOverTLS(
     `Content-Length: ${body.byteLength}`,
     'Connection: close',
   ];
-  if (session) headers.push(`Cookie: ${session.cookie}`);
+  headers.push('Origin: https://game.lastro.cn', 'Referer: https://game.lastro.cn/ro/api.html');
   const head = new TextEncoder().encode(headers.join('\r\n') + '\r\n\r\n');
   const bytes = new Uint8Array(head.length + body.length);
   bytes.set(head); bytes.set(body, head.length);
@@ -405,7 +402,8 @@ export async function requestLastROPartyOverTLS(
     });
     const response = await readResponse(native, encrypted, bytes, readTimeout);
     if (response.status < 200 || response.status >= 300) {
-      throw new Error(`LastRO recruitment HTTP ${response.status}`);
+      const detail = new TextDecoder().decode(response.body).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 240);
+      throw new Error(`LastRO recruitment HTTP ${response.status}${detail ? ': ' + detail : ''} (action=${action}, nid=${nid})`);
     }
     const data: unknown = JSON.parse(new TextDecoder().decode(response.body));
     if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Invalid recruitment JSON response');
