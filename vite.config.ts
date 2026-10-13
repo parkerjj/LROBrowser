@@ -147,6 +147,8 @@ export default defineConfig({
   },
   test: {
     include: ['test/**/*.test.ts'],
+    // Native-bundle AST fixtures are slow under CI parallel workers; allow 60s per test.
+    testTimeout: 60000,
     // Public GitHub ubuntu-24.04 runners have 4 vCPUs / 16 GB RAM.
     // Use all 4 cores in CI, rather than the previous half-CPU (2-worker) cap.
     // Locally, remain conservative with large TypeScript AST fixtures.
