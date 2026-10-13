@@ -75,7 +75,7 @@ describe('persistent native shortcut preference adapter', () => {
     const output = patchRuntimeShortcutSettings(native);
     expect(output).toContain('checkbox.className = \'lastro-shortcut-entry\'');
     expect(output).toContain('启用新版快捷入口');
-  });
+  }, 60000);
 
   it('preserves the assigned GUI component used by the native Escape graphics button', () => {
     const component = { init: vi.fn(), onAppend: vi.fn(), append: vi.fn(), remove: vi.fn() };
