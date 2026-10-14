@@ -95,7 +95,7 @@ export function patchRuntimeMapChangeHandoff(source) {
   const mapEnd = source.indexOf('//#endregion', mapStart);
   const renderEnd = source.indexOf('//#endregion', renderStart);
   if (mapEnd < 0 || renderEnd < 0) throw new Error('anchor:map-change-handoff:ends');
-  const entityMarker = '//#region src/Engine/MapEngine/Entity.js\n'.replace('\\\n', '\n');
+  const entityMarker = '//#region src/Engine/MapEngine/Entity.js\n';
   const entityStart = source.indexOf(entityMarker);
   if (entityStart < 0 || source.indexOf(entityMarker, entityStart + entityMarker.length) >= 0)
     throw new Error('anchor:npc-spawn-gate:entity');
