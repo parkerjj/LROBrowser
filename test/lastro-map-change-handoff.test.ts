@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
-import { patchRuntimeMapChangeHandoff } from '../scripts/lastro-character-switch.mjs';
+import { createLastroNpcSpawnGate, patchRuntimeMapChangeHandoff } from '../scripts/lastro-character-switch.mjs';
 import { formatLastroCharacterMapName, patchRuntimeCharSelectMapName } from '../scripts/lastro-display-localization.mjs';
 
 const native = readFileSync('vendor/v2/Online.js', 'utf8');
@@ -26,6 +26,7 @@ function mapFixture() {
   const accepted: unknown[] = [];
   const context = {
     MapRenderer: mapRenderer, document: {},
+    lastroNpcSpawnGate: { reset() {}, flush() {} },
     lastroCloseVendingShopping() {}, lastroCancelMovement() {},
     SessionStorage_default: { Entity: {} }, MapControl: {},
     resetEntityForMapEntry(_entity: unknown, packet: unknown) {
@@ -88,5 +89,67 @@ describe('character selection displays protocol map IDs instead of legacy encode
     expect(newUi.split('LastROCharacterMapName(info.lastMap)')).toHaveLength(3);
     expect(newUi).not.toContain('DB.getMapName(info.lastMap, "") || ""');
     expect(section(result, 'src/DB/DBManager.js')).toBe(section(native, 'src/DB/DBManager.js'));
+  });
+});
+
+describe('NPC spawn notifications across asynchronous map loading', () => {
+  function fixture() {
+    let loading = false;
+    const accepted: Array<{ GID: number; objecttype: number; label?: string }> = [];
+    const gate = createLastroNpcSpawnGate({
+      isLoading: () => loading,
+      isNpc: (pkt: { objecttype: number }) => pkt.objecttype === 6 || pkt.objecttype === 10,
+      replay: (pkt: { GID: number; objecttype: number; label?: string }) => accepted.push(pkt),
+    });
+    return { gate, accepted, load(value: boolean) { loading = value; } };
+  }
+
+  it('defers only NPCs during loading, deduplicates by GID, and replays after native map initialization', () => {
+    const f = fixture();
+    f.load(true);
+    expect(f.gate.capture({ GID: 101, objecttype: 6, label: 'old' })).toBe(true);
+    expect(f.gate.capture({ GID: 101, objecttype: 6, label: 'new' })).toBe(true);
+    expect(f.gate.capture({ GID: 102, objecttype: 10 })).toBe(true);
+    expect(f.gate.capture({ GID: 103, objecttype: 5 })).toBe(false);
+    f.gate.flush();
+    expect(f.accepted).toHaveLength(0);
+    f.load(false);
+    f.gate.flush();
+    expect(f.accepted).toEqual([
+      { GID: 101, objecttype: 6, label: 'new' },
+      { GID: 102, objecttype: 10 },
+    ]);
+    f.gate.flush();
+    expect(f.accepted).toHaveLength(2);
+  });
+
+  it('drops vanished NPCs and never carries a pending NPC into a later map', () => {
+    const f = fixture();
+    f.load(true);
+    f.gate.capture({ GID: 100, objecttype: 6 });
+    f.gate.capture({ GID: 101, objecttype: 6 });
+    f.gate.vanish(100);
+    f.load(false);
+    f.gate.flush();
+    expect(f.accepted.map(pkt => pkt.GID)).toEqual([101]);
+    f.load(true);
+    f.gate.capture({ GID: 200, objecttype: 6 });
+    f.gate.reset();
+    f.load(false);
+    f.gate.flush();
+    expect(f.accepted.map(pkt => pkt.GID)).toEqual([101]);
+  });
+
+  it('injects NPC gate into the real native spawn/vanish handlers and flushes after map onLoad', () => {
+    const map = section(handoff, 'src/Engine/MapEngine.js');
+    const entity = section(handoff, 'src/Engine/MapEngine/Entity.js');
+    const file = ts.createSourceFile('MapEngine.js', map, ts.ScriptTarget.Latest, true);
+    const owner = file.statements.find(n => ts.isFunctionDeclaration(n) && n.name?.text === 'onMapChange');
+    expect(owner).toBeDefined();
+    expect(map).toContain('lastroNpcSpawnGate.flush();');
+    expect(entity).toContain('if (lastroNpcSpawnGate.capture(pkt)) return;');
+    expect(entity).toContain('lastroNpcSpawnGate.vanish(pkt.GID);');
+    expect(map).toContain('lastroNpcSpawnGate.reset();');
+    expect(file.parseDiagnostics).toHaveLength(0);
   });
 });
