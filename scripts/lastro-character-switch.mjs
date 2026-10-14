@@ -149,9 +149,12 @@ const lastroNpcSpawnGate = (${createLastroNpcSpawnGate.toString()})({
       callbackAssignments.push(node.right);
     ts.forEachChild(node, visitMap);
   }
-  visitMap(mapFile);
+  const changeOwners = mapFile.statements.filter(node => ts.isFunctionDeclaration(node) && node.name?.text === 'onMapChange');
+  if (changeOwners.length !== 1) throw new Error('anchor:npc-spawn-gate:map-owner');
+  visitMap(changeOwners[0]);
   const callback = callbackAssignments[0];
-  if (callbackAssignments.length !== 1 || !ts.isBlock(callback.body))
+  if (callbackAssignments.length !== 1 || !ts.isBlock(callback.body)
+    || !callback.body.getText(mapFile).includes('NOTIFY_ACTORINIT'))
     throw new Error('anchor:npc-spawn-gate:onload');
   map = map.slice(0, callback.body.end - 1) + '\n    lastroNpcSpawnGate.flush();\n  ' + map.slice(callback.body.end - 1);
   if (entity.includes('function onEntitySpam(pkt) {\n  applyLastROMercenaryAppearance(pkt);')) {
