@@ -58,7 +58,7 @@ export function patchRuntimeNetworkHandoffCleanup(source) {
   return source.slice(0, start + block.getStart(file)) + replacement + source.slice(start + block.end);
 }
 
-function patchRuntimeMapChangeHandoff(source) {
+export function patchRuntimeMapChangeHandoff(source) {
   const mapMarker = '//#region src/Engine/MapEngine.js\n';
   const renderMarker = '//#region src/Renderer/MapRenderer.js\n';
   const mapStart = source.indexOf(mapMarker), renderStart = source.indexOf(renderMarker);

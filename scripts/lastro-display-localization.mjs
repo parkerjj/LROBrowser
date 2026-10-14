@@ -679,14 +679,14 @@ const LastROMapLocalization = (${createLastroMapLocalization.toString()})(${JSON
 }
 
 
-function formatLastroCharacterMapName(value) {
+export function formatLastroCharacterMapName(value) {
   if (typeof value !== 'string') return '';
   const id = value.replace(/\0.*$/s, '').trim();
   if (!/^[a-z0-9_@#-]{1,32}(?:\.(?:gat|rsw))?$/i.test(id)) return '';
   return id.replace(/\.rsw$/i, '.gat').replace(/^(?!.*\.gat$)(.*)$/i, '$1.gat');
 }
 
-function patchRuntimeCharSelectMapName(source) {
+export function patchRuntimeCharSelectMapName(source) {
   const region = localizationRegion(source, 'src/UI/Components/CharSelect/CharSelectCommon.js');
   if (!region) return source;
   const anchor = 'DB.getMapName(info.lastMap, "") || ""';
