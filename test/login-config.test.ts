@@ -56,6 +56,9 @@ describe('remote server handoff', () => {
       window: { ROConfig: config }, __esmMin: (fn: () => void) => fn,
       BGM: { play() {} }, MapEngine: {}, _server$1: null,
       _mapName: '', _exiting: false, _exitTimer: null,
+      // The isolated init() fixture omits the runtime module that owns this
+      // map-session cache; retain its reset contract without a full map engine.
+      lastroNpcSpawnGate: { reset() {} },
       Network: {
         utils: { longToIP: () => '127.0.0.1' },
         connect: (host: string, port: number) => { connections.push([host, port]); throw stop; },
