@@ -3,8 +3,8 @@ import vm from 'node:vm';
 import { describe, expect, it, vi } from 'vitest';
 
 const runtime = readFileSync('generated/runtime/Online.js', 'utf8');
-const start = runtime.indexOf('function createLastROWorkerScriptUrl(');
-const helper = runtime.slice(start, runtime.indexOf('\n}', start) + 2);
+const start = runtime.indexOf('let lastroWorkerPolicy;');
+const helper = runtime.slice(start, runtime.indexOf('\n\nimport ', start));
 const base = 'isolated-app://test-app/runtime/Online.js?import';
 
 function harness(trusted = true) {
@@ -13,8 +13,8 @@ function harness(trusted = true) {
     rule = rules.createScriptURL;
     return { createScriptURL: (value: string) => ({ toString: () => rule(value), value: rule(value) }) };
   });
-  const context = vm.createContext({ URL, trustedTypes: trusted ? { createPolicy } : undefined });
-  vm.runInContext('let lastroWorkerPolicy;\n' + helper.replaceAll('import.meta.url', JSON.stringify(base)), context);
+  const context = vm.createContext({ URL, trustedTypes: trusted ? { createPolicy } : undefined, startOptionalKore() {} });
+  vm.runInContext(helper.replaceAll('import.meta.url', JSON.stringify(base)), context);
   return { create: (name: string) => context.createLastROWorkerScriptUrl(name),
     validate: (value: string) => rule(value), createPolicy };
 }

@@ -1190,27 +1190,48 @@ export function patchV2Runtime(source, { assistant = false } = {}) {
   if (!source.startsWith('import ')) fail('anchor:runtime-imports');
   const normalizedSource = source.replace(/\r\n/g, '\n');
   let output = `import { decorateLastROLoginTemplate, decorateLastROLoginStyles, installLastROLogin, beforeLastROLoginConnect, afterLastROLoginPassword } from "./lastro-account-login.mjs";
+import { startOptionalKore } from "./kore-integration.mjs";
 let lastroWorkerPolicy;
+let currentKoreWorkerUrl = null;
+const nativeWorkerUrls = ["LastROThreadEventHandler.js", "PathFindingWorker.js"]
+	.map(path => new URL(path, import.meta.url).href);
+function trustLastROWorkerUrl(value) {
+	const candidate = new URL(value, import.meta.url);
+	if (!nativeWorkerUrls.includes(candidate.href) && candidate.href !== currentKoreWorkerUrl) {
+		throw new TypeError("Unexpected worker URL");
+	}
+	const trustedTypes = globalThis.trustedTypes;
+	if (!trustedTypes) return candidate.href;
+	const policy = lastroWorkerPolicy ?? (lastroWorkerPolicy = trustedTypes.createPolicy("lastro-iwa-worker", {
+		createScriptURL: (url) => {
+			const allowed = new URL(url, import.meta.url).href;
+			if (!nativeWorkerUrls.includes(allowed) && allowed !== currentKoreWorkerUrl) {
+				throw new TypeError("Unexpected worker URL");
+			}
+			return allowed;
+		},
+	}));
+	return policy.createScriptURL(candidate.href);
+}
 function createLastROWorkerScriptUrl(relativePath) {
 	if (relativePath !== "LastROThreadEventHandler.js" && relativePath !== "PathFindingWorker.js") {
 		throw new TypeError("Unexpected worker path");
 	}
-	const workerUrl = new URL(relativePath, import.meta.url);
-	const trustedTypes = globalThis.trustedTypes;
-	if (!trustedTypes) return workerUrl.href;
-	const allowedWorkerUrls = ["LastROThreadEventHandler.js", "PathFindingWorker.js"]
-		.map(path => new URL(path, import.meta.url).href);
-	const policy = lastroWorkerPolicy ?? (lastroWorkerPolicy = trustedTypes.createPolicy("lastro-iwa-worker", {
-		createScriptURL: (value) => {
-			const candidate = new URL(value, import.meta.url);
-			if (!allowedWorkerUrls.includes(candidate.href)) {
-				throw new TypeError("Unexpected worker URL");
-			}
-			return candidate.href;
-		},
-	}));
-	return policy.createScriptURL(workerUrl.href);
+	return trustLastROWorkerUrl(new URL(relativePath, import.meta.url).href);
 }
+startOptionalKore({
+	createWorker: (value) => {
+		const url = new URL(value);
+		const local = new URL(import.meta.url);
+		if (url.protocol !== local.protocol || url.host !== local.host || url.username || url.password || url.search || url.hash
+			|| !/^\\/core\\/ke\\/[a-f0-9]{64}\\/kore-worker\\.mjs$/.test(url.pathname)) {
+			throw new TypeError("Unexpected KoreEngine worker URL");
+		}
+		currentKoreWorkerUrl = url.href;
+		return new Worker(trustLastROWorkerUrl(url.href), { type: "module" });
+	},
+	onWorkerReleased: () => { currentKoreWorkerUrl = null; },
+});
 
 ${normalizedSource}`;
   output = output.replace(/\?build=[A-Za-z0-9._-]+/g, '');

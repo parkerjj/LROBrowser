@@ -25,7 +25,8 @@
     "src/assistant/lro-assistant-features.mjs",
     "src/assistant/lro-client-knowledge.mjs",
     "src/assistant/lro-reference-links.mjs",
-    "src/assistant/lro-market-api.mjs"
+    "src/assistant/lro-market-api.mjs",
+    "src/kore/kore-integration.mjs"
   ],
   "baseline": {
     "luaCount": 473,

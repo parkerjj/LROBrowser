@@ -31,6 +31,8 @@ export async function minifyReleaseJavaScript(dist = 'dist') {
     }
   }
   for (const file of files) {
+    // KE is a complete content-addressed package; its own manifest must remain valid.
+    if (path.relative(root, file).split(path.sep).join('/').startsWith('core/ke/')) continue;
     const source = originals.get(file).toString('utf8');
     const preserveRuntimeNames = /(?:Online|ThreadEventHandler|PathFindingWorker)\.js$/.test(file);
     const result = await transform(source, { loader: 'js', minifySyntax: true, minifyWhitespace: true, minifyIdentifiers: !preserveRuntimeNames, legalComments: 'none', target: 'es2022' });
