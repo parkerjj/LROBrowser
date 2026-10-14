@@ -678,6 +678,26 @@ const LastROMapLocalization = (${createLastroMapLocalization.toString()})(${JSON
 ` + source.slice(0, region.start) + patched + source.slice(region.end);
 }
 
+
+function formatLastroCharacterMapName(value) {
+  if (typeof value !== 'string') return '';
+  const id = value.replace(/\0.*$/s, '').trim();
+  if (!/^[a-z0-9_@#-]{1,32}(?:\.(?:gat|rsw))?$/i.test(id)) return '';
+  return id.replace(/\.rsw$/i, '.gat').replace(/^(?!.*\.gat$)(.*)$/i, '$1.gat');
+}
+
+function patchRuntimeCharSelectMapName(source) {
+  const region = localizationRegion(source, 'src/UI/Components/CharSelect/CharSelectCommon.js');
+  if (!region) return source;
+  const anchor = 'DB.getMapName(info.lastMap, "") || ""';
+  if (region.text.split(anchor).length !== 3 || source.includes('const LastROCharacterMapName =')) {
+    throw new Error('anchor:character-map-label');
+  }
+  const replacement = region.text.replaceAll(anchor, 'LastROCharacterMapName(info.lastMap)');
+  return 'const LastROCharacterMapName = (' + formatLastroCharacterMapName.toString() + ');\n'
+    + source.slice(0, region.start) + replacement + source.slice(region.end);
+}
+
 /** Fail the build when a later overlay drops a required localization mount. */
 export function assertRuntimeLocalizationMount(source, baseline = source) {
   assertRuntimeItemOptionLocalization(source, baseline);
@@ -696,6 +716,12 @@ export function assertRuntimeLocalizationMount(source, baseline = source) {
     if (!localizationRegion(baseline, path)) continue;
     const region = localizationRegion(source, path);
     if (!region || region.text.split(hook).length !== 2) throw new Error('localization-mount:' + label);
+  }
+  if (localizationRegion(baseline, 'src/UI/Components/CharSelect/CharSelectCommon.js')) {
+    const characterUi = localizationRegion(source, 'src/UI/Components/CharSelect/CharSelectCommon.js');
+    if (!characterUi || characterUi.text.split('LastROCharacterMapName(info.lastMap)').length !== 3) {
+      throw new Error('localization-mount:character-map-label');
+    }
   }
   if (baseline.includes('JobNameTable')) {
     if (source.split('function lastroJobDisplayName(id)').length !== 2

@@ -57,3 +57,51 @@ export function patchRuntimeNetworkHandoffCleanup(source) {
       }`;
   return source.slice(0, start + block.getStart(file)) + replacement + source.slice(start + block.end);
 }
+
+function patchRuntimeMapChangeHandoff(source) {
+  const mapMarker = '//#region src/Engine/MapEngine.js\n';
+  const renderMarker = '//#region src/Renderer/MapRenderer.js\n';
+  const mapStart = source.indexOf(mapMarker), renderStart = source.indexOf(renderMarker);
+  if (mapStart < 0 || renderStart < 0
+    || source.indexOf(mapMarker, mapStart + mapMarker.length) >= 0
+    || source.indexOf(renderMarker, renderStart + renderMarker.length) >= 0) throw new Error('anchor:map-change-handoff:regions');
+  const mapEnd = source.indexOf('//#endregion', mapStart);
+  const renderEnd = source.indexOf('//#endregion', renderStart);
+  if (mapEnd < 0 || renderEnd < 0) throw new Error('anchor:map-change-handoff:ends');
+  let map = source.slice(mapStart, mapEnd), renderer = source.slice(renderStart, renderEnd);
+  const once = (body, anchor, replacement, name) => {
+    if (body.split(anchor).length !== 2) throw new Error('anchor:map-change-handoff:' + name);
+    return body.replace(anchor, replacement);
+  };
+  map = once(map, mapMarker, mapMarker + 'let lastroDeferredMapChange = null;\n', 'state');
+  map = once(map, '      _mapName = mapName;', '      lastroDeferredMapChange = null;\n      _mapName = mapName;', 'connection-reset');
+  map = once(map, 'function onMapChange(pkt) {\n  document._lastroItemDrag?.cancel();',
+    `function onMapChange(pkt) {
+  if (MapRenderer.loading) {
+    // The current map's onLoad must remain installed until that load ends.
+    lastroDeferredMapChange = pkt;
+    return;
+  }
+  document._lastroItemDrag?.cancel();`, 'arrival');
+  map = once(map, '  MapRenderer.onLoad = () => {\n    resetEntityForMapEntry(',
+    `  MapRenderer.onLoad = () => {
+    const pending = lastroDeferredMapChange;
+    if (pending) {
+      lastroDeferredMapChange = null;
+      // Apply the same instance-name normalization as MapRenderer.setMap.
+      const targetMap = String(pending.mapName ?? "").replace(/^(\\d{3})(\\d@)/, "$2").replace(/^\\d{3}#/, "");
+      const currentMap = String(MapRenderer.currentMap ?? "");
+      if (targetMap.replace(/\\.[^.]*$/, "") !== currentMap.replace(/\\.[^.]*$/, "")) {
+        onMapChange(pending);
+        return;
+      }
+      // Same underlying resource, but newer coordinates: honor the latest packet.
+      pkt = pending;
+    }
+    resetEntityForMapEntry(`, 'load-boundary');
+  renderer = once(renderer, '    MapRenderer.onLoad();\n    Sky_default.setUpCloudData();',
+    '    MapRenderer.onLoad();\n    if (MapRenderer.loading) return;\n    Sky_default.setUpCloudData();', 'obsolete-render');
+  let result = source.slice(0, renderStart) + renderer + source.slice(renderEnd);
+  const updatedMapStart = result.indexOf(mapMarker), updatedMapEnd = result.indexOf('//#endregion', updatedMapStart);
+  return result.slice(0, updatedMapStart) + map + result.slice(updatedMapEnd);
+}
