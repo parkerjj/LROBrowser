@@ -95,7 +95,7 @@ export function patchRuntimeMapChangeHandoff(source) {
   const mapEnd = source.indexOf('//#endregion', mapStart);
   const renderEnd = source.indexOf('//#endregion', renderStart);
   if (mapEnd < 0 || renderEnd < 0) throw new Error('anchor:map-change-handoff:ends');
-  const entityMarker = '//#region src/Engine/MapEngine/Entity.js\\n'.replace('\\\\n', '\\n');
+  const entityMarker = '//#region src/Engine/MapEngine/Entity.js\n'.replace('\\\n', '\n');
   const entityStart = source.indexOf(entityMarker);
   if (entityStart < 0 || source.indexOf(entityMarker, entityStart + entityMarker.length) >= 0)
     throw new Error('anchor:npc-spawn-gate:entity');
@@ -114,7 +114,7 @@ const lastroNpcSpawnGate = (${createLastroNpcSpawnGate.toString()})({
   replay: pkt => onEntitySpam(pkt),
 });
 `, 'state');
-  map = once(map, '      _mapName = mapName;', '      lastroDeferredMapChange = null;\\n      lastroNpcSpawnGate.reset();\\n      _mapName = mapName;', 'connection-reset');
+  map = once(map, '      _mapName = mapName;', '      lastroDeferredMapChange = null;\n      lastroNpcSpawnGate.reset();\n      _mapName = mapName;', 'connection-reset');
   map = once(map, 'function onMapChange(pkt) {\n  document._lastroItemDrag?.cancel();',
     `function onMapChange(pkt) {
   if (MapRenderer.loading) {
@@ -153,13 +153,18 @@ const lastroNpcSpawnGate = (${createLastroNpcSpawnGate.toString()})({
   const callback = callbackAssignments[0];
   if (callbackAssignments.length !== 1 || !ts.isBlock(callback.body))
     throw new Error('anchor:npc-spawn-gate:onload');
-  map = map.slice(0, callback.body.end - 1) + '\\n    lastroNpcSpawnGate.flush();\\n  ' + map.slice(callback.body.end - 1);
-  entity = once(entity, 'function onEntitySpam(pkt) {\\n  applyLastROMercenaryAppearance(pkt);',
-    'function onEntitySpam(pkt) {\\n  if (lastroNpcSpawnGate.capture(pkt)) return;\\n  applyLastROMercenaryAppearance(pkt);', 'npc-entry');
+  map = map.slice(0, callback.body.end - 1) + '\n    lastroNpcSpawnGate.flush();\n  ' + map.slice(callback.body.end - 1);
+  if (entity.includes('function onEntitySpam(pkt) {\n  applyLastROMercenaryAppearance(pkt);')) {
+    entity = once(entity, 'function onEntitySpam(pkt) {\n  applyLastROMercenaryAppearance(pkt);',
+      'function onEntitySpam(pkt) {\n  if (lastroNpcSpawnGate.capture(pkt)) return;\n  applyLastROMercenaryAppearance(pkt);', 'npc-entry');
+  } else {
+    entity = once(entity, 'function onEntitySpam(pkt) {\n  let entity',
+      'function onEntitySpam(pkt) {\n  if (lastroNpcSpawnGate.capture(pkt)) return;\n  let entity', 'npc-entry-native');
+  }
   entity = once(entity, 'function onEntityVanish(pkt) {',
-    'function onEntityVanish(pkt) {\\n  lastroNpcSpawnGate.vanish(pkt.GID);', 'npc-vanish');
+    'function onEntityVanish(pkt) {\n  lastroNpcSpawnGate.vanish(pkt.GID);', 'npc-vanish');
   map = once(map, 'function cleanGameUI() {',
-    'function cleanGameUI() {\\n  lastroNpcSpawnGate.reset();', 'npc-cleanup');
+    'function cleanGameUI() {\n  lastroNpcSpawnGate.reset();', 'npc-cleanup');
   renderer = once(renderer, '    MapRenderer.onLoad();\n    Sky_default.setUpCloudData();',
     '    MapRenderer.onLoad();\n    if (MapRenderer.loading) return;\n    Sky_default.setUpCloudData();', 'obsolete-render');
   let result = source.slice(0, renderStart) + renderer + source.slice(renderEnd);
