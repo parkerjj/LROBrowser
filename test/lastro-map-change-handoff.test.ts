@@ -95,11 +95,12 @@ describe('character selection displays protocol map IDs instead of legacy encode
 describe('NPC spawn notifications across asynchronous map loading', () => {
   function fixture() {
     let loading = false;
-    const accepted: Array<{ GID: number; objecttype: number; label?: string }> = [];
-    const gate = createLastroNpcSpawnGate({
+    type SpawnPacket = { GID: number; objecttype: number; label?: string };
+    const accepted: SpawnPacket[] = [];
+    const gate = createLastroNpcSpawnGate<SpawnPacket>({
       isLoading: () => loading,
-      isNpc: (pkt: { objecttype: number }) => pkt.objecttype === 6 || pkt.objecttype === 10,
-      replay: (pkt: { GID: number; objecttype: number; label?: string }) => accepted.push(pkt),
+      isNpc: pkt => pkt.objecttype === 6 || pkt.objecttype === 10,
+      replay: pkt => accepted.push(pkt),
     });
     return { gate, accepted, load(value: boolean) { loading = value; } };
   }
@@ -150,6 +151,11 @@ describe('NPC spawn notifications across asynchronous map loading', () => {
     expect(entity).toContain('if (lastroNpcSpawnGate.capture(pkt)) return;');
     expect(entity).toContain('lastroNpcSpawnGate.vanish(pkt.GID);');
     expect(map).toContain('lastroNpcSpawnGate.reset();');
-    expect(file.parseDiagnostics).toHaveLength(0);
+    const diagnostics = ts.transpileModule(map, {
+      fileName: 'MapEngine.js',
+      reportDiagnostics: true,
+      compilerOptions: { target: ts.ScriptTarget.Latest },
+    }).diagnostics ?? [];
+    expect(diagnostics.filter(diagnostic => diagnostic.category === ts.DiagnosticCategory.Error)).toHaveLength(0);
   });
 });
