@@ -30,20 +30,27 @@ export interface KoreState {
   streamStatus: 'idle' | 'awaiting-connection' | 'awaiting-sync' | 'world-ready' | 'degraded';
   mapName: string | null; selfActor: KoreActor | null; visibleEntities: KoreVisibleEntities; parserDiagnostics: KoreParserDiagnostics;
   receivedBytes: number; degradedReason: string | null; worldReady: boolean; aiState: 'off'; logs: KoreLog[];
+  mapResourceState: 'idle' | 'loading' | 'retrying' | 'ready' | 'degraded';
+  routeState: 'idle' | 'running' | 'awaiting-map' | 'completed' | 'cancelled' | 'failed'; routePreview: unknown[] | null;
 }
 export interface KoreOptions {
   page?: KorePage; manifest: ExecutableManifest;
   createWorker?: (url: string) => KoreWorker; onWorkerReleased?: () => void; onChange?: (state: KoreState) => void;
+  mapResourceProvider?: import('./map-resource-provider.mjs').MapResourceProvider;
+  serverFieldsFolder?: string;
 }
 export interface KoreIntegration {
   state: KoreState; start(): Promise<void>; dispose(): void; debugProbe(type: string): boolean;
   beginGameSession(characterGid: number, mapName: string): string | null;
   beginMapConnection(): number | null;
   mirrorMapData(connectionGeneration: number, data: ArrayBuffer | ArrayBufferView): boolean;
-  endGameSession(): void; clearConsole(): void;
+  endGameSession(): void; clearConsole(): void; debugMapRetry(): boolean;
+  debugRoutePreview(routeRequest: unknown): boolean; debugRouteGo(routeRequest: unknown): boolean; debugRouteCancel(): boolean;
+  handleAirshipResponse(response: number): boolean;
+  debugCommand(command: string, routeRequest?: unknown): boolean;
 }
 export interface KorePanelView {
-  panel: HTMLElement; infoNode: HTMLTextAreaElement; consoleNode: HTMLTextAreaElement; clearButton: HTMLButtonElement;
+  panel: HTMLElement; infoNode: HTMLTextAreaElement; routeNode: HTMLTextAreaElement; consoleNode: HTMLTextAreaElement; clearButton: HTMLButtonElement;
   update(state: KoreState): void;
 }
 export const KORE_PROTOCOL_PROFILE: 'lastro-20211103';
@@ -53,6 +60,9 @@ export function safePackagePath(value: string): string;
 export function packageKind(file: string): string;
 export function validateKoreManifest(manifest: unknown): Promise<KoreManifest>;
 export function validateKorePointer(pointer: unknown): KorePointer;
-export function loadKorePackage(options: { page?: KorePage; manifest: ExecutableManifest; signal?: AbortSignal }): Promise<{ manifest: KoreManifest; workerUrl: string } | null>;
+export function loadKorePackage(options: { page?: KorePage; manifest: ExecutableManifest; signal?: AbortSignal }): Promise<{
+  manifest: KoreManifest; workerUrl: string;
+  mapResourceConfig: { aliases: Record<string, string>; expectedSha256: Record<string, string> };
+} | null>;
 export function createKoreIntegration(options: KoreOptions): KoreIntegration;
 export function startOptionalKore(options: Pick<KoreOptions, 'createWorker' | 'onWorkerReleased'>): KoreIntegration | null;

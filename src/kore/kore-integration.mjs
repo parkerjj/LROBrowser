@@ -1,4 +1,5 @@
 // Public, optional host. Only the passive inbound map stream crosses this boundary.
+import { createMapResourceProvider, FIELD_PACK_VERSION } from './map-resource-provider.mjs';
 export const KORE_PROTOCOL_PROFILE = 'lastro-20211103';
 const compatibleProfiles = new Set([KORE_PROTOCOL_PROFILE, 'lastro-2x']);
 const idPattern = /^[a-f0-9]{64}$/;
@@ -82,24 +83,45 @@ export async function loadKorePackage({ page = globalThis, manifest, signal }) {
   const prefix = `ke/${pointer.packageId}/`;
   const expectedPaths = new Set(['ke/active.json', pointer.manifestPath, ...packageManifest.files.map(file => prefix + file.path)]);
   if (entries.some(file => file.path.startsWith('ke/') && !expectedPaths.has(file.path))) throw Error('unexpected-package-file');
-  for (const file of packageManifest.files) await read(prefix + file.path, file);
-  return { manifest: packageManifest, workerUrl: new globalThis.URL('/core/' + prefix + 'kore-worker.mjs', page.location.href).href };
+  const packageData = {};
+  for (const file of packageManifest.files) {
+    const bytes = await read(prefix + file.path, file);
+    if (file.path === 'data/maps/aliases.json' || file.path === 'data/maps/checksums.json') {
+      packageData[file.path] = json(bytes);
+    }
+  }
+  return {
+    manifest: packageManifest,
+    workerUrl: new globalThis.URL('/core/' + prefix + 'kore-worker.mjs', page.location.href).href,
+    mapResourceConfig: { aliases: packageData['data/maps/aliases.json'] ?? {}, expectedSha256: packageData['data/maps/checksums.json'] ?? {} },
+  };
 }
 
-export function createKoreIntegration({ page = globalThis, manifest, createWorker = url => new page.Worker(url, { type: 'module' }), onWorkerReleased = () => {}, onChange = () => {} }) {
+export function createKoreIntegration({ page = globalThis, manifest, createWorker = url => new page.Worker(url, { type: 'module' }), onWorkerReleased = () => {}, onChange = () => {}, mapResourceProvider = null, serverFieldsFolder = 'EP15.1' }) {
   const state = {
     status: 'absent', packageId: null, mode: null, tickCount: 0, elapsedMs: 0,
     profile: KORE_PROTOCOL_PROFILE, gameSessionId: null, connectionGeneration: null,
     streamStatus: 'idle', mapName: null, selfActor: null,
     visibleEntities: { total: 0, players: 0, monsters: 0, other: 0, unknown: 0 },
     parserDiagnostics: { bufferedBytes: 0, pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: null },
-    receivedBytes: 0, degradedReason: null, worldReady: false, aiState: 'off', logs: [],
+    receivedBytes: 0, degradedReason: null, worldReady: false, aiState: 'off', logs: [], mapResourceState: 'idle',
+    routeState: 'idle', routePreview: null,
   };
   let generation = 0, worker = null, session = null, nextId = 0, initId = 0, probe = null, discardedThrough = 0;
   let timer = null, controller = null, lastNow = 0, initAge = 0, removeListeners = () => {};
   let gameSession = null, connection = null, postedGameSessionId = null, postedConnectionGeneration = null;
   let pendingGameEvents = [], pendingGameBytes = 0, workerDegraded = false, needsMapResync = false;
   let mapStreamCapability = null;
+  let controlGeneration = 0;
+  let routePermit = null;
+  let resourceCycle = 0;
+  let activeResourceRequestId = null;
+  const resources = mapResourceProvider ?? createMapResourceProvider({
+    page,
+    fetchImpl: page.fetch?.bind(page),
+    indexedDBFactory: page.indexedDB,
+    databaseName: 'kore-map-resources',
+  });
   const clock = () => (page.performance ?? globalThis.performance).now();
   const timers = page.setInterval ? page : globalThis;
   const changed = () => { try { onChange(state); } catch { /* UI must not affect the client. */ } };
@@ -117,12 +139,26 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     try { onWorkerReleased(); } catch { /* Cleanup is best effort. */ }
     try { if (disposeMessage) oldWorker?.postMessage(disposeMessage); } catch { /* Already gone. */ }
     try { oldWorker?.terminate(); } catch { /* Already gone. */ }
+    try { void resources.close(); } catch { /* Cache cleanup is best effort. */ }
   }
   function fail(error) {
+    routePermit = null;
+    controlGeneration += 1;
     generation++;
     release();
     state.status = 'failed';
     log('error', error instanceof Error ? error.message : String(error));
+  }
+  function revokeRoutePermit() {
+    routePermit = null;
+    controlGeneration += 1;
+    changed();
+  }
+  function cancelWorkerRoute() {
+    if (!worker || !session || state.status !== 'runtime-ready' || !routePermit) return;
+    try {
+      worker.postMessage({ runtimeSessionId: session, type: 'debugRouteCancel', requestId: ++nextId, routeId: routePermit.routeId });
+    } catch (error) { fail(error); }
   }
   function post(type, fields = {}) {
     const requestId = ++nextId;
@@ -134,6 +170,54 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     try { worker.postMessage(message, [message.bytes.buffer]); }
     catch (error) { fail(error); return false; }
     return true;
+  }
+  function postResourceMessage(message, transfer = []) {
+    try { worker.postMessage(message, transfer); }
+    catch (error) { fail(error); }
+  }
+  async function handleResourceRequest(message) {
+    if (message.runtimeSessionId !== session || message.fieldpackVersion !== FIELD_PACK_VERSION
+      || (message.resourceCycle !== undefined && message.resourceCycle !== resourceCycle)
+      || (message.connectionGeneration !== undefined && message.connectionGeneration !== connection?.generation)) return;
+    activeResourceRequestId = message.requestId;
+    state.mapResourceState = message.attempt > 0 ? 'retrying' : 'loading';
+    changed();
+    try {
+      const response = await resources.handleResourceRequest(message);
+      if (message.runtimeSessionId !== session || activeResourceRequestId !== message.requestId
+        || (message.resourceCycle !== undefined && message.resourceCycle !== resourceCycle)) return;
+      const result = response.result?.kind === 'fieldMap'
+        ? { ...response.result, files: response.result.files.map(file => ({ ...file, bytes: file.bytes.slice(0) })) }
+        : response.result;
+      const transfer = result?.kind === 'fieldMap'
+        ? result.files.map(file => file.bytes).filter(bytes => bytes instanceof ArrayBuffer)
+        : [];
+      postResourceMessage({ runtimeSessionId: session, type: 'resourceResult', requestId: message.requestId,
+        resourceCycle: message.resourceCycle, result }, transfer);
+    } catch (error) {
+      if (activeResourceRequestId !== message.requestId) return;
+      postResourceMessage({ runtimeSessionId: session, type: 'resourceResult', requestId: message.requestId,
+        resourceCycle: message.resourceCycle,
+        result: { kind: 'error', code: 'host-resource-error', message: String(error?.message ?? error) } });
+    }
+  }
+  async function handleResourceValidation(message) {
+    if (message.runtimeSessionId !== session || activeResourceRequestId !== message.sourceRequestId
+      || (message.resourceCycle !== undefined && message.resourceCycle !== resourceCycle)) return;
+    try {
+      const response = await resources.handleResourceValidation(message);
+      postResourceMessage({ runtimeSessionId: session, type: 'resourceValidationResult', requestId: ++nextId,
+        resourceCycle: message.resourceCycle, sourceRequestId: response.sourceRequestId,
+        committedFiles: response.committedFiles, deletedFiles: response.deletedFiles });
+      state.mapResourceState = response.committedFiles.includes(message.fieldRelativePath) ? 'ready' : 'retrying';
+      changed();
+    } catch (error) {
+      cancelWorkerRoute();
+      revokeRoutePermit();
+      state.routeState = 'failed';
+      state.mapResourceState = 'degraded';
+      log('error', `Map resource validation failed: ${String(error?.message ?? error)}`);
+    }
   }
   function clearPendingGameEvents() {
     pendingGameEvents = [];
@@ -152,6 +236,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     if (connection && postedConnectionGeneration !== connection.generation) {
       const id = post('beginMapConnection', {
         gameSessionId: gameSession.id, connectionGeneration: connection.generation,
+        serverFieldsFolder, resourceCycle,
       });
       if (id === null) return false;
       postedConnectionGeneration = connection.generation;
@@ -173,6 +258,8 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     state.streamStatus = 'degraded';
     state.worldReady = false;
     state.degradedReason = String(reason).slice(0, 512);
+    cancelWorkerRoute();
+    revokeRoutePermit();
     log('error', `Map stream degraded: ${state.degradedReason}`);
     sendDegradedState();
   }
@@ -180,15 +267,94 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     const reason = 'package-missing-m1-map-stream';
     if (state.streamStatus === 'degraded' && state.degradedReason === reason) return;
     needsMapResync ||= gameSession !== null;
+    revokeRoutePermit();
     gameSession = null; connection = null; postedGameSessionId = null; postedConnectionGeneration = null;
     clearPendingGameEvents(); workerDegraded = false;
     Object.assign(state, {
       gameSessionId: null, connectionGeneration: null, streamStatus: 'degraded', mapName: null,
       selfActor: null, visibleEntities: { total: 0, players: 0, monsters: 0, other: 0, unknown: 0 },
       parserDiagnostics: { bufferedBytes: 0, pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: null },
-      receivedBytes: 0, degradedReason: reason, worldReady: false,
+      receivedBytes: 0, degradedReason: reason, worldReady: false, routeState: 'failed', routePreview: null,
     });
     log('warn', 'This KE package does not support M1 map streaming; rebuild the local KE package.');
+  }
+  function validRouteAction(action) {
+    if (!routePermit || routePermit.awaitingMap || state.mapResourceState !== 'ready' || !action || !gameSession || !connection) return false;
+    if (action.runtimeSessionId !== session || action.gameSessionId !== gameSession.id
+      || action.connectionGeneration !== connection.generation || action.controlGeneration !== controlGeneration
+      || action.routeId !== routePermit.routeId
+      || !Number.isSafeInteger(action.requestId) || action.requestId <= 0 || routePermit.actionIds.has(action.requestId)) return false;
+    if (action.type !== 'MoveTo' && action.type !== 'PrivateAirship') return false;
+    if (action.type === 'MoveTo' && (!Number.isSafeInteger(action.x) || !Number.isSafeInteger(action.y))) return false;
+    if (action.type === 'PrivateAirship' && (typeof action.destinationId !== 'string' || !action.destinationId
+      || typeof action.expectedMap !== 'string' || !action.expectedMap.trim())) return false;
+    if (action.waitForMap !== null && action.waitForMap !== undefined
+      && (typeof action.waitForMap !== 'string' || !action.waitForMap.trim())) return false;
+    return true;
+  }
+  function handleRouteAction(message) {
+    const action = message.action;
+    if (!validRouteAction(action)) {
+      if (routePermit) revokeRoutePermit();
+      postResourceMessage({ runtimeSessionId: session, type: 'routeActionResult', requestId: ++nextId, sourceRequestId: message.requestId,
+        routeId: action?.routeId, actionId: action?.requestId, accepted: false, reason: 'route-action-rejected' });
+      return;
+    }
+    routePermit.actionIds.add(action.requestId);
+    const expectedMap = String(action.expectedMap ?? '').replace(/\.(?:gat|rsw)$/i, '').toLowerCase();
+    const currentMap = String(state.mapName ?? '').replace(/\.(?:gat|rsw)$/i, '').toLowerCase();
+    if (action.type === 'MoveTo' && expectedMap && currentMap && expectedMap !== currentMap) {
+      revokeRoutePermit();
+      postResourceMessage({ runtimeSessionId: session, type: 'routeActionResult', requestId: ++nextId, sourceRequestId: message.requestId,
+        routeId: action.routeId, actionId: action.requestId, accepted: false, reason: 'unexpected-map' });
+      return;
+    }
+    const permit = routePermit;
+    if (action.type === 'PrivateAirship') routePermit.pendingAirshipActionId = action.requestId;
+    const sent = page.KoreEngineNativeRouteAction?.(action) === true;
+    if (!sent) {
+      routePermit.pendingAirshipActionId = null;
+      revokeRoutePermit();
+      postResourceMessage({ runtimeSessionId: session, type: 'routeActionResult', requestId: ++nextId, sourceRequestId: message.requestId,
+        routeId: action.routeId, actionId: action.requestId, accepted: false, reason: 'native-route-action-unavailable' });
+      return;
+    }
+    if (routePermit !== permit) return;
+    const waitForMap = action.waitForMap
+      ? String(action.waitForMap).replace(/\.(?:gat|rsw)$/i, '').toLowerCase()
+      : null;
+    if (action.type === 'PrivateAirship' || waitForMap) {
+      routePermit.awaitingMap = waitForMap ?? expectedMap;
+      routePermit.awaitingConnectionGeneration = connection.generation;
+      controlGeneration += 1;
+      routePermit.controlGeneration = controlGeneration;
+      state.routeState = 'awaiting-map';
+    }
+    postResourceMessage({ runtimeSessionId: session, type: 'routeActionResult', requestId: ++nextId, sourceRequestId: message.requestId,
+      routeId: action.routeId, actionId: action.requestId, accepted: true,
+      awaitingMap: action.type === 'PrivateAirship' || waitForMap ? (waitForMap ?? expectedMap) : null });
+  }
+
+  function maybeConfirmRouteMap() {
+    if (!routePermit?.awaitingMap || !state.worldReady || state.mapResourceState !== 'ready' || !connection) return;
+    const actualMap = String(state.mapName ?? '').replace(/\.(?:gat|rsw)$/i, '').toLowerCase();
+    if (connection.generation <= routePermit.awaitingConnectionGeneration) return;
+    if (actualMap !== routePermit.awaitingMap) {
+      cancelWorkerRoute();
+      revokeRoutePermit();
+      state.routeState = 'failed';
+      log('error', `Route cancelled after unexpected map ${state.mapName ?? 'unknown'}.`);
+      return;
+    }
+    routePermit.connectionGeneration = connection.generation;
+    routePermit.controlGeneration = ++controlGeneration;
+    const expectedMap = routePermit.awaitingMap;
+    routePermit.awaitingMap = null;
+    routePermit.pendingAirshipActionId = null;
+    state.routeState = 'running';
+    postResourceMessage({ runtimeSessionId: session, type: 'routeMapConfirmed', requestId: ++nextId,
+      routeId: routePermit.routeId, expectedMap, connectionGeneration: routePermit.connectionGeneration,
+      controlGeneration: routePermit.controlGeneration });
   }
   function flushPendingGameEvents() {
     if (state.status !== 'runtime-ready' || !gameSession) return;
@@ -230,6 +396,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     state.visibleEntities = { ...message.visibleEntities };
     state.parserDiagnostics = { ...message.parserDiagnostics };
     state.degradedReason = message.degradedReason ?? null;
+    maybeConfirmRouteMap();
     if (becameReady) log('info', `World synchronized on ${message.mapName ?? 'unknown map'}.`);
     else if (becameDegraded) log('error', `Map stream degraded: ${state.degradedReason ?? 'unknown reason'}`);
     changed();
@@ -238,6 +405,37 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     const message = event.data;
     if (!message || typeof message.runtimeSessionId !== 'string' || !message.runtimeSessionId) { fail(Error('invalid-worker-response')); return; }
     if (message?.runtimeSessionId !== session) return;
+    if (message.type === 'resourceRequest') { void handleResourceRequest(message); return; }
+    if (message.type === 'resourceValidation') { void handleResourceValidation(message); return; }
+    if (message.type === 'routeAction') { handleRouteAction(message); return; }
+    if (message.type === 'routePreview') {
+      if (message.canSend !== false || !(message.route === null || Array.isArray(message.route))) { fail(Error('invalid-route-preview')); return; }
+      state.routePreview = message.route;
+      changed();
+      return;
+    }
+    if (message.type === 'routeState') {
+      if (!['running', 'awaiting-map', 'completed', 'cancelled', 'failed'].includes(message.state)) { fail(Error('invalid-route-state')); return; }
+      if (!routePermit || message.routeId !== routePermit.routeId) return;
+      state.routeState = message.state;
+      if (['completed', 'cancelled', 'failed'].includes(message.state) && routePermit) revokeRoutePermit();
+      changed();
+      return;
+    }
+    if (message.type === 'mapResourceState' && !Object.hasOwn(message, 'requestId')) {
+      if (!['loading', 'retrying', 'ready', 'degraded'].includes(message.mapResourceState)
+        || typeof message.mapName !== 'string') { fail(Error('invalid-map-resource-state')); return; }
+      state.mapResourceState = message.mapResourceState;
+      if (message.mapResourceState === 'ready') maybeConfirmRouteMap();
+      if (message.mapResourceState === 'degraded') {
+        cancelWorkerRoute();
+        revokeRoutePermit();
+        state.routeState = 'failed';
+        log('error', `Map resource degraded: ${String(message.reason ?? 'unknown reason')}`);
+      }
+      changed();
+      return;
+    }
     if (message.type === 'worldState' && !Object.hasOwn(message, 'requestId')) {
       receiveWorldState(message);
       return;
@@ -303,13 +501,14 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       gameSession = null; connection = null; postedGameSessionId = null; postedConnectionGeneration = null;
       needsMapResync = false;
       clearPendingGameEvents(); workerDegraded = false;
+      revokeRoutePermit();
       Object.assign(state, {
         status: 'absent', packageId: null, mode: null, tickCount: 0, elapsedMs: 0,
         profile: KORE_PROTOCOL_PROFILE,
         gameSessionId: null, connectionGeneration: null, streamStatus: 'idle', mapName: null,
         selfActor: null, visibleEntities: { total: 0, players: 0, monsters: 0, other: 0, unknown: 0 },
         parserDiagnostics: { bufferedBytes: 0, pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: null },
-        receivedBytes: 0, degradedReason: null, worldReady: false,
+        receivedBytes: 0, degradedReason: null, worldReady: false, mapResourceState: 'idle', routeState: 'idle', routePreview: null,
       });
       if (!manifest?.files?.some(file => file.path === 'ke/active.json')) { changed(); return; }
       if (lostSession) log('warn', 'KoreEngine restarted; re-enter the map server to synchronize.');
@@ -328,6 +527,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         session = (page.crypto ?? globalThis.crypto).randomUUID();
         packageInfo = await loadKorePackage({ page, manifest, signal: controller.signal });
         if (current !== generation) return;
+        resources.configure?.(packageInfo.mapResourceConfig);
         state.packageId = packageInfo.manifest.packageId; state.mode = packageInfo.manifest.mode;
         state.profile = packageInfo.manifest.profile;
         worker = createWorker(packageInfo.workerUrl);
@@ -350,6 +550,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       const disposeMessage = session === null ? null : { type: 'dispose', runtimeSessionId: session, requestId: ++nextId };
       needsMapResync ||= gameSession !== null;
       generation++;
+      revokeRoutePermit();
       gameSession = null; connection = null; postedGameSessionId = null; postedConnectionGeneration = null;
       session = null; clearPendingGameEvents(); workerDegraded = false;
       mapStreamCapability = null;
@@ -358,7 +559,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         streamStatus: 'idle', mapName: null, selfActor: null,
         visibleEntities: { total: 0, players: 0, monsters: 0, other: 0, unknown: 0 },
         parserDiagnostics: { bufferedBytes: 0, pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: null },
-        receivedBytes: 0, degradedReason: null, worldReady: false,
+        receivedBytes: 0, degradedReason: null, worldReady: false, mapResourceState: 'idle', routeState: 'idle', routePreview: null,
       });
       changed();
       // Revoke the host synchronously; no ACK is needed to stop this runtime.
@@ -378,17 +579,23 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         log('error', 'KoreEngine needs a new map-server entry to establish character context.');
         return null;
       }
+      if (routePermit) {
+        cancelWorkerRoute();
+        revokeRoutePermit();
+      }
       try {
         gameSession = { id: (page.crypto ?? globalThis.crypto).randomUUID(), characterGid, mapName: mapName.slice(0, 128) };
       } catch (error) { log('error', `Unable to create game session: ${String(error)}`); return null; }
       connection = null; postedGameSessionId = null; postedConnectionGeneration = null;
+      resourceCycle += 1;
+      activeResourceRequestId = null;
       clearPendingGameEvents(); workerDegraded = false;
       Object.assign(state, {
         gameSessionId: gameSession.id, connectionGeneration: null, streamStatus: 'awaiting-connection',
         mapName: gameSession.mapName, selfActor: null,
         visibleEntities: { total: 0, players: 0, monsters: 0, other: 0, unknown: 0 },
         parserDiagnostics: { bufferedBytes: 0, pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: null },
-        receivedBytes: 0, degradedReason: null, worldReady: false,
+        receivedBytes: 0, degradedReason: null, worldReady: false, mapResourceState: 'loading', routeState: 'idle', routePreview: null,
       });
       log('info', 'Game session started; waiting for a map connection and initial synchronization.');
       sendCurrentGameContext();
@@ -405,14 +612,23 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       }
       const nextGeneration = connection ? connection.generation + 1 : 0;
       if (!Number.isSafeInteger(nextGeneration)) { markDegraded('connection-generation-overflow'); return null; }
+      const preservingAirshipRoute = Boolean(routePermit?.awaitingMap);
+      if (routePermit && !preservingAirshipRoute) {
+        cancelWorkerRoute();
+        revokeRoutePermit();
+        state.routeState = 'cancelled';
+      }
       connection = { generation: nextGeneration, sequence: 0, byteOffset: 0 };
+      resourceCycle += 1;
+      activeResourceRequestId = null;
+      controlGeneration += 1;
       postedConnectionGeneration = null; workerDegraded = false;
       clearPendingGameEvents();
       Object.assign(state, {
         connectionGeneration: nextGeneration, streamStatus: 'awaiting-sync', worldReady: false,
         selfActor: null, visibleEntities: { total: 0, players: 0, monsters: 0, other: 0, unknown: 0 },
         parserDiagnostics: { bufferedBytes: 0, pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: null },
-        receivedBytes: 0, degradedReason: null,
+        receivedBytes: 0, degradedReason: null, mapResourceState: 'loading',
       });
       log('info', `Map connection generation ${nextGeneration} started.`);
       sendCurrentGameContext();
@@ -466,6 +682,12 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     endGameSession() {
       if (!gameSession) return;
       const ended = gameSession.id;
+      if (routePermit) {
+        cancelWorkerRoute();
+        revokeRoutePermit();
+      }
+      resourceCycle += 1;
+      activeResourceRequestId = null;
       if (state.status === 'runtime-ready' && postedGameSessionId === ended) post('endGameSession', { gameSessionId: ended });
       gameSession = null; connection = null; postedGameSessionId = null; postedConnectionGeneration = null;
       clearPendingGameEvents(); workerDegraded = false; needsMapResync = false;
@@ -473,11 +695,77 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         gameSessionId: null, connectionGeneration: null, streamStatus: 'idle', mapName: null,
         selfActor: null, visibleEntities: { total: 0, players: 0, monsters: 0, other: 0, unknown: 0 },
         parserDiagnostics: { bufferedBytes: 0, pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: null },
-        receivedBytes: 0, degradedReason: null, worldReady: false,
+        receivedBytes: 0, degradedReason: null, worldReady: false, mapResourceState: 'idle', routeState: 'idle', routePreview: null,
       });
       changed();
     },
     clearConsole() { state.logs.length = 0; changed(); },
+    debugRoutePreview(routeRequest) {
+      if (state.status !== 'runtime-ready' || !gameSession || !connection || !state.worldReady || state.mapResourceState !== 'ready') return false;
+      state.routePreview = null;
+      post('debugRoutePreview', { routeRequest });
+      return true;
+    },
+    debugRouteGo(routeRequest) {
+      if (state.status !== 'runtime-ready' || !gameSession || !connection || !state.worldReady || state.mapResourceState !== 'ready') return false;
+      if (routePermit) {
+        cancelWorkerRoute();
+        revokeRoutePermit();
+      }
+      controlGeneration += 1;
+      routePermit = { requestId: ++nextId, routeId: ++nextId, actionIds: new Set(), gameSessionId: gameSession.id,
+        connectionGeneration: connection.generation, controlGeneration, awaitingMap: null,
+        awaitingConnectionGeneration: connection.generation, pendingAirshipActionId: null };
+      state.routeState = 'running';
+      try { worker.postMessage({ runtimeSessionId: session, type: 'debugRouteGo', requestId: routePermit.requestId, routeRequest,
+        routeId: routePermit.routeId, gameSessionId: gameSession.id, connectionGeneration: connection.generation,
+        controlGeneration, resourceCycle }); }
+      catch (error) { revokeRoutePermit(); fail(error); return false; }
+      return true;
+    },
+    debugRouteCancel() {
+      if (!routePermit) return false;
+      cancelWorkerRoute();
+      revokeRoutePermit();
+      state.routeState = 'cancelled';
+      changed();
+      return true;
+    },
+    handleAirshipResponse(response) {
+      if (!routePermit || !routePermit.pendingAirshipActionId) return false;
+      const actionId = routePermit.pendingAirshipActionId;
+      postResourceMessage({ runtimeSessionId: session, type: 'routeAirshipResponse',
+        routeId: routePermit.routeId, actionId, response: Number(response) });
+      if (Number(response) !== 0) {
+        routePermit.pendingAirshipActionId = null;
+        revokeRoutePermit();
+        state.routeState = 'failed';
+        changed();
+      }
+      return true;
+    },
+    debugMapRetry() {
+      if (state.status !== 'runtime-ready' || !gameSession || !connection) return false;
+      cancelWorkerRoute();
+      revokeRoutePermit();
+      resourceCycle += 1;
+      activeResourceRequestId = null;
+      state.mapResourceState = 'retrying';
+      state.routeState = 'idle';
+      changed();
+      postResourceMessage({ runtimeSessionId: session, type: 'debugMapRetry', requestId: ++nextId,
+        mapName: state.mapName ?? gameSession.mapName, serverFieldsFolder, fieldpackVersion: FIELD_PACK_VERSION,
+        connectionGeneration: connection.generation, resourceCycle });
+      return true;
+    },
+    debugCommand(command, routeRequest = {}) {
+      const normalized = String(command ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+      if (normalized === 'debug route preview') return this.debugRoutePreview(routeRequest);
+      if (normalized === 'debug route go') return this.debugRouteGo(routeRequest);
+      if (normalized === 'debug route cancel') return this.debugRouteCancel();
+      if (normalized === 'debug map retry') return this.debugMapRetry();
+      return false;
+    },
   };
   return api;
 }
@@ -492,11 +780,29 @@ export function createKorePanel({ page, host }) {
   });
   panel.open = true;
   panel.addEventListener('toggle', () => { panel.style.height = panel.open ? '840px' : 'auto'; });
-  const title = page.document.createElement('summary'); title.textContent = 'KoreEngine M1'; panel.append(title);
+  const title = page.document.createElement('summary'); title.textContent = 'KoreEngine M2'; panel.append(title);
   const controls = page.document.createElement('div');
   controls.style.flex = '0 0 auto';
   const clearButton = page.document.createElement('button'); clearButton.type = 'button'; clearButton.textContent = 'Clear console';
   clearButton.addEventListener('click', () => host.clearConsole()); controls.append(clearButton);
+  const routeControls = page.document.createElement('div');
+  routeControls.style.display = 'flex'; routeControls.style.gap = '4px'; routeControls.style.marginTop = '6px'; routeControls.style.flexWrap = 'wrap';
+  const destinationInput = page.document.createElement('input');
+  destinationInput.type = 'text'; destinationInput.setAttribute('aria-label', 'Route destination map'); destinationInput.placeholder = 'destination map';
+  const xInput = page.document.createElement('input'); xInput.type = 'number'; xInput.value = '0'; xInput.setAttribute('aria-label', 'Route destination x');
+  const yInput = page.document.createElement('input'); yInput.type = 'number'; yInput.value = '0'; yInput.setAttribute('aria-label', 'Route destination y');
+  const request = () => ({ destination: { map: destinationInput.value, position: { x: Number(xInput.value), y: Number(yInput.value) } } });
+  const routeButton = (label, command) => {
+    const button = page.document.createElement('button'); button.type = 'button'; button.textContent = label; button.title = command;
+    button.addEventListener('click', () => host.debugCommand?.(command, request()));
+    routeControls.append(button); return button;
+  };
+  routeControls.append(destinationInput, xInput, yInput);
+  const previewButton = routeButton('Preview route', 'debug route preview');
+  const goButton = routeButton('Go route', 'debug route go');
+  const cancelButton = routeButton('Cancel route', 'debug route cancel');
+  const retryMapButton = routeButton('Retry map', 'debug map retry');
+  controls.append(routeControls);
   const createTextArea = (label, rows) => {
     const node = page.document.createElement('textarea');
     node.readOnly = true; node.rows = rows; node.wrap = 'off'; node.setAttribute('aria-label', label);
@@ -504,11 +810,12 @@ export function createKorePanel({ page, host }) {
     return node;
   };
   const infoNode = createTextArea('KoreEngine status', 7);
+  const routeNode = createTextArea('KoreEngine route preview', 8);
   const consoleNode = createTextArea('KoreEngine console', 10);
   Object.assign(consoleNode.style, { flex: '1 1 auto', minHeight: '0', resize: 'none' });
-  controls.append(infoNode); panel.append(controls, consoleNode);
+  controls.append(infoNode); panel.append(controls, routeNode, consoleNode);
   return {
-    panel, infoNode, consoleNode, clearButton,
+    panel, infoNode, routeNode, consoleNode, clearButton, destinationInput, xInput, yInput, previewButton, goButton, cancelButton, retryMapButton,
     update(state) {
       const actor = state.selfActor ? `GID ${state.selfActor.gid} @ ${state.selfActor.x}, ${state.selfActor.y}` : 'waiting';
       const counts = state.visibleEntities;
@@ -517,10 +824,12 @@ export function createKorePanel({ page, host }) {
         `profile ${state.profile} | connection ${state.connectionGeneration ?? '-'}`,
         `map ${state.mapName ?? '-'} | character ${actor}`,
         `entities ${counts.total} (players ${counts.players}, monsters ${counts.monsters}, other ${counts.other}, unknown ${counts.unknown})`,
-        `received ${state.receivedBytes} bytes | worldReady ${state.worldReady} | AI off`,
+        `received ${state.receivedBytes} bytes | worldReady ${state.worldReady} | mapResource ${state.mapResourceState} | AI off`,
+        `route ${state.routeState}${state.routePreview ? ` | preview ${state.routePreview.length} actions` : ''}`,
         `parser buffer ${state.parserDiagnostics.bufferedBytes} bytes | pending ${state.parserDiagnostics.pendingPacketId === null ? '-' : `0x${state.parserDiagnostics.pendingPacketId.toString(16).padStart(4, '0')}`} ${state.parserDiagnostics.pendingRequiredBytes === null ? '' : `${state.parserDiagnostics.bufferedBytes}/${state.parserDiagnostics.pendingRequiredBytes}`} | last ${state.parserDiagnostics.lastPacketId === null ? '-' : `0x${state.parserDiagnostics.lastPacketId.toString(16).padStart(4, '0')}`}`,
         state.degradedReason ? `reason ${state.degradedReason}` : '',
       ].filter(Boolean).join('\n');
+      routeNode.value = state.routePreview ? JSON.stringify(state.routePreview, null, 2) : '';
       consoleNode.value = state.logs.map(entry => `[${new Date(entry.timestamp).toLocaleTimeString()}] [${entry.level}] ${entry.text}`).join('\n');
     },
   };

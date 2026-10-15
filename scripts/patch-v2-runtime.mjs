@@ -1219,6 +1219,25 @@ function createLastROWorkerScriptUrl(relativePath) {
 	}
 	return trustLastROWorkerUrl(new URL(relativePath, import.meta.url).href);
 }
+globalThis.KoreEngineNativeRouteAction = (action) => {
+  if (!action || (action.type !== "MoveTo" && action.type !== "PrivateAirship")) return false;
+  if (action.type === "MoveTo") {
+    const packet = PacketVerManager_default.value >= 20180307
+      ? new PACKET.CZ.REQUEST_MOVE2()
+      : new PACKET.CZ.REQUEST_MOVE();
+    packet.dest[0] = action.x;
+    packet.dest[1] = action.y;
+    return Network.sendPacket(packet) !== false;
+  }
+  if (!PACKET?.CZ?.PRIVATE_AIRSHIP_REQUEST) return false;
+  const packet = new PACKET.CZ.PRIVATE_AIRSHIP_REQUEST();
+  packet.mapname = String(action.destinationId).replace(/\\.(?:gat|rsw)$/i, "").toLowerCase();
+  packet.x = 0;
+  packet.y = 0;
+  packet.type = 0;
+  packet.itemid = 14527;
+  return Network.sendPacket(packet) !== false;
+};
 startOptionalKore({
 	createWorker: (value) => {
 		const url = new URL(value);

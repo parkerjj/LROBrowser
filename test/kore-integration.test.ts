@@ -68,7 +68,8 @@ test('renders selectable read-only textareas for status and Console output', () 
     profile: 'lastro-20211103', gameSessionId: null, connectionGeneration: 0, aiState: 'off',
     streamStatus: 'awaiting-sync',
     mapName: null, selfActor: null, visibleEntities: { total: 0, players: 0, monsters: 0, other: 0, unknown: 0 },
-    receivedBytes: 12, worldReady: false,
+    receivedBytes: 12, worldReady: false, mapResourceState: 'idle',
+    routeState: 'idle', routePreview: null,
     parserDiagnostics: { bufferedBytes: 0, pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: null },
     degradedReason: null, logs: [{ level: 'info', text: 'ready', timestamp: 0 }],
   });
