@@ -1219,8 +1219,8 @@ function createLastROWorkerScriptUrl(relativePath) {
 	}
 	return trustLastROWorkerUrl(new URL(relativePath, import.meta.url).href);
 }
-globalThis.KoreEngineNativeRouteAction = (action) => {
-  if (!action || (action.type !== "MoveTo" && action.type !== "PrivateAirship")) return false;
+globalThis.KoreEngineNativeAction = (action) => {
+  if (!action) return false;
   if (action.type === "MoveTo") {
     const packet = PacketVerManager_default.value >= 20180307
       ? new PACKET.CZ.REQUEST_MOVE2()
@@ -1229,15 +1229,73 @@ globalThis.KoreEngineNativeRouteAction = (action) => {
     packet.dest[1] = action.y;
     return Network.sendPacket(packet) !== false;
   }
-  if (!PACKET?.CZ?.PRIVATE_AIRSHIP_REQUEST) return false;
-  const packet = new PACKET.CZ.PRIVATE_AIRSHIP_REQUEST();
-  packet.mapname = String(action.destinationId).replace(/\\.(?:gat|rsw)$/i, "").toLowerCase();
-  packet.x = 0;
-  packet.y = 0;
-  packet.type = 0;
-  packet.itemid = 14527;
-  return Network.sendPacket(packet) !== false;
+  if (action.type === "Attack") {
+    const Ctor = PacketVerManager_default.value >= 20180307 ? PACKET.CZ.REQUEST_ACT2 : PACKET.CZ.REQUEST_ACT;
+    if (!Ctor) return false;
+    const packet = new Ctor();
+    packet.targetGID = action.targetGid;
+    packet.action = 0;
+    return Network.sendPacket(packet) !== false;
+  }
+  if (action.type === "UseSkillOnTarget" || action.type === "UseSkillSelf") {
+    const Ctor = PacketVerManager_default.value >= 20180307 ? PACKET.CZ.USE_SKILL2 : PACKET.CZ.USE_SKILL;
+    if (!Ctor) return false;
+    const packet = new Ctor();
+    packet.selectedLevel = action.level;
+    packet.SKID = action.skillId;
+    packet.targetID = action.type === "UseSkillSelf" ? (SessionStorage_default.GID ?? 0) : action.targetGid;
+    return Network.sendPacket(packet) !== false;
+  }
+  if (action.type === "UseSkillAt") {
+    const Ctor = PacketVerManager_default.value >= 20190904
+      ? PACKET.CZ.USE_SKILL_TOGROUND3
+      : PacketVerManager_default.value >= 20180307 ? PACKET.CZ.USE_SKILL_TOGROUND2 : PACKET.CZ.USE_SKILL_TOGROUND;
+    if (!Ctor) return false;
+    const packet = new Ctor();
+    packet.selectedLevel = action.level;
+    packet.SKID = action.skillId;
+    packet.xPos = action.x;
+    packet.yPos = action.y;
+    return Network.sendPacket(packet) !== false;
+  }
+  if (action.type === "UseItem") {
+    const Ctor = PacketVerManager_default.value >= 20180307 ? PACKET.CZ.USE_ITEM2 : PACKET.CZ.USE_ITEM;
+    if (!Ctor) return false;
+    const packet = new Ctor();
+    packet.index = action.inventoryIndex;
+    packet.AID = action.targetGid || SessionStorage_default.GID || 0;
+    return Network.sendPacket(packet) !== false;
+  }
+  if (action.type === "Pickup") {
+    const Ctor = PacketVerManager_default.value >= 20180307 ? PACKET.CZ.ITEM_PICKUP2 : PACKET.CZ.ITEM_PICKUP;
+    if (!Ctor) return false;
+    const packet = new Ctor();
+    packet.ITAID = action.itemGid;
+    return Network.sendPacket(packet) !== false;
+  }
+  if (action.type === "StorageTransfer") {
+    const Ctor = action.toStorage
+      ? (PacketVerManager_default.value >= 20180307 ? PACKET.CZ.MOVE_ITEM_FROM_BODY_TO_STORE2 : PACKET.CZ.MOVE_ITEM_FROM_BODY_TO_STORE)
+      : (PacketVerManager_default.value >= 20180307 ? PACKET.CZ.MOVE_ITEM_FROM_STORE_TO_BODY2 : PACKET.CZ.MOVE_ITEM_FROM_STORE_TO_BODY);
+    if (!Ctor) return false;
+    const packet = new Ctor();
+    packet.index = action.inventoryIndex;
+    packet.count = action.amount;
+    return Network.sendPacket(packet) !== false;
+  }
+  if (action.type === "PrivateAirship") {
+    if (!PACKET?.CZ?.PRIVATE_AIRSHIP_REQUEST) return false;
+    const packet = new PACKET.CZ.PRIVATE_AIRSHIP_REQUEST();
+    packet.mapname = String(action.destinationId).replace(/\\.(?:gat|rsw)$/i, "").toLowerCase();
+    packet.x = 0;
+    packet.y = 0;
+    packet.type = 0;
+    packet.itemid = 14527;
+    return Network.sendPacket(packet) !== false;
+  }
+  return false;
 };
+globalThis.KoreEngineNativeRouteAction = globalThis.KoreEngineNativeAction;
 startOptionalKore({
 	createWorker: (value) => {
 		const url = new URL(value);

@@ -22,6 +22,10 @@ export interface KoreWorker extends EventTarget { postMessage(message: unknown, 
 export interface KoreActor { gid: number; x: number; y: number; kind: 'self' | 'player' | 'monster' | 'other' | 'unknown' }
 export interface KoreVisibleEntities { total: number; players: number; monsters: number; other: number; unknown: number }
 export interface KoreParserDiagnostics { bufferedBytes: number; pendingPacketId: number | null; pendingRequiredBytes: number | null; lastPacketId: number | null }
+export interface KoreM4Status { hp: number | null; hpMax: number | null; sp: number | null; spMax: number | null; weight: number | null; weightMax: number | null }
+export interface KoreM4InventoryItem { index: number; itemId: number; amount: number }
+export interface KoreM4GroundItem { gid: number; itemId: number; amount: number; x: number; y: number }
+export interface KoreM4Inventory { ready: boolean; items: Record<string, KoreM4InventoryItem>; groundItems: Record<string, KoreM4GroundItem>; storageReady: boolean; storageItems: Record<string, KoreM4InventoryItem> }
 export interface KoreLog { level: string; text: string; timestamp: number }
 export interface KoreState {
   status: 'absent' | 'loading' | 'runtime-ready' | 'failed' | 'disposed';
@@ -29,7 +33,10 @@ export interface KoreState {
   profile: 'lastro-20211103' | 'lastro-2x'; gameSessionId: string | null; connectionGeneration: number | null;
   streamStatus: 'idle' | 'awaiting-connection' | 'awaiting-sync' | 'world-ready' | 'degraded';
   mapName: string | null; selfActor: KoreActor | null; visibleEntities: KoreVisibleEntities; parserDiagnostics: KoreParserDiagnostics;
-  receivedBytes: number; degradedReason: string | null; worldReady: boolean; aiState: 'off'; logs: KoreLog[];
+  receivedBytes: number; sentBytes?: number; degradedReason: string | null; worldReady: boolean; aiState: 'off' | 'auto'; logs: KoreLog[];
+  controlGeneration?: number; aiTaskCount?: number; experience?: unknown;
+  playerStatus?: KoreM4Status; inventory?: KoreM4Inventory;
+  configIdentity?: { aid: number; cid: number } | null;
   mapResourceState: 'idle' | 'loading' | 'retrying' | 'ready' | 'degraded';
   routeState: 'idle' | 'running' | 'awaiting-map' | 'completed' | 'cancelled' | 'failed'; routePreview: unknown[] | null;
 }
@@ -41,16 +48,18 @@ export interface KoreOptions {
 }
 export interface KoreIntegration {
   state: KoreState; start(): Promise<void>; dispose(): void; debugProbe(type: string): boolean;
-  beginGameSession(characterGid: number, mapName: string): string | null;
+  beginGameSession(characterGid: number, mapName: string, identity?: { aid?: number; cid?: number }): string | null;
   beginMapConnection(): number | null;
   mirrorMapData(connectionGeneration: number, data: ArrayBuffer | ArrayBufferView): boolean;
+  mirrorSentBytes(bytes: number, gameSessionId?: string | null): boolean;
   endGameSession(): void; clearConsole(): void; debugMapRetry(): boolean;
+  saveConfigDocument(document: unknown): Promise<unknown>; getConfigDocuments(identity: unknown): Promise<unknown[]>; reloadConfig(target?: string): boolean;
   debugRoutePreview(routeRequest: unknown): boolean; debugRouteGo(routeRequest: unknown): boolean; debugRouteCancel(): boolean;
   handleAirshipResponse(response: number): boolean;
   debugCommand(command: string, routeRequest?: unknown): boolean;
 }
 export interface KorePanelView {
-  panel: HTMLElement; infoNode: HTMLTextAreaElement; routeNode: HTMLTextAreaElement; consoleNode: HTMLTextAreaElement; clearButton: HTMLButtonElement;
+  panel: HTMLElement; infoNode: HTMLTextAreaElement; routeNode: HTMLTextAreaElement; consoleNode: HTMLTextAreaElement; configNode: HTMLTextAreaElement; clearButton: HTMLButtonElement;
   update(state: KoreState): void;
 }
 export const KORE_PROTOCOL_PROFILE: 'lastro-20211103';

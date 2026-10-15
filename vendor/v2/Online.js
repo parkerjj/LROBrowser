@@ -166751,6 +166751,9 @@ function sendPacket(Packet) {
   if (packetDump) console.log("%c[Network] Send:", "color:#007070", Packet);
   if (_socket && _socket.isZone) PacketCrypt_default.process(pkt.view);
   send(pkt.buffer);
+  if (_socket && globalThis.KoreEngine?.mirrorSentBytes) {
+    try { globalThis.KoreEngine.mirrorSentBytes(pkt.buffer.byteLength); } catch { /* Optional KE accounting must not affect the client. */ }
+  }
   if (traceNavigation)
     globalThis.roNaviDebug.log("network-send-returned", {
       socketPresent: Boolean(_socket),
@@ -320796,7 +320799,12 @@ function onReceiveMapInfo(pkt) {
   DB.startedLazyInit = false;
   retryCount = 0;
   SessionStorage_default.GID = pkt.GID;
-  try { globalThis.KoreEngine?.beginGameSession?.(pkt.GID, pkt.mapName); }
+  try {
+    globalThis.KoreEngine?.beginGameSession?.(pkt.GID, pkt.mapName, {
+      aid: SessionStorage_default.AID,
+      cid: SessionStorage_default.Character?.CID ?? SessionStorage_default.CID,
+    });
+  }
   catch { /* Optional KE initialization must not change the native login path. */ }
   MapEngine.init(pkt.addr.ip, pkt.addr.port, pkt.mapName);
 }

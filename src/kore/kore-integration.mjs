@@ -1,11 +1,21 @@
 // Public, optional host. Only the passive inbound map stream crosses this boundary.
 import { createMapResourceProvider, FIELD_PACK_VERSION } from './map-resource-provider.mjs';
+import { createKoreConfigStore } from './kore-config-store.mjs';
 export const KORE_PROTOCOL_PROFILE = 'lastro-20211103';
 const compatibleProfiles = new Set([KORE_PROTOCOL_PROFILE, 'lastro-2x']);
 const idPattern = /^[a-f0-9]{64}$/;
 const metadataFields = ['schemaVersion', 'engineVersion', 'bridgeApiVersion', 'packetver', 'profile', 'commitSha', 'sourceDirty', 'mode', 'toolVersions', 'files'];
 const MAX_PENDING_GAME_CHUNKS = 256;
 const MAX_PENDING_GAME_BYTES = 1024 * 1024;
+const emptyM4Status = () => ({ hp: null, hpMax: null, sp: null, spMax: null, weight: null, weightMax: null });
+const emptyM4Inventory = () => ({ ready: false, items: {}, groundItems: {}, storageReady: false, storageItems: {} });
+const M4_CONFIG_FILES = new Set(['config.txt', 'mon_control.txt', 'timeouts.txt', 'pickupitems.txt', 'items_control.txt']);
+function reloadFileNames(target) {
+  const normalized = String(target ?? '').trim().toLowerCase();
+  if (normalized === 'conf' || normalized === 'config' || normalized === 'config.txt') return ['config.txt'];
+  if (normalized === 'all') return [...M4_CONFIG_FILES];
+  return M4_CONFIG_FILES.has(normalized) ? [normalized] : null;
+}
 function canonical(value) {
   if (Array.isArray(value)) return value.map(canonical);
   if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])]));
@@ -104,7 +114,10 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     streamStatus: 'idle', mapName: null, selfActor: null,
     visibleEntities: { total: 0, players: 0, monsters: 0, other: 0, unknown: 0 },
     parserDiagnostics: { bufferedBytes: 0, pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: null },
-    receivedBytes: 0, degradedReason: null, worldReady: false, aiState: 'off', logs: [], mapResourceState: 'idle',
+    receivedBytes: 0, sentBytes: 0, degradedReason: null, worldReady: false, aiState: 'off', logs: [], mapResourceState: 'idle',
+    controlGeneration: 0, aiTaskCount: 0, experience: null,
+    playerStatus: emptyM4Status(), inventory: emptyM4Inventory(),
+    configIdentity: null,
     routeState: 'idle', routePreview: null,
   };
   let generation = 0, worker = null, session = null, nextId = 0, initId = 0, probe = null, discardedThrough = 0;
@@ -114,6 +127,8 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   let mapStreamCapability = null;
   let controlGeneration = 0;
   let routePermit = null;
+  let aiPermit = null;
+  const pendingCommands = new Map();
   let resourceCycle = 0;
   let activeResourceRequestId = null;
   const resources = mapResourceProvider ?? createMapResourceProvider({
@@ -122,9 +137,13 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     indexedDBFactory: page.indexedDB,
     databaseName: 'kore-map-resources',
   });
+  const configStore = createKoreConfigStore({ page, indexedDBFactory: page.indexedDB });
   const clock = () => (page.performance ?? globalThis.performance).now();
   const timers = page.setInterval ? page : globalThis;
-  const changed = () => { try { onChange(state); } catch { /* UI must not affect the client. */ } };
+  const changed = () => {
+    state.controlGeneration = controlGeneration;
+    try { onChange(state); } catch { /* UI must not affect the client. */ }
+  };
   function log(level, text) {
     state.logs.push({ level, text: String(text).slice(0, 1024), timestamp: Date.now() });
     if (state.logs.length > 200) state.logs.splice(0, state.logs.length - 200);
@@ -136,13 +155,16 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     timer = null;
     removeListeners(); removeListeners = () => {};
     const oldWorker = worker; worker = null; probe = null;
+    pendingCommands.clear();
     try { onWorkerReleased(); } catch { /* Cleanup is best effort. */ }
     try { if (disposeMessage) oldWorker?.postMessage(disposeMessage); } catch { /* Already gone. */ }
     try { oldWorker?.terminate(); } catch { /* Already gone. */ }
     try { void resources.close(); } catch { /* Cache cleanup is best effort. */ }
+    try { void configStore.close(); } catch { /* Config cleanup is best effort. */ }
   }
   function fail(error) {
     routePermit = null;
+    aiPermit = null;
     controlGeneration += 1;
     generation++;
     release();
@@ -151,6 +173,11 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   }
   function revokeRoutePermit() {
     routePermit = null;
+    controlGeneration += 1;
+    changed();
+  }
+  function revokeAiPermit() {
+    aiPermit = null;
     controlGeneration += 1;
     changed();
   }
@@ -174,6 +201,61 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   function postResourceMessage(message, transfer = []) {
     try { worker.postMessage(message, transfer); }
     catch (error) { fail(error); }
+  }
+  function validAiAction(action) {
+    if (!aiPermit || !action || !gameSession || !connection || state.streamStatus === 'degraded') return false;
+    if (action.runtimeSessionId !== session || action.gameSessionId !== gameSession.id
+      || action.connectionGeneration !== connection.generation || action.controlGeneration !== controlGeneration
+      || !Number.isSafeInteger(action.requestId) || action.requestId <= 0 || aiPermit.actionIds.has(action.requestId)) return false;
+    if (action.type === 'MoveTo') return Number.isSafeInteger(action.x) && Number.isSafeInteger(action.y);
+    if (action.type === 'Attack') return Number.isSafeInteger(action.targetGid) && action.targetGid > 0;
+    if (action.type === 'UseSkillOnTarget') return Number.isSafeInteger(action.skillId) && action.skillId > 0
+      && Number.isSafeInteger(action.level) && action.level > 0
+      && Number.isSafeInteger(action.targetGid) && action.targetGid > 0;
+    if (action.type === 'UseSkillSelf') return Number.isSafeInteger(action.skillId) && action.skillId > 0
+      && Number.isSafeInteger(action.level) && action.level > 0;
+    if (action.type === 'UseSkillAt') return Number.isSafeInteger(action.skillId) && action.skillId > 0
+      && Number.isSafeInteger(action.level) && action.level > 0
+      && Number.isSafeInteger(action.x) && Number.isSafeInteger(action.y);
+    if (action.type === 'UseItem') return Number.isSafeInteger(action.inventoryIndex) && action.inventoryIndex >= 0
+      && Number.isSafeInteger(action.targetGid) && action.targetGid > 0;
+    if (action.type === 'Pickup') return Number.isSafeInteger(action.itemGid) && action.itemGid > 0;
+    if (action.type === 'StorageTransfer') return Number.isSafeInteger(action.inventoryIndex) && action.inventoryIndex >= 0
+      && Number.isSafeInteger(action.amount) && action.amount > 0 && typeof action.toStorage === 'boolean';
+    if (action.type === 'PrivateAirship') return typeof action.destinationId === 'string' && action.destinationId.length > 0
+      && typeof action.expectedMap === 'string' && action.expectedMap.length > 0;
+    return false;
+  }
+  function handleAiAction(message) {
+    const action = message.action;
+    if (!Number.isSafeInteger(message.requestId) || message.requestId <= 0 || !validAiAction(action)) {
+      log('warn', `AI action rejected: ${String(action?.type ?? 'unknown')}.`);
+      postResourceMessage({ runtimeSessionId: session, type: 'actionResult', requestId: ++nextId,
+        sourceRequestId: message.requestId, accepted: false, reason: 'action-rejected' });
+      return;
+    }
+    aiPermit.actionIds.add(action.requestId);
+    const sent = page.KoreEngineNativeAction?.(action) === true;
+    postResourceMessage({ runtimeSessionId: session, type: 'actionResult', requestId: ++nextId,
+      sourceRequestId: message.requestId, accepted: sent, reason: sent ? null : 'native-action-unavailable' });
+    if (!sent) {
+      log('error', `AI action was rejected by the native bridge: ${String(action.type)}.`);
+      revokeAiPermit();
+    }
+  }
+  function postCommand(command, fields = {}) {
+    if (state.status !== 'runtime-ready' || !gameSession || !connection || !state.worldReady) return false;
+    const changesAiGeneration = command === 'ai_auto' || command === 'ai_off' || command === 'ai_clear';
+    if (changesAiGeneration) controlGeneration += 1;
+    if (command === 'ai_off') revokeAiPermit();
+    if (command === 'ai_auto') aiPermit = { actionIds: new Set(), gameSessionId: gameSession.id, connectionGeneration: connection.generation };
+    if (command === 'ai_clear' && aiPermit) aiPermit.actionIds.clear();
+    if (command === 'ai_off') state.aiState = 'off';
+    if (command === 'ai_auto') state.aiState = 'auto';
+    const requestId = post('command', { command, gameSessionId: gameSession.id, controlGeneration, nowMs: clock(), ...fields });
+    if (requestId !== null) pendingCommands.set(requestId, command);
+    changed();
+    return true;
   }
   async function handleResourceRequest(message) {
     if (message.runtimeSessionId !== session || message.fieldpackVersion !== FIELD_PACK_VERSION
@@ -228,6 +310,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     if (postedGameSessionId !== gameSession.id) {
       const id = post('beginGameSession', {
         gameSessionId: gameSession.id, characterGid: gameSession.characterGid, mapName: gameSession.mapName,
+        profile: state.profile, aid: gameSession.aid, cid: gameSession.cid, controlGeneration,
       });
       if (id === null) return false;
       postedGameSessionId = gameSession.id;
@@ -236,7 +319,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     if (connection && postedConnectionGeneration !== connection.generation) {
       const id = post('beginMapConnection', {
         gameSessionId: gameSession.id, connectionGeneration: connection.generation,
-        serverFieldsFolder, resourceCycle,
+        serverFieldsFolder, resourceCycle, controlGeneration,
       });
       if (id === null) return false;
       postedConnectionGeneration = connection.generation;
@@ -260,6 +343,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     state.degradedReason = String(reason).slice(0, 512);
     cancelWorkerRoute();
     revokeRoutePermit();
+    revokeAiPermit();
     log('error', `Map stream degraded: ${state.degradedReason}`);
     sendDegradedState();
   }
@@ -275,6 +359,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       selfActor: null, visibleEntities: { total: 0, players: 0, monsters: 0, other: 0, unknown: 0 },
       parserDiagnostics: { bufferedBytes: 0, pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: null },
       receivedBytes: 0, degradedReason: reason, worldReady: false, routeState: 'failed', routePreview: null,
+      playerStatus: emptyM4Status(), inventory: emptyM4Inventory(),
     });
     log('warn', 'This KE package does not support M1 map streaming; rebuild the local KE package.');
   }
@@ -409,6 +494,8 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     state.visibleEntities = { ...message.visibleEntities };
     state.parserDiagnostics = { ...message.parserDiagnostics };
     state.degradedReason = message.degradedReason ?? null;
+    state.playerStatus = message.status && typeof message.status === 'object' ? { ...emptyM4Status(), ...message.status } : emptyM4Status();
+    state.inventory = message.inventory && typeof message.inventory === 'object' ? { ...emptyM4Inventory(), ...message.inventory } : emptyM4Inventory();
     maybeConfirmRouteMap();
     if (becameReady) log('info', `World synchronized on ${message.mapName ?? 'unknown map'}.`);
     else if (becameDegraded) log('error', `Map stream degraded: ${state.degradedReason ?? 'unknown reason'}`);
@@ -420,6 +507,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     if (message?.runtimeSessionId !== session) return;
     if (message.type === 'resourceRequest') { void handleResourceRequest(message); return; }
     if (message.type === 'resourceValidation') { void handleResourceValidation(message); return; }
+    if (message.type === 'actionRequest') { handleAiAction(message); return; }
     if (message.type === 'routeAction') { handleRouteAction(message); return; }
     if (message.type === 'routePreview') {
       if (message.canSend !== false || !(message.route === null || Array.isArray(message.route))) { fail(Error('invalid-route-preview')); return; }
@@ -453,12 +541,43 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       receiveWorldState(message);
       return;
     }
+    if (message.type === 'experience' && !Object.hasOwn(message, 'requestId')) {
+      state.experience = message.report ?? null;
+      changed();
+      return;
+    }
     if (!Number.isSafeInteger(message.requestId) || message.requestId <= 0 || message.requestId > nextId) { fail(Error('invalid-worker-response')); return; }
     if (message.requestId <= discardedThrough) return;
     if (message.type === 'fault') { fail(Error(String(message.message ?? 'Worker fault'))); return; }
     if (message.type === 'log') {
       if (!['info', 'warn', 'error', 'debug'].includes(message.level) || typeof message.text !== 'string') fail(Error('invalid-worker-log'));
       else log(message.level, message.text);
+      return;
+    }
+    if (message.type === 'commandResult') {
+      if (!message.result || typeof message.result.kind !== 'string') { fail(Error('invalid-command-result')); return; }
+      const command = pendingCommands.get(message.requestId);
+      pendingCommands.delete(message.requestId);
+      if (message.result.kind === 'aiState') {
+        state.aiState = message.result.aiMode;
+        state.aiTaskCount = message.result.taskCount;
+      } else if (message.result.kind === 'experienceSummary' || message.result.kind === 'experienceReport') {
+        state.experience = message.result.report;
+        log('info', `${message.result.kind}: ${JSON.stringify(message.result.report).slice(0, 1024)}`);
+      } else if (message.result.kind === 'reload' && !message.result.accepted) {
+        const diagnostics = Array.isArray(message.result.diagnostics) ? message.result.diagnostics : [];
+        const detail = diagnostics.map(diagnostic => `${diagnostic.fileName}:${diagnostic.line} ${diagnostic.code} ${diagnostic.message}`).join('; ');
+        log('error', `Configuration reload rejected: ${message.result.target}${detail ? `: ${detail}` : ''}`);
+      } else if (message.result.kind === 'reload') {
+        log('info', `Configuration reload accepted: ${message.result.target} revision ${message.result.effectiveRevision}.`);
+      } else if (message.result.kind === 'error' && command === 'ai_auto') {
+        revokeAiPermit();
+        state.aiState = 'off';
+        log('error', `AI auto rejected: ${message.result.code}`);
+      } else if (message.result.kind === 'error') {
+        log('error', `${message.result.code}: ${message.result.message}`);
+      }
+      changed();
       return;
     }
     if (['gameSessionStarted', 'gameSessionEnded', 'connectionStarted', 'connectionDegraded'].includes(message.type)) return;
@@ -515,13 +634,16 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       needsMapResync = false;
       clearPendingGameEvents(); workerDegraded = false;
       revokeRoutePermit();
+      revokeAiPermit();
       Object.assign(state, {
         status: 'absent', packageId: null, mode: null, tickCount: 0, elapsedMs: 0,
         profile: KORE_PROTOCOL_PROFILE,
         gameSessionId: null, connectionGeneration: null, streamStatus: 'idle', mapName: null,
         selfActor: null, visibleEntities: { total: 0, players: 0, monsters: 0, other: 0, unknown: 0 },
         parserDiagnostics: { bufferedBytes: 0, pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: null },
-        receivedBytes: 0, degradedReason: null, worldReady: false, mapResourceState: 'idle', routeState: 'idle', routePreview: null,
+        receivedBytes: 0, sentBytes: 0, degradedReason: null, worldReady: false, mapResourceState: 'idle', routeState: 'idle', routePreview: null,
+        aiState: 'off', aiTaskCount: 0, experience: null,
+        playerStatus: emptyM4Status(), inventory: emptyM4Inventory(),
       });
       if (!manifest?.files?.some(file => file.path === 'ke/active.json')) { changed(); return; }
       if (lostSession) log('warn', 'KoreEngine restarted; re-enter the map server to synchronize.');
@@ -564,6 +686,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       needsMapResync ||= gameSession !== null;
       generation++;
       revokeRoutePermit();
+      revokeAiPermit();
       gameSession = null; connection = null; postedGameSessionId = null; postedConnectionGeneration = null;
       session = null; clearPendingGameEvents(); workerDegraded = false;
       mapStreamCapability = null;
@@ -572,7 +695,9 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         streamStatus: 'idle', mapName: null, selfActor: null,
         visibleEntities: { total: 0, players: 0, monsters: 0, other: 0, unknown: 0 },
         parserDiagnostics: { bufferedBytes: 0, pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: null },
-        receivedBytes: 0, degradedReason: null, worldReady: false, mapResourceState: 'idle', routeState: 'idle', routePreview: null,
+        receivedBytes: 0, sentBytes: 0, degradedReason: null, worldReady: false, mapResourceState: 'idle', routeState: 'idle', routePreview: null,
+        aiState: 'off', aiTaskCount: 0, experience: null, configIdentity: null,
+        playerStatus: emptyM4Status(), inventory: emptyM4Inventory(),
       });
       changed();
       // Revoke the host synchronously; no ACK is needed to stop this runtime.
@@ -582,7 +707,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       if (state.mode !== 'debug' || state.status !== 'runtime-ready' || !['debugTrap', 'debugCrash'].includes(type)) return false;
       return post(type) !== null;
     },
-    beginGameSession(characterGid, mapName) {
+    beginGameSession(characterGid, mapName, identity = {}) {
       if (!['loading', 'runtime-ready'].includes(state.status)) return null;
       if (mapStreamCapability === false) {
         rejectMapStreamCapability();
@@ -596,8 +721,11 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         cancelWorkerRoute();
         revokeRoutePermit();
       }
+      revokeAiPermit();
+      const aid = Number.isSafeInteger(identity.aid) && identity.aid > 0 ? identity.aid : null;
+      const cid = Number.isSafeInteger(identity.cid) && identity.cid > 0 ? identity.cid : null;
       try {
-        gameSession = { id: (page.crypto ?? globalThis.crypto).randomUUID(), characterGid, mapName: mapName.slice(0, 128) };
+        gameSession = { id: (page.crypto ?? globalThis.crypto).randomUUID(), characterGid, mapName: mapName.slice(0, 128), aid, cid };
       } catch (error) { log('error', `Unable to create game session: ${String(error)}`); return null; }
       connection = null; postedGameSessionId = null; postedConnectionGeneration = null;
       resourceCycle += 1;
@@ -608,7 +736,10 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         mapName: gameSession.mapName, selfActor: null,
         visibleEntities: { total: 0, players: 0, monsters: 0, other: 0, unknown: 0 },
         parserDiagnostics: { bufferedBytes: 0, pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: null },
-        receivedBytes: 0, degradedReason: null, worldReady: false, mapResourceState: 'loading', routeState: 'idle', routePreview: null,
+        receivedBytes: 0, sentBytes: 0, degradedReason: null, worldReady: false, mapResourceState: 'loading', routeState: 'idle', routePreview: null,
+        aiState: 'off', aiTaskCount: 0, experience: null,
+        playerStatus: emptyM4Status(), inventory: emptyM4Inventory(),
+        configIdentity: aid && cid ? { aid, cid } : null,
       });
       log('info', 'Game session started; waiting for a map connection and initial synchronization.');
       sendCurrentGameContext();
@@ -631,6 +762,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         revokeRoutePermit();
         state.routeState = 'cancelled';
       }
+      revokeAiPermit();
       connection = { generation: nextGeneration, sequence: 0, byteOffset: 0 };
       resourceCycle += 1;
       activeResourceRequestId = null;
@@ -641,7 +773,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         connectionGeneration: nextGeneration, streamStatus: 'awaiting-sync', worldReady: false,
         selfActor: null, visibleEntities: { total: 0, players: 0, monsters: 0, other: 0, unknown: 0 },
         parserDiagnostics: { bufferedBytes: 0, pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: null },
-        receivedBytes: 0, degradedReason: null, mapResourceState: 'loading',
+        receivedBytes: 0, degradedReason: null, mapResourceState: 'loading', playerStatus: emptyM4Status(), inventory: emptyM4Inventory(),
       });
       log('info', `Map connection generation ${nextGeneration} started.`);
       sendCurrentGameContext();
@@ -692,6 +824,45 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       changed();
       return true;
     },
+    mirrorSentBytes(bytes, gameSessionId = gameSession?.id) {
+      if (!gameSession || gameSessionId !== gameSession.id || !state.worldReady || !Number.isSafeInteger(bytes) || bytes < 0) return false;
+      state.sentBytes += bytes;
+      changed();
+      return true;
+    },
+    async saveConfigDocument(document) { return configStore.saveDocument(document); },
+    async getConfigDocuments(identity) { return configStore.listDocuments(identity); },
+    reloadConfig(target = 'config.txt') {
+      if (state.aiState !== 'off' || !gameSession || !gameSession.aid || !gameSession.cid) {
+        log('error', 'Configuration reload requires verified account and character IDs while AI is off.');
+        return false;
+      }
+      const fileNames = reloadFileNames(target);
+      if (!fileNames) {
+        log('error', 'Configuration reload target is unsupported.');
+        return false;
+      }
+      const context = {
+        gameSessionId: gameSession.id,
+        profile: state.profile,
+        aid: gameSession.aid,
+        cid: gameSession.cid,
+      };
+      void configStore.getReloadDocuments(context)
+        .then(documents => {
+          if (!gameSession || gameSession.id !== context.gameSessionId || state.profile !== context.profile
+            || gameSession.aid !== context.aid || gameSession.cid !== context.cid || state.aiState !== 'off') {
+            log('warn', 'Configuration reload discarded because character or session changed.');
+            return;
+          }
+          const selected = documents.filter(document => M4_CONFIG_FILES.has(document.fileName) && fileNames.includes(document.fileName));
+          if (!postCommand('reload', { target, documents: selected, ...context })) {
+            log('error', 'Configuration reload could not be sent in the current session state.');
+          }
+        })
+        .catch(error => log('error', String(error?.message ?? error)));
+      return true;
+    },
     endGameSession() {
       if (!gameSession) return;
       const ended = gameSession.id;
@@ -709,6 +880,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         selfActor: null, visibleEntities: { total: 0, players: 0, monsters: 0, other: 0, unknown: 0 },
         parserDiagnostics: { bufferedBytes: 0, pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: null },
         receivedBytes: 0, degradedReason: null, worldReady: false, mapResourceState: 'idle', routeState: 'idle', routePreview: null,
+        playerStatus: emptyM4Status(), inventory: emptyM4Inventory(),
       });
       changed();
     },
@@ -783,6 +955,13 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       if (normalized === 'debug route go') return this.debugRouteGo(routeRequest);
       if (normalized === 'debug route cancel') return this.debugRouteCancel();
       if (normalized === 'debug map retry') return this.debugMapRetry();
+      if (normalized === 'ai auto') return postCommand('ai_auto');
+      if (normalized === 'ai off') return postCommand('ai_off');
+      if (normalized === 'ai clear') return postCommand('ai_clear');
+      if (normalized === 'exp') return postCommand('exp', { hostNetworkSnapshot: { gameSessionId: gameSession?.id, bytesSent: state.sentBytes } });
+      if (normalized === 'exp report') return postCommand('exp_report', { hostNetworkSnapshot: { gameSessionId: gameSession?.id, bytesSent: state.sentBytes } });
+      const reload = normalized.match(/^reload(?:\s+(.+))?$/);
+      if (reload) return this.reloadConfig(reload[1] ?? 'config.txt');
       return false;
     },
   };
@@ -799,7 +978,7 @@ export function createKorePanel({ page, host }) {
   });
   panel.open = true;
   panel.addEventListener('toggle', () => { panel.style.height = panel.open ? '840px' : 'auto'; });
-  const title = page.document.createElement('summary'); title.textContent = 'KoreEngine M2'; panel.append(title);
+  const title = page.document.createElement('summary'); title.textContent = 'KoreEngine M3'; panel.append(title);
   const controls = page.document.createElement('div');
   controls.style.flex = '0 0 auto';
   const clearButton = page.document.createElement('button'); clearButton.type = 'button'; clearButton.textContent = 'Clear console';
@@ -821,6 +1000,24 @@ export function createKorePanel({ page, host }) {
   const goButton = routeButton('Go route', 'debug route go');
   const cancelButton = routeButton('Cancel route', 'debug route cancel');
   const retryMapButton = routeButton('Retry map', 'debug map retry');
+  const configControls = page.document.createElement('div');
+  configControls.style.display = 'flex'; configControls.style.gap = '4px'; configControls.style.marginTop = '6px'; configControls.style.flexWrap = 'wrap';
+  const configFileSelect = page.document.createElement('select');
+  for (const fileName of ['config.txt', 'mon_control.txt', 'timeouts.txt', 'pickupitems.txt', 'items_control.txt']) {
+    const option = page.document.createElement('option'); option.value = fileName; option.textContent = fileName; configFileSelect.append(option);
+  }
+  configFileSelect.setAttribute('aria-label', 'KoreEngine configuration file');
+  const configSaveButton = page.document.createElement('button'); configSaveButton.type = 'button'; configSaveButton.textContent = 'Save TXT';
+  const configReloadButton = page.document.createElement('button'); configReloadButton.type = 'button'; configReloadButton.textContent = 'Reload TXT';
+  const configStatus = page.document.createElement('output'); configStatus.setAttribute('aria-live', 'polite');
+  configControls.append(configFileSelect, configSaveButton, configReloadButton, configStatus);
+  const aiControls = page.document.createElement('div');
+  aiControls.style.display = 'flex'; aiControls.style.gap = '4px'; aiControls.style.marginTop = '6px'; aiControls.style.flexWrap = 'wrap';
+  for (const [label, command] of [['AI auto', 'ai auto'], ['AI off', 'ai off'], ['AI clear', 'ai clear'], ['EXP', 'exp'], ['EXP report', 'exp report']]) {
+    const button = routeButton(label, command);
+    aiControls.append(button);
+  }
+  controls.append(aiControls);
   controls.append(routeControls);
   const createTextArea = (label, rows) => {
     const node = page.document.createElement('textarea');
@@ -831,11 +1028,68 @@ export function createKorePanel({ page, host }) {
   const infoNode = createTextArea('KoreEngine status', 7);
   const routeNode = createTextArea('KoreEngine route preview', 8);
   const consoleNode = createTextArea('KoreEngine console', 10);
+  const configNode = createTextArea('KoreEngine configuration text', 8);
+  configNode.readOnly = false;
   Object.assign(consoleNode.style, { flex: '1 1 auto', minHeight: '0', resize: 'none' });
-  controls.append(infoNode); panel.append(controls, routeNode, consoleNode);
+  controls.append(configControls, infoNode); panel.append(controls, configNode, routeNode, consoleNode);
+  let currentState = null;
+  let configLoadToken = 0;
+  let loadedConfigKey = '';
+  const loadConfig = () => {
+    const identity = currentState?.configIdentity;
+    if (!identity || !host.getConfigDocuments) {
+      configNode.value = '';
+      configStatus.textContent = 'verified character identity unavailable';
+      return;
+    }
+    const fileName = configFileSelect.value;
+    const key = `${currentState.profile}:${identity.aid}:${identity.cid}:${fileName}`;
+    const token = ++configLoadToken;
+    void host.getConfigDocuments({ profile: currentState.profile, aid: identity.aid, cid: identity.cid })
+      .then(documents => {
+        if (token !== configLoadToken || fileName !== configFileSelect.value) return;
+        const document = documents.find(candidate => candidate.fileName === fileName);
+        configNode.value = document?.rawText ?? '';
+        configStatus.textContent = document ? `revision ${document.revision}` : 'not saved';
+        loadedConfigKey = key;
+      })
+      .catch(error => {
+        if (token === configLoadToken) configStatus.textContent = String(error?.message ?? error);
+      });
+  };
+  configFileSelect.addEventListener('change', loadConfig);
+  configSaveButton.addEventListener('click', () => {
+    if (!currentState?.configIdentity || !host.saveConfigDocument) {
+      configStatus.textContent = 'verified character identity unavailable';
+      return;
+    }
+    const fileName = configFileSelect.value;
+    void host.saveConfigDocument({
+      profile: currentState.profile,
+      aid: currentState.configIdentity.aid,
+      cid: currentState.configIdentity.cid,
+      fileName,
+      rawText: configNode.value,
+    }).then(document => {
+      configStatus.textContent = `saved r${document.revision}`;
+      loadedConfigKey = `${document.profile}:${document.aid}:${document.cid}:${document.fileName}`;
+    })
+      .catch(error => { configStatus.textContent = String(error?.message ?? error); });
+  });
+  configReloadButton.addEventListener('click', () => {
+    if (!host.reloadConfig) return;
+    const accepted = host.reloadConfig(configFileSelect.value);
+    configStatus.textContent = accepted ? 'reload queued' : 'reload unavailable';
+  });
   return {
-    panel, infoNode, routeNode, consoleNode, clearButton, destinationInput, xInput, yInput, previewButton, goButton, cancelButton, retryMapButton,
+    panel, infoNode, routeNode, consoleNode, configNode, clearButton, destinationInput, xInput, yInput, previewButton, goButton, cancelButton, retryMapButton,
     update(state) {
+      currentState = state;
+      const identity = state.configIdentity;
+      const selectedConfigKey = identity
+        ? `${state.profile}:${identity.aid}:${identity.cid}:${configFileSelect.value}`
+        : '';
+      if (selectedConfigKey && selectedConfigKey !== loadedConfigKey) loadConfig();
       const actor = state.selfActor ? `GID ${state.selfActor.gid} @ ${state.selfActor.x}, ${state.selfActor.y}` : 'waiting';
       const counts = state.visibleEntities;
       infoNode.value = [
@@ -843,7 +1097,11 @@ export function createKorePanel({ page, host }) {
         `profile ${state.profile} | connection ${state.connectionGeneration ?? '-'}`,
         `map ${state.mapName ?? '-'} | character ${actor}`,
         `entities ${counts.total} (players ${counts.players}, monsters ${counts.monsters}, other ${counts.other}, unknown ${counts.unknown})`,
-        `received ${state.receivedBytes} bytes | worldReady ${state.worldReady} | mapResource ${state.mapResourceState} | AI off`,
+        `received ${state.receivedBytes} / sent ${state.sentBytes} bytes | worldReady ${state.worldReady} | mapResource ${state.mapResourceState} | AI ${state.aiState}`,
+        `controlGeneration ${state.controlGeneration} | AI tasks ${state.aiTaskCount}`,
+        state.playerStatus ? `HP ${state.playerStatus.hp ?? '-'} / ${state.playerStatus.hpMax ?? '-'} | SP ${state.playerStatus.sp ?? '-'} / ${state.playerStatus.spMax ?? '-'} | weight ${state.playerStatus.weight ?? '-'} / ${state.playerStatus.weightMax ?? '-'}` : '',
+        state.inventory ? `inventory ${Object.keys(state.inventory.items ?? {}).length} | ground ${Object.keys(state.inventory.groundItems ?? {}).length} | storage ${state.inventory.storageReady ? 'ready' : 'closed'}` : '',
+        state.experience ? `experience ${JSON.stringify(state.experience).slice(0, 512)}` : '',
         `route ${state.routeState}${state.routePreview ? ` | preview ${state.routePreview.length} actions` : ''}`,
         `parser buffer ${state.parserDiagnostics.bufferedBytes} bytes | pending ${state.parserDiagnostics.pendingPacketId === null ? '-' : `0x${state.parserDiagnostics.pendingPacketId.toString(16).padStart(4, '0')}`} ${state.parserDiagnostics.pendingRequiredBytes === null ? '' : `${state.parserDiagnostics.bufferedBytes}/${state.parserDiagnostics.pendingRequiredBytes}`} | last ${state.parserDiagnostics.lastPacketId === null ? '-' : `0x${state.parserDiagnostics.lastPacketId.toString(16).padStart(4, '0')}`}`,
         state.degradedReason ? `reason ${state.degradedReason}` : '',
