@@ -166673,6 +166673,7 @@ function connect(host, port, callback, isZone) {
     ? _socketFactory(host, port)
     : defaultSocketFactory(host, port);
   socket.isZone = !!isZone;
+  let koreConnectionGeneration = null;
   socket.onClose = onClose$9;
   socket.onComplete = function onComplete(success) {
     let msg = "Fail";
@@ -166682,7 +166683,16 @@ function connect(host, port, callback, isZone) {
       color = "green";
       if (_socket && _socket.ping) clearInterval(_socket.ping);
       getReceiveState(socket);
-      socket.onMessage = receive.bind(socket);
+      if (isZone) {
+        try { koreConnectionGeneration = globalThis.KoreEngine?.beginMapConnection?.() ?? null; }
+        catch { koreConnectionGeneration = null; }
+        socket.onMessage = function onMapMessage(buffer) {
+          try {
+            if (koreConnectionGeneration !== null) globalThis.KoreEngine?.mirrorMapData?.(koreConnectionGeneration, buffer);
+          } catch { /* Optional KE failures must not change native receive. */ }
+          return receive.call(socket, buffer);
+        };
+      } else socket.onMessage = receive.bind(socket);
       _sockets.push((_socket = socket));
       if (isZone) PacketCrypt_default.init();
     }
@@ -316211,6 +316221,8 @@ function onExitSuccess() {
     Events.clearTimeout(_exitTimer);
     _exitTimer = null;
   }
+  try { globalThis.KoreEngine?.endGameSession?.(); }
+  catch { /* Optional KE cleanup must not change the native exit path. */ }
   if (
     PacketVerManager_default.value >= 20170315 &&
     SessionStorage_default.WebToken
@@ -320784,6 +320796,8 @@ function onReceiveMapInfo(pkt) {
   DB.startedLazyInit = false;
   retryCount = 0;
   SessionStorage_default.GID = pkt.GID;
+  try { globalThis.KoreEngine?.beginGameSession?.(pkt.GID, pkt.mapName); }
+  catch { /* Optional KE initialization must not change the native login path. */ }
   MapEngine.init(pkt.addr.ip, pkt.addr.port, pkt.mapName);
 }
 var _server$1,

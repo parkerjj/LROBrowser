@@ -220,3 +220,57 @@ test('valid fixed packets survive every WebSocket split position', () => {
     assert.equal(harness.getSavedBytes(), null);
   }
 });
+
+test('map mirror transfer and failure never change or skip native receive', () => {
+  const source = readFileSync(ONLINE_PATH, 'utf8');
+  const connect = extractFunction(source, 'function connect(host, port, callback, isZone)');
+  const events = [];
+  const socket = { onComplete: null, onMessage: null, ping: null };
+  const connectHarness = new Function('socket', 'events', `
+    let _socket = null;
+    const _sockets = [];
+    const _socketFactory = () => socket;
+    const PacketCrypt_default = { init() {}, reset() {} };
+    const packetDump = false;
+    const console = { log() {} };
+    const onClose$9 = () => {};
+    const defaultSocketFactory = () => socket;
+    const getReceiveState = () => ({});
+    let failMirror = false;
+    const globalThis = { KoreEngine: {
+      beginMapConnection() { events.push('begin'); return 7; },
+      mirrorMapData(generation, bytes) {
+        const source = new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        const copy = source.slice();
+        const transferred = structuredClone(copy, { transfer: [copy.buffer] });
+        events.push(['mirror', generation, bytes, [...transferred]]);
+        if (failMirror) throw new Error('KE unavailable');
+        return true;
+      }
+    } };
+    const receive = function (bytes) { events.push(['receive', this, bytes]); };
+    ${connect}
+    connect('localhost', 1234, success => events.push(['connected', success]), true);
+    socket.onComplete(true);
+    return { socket, failMirror() { failMirror = true; } };
+  `);
+  const harness = connectHarness(socket, events);
+  const backing = new Uint8Array([0xaa, 0x73, 0, 1, 0xbb]);
+  const input = backing.subarray(1, 4);
+  harness.socket.onMessage(input);
+  assert.deepEqual(events.map(event => Array.isArray(event) ? event[0] : event), ['begin', 'connected', 'mirror', 'receive']);
+  assert.equal(events[2][1], 7);
+  assert.equal(events[2][2], input);
+  assert.deepEqual(events[2][3], [0x73, 0, 1]);
+  assert.equal(events[3][1], socket);
+  assert.equal(events[3][2], input);
+  assert.deepEqual([...backing], [0xaa, 0x73, 0, 1, 0xbb]);
+  assert.deepEqual([...input], [0x73, 0, 1]);
+
+  harness.failMirror();
+  harness.socket.onMessage(input);
+  assert.deepEqual(events.slice(4).map(event => Array.isArray(event) ? event[0] : event), ['mirror', 'receive']);
+  assert.equal(events[5][1], socket);
+  assert.equal(events[5][2], input);
+  assert.deepEqual([...input], [0x73, 0, 1]);
+});
