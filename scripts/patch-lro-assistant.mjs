@@ -21,6 +21,7 @@ const lroAssistantModules = {
       'Core/Preferences': () => Preferences,
       'DB/DBManager': () => DB,
       'DB/Items/ItemTable': () => ItemTable_default,
+      'DB/Items/Randomoption': () => { init_ItemRandomOptionTable(); return ItemRandomOptionTable_default; },
       'DB/WorldMapData': () => { init_WorldMap(); return { load: WorldMap_default.lroLoadData, navigationMobs: NaviMobTable }; },
       'UI/WorldMapActions': () => { init_WorldMap(); return { teleport: map => WorldMap_default.lroTeleport(map) }; },
       'DB/Items/EquipmentLocation': () => EquipmentLocation_default,
