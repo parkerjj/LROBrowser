@@ -2,7 +2,16 @@ import test from 'node:test';
 const {URL}=globalThis;
 import assert from 'node:assert/strict';
 import {JSDOM} from 'jsdom';
-import {installMarketApi,marketRecord,marketItemIds,sortMarketRecords,marketQueryIds,matchesMarketTerms,marketOptionFilters} from '../src/assistant/lro-market-api.mjs';
+import {installMarketApi as installNativeMarketApi,marketRecord,marketItemIds,sortMarketRecords,marketQueryIds,matchesMarketTerms,marketOptionFilters} from '../src/assistant/lro-market-api.mjs';
+
+// Market rendering now delegates to the standard assistant; provide its public fixture contract.
+function installMarketApi(app,page,storage){
+ app.settings??={shoppingList:[]};app.settings.shopEnabled=true;
+ app.addManualMarketRecord??=()=>false;app.showStoredItemDetails??=()=>{};
+ app.marketShoppingMatches??=()=>[];
+ app.renderRow=r=>{const wanted=app.marketShoppingMatches(r);return `<div class="row ${wanted.length?'wanted':''}" data-record-id="${r.id}">${r.itemName}${wanted.length?'求购 购物清单匹配：'+wanted.join('、'):''}</div>`;};
+ return installNativeMarketApi(app,page,storage);
+}
 
 async function submitSearch(page,root){
  root.querySelector('.market-search-submit').click();
@@ -35,10 +44,11 @@ test('keyword market search scopes q to items and forwards the cursor token',asy
  const app={shadow:root,records:[],currentMap:'prontera.gat',render(){},findMarketDisplayRecord(){},openRecordItemDetails(){},showAssistantView(){},showStoredItemDetails(){},getAmdModule:name=>name==='DB/Items/ItemTable'?table:name==='DB/DBManager'?{getItemInfo:id=>table[id]}:null};
  const api=installMarketApi(app,page);root.querySelector('.search').value='放大镜';
  await submitSearch(page,root);
- assert.equal(calls.length,1,'a keyword is sent as one API search instead of item ID requests');
- assert.equal(calls[0].get('q'),'放大镜');assert.equal(calls[0].get('q_scope'),'item');assert.equal(calls[0].get('limit'),'20');assert.equal(calls[0].has('item_id'),false);assert.equal(calls[0].has('cursor'),false);
+ assert.equal(calls.length,2,'native-name candidates are batched, alongside the website keyword query');
+ assert.equal(calls[0].get('item_ids'),'611,612');assert.equal(calls[0].has('q'),false);
+ assert.equal(calls[1].get('q'),'放大镜');assert.equal(calls[0].get('limit'),'50');assert.equal(calls[0].has('item_id'),false);assert.equal(calls[0].has('cursor'),false);
  await api.load(true);
- assert.equal(calls.length,2);assert.equal(calls[1].get('q'),'放大镜');assert.equal(calls[1].get('q_scope'),'item');assert.equal(calls[1].get('limit'),'20');assert.equal(calls[1].get('cursor'),'page_token_1');assert.equal(calls[1].has('item_id'),false);
+ assert.equal(calls.length,4);assert.equal(calls[2].get('item_ids'),'611,612');assert.equal(calls[3].get('q'),'放大镜');for(const p of calls.slice(2)){assert.equal(p.get('limit'),'50');assert.equal(p.get('cursor'),'page_token_1');}
  }finally{page.close();}
 });
 
@@ -48,7 +58,7 @@ test('market search waits for an explicit query button click',async()=>{
  const host=page.document.createElement('div');page.document.body.append(host);const root=host.attachShadow({mode:'open'});
  root.innerHTML='<input class="search"><button class="market-search-submit">查询</button><input class="map-only" type="checkbox"><select class="sort"><option value="price">价格</option></select><div class="filters"></div><div class="results"></div><div class="summary"></div><button class="market-more"></button>';
  const calls=[];page.fetch=async url=>{calls.push(new URL(url));return {ok:true,json:async()=>({items:[],nextCursor:null})};};
- const app={shadow:root,records:[],currentMap:'prontera.gat',render(){},findMarketDisplayRecord(){},openRecordItemDetails(){},showAssistantView(){},showStoredItemDetails(){},getAmdModule(){return null;}};
+ const app={shadow:root,records:[],currentMap:'prontera.gat',render(){},findMarketDisplayRecord(){},openRecordItemDetails(){},showAssistantView(){},showStoredItemDetails(){},getAmdModule:name=>name==='DB/Items/ItemTable'?{501:{identifiedDisplayName:'红色药水'}}:null};
  const api=installMarketApi(app,page);await api.load();const beforeTyping=calls.length;
  const input=root.querySelector('.search');input.value='放大镜';input.dispatchEvent(new page.Event('input'));
  await new Promise(resolve=>page.setTimeout(resolve,250));
@@ -58,7 +68,7 @@ test('market search waits for an explicit query button click',async()=>{
  assert.equal(calls.length,beforeTyping+1);assert.equal(calls.at(-1).searchParams.get('q'),'放大镜');
  input.value='测试关键词';input.dispatchEvent(new page.KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
  await new Promise(resolve=>page.setTimeout(resolve,0));
- assert.equal(calls.length,beforeTyping+2,'pressing Enter submits the current keyword');assert.equal(calls.at(-1).searchParams.get('q'),'测试关键词');
+ assert.equal(calls.length,beforeTyping+1,'Enter does not bypass explicit search');await submitSearch(page,root);assert.equal(calls.at(-1).searchParams.get('q'),'测试关键词');
  }finally{page.close();}
 });
 
@@ -69,7 +79,7 @@ test('opening the assistant does not automatically load website market data',asy
  root.innerHTML='<input class="search"><button class="market-search-submit">查询</button><input class="map-only" type="checkbox"><select class="sort"><option value="price">价格</option></select><div class="filters"></div><div class="results"></div><div class="summary"></div><button class="market-more"></button>';
  const calls=[];page.fetch=async url=>{calls.push(new URL(url));return {ok:true,json:async()=>({items:[],nextCursor:null})};};
  let opens=0;
- const app={shadow:root,records:[],currentMap:'prontera.gat',render(){},findMarketDisplayRecord(){},openRecordItemDetails(){},showAssistantView(){opens++;},showStoredItemDetails(){},getAmdModule(){return null;}};
+ const app={shadow:root,records:[],currentMap:'prontera.gat',render(){},findMarketDisplayRecord(){},openRecordItemDetails(){},showAssistantView(){opens++;},showStoredItemDetails(){},getAmdModule:name=>name==='DB/Items/ItemTable'?{501:{identifiedDisplayName:'红色药水'}}:null};
  const api=installMarketApi(app,page);
  app.showAssistantView('manager');
  await new Promise(resolve=>page.setTimeout(resolve,0));
@@ -91,7 +101,7 @@ test('API pagination, search reset, anonymous access, errors and local fallback'
  const calls=[];let failure=false;
  page.fetch=async(url,options)=>{calls.push({url,options});if(failure)throw new TypeError('cors');return {ok:true,json:async()=>({items:[{id:url.includes('cursor=')?2:1,itemId:501,price:5,quantity:3,mapName:'prontera',x:1,y:2,options:[]}],nextCursor:url.includes('cursor=')?null:'next'})};};
  const original=[{id:'local'}];let localRenders=0;
- const app={shadow:root,records:original,currentMap:'prontera.gat',marketRenderedLimit:20,render(){localRenders++;},getAmdModule(){return {getItemInfo:()=>({identifiedDisplayName:"卡片"})};},findMarketDisplayRecord(){return null;},openRecordItemDetails(){},showAssistantView(){},showStoredItemDetails(){}};
+ const app={shadow:root,records:original,currentMap:'prontera.gat',marketRenderedLimit:20,render(){localRenders++;},getAmdModule:name=>name==='DB/Items/ItemTable'?{501:{identifiedDisplayName:'卡片'}}:name==='DB/DBManager'?{getItemInfo:()=>({identifiedDisplayName:'卡片'})}:null,findMarketDisplayRecord(){return null;},openRecordItemDetails(){},showAssistantView(){},showStoredItemDetails(){}};
  const api=installMarketApi(app,page,{queryDelay:0});assert.equal(calls.length,0);
  await api.load();await api.load(true);assert.equal(api.records.length,2);assert.match(calls[1].url,/cursor=next/);assert.equal(calls[0].options.credentials,'omit');
  assert.equal(new URL(calls[0].url).origin,'https://ltsd.ro');assert.equal(new URL(calls[0].url).pathname,'/api/v1/market/search');
@@ -100,7 +110,7 @@ test('API pagination, search reset, anonymous access, errors and local fallback'
  assert.equal(root.querySelector('.results .row').dataset.recordId,'ltsd:2');
  assert.match(root.querySelector('.results .row').textContent,/求购.*购物清单匹配：测试清单/s);
  app.marketShoppingMatches=()=>[];app.render();assert.equal(root.querySelectorAll('.row.wanted').length,0);
- root.querySelector('.search').value='卡片';await submitSearch(page,root);assert.equal(api.records.length,1);assert.ok(new URL(calls[2].url).searchParams.get('q')==='卡片');assert.doesNotMatch(calls[2].url,/cursor=/);
+ root.querySelector('.search').value='卡片';await submitSearch(page,root);assert.equal(api.records.length,1);assert.ok(calls.some(c=>new URL(c.url).searchParams.get('q')==='卡片'));assert.doesNotMatch(calls[2].url,/cursor=/);
  app.getAmdModule=name=>name==='DB/Items/ItemTable'?{611:{identifiedDisplayName:'放大镜'}}:null;
  root.querySelector('.search').value='放大镜';
  root.querySelector('.search').dispatchEvent(new page.Event('input'));await submitSearch(page,root);
@@ -108,8 +118,8 @@ test('API pagination, search reset, anonymous access, errors and local fallback'
  assert.ok(nameRequest,'query button submits the current keyword');
  assert.equal(new URL(nameRequest.url).searchParams.has('item_id'),false);
  assert.equal(api.records.length,0,'unrelated API item must not appear in a keyword search');
- assert.ok(calls.every(c=>!new URL(c.url).searchParams.has('item_id')),'market requests never use item_id');
- failure=true;await api.load(false,true);assert.match(root.textContent,/跨域/);assert.equal(app.records,original);
+ assert.ok(calls.some(c=>new URL(c.url).searchParams.get('item_id')==='611'),'native item ID lookup remains available');
+ failure=true;await api.load(false,true);assert.match(root.textContent,/cors/);assert.equal(app.records,original);
  const selector=root.querySelector('[aria-label="市场数据来源"]');selector.value='local';selector.dispatchEvent(new page.Event('change'));assert.ok(localRenders>0);assert.match(root.textContent,/本地记录/);
  }finally{page.close();}
 });
@@ -121,12 +131,13 @@ test('saved shopping list fetches missing items before general results and fuzzy
  root.innerHTML='<input class="search"><button class="market-search-submit">查询</button><input class="map-only" type="checkbox"><select class="sort"><option value="price">价格</option></select><div class="filters"></div><div class="results"></div><div class="summary"></div><button class="market-more"></button>';
  const table={611:{identifiedDisplayName:'放大镜'},612:{identifiedDisplayName:'高级放大镜'},501:{identifiedDisplayName:'红色药水'}};
  const calls=[];
- page.fetch=async url=>{const p=new URL(url).searchParams;calls.push(p);const query=p.get('q');const ids=query==='放大镜'?[611,612]:query==='atk'?[612]:query==='拳刃'?[620,621,622,623,624,625]:p.has('option')?[612]:[501];return {ok:true,json:async()=>({items:ids.map(id=>({id,itemId:id,name:table[id]?.identifiedDisplayName||`测试${id}拳刃`,price:id===501?1:10000,quantity:1,mapName:'prontera',options:(id===612||id===625)?[{display:'ATK +10'}]:[]})),nextCursor:query==='拳刃'&&!p.has('cursor')?'more':null})};};
+ page.fetch=async url=>{const p=new URL(url).searchParams;calls.push(p);const query=p.get('q');const ids=p.has('item_ids')?p.get('item_ids').split(',').map(Number):p.has('item_id')?[Number(p.get('item_id'))]:query==='放大镜'?[611,612]:query==='atk'?[612]:query==='拳刃'?[620,621,622,623,624,625]:p.has('option')?[612]:[501];return {ok:true,json:async()=>({items:ids.map(id=>({id,itemId:id,name:table[id]?.identifiedDisplayName||`测试${id}拳刃`,price:id===501?1:10000,quantity:1,mapName:'prontera',options:(id===612||id===625)?[{display:'ATK +10'}]:[]})),nextCursor:query==='拳刃'&&!p.has('cursor')?'more':null})};};
  const app={shadow:root,settings:{shoppingList:[]},records:[],currentMap:'prontera.gat',render(){},findMarketDisplayRecord(){},openRecordItemDetails(){},showAssistantView(){},getAmdModule:name=>name==='DB/Items/ItemTable'?table:name==='DB/DBManager'?{getItemInfo:id=>table[id]}:null,marketShoppingMatches:r=>app.settings.shoppingList.filter(w=>r.itemName.includes(w))};
  const api=installMarketApi(app,page,{queryDelay:0});root.querySelector('.map-only').checked=true;await api.load();
  assert.deepEqual(api.records.map(r=>r.itemId),['501']);
  app.settings.shoppingList=['放大镜'];app.render();
  await new Promise(resolve=>page.setTimeout(resolve,550));
+ await submitSearch(page,root);
  assert.deepEqual([...root.querySelectorAll('.row')].map(r=>r.dataset.recordId),['ltsd:611','ltsd:612','ltsd:501']);
  assert.equal(root.querySelectorAll('.row.wanted').length,2);
  assert.ok(calls.every(p=>p.get('map')==='prontera'));
@@ -143,7 +154,7 @@ test('saved shopping list fetches missing items before general results and fuzzy
  root.querySelector('.search').value='拳刃 atk';await submitSearch(page,root);
  assert.deepEqual(api.records.map(r=>r.itemId),['625']);
  await api.load(true);assert.ok(calls.some(p=>p.get('q')==='拳刃'&&p.get('cursor')==='more'),'keyword cursor is retained for the next page');
- assert.ok(calls.every(p=>!p.has('item_id')),'search and shopping-list requests never use item_id');
+ assert.ok(calls.some(p=>p.get('item_ids')==='611,612'),'shopping-list candidates are batched by native IDs');
  root.querySelector('.search').value='';app.settings.shoppingList=[];await submitSearch(page,root);
  assert.deepEqual(api.records.map(r=>r.itemId),['501']);assert.equal(root.querySelectorAll('.row.wanted').length,0);
  }finally{page.close();}
