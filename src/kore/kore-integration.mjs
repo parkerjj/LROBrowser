@@ -7,6 +7,11 @@ const idPattern = /^[a-f0-9]{64}$/;
 const metadataFields = ['schemaVersion', 'engineVersion', 'bridgeApiVersion', 'packetver', 'profile', 'commitSha', 'sourceDirty', 'mode', 'toolVersions', 'files'];
 const MAX_PENDING_GAME_CHUNKS = 256;
 const MAX_PENDING_GAME_BYTES = 1024 * 1024;
+const HEARTBEAT_INTERVAL_MS = 1000;
+const HEARTBEAT_TIMEOUT_MS = 5000;
+const INITIALIZATION_TIMEOUT_MS = 10000;
+const RESTART_BACKOFF_MS = [250, 500, 1000, 2000, 5000];
+const MAX_RESTART_ATTEMPTS = RESTART_BACKOFF_MS.length;
 const emptyM4Status = () => ({ hp: null, hpMax: null, sp: null, spMax: null, weight: null, weightMax: null });
 const emptyM4Inventory = () => ({ ready: false, items: {}, groundItems: {}, storageReady: false, storageItems: {} });
 const validU8 = value => Number.isSafeInteger(value) && value >= 0 && value <= 0xff;
@@ -41,7 +46,7 @@ export function packageKind(file) {
   throw Error('unsupported-package-file');
 }
 export async function validateKoreManifest(manifest) {
-  if (!manifest || manifest.schemaVersion !== 1 || manifest.bridgeApiVersion !== 1 || manifest.packetver !== 20211103
+  if (!manifest || manifest.schemaVersion !== 1 || ![1, 2].includes(manifest.bridgeApiVersion) || manifest.packetver !== 20211103
     || !compatibleProfiles.has(manifest.profile) || !/^\d+\.\d+\.\d+$/.test(manifest.engineVersion)
     || !['debug', 'release'].includes(manifest.mode) || typeof manifest.sourceDirty !== 'boolean'
     || !(manifest.commitSha === null || /^[a-f0-9]{40}$/.test(manifest.commitSha))
@@ -118,7 +123,7 @@ export async function loadKorePackage({ page = globalThis, manifest, signal }) {
 
 export function createKoreIntegration({ page = globalThis, manifest, createWorker = url => new page.Worker(url, { type: 'module' }), onWorkerReleased = () => {}, onChange = () => {}, mapResourceProvider = null, serverFieldsFolder = 'EP15.1' }) {
   const state = {
-    status: 'absent', packageId: null, mode: null, tickCount: 0, elapsedMs: 0,
+    status: 'absent', packageId: null, mode: null, tickCount: 0, elapsedMs: 0, runtimeGeneration: 0,
     profile: KORE_PROTOCOL_PROFILE, gameSessionId: null, connectionGeneration: null,
     streamStatus: 'idle', mapName: null, selfActor: null,
     visibleEntities: { total: 0, players: 0, monsters: 0, other: 0, unknown: 0 },
@@ -130,8 +135,13 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     configIdentity: null,
     routeState: 'idle', routePreview: null,
   };
-  let generation = 0, worker = null, session = null, nextId = 0, initId = 0, probe = null, discardedThrough = 0;
-  let timer = null, controller = null, lastNow = 0, initAge = 0, removeListeners = () => {};
+  let generation = 0, runtimeGeneration = 0, worker = null, session = null, nextId = 0, initId = 0, probe = null, discardedThrough = 0;
+  let timer = null, controller = null, lastNow = 0, initAge = 0, removeListeners = () => {}, removeWorkerListeners = () => {};
+  let heartbeatTimer = null, heartbeatRequest = null, lastHeartbeatAt = null;
+  let restartTimer = null, restartAttempt = 0, restarting = false;
+  let residentExecutor = false, outputDrainPending = false, heartbeatEnabled = false;
+  let legacyExecutor = false;
+  let recoveryBarrier = null, recoveryMirror = null, nextBridgeSequence = 0;
   let gameSession = null, connection = null, postedGameSessionId = null, postedConnectionGeneration = null;
   let pendingGameEvents = [], pendingGameBytes = 0, workerDegraded = false, needsMapResync = false;
   let mapStreamCapability = null;
@@ -162,8 +172,17 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   function release(disposeMessage = null) {
     controller?.abort(); controller = null;
     if (timer !== null) timers.clearInterval(timer);
+    if (heartbeatTimer !== null) timers.clearInterval(heartbeatTimer);
+    if (restartTimer !== null) timers.clearTimeout(restartTimer);
     timer = null;
+    heartbeatTimer = null;
+    restartTimer = null;
+    heartbeatRequest = null;
+    outputDrainPending = false;
+    heartbeatEnabled = false;
+    restarting = false;
     removeListeners(); removeListeners = () => {};
+    removeWorkerListeners = () => {};
     const oldWorker = worker; worker = null; probe = null;
     pendingCommands.clear();
     try { onWorkerReleased(); } catch { /* Cleanup is best effort. */ }
@@ -172,11 +191,21 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     try { void resources.close(); } catch { /* Cache cleanup is best effort. */ }
     try { void configStore.close(); } catch { /* Config cleanup is best effort. */ }
   }
+  function releaseWorker(disposeMessage = null) {
+    removeWorkerListeners(); removeWorkerListeners = () => {};
+    const oldWorker = worker; worker = null; probe = null;
+    heartbeatRequest = null;
+    outputDrainPending = false;
+    try { if (disposeMessage) oldWorker?.postMessage(disposeMessage); } catch { /* Already gone. */ }
+    try { oldWorker?.terminate(); } catch { /* Already gone. */ }
+  }
   function fail(error) {
     routePermit = null;
     aiPermit = null;
     pendingCommands.clear();
     controlGeneration += 1;
+    runtimeGeneration += 1;
+    state.runtimeGeneration = runtimeGeneration;
     generation++;
     release();
     state.status = 'failed';
@@ -199,28 +228,51 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     if (!worker || !session || state.status !== 'runtime-ready' || !routePermit) return;
     try {
       worker.postMessage({ runtimeSessionId: session, type: 'debugRouteCancel', requestId: ++nextId, routeId: routePermit.routeId });
-    } catch (error) { fail(error); }
+    } catch (error) { handleWorkerFailure(error); }
   }
   function post(type, fields = {}) {
     const requestId = ++nextId;
     try { worker.postMessage({ type, runtimeSessionId: session, requestId, ...fields }); }
-    catch (error) { fail(error); return null; }
+    catch (error) { handleWorkerFailure(error); return null; }
     return requestId;
+  }
+  function nextBridgeContext(overrides = {}) {
+    nextBridgeSequence = Math.max(nextBridgeSequence + 1, 1);
+    return {
+      runtimeSessionId: session,
+      gameSessionId: overrides.gameSessionId ?? gameSession?.id ?? '',
+      connectionGeneration: overrides.connectionGeneration ?? connection?.generation ?? 0,
+      controlGeneration: overrides.controlGeneration ?? controlGeneration,
+      bridgeSequence: nextBridgeSequence,
+    };
+  }
+  function postBridgeEvent(kind, fields = {}, queue = 'control', overrides = {}) {
+    if (!worker || !session) return null;
+    const context = nextBridgeContext(overrides);
+    const record = { kind, ...fields, context };
+    const requestId = ++nextId;
+    try {
+      worker.postMessage({ type: 'queue', queue, runtimeSessionId: session, runtimeGeneration, requestId, record });
+    } catch (error) { handleWorkerFailure(error); return null; }
+    return context.bridgeSequence;
   }
   function postGameData(message) {
     try { worker.postMessage(message, [message.bytes.buffer]); }
-    catch (error) { fail(error); return false; }
+    catch (error) { handleWorkerFailure(error); return false; }
     return true;
   }
   function postResourceMessage(message, transfer = []) {
-    try { worker.postMessage(message, transfer); }
-    catch (error) { fail(error); }
+    try { worker.postMessage({ ...message, runtimeGeneration }, transfer); }
+    catch (error) { handleWorkerFailure(error); }
   }
   function validAiAction(action) {
-    if (!aiPermit || !action || !gameSession || !connection || state.streamStatus === 'degraded') return false;
+    if (!aiPermit || aiPermit.runtimeGeneration !== runtimeGeneration || !action || !gameSession || !connection || state.streamStatus === 'degraded') return false;
     if (action.runtimeSessionId !== session || action.gameSessionId !== gameSession.id
       || action.connectionGeneration !== connection.generation || action.controlGeneration !== controlGeneration
+      || (action.runtimeGeneration !== undefined && action.runtimeGeneration !== runtimeGeneration)
       || !Number.isSafeInteger(action.requestId) || action.requestId <= 0 || aiPermit.actionIds.has(action.requestId)) return false;
+    if (action.taskIntentGeneration !== undefined
+      && (!Number.isSafeInteger(action.taskIntentGeneration) || action.taskIntentGeneration < aiPermit.taskIntentGeneration)) return false;
     if (action.type === 'MoveTo') return validMapCoordinate(action.x) && validMapCoordinate(action.y);
     if (action.type === 'Attack') return validU32(action.targetGid) && action.targetGid > 0;
     if (action.type === 'UseSkillOnTarget') return validU32(action.skillId) && action.skillId > 0
@@ -253,16 +305,27 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   }
   function handleAiAction(message) {
     const action = message.action;
-    if (!Number.isSafeInteger(message.requestId) || message.requestId <= 0 || !validAiAction(action)) {
+    if ((message.runtimeGeneration !== undefined && message.runtimeGeneration !== runtimeGeneration)
+      || !Number.isSafeInteger(message.requestId) || message.requestId <= 0 || !validAiAction(action)) {
       log('warn', `AI action rejected: ${String(action?.type ?? 'unknown')}.`);
-      postResourceMessage({ runtimeSessionId: session, type: 'actionResult', requestId: ++nextId,
-        sourceRequestId: message.requestId, accepted: false, reason: 'action-rejected' });
+      if (residentExecutor && action?.requestId) {
+        postBridgeEvent('actionResult', { requestId: action.requestId, accepted: false, reason: 'action-rejected' });
+      } else {
+        postResourceMessage({ runtimeSessionId: session, type: 'actionResult', requestId: ++nextId,
+          sourceRequestId: message.requestId, accepted: false, reason: 'action-rejected' });
+      }
       return;
     }
     aiPermit.actionIds.add(action.requestId);
+    if (Number.isSafeInteger(action.taskIntentGeneration)) aiPermit.taskIntentGeneration = action.taskIntentGeneration;
     const sent = page.KoreEngineNativeAction?.(action) === true;
-    postResourceMessage({ runtimeSessionId: session, type: 'actionResult', requestId: ++nextId,
-      sourceRequestId: message.requestId, accepted: sent, reason: sent ? null : 'native-action-unavailable' });
+    const result = { runtimeSessionId: session, type: 'actionResult', requestId: ++nextId,
+      sourceRequestId: message.requestId, accepted: sent, reason: sent ? null : 'native-action-unavailable' };
+    if (residentExecutor) {
+      postBridgeEvent('actionResult', { requestId: action.requestId, accepted: sent, reason: result.reason });
+    } else {
+      postResourceMessage(result);
+    }
     if (!sent) {
       log('error', `AI action was rejected by the native bridge: ${String(action.type)}.`);
       revokeAiPermit();
@@ -274,7 +337,8 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     const changesAiGeneration = command === 'ai_auto' || command === 'ai_off' || command === 'ai_clear';
     if (changesAiGeneration) controlGeneration += 1;
     if (command === 'ai_off') revokeAiPermit();
-    if (command === 'ai_auto') aiPermit = { actionIds: new Set(), gameSessionId: gameSession.id, connectionGeneration: connection.generation };
+    if (command === 'ai_auto') aiPermit = { actionIds: new Set(), taskIntentGeneration: 0, runtimeGeneration,
+      gameSessionId: gameSession.id, connectionGeneration: connection.generation };
     if (command === 'ai_clear' && aiPermit) aiPermit.actionIds.clear();
     if (command === 'ai_off') state.aiState = 'off';
     if (command === 'ai_auto') state.aiState = 'auto';
@@ -284,7 +348,10 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       connectionGeneration: connection.generation,
       controlGeneration,
     };
-    const requestId = post('command', { gameSessionId: gameSession.id, controlGeneration, nowMs: clock(), ...fields, command });
+    const useResidentCommand = residentExecutor && ['ai_auto', 'ai_off', 'ai_clear'].includes(command);
+    const requestId = useResidentCommand
+      ? postBridgeEvent('command', { command, nowMs: clock(), ...fields })
+      : post('command', { gameSessionId: gameSession.id, controlGeneration, nowMs: clock(), ...fields, command });
     if (requestId !== null) pendingCommands.set(requestId, commandContext);
     changed();
     return true;
@@ -324,7 +391,14 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         resourceCycle: message.resourceCycle, sourceRequestId: response.sourceRequestId,
         committedFiles: response.committedFiles, deletedFiles: response.deletedFiles });
       // Cache commit is not runtime installation: wait for the Worker ready event.
-      state.mapResourceState = response.committedFiles.includes(message.fieldRelativePath) ? 'loading' : 'retrying';
+      const ready = response.committedFiles.includes(message.fieldRelativePath);
+      state.mapResourceState = ready ? 'loading' : 'retrying';
+      if (residentExecutor && ready) {
+        postBridgeEvent('mapResource', {
+          mapName: state.mapName ?? gameSession?.mapName ?? message.mapName,
+          version: String(message.fieldpackVersion ?? FIELD_PACK_VERSION), ready: true,
+        });
+      }
       changed();
     } catch (error) {
       cancelWorkerRoute();
@@ -340,20 +414,28 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   }
   function sendCurrentGameContext() {
     if (state.status !== 'runtime-ready' || !gameSession || mapStreamCapability === false) return false;
+    if (residentExecutor && recoveryBarrier?.active && !recoveryBarrier.bootstrap) return false;
     if (postedGameSessionId !== gameSession.id) {
-      const id = post('beginGameSession', {
-        gameSessionId: gameSession.id, characterGid: gameSession.characterGid, mapName: gameSession.mapName,
-        profile: state.profile, aid: gameSession.aid, cid: gameSession.cid, controlGeneration,
-      });
+      const id = residentExecutor
+        ? postBridgeEvent('gameSessionStarted', {
+          characterGid: gameSession.characterGid, mapName: gameSession.mapName,
+          aid: gameSession.aid, cid: gameSession.cid,
+        })
+        : post('beginGameSession', {
+          gameSessionId: gameSession.id, characterGid: gameSession.characterGid, mapName: gameSession.mapName,
+          profile: state.profile, aid: gameSession.aid, cid: gameSession.cid, controlGeneration,
+        });
       if (id === null) return false;
       postedGameSessionId = gameSession.id;
       postedConnectionGeneration = null;
     }
     if (connection && postedConnectionGeneration !== connection.generation) {
-      const id = post('beginMapConnection', {
-        gameSessionId: gameSession.id, connectionGeneration: connection.generation,
-        serverFieldsFolder, resourceCycle, controlGeneration,
-      });
+      const id = residentExecutor
+        ? postBridgeEvent('mapConnectionStarted', {})
+        : post('beginMapConnection', {
+          gameSessionId: gameSession.id, connectionGeneration: connection.generation,
+          serverFieldsFolder, resourceCycle, controlGeneration,
+        });
       if (id === null) return false;
       postedConnectionGeneration = connection.generation;
     }
@@ -362,10 +444,12 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   function sendDegradedState() {
     if (workerDegraded || state.status !== 'runtime-ready' || !connection || !gameSession) return;
     if (!sendCurrentGameContext()) return;
-    const id = post('degradeConnection', {
-      gameSessionId: gameSession.id, connectionGeneration: connection.generation,
-      reason: state.degradedReason ?? 'stream-unavailable',
-    });
+    const id = residentExecutor
+      ? postBridgeEvent('connectionDegraded', { reason: state.degradedReason ?? 'stream-unavailable' })
+      : post('degradeConnection', {
+        gameSessionId: gameSession.id, connectionGeneration: connection.generation,
+        reason: state.degradedReason ?? 'stream-unavailable',
+      });
     if (id !== null) workerDegraded = true;
   }
   function markDegraded(reason) {
@@ -401,11 +485,12 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     log('warn', 'This KE package does not support M1 map streaming; rebuild the local KE package.');
   }
   function validRouteAction(action) {
-    if (!routePermit || routePermit.awaitingMap || state.mapResourceState !== 'ready'
+    if (!routePermit || routePermit.runtimeGeneration !== runtimeGeneration || routePermit.awaitingMap || state.mapResourceState !== 'ready'
       || !state.worldReady || state.streamStatus !== 'world-ready'
       || !action || !gameSession || !connection) return false;
     if (action.runtimeSessionId !== session || action.gameSessionId !== gameSession.id
       || action.connectionGeneration !== connection.generation || action.controlGeneration !== controlGeneration
+      || (action.runtimeGeneration !== undefined && action.runtimeGeneration !== runtimeGeneration)
       || action.routeId !== routePermit.routeId
       || !Number.isSafeInteger(action.requestId) || action.requestId <= 0 || routePermit.actionIds.has(action.requestId)) return false;
     if (action.type !== 'MoveTo' && action.type !== 'PrivateAirship') return false;
@@ -420,7 +505,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   }
   function handleRouteAction(message) {
     const action = message.action;
-    if (!validRouteAction(action)) {
+    if ((message.runtimeGeneration !== undefined && message.runtimeGeneration !== runtimeGeneration) || !validRouteAction(action)) {
       if (routePermit) revokeRoutePermit();
       postResourceMessage({ runtimeSessionId: session, type: 'routeActionResult', requestId: ++nextId, sourceRequestId: message.requestId,
         routeId: action?.routeId, actionId: action?.requestId, accepted: false, reason: 'route-action-rejected' });
@@ -488,6 +573,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   }
   function flushPendingGameEvents() {
     if (state.status !== 'runtime-ready' || !gameSession) return;
+    if (residentExecutor && recoveryBarrier?.active && !recoveryBarrier.bootstrap) return;
     if (mapStreamCapability === false) {
       rejectMapStreamCapability();
       return;
@@ -499,7 +585,12 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     clearPendingGameEvents();
     for (const event of events) {
       if (event.gameSessionId !== gameSession?.id || event.connectionGeneration !== connection?.generation) continue;
-      if (!postGameData(event)) return;
+      if (residentExecutor) {
+        if (postBridgeEvent('gameData', {
+          sequence: event.sequence, byteOffset: event.byteOffset,
+          receivedAtMs: event.receivedAtMs, bytes: event.bytes,
+        }, 'game') === null) return;
+      } else if (!postGameData(event)) return;
     }
   }
   function receiveWorldState(message) {
@@ -543,10 +634,175 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     else if (becameDegraded) log('error', `Map stream degraded: ${state.degradedReason ?? 'unknown reason'}`);
     changed();
   }
+  function validRecoveryMirror(snapshot) {
+    const mapSyncComplete = snapshot?.mapSyncBoundary
+      ? snapshot.mapSyncBoundary.started === true && snapshot.mapSyncBoundary.complete === true
+      : snapshot?.mapSyncComplete === true;
+    const mapResourceVersion = typeof snapshot?.mapResourceVersion === 'string'
+      ? snapshot.mapResourceVersion
+      : snapshot?.mapResource?.version;
+    const mapResourceReady = snapshot?.mapResourceReady === true || snapshot?.mapResource?.ready === true;
+    const selfActor = snapshot?.selfActor;
+    const selfPosition = snapshot?.selfPosition;
+    return snapshot && snapshot.schemaVersion === 1
+      && typeof snapshot.runtimeSessionId === 'string' && snapshot.runtimeSessionId.length > 0
+      && typeof snapshot.gameSessionId === 'string' && snapshot.gameSessionId.length > 0
+      && compatibleProfiles.has(snapshot.profile)
+      && Number.isSafeInteger(snapshot.connectionGeneration) && snapshot.connectionGeneration >= 0
+      && Number.isSafeInteger(snapshot.controlGeneration) && snapshot.controlGeneration >= 0
+      && typeof snapshot.mapName === 'string' && snapshot.mapName.length > 0
+      && Number.isSafeInteger(snapshot.characterGid) && snapshot.characterGid > 0
+      && Number.isSafeInteger(snapshot.snapshotRevision) && snapshot.snapshotRevision >= 0
+      && Array.isArray(snapshot.entities)
+      && ((selfActor && Number.isSafeInteger(selfActor.gid) && Number.isInteger(selfActor.x) && Number.isInteger(selfActor.y))
+        || (selfPosition && Number.isInteger(selfPosition.x) && Number.isInteger(selfPosition.y)))
+      && typeof mapResourceVersion === 'string' && mapResourceVersion.length > 0
+      && mapResourceReady && mapSyncComplete;
+  }
+  function storeRecoveryMirror(message) {
+    const snapshot = message.snapshot ?? message.recoverySnapshot;
+    if (!validRecoveryMirror(snapshot)) {
+      log('warn', 'Ignored an incomplete KoreEngine recovery mirror.');
+      return;
+    }
+    if (snapshot.runtimeGeneration !== undefined && snapshot.runtimeGeneration !== runtimeGeneration) return;
+    if (recoveryMirror && snapshot.snapshotRevision <= recoveryMirror.snapshotRevision) return;
+    recoveryMirror = globalThis.structuredClone ? globalThis.structuredClone(snapshot) : JSON.parse(JSON.stringify(snapshot));
+    nextBridgeSequence = Math.max(nextBridgeSequence, snapshot.snapshotRevision);
+  }
+  function updateResidentStatus(status) {
+    if (!status || typeof status !== 'object') return;
+    if (typeof status.worldReady === 'boolean') {
+      state.worldReady = status.worldReady;
+      if (status.worldReady) state.streamStatus = 'world-ready';
+    }
+    if (typeof status.aiMode === 'string' && ['off', 'auto'].includes(status.aiMode)) state.aiState = status.aiMode;
+    if (Number.isSafeInteger(status.revision) && status.revision >= 0) nextBridgeSequence = Math.max(nextBridgeSequence, status.revision);
+    if (status.recoveryState === 'recovering') {
+      state.worldReady = false;
+      state.streamStatus = 'awaiting-sync';
+    } else if (status.recoveryState === 'failed') {
+      state.worldReady = false;
+      state.streamStatus = 'degraded';
+      state.degradedReason = String(status.reason ?? 'runtime-recovery-failed');
+    }
+    if (status.worldReady === true && recoveryBarrier?.active && recoveryBarrier.bootstrap) {
+      recoveryBarrier.active = false;
+      recoveryBarrier.revision = Number.isSafeInteger(status.revision) ? status.revision : recoveryBarrier.revision;
+      flushPendingGameEvents();
+    }
+    changed();
+  }
+  function handleRecoveryAck(message) {
+    const ack = message.kind === 'recoveryAck' ? message : message.ack ?? message.result ?? message;
+    if (!recoveryBarrier?.active || !Number.isSafeInteger(ack?.snapshotRevision)) return;
+    if (recoveryBarrier.revision !== null && ack.snapshotRevision < recoveryBarrier.revision) return;
+    recoveryBarrier.active = false;
+    recoveryBarrier.revision = ack.snapshotRevision;
+    nextBridgeSequence = Math.max(nextBridgeSequence, ack.snapshotRevision);
+    if (typeof ack.worldReady === 'boolean') state.worldReady = ack.worldReady;
+    if (state.worldReady) state.streamStatus = 'world-ready';
+    if (gameSession && recoveryMirror?.aiMode === 'auto') state.aiState = 'off';
+    changed();
+    flushPendingGameEvents();
+    sendCurrentGameContext();
+  }
+  function handleResidentOutput(output) {
+    if (!output || typeof output !== 'object') return;
+    const kind = String(output.kind ?? '').toLowerCase();
+    if (kind === 'action') {
+      handleAiAction({ runtimeSessionId: session, runtimeGeneration, requestId: output.outputRequestId ?? output.requestId, action: output.action ?? output });
+    } else if (kind === 'status') {
+      updateResidentStatus(output);
+    } else if (kind === 'diagnostic') {
+      if (output.code === 'ai-state' || output.task !== undefined) {
+        state.aiDiagnostics = {
+          diagnostics: {
+            mode: state.aiState, task: String(output.task ?? ''), nextAction: output.nextAction ?? null,
+            reason: output.reason ?? null, targetGid: output.targetGid ?? null, targetX: null, targetY: null,
+            visibleMonsters: 0, eligibleMonsters: 0, configLoaded: true, attackAuto: 0,
+          }, lastAction: null,
+        };
+        changed();
+      }
+    } else if (kind === 'recoveryack' || kind === 'recovery_ack') {
+      handleRecoveryAck(output);
+    } else if (kind === 'error') {
+      log('error', `${output.code ?? 'runtime-error'}: ${output.message ?? 'KoreEngine runtime error'}`);
+    } else if (kind === 'worldstate') {
+      receiveWorldState({ ...output, runtimeSessionId: session });
+    }
+  }
+  function drainResidentOutputs(message = {}) {
+    outputDrainPending = false;
+    const outputs = Array.isArray(message.outputs) ? message.outputs : [];
+    if (Array.isArray(message.actions)) for (const action of message.actions) handleAiAction({
+      runtimeSessionId: session, runtimeGeneration, requestId: action.outputRequestId ?? action.requestId, action: action.action ?? action,
+    });
+    if (Array.isArray(message.status)) for (const status of message.status) handleResidentOutput(status);
+    for (const output of outputs) handleResidentOutput(output);
+  }
+  function sendRecoverySnapshot() {
+    if (!worker || !session) return;
+    const snapshot = recoveryMirror
+      ? (globalThis.structuredClone ? globalThis.structuredClone(recoveryMirror) : JSON.parse(JSON.stringify(recoveryMirror)))
+      : null;
+    if (recoveryBarrier?.active) recoveryBarrier.bootstrap = snapshot === null;
+    if (snapshot) {
+      snapshot.runtimeSessionId = session;
+      snapshot.runtimeGeneration = runtimeGeneration;
+      if (gameSession) snapshot.gameSessionId = gameSession.id;
+      if (connection) snapshot.connectionGeneration = connection.generation;
+      snapshot.controlGeneration = controlGeneration;
+      nextBridgeSequence = Math.max(nextBridgeSequence, snapshot.snapshotRevision);
+    }
+    try {
+      worker.postMessage({ type: 'recoverySnapshot', runtimeSessionId: session, runtimeGeneration, snapshot });
+    } catch (error) { handleWorkerFailure(error); }
+    if (!snapshot) {
+      sendCurrentGameContext();
+      flushPendingGameEvents();
+    }
+  }
   function receive(event) {
     const message = event.data;
     if (!message || typeof message.runtimeSessionId !== 'string' || !message.runtimeSessionId) { fail(Error('invalid-worker-response')); return; }
     if (message?.runtimeSessionId !== session) return;
+    if (message.runtimeGeneration !== undefined && message.runtimeGeneration !== runtimeGeneration) return;
+    if (message.type === 'heartbeat') {
+      if (message.runtimeGeneration !== undefined && message.runtimeGeneration !== runtimeGeneration) return;
+      lastHeartbeatAt = clock(); heartbeatRequest = null; restartAttempt = 0; changed(); return;
+    }
+    if (message.type === 'outputAvailable') {
+      if (!outputDrainPending) {
+        outputDrainPending = true;
+        post('drainOutputs', { runtimeGeneration });
+      }
+      return;
+    }
+    if (message.type === 'outputs') { drainResidentOutputs(message); return; }
+    if (message.type === 'eventAccepted' || message.type === 'runReady') return;
+    if (message.type === 'status' && !Object.hasOwn(message, 'requestId')) { handleResidentOutput(message); return; }
+    if (message.type === 'diagnostic' && !Object.hasOwn(message, 'requestId')) { handleResidentOutput(message); return; }
+    if (message.type === 'queueFault') {
+      log('error', `KoreEngine ${message.queue ?? 'unknown'} queue fault: ${String(message.code ?? 'queue-fault')}`);
+      if (message.queue === 'action' || message.queue === 'game') handleWorkerFailure(Error(String(message.code ?? 'queue-fault')));
+      return;
+    }
+    if (message.type === 'recoveryMirror') { storeRecoveryMirror(message); return; }
+    if (message.type === 'recoverySnapshotRequest') {
+      if (message.runtimeGeneration !== undefined && message.runtimeGeneration !== runtimeGeneration) return;
+      sendRecoverySnapshot();
+      return;
+    }
+    if (message.type === 'recoverySnapshot') { storeRecoveryMirror(message); return; }
+    if (message.type === 'recoverySnapshotImported') {
+      if (message.result?.kind === 'recoveryAck') handleRecoveryAck(message.result);
+      return;
+    }
+    if (message.type === 'recoverySnapshotAck') { handleRecoveryAck(message); return; }
+    if (message.type === 'recoveryAck') { handleRecoveryAck(message); return; }
+    if (message.type === 'heartbeatTimeout') { handleWorkerFailure(Error('heartbeat-timeout')); return; }
     if (message.type === 'aiDiagnostics' && !Object.hasOwn(message, 'requestId')) {
       const diagnostics = message.diagnostics;
       if (!diagnostics || !['off', 'auto'].includes(diagnostics.mode)
@@ -613,7 +869,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     }
     if (!Number.isSafeInteger(message.requestId) || message.requestId <= 0 || message.requestId > nextId) { fail(Error('invalid-worker-response')); return; }
     if (message.requestId <= discardedThrough) return;
-    if (message.type === 'fault') { fail(Error(String(message.message ?? 'Worker fault'))); return; }
+    if (message.type === 'fault') { handleWorkerFailure(Error(String(message.message ?? 'Worker fault'))); return; }
     if (message.type === 'log') {
       if (!['info', 'warn', 'error', 'debug'].includes(message.level) || typeof message.text !== 'string') fail(Error('invalid-worker-log'));
       else log(message.level, message.text);
@@ -654,20 +910,30 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     if (message.type === 'ready' && state.status === 'loading' && message.requestId === initId) {
       const info = message.buildInfo;
       if (message.packageId !== state.packageId || message.worldReady !== false || message.aiState !== 'off'
-        || info?.engineVersion !== packageInfo.manifest.engineVersion || info.bridgeApiVersion !== 1
+        || info?.engineVersion !== packageInfo.manifest.engineVersion || ![1, 2].includes(info.bridgeApiVersion)
+        || info.bridgeApiVersion !== packageInfo.manifest.bridgeApiVersion
         || info.packetver !== 20211103 || info.target !== 'wasm32-unknown-unknown') { fail(Error('invalid-worker-ready')); return; }
         mapStreamCapability = message.capabilities?.mapStream === true;
+        residentExecutor = message.capabilities?.residentExecutor === true
+          || message.capabilities?.queues === true || message.capabilities?.oneShotDeadline === true
+          || info.bridgeApiVersion >= 2;
+        legacyExecutor = !residentExecutor;
+        heartbeatEnabled = residentExecutor || message.capabilities?.heartbeat === true;
+        lastHeartbeatAt = clock(); heartbeatRequest = null;
         if (packageInfo.manifest.profile === KORE_PROTOCOL_PROFILE && !mapStreamCapability) {
           fail(Error('invalid-worker-ready'));
           return;
         }
       state.status = 'runtime-ready'; changed();
+      if (residentExecutor) {
+        recoveryBarrier = { active: true, revision: recoveryMirror?.snapshotRevision ?? null };
+      }
       flushPendingGameEvents();
       return;
     }
     if (message.type === 'tick' && state.status === 'runtime-ready' && message.requestId === probe?.id) {
       if (!Number.isSafeInteger(message.tickCount) || message.tickCount <= state.tickCount || !Number.isFinite(message.elapsedMs) || message.elapsedMs < state.elapsedMs) { fail(Error('invalid-worker-tick')); return; }
-      state.tickCount = message.tickCount; state.elapsedMs = message.elapsedMs; probe = null; changed(); return;
+      state.tickCount = message.tickCount; state.elapsedMs = message.elapsedMs; probe = null; restartAttempt = 0; changed(); return;
     }
     fail(Error('unexpected-worker-response'));
   }
@@ -680,21 +946,122 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     if (requireField && state.mapResourceState !== 'ready') return `map resource is ${state.mapResourceState}`;
     return null;
   }
+  function resetRuntimeForRecovery(reason) {
+    routePermit = null;
+    aiPermit = null;
+    pendingCommands.clear();
+    controlGeneration += 1;
+    state.status = 'loading';
+    state.worldReady = false;
+    state.streamStatus = gameSession ? 'awaiting-sync' : 'idle';
+    state.aiState = 'off';
+    state.aiTaskCount = 0;
+    state.aiDiagnostics = null;
+    state.routeState = 'idle';
+    state.mapResourceState = gameSession ? 'loading' : 'idle';
+    state.degradedReason = null;
+    postedGameSessionId = null;
+    postedConnectionGeneration = null;
+    workerDegraded = false;
+    recoveryBarrier = residentExecutor ? { active: true, revision: recoveryMirror?.snapshotRevision ?? null } : null;
+    initAge = 0;
+    lastNow = clock();
+    if (reason) log('warn', `KoreEngine runtime restarting: ${String(reason)}`);
+    changed();
+  }
+  function spawnWorker() {
+    if (!packageInfo || state.status === 'disposed') return;
+    residentExecutor = false;
+    legacyExecutor = false;
+    heartbeatEnabled = false;
+    outputDrainPending = false;
+    worker = createWorker(packageInfo.workerUrl);
+    const localWorker = worker;
+    const workerError = event => {
+      if (localWorker !== worker) return;
+      event.preventDefault?.();
+      handleWorkerFailure(Error(event.message ?? 'Worker communication failed'));
+    };
+    localWorker.addEventListener('message', receive);
+    localWorker.addEventListener('error', workerError);
+    localWorker.addEventListener('messageerror', workerError);
+    removeWorkerListeners = () => {
+      localWorker.removeEventListener('message', receive);
+      localWorker.removeEventListener('error', workerError);
+      localWorker.removeEventListener('messageerror', workerError);
+    };
+    initId = post('init', {
+      expectedPackageId: state.packageId,
+      bridgeApiVersion: packageInfo.manifest.bridgeApiVersion,
+      packetver: 20211103,
+      startMs: clock(),
+      executor: 'resident', runtimeGeneration,
+    });
+  }
+  function scheduleWorkerRestart(reason) {
+    if (state.status === 'disposed' || !packageInfo || restartTimer !== null) return;
+    if (restartAttempt >= MAX_RESTART_ATTEMPTS) {
+      state.status = 'failed';
+      state.aiState = 'off';
+      state.aiTaskCount = 0;
+      log('error', 'KE unavailable after repeated runtime recovery failures.');
+      changed();
+      return;
+    }
+    const delay = RESTART_BACKOFF_MS[restartAttempt++];
+    resetRuntimeForRecovery(reason);
+    restarting = true;
+    restartTimer = timers.setTimeout(() => {
+      restartTimer = null;
+      restarting = false;
+      try {
+        session = (page.crypto ?? globalThis.crypto).randomUUID();
+        spawnWorker();
+      } catch (error) { handleWorkerFailure(error); }
+    }, delay);
+    changed();
+  }
+  function handleWorkerFailure(error) {
+    if (state.status === 'disposed' || restarting && restartTimer !== null) return;
+    if (legacyExecutor && state.status === 'runtime-ready') {
+      fail(error);
+      return;
+    }
+    runtimeGeneration += 1;
+    state.runtimeGeneration = runtimeGeneration;
+    releaseWorker();
+    heartbeatRequest = null;
+    heartbeatEnabled = false;
+    scheduleWorkerRestart(error instanceof Error ? error.message : String(error));
+  }
   function supervise() {
-    const now = clock();
-    const delta = Math.min(Math.max(now - lastNow, 0), 1000); lastNow = now;
-    if (page.document?.hidden) return;
+    let now;
+    try { now = clock(); } catch { now = lastNow; }
+    const delta = Math.min(Math.max(now - lastNow, 0), 2000); lastNow = now;
     if (state.status === 'loading') {
       initAge += delta;
-      if (initAge >= 10000) fail(Error('initialization-timeout'));
-    } else if (state.status === 'runtime-ready') {
+      if (initAge >= INITIALIZATION_TIMEOUT_MS && !restarting) handleWorkerFailure(Error('initialization-timeout'));
+      return;
+    }
+    if (state.status !== 'runtime-ready' || page.document?.hidden) return;
+    if (legacyExecutor) {
       if (probe) {
         probe.age += delta;
-        if (probe.age >= 5000) fail(Error('tick-timeout'));
+        if (probe.age >= HEARTBEAT_TIMEOUT_MS) handleWorkerFailure(Error('tick-timeout'));
       } else {
         const id = post('tick', { nowMs: now });
         if (id !== null) probe = { id, age: 0 };
       }
+      return;
+    }
+    if (!heartbeatEnabled) return;
+    if (lastHeartbeatAt !== null && now - lastHeartbeatAt >= HEARTBEAT_TIMEOUT_MS) {
+      handleWorkerFailure(Error('heartbeat-timeout'));
+      return;
+    }
+    if (!heartbeatRequest) {
+      const id = post('heartbeat', { nowMs: now, runtimeGeneration });
+      if (id !== null) heartbeatRequest = id;
     }
   }
   function visibility() {
@@ -714,7 +1081,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       revokeRoutePermit();
       revokeAiPermit();
       Object.assign(state, {
-        status: 'absent', packageId: null, mode: null, tickCount: 0, elapsedMs: 0,
+        status: 'absent', packageId: null, mode: null, tickCount: 0, elapsedMs: 0, runtimeGeneration: 0,
         profile: KORE_PROTOCOL_PROFILE,
         gameSessionId: null, connectionGeneration: null, streamStatus: 'idle', mapName: null,
         selfActor: null, visibleEntities: { total: 0, players: 0, monsters: 0, other: 0, unknown: 0 },
@@ -728,8 +1095,10 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       if (lostSession) log('warn', 'KoreEngine restarted; re-enter the map server to synchronize.');
       state.status = 'loading'; changed();
       initAge = 0; lastNow = clock(); nextId = 0; discardedThrough = 0;
+      runtimeGeneration = 1; state.runtimeGeneration = runtimeGeneration;
+      restartAttempt = 0; recoveryMirror = null; recoveryBarrier = null; nextBridgeSequence = 0;
       controller = new globalThis.AbortController();
-      timer = timers.setInterval(supervise, 100);
+      timer = timers.setInterval(supervise, HEARTBEAT_INTERVAL_MS);
       page.document?.addEventListener('visibilitychange', visibility);
       const unload = () => api.dispose();
       page.addEventListener?.('pagehide', unload);
@@ -744,33 +1113,26 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         resources.configure?.(packageInfo.mapResourceConfig);
         state.packageId = packageInfo.manifest.packageId; state.mode = packageInfo.manifest.mode;
         state.profile = packageInfo.manifest.profile;
-        worker = createWorker(packageInfo.workerUrl);
-        const localWorker = worker;
-        const workerError = event => { event.preventDefault?.(); fail(Error(event.message ?? 'Worker communication failed')); };
-        localWorker.addEventListener('message', receive);
-        localWorker.addEventListener('error', workerError);
-        localWorker.addEventListener('messageerror', workerError);
         const previousCleanup = removeListeners;
         removeListeners = () => {
           previousCleanup();
-          localWorker.removeEventListener('message', receive);
-          localWorker.removeEventListener('error', workerError);
-          localWorker.removeEventListener('messageerror', workerError);
+          removeWorkerListeners(); removeWorkerListeners = () => {};
         };
-        initId = post('init', { expectedPackageId: state.packageId, bridgeApiVersion: 1, packetver: 20211103, startMs: clock() });
+        spawnWorker();
       } catch (error) { if (current === generation) fail(error); }
     },
     dispose() {
       const disposeMessage = session === null ? null : { type: 'dispose', runtimeSessionId: session, requestId: ++nextId };
       needsMapResync ||= gameSession !== null;
       generation++;
+      runtimeGeneration += 1;
       revokeRoutePermit();
       revokeAiPermit();
       gameSession = null; connection = null; postedGameSessionId = null; postedConnectionGeneration = null;
       session = null; clearPendingGameEvents(); workerDegraded = false;
       mapStreamCapability = null;
       Object.assign(state, {
-        status: 'disposed', gameSessionId: null, connectionGeneration: null,
+        status: 'disposed', runtimeGeneration, gameSessionId: null, connectionGeneration: null,
         streamStatus: 'idle', mapName: null, selfActor: null,
         visibleEntities: { total: 0, players: 0, monsters: 0, other: 0, unknown: 0 },
         parserDiagnostics: { bufferedBytes: 0, pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: null },
@@ -808,6 +1170,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         gameSession = { id: (page.crypto ?? globalThis.crypto).randomUUID(), characterGid, mapName: mapName.slice(0, 128), aid, cid };
       } catch (error) { log('error', `Unable to create game session: ${String(error)}`); return null; }
       connection = null; postedGameSessionId = null; postedConnectionGeneration = null;
+      if (recoveryMirror?.gameSessionId !== gameSession.id) recoveryMirror = null;
       resourceCycle += 1;
       activeResourceRequestId = null;
       clearPendingGameEvents(); workerDegraded = false;
@@ -899,6 +1262,19 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       connection.byteOffset += bytes.byteLength;
       state.receivedBytes += bytes.byteLength;
       if (state.status === 'runtime-ready') {
+        if (residentExecutor) {
+          if (recoveryBarrier?.active) {
+            pendingGameEvents.push(message);
+            pendingGameBytes += bytes.byteLength;
+            changed();
+            return true;
+          }
+          if (!sendCurrentGameContext()) return false;
+          return postBridgeEvent('gameData', {
+            sequence: message.sequence, byteOffset: message.byteOffset,
+            receivedAtMs: message.receivedAtMs, bytes: message.bytes,
+          }, 'game') !== null;
+        }
         if (!sendCurrentGameContext()) return false;
         return postGameData(message);
       }
@@ -962,7 +1338,10 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       pendingCommands.clear();
       resourceCycle += 1;
       activeResourceRequestId = null;
-      if (state.status === 'runtime-ready' && postedGameSessionId === ended) post('endGameSession', { gameSessionId: ended });
+      if (state.status === 'runtime-ready' && postedGameSessionId === ended) {
+        if (residentExecutor) postBridgeEvent('gameSessionEnded', {}, 'control', { gameSessionId: ended });
+        else post('endGameSession', { gameSessionId: ended });
+      }
       gameSession = null; connection = null; postedGameSessionId = null; postedConnectionGeneration = null;
       clearPendingGameEvents(); workerDegraded = false; needsMapResync = false;
       Object.assign(state, {
@@ -992,7 +1371,8 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         revokeRoutePermit();
       }
       controlGeneration += 1;
-      routePermit = { requestId: ++nextId, routeId: ++nextId, actionIds: new Set(), gameSessionId: gameSession.id,
+      routePermit = { requestId: ++nextId, routeId: ++nextId, actionIds: new Set(), runtimeGeneration,
+        gameSessionId: gameSession.id,
         connectionGeneration: connection.generation, controlGeneration, awaitingMap: null,
         awaitingConnectionGeneration: connection.generation, pendingAirshipActionId: null,
         airshipAccepted: false };
@@ -1000,7 +1380,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       try { worker.postMessage({ runtimeSessionId: session, type: 'debugRouteGo', requestId: routePermit.requestId, routeRequest,
         routeId: routePermit.routeId, gameSessionId: gameSession.id, connectionGeneration: connection.generation,
         controlGeneration, resourceCycle }); }
-      catch (error) { revokeRoutePermit(); fail(error); return false; }
+      catch (error) { revokeRoutePermit(); handleWorkerFailure(error); return false; }
       return true;
     },
     debugRouteCancel() {

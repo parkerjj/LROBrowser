@@ -164,7 +164,7 @@ test('keeps M0 packages alive without sending M1 map stream messages', async () 
   }
 });
 
-test('initialization and unanswered ticks expire only with foreground supervision', async () => {
+test('initialization timeout starts bounded recovery without foreground AI polling', async () => {
   vi.useFakeTimers();
   const fixture = packageFixture();
   let now = 0;
@@ -175,18 +175,11 @@ test('initialization and unanswered ticks expire only with foreground supervisio
   const worker = Object.assign(new EventTarget(), { postMessage(message: Record<string, unknown>) { messages.push(message); }, terminate() {} });
   const host = createKoreIntegration({ page, manifest: fixture.executable, createWorker: () => worker });
   await host.start();
-  for (let i = 0; i < 10; i++) { now += i === 0 ? 60000 : 1000; await vi.advanceTimersByTimeAsync(1000); }
-  expect(host.state.status).toBe('failed');
-  await host.start();
-  const init = messages.at(-1)!;
-  worker.dispatchEvent(new MessageEvent('message', { data: { ...init, type: 'ready', packageId: fixture.manifest.packageId,
-    worldReady: false, aiState: 'off', capabilities: { mapStream: true },
-    buildInfo: { engineVersion: '0.1.0', bridgeApiVersion: 1, packetver: 20211103, target: 'wasm32-unknown-unknown' } } }));
-  now += 1000; await vi.advanceTimersByTimeAsync(1000);
-  expect(messages.at(-1)?.type).toBe('tick');
-  for (let i = 0; i < 5; i++) { now += 1000; await vi.advanceTimersByTimeAsync(1000); }
-  expect(host.state.status).toBe('failed');
-  expect(messages.filter(message => message.type === 'tick')).toHaveLength(1);
+  for (let i = 0; i < 11; i++) { now += 1000; await vi.advanceTimersByTimeAsync(1000); }
+  expect(host.state.status).toBe('loading');
+  expect(messages.filter(message => message.type === 'init').length).toBeGreaterThan(1);
+  expect(messages.some(message => message.type === 'tick')).toBe(false);
+  host.dispose();
 });
 
 test('copies map bytes from the active view and queues ordered events until runtime-ready', async () => {

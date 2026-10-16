@@ -260,12 +260,12 @@ test('AI diagnostics events update the host state without treating them as inval
   } finally { host.dispose(); }
 });
 
-test('Kore Engine supervises ticks at 100 ms for responsive route and AI actions', async () => {
+test('Kore Engine supervises heartbeat at a low frequency without fixed AI ticks', async () => {
   const harness = createHarness();
   const setIntervalSpy = vi.spyOn(harness.page, 'setInterval');
   try {
     await startHarness(harness);
-    expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 100);
+    expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 1000);
   } finally {
     harness.host.dispose();
     setIntervalSpy.mockRestore();
