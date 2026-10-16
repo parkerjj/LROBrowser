@@ -9,6 +9,10 @@ const MAX_PENDING_GAME_CHUNKS = 256;
 const MAX_PENDING_GAME_BYTES = 1024 * 1024;
 const emptyM4Status = () => ({ hp: null, hpMax: null, sp: null, spMax: null, weight: null, weightMax: null });
 const emptyM4Inventory = () => ({ ready: false, items: {}, groundItems: {}, storageReady: false, storageItems: {} });
+const validU8 = value => Number.isSafeInteger(value) && value >= 0 && value <= 0xff;
+const validU16 = value => Number.isSafeInteger(value) && value >= 0 && value <= 0xffff;
+const validU32 = value => Number.isSafeInteger(value) && value >= 0 && value <= 0xffffffff;
+const validMapCoordinate = value => Number.isSafeInteger(value) && value >= 0 && value <= 1023;
 const M4_CONFIG_FILES = new Set(['config.txt', 'mon_control.txt', 'timeouts.txt', 'pickupitems.txt', 'items_control.txt']);
 function reloadFileNames(target) {
   const normalized = String(target ?? '').trim().toLowerCase();
@@ -165,10 +169,13 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   function fail(error) {
     routePermit = null;
     aiPermit = null;
+    pendingCommands.clear();
     controlGeneration += 1;
     generation++;
     release();
     state.status = 'failed';
+    state.aiState = 'off';
+    state.aiTaskCount = 0;
     log('error', error instanceof Error ? error.message : String(error));
   }
   function revokeRoutePermit() {
@@ -207,32 +214,32 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     if (action.runtimeSessionId !== session || action.gameSessionId !== gameSession.id
       || action.connectionGeneration !== connection.generation || action.controlGeneration !== controlGeneration
       || !Number.isSafeInteger(action.requestId) || action.requestId <= 0 || aiPermit.actionIds.has(action.requestId)) return false;
-    if (action.type === 'MoveTo') return Number.isSafeInteger(action.x) && Number.isSafeInteger(action.y);
-    if (action.type === 'Attack') return Number.isSafeInteger(action.targetGid) && action.targetGid > 0;
-    if (action.type === 'UseSkillOnTarget') return Number.isSafeInteger(action.skillId) && action.skillId > 0
-      && Number.isSafeInteger(action.level) && action.level > 0
-      && Number.isSafeInteger(action.targetGid) && action.targetGid > 0;
-    if (action.type === 'UseSkillSelf') return Number.isSafeInteger(action.skillId) && action.skillId > 0
-      && Number.isSafeInteger(action.level) && action.level > 0;
-    if (action.type === 'UseSkillAt') return Number.isSafeInteger(action.skillId) && action.skillId > 0
-      && Number.isSafeInteger(action.level) && action.level > 0
-      && Number.isSafeInteger(action.x) && Number.isSafeInteger(action.y);
-    if (action.type === 'UseItem') return Number.isSafeInteger(action.inventoryIndex) && action.inventoryIndex >= 0
-      && Number.isSafeInteger(action.targetGid) && action.targetGid > 0;
-    if (action.type === 'Pickup') return Number.isSafeInteger(action.itemGid) && action.itemGid > 0;
-    if (action.type === 'StorageTransfer') return Number.isSafeInteger(action.inventoryIndex) && action.inventoryIndex >= 0
-      && Number.isSafeInteger(action.amount) && action.amount > 0 && typeof action.toStorage === 'boolean';
-    if (action.type === 'NpcTalk' || action.type === 'NpcContinue') return Number.isSafeInteger(action.npcGid) && action.npcGid > 0;
-    if (action.type === 'NpcMenu') return Number.isSafeInteger(action.npcGid) && action.npcGid > 0
-      && Number.isSafeInteger(action.choice) && action.choice >= 0 && action.choice <= 255;
-    if (action.type === 'NpcShopSelect') return Number.isSafeInteger(action.npcGid) && action.npcGid > 0
+    if (action.type === 'MoveTo') return validMapCoordinate(action.x) && validMapCoordinate(action.y);
+    if (action.type === 'Attack') return validU32(action.targetGid) && action.targetGid > 0;
+    if (action.type === 'UseSkillOnTarget') return validU32(action.skillId) && action.skillId > 0
+      && validU16(action.level) && action.level > 0
+      && validU32(action.targetGid) && action.targetGid > 0;
+    if (action.type === 'UseSkillSelf') return validU32(action.skillId) && action.skillId > 0
+      && validU16(action.level) && action.level > 0;
+    if (action.type === 'UseSkillAt') return validU32(action.skillId) && action.skillId > 0
+      && validU16(action.level) && action.level > 0
+      && validMapCoordinate(action.x) && validMapCoordinate(action.y);
+    if (action.type === 'UseItem') return validU16(action.inventoryIndex)
+      && validU32(action.targetGid) && action.targetGid > 0;
+    if (action.type === 'Pickup') return validU32(action.itemGid) && action.itemGid > 0;
+    if (action.type === 'StorageTransfer') return validU16(action.inventoryIndex)
+      && validU16(action.amount) && action.amount > 0 && typeof action.toStorage === 'boolean';
+    if (action.type === 'NpcTalk' || action.type === 'NpcContinue') return validU32(action.npcGid) && action.npcGid > 0;
+    if (action.type === 'NpcMenu') return validU32(action.npcGid) && action.npcGid > 0
+      && validU8(action.choice);
+    if (action.type === 'NpcShopSelect') return validU32(action.npcGid) && action.npcGid > 0
       && typeof action.sell === 'boolean';
-    if (action.type === 'ShopBuy') return Number.isSafeInteger(action.npcGid) && action.npcGid > 0
-      && Number.isSafeInteger(action.itemId) && action.itemId > 0
-      && Number.isSafeInteger(action.amount) && action.amount > 0 && action.amount <= 0xffff;
-    if (action.type === 'ShopSell') return Number.isSafeInteger(action.npcGid) && action.npcGid > 0
-      && Number.isSafeInteger(action.inventoryIndex) && action.inventoryIndex >= 0
-      && Number.isSafeInteger(action.amount) && action.amount > 0 && action.amount <= 0xffff;
+    if (action.type === 'ShopBuy') return validU32(action.npcGid) && action.npcGid > 0
+      && validU32(action.itemId) && action.itemId > 0
+      && validU16(action.amount) && action.amount > 0;
+    if (action.type === 'ShopSell') return validU32(action.npcGid) && action.npcGid > 0
+      && validU16(action.inventoryIndex)
+      && validU16(action.amount) && action.amount > 0;
     if (action.type === 'PrivateAirship') return typeof action.destinationId === 'string' && action.destinationId.length > 0
       && typeof action.expectedMap === 'string' && action.expectedMap.length > 0;
     return false;
@@ -263,8 +270,14 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     if (command === 'ai_clear' && aiPermit) aiPermit.actionIds.clear();
     if (command === 'ai_off') state.aiState = 'off';
     if (command === 'ai_auto') state.aiState = 'auto';
-    const requestId = post('command', { command, gameSessionId: gameSession.id, controlGeneration, nowMs: clock(), ...fields });
-    if (requestId !== null) pendingCommands.set(requestId, command);
+    const commandContext = {
+      command,
+      gameSessionId: gameSession.id,
+      connectionGeneration: connection.generation,
+      controlGeneration,
+    };
+    const requestId = post('command', { gameSessionId: gameSession.id, controlGeneration, nowMs: clock(), ...fields, command });
+    if (requestId !== null) pendingCommands.set(requestId, commandContext);
     changed();
     return true;
   }
@@ -349,12 +362,15 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   function markDegraded(reason) {
     if (!connection || state.streamStatus === 'degraded') return;
     clearPendingGameEvents();
+    pendingCommands.clear();
     state.streamStatus = 'degraded';
     state.worldReady = false;
     state.degradedReason = String(reason).slice(0, 512);
     cancelWorkerRoute();
     revokeRoutePermit();
     revokeAiPermit();
+    state.aiState = 'off';
+    state.aiTaskCount = 0;
     log('error', `Map stream degraded: ${state.degradedReason}`);
     sendDegradedState();
   }
@@ -495,6 +511,10 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     if (becameDegraded) {
       cancelWorkerRoute();
       revokeRoutePermit();
+      revokeAiPermit();
+      pendingCommands.clear();
+      state.aiState = 'off';
+      state.aiTaskCount = 0;
       state.routeState = 'failed';
     }
     state.streamStatus = message.streamStatus;
@@ -567,8 +587,13 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     }
     if (message.type === 'commandResult') {
       if (!message.result || typeof message.result.kind !== 'string') { fail(Error('invalid-command-result')); return; }
-      const command = pendingCommands.get(message.requestId);
+      const pending = pendingCommands.get(message.requestId);
       pendingCommands.delete(message.requestId);
+      if (!pending || !gameSession || !connection
+        || pending.gameSessionId !== gameSession.id
+        || pending.connectionGeneration !== connection.generation
+        || pending.controlGeneration !== controlGeneration) return;
+      const command = pending.command;
       if (message.result.kind === 'aiState') {
         state.aiState = message.result.aiMode;
         state.aiTaskCount = message.result.taskCount;
@@ -774,6 +799,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         state.routeState = 'cancelled';
       }
       revokeAiPermit();
+      pendingCommands.clear();
       connection = { generation: nextGeneration, sequence: 0, byteOffset: 0 };
       resourceCycle += 1;
       activeResourceRequestId = null;
@@ -882,6 +908,8 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         cancelWorkerRoute();
         revokeRoutePermit();
       }
+      revokeAiPermit();
+      pendingCommands.clear();
       resourceCycle += 1;
       activeResourceRequestId = null;
       if (state.status === 'runtime-ready' && postedGameSessionId === ended) post('endGameSession', { gameSessionId: ended });
@@ -892,6 +920,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         selfActor: null, visibleEntities: { total: 0, players: 0, monsters: 0, other: 0, unknown: 0 },
         parserDiagnostics: { bufferedBytes: 0, pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: null },
         receivedBytes: 0, degradedReason: null, worldReady: false, mapResourceState: 'idle', routeState: 'idle', routePreview: null,
+        aiState: 'off', aiTaskCount: 0, configIdentity: null,
         playerStatus: emptyM4Status(), inventory: emptyM4Inventory(),
       });
       changed();
