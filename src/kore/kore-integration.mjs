@@ -279,13 +279,17 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     log('warn', 'This KE package does not support M1 map streaming; rebuild the local KE package.');
   }
   function validRouteAction(action) {
-    if (!routePermit || routePermit.awaitingMap || state.mapResourceState !== 'ready' || !action || !gameSession || !connection) return false;
+    if (!routePermit || routePermit.awaitingMap || state.mapResourceState !== 'ready'
+      || !state.worldReady || state.streamStatus !== 'world-ready'
+      || !action || !gameSession || !connection) return false;
     if (action.runtimeSessionId !== session || action.gameSessionId !== gameSession.id
       || action.connectionGeneration !== connection.generation || action.controlGeneration !== controlGeneration
       || action.routeId !== routePermit.routeId
       || !Number.isSafeInteger(action.requestId) || action.requestId <= 0 || routePermit.actionIds.has(action.requestId)) return false;
     if (action.type !== 'MoveTo' && action.type !== 'PrivateAirship') return false;
-    if (action.type === 'MoveTo' && (!Number.isSafeInteger(action.x) || !Number.isSafeInteger(action.y))) return false;
+    if (action.type === 'MoveTo' && (typeof action.expectedMap !== 'string' || !action.expectedMap.trim()
+      || !Number.isSafeInteger(action.x) || !Number.isSafeInteger(action.y)
+      || action.x < 0 || action.x > 1023 || action.y < 0 || action.y > 1023)) return false;
     if (action.type === 'PrivateAirship' && (typeof action.destinationId !== 'string' || !action.destinationId
       || typeof action.expectedMap !== 'string' || !action.expectedMap.trim())) return false;
     if (action.waitForMap !== null && action.waitForMap !== undefined
@@ -310,7 +314,10 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       return;
     }
     const permit = routePermit;
-    if (action.type === 'PrivateAirship') routePermit.pendingAirshipActionId = action.requestId;
+    if (action.type === 'PrivateAirship') {
+      routePermit.pendingAirshipActionId = action.requestId;
+      routePermit.airshipAccepted = false;
+    }
     const sent = page.KoreEngineNativeRouteAction?.(action) === true;
     if (!sent) {
       routePermit.pendingAirshipActionId = null;
@@ -337,6 +344,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
 
   function maybeConfirmRouteMap() {
     if (!routePermit?.awaitingMap || !state.worldReady || state.mapResourceState !== 'ready' || !connection) return;
+    if (routePermit.pendingAirshipActionId && !routePermit.airshipAccepted) return;
     const actualMap = String(state.mapName ?? '').replace(/\.(?:gat|rsw)$/i, '').toLowerCase();
     if (connection.generation <= routePermit.awaitingConnectionGeneration) return;
     if (actualMap !== routePermit.awaitingMap) {
@@ -388,6 +396,11 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     }
     const becameReady = !state.worldReady && message.worldReady;
     const becameDegraded = state.streamStatus !== 'degraded' && message.streamStatus === 'degraded';
+    if (becameDegraded) {
+      cancelWorkerRoute();
+      revokeRoutePermit();
+      state.routeState = 'failed';
+    }
     state.streamStatus = message.streamStatus;
     state.profile = message.profile;
     state.worldReady = message.worldReady;
@@ -715,7 +728,8 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       controlGeneration += 1;
       routePermit = { requestId: ++nextId, routeId: ++nextId, actionIds: new Set(), gameSessionId: gameSession.id,
         connectionGeneration: connection.generation, controlGeneration, awaitingMap: null,
-        awaitingConnectionGeneration: connection.generation, pendingAirshipActionId: null };
+        awaitingConnectionGeneration: connection.generation, pendingAirshipActionId: null,
+        airshipAccepted: false };
       state.routeState = 'running';
       try { worker.postMessage({ runtimeSessionId: session, type: 'debugRouteGo', requestId: routePermit.requestId, routeRequest,
         routeId: routePermit.routeId, gameSessionId: gameSession.id, connectionGeneration: connection.generation,
@@ -734,13 +748,18 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     handleAirshipResponse(response) {
       if (!routePermit || !routePermit.pendingAirshipActionId) return false;
       const actionId = routePermit.pendingAirshipActionId;
+      const numericResponse = Number(response);
       postResourceMessage({ runtimeSessionId: session, type: 'routeAirshipResponse',
-        routeId: routePermit.routeId, actionId, response: Number(response) });
-      if (Number(response) !== 0) {
+        routeId: routePermit.routeId, actionId, response: numericResponse });
+      if (numericResponse !== 0) {
         routePermit.pendingAirshipActionId = null;
+        routePermit.airshipAccepted = false;
         revokeRoutePermit();
         state.routeState = 'failed';
         changed();
+      } else {
+        routePermit.airshipAccepted = true;
+        maybeConfirmRouteMap();
       }
       return true;
     },

@@ -268,3 +268,30 @@ test('turns a hanging fetch into a retryable timeout error', async () => {
   });
   expect(result.result).toMatchObject({ kind: 'error', code: 'network-timeout' });
 });
+
+
+test('times out a response whose headers arrived but body read hangs', async () => {
+  const provider = createMapResourceProvider({
+    databaseName: 'kore-map-resource-body-timeout-test',
+    requestTimeoutMs: 5,
+    fetchImpl: async (_url: URL, options: RequestInit) => ({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/octet-stream' }),
+      arrayBuffer: () => new Promise<ArrayBuffer>((_resolve, reject) => {
+        options.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')), { once: true });
+      }),
+    } as Response),
+  });
+  providers.push(provider);
+  const pending = provider.handleResourceRequest({
+    requestId: 20, resourceType: 'fieldMap', mapName: 'prontera', baseName: 'prontera', serverFieldsFolder: 'EP15.1',
+    fieldpackVersion: FIELD_PACK_VERSION, attempt: 0, cacheMode: 'network',
+  });
+  const result = await Promise.race([
+    pending,
+    new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), 100)),
+  ]);
+  if (result === 'timeout') throw new Error('body-read-did-not-time-out');
+  expect(result.result).toMatchObject({ kind: 'error', code: 'network-timeout' });
+});

@@ -76,13 +76,15 @@ class VersionedMapCache {
     const database = await this.open();
     if (!database) return;
     await new Promise((resolve, reject) => {
-      const request = database.transaction('maps', 'readwrite').objectStore('maps').put({
+      const transaction = database.transaction('maps', 'readwrite');
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error ?? new Error('map-cache-write-failed'));
+      transaction.onabort = () => reject(transaction.error ?? new Error('map-cache-write-aborted'));
+      transaction.objectStore('maps').put({
         key: cacheKey(version, relativePath), version, relativePath,
         sha256: record.sha256, encoding: record.encoding, bytes: cloneBytes(record.bytes),
         savedAt: record.savedAt ?? Date.now(),
       });
-      request.onsuccess = resolve;
-      request.onerror = () => reject(request.error ?? new Error('map-cache-write-failed'));
     });
   }
 
@@ -90,9 +92,11 @@ class VersionedMapCache {
     const database = await this.open();
     if (!database) return;
     await new Promise((resolve, reject) => {
-      const request = database.transaction('maps', 'readwrite').objectStore('maps').delete(cacheKey(version, relativePath));
-      request.onsuccess = resolve;
-      request.onerror = () => reject(request.error ?? new Error('map-cache-delete-failed'));
+      const transaction = database.transaction('maps', 'readwrite');
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error ?? new Error('map-cache-delete-failed'));
+      transaction.onabort = () => reject(transaction.error ?? new Error('map-cache-delete-aborted'));
+      transaction.objectStore('maps').delete(cacheKey(version, relativePath));
     });
   }
 
@@ -151,25 +155,25 @@ export function createMapResourceProvider({
     let response;
     try {
       response = await fetchImpl(url, { method: 'GET', redirect: 'error', credentials: 'omit', signal: controller?.signal });
+      if (response.status === 404) return null;
+      if (!response.ok) throw new Error(`http-${response.status}`);
+      const contentType = response.headers?.get?.('content-type') ?? '';
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      if (!bytes.byteLength) throw new Error('empty-response');
+      if (isHtmlOrXml(bytes, contentType)) throw new Error('invalid-response-content');
+      const sha256 = await digest(bytes);
+      const expected = expectedChecksum(candidate.relativePath);
+      if (expected && expected !== sha256) throw new Error('sha256-mismatch');
+      return {
+        role, relativePath: candidate.relativePath, sha256,
+        encoding: candidate.encoding, bytes: bytes.buffer,
+      };
     } catch (error) {
       if (controller?.signal.aborted) throw new Error('network-timeout');
       throw error;
     } finally {
       if (timeout !== null) globalThis.clearTimeout(timeout);
     }
-    if (response.status === 404) return null;
-    if (!response.ok) throw new Error(`http-${response.status}`);
-    const contentType = response.headers?.get?.('content-type') ?? '';
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    if (!bytes.byteLength) throw new Error('empty-response');
-    if (isHtmlOrXml(bytes, contentType)) throw new Error('invalid-response-content');
-    const sha256 = await digest(bytes);
-    const expected = expectedChecksum(candidate.relativePath);
-    if (expected && expected !== sha256) throw new Error('sha256-mismatch');
-    return {
-      role, relativePath: candidate.relativePath, sha256,
-      encoding: candidate.encoding, bytes: bytes.buffer,
-    };
   }
 
   function auxiliaryCandidates(fieldPath, role) {
@@ -185,8 +189,7 @@ export function createMapResourceProvider({
         const file = await fetchCandidate(candidate, role);
         if (file) return file;
       } catch {
-        // Auxiliary data is optional; invalid data is rebuilt by the Worker.
-        return null;
+        // Auxiliary data is optional; try its gzip/identity sibling before rebuilding.
       }
     }
     return null;
