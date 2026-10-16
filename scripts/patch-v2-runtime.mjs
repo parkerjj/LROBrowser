@@ -1186,6 +1186,67 @@ export function patchRuntimeWindowBounds(source) {
 ${marker}`);
 }
 
+
+/**
+ * Recover storage on a fresh server COUNTINFO packet, even if its GUIComponent
+ * still reports __active after an interrupted close, character switch, or hide.
+ * Keep the native packet handling and item hydration unchanged.
+ */
+export function patchRuntimeStorageOpening(source) {
+  const marker = '//#region src/Engine/MapEngine/Storage.js';
+  const start = source.indexOf(marker);
+  if (start < 0 || source.indexOf(marker, start + marker.length) >= 0) fail('anchor:storage-region');
+  const end = source.indexOf('//#endregion', start);
+  if (end < 0) fail('anchor:storage-region-end');
+  const region = source.slice(start, end);
+  const file = ts.createSourceFile('Storage.js', region, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const owners = file.statements.filter(node => ts.isFunctionDeclaration(node) && node.name?.text === 'onStorageInfo');
+  if (owners.length !== 1 || !owners[0].body) fail('anchor:storage-open-handler');
+  const statements = owners[0].body.statements;
+  const guards = statements.filter(node => ts.isIfStatement(node)
+    && node.thenStatement.getText(file).includes('Storage.append()'));
+  const guard = guards[0];
+  if (guards.length !== 1 || guard.expression.getText(file).replace(/\s/g, '') !== '!(Storage.__loaded&&Storage.__active)') {
+    fail('anchor:storage-open-guard');
+  }
+  const lists = statements.filter(node => ts.isExpressionStatement(node)
+    && node.expression.getText(file).replace(/\s/g, '') === 'Storage.setItems(itemBuffer)');
+  if (lists.length !== 1) fail('anchor:storage-item-list');
+  const edits = [
+    {
+      start: guard.expression.getStart(file),
+      end: guard.expression.end,
+      value: '!(Storage.__loaded && Storage.__active && Storage._host?.isConnected && Storage._host.style.display !== "none")',
+    },
+    {
+      start: lists[0].end,
+      end: lists[0].end,
+      value: [
+        '\n  // A stale __active flag is not proof of an attached, visible window.',
+        '  // Refresh stacking and fit after item hydration has determined its size.',
+        '  if (typeof Storage.focus === "function") Storage.focus();',
+        '  const recoverStorageWindow = () => {',
+        '    const host = Storage._host;',
+        '    if (!Storage.__active || !host?.isConnected || host.style.display === "none") return;',
+        '    if (Storage._lastroWindowState?.fit) Storage._lastroWindowState.fit();',
+        '    else lastroRecoverWindowBounds(Storage);',
+        '  };',
+        '  if (typeof requestAnimationFrame === "function") {',
+        '    requestAnimationFrame(() => {',
+        '      recoverStorageWindow();',
+        '      requestAnimationFrame(recoverStorageWindow);',
+        '    });',
+        '  } else recoverStorageWindow();',
+      ].join('\n'),
+    },
+  ];
+  let patched = region;
+  for (const edit of edits.sort((a, b) => b.start - a.start)) {
+    patched = patched.slice(0, edit.start) + edit.value + patched.slice(edit.end);
+  }
+  return source.slice(0, start) + patched + source.slice(end);
+}
+
 export function patchV2Runtime(source, { assistant = false } = {}) {
   if (!source.startsWith('import ')) fail('anchor:runtime-imports');
   const normalizedSource = source.replace(/\r\n/g, '\n');
@@ -1376,6 +1437,7 @@ ${normalizedSource}`;
   output = patchLuaTableCompletion(output);
   output = patchRuntimeUiLayout(output);
   output = patchRuntimeWindowBounds(output);
+  output = patchRuntimeStorageOpening(output);
   output = patchPetDialogueDecoding(output);
   output = patchRuntimeWorldMapProductActions(output);
   output = patchRuntimeChatMapLinks(output);
