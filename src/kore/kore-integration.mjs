@@ -335,26 +335,54 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     const reason = worldUnavailableReason();
     if (reason) { log('error', `Command ${command} unavailable: ${reason}.`); return false; }
     const changesAiGeneration = command === 'ai_auto' || command === 'ai_off' || command === 'ai_clear';
+    const useResidentCommand = residentExecutor && ['ai_auto', 'ai_off', 'ai_clear'].includes(command);
     if (changesAiGeneration) controlGeneration += 1;
     if (command === 'ai_off') revokeAiPermit();
     if (command === 'ai_auto') aiPermit = { actionIds: new Set(), taskIntentGeneration: 0, runtimeGeneration,
       gameSessionId: gameSession.id, connectionGeneration: connection.generation };
     if (command === 'ai_clear' && aiPermit) aiPermit.actionIds.clear();
-    if (command === 'ai_off') state.aiState = 'off';
-    if (command === 'ai_auto') state.aiState = 'auto';
+    if (!useResidentCommand && command === 'ai_off') state.aiState = 'off';
+    if (!useResidentCommand && command === 'ai_auto') state.aiState = 'auto';
     const commandContext = {
       command,
       gameSessionId: gameSession.id,
       connectionGeneration: connection.generation,
       controlGeneration,
     };
-    const useResidentCommand = residentExecutor && ['ai_auto', 'ai_off', 'ai_clear'].includes(command);
     const requestId = useResidentCommand
       ? postBridgeEvent('command', { command, nowMs: clock(), ...fields })
       : post('command', { gameSessionId: gameSession.id, controlGeneration, nowMs: clock(), ...fields, command });
-    if (requestId !== null) pendingCommands.set(requestId, commandContext);
+    if (requestId !== null && !useResidentCommand) pendingCommands.set(requestId, commandContext);
     changed();
     return true;
+  }
+  function residentResourceRequest() {
+    if (!residentExecutor || !gameSession || !connection || !worker || !session) return;
+    const mapName = state.mapName ?? gameSession.mapName;
+    const request = {
+      runtimeSessionId: session, requestId: ++nextId, resourceType: 'fieldMap',
+      mapName, baseName: String(mapName).replace(/\.(?:gat|rsw)$/i, ''), serverFieldsFolder,
+      fieldpackVersion: FIELD_PACK_VERSION, attempt: 0, cacheMode: 'prefer', includeAuxiliary: true,
+      resourceCycle, connectionGeneration: connection.generation,
+    };
+    activeResourceRequestId = request.requestId;
+    state.mapResourceState = 'loading';
+    changed();
+    void resources.handleResourceRequest(request).then(response => {
+      if (request.runtimeSessionId !== session || activeResourceRequestId !== request.requestId
+        || request.resourceCycle !== resourceCycle || request.connectionGeneration !== connection?.generation) return;
+      const result = response.result?.kind === 'fieldMap'
+        ? { ...response.result, files: response.result.files.map(file => ({ ...file, bytes: file.bytes.slice(0) })) }
+        : response.result;
+      const transfer = result?.kind === 'fieldMap'
+        ? result.files.map(file => file.bytes).filter(bytes => bytes instanceof ArrayBuffer)
+        : [];
+      postResourceMessage({ ...request, type: 'resourceResult', result }, transfer);
+    }).catch(error => {
+      if (activeResourceRequestId !== request.requestId) return;
+      postResourceMessage({ ...request, type: 'resourceResult',
+        result: { kind: 'error', code: 'host-resource-error', message: String(error?.message ?? error) } });
+    });
   }
   async function handleResourceRequest(message) {
     if (message.runtimeSessionId !== session || message.fieldpackVersion !== FIELD_PACK_VERSION
@@ -387,16 +415,23 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       || (message.resourceCycle !== undefined && message.resourceCycle !== resourceCycle)) return;
     try {
       const response = await resources.handleResourceValidation(message);
+      const sourceRequestId = response.sourceRequestId === message.sourceRequestId
+        ? response.sourceRequestId : message.sourceRequestId;
+      const committedFiles = Array.isArray(response.committedFiles) ? response.committedFiles : [];
+      const deletedFiles = Array.isArray(response.deletedFiles) ? response.deletedFiles : [];
       postResourceMessage({ runtimeSessionId: session, type: 'resourceValidationResult', requestId: ++nextId,
-        resourceCycle: message.resourceCycle, sourceRequestId: response.sourceRequestId,
-        committedFiles: response.committedFiles, deletedFiles: response.deletedFiles });
+        resourceCycle: message.resourceCycle, sourceRequestId,
+        committedFiles, deletedFiles });
       // Cache commit is not runtime installation: wait for the Worker ready event.
-      const ready = response.committedFiles.includes(message.fieldRelativePath);
+      const fieldRelativePath = typeof message.fieldRelativePath === 'string' && message.fieldRelativePath
+        ? message.fieldRelativePath
+        : committedFiles.find(file => typeof file === 'string' && file);
+      const ready = Boolean(fieldRelativePath && committedFiles.includes(fieldRelativePath));
       state.mapResourceState = ready ? 'loading' : 'retrying';
       if (residentExecutor && ready) {
         postBridgeEvent('mapResource', {
           mapName: state.mapName ?? gameSession?.mapName ?? message.mapName,
-          version: String(message.fieldpackVersion ?? FIELD_PACK_VERSION), ready: true,
+          version: fieldRelativePath, ready: true,
         });
       }
       changed();
@@ -438,6 +473,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         });
       if (id === null) return false;
       postedConnectionGeneration = connection.generation;
+      residentResourceRequest();
     }
     return true;
   }
@@ -927,6 +963,10 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       state.status = 'runtime-ready'; changed();
       if (residentExecutor) {
         recoveryBarrier = { active: true, revision: recoveryMirror?.snapshotRevision ?? null };
+        post('recoverySnapshotRequest', {
+          runtimeGeneration,
+          snapshotRevision: recoveryMirror?.snapshotRevision ?? null,
+        });
       }
       flushPendingGameEvents();
       return;
@@ -1238,7 +1278,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
           ? new Uint8Array(data)
           : ArrayBuffer.isView(data) ? new Uint8Array(data.buffer, data.byteOffset, data.byteLength) : null;
         if (!source) throw Error('unsupported-map-buffer');
-        if (state.status !== 'runtime-ready'
+        if ((state.status !== 'runtime-ready' || residentExecutor && recoveryBarrier?.active)
           && (pendingGameEvents.length >= MAX_PENDING_GAME_CHUNKS
             || source.byteLength > MAX_PENDING_GAME_BYTES - pendingGameBytes)) {
           markDegraded('worker-startup-queue-overflow');

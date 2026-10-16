@@ -5,7 +5,7 @@ import { packageFixture } from './kore-fixture';
 
 afterEach(() => vi.useRealTimers());
 
-function createHarness() {
+function createHarness(mapResourceProvider?: any) {
   const fixture = packageFixture();
   const page = Object.assign(new EventTarget(), {
     location: { href: 'http://localhost/' }, fetch: fixture.fetch,
@@ -25,6 +25,7 @@ function createHarness() {
     page,
     manifest: fixture.executable,
     createWorker: () => { const worker = new Worker(); workers.push(worker); return worker; },
+    mapResourceProvider,
   });
   return { fixture, page, host, workers };
 }
@@ -63,6 +64,149 @@ test('worker heartbeat timeout rebuilds with bounded backoff and requests recove
   harness.workers[1]!.reply({ runtimeSessionId: harness.workers[1]!.messages[0].runtimeSessionId,
     runtimeGeneration: 2, type: 'recoverySnapshotRequest' });
   expect(harness.workers[1]!.messages.some(message => message.type === 'recoverySnapshot')).toBe(true);
+  harness.host.dispose();
+});
+
+test('resident ready starts a recovery handshake and bootstraps after a null snapshot', async () => {
+  const harness = createHarness();
+  await harness.host.start();
+  const worker = harness.workers[0]!;
+  ready(worker, harness.fixture);
+
+  const hostRequest = worker.messages.find(message => message.type === 'recoverySnapshotRequest');
+  expect(hostRequest).toMatchObject({ runtimeGeneration: 1, snapshotRevision: null });
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotRequest', requestId: hostRequest.requestId, snapshotRevision: null });
+
+  const snapshot = worker.messages.find(message => message.type === 'recoverySnapshot');
+  expect(snapshot).toMatchObject({ runtimeGeneration: 1, snapshot: null });
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotImported', result: { kind: 'recoveryAck', snapshotRevision: 0, worldReady: false } });
+
+  const gameSessionId = harness.host.beginGameSession(7, 'prontera.gat');
+  const connectionGeneration = harness.host.beginMapConnection();
+  expect(gameSessionId).toBeTruthy();
+  expect(connectionGeneration).toBe(0);
+  const lifecycle = worker.messages.filter(message => message.type === 'queue');
+  expect(lifecycle.map(message => message.record.kind)).toEqual(['gameSessionStarted', 'mapConnectionStarted']);
+  expect(harness.host.mirrorMapData(connectionGeneration!, new Uint8Array([0x73, 0x00]))).toBe(true);
+  expect(worker.messages.filter(message => message.type === 'queue').at(-1)?.record).toMatchObject({
+    kind: 'gameData', sequence: 0, byteOffset: 0, bytes: new Uint8Array([0x73, 0x00]),
+  });
+  harness.host.dispose();
+});
+
+test('resident map connection requests, validates, commits, and publishes the field resource', async () => {
+  const resourcePath = 'EP15.1/prontera.fld2';
+  const provider = {
+    handleResourceRequest: vi.fn(async (message: any) => ({ requestId: message.requestId, result: {
+      kind: 'fieldMap', files: [{ role: 'field', relativePath: resourcePath, sha256: 'a'.repeat(64),
+        encoding: 'identity', bytes: new Uint8Array([1, 2]).buffer }],
+    } })),
+    handleResourceValidation: vi.fn(async (message: any) => ({ requestId: message.requestId,
+      sourceRequestId: message.sourceRequestId, committedFiles: message.acceptedFiles, deletedFiles: [] })),
+    close: async () => undefined,
+  };
+  const harness = createHarness(provider);
+  await harness.host.start();
+  const worker = harness.workers[0]!;
+  ready(worker, harness.fixture);
+  const request = worker.messages.find(message => message.type === 'recoverySnapshotRequest');
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotRequest', requestId: request.requestId, snapshotRevision: null });
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotImported', result: { kind: 'recoveryAck', snapshotRevision: 0, worldReady: false } });
+  harness.host.beginGameSession(7, 'prontera.gat');
+  harness.host.beginMapConnection();
+  await Promise.resolve();
+
+  const resourceResult = worker.messages.find(message => message.type === 'resourceResult');
+  expect(provider.handleResourceRequest).toHaveBeenCalledWith(expect.objectContaining({
+    resourceType: 'fieldMap', mapName: 'prontera.gat', baseName: 'prontera', fieldpackVersion: '2.0.5',
+    serverFieldsFolder: 'EP15.1', connectionGeneration: 0,
+  }));
+  expect(resourceResult?.result).toMatchObject({ kind: 'fieldMap', files: [{ relativePath: resourcePath }] });
+
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, type: 'resourceValidation',
+    requestId: 901, sourceRequestId: resourceResult.requestId, resourceCycle: resourceResult.resourceCycle,
+    fieldRelativePath: resourcePath, acceptedFiles: [resourcePath], rejectedFiles: [] });
+  await Promise.resolve();
+
+  expect(provider.handleResourceValidation).toHaveBeenCalledOnce();
+  expect(worker.messages.find(message => message.type === 'resourceValidationResult'))
+    .toMatchObject({ sourceRequestId: resourceResult.requestId, committedFiles: [resourcePath] });
+  expect(worker.messages.filter(message => message.type === 'queue').at(-1)?.record)
+    .toMatchObject({ kind: 'mapResource', mapName: 'prontera.gat', version: resourcePath, ready: true });
+  expect(harness.host.state.mapResourceState).toBe('loading');
+  harness.host.dispose();
+});
+
+test('resident recovery buffering enforces the pending game chunk limit before copying', async () => {
+  const harness = createHarness();
+  await harness.host.start();
+  const worker = harness.workers[0]!;
+  ready(worker, harness.fixture);
+  harness.host.beginGameSession(7, 'prontera.gat');
+  const connectionGeneration = harness.host.beginMapConnection();
+  const copy = vi.spyOn(Uint8Array.prototype, 'slice');
+  try {
+    for (let index = 0; index < 256; index++) {
+      expect(harness.host.mirrorMapData(connectionGeneration!, new Uint8Array([index]))).toBe(true);
+    }
+    expect(harness.host.mirrorMapData(connectionGeneration!, new Uint8Array([0xff]))).toBe(false);
+    expect(copy).toHaveBeenCalledTimes(256);
+  } finally {
+    copy.mockRestore();
+  }
+  expect(harness.host.state.streamStatus).toBe('degraded');
+  expect(harness.host.state.degradedReason).toBe('worker-startup-queue-overflow');
+  harness.host.dispose();
+});
+
+test('resident recovery buffering enforces the pending game byte limit below the chunk limit', async () => {
+  const harness = createHarness();
+  await harness.host.start();
+  const worker = harness.workers[0]!;
+  ready(worker, harness.fixture);
+  harness.host.beginGameSession(7, 'prontera.gat');
+  const connectionGeneration = harness.host.beginMapConnection();
+  const chunk = new Uint8Array(8192);
+  for (let index = 0; index < 128; index++) {
+    expect(harness.host.mirrorMapData(connectionGeneration!, chunk)).toBe(true);
+  }
+  expect(harness.host.mirrorMapData(connectionGeneration!, chunk)).toBe(false);
+  expect(harness.host.state.streamStatus).toBe('degraded');
+  expect(harness.host.state.degradedReason).toBe('worker-startup-queue-overflow');
+  harness.host.dispose();
+});
+
+test('resident commands are output-driven without retaining request entries', async () => {
+  const harness = createHarness();
+  await harness.host.start();
+  const worker = harness.workers[0]!;
+  ready(worker, harness.fixture);
+  const request = worker.messages.find(message => message.type === 'recoverySnapshotRequest');
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotRequest', requestId: request.requestId, snapshotRevision: null });
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotImported', result: { kind: 'recoveryAck', snapshotRevision: 0, worldReady: false } });
+  harness.host.beginGameSession(7, 'prontera.gat');
+  harness.host.beginMapConnection();
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1, type: 'outputs',
+    outputs: [{ kind: 'status', worldReady: true, aiMode: 'off', revision: 2 }] });
+
+  for (let index = 0; index < 200; index++) {
+    expect(harness.host.debugCommand(index % 2 ? 'ai off' : 'ai auto')).toBe(true);
+  }
+  const commands = worker.messages.filter(message => message.type === 'queue' && message.record.kind === 'command');
+  expect(commands).toHaveLength(200);
+  for (const command of commands) worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId,
+    runtimeGeneration: 1, type: 'eventAccepted', requestId: command.requestId, result: { kind: 'accepted' } });
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1, type: 'outputs',
+    outputs: [{ kind: 'status', worldReady: true, aiMode: 'auto', revision: 202 }] });
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1, type: 'commandResult',
+    requestId: commands.at(-1).record.context.bridgeSequence, result: { kind: 'aiState', aiMode: 'off', taskCount: 0 } });
+  expect(harness.host.state.aiState).toBe('auto');
   harness.host.dispose();
 });
 
