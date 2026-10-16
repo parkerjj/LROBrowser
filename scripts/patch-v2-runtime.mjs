@@ -1188,9 +1188,9 @@ ${marker}`);
 
 
 /**
- * Recover storage on a fresh server COUNTINFO packet, even if its GUIComponent
- * still reports __active after an interrupted close, character switch, or hide.
- * Keep the native packet handling and item hydration unchanged.
+ * Recover storage on server COUNTINFO, even when the version-specific UI
+ * reports __active but its host was detached or hidden by a previous session.
+ * Respect StorageController.getUI(): V0 and V3 must both be supported.
  */
 export function patchRuntimeStorageOpening(source) {
   const marker = '//#region src/Engine/MapEngine/Storage.js';
@@ -1204,36 +1204,35 @@ export function patchRuntimeStorageOpening(source) {
   if (owners.length !== 1 || !owners[0].body) fail('anchor:storage-open-handler');
   const statements = owners[0].body.statements;
   const guards = statements.filter(node => ts.isIfStatement(node)
-    && node.thenStatement.getText(file).includes('Storage.append()'));
+    && node.thenStatement.getText(file).includes('StorageController.getUI().append()'));
   const guard = guards[0];
-  if (guards.length !== 1 || !guard.expression.getText(file).includes('Storage.__loaded')
-    || !guard.expression.getText(file).includes('Storage.__active')) {
-    throw new Error('anchor:storage-open-guard ' + JSON.stringify({
-      guardExpressions: guards.map(node => node.expression.getText(file)),
-      ownerPrefix: owners[0].body.getText(file).slice(0, 600),
-    }));
+  if (guards.length !== 1 || guard.expression.getText(file).replace(/\s/g, '')
+    !== '!(StorageController.getUI().__loaded&&StorageController.getUI().__active)') {
+    fail('anchor:storage-open-guard');
   }
   const lists = statements.filter(node => ts.isExpressionStatement(node)
-    && node.expression.getText(file).replace(/\s/g, '') === 'Storage.setItems(itemBuffer)');
+    && node.expression.getText(file).replace(/\s/g, '') === 'StorageController.getUI().setItems(itemBuffer)');
   if (lists.length !== 1) fail('anchor:storage-item-list');
   const edits = [
     {
       start: guard.expression.getStart(file),
       end: guard.expression.end,
-      value: '(' + guard.expression.getText(file) + ') || !Storage._host?.isConnected || Storage._host.style.display === "none"',
+      value: '!(StorageController.getUI().__loaded && StorageController.getUI().__active'
+        + ' && StorageController.getUI()._host?.isConnected'
+        + ' && StorageController.getUI()._host.style.display !== "none")',
     },
     {
       start: lists[0].end,
       end: lists[0].end,
       value: [
-        '\n  // A stale __active flag is not proof of an attached, visible window.',
-        '  // Refresh stacking and fit after item hydration has determined its size.',
-        '  if (typeof Storage.focus === "function") Storage.focus();',
+        '\n  // Refit after the native handler has appended and hydrated its item list.',
+        '  const lastroStorageWindow = StorageController.getUI();',
+        '  if (typeof lastroStorageWindow.focus === "function") lastroStorageWindow.focus();',
         '  const recoverStorageWindow = () => {',
-        '    const host = Storage._host;',
-        '    if (!Storage.__active || !host?.isConnected || host.style.display === "none") return;',
-        '    if (Storage._lastroWindowState?.fit) Storage._lastroWindowState.fit();',
-        '    else lastroRecoverWindowBounds(Storage);',
+        '    const host = lastroStorageWindow._host;',
+        '    if (!lastroStorageWindow.__active || !host?.isConnected || host.style.display === "none") return;',
+        '    if (lastroStorageWindow._lastroWindowState?.fit) lastroStorageWindow._lastroWindowState.fit();',
+        '    else lastroRecoverWindowBounds(lastroStorageWindow);',
         '  };',
         '  if (typeof requestAnimationFrame === "function") {',
         '    requestAnimationFrame(() => {',
