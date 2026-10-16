@@ -42,7 +42,7 @@ function setup({ connected = true, hidden = false, active = true, managed = fals
 describe('server-driven Kafra storage opening', () => {
   it('patches the shipped native storage packet handler rather than only its UI positioning helper', () => {
     expect(handler).toContain('Storage._host?.isConnected');
-    expect(handler).toContain('Storage._host.style.display !== "none"');
+    expect(handler).toContain('Storage._host.style.display === "none"');
     expect(handler).toContain('lastroRecoverWindowBounds(Storage)');
   });
 
