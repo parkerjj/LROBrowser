@@ -25,8 +25,8 @@ function setup({ connected = true, hidden = false, active = true, managed = fals
     ui: { find: () => ({ text() {} }) },
   };
   const sandbox = {
-    Storage: storage,
-    PACKETVER: { value: 20170401 },
+    StorageController: { getUI: () => storage },
+    PacketVerManager_default: { value: 20170401 },
     InvTypeName: '',
     itemBuffer: [{ index: 7, ITID: 501 }],
     requestAnimationFrame: (callback: () => void) => { animationFrames.push(callback); },
@@ -41,9 +41,9 @@ function setup({ connected = true, hidden = false, active = true, managed = fals
 
 describe('server-driven Kafra storage opening', () => {
   it('patches the shipped native storage packet handler rather than only its UI positioning helper', () => {
-    expect(handler).toContain('Storage._host?.isConnected');
-    expect(handler).toContain('Storage._host.style.display === "none"');
-    expect(handler).toContain('lastroRecoverWindowBounds(Storage)');
+    expect(handler).toContain('StorageController.getUI()._host?.isConnected');
+    expect(handler).toContain('StorageController.getUI()._host.style.display !== "none"');
+    expect(handler).toContain('lastroRecoverWindowBounds(lastroStorageWindow)');
   });
 
   it.each([
