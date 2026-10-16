@@ -13,6 +13,7 @@ export interface KoreConfigDocumentInput extends KoreConfigIdentity {
   rawText: string;
 }
 export interface KoreConfigStore {
+  ensureDefaults(identity: KoreConfigIdentity, defaults: Record<string, string>): Promise<void>;
   saveDocument(document: KoreConfigDocumentInput): Promise<KoreConfigDocument>;
   getDocument(identity: KoreConfigIdentity & { fileName: string }): Promise<KoreConfigDocument | null>;
   listDocuments(identity: KoreConfigIdentity): Promise<KoreConfigDocument[]>;

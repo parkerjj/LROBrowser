@@ -53,6 +53,28 @@ export function createKoreConfigStore({ page = globalThis, indexedDBFactory = pa
   async function getDocument(identity) {
     return getByKey(documentKey(identity));
   }
+  async function ensureDefaults(identity, defaults) {
+    const entries = Object.entries(defaults);
+    if (!entries.length) return;
+    const database = await open();
+    await new Promise((resolve, reject) => {
+      const transaction = database.transaction(STORE_NAME, 'readwrite');
+      const objectStore = transaction.objectStore(STORE_NAME);
+      for (const [fileName, rawText] of entries) {
+        const document = { profile: identity.profile, aid: identity.aid, cid: identity.cid, fileName, rawText, revision: 1 };
+        const key = documentKey(document);
+        const request = objectStore.get(key);
+        request.onsuccess = () => {
+          // Check and insert in one transaction: concurrent editor/reload reads
+          // must never replace an existing document or increase its revision.
+          if (!request.result) objectStore.put({ ...document, key });
+        };
+      }
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error ?? Error('config-storage-write-failed'));
+      transaction.onabort = () => reject(transaction.error ?? Error('config-storage-write-failed'));
+    });
+  }
   async function listDocuments(identity) {
     const database = await open();
     return new Promise((resolve, reject) => {
@@ -70,6 +92,7 @@ export function createKoreConfigStore({ page = globalThis, indexedDBFactory = pa
   return {
     saveDocument,
     getDocument,
+    ensureDefaults,
     listDocuments,
     getReloadDocuments: listDocuments,
     async close() { const database = await databasePromise; database?.close(); databasePromise = null; },

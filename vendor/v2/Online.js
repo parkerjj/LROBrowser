@@ -320800,9 +320800,10 @@ function onReceiveMapInfo(pkt) {
   retryCount = 0;
   SessionStorage_default.GID = pkt.GID;
   try {
-    globalThis.KoreEngine?.beginGameSession?.(pkt.GID, pkt.mapName, {
+    // Map actors use the account ID; the character-server GID is the saved CID.
+    globalThis.KoreEngine?.beginGameSession?.(SessionStorage_default.AID, pkt.mapName, {
       aid: SessionStorage_default.AID,
-      cid: SessionStorage_default.Character?.CID ?? SessionStorage_default.CID,
+      cid: pkt.GID,
     });
   }
   catch { /* Optional KE initialization must not change the native login path. */ }

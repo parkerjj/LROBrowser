@@ -5,7 +5,8 @@ const listeners = new WeakMap();
 
 function isAssistant(node) {
   return Boolean(node?.dataset?.lroAssistantRoot === 'true'
-    || node?.id === 'ro-market-assistant' || node?.id === 'ro-dps-meter' || node?.id === 'ro-target-window');
+    || node?.id === 'ro-market-assistant' || node?.id === 'ro-dps-meter' || node?.id === 'ro-target-window'
+    || node?.id === 'kore-engine-panel');
 }
 
 export function installAssistantInputTracking(win) {

@@ -7,7 +7,8 @@ import { installLastroPartyBooking } from "./lro-party-booking.mjs";
 import { createAssistantPacketBus } from "./lro-assistant-packets.mjs";
 import { installAssistantInputTracking, addAssistantAwareListener, removeAssistantAwareListener, guardAssistantInputHandler } from "./lro-assistant-input.mjs";
 const lroAssistantPackets = createAssistantPacketBus();
-if (globalThis.ROConfig?.lroAssistantEnabled === true) installAssistantInputTracking(window);
+// KE remains interactive even when the LRO assistant is disabled.
+installAssistantInputTracking(window);
 `;
 
 const START = `
@@ -204,9 +205,20 @@ export function patchLroAssistantRuntime(source) {
       // Runtime bindings use simple targets (window/document/elements). A target
       // with nested event registrations is rejected rather than producing overlap.
       const target = expr.expression.getText(parsed);
-      const helper = expr.name.text === 'addEventListener' ? 'addAssistantAwareListener' : 'removeAssistantAwareListener';
-      edits.push({ start: expr.getStart(parsed), end: expr.end, text: helper });
-      edits.push({ start: node.arguments[0].getStart(parsed), end: node.arguments[0].getStart(parsed), text: target + ', ' });
+      // This native capture handler only stops held movement/camera rotation.
+      // It must run when a map gesture is released over any tool window.
+      const releaseCleanup = target === 'window' && ts.isStringLiteral(node.arguments[0]) && node.arguments[0].text === 'mouseup'
+        && ts.isIdentifier(node.arguments[1]) && node.arguments[1].text === 'onMouseUpCapture'
+        && node.arguments[2]?.kind === ts.SyntaxKind.TrueKeyword;
+      // On keyup this handler only synchronizes SHIFT/CTRL/ALT, then returns.
+      // Keep keydown guarded because it can also record game shortcuts.
+      const modifierSync = target === 'window' && ts.isStringLiteral(node.arguments[0]) && node.arguments[0].text === 'keyup'
+        && ts.isIdentifier(node.arguments[1]) && node.arguments[1].text === 'onKeyEvent' && node.arguments[2]?.kind === ts.SyntaxKind.TrueKeyword;
+      if (!releaseCleanup && !modifierSync) {
+        const helper = expr.name.text === 'addEventListener' ? 'addAssistantAwareListener' : 'removeAssistantAwareListener';
+        edits.push({ start: expr.getStart(parsed), end: expr.end, text: helper });
+        edits.push({ start: node.arguments[0].getStart(parsed), end: node.arguments[0].getStart(parsed), text: target + ', ' });
+      }
     }
     if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken
       && ts.isPropertyAccessExpression(node.left)

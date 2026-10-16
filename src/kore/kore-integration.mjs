@@ -98,16 +98,21 @@ export async function loadKorePackage({ page = globalThis, manifest, signal }) {
   const expectedPaths = new Set(['ke/active.json', pointer.manifestPath, ...packageManifest.files.map(file => prefix + file.path)]);
   if (entries.some(file => file.path.startsWith('ke/') && !expectedPaths.has(file.path))) throw Error('unexpected-package-file');
   const packageData = {};
+  const configDefaults = {};
   for (const file of packageManifest.files) {
     const bytes = await read(prefix + file.path, file);
     if (file.path === 'data/maps/aliases.json' || file.path === 'data/maps/checksums.json') {
       packageData[file.path] = json(bytes);
+    }
+    if (file.path.startsWith('data/control/') && M4_CONFIG_FILES.has(file.path.slice('data/control/'.length))) {
+      configDefaults[file.path.slice('data/control/'.length)] = new globalThis.TextDecoder('utf-8', { fatal: true }).decode(bytes);
     }
   }
   return {
     manifest: packageManifest,
     workerUrl: new globalThis.URL('/core/' + prefix + 'kore-worker.mjs', page.location.href).href,
     mapResourceConfig: { aliases: packageData['data/maps/aliases.json'] ?? {}, expectedSha256: packageData['data/maps/checksums.json'] ?? {} },
+    configDefaults,
   };
 }
 
@@ -120,6 +125,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     parserDiagnostics: { bufferedBytes: 0, pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: null },
     receivedBytes: 0, sentBytes: 0, degradedReason: null, worldReady: false, aiState: 'off', logs: [], mapResourceState: 'idle',
     controlGeneration: 0, aiTaskCount: 0, experience: null,
+    aiDiagnostics: null,
     playerStatus: emptyM4Status(), inventory: emptyM4Inventory(),
     configIdentity: null,
     routeState: 'idle', routePreview: null,
@@ -176,6 +182,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     state.status = 'failed';
     state.aiState = 'off';
     state.aiTaskCount = 0;
+    state.aiDiagnostics = null;
     log('error', error instanceof Error ? error.message : String(error));
   }
   function revokeRoutePermit() {
@@ -262,7 +269,8 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     }
   }
   function postCommand(command, fields = {}) {
-    if (state.status !== 'runtime-ready' || !gameSession || !connection || !state.worldReady) return false;
+    const reason = worldUnavailableReason();
+    if (reason) { log('error', `Command ${command} unavailable: ${reason}.`); return false; }
     const changesAiGeneration = command === 'ai_auto' || command === 'ai_off' || command === 'ai_clear';
     if (changesAiGeneration) controlGeneration += 1;
     if (command === 'ai_off') revokeAiPermit();
@@ -315,7 +323,8 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       postResourceMessage({ runtimeSessionId: session, type: 'resourceValidationResult', requestId: ++nextId,
         resourceCycle: message.resourceCycle, sourceRequestId: response.sourceRequestId,
         committedFiles: response.committedFiles, deletedFiles: response.deletedFiles });
-      state.mapResourceState = response.committedFiles.includes(message.fieldRelativePath) ? 'ready' : 'retrying';
+      // Cache commit is not runtime installation: wait for the Worker ready event.
+      state.mapResourceState = response.committedFiles.includes(message.fieldRelativePath) ? 'loading' : 'retrying';
       changed();
     } catch (error) {
       cancelWorkerRoute();
@@ -371,6 +380,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     revokeAiPermit();
     state.aiState = 'off';
     state.aiTaskCount = 0;
+    state.aiDiagnostics = null;
     log('error', `Map stream degraded: ${state.degradedReason}`);
     sendDegradedState();
   }
@@ -515,6 +525,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       pendingCommands.clear();
       state.aiState = 'off';
       state.aiTaskCount = 0;
+      state.aiDiagnostics = null;
       state.routeState = 'failed';
     }
     state.streamStatus = message.streamStatus;
@@ -536,6 +547,27 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     const message = event.data;
     if (!message || typeof message.runtimeSessionId !== 'string' || !message.runtimeSessionId) { fail(Error('invalid-worker-response')); return; }
     if (message?.runtimeSessionId !== session) return;
+    if (message.type === 'aiDiagnostics' && !Object.hasOwn(message, 'requestId')) {
+      const diagnostics = message.diagnostics;
+      if (!diagnostics || !['off', 'auto'].includes(diagnostics.mode)
+        || typeof diagnostics.task !== 'string'
+        || !(diagnostics.nextAction === null || typeof diagnostics.nextAction === 'string')
+        || !(diagnostics.reason === null || typeof diagnostics.reason === 'string')
+        || !Number.isSafeInteger(diagnostics.visibleMonsters) || diagnostics.visibleMonsters < 0
+        || !Number.isSafeInteger(diagnostics.eligibleMonsters) || diagnostics.eligibleMonsters < 0
+        || typeof diagnostics.configLoaded !== 'boolean' || !Number.isInteger(diagnostics.attackAuto)) {
+        fail(Error('invalid-ai-diagnostics')); return;
+      }
+      state.aiDiagnostics = {
+        diagnostics: { ...diagnostics },
+        lastAction: message.lastAction && typeof message.lastAction === 'object'
+          ? { type: String(message.lastAction.type ?? ''), accepted: message.lastAction.accepted === true,
+            reason: typeof message.lastAction.reason === 'string' ? message.lastAction.reason : null }
+          : null,
+      };
+      changed();
+      return;
+    }
     if (message.type === 'resourceRequest') { void handleResourceRequest(message); return; }
     if (message.type === 'resourceValidation') { void handleResourceValidation(message); return; }
     if (message.type === 'actionRequest') { handleAiAction(message); return; }
@@ -543,6 +575,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     if (message.type === 'routePreview') {
       if (message.canSend !== false || !(message.route === null || Array.isArray(message.route))) { fail(Error('invalid-route-preview')); return; }
       state.routePreview = message.route;
+      if (message.error) log('error', `Route preview failed: ${String(message.error)}`);
       changed();
       return;
     }
@@ -550,6 +583,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       if (!['running', 'awaiting-map', 'completed', 'cancelled', 'failed'].includes(message.state)) { fail(Error('invalid-route-state')); return; }
       if (!routePermit || message.routeId !== routePermit.routeId) return;
       state.routeState = message.state;
+      if (message.state === 'failed') log('error', `Route failed: ${String(message.reason ?? 'unknown reason')}`);
       if (['completed', 'cancelled', 'failed'].includes(message.state) && routePermit) revokeRoutePermit();
       changed();
       return;
@@ -638,6 +672,14 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     fail(Error('unexpected-worker-response'));
   }
   let packageInfo = null;
+  function worldUnavailableReason(requireField = false) {
+    if (state.status !== 'runtime-ready') return `runtime is ${state.status}`;
+    if (!gameSession) return 'game session is not established';
+    if (!connection) return 'map connection is not established';
+    if (!state.worldReady) return `world synchronization incomplete (${state.streamStatus}; received ${state.receivedBytes} bytes${state.degradedReason ? '; ' + state.degradedReason : ''})`;
+    if (requireField && state.mapResourceState !== 'ready') return `map resource is ${state.mapResourceState}`;
+    return null;
+  }
   function supervise() {
     const now = clock();
     const delta = Math.min(Math.max(now - lastNow, 0), 1000); lastNow = now;
@@ -679,6 +721,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         parserDiagnostics: { bufferedBytes: 0, pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: null },
         receivedBytes: 0, sentBytes: 0, degradedReason: null, worldReady: false, mapResourceState: 'idle', routeState: 'idle', routePreview: null,
         aiState: 'off', aiTaskCount: 0, experience: null,
+        aiDiagnostics: null,
         playerStatus: emptyM4Status(), inventory: emptyM4Inventory(),
       });
       if (!manifest?.files?.some(file => file.path === 'ke/active.json')) { changed(); return; }
@@ -686,7 +729,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       state.status = 'loading'; changed();
       initAge = 0; lastNow = clock(); nextId = 0; discardedThrough = 0;
       controller = new globalThis.AbortController();
-      timer = timers.setInterval(supervise, 1000);
+      timer = timers.setInterval(supervise, 100);
       page.document?.addEventListener('visibilitychange', visibility);
       const unload = () => api.dispose();
       page.addEventListener?.('pagehide', unload);
@@ -733,6 +776,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         parserDiagnostics: { bufferedBytes: 0, pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: null },
         receivedBytes: 0, sentBytes: 0, degradedReason: null, worldReady: false, mapResourceState: 'idle', routeState: 'idle', routePreview: null,
         aiState: 'off', aiTaskCount: 0, experience: null, configIdentity: null,
+        aiDiagnostics: null,
         playerStatus: emptyM4Status(), inventory: emptyM4Inventory(),
       });
       changed();
@@ -774,6 +818,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         parserDiagnostics: { bufferedBytes: 0, pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: null },
         receivedBytes: 0, sentBytes: 0, degradedReason: null, worldReady: false, mapResourceState: 'loading', routeState: 'idle', routePreview: null,
         aiState: 'off', aiTaskCount: 0, experience: null,
+        aiDiagnostics: null,
         playerStatus: emptyM4Status(), inventory: emptyM4Inventory(),
         configIdentity: aid && cid ? { aid, cid } : null,
       });
@@ -869,12 +914,17 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       return true;
     },
     async saveConfigDocument(document) { return configStore.saveDocument(document); },
-    async getConfigDocuments(identity) { return configStore.listDocuments(identity); },
+    async getConfigDocuments(identity) {
+      await configStore.ensureDefaults(identity, packageInfo?.configDefaults ?? {});
+      return configStore.listDocuments(identity);
+    },
     reloadConfig(target = 'config.txt') {
       if (state.aiState !== 'off' || !gameSession || !gameSession.aid || !gameSession.cid) {
         log('error', 'Configuration reload requires verified account and character IDs while AI is off.');
         return false;
       }
+      const reason = worldUnavailableReason();
+      if (reason) { log('error', `Configuration reload unavailable: ${reason}.`); return false; }
       const fileNames = reloadFileNames(target);
       if (!fileNames) {
         log('error', 'Configuration reload target is unsupported.');
@@ -886,7 +936,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         aid: gameSession.aid,
         cid: gameSession.cid,
       };
-      void configStore.getReloadDocuments(context)
+      void api.getConfigDocuments(context)
         .then(documents => {
           if (!gameSession || gameSession.id !== context.gameSessionId || state.profile !== context.profile
             || gameSession.aid !== context.aid || gameSession.cid !== context.cid || state.aiState !== 'off') {
@@ -921,19 +971,22 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         parserDiagnostics: { bufferedBytes: 0, pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: null },
         receivedBytes: 0, degradedReason: null, worldReady: false, mapResourceState: 'idle', routeState: 'idle', routePreview: null,
         aiState: 'off', aiTaskCount: 0, configIdentity: null,
+        aiDiagnostics: null,
         playerStatus: emptyM4Status(), inventory: emptyM4Inventory(),
       });
       changed();
     },
     clearConsole() { state.logs.length = 0; changed(); },
     debugRoutePreview(routeRequest) {
-      if (state.status !== 'runtime-ready' || !gameSession || !connection || !state.worldReady || state.mapResourceState !== 'ready') return false;
+      const reason = worldUnavailableReason(true);
+      if (reason) { log('error', `Route preview unavailable: ${reason}.`); return false; }
       state.routePreview = null;
       post('debugRoutePreview', { routeRequest });
       return true;
     },
     debugRouteGo(routeRequest) {
-      if (state.status !== 'runtime-ready' || !gameSession || !connection || !state.worldReady || state.mapResourceState !== 'ready') return false;
+      const reason = worldUnavailableReason(true);
+      if (reason) { log('error', `Route go unavailable: ${reason}.`); return false; }
       if (routePermit) {
         cancelWorkerRoute();
         revokeRoutePermit();
@@ -965,6 +1018,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       postResourceMessage({ runtimeSessionId: session, type: 'routeAirshipResponse',
         routeId: routePermit.routeId, actionId, response: numericResponse });
       if (numericResponse !== 0) {
+        log('error', `Airship request rejected by server (response ${numericResponse}).`);
         routePermit.pendingAirshipActionId = null;
         routePermit.airshipAccepted = false;
         revokeRoutePermit();
@@ -1011,19 +1065,40 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
 
 export function createKorePanel({ page, host }) {
   const panel = page.document.createElement('details');
+  panel.id = 'kore-engine-panel';
+  const cursorStyle = page.document.createElement('style');
+  cursorStyle.textContent = `
+    #kore-engine-panel { font: 12px/1.35 Arial, sans-serif; }
+    #kore-engine-panel, #kore-engine-panel * { cursor: default !important; }
+    #kore-engine-panel :is(button, summary, select) { cursor: pointer !important; }
+    #kore-engine-panel :is(button, input, select) { font: inherit; min-height: 26px; padding: 3px 6px; }
+    #kore-engine-panel :is(input, select) { width: auto; }
+    #kore-engine-panel input[type=number] { width: 72px; }
+    #kore-engine-panel :is(input, textarea) { cursor: text !important; user-select: text; }
+  `;
+  panel.append(cursorStyle);
   Object.assign(panel.style, {
     position: 'fixed', right: '0', top: '50%', transform: 'translateY(-50%)', zIndex: '10000',
     background: '#20242c', color: '#eee', padding: '8px', boxSizing: 'border-box',
-    display: 'flex', flexDirection: 'column', width: '840px', height: '840px',
-    maxWidth: 'calc(100vw - 16px)', maxHeight: 'calc(100vh - 16px)', overflow: 'hidden',
+    display: 'block', width: '840px', height: '840px',
+    maxWidth: 'calc(100vw - 16px)', maxHeight: 'calc(100vh - 16px)', overflow: 'auto',
   });
   panel.open = true;
   panel.addEventListener('toggle', () => { panel.style.height = panel.open ? '840px' : 'auto'; });
-  const title = page.document.createElement('summary'); title.textContent = 'KoreEngine M3'; panel.append(title);
+  const title = page.document.createElement('summary'); title.textContent = 'KoreEngine M4'; panel.append(title);
   const controls = page.document.createElement('div');
   controls.style.flex = '0 0 auto';
   const clearButton = page.document.createElement('button'); clearButton.type = 'button'; clearButton.textContent = 'Clear console';
   clearButton.addEventListener('click', () => host.clearConsole()); controls.append(clearButton);
+  const commandStatus = page.document.createElement('output');
+  commandStatus.setAttribute('aria-live', 'polite'); commandStatus.setAttribute('aria-label', 'KoreEngine command status');
+  Object.assign(commandStatus.style, { display: 'block', overflowWrap: 'anywhere', marginTop: '4px' });
+  controls.append(commandStatus);
+  const commandFeedback = (command, accepted) => {
+    const reason = host.state?.logs?.at(-1)?.text;
+    commandStatus.textContent = accepted ? `${command} queued` : (reason ?? `${command} unavailable`);
+    return commandStatus.textContent;
+  };
   const routeControls = page.document.createElement('div');
   routeControls.style.display = 'flex'; routeControls.style.gap = '4px'; routeControls.style.marginTop = '6px'; routeControls.style.flexWrap = 'wrap';
   const destinationInput = page.document.createElement('input');
@@ -1033,7 +1108,7 @@ export function createKorePanel({ page, host }) {
   const request = () => ({ destination: { map: destinationInput.value, position: { x: Number(xInput.value), y: Number(yInput.value) } } });
   const routeButton = (label, command) => {
     const button = page.document.createElement('button'); button.type = 'button'; button.textContent = label; button.title = command;
-    button.addEventListener('click', () => host.debugCommand?.(command, request()));
+    button.addEventListener('click', () => commandFeedback(command, host.debugCommand?.(command, request())));
     routeControls.append(button); return button;
   };
   routeControls.append(destinationInput, xInput, yInput);
@@ -1066,13 +1141,23 @@ export function createKorePanel({ page, host }) {
     Object.assign(node.style, { display: 'block', width: '100%', boxSizing: 'border-box', marginTop: '6px', resize: 'vertical', font: '12px/1.35 monospace', whiteSpace: 'pre', overflow: 'auto' });
     return node;
   };
-  const infoNode = createTextArea('KoreEngine status', 7);
-  const routeNode = createTextArea('KoreEngine route preview', 8);
+  const infoNode = createTextArea('KoreEngine status', 12);
+  const routeNode = createTextArea('KoreEngine route preview', 4);
   const consoleNode = createTextArea('KoreEngine console', 10);
-  const configNode = createTextArea('KoreEngine configuration text', 8);
+  const configNode = createTextArea('KoreEngine configuration text', 6);
   configNode.readOnly = false;
-  Object.assign(consoleNode.style, { flex: '1 1 auto', minHeight: '0', resize: 'none' });
-  controls.append(configControls, infoNode); panel.append(controls, configNode, routeNode, consoleNode);
+  Object.assign(consoleNode.style, { minHeight: '160px' });
+  const section = (label, node) => {
+    const heading = page.document.createElement('div'); heading.textContent = label;
+    Object.assign(heading.style, { marginTop: '6px', fontWeight: 'bold' });
+    panel.append(heading, node);
+    return heading;
+  };
+  controls.append(configControls); panel.append(controls);
+  section('Status', infoNode);
+  section('Configuration TXT', configNode);
+  section('Route preview', routeNode);
+  const consoleHeading = section('Console (0 entries)', consoleNode);
   let currentState = null;
   let configLoadToken = 0;
   let loadedConfigKey = '';
@@ -1120,7 +1205,7 @@ export function createKorePanel({ page, host }) {
   configReloadButton.addEventListener('click', () => {
     if (!host.reloadConfig) return;
     const accepted = host.reloadConfig(configFileSelect.value);
-    configStatus.textContent = accepted ? 'reload queued' : 'reload unavailable';
+    configStatus.textContent = commandFeedback('reload', accepted);
   });
   return {
     panel, infoNode, routeNode, consoleNode, configNode, clearButton, destinationInput, xInput, yInput, previewButton, goButton, cancelButton, retryMapButton,
@@ -1140,6 +1225,7 @@ export function createKorePanel({ page, host }) {
         `entities ${counts.total} (players ${counts.players}, monsters ${counts.monsters}, other ${counts.other}, unknown ${counts.unknown})`,
         `received ${state.receivedBytes} / sent ${state.sentBytes} bytes | worldReady ${state.worldReady} | mapResource ${state.mapResourceState} | AI ${state.aiState}`,
         `controlGeneration ${state.controlGeneration} | AI tasks ${state.aiTaskCount}`,
+        state.aiDiagnostics ? `AI task ${state.aiDiagnostics.diagnostics.task} | target ${state.aiDiagnostics.diagnostics.targetGid ?? '-'} @ ${state.aiDiagnostics.diagnostics.targetX ?? '-'},${state.aiDiagnostics.diagnostics.targetY ?? '-'} | next ${state.aiDiagnostics.diagnostics.nextAction ?? '-'} | waiting ${state.aiDiagnostics.diagnostics.reason ?? '-'} | monsters ${state.aiDiagnostics.diagnostics.visibleMonsters}/${state.aiDiagnostics.diagnostics.eligibleMonsters}${state.aiDiagnostics.lastAction ? ` | sent ${state.aiDiagnostics.lastAction.type}: ${state.aiDiagnostics.lastAction.accepted ? 'accepted' : state.aiDiagnostics.lastAction.reason ?? 'rejected'}` : ''}` : '',
         state.playerStatus ? `HP ${state.playerStatus.hp ?? '-'} / ${state.playerStatus.hpMax ?? '-'} | SP ${state.playerStatus.sp ?? '-'} / ${state.playerStatus.spMax ?? '-'} | weight ${state.playerStatus.weight ?? '-'} / ${state.playerStatus.weightMax ?? '-'}` : '',
         state.inventory ? `inventory ${Object.keys(state.inventory.items ?? {}).length} | ground ${Object.keys(state.inventory.groundItems ?? {}).length} | storage ${state.inventory.storageReady ? 'ready' : 'closed'}` : '',
         state.experience ? `experience ${JSON.stringify(state.experience).slice(0, 512)}` : '',
@@ -1148,7 +1234,10 @@ export function createKorePanel({ page, host }) {
         state.degradedReason ? `reason ${state.degradedReason}` : '',
       ].filter(Boolean).join('\n');
       routeNode.value = state.routePreview ? JSON.stringify(state.routePreview, null, 2) : '';
+      const followLogs = consoleNode.scrollHeight - consoleNode.scrollTop - consoleNode.clientHeight <= 4;
       consoleNode.value = state.logs.map(entry => `[${new Date(entry.timestamp).toLocaleTimeString()}] [${entry.level}] ${entry.text}`).join('\n');
+      if (followLogs) consoleNode.scrollTop = consoleNode.scrollHeight;
+      consoleHeading.textContent = `Console (${state.logs.length} entries, up to 200 retained)`;
     },
   };
 }

@@ -15,8 +15,8 @@ function readyWorld(runtimeSessionId: string, gameSessionId: string, connectionG
   };
 }
 
-function createHarness() {
-  const fixture = packageFixture();
+function createHarness(extraFiles: Record<string, string> = {}) {
+  const fixture = packageFixture('lastro-20211103', extraFiles);
   const page = Object.assign(new EventTarget(), {
     location: { href: 'http://localhost/' }, fetch: fixture.fetch, indexedDB: new IDBFactory(),
     performance: { now: () => 42 }, crypto: globalThis.crypto,
@@ -36,7 +36,7 @@ function createHarness() {
       handleResourceValidation: async () => ({ requestId: 1, sourceRequestId: 1, committedFiles: [], deletedFiles: [] }),
       close: async () => undefined,
     } });
-  return { host, worker, fixture };
+  return { host, worker, fixture, page };
 }
 
 async function startHarness(harness: ReturnType<typeof createHarness>) {
@@ -67,6 +67,54 @@ async function waitForReload(worker: EventTarget & { messages: any[] }, startInd
 }
 
 const profile = 'lastro-20211103';
+
+test('route buttons report why an unsynchronized world cannot run a route', async () => {
+  const harness = createHarness();
+  const { host } = harness;
+  try {
+    await startHarness(harness);
+    host.beginGameSession(11, 'prt_fild08.gat', { aid: 11, cid: 22 });
+    host.beginMapConnection();
+    expect(host.debugRoutePreview({ destination: { map: 'prt_fild08', position: { x: 100, y: 100 } } })).toBe(false);
+    expect(host.state.logs.at(-1)?.text).toMatch(/preview.*world synchronization/i);
+    expect(host.debugRouteGo({ destination: { map: 'prt_fild08', position: { x: 100, y: 100 } } })).toBe(false);
+    expect(host.state.logs.at(-1)?.text).toMatch(/go.*world synchronization/i);
+  } finally { host.dispose(); }
+});
+
+test('verified package defaults initialize the editor and reload for each character', async () => {
+  const harness = createHarness({
+    'data/control/config.txt': 'attackAuto 2\n',
+    'data/control/pickupitems.txt': 'all 1\n',
+    'data/control/unrecognized.txt': 'ignored 1\n',
+  });
+  const { host, worker } = harness;
+  try {
+    const runtimeSessionId = (await startHarness(harness)).runtimeSessionId;
+    enterWorld(harness, runtimeSessionId, { aid: 11, cid: 22 });
+    const documents = await host.getConfigDocuments({ profile, aid: 11, cid: 22 });
+    expect(documents).toEqual(expect.arrayContaining([
+      expect.objectContaining({ fileName: 'config.txt', rawText: 'attackAuto 2\n', revision: 1 }),
+      expect.objectContaining({ fileName: 'pickupitems.txt', rawText: 'all 1\n', revision: 1 }),
+    ]));
+    expect(documents).toHaveLength(2);
+    await host.saveConfigDocument({ profile, aid: 11, cid: 22, fileName: 'config.txt', rawText: 'attackAuto 0\n' });
+    expect(await host.getConfigDocuments({ profile, aid: 11, cid: 22 })).toEqual(expect.arrayContaining([
+      expect.objectContaining({ fileName: 'config.txt', rawText: 'attackAuto 0\n', revision: 2 }),
+    ]));
+
+    // Reload also seeds a fresh character before the editor has ever opened.
+    enterWorld(harness, runtimeSessionId, { aid: 11, cid: 33 });
+    const startIndex = worker.messages.length;
+    expect(host.reloadConfig('all')).toBe(true);
+    const reload = await waitForReload(worker, startIndex);
+    expect(reload.documents).toHaveLength(2);
+    expect(reload.documents).toEqual(expect.arrayContaining([
+      expect.objectContaining({ aid: 11, cid: 33, fileName: 'config.txt', rawText: 'attackAuto 2\n', revision: 1 }),
+    ]));
+    expect(host.state.aiState).toBe('off');
+  } finally { host.dispose(); }
+});
 
 test('reload conf loads only config.txt for the active character', async () => {
   const harness = createHarness();
@@ -190,5 +238,36 @@ test('experience command results are visible in the console state', async () => 
       && entry.text.includes('Item #501'))).toBe(true);
   } finally {
     host.dispose();
+  }
+});
+
+test('AI diagnostics events update the host state without treating them as invalid responses', async () => {
+  const harness = createHarness();
+  const { host, worker } = harness;
+  try {
+    const runtimeSessionId = (await startHarness(harness)).runtimeSessionId;
+    enterWorld(harness, runtimeSessionId, { aid: 11, cid: 22 });
+    const diagnostics = {
+      mode: 'auto', task: 'attack', nextAction: 'MoveTo (12,10)', reason: null,
+      targetGid: 9001, targetX: 13, targetY: 10, visibleMonsters: 1, eligibleMonsters: 1,
+      configLoaded: true, attackAuto: 2,
+    };
+    worker.reply({ runtimeSessionId, type: 'aiDiagnostics', diagnostics,
+      lastAction: { type: 'MoveTo', accepted: true, reason: null } });
+    expect(host.state.status).toBe('runtime-ready');
+    expect((host.state as any).aiDiagnostics).toEqual({ diagnostics,
+      lastAction: { type: 'MoveTo', accepted: true, reason: null } });
+  } finally { host.dispose(); }
+});
+
+test('Kore Engine supervises ticks at 100 ms for responsive route and AI actions', async () => {
+  const harness = createHarness();
+  const setIntervalSpy = vi.spyOn(harness.page, 'setInterval');
+  try {
+    await startHarness(harness);
+    expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 100);
+  } finally {
+    harness.host.dispose();
+    setIntervalSpy.mockRestore();
   }
 });

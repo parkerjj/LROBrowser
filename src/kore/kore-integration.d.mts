@@ -27,6 +27,11 @@ export interface KoreM4InventoryItem { index: number; itemId: number; amount: nu
 export interface KoreM4GroundItem { gid: number; itemId: number; amount: number; x: number; y: number }
 export interface KoreM4Inventory { ready: boolean; items: Record<string, KoreM4InventoryItem>; groundItems: Record<string, KoreM4GroundItem>; storageReady: boolean; storageItems: Record<string, KoreM4InventoryItem> }
 export interface KoreLog { level: string; text: string; timestamp: number }
+export interface KoreAiDiagnostics {
+  mode: 'off' | 'auto'; task: string; nextAction: string | null; reason: string | null;
+  targetGid: number | null; targetX: number | null; targetY: number | null;
+  visibleMonsters: number; eligibleMonsters: number; configLoaded: boolean; attackAuto: number;
+}
 export interface KoreState {
   status: 'absent' | 'loading' | 'runtime-ready' | 'failed' | 'disposed';
   packageId: string | null; mode: 'debug' | 'release' | null; tickCount: number; elapsedMs: number;
@@ -35,6 +40,7 @@ export interface KoreState {
   mapName: string | null; selfActor: KoreActor | null; visibleEntities: KoreVisibleEntities; parserDiagnostics: KoreParserDiagnostics;
   receivedBytes: number; sentBytes?: number; degradedReason: string | null; worldReady: boolean; aiState: 'off' | 'auto'; logs: KoreLog[];
   controlGeneration?: number; aiTaskCount?: number; experience?: unknown;
+  aiDiagnostics?: { diagnostics: KoreAiDiagnostics; lastAction: { type: string; accepted: boolean; reason: string | null } | null } | null;
   playerStatus?: KoreM4Status; inventory?: KoreM4Inventory;
   configIdentity?: { aid: number; cid: number } | null;
   mapResourceState: 'idle' | 'loading' | 'retrying' | 'ready' | 'degraded';
@@ -72,6 +78,7 @@ export function validateKorePointer(pointer: unknown): KorePointer;
 export function loadKorePackage(options: { page?: KorePage; manifest: ExecutableManifest; signal?: AbortSignal }): Promise<{
   manifest: KoreManifest; workerUrl: string;
   mapResourceConfig: { aliases: Record<string, string>; expectedSha256: Record<string, string> };
+  configDefaults: Record<string, string>;
 } | null>;
 export function createKoreIntegration(options: KoreOptions): KoreIntegration;
 export function startOptionalKore(options: Pick<KoreOptions, 'createWorker' | 'onWorkerReleased'>): KoreIntegration | null;

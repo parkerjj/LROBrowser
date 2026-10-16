@@ -201,6 +201,7 @@ test('AirShip response rejection revokes the permit without allowing a retry act
       controlGeneration: go.controlGeneration, routeId: go.routeId, requestId: 1, type: 'PrivateAirship', destinationId: 'izlude', expectedMap: 'izlude' } });
   expect(sent).toHaveLength(1);
   expect(host.handleAirshipResponse(3)).toBe(true);
+  expect(host.state.logs.at(-1)?.text).toMatch(/airship.*3/i);
   expect(host.state.routeState).toBe('failed');
   expect(host.debugRouteCancel()).toBe(false);
   host.dispose();

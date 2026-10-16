@@ -55,6 +55,8 @@ test('routes map resource RPC through Host validation and keeps resource state s
     fieldRelativePath: 'EP15.1/prontera.fld2', acceptedFiles: ['EP15.1/prontera.fld2'], rejectedFiles: [] });
   await Promise.resolve();
   expect(worker.messages.find(message => message.type === 'resourceValidationResult')).toMatchObject({ sourceRequestId: requestId, committedFiles: ['EP15.1/prontera.fld2'] });
+  expect(host.state.mapResourceState).toBe('loading');
+  worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'mapResourceState', mapResourceState: 'ready', mapName: 'prontera' });
   expect(host.state.mapResourceState).toBe('ready');
 
   worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'mapResourceState', mapResourceState: 'degraded', mapName: 'prontera', reason: 'resource-retries-exhausted' });
