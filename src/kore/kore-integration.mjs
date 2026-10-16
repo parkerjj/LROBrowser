@@ -782,6 +782,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       clearPendingGameEvents();
       Object.assign(state, {
         connectionGeneration: nextGeneration, streamStatus: 'awaiting-sync', worldReady: false,
+        aiState: 'off',
         selfActor: null, visibleEntities: { total: 0, players: 0, monsters: 0, other: 0, unknown: 0 },
         parserDiagnostics: { bufferedBytes: 0, pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: null },
         receivedBytes: 0, degradedReason: null, mapResourceState: 'loading', playerStatus: emptyM4Status(), inventory: emptyM4Inventory(),
