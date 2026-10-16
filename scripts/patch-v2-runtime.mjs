@@ -1250,6 +1250,141 @@ export function patchRuntimeStorageOpening(source) {
   return source.slice(0, start) + patched + source.slice(end);
 }
 
+
+/**
+ * Buffer both generations of storage item-list packets until COUNTINFO.
+ * A gear-only account can receive SPLIT_SEND_ITEMLIST_EQUIP without the
+ * NORMAL packet that the upstream UI incorrectly relies upon to append.
+ * The resulting full snapshot replaces the old UI list instead of
+ * accumulating duplicate items on a reopened/detached window.
+ */
+export function patchRuntimeStorageItemFlow(source) {
+  const findRegion = marker => {
+    const start = source.indexOf(marker);
+    if (start < 0 || source.indexOf(marker, start + marker.length) >= 0) fail('anchor:storage-flow-region:' + marker);
+    const end = source.indexOf('//#endregion', start);
+    if (end < 0) fail('anchor:storage-flow-region-end:' + marker);
+    return { start, end, code: source.slice(start, end) };
+  };
+  const patchRegion = (marker, update) => {
+    const { start, end, code } = findRegion(marker);
+    source = source.slice(0, start) + update(code) + source.slice(end);
+  };
+
+  const itemMarker = '//#region src/Engine/MapEngine/Item.js';
+  patchRegion(itemMarker, region => {
+    const file = ts.createSourceFile('Item.js', region, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+    const edits = [];
+    for (const name of ['onItemListNormal', 'onItemListEquip']) {
+      const owners = file.statements.filter(node => ts.isFunctionDeclaration(node) && node.name?.text === name);
+      if (owners.length !== 1 || !owners[0].body) fail('anchor:storage-flow:' + name);
+      const switches = owners[0].body.statements.filter(ts.isSwitchStatement);
+      if (switches.length !== 1 || switches[0].expression.getText(file) !== 'pkt.invType') {
+        fail('anchor:storage-flow-switch:' + name);
+      }
+      const cases = switches[0].caseBlock.clauses.filter(node => ts.isCaseClause(node)
+        && node.expression.getText(file) === '2');
+      if (cases.length !== 1) fail('anchor:storage-flow-case:' + name);
+      const statements = cases[0].statements;
+      const original = statements.map(node => node.getText(file)).join('\n');
+      if (!/Storage/.test(original) || !/\.setItems\(/.test(original)
+        || !ts.isBreakStatement(statements[statements.length - 1])) {
+        fail('anchor:storage-flow-items:' + name);
+      }
+      edits.push({
+        start: statements[0].getStart(file),
+        end: statements[statements.length - 1].end,
+        value: 'lastroStageStorageItems(pkt.itemInfo || pkt.ItemInfo);\n          break;',
+      });
+    }
+    for (const edit of edits.sort((a, b) => b.start - a.start)) {
+      region = region.slice(0, edit.start) + edit.value + region.slice(edit.end);
+    }
+    return region;
+  });
+
+  // A shared per-runtime staging area, outside the ESM initializers for
+  // Item.js and Storage.js, permits both packet handlers to cooperate.
+  const stagingHelpers = [
+    'const lastroStagedStorageItems = new Map();',
+    'let lastroStorageSnapshotApplied = false;',
+    'function lastroResetStorageSnapshot() {',
+    '  lastroStagedStorageItems.clear();',
+    '  lastroStorageSnapshotApplied = false;',
+    '}',
+    'function lastroStageStorageItems(items) {',
+    '  if (!Array.isArray(items)) return;',
+    '  for (const item of items) {',
+    '    if (item) lastroStagedStorageItems.set(item.index, item);',
+    '  }',
+    '}',
+    'function lastroApplyStorageSnapshot(storage, legacyItems) {',
+    '  const hasItems = lastroStagedStorageItems.size > 0 || (legacyItems?.length ?? 0) > 0;',
+    '  if (!hasItems && lastroStorageSnapshotApplied) return;',
+    '  const merged = new Map();',
+    '  for (const item of legacyItems || []) {',
+    '    if (item) merged.set(item.index, item);',
+    '  }',
+    '  for (const [index, item] of lastroStagedStorageItems) merged.set(index, item);',
+    '  lastroStagedStorageItems.clear();',
+    '  storage.replaceItems(Array.from(merged.values()));',
+    '  lastroStorageSnapshotApplied = true;',
+    '}',
+    '',
+  ].join('\n');
+  source = source.replace(itemMarker, stagingHelpers + itemMarker);
+
+  patchRegion('//#region src/UI/Components/Storage/StorageCommon.js', region => {
+    const anchor = 'Component.setItems = function setItems(items) {';
+    if (region.split(anchor).length !== 2) fail('anchor:storage-snapshot-setItems');
+    const replacement = [
+      '// Replace a complete server snapshot, including when an old UI was reattached.',
+      'Component.replaceItems = function replaceItems(items) {',
+      '  const root = this.getRoot();',
+      '  const content = root?.querySelector(".container .content");',
+      '  if (content) content.textContent = "";',
+      '  _list.length = 0;',
+      '  if (hasFilters) {',
+      '    for (const filter of Object.values(_openFilters)) filter.remove();',
+      '    _openFilters = {};',
+      '  }',
+      '  this.setItems(items);',
+      '};',
+      '',
+      anchor,
+    ].join('\n');
+    return region.replace(anchor, replacement);
+  });
+
+  patchRegion('//#region src/Engine/MapEngine/Storage.js', region => {
+    const original = 'StorageController.getUI().setItems(itemBuffer)';
+    if (region.split(original).length !== 2) fail('anchor:storage-snapshot-apply');
+    region = region.replace(original,
+      'lastroApplyStorageSnapshot(StorageController.getUI(), itemBuffer)');
+
+    const file = ts.createSourceFile('Storage.js', region, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+    const edits = [];
+    for (const name of ['onStorageClose', 'onClosePressed', 'StorageEngine']) {
+      const owners = [];
+      function visit(node) {
+        if ((ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node)) && node.name?.text === name) owners.push(node);
+        ts.forEachChild(node, visit);
+      }
+      visit(file);
+      if (owners.length !== 1 || !owners[0].body) fail('anchor:storage-snapshot-reset:' + name);
+      edits.push({
+        start: owners[0].body.getStart(file) + 1,
+        value: '\n  lastroResetStorageSnapshot();\n  itemBuffer = [];',
+      });
+    }
+    for (const edit of edits.sort((a, b) => b.start - a.start)) {
+      region = region.slice(0, edit.start) + edit.value + region.slice(edit.start);
+    }
+    return region;
+  });
+  return source;
+}
+
 export function patchV2Runtime(source, { assistant = false } = {}) {
   if (!source.startsWith('import ')) fail('anchor:runtime-imports');
   const normalizedSource = source.replace(/\r\n/g, '\n');
@@ -1441,6 +1576,7 @@ ${normalizedSource}`;
   output = patchRuntimeUiLayout(output);
   output = patchRuntimeWindowBounds(output);
   output = patchRuntimeStorageOpening(output);
+  output = patchRuntimeStorageItemFlow(output);
   output = patchPetDialogueDecoding(output);
   output = patchRuntimeWorldMapProductActions(output);
   output = patchRuntimeChatMapLinks(output);
