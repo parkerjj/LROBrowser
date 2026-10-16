@@ -26,6 +26,8 @@
     "src/assistant/lro-client-knowledge.mjs",
     "src/assistant/lro-reference-links.mjs",
     "src/assistant/lro-market-api.mjs",
+    "src/kore/map-resource-provider.mjs",
+    "src/kore/kore-config-store.mjs",
     "src/kore/kore-integration.mjs"
   ],
   "baseline": {
