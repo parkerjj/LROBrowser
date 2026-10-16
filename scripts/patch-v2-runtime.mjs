@@ -1208,7 +1208,10 @@ export function patchRuntimeStorageOpening(source) {
   const guard = guards[0];
   if (guards.length !== 1 || !guard.expression.getText(file).includes('Storage.__loaded')
     || !guard.expression.getText(file).includes('Storage.__active')) {
-    fail('anchor:storage-open-guard');
+    throw new Error('anchor:storage-open-guard ' + JSON.stringify({
+      guardExpressions: guards.map(node => node.expression.getText(file)),
+      ownerPrefix: owners[0].body.getText(file).slice(0, 600),
+    }));
   }
   const lists = statements.filter(node => ts.isExpressionStatement(node)
     && node.expression.getText(file).replace(/\s/g, '') === 'Storage.setItems(itemBuffer)');
