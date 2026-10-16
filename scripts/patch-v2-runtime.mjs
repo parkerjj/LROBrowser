@@ -1364,7 +1364,7 @@ export function patchRuntimeStorageItemFlow(source) {
 
     const file = ts.createSourceFile('Storage.js', region, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
     const edits = [];
-    for (const name of ['onStorageClose', 'onClosePressed', 'StorageEngine']) {
+    for (const name of ['onStorageClose', 'onClosePressed', 'StorageEngine', 'onItemListSet']) {
       const owners = [];
       function visit(node) {
         if ((ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node)) && node.name?.text === name) owners.push(node);
@@ -1374,7 +1374,9 @@ export function patchRuntimeStorageItemFlow(source) {
       if (owners.length !== 1 || !owners[0].body) fail('anchor:storage-snapshot-reset:' + name);
       edits.push({
         start: owners[0].body.getStart(file) + 1,
-        value: '\n  lastroResetStorageSnapshot();\n  itemBuffer = [];',
+        value: name === 'onItemListSet'
+          ? '\n  if (pkt.invType === 2) { lastroResetStorageSnapshot(); itemBuffer = []; }'
+          : '\n  lastroResetStorageSnapshot();\n  itemBuffer = [];',
       });
     }
     for (const edit of edits.sort((a, b) => b.start - a.start)) {
@@ -1382,6 +1384,15 @@ export function patchRuntimeStorageItemFlow(source) {
     }
     return region;
   });
+
+  // Character switching can remove UI components without a CLOSE_STORE
+  // packet. Clear any partial list before the next account session.
+  const exitPattern = /function onExitSuccess\([^)]*\)\s*\{/g;
+  const exits = [...source.matchAll(exitPattern)];
+  if (exits.length > 1) fail('anchor:storage-snapshot-session-exit');
+  if (exits.length === 1) {
+    source = source.replace(exitPattern, match => match + '\n  lastroResetStorageSnapshot();');
+  }
   return source;
 }
 

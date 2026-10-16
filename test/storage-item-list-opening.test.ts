@@ -11,7 +11,7 @@ const original = [
 const patched = patchRuntimeStorageItemFlow(patchRuntimeStorageOpening(original));
 const staging = patched.slice(patched.indexOf('const lastroStagedStorageItems'),
   patched.indexOf('//#region src/Engine/MapEngine/Item.js'));
-const names = ['onItemListNormal', 'onItemListEquip', 'onStorageInfo', 'onStorageClose', 'onClosePressed', 'StorageEngine'];
+const names = ['onItemListNormal', 'onItemListEquip', 'onStorageInfo', 'onStorageClose', 'onClosePressed', 'StorageEngine', 'onItemListSet'];
 const handlers = names.map(name => extractRuntimeNode(patched, { kind: 'function', name })).join('\n');
 
 interface StorageItem { index: number; ITID: number; type: number; count?: number }
@@ -41,8 +41,8 @@ function harness() {
     requestAnimationFrame: () => undefined,
   };
   const api = vm.runInNewContext(staging + '\n' + handlers
-    + '\n({ normal: onItemListNormal, equip: onItemListEquip, info: onStorageInfo, close: onStorageClose, reset: lastroResetStorageSnapshot })',
-    ctx) as { normal(pkt: object): void; equip(pkt: object): void; info(pkt: object): void; close(): void; reset(): void };
+    + '\n({ normal: onItemListNormal, equip: onItemListEquip, info: onStorageInfo, close: onStorageClose, reset: lastroResetStorageSnapshot, listSet: onItemListSet })',
+    ctx) as { normal(pkt: object): void; equip(pkt: object): void; info(pkt: object): void; close(): void; reset(): void; listSet(pkt: object): void };
   return { api, storage, stage, ctx };
 }
 const sword = (index = 10): StorageItem => ({ index, ITID: 1102, type: 7 });
@@ -119,4 +119,19 @@ describe('Kafra storage item-list ordering', () => {
     expect(common).toContain('Component.replaceItems = function replaceItems(items)');
     expect(common).toContain('_list.length = 0;');
   });
+  it('drops an incomplete previous account snapshot when the next storage header arrives', () => {
+    const h = harness();
+    h.api.equip({ invType: 2, ItemInfo: [sword(30)] });
+    h.api.listSet({ invType: 2, name: 'Storage' });
+    h.api.equip({ invType: 2, ItemInfo: [sword(99)] });
+    h.api.info({ curCount: 1, maxCount: 600 });
+    expect(h.stage.list).toEqual([sword(99)]);
+  });
+
+  it('injects session-exit cleanup so character switching cannot retain gear-only staging', () => {
+    const withExit = patchRuntimeStorageItemFlow(patchRuntimeStorageOpening(
+      original + '\nfunction onExitSuccess() { return true; }'));
+    expect(withExit).toContain('function onExitSuccess() {\n  lastroResetStorageSnapshot();');
+  });
+
 });
