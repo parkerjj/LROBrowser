@@ -92,11 +92,21 @@ test('M4 recovery, pickup, and storage actions use the AI permit and generation 
     [1, { type: 'UseItem', inventoryIndex: 3, targetGid: 7 }],
     [2, { type: 'Pickup', itemGid: 88 }],
     [3, { type: 'StorageTransfer', inventoryIndex: 3, amount: 1, toStorage: true }],
+    [4, { type: 'NpcTalk', npcGid: 900 }],
+    [5, { type: 'NpcMenu', npcGid: 900, choice: 2 }],
+    [6, { type: 'NpcContinue', npcGid: 900 }],
+    [7, { type: 'NpcShopSelect', npcGid: 900, sell: false }],
+    [8, { type: 'NpcShopSelect', npcGid: 900, sell: true }],
+    [9, { type: 'ShopBuy', npcGid: 900, itemId: 501, amount: 2 }],
+    [10, { type: 'ShopSell', npcGid: 900, inventoryIndex: 3, amount: 1 }],
   ] as const) {
     worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'actionRequest', requestId: 700 + requestId,
       action: { runtimeSessionId: init.runtimeSessionId, gameSessionId, connectionGeneration, controlGeneration: generation, requestId, ...action } });
   }
-  expect(sent.map(action => action.type)).toEqual(['UseItem', 'Pickup', 'StorageTransfer']);
+  expect(sent.map(action => action.type)).toEqual([
+    'UseItem', 'Pickup', 'StorageTransfer', 'NpcTalk', 'NpcMenu', 'NpcContinue',
+    'NpcShopSelect', 'NpcShopSelect', 'ShopBuy', 'ShopSell',
+  ]);
   host.dispose();
 });
 

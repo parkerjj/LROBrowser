@@ -1283,6 +1283,45 @@ globalThis.KoreEngineNativeAction = (action) => {
     packet.count = action.amount;
     return Network.sendPacket(packet) !== false;
   }
+  if (action.type === "NpcTalk") {
+    if (!PACKET?.CZ?.CONTACTNPC) return false;
+    const packet = new PACKET.CZ.CONTACTNPC();
+    packet.NAID = action.npcGid;
+    packet.type = 1;
+    return Network.sendPacket(packet) !== false;
+  }
+  if (action.type === "NpcMenu") {
+    if (!PACKET?.CZ?.CHOOSE_MENU) return false;
+    const packet = new PACKET.CZ.CHOOSE_MENU();
+    packet.NAID = action.npcGid;
+    packet.num = action.choice;
+    return Network.sendPacket(packet) !== false;
+  }
+  if (action.type === "NpcContinue") {
+    if (!PACKET?.CZ?.REQ_NEXT_SCRIPT) return false;
+    const packet = new PACKET.CZ.REQ_NEXT_SCRIPT();
+    packet.NAID = action.npcGid;
+    return Network.sendPacket(packet) !== false;
+  }
+  if (action.type === "NpcShopSelect") {
+    if (!PACKET?.CZ?.ACK_SELECT_DEALTYPE) return false;
+    const packet = new PACKET.CZ.ACK_SELECT_DEALTYPE();
+    packet.NAID = action.npcGid;
+    packet.type = action.sell ? 1 : 0;
+    return Network.sendPacket(packet) !== false;
+  }
+  if (action.type === "ShopBuy") {
+    if (!PACKET?.CZ?.PC_PURCHASE_ITEMLIST) return false;
+    const packet = new PACKET.CZ.PC_PURCHASE_ITEMLIST();
+    packet.itemList = [{ ITID: action.itemId, count: action.amount }];
+    return Network.sendPacket(packet) !== false;
+  }
+  if (action.type === "ShopSell") {
+    if (!PACKET?.CZ?.PC_SELL_ITEMLIST) return false;
+    const packet = new PACKET.CZ.PC_SELL_ITEMLIST();
+    packet.itemList = [{ index: action.inventoryIndex, count: action.amount }];
+    return Network.sendPacket(packet) !== false;
+  }
   if (action.type === "PrivateAirship") {
     if (!PACKET?.CZ?.PRIVATE_AIRSHIP_REQUEST) return false;
     const packet = new PACKET.CZ.PRIVATE_AIRSHIP_REQUEST();

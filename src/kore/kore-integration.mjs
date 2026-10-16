@@ -222,6 +222,17 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     if (action.type === 'Pickup') return Number.isSafeInteger(action.itemGid) && action.itemGid > 0;
     if (action.type === 'StorageTransfer') return Number.isSafeInteger(action.inventoryIndex) && action.inventoryIndex >= 0
       && Number.isSafeInteger(action.amount) && action.amount > 0 && typeof action.toStorage === 'boolean';
+    if (action.type === 'NpcTalk' || action.type === 'NpcContinue') return Number.isSafeInteger(action.npcGid) && action.npcGid > 0;
+    if (action.type === 'NpcMenu') return Number.isSafeInteger(action.npcGid) && action.npcGid > 0
+      && Number.isSafeInteger(action.choice) && action.choice >= 0 && action.choice <= 255;
+    if (action.type === 'NpcShopSelect') return Number.isSafeInteger(action.npcGid) && action.npcGid > 0
+      && typeof action.sell === 'boolean';
+    if (action.type === 'ShopBuy') return Number.isSafeInteger(action.npcGid) && action.npcGid > 0
+      && Number.isSafeInteger(action.itemId) && action.itemId > 0
+      && Number.isSafeInteger(action.amount) && action.amount > 0 && action.amount <= 0xffff;
+    if (action.type === 'ShopSell') return Number.isSafeInteger(action.npcGid) && action.npcGid > 0
+      && Number.isSafeInteger(action.inventoryIndex) && action.inventoryIndex >= 0
+      && Number.isSafeInteger(action.amount) && action.amount > 0 && action.amount <= 0xffff;
     if (action.type === 'PrivateAirship') return typeof action.destinationId === 'string' && action.destinationId.length > 0
       && typeof action.expectedMap === 'string' && action.expectedMap.length > 0;
     return false;
