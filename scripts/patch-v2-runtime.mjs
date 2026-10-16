@@ -1206,7 +1206,8 @@ export function patchRuntimeStorageOpening(source) {
   const guards = statements.filter(node => ts.isIfStatement(node)
     && node.thenStatement.getText(file).includes('Storage.append()'));
   const guard = guards[0];
-  if (guards.length !== 1 || guard.expression.getText(file).replace(/\s/g, '') !== '!(Storage.__loaded&&Storage.__active)') {
+  if (guards.length !== 1 || !guard.expression.getText(file).includes('Storage.__loaded')
+    || !guard.expression.getText(file).includes('Storage.__active')) {
     fail('anchor:storage-open-guard');
   }
   const lists = statements.filter(node => ts.isExpressionStatement(node)
@@ -1216,7 +1217,7 @@ export function patchRuntimeStorageOpening(source) {
     {
       start: guard.expression.getStart(file),
       end: guard.expression.end,
-      value: '!(Storage.__loaded && Storage.__active && Storage._host?.isConnected && Storage._host.style.display !== "none")',
+      value: '(' + guard.expression.getText(file) + ') || !Storage._host?.isConnected || Storage._host.style.display === "none"',
     },
     {
       start: lists[0].end,
