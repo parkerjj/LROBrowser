@@ -6,8 +6,12 @@ const compatibleProfiles = new Set([KORE_PROTOCOL_PROFILE, 'lastro-2x']);
 const idPattern = /^[a-f0-9]{64}$/;
 const metadataFields = ['schemaVersion', 'engineVersion', 'bridgeApiVersion', 'schedulerCapabilities', 'packetver', 'profile', 'commitSha', 'sourceDirty', 'mode', 'toolVersions', 'files'];
 const schedulerCapabilities = ['fourQueues', 'oneShotDeadline', 'recoverySnapshotV1', 'residentExecutor'];
-const MAX_PENDING_GAME_CHUNKS = 256;
-const MAX_PENDING_GAME_BYTES = 1024 * 1024;
+const MAX_PENDING_GAME_CHUNKS = 512;
+const MAX_PENDING_GAME_BYTES = 2 * 1024 * 1024;
+const MAX_RECOVERY_GAME_CHUNKS = 1024;
+const MAX_RECOVERY_GAME_BYTES = 2 * MAX_PENDING_GAME_BYTES;
+const MAX_RESIDENT_IN_FLIGHT_EVENTS = 256;
+const MAX_RESIDENT_BUFFERED_EVENTS = 768;
 const HEARTBEAT_INTERVAL_MS = 1000;
 const HEARTBEAT_TIMEOUT_MS = 5000;
 const INITIALIZATION_TIMEOUT_MS = 10000;
@@ -148,10 +152,12 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   let recoveryBarrier = null, recoveryMirror = null, nextBridgeSequence = 0;
   let gameSession = null, connection = null, postedGameSessionId = null, postedConnectionGeneration = null;
   let pendingGameEvents = [], pendingGameBytes = 0, workerDegraded = false, needsMapResync = false;
+  let residentIngressPending = [], residentIngressInFlight = new Map(), residentIngressGameBytes = 0;
   let mapStreamCapability = null;
   let controlGeneration = 0;
   let routePermit = null;
   let aiPermit = null;
+  let recoveryRestore = null;
   const pendingCommands = new Map();
   let resourceCycle = 0;
   let activeResourceRequestId = null;
@@ -185,6 +191,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     outputDrainPending = false;
     heartbeatEnabled = false;
     restarting = false;
+    clearResidentIngress();
     removeListeners(); removeListeners = () => {};
     removeWorkerListeners = () => {};
     const oldWorker = worker; worker = null; probe = null;
@@ -252,13 +259,88 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   }
   function postBridgeEvent(kind, fields = {}, queue = 'control', overrides = {}) {
     if (!worker || !session) return null;
+    const byteLength = kind === 'gameData' && fields.bytes && Number.isSafeInteger(fields.bytes.byteLength)
+      ? fields.bytes.byteLength : 0;
+    if (residentIngressPending.length + residentIngressInFlight.size >= MAX_RESIDENT_BUFFERED_EVENTS
+      || residentIngressGameBytes + byteLength > MAX_PENDING_GAME_BYTES) {
+      markDegraded('worker-ingress-overflow');
+      return null;
+    }
     const context = nextBridgeContext(overrides);
     const record = { kind, ...fields, context };
     const requestId = ++nextId;
-    try {
-      worker.postMessage({ type: 'queue', queue, runtimeSessionId: session, runtimeGeneration, requestId, record });
-    } catch (error) { handleWorkerFailure(error); return null; }
+    residentIngressPending.push({
+      kind,
+      byteLength,
+      message: { type: 'queue', queue, runtimeSessionId: session, runtimeGeneration, requestId, record },
+    });
+    residentIngressGameBytes += byteLength;
+    flushResidentIngress();
     return context.bridgeSequence;
+  }
+  function flushResidentIngress() {
+    if (!worker || !residentExecutor || state.status !== 'runtime-ready'
+      || recoveryBarrier?.active && !recoveryBarrier.bootstrap) return;
+    while (residentIngressPending.length && residentIngressInFlight.size < MAX_RESIDENT_IN_FLIGHT_EVENTS) {
+      const entry = residentIngressPending.shift();
+      residentIngressInFlight.set(entry.message.requestId, entry);
+      try { worker.postMessage(entry.message); }
+      catch (error) {
+        residentIngressInFlight.delete(entry.message.requestId);
+        residentIngressPending.unshift(entry);
+        handleWorkerFailure(error);
+        return;
+      }
+    }
+  }
+  function clearResidentIngress() {
+    residentIngressPending = [];
+    residentIngressInFlight.clear();
+    residentIngressGameBytes = 0;
+  }
+  function preserveResidentGameIngress() {
+    const queued = [...residentIngressPending, ...residentIngressInFlight.values()];
+    const snapshotRevision = recoveryMirror?.snapshotRevision;
+    const events = queued.filter(entry => {
+      const record = entry.message.record;
+      return entry.kind === 'gameData' && record.context.gameSessionId === gameSession?.id
+        && record.context.connectionGeneration === connection?.generation
+        && (!Number.isSafeInteger(snapshotRevision) || record.context.bridgeSequence > snapshotRevision);
+    }).sort((left, right) => left.message.record.context.bridgeSequence - right.message.record.context.bridgeSequence);
+    clearResidentIngress();
+    const seen = new Set(pendingGameEvents.map(event => `${event.gameSessionId}:${event.connectionGeneration}:${event.sequence}`));
+    for (const entry of events) {
+      const record = entry.message.record;
+      const key = `${record.context.gameSessionId}:${record.context.connectionGeneration}:${record.sequence}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const bytes = record.bytes instanceof Uint8Array ? record.bytes : new Uint8Array(record.bytes ?? []);
+      if (pendingGameEvents.length >= MAX_RECOVERY_GAME_CHUNKS
+        || bytes.byteLength > MAX_RECOVERY_GAME_BYTES - pendingGameBytes) {
+        log('error', 'Map stream degraded: worker-recovery-ingress-overflow');
+        return false;
+      }
+      pendingGameEvents.push({
+        runtimeSessionId: session, type: 'gameData', gameSessionId: record.context.gameSessionId,
+        connectionGeneration: record.context.connectionGeneration, sequence: record.sequence,
+        byteOffset: record.byteOffset, receivedAtMs: record.receivedAtMs, bytes,
+      });
+      pendingGameBytes += bytes.byteLength;
+    }
+    pendingGameEvents.sort((left, right) => left.sequence - right.sequence);
+    return true;
+  }
+  function handleResidentEventAccepted(message) {
+    const entry = residentIngressInFlight.get(message.requestId);
+    if (!entry) return;
+    residentIngressInFlight.delete(message.requestId);
+    residentIngressGameBytes = Math.max(0, residentIngressGameBytes - entry.byteLength);
+    if (message.result?.kind === 'error') {
+      const error = message.result.error ?? message.result;
+      log('warn', `KoreEngine bridge event rejected: ${String(error.code ?? 'event-rejected')}`);
+    }
+    flushResidentIngress();
+    flushPendingGameEvents();
   }
   function postGameData(message) {
     try { worker.postMessage(message, [message.bytes.buffer]); }
@@ -307,6 +389,12 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       && typeof action.expectedMap === 'string' && action.expectedMap.length > 0;
     return false;
   }
+  function observeTaskIntentGeneration(output) {
+    const taskGeneration = output?.taskIntentGeneration;
+    if (!aiPermit || aiPermit.runtimeGeneration !== runtimeGeneration
+      || !Number.isSafeInteger(taskGeneration) || taskGeneration < aiPermit.taskIntentGeneration) return;
+    aiPermit.taskIntentGeneration = taskGeneration;
+  }
   function handleAiAction(message) {
     const action = message.action;
     if ((message.runtimeGeneration !== undefined && message.runtimeGeneration !== runtimeGeneration)
@@ -335,7 +423,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       revokeAiPermit();
     }
   }
-  function postCommand(command, fields = {}) {
+  function postCommand(command, fields = {}, options = {}) {
     const reason = worldUnavailableReason();
     if (reason) { log('error', `Command ${command} unavailable: ${reason}.`); return false; }
     const changesAiGeneration = command === 'ai_auto' || command === 'ai_off' || command === 'ai_clear';
@@ -356,9 +444,44 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     const requestId = useResidentCommand
       ? postBridgeEvent('command', { command, nowMs: clock(), ...fields })
       : post('command', { gameSessionId: gameSession.id, controlGeneration, nowMs: clock(), ...fields, command });
-    if (requestId !== null && !useResidentCommand) pendingCommands.set(requestId, commandContext);
+    if (requestId !== null && !useResidentCommand) pendingCommands.set(requestId, {
+      ...commandContext,
+      recoveryRestore: options.recoveryRestore ?? null,
+    });
     changed();
     return true;
+  }
+  function recoveryRestoreIsCurrent(restore) {
+    return Boolean(restore) && recoveryRestore === restore && restore.runtimeGeneration === runtimeGeneration
+      && restore.gameSessionId === gameSession?.id
+      && restore.connectionGeneration === connection?.generation;
+  }
+  function maybeRestoreConfigAfterRecovery() {
+    const restore = recoveryRestore;
+    if (!restore || restore.reloadStarted || !restore.snapshotReady || workerDegraded
+      || !state.worldReady || state.mapResourceState !== 'ready' || state.aiState !== 'off'
+      || !gameSession?.aid || !gameSession?.cid || !connection) return;
+    restore.reloadStarted = true;
+    const context = {
+      gameSessionId: gameSession.id,
+      profile: state.profile,
+      aid: gameSession.aid,
+      cid: gameSession.cid,
+    };
+    void api.getConfigDocuments(context)
+      .then(documents => {
+        if (!recoveryRestoreIsCurrent(restore) || state.aiState !== 'off'
+          || !state.worldReady || state.mapResourceState !== 'ready') return;
+        const selected = documents.filter(document => M4_CONFIG_FILES.has(document.fileName));
+        if (!postCommand('reload', { target: 'all', documents: selected, ...context }, { recoveryRestore: restore })) {
+          recoveryRestore = null;
+          log('error', 'Configuration restore could not be sent after Worker recovery.');
+        }
+      })
+      .catch(error => {
+        if (recoveryRestore === restore) recoveryRestore = null;
+        log('error', `Configuration restore failed after Worker recovery: ${String(error?.message ?? error)}`);
+      });
   }
   function residentResourceRequest() {
     if (!residentExecutor || !gameSession || !connection || !worker || !session) return;
@@ -613,23 +736,28 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   }
   function flushPendingGameEvents() {
     if (state.status !== 'runtime-ready' || !gameSession) return;
-    if (residentExecutor && recoveryBarrier?.active && !recoveryBarrier.bootstrap) return;
+    const snapshotBridge = residentExecutor && recoveryBarrier?.active && !recoveryBarrier.bootstrap;
     if (mapStreamCapability === false) {
       rejectMapStreamCapability();
       return;
     }
-    if (!sendCurrentGameContext()) return;
+    if (!snapshotBridge && !sendCurrentGameContext()) return;
     if (state.streamStatus === 'degraded') { sendDegradedState(); return; }
     if (!pendingGameEvents.length) return;
     const events = pendingGameEvents;
     clearPendingGameEvents();
-    for (const event of events) {
+    for (let index = 0; index < events.length; index += 1) {
+      const event = events[index];
       if (event.gameSessionId !== gameSession?.id || event.connectionGeneration !== connection?.generation) continue;
       if (residentExecutor) {
         if (postBridgeEvent('gameData', {
           sequence: event.sequence, byteOffset: event.byteOffset,
           receivedAtMs: event.receivedAtMs, bytes: event.bytes,
-        }, 'game') === null) return;
+        }, 'game') === null) {
+          pendingGameEvents = events.slice(index).concat(pendingGameEvents);
+          pendingGameBytes = pendingGameEvents.reduce((total, item) => total + item.bytes.byteLength, 0);
+          return;
+        }
       } else if (!postGameData(event)) return;
     }
   }
@@ -713,8 +841,8 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   function updateResidentStatus(status) {
     if (!status || typeof status !== 'object') return;
     if (typeof status.worldReady === 'boolean') {
-      state.worldReady = status.worldReady;
-      if (status.worldReady) state.streamStatus = 'world-ready';
+      state.worldReady = status.worldReady && !workerDegraded;
+      if (state.worldReady) state.streamStatus = 'world-ready';
     }
     if (typeof status.aiMode === 'string' && ['off', 'auto'].includes(status.aiMode)) state.aiState = status.aiMode;
     if (Number.isSafeInteger(status.revision) && status.revision >= 0) nextBridgeSequence = Math.max(nextBridgeSequence, status.revision);
@@ -725,6 +853,11 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       state.worldReady = false;
       state.streamStatus = 'degraded';
       state.degradedReason = String(status.reason ?? 'runtime-recovery-failed');
+    }
+    if (workerDegraded) {
+      state.worldReady = false;
+      state.streamStatus = 'degraded';
+      state.degradedReason = 'worker-recovery-ingress-overflow';
     }
     if (status.worldReady === true && recoveryBarrier?.active && recoveryBarrier.bootstrap) {
       recoveryBarrier.active = false;
@@ -737,18 +870,33 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     const ack = message.kind === 'recoveryAck' ? message : message.ack ?? message.result ?? message;
     if (!recoveryBarrier?.active || !Number.isSafeInteger(ack?.snapshotRevision)) return;
     if (recoveryBarrier.revision !== null && ack.snapshotRevision < recoveryBarrier.revision) return;
+    const bootstrap = recoveryBarrier.bootstrap === true;
     recoveryBarrier.active = false;
     recoveryBarrier.revision = ack.snapshotRevision;
     nextBridgeSequence = Math.max(nextBridgeSequence, ack.snapshotRevision);
-    if (typeof ack.worldReady === 'boolean') state.worldReady = ack.worldReady;
+    if (bootstrap) recoveryRestore = null;
+    if (!bootstrap) {
+      postedGameSessionId = gameSession?.id ?? null;
+      postedConnectionGeneration = connection?.generation ?? null;
+    }
+    if (typeof ack.worldReady === 'boolean') state.worldReady = ack.worldReady && !workerDegraded;
+    if (!bootstrap && state.worldReady && recoveryRestoreIsCurrent(recoveryRestore)) recoveryRestore.snapshotReady = true;
     if (state.worldReady) state.streamStatus = 'world-ready';
+    else if (workerDegraded) {
+      state.streamStatus = 'degraded';
+      state.degradedReason = 'worker-recovery-ingress-overflow';
+    }
     if (gameSession && recoveryMirror?.aiMode === 'auto') state.aiState = 'off';
     changed();
     flushPendingGameEvents();
     sendCurrentGameContext();
+    if (!bootstrap && state.worldReady) residentResourceRequest();
+    flushResidentIngress();
+    maybeRestoreConfigAfterRecovery();
   }
   function handleResidentOutput(output) {
     if (!output || typeof output !== 'object') return;
+    observeTaskIntentGeneration(output);
     const kind = String(output.kind ?? '').toLowerCase();
     if (kind === 'action') {
       handleAiAction({ runtimeSessionId: session, runtimeGeneration, requestId: output.outputRequestId ?? output.requestId, action: output.action ?? output });
@@ -776,10 +924,13 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   function drainResidentOutputs(message = {}) {
     outputDrainPending = false;
     const outputs = Array.isArray(message.outputs) ? message.outputs : [];
+    const status = Array.isArray(message.status) ? message.status : [];
+    for (const item of status) observeTaskIntentGeneration(item);
+    for (const item of outputs) observeTaskIntentGeneration(item);
     if (Array.isArray(message.actions)) for (const action of message.actions) handleAiAction({
       runtimeSessionId: session, runtimeGeneration, requestId: action.outputRequestId ?? action.requestId, action: action.action ?? action,
     });
-    if (Array.isArray(message.status)) for (const status of message.status) handleResidentOutput(status);
+    for (const item of status) handleResidentOutput(item);
     for (const output of outputs) handleResidentOutput(output);
   }
   function sendRecoverySnapshot() {
@@ -796,11 +947,14 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       snapshot.controlGeneration = controlGeneration;
       nextBridgeSequence = Math.max(nextBridgeSequence, snapshot.snapshotRevision);
     }
+    if (recoveryBarrier?.active) recoveryBarrier.snapshotSent = true;
     try {
       worker.postMessage({ type: 'recoverySnapshot', runtimeSessionId: session, runtimeGeneration, snapshot });
     } catch (error) { handleWorkerFailure(error); }
     if (!snapshot) {
       sendCurrentGameContext();
+      flushPendingGameEvents();
+    } else {
       flushPendingGameEvents();
     }
   }
@@ -821,7 +975,8 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       return;
     }
     if (message.type === 'outputs') { drainResidentOutputs(message); return; }
-    if (message.type === 'eventAccepted' || message.type === 'runReady') return;
+    if (message.type === 'eventAccepted') { handleResidentEventAccepted(message); return; }
+    if (message.type === 'runReady') return;
     if (message.type === 'status' && !Object.hasOwn(message, 'requestId')) { handleResidentOutput(message); return; }
     if (message.type === 'diagnostic' && !Object.hasOwn(message, 'requestId')) { handleResidentOutput(message); return; }
     if (message.type === 'queueFault') {
@@ -888,8 +1043,12 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       if (!['loading', 'retrying', 'ready', 'degraded'].includes(message.mapResourceState)
         || typeof message.mapName !== 'string') { fail(Error('invalid-map-resource-state')); return; }
       state.mapResourceState = message.mapResourceState;
-      if (message.mapResourceState === 'ready') maybeConfirmRouteMap();
+      if (message.mapResourceState === 'ready') {
+        maybeConfirmRouteMap();
+        maybeRestoreConfigAfterRecovery();
+      }
       if (message.mapResourceState === 'degraded') {
+        recoveryRestore = null;
         cancelWorkerRoute();
         revokeRoutePermit();
         state.routeState = 'failed';
@@ -922,7 +1081,10 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       if (!pending || !gameSession || !connection
         || pending.gameSessionId !== gameSession.id
         || pending.connectionGeneration !== connection.generation
-        || pending.controlGeneration !== controlGeneration) return;
+        || pending.controlGeneration !== controlGeneration) {
+        if (pending?.recoveryRestore && recoveryRestore === pending.recoveryRestore) recoveryRestore = null;
+        return;
+      }
       const command = pending.command;
       if (message.result.kind === 'aiState') {
         state.aiState = message.result.aiMode;
@@ -942,6 +1104,15 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         log('error', `AI auto rejected: ${message.result.code}`);
       } else if (message.result.kind === 'error') {
         log('error', `${message.result.code}: ${message.result.message}`);
+      }
+      if (pending.recoveryRestore && recoveryRestore === pending.recoveryRestore) {
+        const restore = pending.recoveryRestore;
+        const accepted = message.result.kind === 'reload' && message.result.accepted === true;
+        recoveryRestore = null;
+        if (accepted && restore.aiMode === 'auto' && restore.runtimeGeneration === runtimeGeneration
+          && restore.gameSessionId === gameSession.id && restore.connectionGeneration === connection.generation) {
+          postCommand('ai_auto');
+        }
       }
       changed();
       return;
@@ -973,7 +1144,10 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         }
       state.status = 'runtime-ready'; changed();
       if (residentExecutor) {
-        recoveryBarrier = { active: true, revision: recoveryMirror?.snapshotRevision ?? null };
+        recoveryBarrier = {
+          active: true, revision: recoveryMirror?.snapshotRevision ?? null,
+          bootstrap: false, snapshotSent: false,
+        };
         post('recoverySnapshotRequest', {
           runtimeGeneration,
           snapshotRevision: recoveryMirror?.snapshotRevision ?? null,
@@ -998,23 +1172,35 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     return null;
   }
   function resetRuntimeForRecovery(reason) {
+    const restoreAiMode = aiPermit ? 'auto' : 'off';
+    const ingressPreserved = preserveResidentGameIngress();
     routePermit = null;
     aiPermit = null;
     pendingCommands.clear();
     controlGeneration += 1;
     state.status = 'loading';
     state.worldReady = false;
-    state.streamStatus = gameSession ? 'awaiting-sync' : 'idle';
+    state.streamStatus = ingressPreserved ? (gameSession ? 'awaiting-sync' : 'idle') : 'degraded';
     state.aiState = 'off';
     state.aiTaskCount = 0;
     state.aiDiagnostics = null;
     state.routeState = 'idle';
     state.mapResourceState = gameSession ? 'loading' : 'idle';
-    state.degradedReason = null;
+    state.degradedReason = ingressPreserved ? null : 'worker-recovery-ingress-overflow';
     postedGameSessionId = null;
     postedConnectionGeneration = null;
-    workerDegraded = false;
-    recoveryBarrier = residentExecutor ? { active: true, revision: recoveryMirror?.snapshotRevision ?? null } : null;
+    workerDegraded = !ingressPreserved;
+    recoveryRestore = gameSession && connection ? {
+      runtimeGeneration,
+      gameSessionId: gameSession.id,
+      connectionGeneration: connection.generation,
+      aiMode: restoreAiMode,
+      snapshotReady: false,
+      reloadStarted: false,
+    } : null;
+    recoveryBarrier = residentExecutor
+      ? { active: true, revision: recoveryMirror?.snapshotRevision ?? null, bootstrap: false, snapshotSent: false }
+      : null;
     initAge = 0;
     lastNow = clock();
     if (reason) log('warn', `KoreEngine runtime restarting: ${String(reason)}`);
@@ -1177,6 +1363,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       needsMapResync ||= gameSession !== null;
       generation++;
       runtimeGeneration += 1;
+      recoveryRestore = null;
       revokeRoutePermit();
       revokeAiPermit();
       gameSession = null; connection = null; postedGameSessionId = null; postedConnectionGeneration = null;
@@ -1220,6 +1407,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       try {
         gameSession = { id: (page.crypto ?? globalThis.crypto).randomUUID(), characterGid, mapName: mapName.slice(0, 128), aid, cid };
       } catch (error) { log('error', `Unable to create game session: ${String(error)}`); return null; }
+      recoveryRestore = null;
       connection = null; postedGameSessionId = null; postedConnectionGeneration = null;
       if (recoveryMirror?.gameSessionId !== gameSession.id) recoveryMirror = null;
       resourceCycle += 1;
@@ -1289,7 +1477,9 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
           ? new Uint8Array(data)
           : ArrayBuffer.isView(data) ? new Uint8Array(data.buffer, data.byteOffset, data.byteLength) : null;
         if (!source) throw Error('unsupported-map-buffer');
-        if ((state.status !== 'runtime-ready' || residentExecutor && recoveryBarrier?.active)
+        const bufferUntilRuntimeReady = state.status !== 'runtime-ready'
+          || residentExecutor && recoveryBarrier?.active && !recoveryBarrier.snapshotSent;
+        if (bufferUntilRuntimeReady
           && (pendingGameEvents.length >= MAX_PENDING_GAME_CHUNKS
             || source.byteLength > MAX_PENDING_GAME_BYTES - pendingGameBytes)) {
           markDegraded('worker-startup-queue-overflow');
@@ -1314,17 +1504,21 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       state.receivedBytes += bytes.byteLength;
       if (state.status === 'runtime-ready') {
         if (residentExecutor) {
-          if (recoveryBarrier?.active) {
+          if (recoveryBarrier?.active && !recoveryBarrier.snapshotSent) {
             pendingGameEvents.push(message);
             pendingGameBytes += bytes.byteLength;
             changed();
             return true;
           }
-          if (!sendCurrentGameContext()) return false;
-          return postBridgeEvent('gameData', {
+          const snapshotContext = recoveryBarrier?.active && !recoveryBarrier.bootstrap
+            && recoveryBarrier.snapshotSent;
+          if (!snapshotContext && !sendCurrentGameContext()) return false;
+          const accepted = postBridgeEvent('gameData', {
             sequence: message.sequence, byteOffset: message.byteOffset,
             receivedAtMs: message.receivedAtMs, bytes: message.bytes,
           }, 'game') !== null;
+          if (!accepted) markDegraded('worker-ingress-overflow');
+          return accepted;
         }
         if (!sendCurrentGameContext()) return false;
         return postGameData(message);
@@ -1380,6 +1574,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     },
     endGameSession() {
       if (!gameSession) return;
+      recoveryRestore = null;
       const ended = gameSession.id;
       if (routePermit) {
         cancelWorkerRoute();

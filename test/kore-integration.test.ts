@@ -313,7 +313,7 @@ test('startup queue overflow degrades only the current KE connection', async () 
   await host.start();
   const gameSessionId = host.beginGameSession(7, 'prontera.gat');
   const connectionGeneration = host.beginMapConnection();
-  for (let index = 0; index < 256; index++) expect(host.mirrorMapData(connectionGeneration!, new Uint8Array([index]))).toBe(true);
+  for (let index = 0; index < 512; index++) expect(host.mirrorMapData(connectionGeneration!, new Uint8Array([index]))).toBe(true);
   expect(host.mirrorMapData(connectionGeneration!, new Uint8Array([0xff]))).toBe(false);
   expect(host.state.status).toBe('loading');
   expect(host.state.streamStatus).toBe('degraded');
@@ -354,7 +354,7 @@ test('rejects a single oversized startup chunk before copying its bytes', async 
 
   const copy = vi.spyOn(Uint8Array.prototype, 'slice');
   try {
-    expect(streamHost.mirrorMapData(connectionGeneration, new Uint8Array(1024 * 1024 + 1))).toBe(false);
+    expect(streamHost.mirrorMapData(connectionGeneration, new Uint8Array(2 * 1024 * 1024 + 1))).toBe(false);
     expect(copy).not.toHaveBeenCalled();
   } finally {
     copy.mockRestore();

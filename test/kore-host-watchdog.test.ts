@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import 'fake-indexeddb/auto';
 import { afterEach, expect, test, vi } from 'vitest';
 import { createKoreIntegration } from '../src/kore/kore-integration.mjs';
 import { packageFixture } from './kore-fixture';
@@ -161,11 +162,11 @@ test('resident recovery buffering enforces the pending game chunk limit before c
   const connectionGeneration = harness.host.beginMapConnection();
   const copy = vi.spyOn(Uint8Array.prototype, 'slice');
   try {
-    for (let index = 0; index < 256; index++) {
+    for (let index = 0; index < 512; index++) {
       expect(harness.host.mirrorMapData(connectionGeneration!, new Uint8Array([index]))).toBe(true);
     }
     expect(harness.host.mirrorMapData(connectionGeneration!, new Uint8Array([0xff]))).toBe(false);
-    expect(copy).toHaveBeenCalledTimes(256);
+    expect(copy).toHaveBeenCalledTimes(512);
   } finally {
     copy.mockRestore();
   }
@@ -182,7 +183,7 @@ test('resident recovery buffering enforces the pending game byte limit below the
   harness.host.beginGameSession(7, 'prontera.gat');
   const connectionGeneration = harness.host.beginMapConnection();
   const chunk = new Uint8Array(8192);
-  for (let index = 0; index < 128; index++) {
+  for (let index = 0; index < 256; index++) {
     expect(harness.host.mirrorMapData(connectionGeneration!, chunk)).toBe(true);
   }
   expect(harness.host.mirrorMapData(connectionGeneration!, chunk)).toBe(false);
@@ -240,6 +241,229 @@ test('recovery clears old action permits and only accepts actions from the new r
   harness.host.dispose();
   expect(sent).toHaveLength(0);
   expect(oldControlGeneration).toBeGreaterThan(0);
+});
+
+test('resident recovery ack does not replay lifecycle events over an imported snapshot', async () => {
+  vi.useFakeTimers();
+  const harness = createHarness();
+  await harness.host.start();
+  ready(harness.workers[0], harness.fixture);
+  const first = harness.workers[0]!;
+  first.reply({ runtimeSessionId: first.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotRequest' });
+  first.reply({ runtimeSessionId: first.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotImported', result: { kind: 'recoveryAck', snapshotRevision: 0, worldReady: false } });
+  const gameSessionId = harness.host.beginGameSession(7, 'prontera.gat');
+  const connectionGeneration = harness.host.beginMapConnection();
+  first.reply({ runtimeSessionId: first.messages[0].runtimeSessionId, type: 'recoveryMirror', snapshot: {
+    schemaVersion: 1, runtimeSessionId: first.messages[0].runtimeSessionId, gameSessionId,
+    profile: 'lastro-20211103', connectionGeneration, controlGeneration: harness.host.state.controlGeneration,
+    mapName: 'prontera.gat', characterGid: 7,
+    selfActor: { gid: 7, x: 10, y: 10, kind: 'self' }, entities: [],
+    mapResourceVersion: '2.0.5', mapResourceReady: true, mapSyncComplete: true,
+    snapshotRevision: 2, worldStatus: { status: {}, inventory: {}, shop: {} }, npcDialog: {}, aiMode: 'off',
+  } });
+  first.dispatchEvent(new Event('error'));
+  await vi.advanceTimersByTimeAsync(250);
+
+  const second = harness.workers[1]!;
+  ready(second, harness.fixture);
+  second.reply({ runtimeSessionId: second.messages[0].runtimeSessionId, runtimeGeneration: 2,
+    type: 'recoverySnapshotRequest' });
+  const snapshot = second.messages.find(message => message.type === 'recoverySnapshot');
+  expect(snapshot?.snapshot).toMatchObject({ snapshotRevision: 2, gameSessionId });
+  const beforeAck = second.messages.length;
+  second.reply({ runtimeSessionId: second.messages[0].runtimeSessionId, runtimeGeneration: 2,
+    type: 'recoverySnapshotImported', result: { kind: 'recoveryAck', snapshotRevision: 2, worldReady: true } });
+
+  const replayedLifecycle = second.messages.slice(beforeAck)
+    .filter(message => message.type === 'queue')
+    .map(message => message.record.kind)
+    .filter(kind => kind === 'gameSessionStarted' || kind === 'mapConnectionStarted');
+  expect(replayedLifecycle).toEqual([]);
+  expect(harness.host.state.worldReady).toBe(true);
+  harness.host.dispose();
+});
+
+test('resident host rejects an action older than the latest task generation diagnostic', async () => {
+  const harness = createHarness();
+  const sent: any[] = [];
+  (harness.page as any).KoreEngineNativeAction = (action: any) => { sent.push(action); return true; };
+  await harness.host.start();
+  const worker = harness.workers[0]!;
+  ready(worker, harness.fixture);
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotRequest' });
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotImported', result: { kind: 'recoveryAck', snapshotRevision: 0, worldReady: false } });
+  const gameSessionId = harness.host.beginGameSession(7, 'prontera.gat');
+  const connectionGeneration = harness.host.beginMapConnection();
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'outputs', status: [{ kind: 'status', worldReady: true, aiMode: 'off' }] });
+  expect(harness.host.debugCommand('ai auto')).toBe(true);
+
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'outputs', actions: [{ type: 'Attack', targetGid: 99, requestId: 100,
+      runtimeSessionId: worker.messages[0].runtimeSessionId, gameSessionId, connectionGeneration,
+      controlGeneration: harness.host.state.controlGeneration, taskIntentGeneration: 8 }],
+    outputs: [{ kind: 'diagnostic', code: 'ai-state', task: 'attack', taskIntentGeneration: 9 }] });
+
+  expect(sent).toEqual([]);
+  harness.host.dispose();
+});
+
+test('resident game ingress is bounded until Worker acknowledges queued records', async () => {
+  const harness = createHarness();
+  await harness.host.start();
+  const worker = harness.workers[0]!;
+  ready(worker, harness.fixture);
+  const recoveryRequest = worker.messages.find(message => message.type === 'recoverySnapshotRequest');
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotRequest', requestId: recoveryRequest.requestId });
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotImported', result: { kind: 'recoveryAck', snapshotRevision: 0, worldReady: false } });
+  harness.host.beginGameSession(7, 'prontera.gat');
+  const connectionGeneration = harness.host.beginMapConnection();
+
+  for (let index = 0; index < 300; index += 1) {
+    expect(harness.host.mirrorMapData(connectionGeneration!, new Uint8Array([index & 0xff]))).toBe(true);
+  }
+  const queuedBeforeAck = worker.messages.filter(message => message.type === 'queue');
+  expect(queuedBeforeAck.length).toBeLessThanOrEqual(256);
+
+  let cursor = 0;
+  const acknowledged = new Set<number>();
+  while (cursor < worker.messages.length) {
+    const message = worker.messages[cursor++];
+    if (message.type !== 'queue' || acknowledged.has(message.requestId)) continue;
+    acknowledged.add(message.requestId);
+    worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+      type: 'eventAccepted', requestId: message.requestId, result: { kind: 'accepted' } });
+  }
+  const queuedAfterAck = worker.messages.filter(message => message.type === 'queue');
+  expect(queuedAfterAck).toHaveLength(302);
+  expect(queuedAfterAck.map(message => message.record.context.bridgeSequence))
+    .toEqual(Array.from({ length: 302 }, (_, index) => index + 1));
+  harness.host.dispose();
+});
+
+test('resident recovery reloads saved TXT before restoring the previous auto mode', async () => {
+  const resourceProvider = {
+    handleResourceRequest: vi.fn(async (message: any) => ({ requestId: message.requestId, result: {
+      kind: 'error', code: 'fixture-resource-unavailable',
+    } })),
+    handleResourceValidation: vi.fn(async () => ({ committedFiles: [], deletedFiles: [] })),
+    close: async () => undefined,
+  };
+  const harness = createHarness(resourceProvider, 2);
+  await harness.host.start();
+  const first = harness.workers[0]!;
+  ready(first, harness.fixture);
+  first.reply({ runtimeSessionId: first.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotRequest' });
+  first.reply({ runtimeSessionId: first.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotImported', result: { kind: 'recoveryAck', snapshotRevision: 0, worldReady: false } });
+  const gameSessionId = harness.host.beginGameSession(7, 'prontera.gat', { aid: 11, cid: 22 });
+  const connectionGeneration = harness.host.beginMapConnection();
+  await harness.host.saveConfigDocument({ profile: 'lastro-20211103', aid: 11, cid: 22,
+    fileName: 'config.txt', rawText: 'attackAuto 1\n' });
+  first.reply({ runtimeSessionId: first.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'outputs', status: [{ kind: 'status', worldReady: true, aiMode: 'off' }] });
+  expect(harness.host.debugCommand('ai auto')).toBe(true);
+  first.reply({ runtimeSessionId: first.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'outputs', status: [{ kind: 'status', worldReady: true, aiMode: 'auto' }] });
+  first.reply({ runtimeSessionId: first.messages[0].runtimeSessionId, type: 'mapResourceState',
+    mapResourceState: 'ready', mapName: 'prontera.gat' });
+  const snapshotRevision = Math.max(...first.messages.filter(message => message.type === 'queue')
+    .map(message => message.record.context.bridgeSequence));
+  first.reply({ runtimeSessionId: first.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoveryMirror', snapshot: {
+      schemaVersion: 1, runtimeSessionId: first.messages[0].runtimeSessionId, runtimeGeneration: 1,
+      gameSessionId, profile: 'lastro-20211103', connectionGeneration,
+      controlGeneration: harness.host.state.controlGeneration, mapName: 'prontera.gat', characterGid: 7,
+      aid: 11, cid: 22, selfActor: { gid: 7, x: 10, y: 10, kind: 'self' }, entities: [],
+      mapResourceVersion: '2.0.5', mapResourceReady: true, mapSyncComplete: true,
+      snapshotRevision, worldStatus: { status: {}, inventory: {}, shop: {} }, npcDialog: {}, aiMode: 'auto',
+    } });
+  vi.useFakeTimers();
+  (harness.page as any).setTimeout = setTimeout;
+  (harness.page as any).clearTimeout = clearTimeout;
+  first.dispatchEvent(new Event('error'));
+  await vi.advanceTimersByTimeAsync(250);
+  vi.useRealTimers();
+
+  const second = harness.workers[1]!;
+  ready(second, harness.fixture);
+  second.reply({ runtimeSessionId: second.messages[0].runtimeSessionId, runtimeGeneration: 2,
+    type: 'recoverySnapshotRequest' });
+  second.reply({ runtimeSessionId: second.messages[0].runtimeSessionId, runtimeGeneration: 2,
+    type: 'recoverySnapshotImported', result: { kind: 'recoveryAck', snapshotRevision, worldReady: true } });
+  expect(resourceProvider.handleResourceRequest).toHaveBeenCalledTimes(2);
+  expect(second.messages.some(message => message.type === 'command' && message.command === 'reload')).toBe(false);
+  second.reply({ runtimeSessionId: second.messages[0].runtimeSessionId, runtimeGeneration: 2,
+    type: 'mapResourceState', mapResourceState: 'ready', mapName: 'prontera.gat' });
+
+  let reload: any;
+  await vi.waitFor(() => {
+    reload = second.messages.find(message => message.type === 'command' && message.command === 'reload');
+    expect(reload).toBeDefined();
+  });
+  expect(reload).toMatchObject({ target: 'all', gameSessionId, profile: 'lastro-20211103', aid: 11, cid: 22 });
+  expect(reload.documents).toEqual(expect.arrayContaining([
+    expect.objectContaining({ fileName: 'config.txt', rawText: 'attackAuto 1\n', aid: 11, cid: 22 }),
+  ]));
+  second.reply({ runtimeSessionId: second.messages[0].runtimeSessionId, runtimeGeneration: 2,
+    type: 'commandResult', requestId: reload.requestId,
+    result: { kind: 'reload', accepted: true, target: 'all', effectiveRevision: 2 } });
+  expect(second.messages.some(message => message.type === 'queue'
+    && message.record.kind === 'command' && message.record.command === 'ai_auto')).toBe(true);
+  harness.host.dispose();
+});
+
+test('resident recovery replays only unacknowledged game bytes after the snapshot revision', async () => {
+  vi.useFakeTimers();
+  const provider = {
+    handleResourceRequest: vi.fn(async (message: any) => ({ requestId: message.requestId, result: {
+      kind: 'error', code: 'fixture-resource-unavailable',
+    } })),
+    handleResourceValidation: vi.fn(async () => ({ committedFiles: [], deletedFiles: [] })),
+    close: async () => undefined,
+  };
+  const harness = createHarness(provider);
+  await harness.host.start();
+  const first = harness.workers[0]!;
+  ready(first, harness.fixture);
+  first.reply({ runtimeSessionId: first.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotRequest' });
+  first.reply({ runtimeSessionId: first.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotImported', result: { kind: 'recoveryAck', snapshotRevision: 0, worldReady: false } });
+  const gameSessionId = harness.host.beginGameSession(7, 'prontera.gat');
+  const connectionGeneration = harness.host.beginMapConnection();
+  const gameBytes = new Uint8Array([9, 8, 7]);
+  expect(harness.host.mirrorMapData(connectionGeneration!, gameBytes)).toBe(true);
+  first.reply({ runtimeSessionId: first.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoveryMirror', snapshot: {
+      schemaVersion: 1, runtimeSessionId: first.messages[0].runtimeSessionId, runtimeGeneration: 1,
+      gameSessionId, profile: 'lastro-20211103', connectionGeneration,
+      controlGeneration: harness.host.state.controlGeneration, mapName: 'prontera.gat', characterGid: 7,
+      selfActor: { gid: 7, x: 10, y: 10, kind: 'self' }, entities: [],
+      mapResourceVersion: '2.0.5', mapResourceReady: true, mapSyncComplete: true,
+      snapshotRevision: 2, worldStatus: { status: {}, inventory: {}, shop: {} }, npcDialog: {}, aiMode: 'off',
+    } });
+  first.dispatchEvent(new Event('error'));
+  await vi.advanceTimersByTimeAsync(250);
+
+  const second = harness.workers[1]!;
+  ready(second, harness.fixture);
+  second.reply({ runtimeSessionId: second.messages[0].runtimeSessionId, runtimeGeneration: 2,
+    type: 'recoverySnapshotRequest' });
+  second.reply({ runtimeSessionId: second.messages[0].runtimeSessionId, runtimeGeneration: 2,
+    type: 'recoverySnapshotImported', result: { kind: 'recoveryAck', snapshotRevision: 2, worldReady: true } });
+  const replayed = second.messages.filter(message => message.type === 'queue');
+  expect(replayed.map(message => message.record.kind)).toEqual(['gameData']);
+  expect(replayed[0].record.context.bridgeSequence).toBeGreaterThan(2);
+  expect(replayed[0].record).toMatchObject({ sequence: 0, byteOffset: 0, bytes: gameBytes });
+  harness.host.dispose();
 });
 
 test('resident bridge uses one ordered queue and replays the cached recovery snapshot after restart', async () => {
