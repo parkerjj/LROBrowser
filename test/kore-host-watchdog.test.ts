@@ -5,8 +5,8 @@ import { packageFixture } from './kore-fixture';
 
 afterEach(() => vi.useRealTimers());
 
-function createHarness(mapResourceProvider?: any) {
-  const fixture = packageFixture();
+function createHarness(mapResourceProvider?: any, bridgeApiVersion: 1 | 2 = 1) {
+  const fixture = packageFixture('lastro-20211103', {}, bridgeApiVersion);
   const page = Object.assign(new EventTarget(), {
     location: { href: 'http://localhost/' }, fetch: fixture.fetch,
     performance: { now: () => Date.now() }, crypto: globalThis.crypto,
@@ -33,8 +33,10 @@ function createHarness(mapResourceProvider?: any) {
 function ready(worker: any, fixture: ReturnType<typeof packageFixture>) {
   const init = worker.messages[0];
   worker.reply({ ...init, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false, aiState: 'off',
-    capabilities: { mapStream: true, residentExecutor: true, oneShotDeadline: true },
-    buildInfo: { engineVersion: '0.1.0', bridgeApiVersion: 1, packetver: 20211103, target: 'wasm32-unknown-unknown' } });
+    capabilities: { mapStream: true, residentExecutor: true, oneShotDeadline: true,
+      queues: ['game', 'control', 'action', 'status'] },
+    buildInfo: { engineVersion: '0.1.0', bridgeApiVersion: fixture.manifest.bridgeApiVersion,
+      packetver: 20211103, target: 'wasm32-unknown-unknown' } });
 }
 
 test('host does not schedule a fixed 100ms AI tick', async () => {
@@ -43,6 +45,15 @@ test('host does not schedule a fixed 100ms AI tick', async () => {
   const spy = vi.spyOn(harness.page, 'setInterval');
   await harness.host.start();
   expect(spy).not.toHaveBeenCalledWith(expect.any(Function), 100);
+  harness.host.dispose();
+});
+
+test('bridge v2 host requires resident executor and its declared capabilities', async () => {
+  const harness = createHarness(undefined, 2);
+  await harness.host.start();
+  ready(harness.workers[0], harness.fixture);
+  expect(harness.host.state.status).toBe('runtime-ready');
+  expect(harness.workers[0]!.messages.some(message => message.type === 'recoverySnapshotRequest')).toBe(true);
   harness.host.dispose();
 });
 

@@ -1,7 +1,9 @@
 export interface ExecutableFile { path: string; bytes: number; sha256: string; kind: string }
 export interface ExecutableManifest { files: ExecutableFile[] }
 export interface KoreManifest {
-  schemaVersion: 1; engineVersion: string; bridgeApiVersion: 1 | 2; packetver: 20211103;
+  schemaVersion: 1; engineVersion: string; bridgeApiVersion: 1 | 2;
+  schedulerCapabilities?: ('fourQueues' | 'oneShotDeadline' | 'recoverySnapshotV1' | 'residentExecutor')[];
+  packetver: 20211103;
   profile: 'lastro-20211103' | 'lastro-2x'; commitSha: string | null; sourceDirty: boolean; mode: 'debug' | 'release';
   toolVersions: { rust: string; wasmBindgen: string; binaryen: string | null };
   files: ExecutableFile[]; packageId: string;

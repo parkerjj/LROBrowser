@@ -4,7 +4,8 @@ import { createKoreConfigStore } from './kore-config-store.mjs';
 export const KORE_PROTOCOL_PROFILE = 'lastro-20211103';
 const compatibleProfiles = new Set([KORE_PROTOCOL_PROFILE, 'lastro-2x']);
 const idPattern = /^[a-f0-9]{64}$/;
-const metadataFields = ['schemaVersion', 'engineVersion', 'bridgeApiVersion', 'packetver', 'profile', 'commitSha', 'sourceDirty', 'mode', 'toolVersions', 'files'];
+const metadataFields = ['schemaVersion', 'engineVersion', 'bridgeApiVersion', 'schedulerCapabilities', 'packetver', 'profile', 'commitSha', 'sourceDirty', 'mode', 'toolVersions', 'files'];
+const schedulerCapabilities = ['fourQueues', 'oneShotDeadline', 'recoverySnapshotV1', 'residentExecutor'];
 const MAX_PENDING_GAME_CHUNKS = 256;
 const MAX_PENDING_GAME_BYTES = 1024 * 1024;
 const HEARTBEAT_INTERVAL_MS = 1000;
@@ -53,6 +54,9 @@ export async function validateKoreManifest(manifest) {
     || manifest.toolVersions?.rust !== '1.99.0' || manifest.toolVersions?.wasmBindgen !== '0.2.129'
     || manifest.toolVersions?.binaryen !== (manifest.mode === 'release' ? '133' : null)
     || !Array.isArray(manifest.files) || !idPattern.test(manifest.packageId)) throw Error('incompatible-package');
+  if (manifest.bridgeApiVersion === 2
+    && (!Array.isArray(manifest.schedulerCapabilities)
+      || JSON.stringify(manifest.schedulerCapabilities) !== JSON.stringify(schedulerCapabilities))) throw Error('incompatible-package');
   const paths = new Set();
   for (const file of manifest.files) {
     safePackagePath(file.path);
@@ -950,6 +954,13 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         || info.bridgeApiVersion !== packageInfo.manifest.bridgeApiVersion
         || info.packetver !== 20211103 || info.target !== 'wasm32-unknown-unknown') { fail(Error('invalid-worker-ready')); return; }
         mapStreamCapability = message.capabilities?.mapStream === true;
+        if (packageInfo.manifest.bridgeApiVersion === 2
+          && (message.capabilities?.residentExecutor !== true
+            || message.capabilities?.oneShotDeadline !== true
+            || JSON.stringify(message.capabilities?.queues) !== JSON.stringify(['game', 'control', 'action', 'status']))) {
+          fail(Error('invalid-worker-ready'));
+          return;
+        }
         residentExecutor = message.capabilities?.residentExecutor === true
           || message.capabilities?.queues === true || message.capabilities?.oneShotDeadline === true
           || info.bridgeApiVersion >= 2;

@@ -32,6 +32,16 @@ test('accepts the protocol-family package profile shared by all configured LastR
   ]);
 });
 
+test('validates bridge v2 scheduler capabilities as part of the package id', async () => {
+  const fixture = packageFixture('lastro-20211103', {}, 2);
+  await expect(validateKoreManifest(fixture.manifest)).resolves.toMatchObject({
+    bridgeApiVersion: 2,
+    schedulerCapabilities: ['fourQueues', 'oneShotDeadline', 'recoverySnapshotV1', 'residentExecutor'],
+  });
+  await expect(validateKoreManifest({ ...fixture.manifest, schedulerCapabilities: ['residentExecutor'] }))
+    .rejects.toThrow('incompatible-package');
+});
+
 test('renders selectable read-only textareas for status and Console output', () => {
   class FakeElement extends EventTarget {
     tagName: string;
