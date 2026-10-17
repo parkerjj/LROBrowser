@@ -834,6 +834,8 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       return;
     }
     if (snapshot.runtimeGeneration !== undefined && snapshot.runtimeGeneration !== runtimeGeneration) return;
+    if (!gameSession || snapshot.gameSessionId !== gameSession.id
+      || !connection || snapshot.connectionGeneration !== connection.generation) return;
     if (recoveryMirror && snapshot.snapshotRevision <= recoveryMirror.snapshotRevision) return;
     recoveryMirror = globalThis.structuredClone ? globalThis.structuredClone(snapshot) : JSON.parse(JSON.stringify(snapshot));
     nextBridgeSequence = Math.max(nextBridgeSequence, snapshot.snapshotRevision);
@@ -869,6 +871,8 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   function handleRecoveryAck(message) {
     const ack = message.kind === 'recoveryAck' ? message : message.ack ?? message.result ?? message;
     if (!recoveryBarrier?.active || !Number.isSafeInteger(ack?.snapshotRevision)) return;
+    if (!recoveryBarrier.bootstrap && (recoveryBarrier.gameSessionId !== (gameSession?.id ?? null)
+      || recoveryBarrier.connectionGeneration !== (connection?.generation ?? null))) return;
     if (recoveryBarrier.revision !== null && ack.snapshotRevision < recoveryBarrier.revision) return;
     const bootstrap = recoveryBarrier.bootstrap === true;
     recoveryBarrier.active = false;
@@ -935,10 +939,18 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   }
   function sendRecoverySnapshot() {
     if (!worker || !session) return;
-    const snapshot = recoveryMirror
+    const mirrorIsCurrent = recoveryMirror && gameSession && connection
+      && recoveryMirror.gameSessionId === gameSession.id
+      && recoveryMirror.connectionGeneration === connection.generation;
+    if (recoveryMirror && !mirrorIsCurrent) recoveryMirror = null;
+    const snapshot = mirrorIsCurrent
       ? (globalThis.structuredClone ? globalThis.structuredClone(recoveryMirror) : JSON.parse(JSON.stringify(recoveryMirror)))
       : null;
-    if (recoveryBarrier?.active) recoveryBarrier.bootstrap = snapshot === null;
+    if (recoveryBarrier?.active) {
+      recoveryBarrier.bootstrap = snapshot === null;
+      recoveryBarrier.gameSessionId = gameSession?.id ?? null;
+      recoveryBarrier.connectionGeneration = connection?.generation ?? null;
+    }
     if (snapshot) {
       snapshot.runtimeSessionId = session;
       snapshot.runtimeGeneration = runtimeGeneration;
@@ -1147,6 +1159,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         recoveryBarrier = {
           active: true, revision: recoveryMirror?.snapshotRevision ?? null,
           bootstrap: false, snapshotSent: false,
+          gameSessionId: gameSession?.id ?? null, connectionGeneration: connection?.generation ?? null,
         };
         post('recoverySnapshotRequest', {
           runtimeGeneration,
@@ -1199,7 +1212,10 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       reloadStarted: false,
     } : null;
     recoveryBarrier = residentExecutor
-      ? { active: true, revision: recoveryMirror?.snapshotRevision ?? null, bootstrap: false, snapshotSent: false }
+      ? {
+        active: true, revision: recoveryMirror?.snapshotRevision ?? null, bootstrap: false, snapshotSent: false,
+        gameSessionId: gameSession?.id ?? null, connectionGeneration: connection?.generation ?? null,
+      }
       : null;
     initAge = 0;
     lastNow = clock();
@@ -1447,6 +1463,8 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       }
       revokeAiPermit();
       pendingCommands.clear();
+      recoveryMirror = null;
+      recoveryRestore = null;
       connection = { generation: nextGeneration, sequence: 0, byteOffset: 0 };
       resourceCycle += 1;
       activeResourceRequestId = null;
@@ -1575,6 +1593,8 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     endGameSession() {
       if (!gameSession) return;
       recoveryRestore = null;
+      recoveryMirror = null;
+      recoveryBarrier = null;
       const ended = gameSession.id;
       if (routePermit) {
         cancelWorkerRoute();

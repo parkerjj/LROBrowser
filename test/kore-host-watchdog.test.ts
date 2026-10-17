@@ -285,6 +285,91 @@ test('resident recovery ack does not replay lifecycle events over an imported sn
   harness.host.dispose();
 });
 
+test('ending a game session withdraws its recovery mirror before Worker recovery', async () => {
+  vi.useFakeTimers();
+  const harness = createHarness(undefined, 2);
+  await harness.host.start();
+  const first = harness.workers[0]!;
+  ready(first, harness.fixture);
+  first.reply({ runtimeSessionId: first.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotRequest' });
+  first.reply({ runtimeSessionId: first.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotImported', result: { kind: 'recoveryAck', snapshotRevision: 0, worldReady: false } });
+  const gameSessionId = harness.host.beginGameSession(7, 'prontera.gat');
+  const connectionGeneration = harness.host.beginMapConnection();
+  first.reply({ runtimeSessionId: first.messages[0].runtimeSessionId, type: 'recoveryMirror', snapshot: {
+    schemaVersion: 1, runtimeSessionId: first.messages[0].runtimeSessionId, gameSessionId,
+    profile: 'lastro-20211103',
+    connectionGeneration, controlGeneration: harness.host.state.controlGeneration, mapName: 'prontera.gat',
+    characterGid: 7, selfActor: { gid: 7, x: 10, y: 10, kind: 'self' }, entities: [],
+    mapResourceVersion: '2.0.5', mapResourceReady: true, mapSyncComplete: true,
+    snapshotRevision: 2, worldStatus: { status: {}, inventory: {}, shop: {} }, npcDialog: {}, aiMode: 'off',
+  } });
+  harness.host.endGameSession();
+  first.reply({ runtimeSessionId: first.messages[0].runtimeSessionId, type: 'recoveryMirror', snapshot: {
+    schemaVersion: 1, runtimeSessionId: first.messages[0].runtimeSessionId, gameSessionId,
+    profile: 'lastro-20211103',
+    connectionGeneration, controlGeneration: harness.host.state.controlGeneration, mapName: 'prontera.gat',
+    characterGid: 7, selfActor: { gid: 7, x: 10, y: 10, kind: 'self' }, entities: [],
+    mapResourceVersion: '2.0.5', mapResourceReady: true, mapSyncComplete: true,
+    snapshotRevision: 3, worldStatus: { status: {}, inventory: {}, shop: {} }, npcDialog: {}, aiMode: 'off',
+  } });
+  first.dispatchEvent(new Event('error'));
+  await vi.advanceTimersByTimeAsync(250);
+
+  const second = harness.workers[1]!;
+  ready(second, harness.fixture);
+  second.reply({ runtimeSessionId: second.messages[0].runtimeSessionId, runtimeGeneration: 2,
+    type: 'recoverySnapshotRequest' });
+  const snapshot = second.messages.find(message => message.type === 'recoverySnapshot');
+  expect(snapshot?.snapshot).toBeNull();
+  expect(harness.host.state.worldReady).toBe(false);
+  harness.host.dispose();
+});
+
+test('map reconnect withdraws and rejects recovery mirrors from the previous connection', async () => {
+  vi.useFakeTimers();
+  const harness = createHarness(undefined, 2);
+  await harness.host.start();
+  const first = harness.workers[0]!;
+  ready(first, harness.fixture);
+  first.reply({ runtimeSessionId: first.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotRequest' });
+  first.reply({ runtimeSessionId: first.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotImported', result: { kind: 'recoveryAck', snapshotRevision: 0, worldReady: false } });
+  const gameSessionId = harness.host.beginGameSession(7, 'prontera.gat');
+  const connectionGeneration = harness.host.beginMapConnection();
+  first.reply({ runtimeSessionId: first.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoveryMirror', snapshot: {
+    schemaVersion: 1, runtimeSessionId: first.messages[0].runtimeSessionId, gameSessionId,
+    profile: 'lastro-20211103',
+    connectionGeneration, controlGeneration: harness.host.state.controlGeneration, mapName: 'prontera.gat',
+    characterGid: 7, selfActor: { gid: 7, x: 10, y: 10, kind: 'self' }, entities: [],
+    mapResourceVersion: '2.0.5', mapResourceReady: true, mapSyncComplete: true,
+    snapshotRevision: 2, worldStatus: { status: {}, inventory: {}, shop: {} }, npcDialog: {}, aiMode: 'off',
+  } });
+  expect(harness.host.beginMapConnection()).toBe(1);
+  // A delayed mirror from connection 0 must not repopulate the cache.
+  first.reply({ runtimeSessionId: first.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoveryMirror', snapshot: {
+    schemaVersion: 1, runtimeSessionId: first.messages[0].runtimeSessionId, gameSessionId,
+    profile: 'lastro-20211103',
+    connectionGeneration: 0, controlGeneration: 0, mapName: 'prontera.gat',
+    characterGid: 7, selfActor: { gid: 7, x: 10, y: 10, kind: 'self' }, entities: [],
+    mapResourceVersion: '2.0.5', mapResourceReady: true, mapSyncComplete: true,
+    snapshotRevision: 3, worldStatus: { status: {}, inventory: {}, shop: {} }, npcDialog: {}, aiMode: 'off',
+  } });
+  first.dispatchEvent(new Event('error'));
+  await vi.advanceTimersByTimeAsync(250);
+  const second = harness.workers[1]!;
+  ready(second, harness.fixture);
+  second.reply({ runtimeSessionId: second.messages[0].runtimeSessionId, runtimeGeneration: 2,
+    type: 'recoverySnapshotRequest' });
+  const snapshot = second.messages.find(message => message.type === 'recoverySnapshot');
+  expect(snapshot?.snapshot).toBeNull();
+  harness.host.dispose();
+});
+
 test('resident host rejects an action older than the latest task generation diagnostic', async () => {
   const harness = createHarness();
   const sent: any[] = [];
