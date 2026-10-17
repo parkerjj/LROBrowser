@@ -1740,10 +1740,11 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     debugRouteCancel() {
       if (residentExecutor) {
         if (!worker || !session || lastResidentRouteId === null) return false;
-        try {
-          worker.postMessage({ runtimeSessionId: session, type: 'debugRouteCancel', requestId: ++nextId,
-            routeId: lastResidentRouteId });
-        } catch (error) { handleWorkerFailure(error); return false; }
+        controlGeneration += 1;
+        if (postBridgeEvent('routeCancel', { routeId: lastResidentRouteId }, 'control', {
+          controlGeneration,
+        }) === null) return false;
+        lastResidentRouteId = null;
         state.routeState = 'cancelled';
         changed();
         return true;

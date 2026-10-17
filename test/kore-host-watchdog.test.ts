@@ -438,6 +438,37 @@ test('resident host forwards route actions without interpreting map metadata', a
   harness.host.dispose();
 });
 
+test('resident route cancellation invalidates already queued actions by control generation', async () => {
+  const harness = createHarness();
+  const sent: any[] = [];
+  (harness.page as any).KoreEngineNativeRouteAction = (action: any) => { sent.push(action); return true; };
+  await harness.host.start();
+  const worker = harness.workers[0]!;
+  ready(worker, harness.fixture);
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotRequest' });
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotImported', result: { kind: 'recoveryAck', snapshotRevision: 0, worldReady: false } });
+  const gameSessionId = harness.host.beginGameSession(7, 'prontera.gat');
+  const connectionGeneration = harness.host.beginMapConnection();
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'mapResourceState', mapResourceState: 'ready', mapName: 'prontera.gat' });
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'outputs', status: [{ kind: 'status', worldReady: true, aiMode: 'off' }] });
+  expect(harness.host.debugRouteGo({ destination: { map: 'geffen', position: { x: 10, y: 10 } } })).toBe(true);
+  const oldControlGeneration = harness.host.state.controlGeneration;
+  expect(harness.host.debugRouteCancel()).toBe(true);
+  expect(harness.host.state.controlGeneration).toBe(oldControlGeneration + 1);
+
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'outputs', actions: [{ kind: 'routeAction', routeId: 44, type: 'MoveTo', x: 12, y: 13,
+      requestId: 100, runtimeSessionId: worker.messages[0].runtimeSessionId,
+      gameSessionId, connectionGeneration, controlGeneration: oldControlGeneration }] });
+
+  expect(sent).toHaveLength(0);
+  harness.host.dispose();
+});
+
 test('resident game ingress is bounded until Worker acknowledges queued records', async () => {
   const harness = createHarness();
   await harness.host.start();
