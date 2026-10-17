@@ -384,7 +384,7 @@ test('map reconnect withdraws and rejects recovery mirrors from the previous con
   harness.host.dispose();
 });
 
-test('resident host rejects an action older than the latest task generation diagnostic', async () => {
+test('resident host forwards actions without interpreting KoreEngine task generations', async () => {
   const harness = createHarness();
   const sent: any[] = [];
   (harness.page as any).KoreEngineNativeAction = (action: any) => { sent.push(action); return true; };
@@ -407,7 +407,34 @@ test('resident host rejects an action older than the latest task generation diag
       controlGeneration: harness.host.state.controlGeneration, taskIntentGeneration: 8 }],
     outputs: [{ kind: 'diagnostic', code: 'ai-state', task: 'attack', taskIntentGeneration: 9 }] });
 
-  expect(sent).toEqual([]);
+  expect(sent).toHaveLength(1);
+  expect(sent[0]).toMatchObject({ type: 'Attack', targetGid: 99, taskIntentGeneration: 8 });
+  harness.host.dispose();
+});
+
+test('resident host forwards route actions without interpreting map metadata', async () => {
+  const harness = createHarness();
+  const sent: any[] = [];
+  (harness.page as any).KoreEngineNativeRouteAction = (action: any) => { sent.push(action); return true; };
+  await harness.host.start();
+  const worker = harness.workers[0]!;
+  ready(worker, harness.fixture);
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotRequest' });
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotImported', result: { kind: 'recoveryAck', snapshotRevision: 0, worldReady: false } });
+  const gameSessionId = harness.host.beginGameSession(7, 'prontera.gat');
+  const connectionGeneration = harness.host.beginMapConnection();
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'outputs', status: [{ kind: 'status', worldReady: true, aiMode: 'off' }] });
+
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'outputs', actions: [{ kind: 'routeAction', routeId: 44, type: 'MoveTo', x: 12, y: 13,
+      expectedMap: 'geffen', requestId: 100, runtimeSessionId: worker.messages[0].runtimeSessionId,
+      gameSessionId, connectionGeneration, controlGeneration: harness.host.state.controlGeneration }] });
+
+  expect(sent).toHaveLength(1);
+  expect(sent[0]).toMatchObject({ type: 'MoveTo', x: 12, y: 13, expectedMap: 'geffen' });
   harness.host.dispose();
 });
 

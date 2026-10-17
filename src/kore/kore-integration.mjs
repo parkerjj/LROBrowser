@@ -156,6 +156,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   let mapStreamCapability = null;
   let controlGeneration = 0;
   let routePermit = null;
+  let lastResidentRouteId = null;
   let aiPermit = null;
   let recoveryRestore = null;
   const pendingCommands = new Map();
@@ -196,6 +197,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     removeWorkerListeners = () => {};
     const oldWorker = worker; worker = null; probe = null;
     pendingCommands.clear();
+    lastResidentRouteId = null;
     try { onWorkerReleased(); } catch { /* Cleanup is best effort. */ }
     try { if (disposeMessage) oldWorker?.postMessage(disposeMessage); } catch { /* Already gone. */ }
     try { oldWorker?.terminate(); } catch { /* Already gone. */ }
@@ -212,6 +214,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   }
   function fail(error) {
     routePermit = null;
+    lastResidentRouteId = null;
     aiPermit = null;
     pendingCommands.clear();
     controlGeneration += 1;
@@ -400,6 +403,10 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     aiPermit.taskIntentGeneration = taskGeneration;
   }
   function handleAiAction(message) {
+    if (residentExecutor) {
+      handleResidentAction(message, false);
+      return;
+    }
     const action = message.action;
     if ((message.runtimeGeneration !== undefined && message.runtimeGeneration !== runtimeGeneration)
       || !Number.isSafeInteger(message.requestId) || message.requestId <= 0 || !validAiAction(action)) {
@@ -426,6 +433,36 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       log('error', `AI action was rejected by the native bridge: ${String(action.type)}.`);
       revokeAiPermit();
     }
+  }
+
+  function handleResidentAction(message, routeAction) {
+    const action = message?.action;
+    const valid = action && gameSession && connection
+      && action.runtimeSessionId === session
+      && action.gameSessionId === gameSession.id
+      && action.connectionGeneration === connection.generation
+      && action.controlGeneration === controlGeneration
+      && Number.isSafeInteger(action.requestId) && action.requestId > 0
+      && (routeAction
+        ? (action.type === 'MoveTo' || action.type === 'PrivateAirship')
+        : typeof action.type === 'string');
+    if (!valid) {
+      if (action?.requestId) {
+        postBridgeEvent('actionResult', {
+          requestId: action.requestId, routeId: routeAction ? action.routeId ?? null : null,
+          accepted: false, reason: 'transport-action-rejected',
+        }, 'control');
+      }
+      return;
+    }
+    const sender = routeAction ? page.KoreEngineNativeRouteAction : page.KoreEngineNativeAction;
+    const sent = sender?.(action) === true;
+    postBridgeEvent('actionResult', {
+      requestId: action.requestId,
+      routeId: routeAction ? action.routeId ?? null : null,
+      accepted: sent,
+      reason: sent ? null : 'native-action-unavailable',
+    }, 'control');
   }
   function postCommand(command, fields = {}, options = {}) {
     const reason = worldUnavailableReason();
@@ -909,18 +946,24 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     observeTaskIntentGeneration(output);
     const kind = String(output.kind ?? '').toLowerCase();
     if (kind === 'routeaction' || kind === 'route_action') {
-      handleRouteAction({
+      handleResidentAction({
         runtimeSessionId: session, runtimeGeneration,
         requestId: output.outputRequestId ?? output.requestId,
         action: { ...(output.action ?? output), routeId: output.routeId },
-      });
+      }, true);
     } else if (kind === 'routestate' || kind === 'route_state') {
-      if (routePermit && output.routeId === routePermit.routeId) {
+      if (residentExecutor || (routePermit && output.routeId === routePermit.routeId)) {
         state.routeState = output.state;
+        if (residentExecutor && ['completed', 'cancelled', 'failed'].includes(output.state)) {
+          lastResidentRouteId = null;
+        }
         if (output.state === 'failed') log('error', `Route failed: ${String(output.reason ?? 'unknown reason')}`);
-        if (['completed', 'cancelled', 'failed'].includes(output.state)) revokeRoutePermit();
+        if (['completed', 'cancelled', 'failed'].includes(output.state) && routePermit) revokeRoutePermit();
         changed();
       }
+    } else if (kind === 'routepreview' || kind === 'route_preview') {
+      state.routePreview = Array.isArray(output.route) ? output.route : null;
+      changed();
     } else if (kind === 'action') {
       handleAiAction({ runtimeSessionId: session, runtimeGeneration, requestId: output.outputRequestId ?? output.requestId, action: output.action ?? output });
     } else if (kind === 'status') {
@@ -1219,6 +1262,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     const restoreAiMode = aiPermit ? 'auto' : 'off';
     const ingressPreserved = preserveResidentGameIngress();
     routePermit = null;
+    lastResidentRouteId = null;
     aiPermit = null;
     pendingCommands.clear();
     controlGeneration += 1;
@@ -1626,6 +1670,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       recoveryRestore = null;
       recoveryMirror = null;
       recoveryBarrier = null;
+      lastResidentRouteId = null;
       const ended = gameSession.id;
       if (routePermit) {
         cancelWorkerRoute();
@@ -1663,6 +1708,18 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     debugRouteGo(routeRequest) {
       const reason = worldUnavailableReason(true);
       if (reason) { log('error', `Route go unavailable: ${reason}.`); return false; }
+      if (residentExecutor) {
+        const routeId = ++nextId;
+        lastResidentRouteId = routeId;
+        state.routeState = 'running';
+        try {
+          worker.postMessage({ runtimeSessionId: session, type: 'debugRouteGo', requestId: ++nextId,
+            routeRequest, routeId, gameSessionId: gameSession.id,
+            connectionGeneration: connection.generation, controlGeneration, resourceCycle });
+        } catch (error) { lastResidentRouteId = null; handleWorkerFailure(error); return false; }
+        changed();
+        return true;
+      }
       if (routePermit) {
         cancelWorkerRoute();
         revokeRoutePermit();
@@ -1681,6 +1738,16 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       return true;
     },
     debugRouteCancel() {
+      if (residentExecutor) {
+        if (!worker || !session || lastResidentRouteId === null) return false;
+        try {
+          worker.postMessage({ runtimeSessionId: session, type: 'debugRouteCancel', requestId: ++nextId,
+            routeId: lastResidentRouteId });
+        } catch (error) { handleWorkerFailure(error); return false; }
+        state.routeState = 'cancelled';
+        changed();
+        return true;
+      }
       if (!routePermit) return false;
       cancelWorkerRoute();
       revokeRoutePermit();
