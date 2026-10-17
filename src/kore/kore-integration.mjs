@@ -27,6 +27,13 @@ const M4_CONFIG_FILES = new Set(['config.txt', 'mon_control.txt', 'timeouts.txt'
 function koreConsoleLog(page, label, details) {
   const target = page?.console ?? globalThis.console;
   try { target?.log?.(label, details); } catch { /* Diagnostics must not affect client networking. */ }
+  // 浏览器保存的控制台日志会把对象折叠成 `…`，额外输出一行可直接阅读的 JSON 文本。
+  let json;
+  try {
+    json = JSON.stringify(details, (_key, item) => typeof item === 'bigint' ? item.toString()
+      : item instanceof Map ? Object.fromEntries(item) : item);
+  } catch (error) { json = JSON.stringify({ unserializable: String(error?.message ?? error) }); }
+  try { target?.log?.(`${label} json`, json); } catch { /* Diagnostics must not affect client networking. */ }
 }
 
 export function sendKoreNativePacket(action, packet, {
@@ -308,6 +315,12 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       action: action && typeof action === 'object' ? { ...action } : action ?? null,
       ...details,
     });
+  }
+  function traceBridgeOutput(stage, details = {}) {
+    const actionCount = details.actionCount;
+    if (stage !== 'worker-output-message-dropped'
+      && !(Number.isSafeInteger(actionCount) && actionCount > 0)) return;
+    koreConsoleLog(page, '[KoreEngine] bridge output', { stage, ...details });
   }
   function release(disposeMessage = null) {
     controller?.abort(); controller = null;
@@ -1110,7 +1123,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     flushResidentIngress();
     maybeRestoreConfigAfterRecovery();
   }
-  function handleResidentOutput(output) {
+  function handleResidentOutput(output, transport = null) {
     if (!output || typeof output !== 'object') return;
     observeTaskIntentGeneration(output);
     const kind = String(output.kind ?? '').toLowerCase();
@@ -1144,6 +1157,10 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
           task: output.task ?? null,
           nextAction: output.nextAction ?? null,
           reason: output.reason ?? null,
+          decisionAction: output.decisionAction ?? null,
+          decisionTrace: output.decisionTrace ?? null,
+          bridgeActionCount: transport?.actionCount ?? null,
+          bridgeActions: transport?.actions ?? [],
           targetGid: output.targetGid ?? null,
           targetX: output.targetX ?? null,
           targetY: output.targetY ?? null,
@@ -1154,7 +1171,9 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         state.aiDiagnostics = {
           diagnostics: {
             mode: state.aiState, task: String(output.task ?? ''), nextAction: output.nextAction ?? null,
-            reason: output.reason ?? null, targetGid: output.targetGid ?? null, targetX: null, targetY: null,
+            reason: output.reason ?? null, targetGid: output.targetGid ?? null,
+            targetX: Number.isSafeInteger(output.targetX) ? output.targetX : null,
+            targetY: Number.isSafeInteger(output.targetY) ? output.targetY : null,
             visibleMonsters: Number.isSafeInteger(output.visibleMonsters) ? output.visibleMonsters : 0,
             eligibleMonsters: Number.isSafeInteger(output.eligibleMonsters) ? output.eligibleMonsters : 0,
             configLoaded: output.configLoaded !== false, attackAuto: Number.isSafeInteger(output.attackAuto) ? output.attackAuto : 0,
@@ -1176,6 +1195,13 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     outputDrainPending = false;
     const outputs = Array.isArray(message.outputs) ? message.outputs : [];
     const status = Array.isArray(message.status) ? message.status : [];
+    const transport = {
+      actionCount: Array.isArray(message.actions) ? message.actions.length : 0,
+      actions: Array.isArray(message.actions) ? message.actions.map(action => ({
+        requestId: action?.requestId ?? action?.outputRequestId ?? null,
+        actionType: action?.type ?? null,
+      })) : [],
+    };
     for (const item of status) observeTaskIntentGeneration(item);
     for (const item of outputs) observeTaskIntentGeneration(item);
     if (Array.isArray(message.actions)) for (const action of message.actions) {
@@ -1188,8 +1214,8 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         });
       }
     }
-    for (const item of status) handleResidentOutput(item);
-    for (const output of outputs) handleResidentOutput(output);
+    for (const item of status) handleResidentOutput(item, transport);
+    for (const output of outputs) handleResidentOutput(output, transport);
   }
   function sendRecoverySnapshot() {
     if (!worker || !session) return;
@@ -1226,21 +1252,77 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   }
   function receive(event) {
     const message = event.data;
-    if (!message || typeof message.runtimeSessionId !== 'string' || !message.runtimeSessionId) { fail(Error('invalid-worker-response')); return; }
-    if (message?.runtimeSessionId !== session) return;
-    if (message.runtimeGeneration !== undefined && message.runtimeGeneration !== runtimeGeneration) return;
+    const outputTransportMessage = message?.type === 'outputAvailable' || message?.type === 'outputs';
+    if (outputTransportMessage) {
+      traceBridgeOutput('worker-output-message', {
+        type: message.type,
+        requestId: message.requestId ?? null,
+        workerSessionId: message.runtimeSessionId ?? null,
+        activeSessionId: session,
+        workerRuntimeGeneration: message.runtimeGeneration ?? null,
+        activeRuntimeGeneration: runtimeGeneration,
+      });
+    }
+    if (!message || typeof message.runtimeSessionId !== 'string' || !message.runtimeSessionId) {
+      if (outputTransportMessage) traceBridgeOutput('worker-output-message-dropped', { reason: 'invalid-worker-response' });
+      fail(Error('invalid-worker-response'));
+      return;
+    }
+    if (message.runtimeSessionId !== session) {
+      if (outputTransportMessage) traceBridgeOutput('worker-output-message-dropped', {
+        type: message.type, reason: 'runtime-session-mismatch', workerSessionId: message.runtimeSessionId,
+        activeSessionId: session,
+      });
+      return;
+    }
+    if (message.runtimeGeneration !== undefined && message.runtimeGeneration !== runtimeGeneration) {
+      if (outputTransportMessage) traceBridgeOutput('worker-output-message-dropped', {
+        type: message.type, reason: 'runtime-generation-mismatch',
+        workerRuntimeGeneration: message.runtimeGeneration, activeRuntimeGeneration: runtimeGeneration,
+      });
+      return;
+    }
     if (message.type === 'heartbeat') {
       if (message.runtimeGeneration !== undefined && message.runtimeGeneration !== runtimeGeneration) return;
       lastHeartbeatAt = clock(); heartbeatRequest = null; restartAttempt = 0; changed(); return;
     }
     if (message.type === 'outputAvailable') {
+      traceBridgeOutput('outputAvailable-received', {
+        actionCount: message.actionCount ?? null,
+        statusCount: message.statusCount ?? null,
+        outputDrainPending,
+        runtimeGeneration: message.runtimeGeneration ?? null,
+      });
       if (!outputDrainPending) {
         outputDrainPending = true;
-        post('drainOutputs', { runtimeGeneration });
+        const requestId = post('drainOutputs', { runtimeGeneration });
+        traceBridgeOutput('drain-request-posted', { requestId, runtimeGeneration });
+      } else {
+        traceBridgeOutput('drain-request-coalesced', {
+          actionCount: message.actionCount ?? null,
+          statusCount: message.statusCount ?? null,
+        });
       }
       return;
     }
-    if (message.type === 'outputs') { drainResidentOutputs(message); return; }
+    if (message.type === 'outputs') {
+      const actions = Array.isArray(message.actions) ? message.actions : [];
+      const status = Array.isArray(message.status) ? message.status : [];
+      const outputs = Array.isArray(message.outputs) ? message.outputs : [];
+      traceBridgeOutput('outputs-received', {
+        requestId: message.requestId ?? null,
+        actionCount: actions.length,
+        statusCount: status.length,
+        outputCount: outputs.length,
+        actions: actions.map(action => ({
+          requestId: action?.requestId ?? action?.outputRequestId ?? null,
+          actionType: action?.type ?? null,
+          kind: action?.kind ?? null,
+        })),
+      });
+      drainResidentOutputs(message);
+      return;
+    }
     if (message.type === 'eventAccepted') { handleResidentEventAccepted(message); return; }
     if (message.type === 'runReady') return;
     if (message.type === 'status' && !Object.hasOwn(message, 'requestId')) { handleResidentOutput(message); return; }
