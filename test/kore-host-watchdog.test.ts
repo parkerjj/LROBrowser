@@ -469,6 +469,37 @@ test('resident route cancellation invalidates already queued actions by control 
   harness.host.dispose();
 });
 
+test('resident route requests use the ordered bridge queue with current context', async () => {
+  const harness = createHarness();
+  await harness.host.start();
+  const worker = harness.workers[0]!;
+  ready(worker, harness.fixture);
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotRequest' });
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotImported', result: { kind: 'recoveryAck', snapshotRevision: 0, worldReady: false } });
+  const gameSessionId = harness.host.beginGameSession(7, 'prontera.gat');
+  const connectionGeneration = harness.host.beginMapConnection();
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'mapResourceState', mapResourceState: 'ready', mapName: 'prontera.gat' });
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'outputs', status: [{ kind: 'status', worldReady: true, aiMode: 'off' }] });
+
+  expect(harness.host.debugRoutePreview({ destination: { map: 'geffen', position: { x: 10, y: 10 } } })).toBe(true);
+  const previewControlGeneration = harness.host.state.controlGeneration!;
+  expect(harness.host.debugRouteGo({ destination: { map: 'geffen', position: { x: 12, y: 12 } } })).toBe(true);
+  const routeRecords = worker.messages.filter(message => message.type === 'queue').map(message => message.record)
+    .filter(record => ['routePreviewRequest', 'routeStartRequest'].includes(record?.kind));
+  expect(routeRecords).toHaveLength(2);
+  expect(routeRecords.map(record => record.kind)).toEqual(['routePreviewRequest', 'routeStartRequest']);
+  expect(routeRecords[0].context).toMatchObject({ runtimeSessionId: worker.messages[0].runtimeSessionId,
+    gameSessionId, connectionGeneration, controlGeneration: previewControlGeneration });
+  expect(routeRecords[1].context.controlGeneration).toBe(harness.host.state.controlGeneration);
+  expect(routeRecords[1].context.bridgeSequence).toBeGreaterThan(routeRecords[0].context.bridgeSequence);
+  expect(worker.messages.some(message => ['debugRoutePreview', 'debugRouteGo'].includes(message.type))).toBe(false);
+  harness.host.dispose();
+});
+
 test('resident host drops actions from an expired transport generation without actionResult', async () => {
   const harness = createHarness();
   const sent: any[] = [];

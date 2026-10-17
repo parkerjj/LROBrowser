@@ -1703,6 +1703,21 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       const reason = worldUnavailableReason(true);
       if (reason) { log('error', `Route preview unavailable: ${reason}.`); return false; }
       state.routePreview = null;
+      if (residentExecutor) {
+        const bridgeSequence = postBridgeEvent('routePreviewRequest', {
+          routeId: 0,
+          startMap: routeRequest?.startMap ?? null,
+          startPos: routeRequest?.startPos ?? null,
+          destination: routeRequest?.destination ?? null,
+        }, 'control', {
+          gameSessionId: gameSession.id,
+          connectionGeneration: connection.generation,
+          controlGeneration,
+        });
+        if (bridgeSequence === null) return false;
+        changed();
+        return true;
+      }
       post('debugRoutePreview', { routeRequest });
       return true;
     },
@@ -1714,11 +1729,18 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         lastResidentRouteId = routeId;
         controlGeneration += 1;
         state.routeState = 'running';
-        try {
-          worker.postMessage({ runtimeSessionId: session, type: 'debugRouteGo', requestId: ++nextId,
-            routeRequest, routeId, gameSessionId: gameSession.id,
-            connectionGeneration: connection.generation, controlGeneration, resourceCycle });
-        } catch (error) { lastResidentRouteId = null; handleWorkerFailure(error); return false; }
+        const bridgeSequence = postBridgeEvent('routeStartRequest', {
+          routeId,
+          actions: Array.isArray(routeRequest?.actions) ? routeRequest.actions : null,
+          startMap: routeRequest?.startMap ?? null,
+          startPos: routeRequest?.startPos ?? null,
+          destination: routeRequest?.destination ?? null,
+        }, 'control', {
+          gameSessionId: gameSession.id,
+          connectionGeneration: connection.generation,
+          controlGeneration,
+        });
+        if (bridgeSequence === null) { lastResidentRouteId = null; return false; }
         changed();
         return true;
       }
