@@ -11,6 +11,7 @@ function createHarness(mapResourceProvider?: any, bridgeApiVersion: 1 | 2 = 1) {
   const page = Object.assign(new EventTarget(), {
     location: { href: 'http://localhost/' }, fetch: fixture.fetch,
     performance: { now: () => Date.now() }, crypto: globalThis.crypto,
+    console: { log: vi.fn(), warn: vi.fn(), error: vi.fn() },
     setInterval, clearInterval, setTimeout, clearTimeout,
     document: Object.assign(new EventTarget(), { hidden: false }),
   });
@@ -412,6 +413,44 @@ test('resident host forwards actions without interpreting KoreEngine task genera
   harness.host.dispose();
 });
 
+test('resident host logs Rust diagnostics and native action refusal to browser console', async () => {
+  const harness = createHarness();
+  const sent: any[] = [];
+  (harness.page as any).KoreEngineNativeAction = (action: any) => { sent.push(action); return false; };
+  await harness.host.start();
+  const worker = harness.workers[0]!;
+  ready(worker, harness.fixture);
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotRequest' });
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotImported', result: { kind: 'recoveryAck', snapshotRevision: 0, worldReady: false } });
+  const gameSessionId = harness.host.beginGameSession(7, 'prt_fild08.gat');
+  const connectionGeneration = harness.host.beginMapConnection();
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'outputs', status: [{ kind: 'status', worldReady: true, aiMode: 'off' }],
+    outputs: [{ kind: 'diagnostic', code: 'ai-state', task: 'attack', nextAction: 'MoveTo',
+      reason: null, targetGid: 110031484, targetX: 237, targetY: 222,
+      visibleMonsters: 3, eligibleMonsters: 1, taskIntentGeneration: 4 }] });
+  expect(harness.host.debugCommand('ai auto')).toBe(true);
+
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'outputs', actions: [{ type: 'Attack', targetGid: 110031484, requestId: 101,
+      runtimeSessionId: worker.messages[0].runtimeSessionId, gameSessionId, connectionGeneration,
+      controlGeneration: harness.host.state.controlGeneration, taskIntentGeneration: 4 }] });
+
+  const log = (harness.page as any).console.log;
+  expect(sent).toHaveLength(1);
+  expect(log).toHaveBeenCalledWith('[KoreEngine] AI diagnostic', expect.objectContaining({
+    task: 'attack', nextAction: 'MoveTo', targetGid: 110031484, targetX: 237, targetY: 222,
+    visibleMonsters: 3, eligibleMonsters: 1,
+  }));
+  expect(log).toHaveBeenCalledWith('[KoreEngine] bridge action', expect.objectContaining({
+    stage: 'native-result', action: expect.objectContaining({ type: 'Attack', targetGid: 110031484 }),
+    accepted: false, reason: 'native-action-unavailable',
+  }));
+  harness.host.dispose();
+});
+
 test('resident host forwards route actions without interpreting map metadata', async () => {
   const harness = createHarness();
   const sent: any[] = [];
@@ -528,6 +567,10 @@ test('resident host drops actions from an expired transport generation without a
   expect(sent).toHaveLength(0);
   expect(worker.messages.filter(message => message.type === 'queue'
     && message.record?.kind === 'actionResult').length).toBe(actionCountBefore);
+  expect((harness.page as any).console.log).toHaveBeenCalledWith('[KoreEngine] bridge action', expect.objectContaining({
+    stage: 'dropped', reason: 'control-generation-mismatch',
+    action: expect.objectContaining({ type: 'Attack', targetGid: 99 }),
+  }));
   harness.host.dispose();
 });
 

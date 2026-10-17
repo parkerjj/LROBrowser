@@ -67,6 +67,19 @@ export interface KoreIntegration {
   handleAirshipResponse(response: number): boolean;
   debugCommand(command: string, routeRequest?: unknown): boolean;
 }
+export interface KoreNativePacketSocket {
+  connected?: boolean; isZone?: boolean; handoffPending?: boolean; readyState?: number;
+}
+export interface KoreNativePacketPage extends Partial<KorePage> {
+  console?: Console;
+  KoreEngine?: { state?: { sentBytes?: number } };
+}
+export interface KoreNativePacketSendOptions {
+  page?: KoreNativePacketPage;
+  sendPacket?: (packet: unknown) => unknown;
+  socket?: KoreNativePacketSocket | null;
+  refusalReason?: string | null;
+}
 export interface KorePanelView {
   panel: HTMLElement; infoNode: HTMLTextAreaElement; routeNode: HTMLTextAreaElement; consoleNode: HTMLTextAreaElement; configNode: HTMLTextAreaElement; clearButton: HTMLButtonElement;
   update(state: KoreState): void;
@@ -85,3 +98,4 @@ export function loadKorePackage(options: { page?: KorePage; manifest: Executable
 } | null>;
 export function createKoreIntegration(options: KoreOptions): KoreIntegration;
 export function startOptionalKore(options: Pick<KoreOptions, 'createWorker' | 'onWorkerReleased'>): KoreIntegration | null;
+export function sendKoreNativePacket(action: unknown, packet: unknown, options?: KoreNativePacketSendOptions): boolean;

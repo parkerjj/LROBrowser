@@ -24,6 +24,126 @@ const validU16 = value => Number.isSafeInteger(value) && value >= 0 && value <= 
 const validU32 = value => Number.isSafeInteger(value) && value >= 0 && value <= 0xffffffff;
 const validMapCoordinate = value => Number.isSafeInteger(value) && value >= 0 && value <= 1023;
 const M4_CONFIG_FILES = new Set(['config.txt', 'mon_control.txt', 'timeouts.txt', 'pickupitems.txt', 'items_control.txt']);
+function koreConsoleLog(page, label, details) {
+  const target = page?.console ?? globalThis.console;
+  try { target?.log?.(label, details); } catch { /* Diagnostics must not affect client networking. */ }
+}
+
+export function sendKoreNativePacket(action, packet, {
+  page = globalThis,
+  sendPacket,
+  socket = null,
+  refusalReason = null,
+} = {}) {
+  const packetClass = packet?.constructor?.name ?? null;
+  let packetId = null;
+  let encodedBytes = 0;
+  let encodedPacketHex = null;
+  let networkResult;
+  let thrown = null;
+  let didCallNetwork = false;
+  const currentSentBytes = () => Number.isSafeInteger(page?.KoreEngine?.state?.sentBytes)
+    ? page.KoreEngine.state.sentBytes : null;
+  const sentBytesBefore = currentSentBytes();
+  try {
+    const version = packet?.getPacketVersion?.();
+    const fallbackPacketId = Array.isArray(version) ? version[1] : packet?.constructor?.id;
+    if (Number.isSafeInteger(fallbackPacketId) && fallbackPacketId >= 0 && fallbackPacketId <= 0xffff) {
+      packetId = `0x${fallbackPacketId.toString(16).padStart(4, '0')}`;
+    }
+  } catch { /* A packet may not expose version metadata before build. */ }
+
+  const hasOwnBuild = Boolean(packet && Object.hasOwn(packet, 'build'));
+  const originalBuild = packet?.build;
+  try {
+    if (!packet || typeof sendPacket !== 'function') {
+      networkResult = false;
+    } else {
+      if (typeof originalBuild === 'function') {
+        packet.build = function (...args) {
+          const encoded = Reflect.apply(originalBuild, this, args);
+          const value = encoded?.buffer ?? encoded;
+          let bytes = null;
+          if (value instanceof ArrayBuffer) bytes = new Uint8Array(value);
+          else if (ArrayBuffer.isView(value)) bytes = new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+          if (bytes) {
+            encodedBytes = bytes.byteLength;
+            encodedPacketHex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('').toUpperCase();
+            if (bytes.byteLength >= 2) {
+              packetId = `0x${(bytes[0] | (bytes[1] << 8)).toString(16).padStart(4, '0')}`;
+            }
+          }
+          return encoded;
+        };
+      }
+      didCallNetwork = true;
+      networkResult = sendPacket(packet);
+    }
+  } catch (error) {
+    thrown = error;
+  } finally {
+    if (packet && typeof originalBuild === 'function') {
+      if (hasOwnBuild) packet.build = originalBuild;
+      else delete packet.build;
+    }
+  }
+
+  const sentBytesAfter = currentSentBytes();
+  const sentBytesDelta = sentBytesBefore !== null && sentBytesAfter !== null
+    ? sentBytesAfter - sentBytesBefore : null;
+  const socketState = {
+    present: Boolean(socket),
+    connected: socket?.connected === true,
+    isZone: socket?.isZone === true,
+    handoffPending: socket?.handoffPending === true,
+    readyState: Number.isInteger(socket?.readyState) ? socket.readyState : null,
+  };
+  let outcome;
+  let reason = null;
+  if (thrown) {
+    outcome = 'threw';
+    reason = String(thrown?.message ?? thrown);
+  } else if (!didCallNetwork || networkResult === false) {
+    outcome = 'rejected';
+    reason = refusalReason ?? (!packet ? 'packet-constructor-unavailable' : 'network-send-returned-false');
+  } else if (sentBytesDelta > 0) {
+    outcome = 'sent';
+  } else if (!socketState.present) {
+    outcome = 'socket-unavailable';
+    reason = 'map-socket-unavailable';
+  } else if (!socketState.isZone) {
+    outcome = 'non-map-socket';
+    reason = 'active-socket-is-not-map-channel';
+  } else if (!socketState.connected) {
+    outcome = 'socket-disconnected';
+    reason = 'map-socket-not-connected';
+  } else if (sentBytesDelta === null) {
+    outcome = 'sent-byte-counter-unavailable';
+    reason = 'sent-byte-counter-unavailable';
+  } else {
+    outcome = 'sent-bytes-unchanged';
+    reason = 'sent-byte-counter-unchanged';
+  }
+
+  koreConsoleLog(page, '[KoreEngine] native packet send', {
+    action: action && typeof action === 'object' ? { ...action } : action ?? null,
+    packetClass,
+    packetId,
+    encodedBytes,
+    encodedPacketHex,
+    sentBytesBefore,
+    sentBytesAfter,
+    sentBytesDelta,
+    socket: socketState,
+    networkResult: thrown ? 'threw' : networkResult,
+    outcome,
+    reason,
+  });
+
+  if (thrown) throw thrown;
+  return didCallNetwork && networkResult !== false;
+}
+
 function reloadFileNames(target) {
   const normalized = String(target ?? '').trim().toLowerCase();
   if (normalized === 'conf' || normalized === 'config' || normalized === 'config.txt') return ['config.txt'];
@@ -176,9 +296,18 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     try { onChange(state); } catch { /* UI must not affect the client. */ }
   };
   function log(level, text) {
-    state.logs.push({ level, text: String(text).slice(0, 1024), timestamp: Date.now() });
+    const message = String(text).slice(0, 1024);
+    state.logs.push({ level, text: message, timestamp: Date.now() });
     if (state.logs.length > 200) state.logs.splice(0, state.logs.length - 200);
+    koreConsoleLog(page, '[KoreEngine] log', { level, text: message });
     changed();
+  }
+  function traceBridgeAction(stage, action, details = {}) {
+    koreConsoleLog(page, '[KoreEngine] bridge action', {
+      stage,
+      action: action && typeof action === 'object' ? { ...action } : action ?? null,
+      ...details,
+    });
   }
   function release(disposeMessage = null) {
     controller?.abort(); controller = null;
@@ -408,8 +537,20 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       return;
     }
     const action = message.action;
+    traceBridgeAction('received', action, { path: 'worker', requestId: message.requestId });
     if ((message.runtimeGeneration !== undefined && message.runtimeGeneration !== runtimeGeneration)
       || !Number.isSafeInteger(message.requestId) || message.requestId <= 0 || !validAiAction(action)) {
+      const reason = message.runtimeGeneration !== undefined && message.runtimeGeneration !== runtimeGeneration
+        ? 'runtime-generation-mismatch'
+        : !Number.isSafeInteger(message.requestId) || message.requestId <= 0
+          ? 'invalid-bridge-request-id'
+          : !aiPermit ? 'ai-permit-unavailable'
+            : action?.runtimeSessionId !== session ? 'runtime-session-mismatch'
+              : action?.gameSessionId !== gameSession?.id ? 'game-session-mismatch'
+                : action?.connectionGeneration !== connection?.generation ? 'connection-generation-mismatch'
+                  : action?.controlGeneration !== controlGeneration ? 'control-generation-mismatch'
+                    : 'invalid-action-payload';
+      traceBridgeAction('dropped', action, { path: 'worker', requestId: message.requestId, reason });
       log('warn', `AI action rejected: ${String(action?.type ?? 'unknown')}.`);
       if (residentExecutor && action?.requestId) {
         postBridgeEvent('actionResult', { requestId: action.requestId, accepted: false, reason: 'action-rejected' });
@@ -421,9 +562,12 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     }
     aiPermit.actionIds.add(action.requestId);
     if (Number.isSafeInteger(action.taskIntentGeneration)) aiPermit.taskIntentGeneration = action.taskIntentGeneration;
+    traceBridgeAction('forwarded', action, { path: 'worker', requestId: message.requestId });
     const sent = page.KoreEngineNativeAction?.(action) === true;
     const result = { runtimeSessionId: session, type: 'actionResult', requestId: ++nextId,
       sourceRequestId: message.requestId, accepted: sent, reason: sent ? null : 'native-action-unavailable' };
+    traceBridgeAction('native-result', action, { path: 'worker', requestId: message.requestId,
+      accepted: sent, reason: result.reason });
     if (residentExecutor) {
       postBridgeEvent('actionResult', { requestId: action.requestId, accepted: sent, reason: result.reason });
     } else {
@@ -437,17 +581,30 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
 
   function handleResidentAction(message, routeAction) {
     const action = message?.action;
+    const path = routeAction ? 'resident-route' : 'resident-ai';
+    traceBridgeAction('received', action, { path, requestId: message?.requestId ?? null });
     const currentTransportGeneration = action && gameSession && connection
       && action.runtimeSessionId === session
       && action.gameSessionId === gameSession.id
       && action.connectionGeneration === connection.generation
       && action.controlGeneration === controlGeneration;
+    const rejectionReason = !gameSession ? 'game-session-unavailable'
+      : !connection ? 'map-connection-unavailable'
+        : action?.runtimeSessionId !== session ? 'runtime-session-mismatch'
+          : action?.gameSessionId !== gameSession.id ? 'game-session-mismatch'
+            : action?.connectionGeneration !== connection.generation ? 'connection-generation-mismatch'
+              : action?.controlGeneration !== controlGeneration ? 'control-generation-mismatch'
+                : !Number.isSafeInteger(action?.requestId) || action.requestId <= 0 ? 'invalid-action-request-id'
+                  : routeAction && action.type !== 'MoveTo' && action.type !== 'PrivateAirship' ? 'unsupported-route-action'
+                    : !routeAction && typeof action?.type !== 'string' ? 'invalid-action-type'
+                      : 'transport-action-rejected';
     const valid = currentTransportGeneration
       && Number.isSafeInteger(action.requestId) && action.requestId > 0
       && (routeAction
         ? (action.type === 'MoveTo' || action.type === 'PrivateAirship')
         : typeof action.type === 'string');
     if (!valid) {
+      traceBridgeAction('dropped', action, { path, reason: rejectionReason });
       if (currentTransportGeneration && action?.requestId) {
         postBridgeEvent('actionResult', {
           requestId: action.requestId, routeId: routeAction ? action.routeId ?? null : null,
@@ -457,7 +614,10 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       return;
     }
     const sender = routeAction ? page.KoreEngineNativeRouteAction : page.KoreEngineNativeAction;
+    traceBridgeAction('forwarded', action, { path });
     const sent = sender?.(action) === true;
+    traceBridgeAction('native-result', action, { path, accepted: sent,
+      reason: sent ? null : 'native-action-unavailable' });
     postBridgeEvent('actionResult', {
       requestId: action.requestId,
       routeId: routeAction ? action.routeId ?? null : null,
@@ -710,7 +870,11 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   }
   function handleRouteAction(message) {
     const action = message.action;
+    traceBridgeAction('received', action, { path: 'worker-route', requestId: message.requestId });
     if ((message.runtimeGeneration !== undefined && message.runtimeGeneration !== runtimeGeneration) || !validRouteAction(action)) {
+      const reason = message.runtimeGeneration !== undefined && message.runtimeGeneration !== runtimeGeneration
+        ? 'runtime-generation-mismatch' : 'route-action-validation-failed';
+      traceBridgeAction('dropped', action, { path: 'worker-route', reason });
       if (routePermit) revokeRoutePermit();
       postRouteResult({ sourceRequestId: message.requestId,
         routeId: action?.routeId, actionId: action?.requestId, accepted: false, reason: 'route-action-rejected' });
@@ -721,6 +885,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     const currentMap = String(state.mapName ?? '').replace(/\.(?:gat|rsw)$/i, '').toLowerCase();
     if (action.type === 'MoveTo' && expectedMap && currentMap && expectedMap !== currentMap) {
       revokeRoutePermit();
+      traceBridgeAction('dropped', action, { path: 'worker-route', reason: 'unexpected-map', expectedMap, currentMap });
       postRouteResult({ sourceRequestId: message.requestId,
         routeId: action.routeId, actionId: action.requestId, accepted: false, reason: 'unexpected-map' });
       return;
@@ -730,7 +895,10 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       routePermit.pendingAirshipActionId = action.requestId;
       routePermit.airshipAccepted = false;
     }
+    traceBridgeAction('forwarded', action, { path: 'worker-route' });
     const sent = page.KoreEngineNativeRouteAction?.(action) === true;
+    traceBridgeAction('native-result', action, { path: 'worker-route', accepted: sent,
+      reason: sent ? null : 'native-route-action-unavailable' });
     if (!sent) {
       routePermit.pendingAirshipActionId = null;
       revokeRoutePermit();
@@ -971,6 +1139,18 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       updateResidentStatus(output);
     } else if (kind === 'diagnostic') {
       if (output.code === 'ai-state' || output.task !== undefined) {
+        koreConsoleLog(page, '[KoreEngine] AI diagnostic', {
+          code: output.code ?? null,
+          task: output.task ?? null,
+          nextAction: output.nextAction ?? null,
+          reason: output.reason ?? null,
+          targetGid: output.targetGid ?? null,
+          targetX: output.targetX ?? null,
+          targetY: output.targetY ?? null,
+          visibleMonsters: output.visibleMonsters ?? 0,
+          eligibleMonsters: output.eligibleMonsters ?? 0,
+          taskIntentGeneration: output.taskIntentGeneration ?? null,
+        });
         state.aiDiagnostics = {
           diagnostics: {
             mode: state.aiState, task: String(output.task ?? ''), nextAction: output.nextAction ?? null,
@@ -1086,6 +1266,10 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     if (message.type === 'heartbeatTimeout') { handleWorkerFailure(Error('heartbeat-timeout')); return; }
     if (message.type === 'aiDiagnostics' && !Object.hasOwn(message, 'requestId')) {
       const diagnostics = message.diagnostics;
+      koreConsoleLog(page, '[KoreEngine] AI diagnostic', {
+        ...(diagnostics && typeof diagnostics === 'object' ? diagnostics : {}),
+        lastAction: message.lastAction && typeof message.lastAction === 'object' ? { ...message.lastAction } : null,
+      });
       if (!diagnostics || !['off', 'auto'].includes(diagnostics.mode)
         || typeof diagnostics.task !== 'string'
         || !(diagnostics.nextAction === null || typeof diagnostics.nextAction === 'string')

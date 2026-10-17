@@ -1190,7 +1190,7 @@ export function patchV2Runtime(source, { assistant = false } = {}) {
   if (!source.startsWith('import ')) fail('anchor:runtime-imports');
   const normalizedSource = source.replace(/\r\n/g, '\n');
   let output = `import { decorateLastROLoginTemplate, decorateLastROLoginStyles, installLastROLogin, beforeLastROLoginConnect, afterLastROLoginPassword } from "./lastro-account-login.mjs";
-import { startOptionalKore } from "./kore-integration.mjs";
+import { sendKoreNativePacket, startOptionalKore } from "./kore-integration.mjs";
 let lastroWorkerPolicy;
 let currentKoreWorkerUrl = null;
 const nativeWorkerUrls = ["LastROThreadEventHandler.js", "PathFindingWorker.js"]
@@ -1219,6 +1219,21 @@ function createLastROWorkerScriptUrl(relativePath) {
 	}
 	return trustLastROWorkerUrl(new URL(relativePath, import.meta.url).href);
 }
+function sendKoreEnginePacket(action, packet) {
+  let refusalReason = null;
+  if (/REQUEST_MOVE2?$/.test(packet?.constructor?.name || "")) {
+    try {
+      if (lastroVendingShoppingActive()) refusalReason = "vending-store-active";
+      else if (lastroMovementUnavailable()) refusalReason = "movement-connection-unavailable";
+    } catch { /* The native sender remains authoritative if diagnostics cannot inspect a guard. */ }
+  }
+  return sendKoreNativePacket(action, packet, {
+    page: globalThis,
+    sendPacket: value => Network.sendPacket(value),
+    socket: typeof _socket === "undefined" ? null : _socket,
+    refusalReason,
+  });
+}
 globalThis.KoreEngineNativeAction = (action) => {
   if (!action) return false;
   if (action.type === "MoveTo") {
@@ -1227,7 +1242,7 @@ globalThis.KoreEngineNativeAction = (action) => {
       : new PACKET.CZ.REQUEST_MOVE();
     packet.dest[0] = action.x;
     packet.dest[1] = action.y;
-    return Network.sendPacket(packet) !== false;
+    return sendKoreEnginePacket(action, packet);
   }
   if (action.type === "Attack") {
     const Ctor = PacketVerManager_default.value >= 20180307 ? PACKET.CZ.REQUEST_ACT2 : PACKET.CZ.REQUEST_ACT;
@@ -1235,7 +1250,7 @@ globalThis.KoreEngineNativeAction = (action) => {
     const packet = new Ctor();
     packet.targetGID = action.targetGid;
     packet.action = 0;
-    return Network.sendPacket(packet) !== false;
+    return sendKoreEnginePacket(action, packet);
   }
   if (action.type === "UseSkillOnTarget" || action.type === "UseSkillSelf") {
     const Ctor = PacketVerManager_default.value >= 20180307 ? PACKET.CZ.USE_SKILL2 : PACKET.CZ.USE_SKILL;
@@ -1244,7 +1259,7 @@ globalThis.KoreEngineNativeAction = (action) => {
     packet.selectedLevel = action.level;
     packet.SKID = action.skillId;
     packet.targetID = action.type === "UseSkillSelf" ? (SessionStorage_default.GID ?? 0) : action.targetGid;
-    return Network.sendPacket(packet) !== false;
+    return sendKoreEnginePacket(action, packet);
   }
   if (action.type === "UseSkillAt") {
     const Ctor = PacketVerManager_default.value >= 20190904
@@ -1256,7 +1271,7 @@ globalThis.KoreEngineNativeAction = (action) => {
     packet.SKID = action.skillId;
     packet.xPos = action.x;
     packet.yPos = action.y;
-    return Network.sendPacket(packet) !== false;
+    return sendKoreEnginePacket(action, packet);
   }
   if (action.type === "UseItem") {
     const Ctor = PacketVerManager_default.value >= 20180307 ? PACKET.CZ.USE_ITEM2 : PACKET.CZ.USE_ITEM;
@@ -1264,14 +1279,14 @@ globalThis.KoreEngineNativeAction = (action) => {
     const packet = new Ctor();
     packet.index = action.inventoryIndex;
     packet.AID = action.targetGid || SessionStorage_default.GID || 0;
-    return Network.sendPacket(packet) !== false;
+    return sendKoreEnginePacket(action, packet);
   }
   if (action.type === "Pickup") {
     const Ctor = PacketVerManager_default.value >= 20180307 ? PACKET.CZ.ITEM_PICKUP2 : PACKET.CZ.ITEM_PICKUP;
     if (!Ctor) return false;
     const packet = new Ctor();
     packet.ITAID = action.itemGid;
-    return Network.sendPacket(packet) !== false;
+    return sendKoreEnginePacket(action, packet);
   }
   if (action.type === "StorageTransfer") {
     const Ctor = action.toStorage
@@ -1281,46 +1296,46 @@ globalThis.KoreEngineNativeAction = (action) => {
     const packet = new Ctor();
     packet.index = action.inventoryIndex;
     packet.count = action.amount;
-    return Network.sendPacket(packet) !== false;
+    return sendKoreEnginePacket(action, packet);
   }
   if (action.type === "NpcTalk") {
     if (!PACKET?.CZ?.CONTACTNPC) return false;
     const packet = new PACKET.CZ.CONTACTNPC();
     packet.NAID = action.npcGid;
     packet.type = 1;
-    return Network.sendPacket(packet) !== false;
+    return sendKoreEnginePacket(action, packet);
   }
   if (action.type === "NpcMenu") {
     if (!PACKET?.CZ?.CHOOSE_MENU) return false;
     const packet = new PACKET.CZ.CHOOSE_MENU();
     packet.NAID = action.npcGid;
     packet.num = action.choice;
-    return Network.sendPacket(packet) !== false;
+    return sendKoreEnginePacket(action, packet);
   }
   if (action.type === "NpcContinue") {
     if (!PACKET?.CZ?.REQ_NEXT_SCRIPT) return false;
     const packet = new PACKET.CZ.REQ_NEXT_SCRIPT();
     packet.NAID = action.npcGid;
-    return Network.sendPacket(packet) !== false;
+    return sendKoreEnginePacket(action, packet);
   }
   if (action.type === "NpcShopSelect") {
     if (!PACKET?.CZ?.ACK_SELECT_DEALTYPE) return false;
     const packet = new PACKET.CZ.ACK_SELECT_DEALTYPE();
     packet.NAID = action.npcGid;
     packet.type = action.sell ? 1 : 0;
-    return Network.sendPacket(packet) !== false;
+    return sendKoreEnginePacket(action, packet);
   }
   if (action.type === "ShopBuy") {
     if (!PACKET?.CZ?.PC_PURCHASE_ITEMLIST) return false;
     const packet = new PACKET.CZ.PC_PURCHASE_ITEMLIST();
     packet.itemList = [{ ITID: action.itemId, count: action.amount }];
-    return Network.sendPacket(packet) !== false;
+    return sendKoreEnginePacket(action, packet);
   }
   if (action.type === "ShopSell") {
     if (!PACKET?.CZ?.PC_SELL_ITEMLIST) return false;
     const packet = new PACKET.CZ.PC_SELL_ITEMLIST();
     packet.itemList = [{ index: action.inventoryIndex, count: action.amount }];
-    return Network.sendPacket(packet) !== false;
+    return sendKoreEnginePacket(action, packet);
   }
   if (action.type === "PrivateAirship") {
     if (!PACKET?.CZ?.PRIVATE_AIRSHIP_REQUEST) return false;
@@ -1330,7 +1345,7 @@ globalThis.KoreEngineNativeAction = (action) => {
     packet.y = 0;
     packet.type = 0;
     packet.itemid = 14527;
-    return Network.sendPacket(packet) !== false;
+    return sendKoreEnginePacket(action, packet);
   }
   return false;
 };
