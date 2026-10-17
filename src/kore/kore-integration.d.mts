@@ -33,6 +33,7 @@ export interface KoreAiDiagnostics {
   mode: 'off' | 'auto'; task: string; nextAction: string | null; reason: string | null;
   targetGid: number | null; targetX: number | null; targetY: number | null;
   visibleMonsters: number; eligibleMonsters: number; configLoaded: boolean; attackAuto: number;
+  taskIntentGeneration?: number; nextDeadlineMs?: number | null;
 }
 export interface KoreState {
   status: 'absent' | 'loading' | 'runtime-ready' | 'failed' | 'disposed';

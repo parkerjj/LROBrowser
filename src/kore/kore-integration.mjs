@@ -351,6 +351,10 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     try { worker.postMessage({ ...message, runtimeGeneration }, transfer); }
     catch (error) { handleWorkerFailure(error); }
   }
+  function postRouteResult(fields) {
+    if (residentExecutor) postBridgeEvent('routeActionResult', fields, 'control');
+    else postResourceMessage({ runtimeSessionId: session, type: 'routeActionResult', requestId: ++nextId, ...fields });
+  }
   function validAiAction(action) {
     if (!aiPermit || aiPermit.runtimeGeneration !== runtimeGeneration || !action || !gameSession || !connection || state.streamStatus === 'degraded') return false;
     if (action.runtimeSessionId !== session || action.gameSessionId !== gameSession.id
@@ -670,7 +674,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     const action = message.action;
     if ((message.runtimeGeneration !== undefined && message.runtimeGeneration !== runtimeGeneration) || !validRouteAction(action)) {
       if (routePermit) revokeRoutePermit();
-      postResourceMessage({ runtimeSessionId: session, type: 'routeActionResult', requestId: ++nextId, sourceRequestId: message.requestId,
+      postRouteResult({ sourceRequestId: message.requestId,
         routeId: action?.routeId, actionId: action?.requestId, accepted: false, reason: 'route-action-rejected' });
       return;
     }
@@ -679,7 +683,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     const currentMap = String(state.mapName ?? '').replace(/\.(?:gat|rsw)$/i, '').toLowerCase();
     if (action.type === 'MoveTo' && expectedMap && currentMap && expectedMap !== currentMap) {
       revokeRoutePermit();
-      postResourceMessage({ runtimeSessionId: session, type: 'routeActionResult', requestId: ++nextId, sourceRequestId: message.requestId,
+      postRouteResult({ sourceRequestId: message.requestId,
         routeId: action.routeId, actionId: action.requestId, accepted: false, reason: 'unexpected-map' });
       return;
     }
@@ -692,7 +696,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     if (!sent) {
       routePermit.pendingAirshipActionId = null;
       revokeRoutePermit();
-      postResourceMessage({ runtimeSessionId: session, type: 'routeActionResult', requestId: ++nextId, sourceRequestId: message.requestId,
+      postRouteResult({ sourceRequestId: message.requestId,
         routeId: action.routeId, actionId: action.requestId, accepted: false, reason: 'native-route-action-unavailable' });
       return;
     }
@@ -707,7 +711,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       routePermit.controlGeneration = controlGeneration;
       state.routeState = 'awaiting-map';
     }
-    postResourceMessage({ runtimeSessionId: session, type: 'routeActionResult', requestId: ++nextId, sourceRequestId: message.requestId,
+    postRouteResult({ sourceRequestId: message.requestId,
       routeId: action.routeId, actionId: action.requestId, accepted: true,
       awaitingMap: action.type === 'PrivateAirship' || waitForMap ? (waitForMap ?? expectedMap) : null });
   }
@@ -846,7 +850,9 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       state.worldReady = status.worldReady && !workerDegraded;
       if (state.worldReady) state.streamStatus = 'world-ready';
     }
-    if (typeof status.aiMode === 'string' && ['off', 'auto'].includes(status.aiMode)) state.aiState = status.aiMode;
+    if (typeof status.aiMode === 'string' && ['off', 'auto'].includes(status.aiMode)) {
+      state.aiState = status.aiMode === 'auto' && status.aiModeRestored === false ? 'off' : status.aiMode;
+    }
     if (Number.isSafeInteger(status.revision) && status.revision >= 0) nextBridgeSequence = Math.max(nextBridgeSequence, status.revision);
     if (status.recoveryState === 'recovering') {
       state.worldReady = false;
@@ -902,7 +908,20 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     if (!output || typeof output !== 'object') return;
     observeTaskIntentGeneration(output);
     const kind = String(output.kind ?? '').toLowerCase();
-    if (kind === 'action') {
+    if (kind === 'routeaction' || kind === 'route_action') {
+      handleRouteAction({
+        runtimeSessionId: session, runtimeGeneration,
+        requestId: output.outputRequestId ?? output.requestId,
+        action: { ...(output.action ?? output), routeId: output.routeId },
+      });
+    } else if (kind === 'routestate' || kind === 'route_state') {
+      if (routePermit && output.routeId === routePermit.routeId) {
+        state.routeState = output.state;
+        if (output.state === 'failed') log('error', `Route failed: ${String(output.reason ?? 'unknown reason')}`);
+        if (['completed', 'cancelled', 'failed'].includes(output.state)) revokeRoutePermit();
+        changed();
+      }
+    } else if (kind === 'action') {
       handleAiAction({ runtimeSessionId: session, runtimeGeneration, requestId: output.outputRequestId ?? output.requestId, action: output.action ?? output });
     } else if (kind === 'status') {
       updateResidentStatus(output);
@@ -912,7 +931,11 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
           diagnostics: {
             mode: state.aiState, task: String(output.task ?? ''), nextAction: output.nextAction ?? null,
             reason: output.reason ?? null, targetGid: output.targetGid ?? null, targetX: null, targetY: null,
-            visibleMonsters: 0, eligibleMonsters: 0, configLoaded: true, attackAuto: 0,
+            visibleMonsters: Number.isSafeInteger(output.visibleMonsters) ? output.visibleMonsters : 0,
+            eligibleMonsters: Number.isSafeInteger(output.eligibleMonsters) ? output.eligibleMonsters : 0,
+            configLoaded: output.configLoaded !== false, attackAuto: Number.isSafeInteger(output.attackAuto) ? output.attackAuto : 0,
+            taskIntentGeneration: Number.isSafeInteger(output.taskIntentGeneration) ? output.taskIntentGeneration : undefined,
+            nextDeadlineMs: Number.isFinite(output.nextDeadlineMs) ? output.nextDeadlineMs : null,
           }, lastAction: null,
         };
         changed();
@@ -931,9 +954,16 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     const status = Array.isArray(message.status) ? message.status : [];
     for (const item of status) observeTaskIntentGeneration(item);
     for (const item of outputs) observeTaskIntentGeneration(item);
-    if (Array.isArray(message.actions)) for (const action of message.actions) handleAiAction({
-      runtimeSessionId: session, runtimeGeneration, requestId: action.outputRequestId ?? action.requestId, action: action.action ?? action,
-    });
+    if (Array.isArray(message.actions)) for (const action of message.actions) {
+      if (['routeaction', 'route_action'].includes(String(action?.kind ?? '').toLowerCase())) {
+        handleResidentOutput(action);
+      } else {
+        handleAiAction({
+          runtimeSessionId: session, runtimeGeneration, requestId: action.outputRequestId ?? action.requestId,
+          action: action.action ?? action,
+        });
+      }
+    }
     for (const item of status) handleResidentOutput(item);
     for (const output of outputs) handleResidentOutput(output);
   }
@@ -1140,6 +1170,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         if (packageInfo.manifest.bridgeApiVersion === 2
           && (message.capabilities?.residentExecutor !== true
             || message.capabilities?.oneShotDeadline !== true
+            || message.capabilities?.sharedArrayBuffer !== true
             || JSON.stringify(message.capabilities?.queues) !== JSON.stringify(['game', 'control', 'action', 'status']))) {
           fail(Error('invalid-worker-ready'));
           return;

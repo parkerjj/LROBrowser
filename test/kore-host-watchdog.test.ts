@@ -34,7 +34,7 @@ function createHarness(mapResourceProvider?: any, bridgeApiVersion: 1 | 2 = 1) {
 function ready(worker: any, fixture: ReturnType<typeof packageFixture>) {
   const init = worker.messages[0];
   worker.reply({ ...init, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false, aiState: 'off',
-    capabilities: { mapStream: true, residentExecutor: true, oneShotDeadline: true,
+    capabilities: { mapStream: true, residentExecutor: true, oneShotDeadline: true, sharedArrayBuffer: true,
       queues: ['game', 'control', 'action', 'status'] },
     buildInfo: { engineVersion: '0.1.0', bridgeApiVersion: fixture.manifest.bridgeApiVersion,
       packetver: 20211103, target: 'wasm32-unknown-unknown' } });
@@ -55,6 +55,20 @@ test('bridge v2 host requires resident executor and its declared capabilities', 
   ready(harness.workers[0], harness.fixture);
   expect(harness.host.state.status).toBe('runtime-ready');
   expect(harness.workers[0]!.messages.some(message => message.type === 'recoverySnapshotRequest')).toBe(true);
+  harness.host.dispose();
+});
+
+test('bridge v2 host rejects a resident worker without shared memory', async () => {
+  const harness = createHarness(undefined, 2);
+  await harness.host.start();
+  const worker = harness.workers[0]!;
+  const init = worker.messages[0];
+  worker.reply({ ...init, type: 'ready', packageId: harness.fixture.manifest.packageId, worldReady: false, aiState: 'off',
+    capabilities: { mapStream: true, residentExecutor: true, oneShotDeadline: true, sharedArrayBuffer: false,
+      queues: ['game', 'control', 'action', 'status'] },
+    buildInfo: { engineVersion: '0.1.0', bridgeApiVersion: 2, packetver: 20211103, target: 'wasm32-unknown-unknown' } });
+  expect(harness.host.state.status).toBe('failed');
+  expect(harness.host.state.logs.at(-1)?.text).toContain('invalid-worker-ready');
   harness.host.dispose();
 });
 
@@ -483,6 +497,9 @@ test('resident recovery reloads saved TXT before restoring the previous auto mod
     type: 'recoverySnapshotRequest' });
   second.reply({ runtimeSessionId: second.messages[0].runtimeSessionId, runtimeGeneration: 2,
     type: 'recoverySnapshotImported', result: { kind: 'recoveryAck', snapshotRevision, worldReady: true } });
+  second.reply({ runtimeSessionId: second.messages[0].runtimeSessionId, runtimeGeneration: 2,
+    type: 'outputs', status: [{ kind: 'status', worldReady: true, aiMode: 'auto', aiModeRestored: false }] });
+  expect(harness.host.state.aiState).toBe('off');
   expect(resourceProvider.handleResourceRequest).toHaveBeenCalledTimes(2);
   expect(second.messages.some(message => message.type === 'command' && message.command === 'reload')).toBe(false);
   second.reply({ runtimeSessionId: second.messages[0].runtimeSessionId, runtimeGeneration: 2,
