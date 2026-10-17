@@ -437,17 +437,18 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
 
   function handleResidentAction(message, routeAction) {
     const action = message?.action;
-    const valid = action && gameSession && connection
+    const currentTransportGeneration = action && gameSession && connection
       && action.runtimeSessionId === session
       && action.gameSessionId === gameSession.id
       && action.connectionGeneration === connection.generation
-      && action.controlGeneration === controlGeneration
+      && action.controlGeneration === controlGeneration;
+    const valid = currentTransportGeneration
       && Number.isSafeInteger(action.requestId) && action.requestId > 0
       && (routeAction
         ? (action.type === 'MoveTo' || action.type === 'PrivateAirship')
         : typeof action.type === 'string');
     if (!valid) {
-      if (action?.requestId) {
+      if (currentTransportGeneration && action?.requestId) {
         postBridgeEvent('actionResult', {
           requestId: action.requestId, routeId: routeAction ? action.routeId ?? null : null,
           accepted: false, reason: 'transport-action-rejected',

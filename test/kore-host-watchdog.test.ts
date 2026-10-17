@@ -456,7 +456,7 @@ test('resident route cancellation invalidates already queued actions by control 
   worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
     type: 'outputs', status: [{ kind: 'status', worldReady: true, aiMode: 'off' }] });
   expect(harness.host.debugRouteGo({ destination: { map: 'geffen', position: { x: 10, y: 10 } } })).toBe(true);
-  const oldControlGeneration = harness.host.state.controlGeneration;
+  const oldControlGeneration = harness.host.state.controlGeneration!;
   expect(harness.host.debugRouteCancel()).toBe(true);
   expect(harness.host.state.controlGeneration).toBe(oldControlGeneration + 1);
 
@@ -466,6 +466,37 @@ test('resident route cancellation invalidates already queued actions by control 
       gameSessionId, connectionGeneration, controlGeneration: oldControlGeneration }] });
 
   expect(sent).toHaveLength(0);
+  harness.host.dispose();
+});
+
+test('resident host drops actions from an expired transport generation without actionResult', async () => {
+  const harness = createHarness();
+  const sent: any[] = [];
+  (harness.page as any).KoreEngineNativeAction = (action: any) => { sent.push(action); return true; };
+  await harness.host.start();
+  const worker = harness.workers[0]!;
+  ready(worker, harness.fixture);
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotRequest' });
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'recoverySnapshotImported', result: { kind: 'recoveryAck', snapshotRevision: 0, worldReady: false } });
+  const gameSessionId = harness.host.beginGameSession(7, 'prontera.gat');
+  const connectionGeneration = harness.host.beginMapConnection();
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'outputs', status: [{ kind: 'status', worldReady: true, aiMode: 'off' }] });
+  const expiredControlGeneration = harness.host.state.controlGeneration;
+  expect(harness.host.debugCommand('ai auto')).toBe(true);
+  const actionCountBefore = worker.messages.filter(message => message.type === 'queue'
+    && message.record?.kind === 'actionResult').length;
+
+  worker.reply({ runtimeSessionId: worker.messages[0].runtimeSessionId, runtimeGeneration: 1,
+    type: 'outputs', actions: [{ type: 'Attack', targetGid: 99, requestId: 100,
+      runtimeSessionId: worker.messages[0].runtimeSessionId, gameSessionId, connectionGeneration,
+      controlGeneration: expiredControlGeneration, taskIntentGeneration: 1 }] });
+
+  expect(sent).toHaveLength(0);
+  expect(worker.messages.filter(message => message.type === 'queue'
+    && message.record?.kind === 'actionResult').length).toBe(actionCountBefore);
   harness.host.dispose();
 });
 
