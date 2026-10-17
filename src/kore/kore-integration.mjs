@@ -1711,6 +1711,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       if (residentExecutor) {
         const routeId = ++nextId;
         lastResidentRouteId = routeId;
+        controlGeneration += 1;
         state.routeState = 'running';
         try {
           worker.postMessage({ runtimeSessionId: session, type: 'debugRouteGo', requestId: ++nextId,
