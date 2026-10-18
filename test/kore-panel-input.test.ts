@@ -9,45 +9,35 @@ import { extractRuntimeNode, getRuntimeSourceFile, readVendorSource } from './he
 
 afterEach(() => { document.body.replaceChildren(); });
 
-test('route and reload rejections display the concrete blocking reason in the panel', () => {
-  const host = {
-    clearConsole() {},
-    state: { logs: [{ text: 'World synchronization incomplete.' }] },
-    debugCommand: () => false,
-    reloadConfig: () => false,
-  };
-  const view = createKorePanel({ page: { document }, host: host as unknown as Parameters<typeof createKorePanel>[0]['host'] });
-  document.body.append(view.panel);
-  const buttons = [...view.panel.querySelectorAll('button')];
-  buttons.find(button => button.textContent === 'Preview route')!.click();
-  expect(view.panel.querySelector('[aria-label="KoreEngine command status"]')?.textContent).toContain('World synchronization incomplete');
-  buttons.find(button => button.textContent === 'Reload TXT')!.click();
-  expect(view.panel.querySelector('output[aria-live]')?.textContent).toContain('World synchronization incomplete');
+class FakeElement extends EventTarget {
+  style: Record<string, string> = {}; children: FakeElement[] = []; textContent = ''; value = ''; readOnly = false; rows = 0; type = '';
+  constructor(public tagName: string) { super(); this.tagName = tagName.toUpperCase(); }
+  append(...nodes: FakeElement[]) { this.children.push(...nodes); }
+  setAttribute() {}
+  click() { this.dispatchEvent(new Event('click')); }
+}
+
+function viewFor() {
+  const command = vi.fn(); const clearConsole = vi.fn();
+  const document = { createElement: (tag: string) => new FakeElement(tag) } as unknown as Document;
+  const view = createKorePanel({ page: { document }, host: { clearConsole, debugCommand: command } });
+  return { view, command, clearConsole };
+}
+
+test('panel sends an opaque command and clears diagnostics', () => {
+  const { view, command, clearConsole } = viewFor();
+  const input = view.commandInput as HTMLInputElement; input.value = 'ai auto';
+  (view.commandButton as HTMLButtonElement).click(); view.clearButton.click();
+  expect(command).toHaveBeenCalledWith('ai auto'); expect(clearConsole).toHaveBeenCalledTimes(1);
 });
 
-test('status panel shows the selected AI task, next movement, and native action result', () => {
-  const host = { clearConsole() {}, state: { logs: [] } };
-  const view = createKorePanel({ page: { document }, host: host as unknown as Parameters<typeof createKorePanel>[0]['host'] });
-  document.body.append(view.panel);
-  view.update({
-    status: 'runtime-ready', streamStatus: 'world-ready', profile: 'lastro-20211103',
-    connectionGeneration: 0, mapName: 'prt_fild08.gat', selfActor: { gid: 7, x: 20, y: 20, kind: 'self' },
-    visibleEntities: { total: 1, players: 0, monsters: 1, other: 0, unknown: 0 },
-    receivedBytes: 32000, sentBytes: 479, worldReady: true, mapResourceState: 'ready', aiState: 'auto',
-    controlGeneration: 33, aiTaskCount: 1,
-    aiDiagnostics: { diagnostics: { mode: 'auto', task: 'attack', nextAction: 'MoveTo (24,20)',
-      reason: null, targetGid: 9001, targetX: 22, targetY: 20, visibleMonsters: 1,
-      eligibleMonsters: 1, configLoaded: true, attackAuto: 2 },
-      lastAction: { type: 'MoveTo', accepted: false, reason: 'native-action-unavailable' } },
-    playerStatus: null, inventory: null, experience: null,
-    routeState: 'idle', routePreview: null, parserDiagnostics: { bufferedBytes: 0,
-      pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: null },
-    degradedReason: null, logs: [], configIdentity: null,
-  } as unknown as Parameters<typeof view.update>[0]);
-  expect(view.infoNode.rows).toBeGreaterThanOrEqual(12);
-  expect(view.infoNode.value).toContain('AI task attack');
-  expect(view.infoNode.value).toContain('next MoveTo (24,20)');
-  expect(view.infoNode.value).toContain('sent MoveTo: native-action-unavailable');
+test('panel renders only read-only Rust status and console output', () => {
+  const { view } = viewFor();
+  view.update({ status: 'runtime-ready', packageId: null, mode: null, runtimeGeneration: 1, profile: 'lastro-20211103', gameSessionId: null,
+    connectionGeneration: null, streamStatus: 'world-ready', worldReady: true, mapResourceState: 'ready', receivedBytes: 10, sentBytes: 4,
+    degradedReason: null, logs: [{ level: 'info', text: 'ready', timestamp: 0 }], runtimeStatus: { nextDeadlineMs: 10 }, lastDiagnostic: null, lastCommandResult: null, configIdentity: null });
+  expect(view.infoNode.readOnly).toBe(true); expect(view.consoleNode.readOnly).toBe(true);
+  expect(view.infoNode.value).toContain('worldReady'); expect(view.consoleNode.value).toContain('[info] ready');
 });
 
 const preparedSource = readFileSync(new NodeURL('../generated/runtime/Online.js', import.meta.url), 'utf8');
@@ -74,7 +64,7 @@ test('native mouse release cleanup stops map movement and camera rotation when r
     cleanupSource + '\n' + binding + '; return () => window.removeEventListener("mouseup", onMouseUpCapture, true);')(
     window, addAssistantAwareListener, control, camera, { ACTION: { DEFAULT: 0 }, setType() {} },
   );
-  const view = createKorePanel({ page: { document }, host: { clearConsole() {} } });
+  const view = createKorePanel({ page: { document }, host: { clearConsole() {}, debugCommand: () => false } });
   const canvas = document.createElement('canvas');
   document.body.append(view.panel, canvas);
   const gameplay = vi.fn();
@@ -84,7 +74,7 @@ test('native mouse release cleanup stops map movement and camera rotation when r
       canvas.dispatchEvent(new MouseEvent('mousedown', { button, bubbles: true }));
       const release = new MouseEvent('mouseup', { button, bubbles: true });
       Object.defineProperty(release, 'which', { value: button === 2 ? 3 : 1 });
-      view.configNode.dispatchEvent(release);
+      view.commandInput.dispatchEvent(release);
     }
     expect(held).toBe(false);
     expect(camera.action.active).toBe(false);
@@ -106,7 +96,7 @@ test('releasing modifiers inside KE updates native key state without running gam
     + '; return () => { for (const type of ["keydown", "keyup"]) { window.removeEventListener(type, onKeyEvent, true); removeAssistantAwareListener(window, type, onKeyEvent, true); } };')(
     window, addAssistantAwareListener, removeAssistantAwareListener, keys, { components: { ShortCutOption: recorder } },
   );
-  const view = createKorePanel({ page: { document }, host: { clearConsole() {} } });
+  const view = createKorePanel({ page: { document }, host: { clearConsole() {}, debugCommand: () => false } });
   const canvas = document.createElement('canvas');
   document.body.append(view.panel, canvas);
   const gameplay = vi.fn();
@@ -114,10 +104,10 @@ test('releasing modifiers inside KE updates native key state without running gam
   try {
     canvas.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, shiftKey: true, ctrlKey: true, altKey: true }));
     expect(keys).toEqual({ SHIFT: true, CTRL: true, ALT: true });
-    view.configNode.focus();
+    view.commandInput.focus();
     recorder.isCapturing = true;
-    view.configNode.dispatchEvent(new KeyboardEvent('keydown', { key: 'A', bubbles: true, shiftKey: true, ctrlKey: true, altKey: true }));
-    view.configNode.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
+    view.commandInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'A', bubbles: true, shiftKey: true, ctrlKey: true, altKey: true }));
+    view.commandInput.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
     expect(keys).toEqual({ SHIFT: false, CTRL: false, ALT: false });
     expect(recorded).toBe(false);
     expect(gameplay).not.toHaveBeenCalled();
@@ -131,7 +121,7 @@ test('KE controls receive clicks and typing without reaching capture-phase game 
   installAssistantInputTracking(window);
   const gameplay = vi.fn();
   const clearConsole = vi.fn();
-  const view = createKorePanel({ page: { document }, host: { clearConsole } });
+  const view = createKorePanel({ page: { document }, host: { clearConsole, debugCommand: () => false } });
   document.body.append(view.panel);
   const events = ['pointerdown', 'mousedown', 'mouseup', 'click', 'wheel', 'keydown'];
   for (const type of events) addAssistantAwareListener(window, type, gameplay, true);
@@ -140,15 +130,14 @@ test('KE controls receive clicks and typing without reaching capture-phase game 
       view.clearButton.dispatchEvent(new MouseEvent(type, { bubbles: true }));
     }
     view.clearButton.click();
-    view.configNode.focus();
-    view.configNode.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true }));
-    view.configNode.dispatchEvent(new WheelEvent('wheel', { bubbles: true }));
+    view.commandInput.focus();
+    view.commandInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true }));
+    view.commandInput.dispatchEvent(new WheelEvent('wheel', { bubbles: true }));
     expect(clearConsole).toHaveBeenCalledOnce();
-    expect(document.activeElement).toBe(view.configNode);
+    expect(document.activeElement).toBe(view.commandInput);
     expect(gameplay).not.toHaveBeenCalled();
 
-    // A drag that starts in KE must not release/click through onto the map.
-    view.configNode.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    view.commandInput.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
     document.body.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
     document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(gameplay).not.toHaveBeenCalled();
@@ -165,10 +154,10 @@ test('KE displays a system cursor even when the game hides the browser cursor', 
   document.body.append(style);
   document.body.classList.add('custom-cursor');
   try {
-    const view = createKorePanel({ page: { document }, host: { clearConsole() {} } });
+    const view = createKorePanel({ page: { document }, host: { clearConsole() {}, debugCommand: () => false } });
     document.body.append(view.panel);
     expect(getComputedStyle(view.panel).cursor).toBe('default');
     expect(getComputedStyle(view.clearButton).cursor).toBe('pointer');
-    expect(getComputedStyle(view.configNode).cursor).toBe('text');
+    expect(getComputedStyle(view.commandInput).cursor).toBe('text');
   } finally { document.body.classList.remove('custom-cursor'); }
 });

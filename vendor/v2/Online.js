@@ -167115,6 +167115,8 @@ function onClose$9(event) {
   }
 
   if (this === _socket && this.isZone && !this.handoffPending) {
+    try { globalThis.KoreEngine?.degradeConnection?.("map-socket-closed"); }
+    catch { /* Optional KE failures must not change the native disconnect path. */ }
     lastroCancelMovement(SessionStorage_default.Entity);
     if (typeof MapControl !== "undefined") MapControl._lastroMovementInput?.cancel();
   }

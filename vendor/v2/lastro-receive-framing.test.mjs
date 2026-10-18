@@ -118,6 +118,35 @@ function loadReceiveHarness(decodedPackets) {
   return buildHarness(BinaryReader, parseLastROFrameHeader, packetLength, packets);
 }
 
+function loadCloseHarness() {
+  const source = readFileSync(ONLINE_PATH, 'utf8');
+  const closeSource = extractFunction(source, 'function onClose$9(event)').replaceAll('import.meta.url', 'undefined');
+  const buildHarness = new Function(`
+    const events = [];
+    const socket = { isZone: true, handoffPending: false, ping: null };
+    const _socket = socket;
+    const _sockets = [socket];
+    const receiveState = { closed: false, yieldPending: false, closePending: false, saveBuffer: null, readCallback: null };
+    const _receiveStates = new WeakMap([[socket, receiveState]]);
+    const clearReceiveState = value => { const state = _receiveStates.get(value); if (state) state.closed = true; };
+    const globalThis = { KoreEngine: { degradeConnection: reason => events.push(['degrade', reason]) } };
+    const lastroCancelMovement = () => events.push('cancel-movement');
+    const SessionStorage_default = { Entity: {} };
+    const MapControl = { _lastroMovementInput: { cancel: () => events.push('cancel-input') } };
+    const Configs = {};
+    const isObserverMode = () => true;
+    const console = { warn() {} };
+    let _onDisconnect = null;
+    const __vitePreload = () => Promise.resolve();
+    ${closeSource}
+    onClose$9.call(socket, { code: 1006, reason: 'closed', wasClean: false });
+    socket.handoffPending = true;
+    onClose$9.call(socket, { code: 1000, reason: 'handoff', wasClean: true });
+    return events;
+  `);
+  return buildHarness();
+}
+
 test('receive retains the 09ff header after an incomplete 03 03 marker collision and decodes it after continuation', () => {
   const decodedPackets = [];
   const harness = loadReceiveHarness(decodedPackets);
@@ -146,6 +175,14 @@ test('receive retains the 09fd header after an incomplete 03 03 marker and decod
 
   assert.deepEqual(decodedPackets, [{ id: 0x09fd, start: 4, end: 114, payload: 0 }]);
   assert.equal(harness.getSavedBytes(), null);
+});
+
+test('active zone socket close degrades KoreEngine while handoff close stays transport-only', () => {
+  assert.deepEqual(loadCloseHarness(), [
+    ['degrade', 'map-socket-closed'],
+    'cancel-movement',
+    'cancel-input',
+  ]);
 });
 
 for (const [id, length] of [[0x00f2, 6], [0x0171, 30]]) {

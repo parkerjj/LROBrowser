@@ -39,11 +39,11 @@ test('routes map resource RPC through Host validation and keeps resource state s
   await host.start();
   const init = worker.messages[0]!;
   worker.reply({ ...init, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false, aiState: 'off', capabilities: { mapStream: true },
-    buildInfo: { engineVersion: '0.1.0', bridgeApiVersion: 1, packetver: 20211103, target: 'wasm32-unknown-unknown' } });
+    buildInfo: { engineVersion: '0.1.0', bridgeApiVersion: 2, packetver: 20211103, target: 'wasm32-unknown-unknown' } });
   const gameSessionId = host.beginGameSession(7, 'prontera.gat');
   const generation = host.beginMapConnection();
   expect(gameSessionId).toBeTruthy();
-  expect(generation).toBe(0);
+  expect(generation).toBe(1);
   const requestId = 900;
   worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'resourceRequest', requestId, resourceType: 'fieldMap', mapName: 'prontera.gat', baseName: 'prontera', serverFieldsFolder: 'EP15.1', fieldpackVersion: '2.0.5', attempt: 0, cacheMode: 'prefer' });
   await Promise.resolve();
@@ -99,7 +99,7 @@ test('keeps pending resource bytes intact when the Host transfers a Worker copy'
     await host.start();
     const init = worker.messages[0]!;
     worker.reply({ ...init, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false, aiState: 'off', capabilities: { mapStream: true },
-      buildInfo: { engineVersion: '0.1.0', bridgeApiVersion: 1, packetver: 20211103, target: 'wasm32-unknown-unknown' } });
+      buildInfo: { engineVersion: '0.1.0', bridgeApiVersion: 2, packetver: 20211103, target: 'wasm32-unknown-unknown' } });
     host.beginGameSession(7, 'prontera.gat');
     host.beginMapConnection();
     const requestId = 900;

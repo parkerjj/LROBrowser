@@ -1,203 +1,49 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { createKoreIntegration } from '../src/kore/kore-integration.mjs';
-import { packageFixture } from './kore-fixture';
+import { bridgeRecord, objectRecord, packageFixture, TestWorkerStub as WorkerStub } from './kore-fixture';
 
-function readyWorld(runtimeSessionId: string, gameSessionId: string, connectionGeneration: number) {
-  return {
-    runtimeSessionId, type: 'worldState', gameSessionId, connectionGeneration,
-    profile: 'lastro-20211103', streamStatus: 'world-ready', worldReady: true, mapName: 'prontera.gat',
-    selfActor: { gid: 7, x: 10, y: 10, kind: 'self' },
-    visibleEntities: { total: 1, players: 0, monsters: 1, other: 0, unknown: 0 },
-    parserDiagnostics: { bufferedBytes: 0, pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: 1 },
-  };
+async function setup(native: (action: unknown) => boolean = () => true) {
+  const fixture = packageFixture('lastro-20211103', {}, 2); const worker = new WorkerStub();
+  const page = Object.assign(new EventTarget(), { location: { href: 'http://localhost/' }, fetch: fixture.fetch,
+    performance: { now: () => 1 }, crypto: globalThis.crypto, KoreEngineNativeAction: vi.fn(native) });
+  const host = createKoreIntegration({ page, manifest: fixture.executable, createWorker: () => worker }); await host.start();
+  const init = worker.messages[0]!; worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false });
+  const gameSessionId = host.beginGameSession(7, 'prontera.gat'); const connectionGeneration = host.beginMapConnection();
+  return { host, worker, page, gameSessionId, connectionGeneration };
 }
 
-test('ai commands create a permit and reject stale action requests after ai off', async () => {
-  const fixture = packageFixture();
-  const sent: any[] = [];
-  const page = Object.assign(new EventTarget(), {
-    location: { href: 'http://localhost/' }, fetch: fixture.fetch, performance: { now: () => 42 }, crypto: globalThis.crypto,
-    setInterval, clearInterval, setTimeout, clearTimeout,
-    KoreEngineNativeAction: (action: any) => { sent.push(action); return true; },
-  });
-  class Worker extends EventTarget {
-    messages: any[] = [];
-    postMessage(message: any) { this.messages.push(message); }
-    terminate() {}
-    reply(message: any) { this.dispatchEvent(new MessageEvent('message', { data: message })); }
-  }
-  const worker = new Worker();
-  const host = createKoreIntegration({ page, manifest: fixture.executable, createWorker: () => worker,
-    mapResourceProvider: {
-      handleResourceRequest: async () => ({ requestId: 1, result: { kind: 'error', code: 'unused', message: 'unused' } }),
-      handleResourceValidation: async () => ({ requestId: 1, sourceRequestId: 1, committedFiles: [], deletedFiles: [] }),
-      close: async () => undefined,
-    } });
-  await host.start();
-  const init = worker.messages[0]!;
-  worker.reply({ ...init, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false, aiState: 'off', capabilities: { mapStream: true },
-    buildInfo: { engineVersion: '0.1.0', bridgeApiVersion: 1, packetver: 20211103, target: 'wasm32-unknown-unknown' } });
-  host.beginGameSession(7, 'prontera.gat');
-  const generation = host.beginMapConnection();
-  worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'mapResourceState', mapResourceState: 'ready', mapName: 'prontera' });
-  worker.reply(readyWorld(init.runtimeSessionId, host.state.gameSessionId!, generation!));
+test('AI command text is sent to Rust without Host mode state', async () => {
+  const { host, worker } = await setup();
   expect(host.debugCommand('ai auto')).toBe(true);
-  const auto = worker.messages.find(message => message.type === 'command' && message.command === 'ai_auto');
-  worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'commandResult', requestId: auto.requestId, result: { kind: 'aiState', aiMode: 'auto', taskCount: 1 } });
-  expect(host.state.aiState).toBe('auto');
-  const oldGeneration = host.state.controlGeneration;
-  worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'actionRequest', requestId: 700,
-    action: { runtimeSessionId: init.runtimeSessionId, gameSessionId: host.state.gameSessionId, connectionGeneration: generation,
-      controlGeneration: oldGeneration, requestId: 1, type: 'Attack', targetGid: 1002 } });
-  expect(sent).toHaveLength(1);
-  expect(host.debugCommand('ai off')).toBe(true);
-  expect(host.state.aiState).toBe('off');
-  worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'actionRequest', requestId: 701,
-    action: { runtimeSessionId: init.runtimeSessionId, gameSessionId: host.state.gameSessionId, connectionGeneration: generation,
-      controlGeneration: oldGeneration, requestId: 2, type: 'Attack', targetGid: 1002 } });
-  expect(sent).toHaveLength(1);
-  host.dispose();
+  const command = worker.messages.find(message => message.type === 'queue' && bridgeRecord(message).kind === 'command');
+  expect(bridgeRecord(command!).command).toBe('ai auto');
+  expect('aiMode' in host.state).toBe(false);
+  expect('aiPermit' in host).toBe(false);
 });
 
-test('late ai command results cannot restore auto after a new map connection starts', async () => {
-  const fixture = packageFixture();
-  const page = Object.assign(new EventTarget(), {
-    location: { href: 'http://localhost/' }, fetch: fixture.fetch, performance: { now: () => 42 }, crypto: globalThis.crypto,
-    setInterval, clearInterval, setTimeout, clearTimeout,
-  });
-  class Worker extends EventTarget {
-    messages: any[] = [];
-    postMessage(message: any) { this.messages.push(message); }
-    terminate() {}
-    reply(message: any) { this.dispatchEvent(new MessageEvent('message', { data: message })); }
-  }
-  const worker = new Worker();
-  const host = createKoreIntegration({ page, manifest: fixture.executable, createWorker: () => worker });
-  await host.start();
-  const init = worker.messages[0]!;
-  worker.reply({ ...init, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false, aiState: 'off', capabilities: { mapStream: true },
-    buildInfo: { engineVersion: '0.1.0', bridgeApiVersion: 1, packetver: 20211103, target: 'wasm32-unknown-unknown' } });
-  host.beginGameSession(7, 'prontera.gat');
-  const firstGeneration = host.beginMapConnection();
-  worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'mapResourceState', mapResourceState: 'ready', mapName: 'prontera' });
-  worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'worldState', gameSessionId: host.state.gameSessionId,
-    connectionGeneration: firstGeneration, profile: 'lastro-20211103', streamStatus: 'world-ready', worldReady: true,
-    mapName: 'prontera.gat', selfActor: { gid: 7, x: 10, y: 10, kind: 'self' },
-    visibleEntities: { total: 0, players: 0, monsters: 0, other: 0, unknown: 0 },
-    parserDiagnostics: { bufferedBytes: 0, pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: 1 } });
-  expect(host.debugCommand('ai auto')).toBe(true);
-  const auto = worker.messages.find(message => message.type === 'command' && message.command === 'ai_auto');
-  expect(auto).toBeTruthy();
-  host.beginMapConnection();
-  expect(host.state.aiState).toBe('off');
-  worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'commandResult', requestId: auto.requestId,
-    result: { kind: 'aiState', aiMode: 'auto', taskCount: 1 } });
-  expect(host.state.aiState).toBe('off');
-  expect(host.state.aiTaskCount).toBe(0);
-  host.dispose();
+test('all Rust action kinds use one opaque native adapter and preserve context', async () => {
+  const { worker, page, gameSessionId, connectionGeneration } = await setup();
+  const actionTypes = ['UseItem', 'Pickup', 'StorageTransfer', 'NpcTalk', 'NpcMenu', 'NpcContinue', 'NpcShopSelect', 'ShopBuy', 'ShopSell'];
+  const sent: unknown[] = [];
+  page.KoreEngineNativeAction.mockImplementation(action => { sent.push(action); return true; });
+  const fields: Record<string, Record<string, unknown>> = {
+    UseItem: { inventoryIndex: 1, targetGid: 7 }, Pickup: { itemGid: 7 }, StorageTransfer: { inventoryIndex: 1, amount: 1, toStorage: true },
+    NpcTalk: { npcGid: 7 }, NpcMenu: { npcGid: 7, choice: 1 }, NpcContinue: { npcGid: 7 }, NpcShopSelect: { npcGid: 7, sell: false },
+    ShopBuy: { npcGid: 7, itemId: 501, amount: 1 }, ShopSell: { npcGid: 7, inventoryIndex: 1, amount: 1 },
+  };
+  actionTypes.forEach((type, index) => worker.reply({ runtimeSessionId: worker.messages[0]!.runtimeSessionId, type: 'outputs', outputs: [{ kind: 'action', action: {
+    requestId: index + 1, runtimeSessionId: worker.messages[0]!.runtimeSessionId, gameSessionId, connectionGeneration, controlGeneration: 3, taskIntentGeneration: 1, type, ...fields[type],
+  } }] }));
+  expect(sent.map(action => objectRecord(action).type)).toEqual(actionTypes);
+  expect(sent.every(action => objectRecord(action).gameSessionId === gameSessionId
+    && objectRecord(action).connectionGeneration === connectionGeneration)).toBe(true);
 });
 
-test('degraded and ended sessions clear the AI state and task count', async () => {
-  const fixture = packageFixture();
-  const page = Object.assign(new EventTarget(), {
-    location: { href: 'http://localhost/' }, fetch: fixture.fetch, performance: { now: () => 42 }, crypto: globalThis.crypto,
-    setInterval, clearInterval, setTimeout, clearTimeout,
-  });
-  class Worker extends EventTarget {
-    messages: any[] = [];
-    postMessage(message: any) { this.messages.push(message); }
-    terminate() {}
-    reply(message: any) { this.dispatchEvent(new MessageEvent('message', { data: message })); }
-  }
-  const worker = new Worker();
-  const host = createKoreIntegration({ page, manifest: fixture.executable, createWorker: () => worker });
-  await host.start();
-  const init = worker.messages[0]!;
-  worker.reply({ ...init, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false, aiState: 'off', capabilities: { mapStream: true },
-    buildInfo: { engineVersion: '0.1.0', bridgeApiVersion: 1, packetver: 20211103, target: 'wasm32-unknown-unknown' } });
-  host.beginGameSession(7, 'prontera.gat');
-  const generation = host.beginMapConnection();
-  worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'mapResourceState', mapResourceState: 'ready', mapName: 'prontera' });
-  worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'worldState', gameSessionId: host.state.gameSessionId,
-    connectionGeneration: generation, profile: 'lastro-20211103', streamStatus: 'world-ready', worldReady: true,
-    mapName: 'prontera.gat', selfActor: { gid: 7, x: 10, y: 10, kind: 'self' },
-    visibleEntities: { total: 0, players: 0, monsters: 0, other: 0, unknown: 0 },
-    parserDiagnostics: { bufferedBytes: 0, pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: 1 } });
-  expect(host.debugCommand('ai auto')).toBe(true);
-  const auto = worker.messages.find(message => message.type === 'command' && message.command === 'ai_auto');
-  worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'commandResult', requestId: auto.requestId,
-    result: { kind: 'aiState', aiMode: 'auto', taskCount: 2 } });
-  expect(host.state.aiState).toBe('auto');
-  expect(host.state.aiTaskCount).toBe(2);
-  worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'worldState', gameSessionId: host.state.gameSessionId,
-    connectionGeneration: generation, profile: 'lastro-20211103', streamStatus: 'degraded', worldReady: false,
-    mapName: 'prontera.gat', selfActor: null,
-    visibleEntities: { total: 0, players: 0, monsters: 0, other: 0, unknown: 0 },
-    parserDiagnostics: { bufferedBytes: 0, pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: 1 },
-    degradedReason: 'parser-degraded' });
-  expect(host.state.aiState).toBe('off');
-  expect(host.state.aiTaskCount).toBe(0);
-  host.endGameSession();
-  expect(host.state.aiState).toBe('off');
-  expect(host.state.aiTaskCount).toBe(0);
+test('native action rejection is returned as an ActionResult event', async () => {
+  const { host, worker, gameSessionId, connectionGeneration } = await setup(() => false);
+  const action = { requestId: 77, runtimeSessionId: worker.messages[0]!.runtimeSessionId, gameSessionId, connectionGeneration, controlGeneration: 4, taskIntentGeneration: 1, type: 'Attack', targetGid: 9001 };
+  worker.reply({ runtimeSessionId: worker.messages[0]!.runtimeSessionId, type: 'outputs', outputs: [{ kind: 'action', action }] });
+  const result = worker.messages.find(message => message.type === 'queue' && bridgeRecord(message).kind === 'actionResult');
+  expect(bridgeRecord(result!)).toMatchObject({ requestId: 77, accepted: false, reason: 'native-action-rejected' });
   host.dispose();
 });
-
-test('M4 recovery, pickup, and storage actions use the AI permit and generation checks', async () => {
-  const fixture = packageFixture();
-  const sent: any[] = [];
-  const page = Object.assign(new EventTarget(), {
-    location: { href: 'http://localhost/' }, fetch: fixture.fetch, performance: { now: () => 42 }, crypto: globalThis.crypto,
-    setInterval, clearInterval, setTimeout, clearTimeout,
-    KoreEngineNativeAction: (action: any) => { sent.push(action); return true; },
-  });
-  class Worker extends EventTarget {
-    messages: any[] = [];
-    postMessage(message: any) { this.messages.push(message); }
-    terminate() {}
-    reply(message: any) { this.dispatchEvent(new MessageEvent('message', { data: message })); }
-  }
-  const worker = new Worker();
-  const host = createKoreIntegration({ page, manifest: fixture.executable, createWorker: () => worker });
-  await host.start();
-  const init = worker.messages[0]!;
-  worker.reply({ ...init, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false, aiState: 'off', capabilities: { mapStream: true },
-    buildInfo: { engineVersion: '0.1.0', bridgeApiVersion: 1, packetver: 20211103, target: 'wasm32-unknown-unknown' } });
-  const gameSessionId = host.beginGameSession(7, 'prontera.gat', { aid: 11, cid: 22 });
-  const connectionGeneration = host.beginMapConnection();
-  worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'worldState', gameSessionId, connectionGeneration,
-    profile: 'lastro-20211103', streamStatus: 'world-ready', worldReady: true, mapName: 'prontera.gat',
-    selfActor: { gid: 7, x: 10, y: 10, kind: 'self' }, visibleEntities: { total: 0, players: 0, monsters: 0, other: 0, unknown: 0 },
-    parserDiagnostics: { bufferedBytes: 0, pendingPacketId: null, pendingRequiredBytes: null, lastPacketId: 1 } });
-  expect(host.debugCommand('ai auto')).toBe(true);
-  const generation = host.state.controlGeneration;
-  for (const [requestId, action] of [
-    [1, { type: 'UseItem', inventoryIndex: 3, targetGid: 7 }],
-    [2, { type: 'Pickup', itemGid: 88 }],
-    [3, { type: 'StorageTransfer', inventoryIndex: 3, amount: 1, toStorage: true }],
-    [4, { type: 'NpcTalk', npcGid: 900 }],
-    [5, { type: 'NpcMenu', npcGid: 900, choice: 2 }],
-    [6, { type: 'NpcContinue', npcGid: 900 }],
-    [7, { type: 'NpcShopSelect', npcGid: 900, sell: false }],
-    [8, { type: 'NpcShopSelect', npcGid: 900, sell: true }],
-    [9, { type: 'ShopBuy', npcGid: 900, itemId: 501, amount: 2 }],
-    [10, { type: 'ShopSell', npcGid: 900, inventoryIndex: 3, amount: 1 }],
-  ] as const) {
-    worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'actionRequest', requestId: 700 + requestId,
-      action: { runtimeSessionId: init.runtimeSessionId, gameSessionId, connectionGeneration, controlGeneration: generation, requestId, ...action } });
-  }
-  expect(sent.map(action => action.type)).toEqual([
-    'UseItem', 'Pickup', 'StorageTransfer', 'NpcTalk', 'NpcMenu', 'NpcContinue',
-    'NpcShopSelect', 'NpcShopSelect', 'ShopBuy', 'ShopSell',
-  ]);
-  worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'actionRequest', requestId: 799,
-    action: { runtimeSessionId: init.runtimeSessionId, gameSessionId, connectionGeneration, controlGeneration: generation,
-      requestId: 11, type: 'MoveTo', x: 1024, y: 10 } });
-  worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'actionRequest', requestId: 800,
-    action: { runtimeSessionId: init.runtimeSessionId, gameSessionId, connectionGeneration, controlGeneration: generation,
-      requestId: 12, type: 'UseSkillAt', skillId: 19, level: 1, x: 10, y: 1024 } });
-  expect(sent).toHaveLength(10);
-  host.dispose();
-});
-
