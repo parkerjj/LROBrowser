@@ -253,6 +253,77 @@ test('rejects a tampered cached object before serving it offline', async () => {
   expect(result.result).toMatchObject({ kind: 'error', code: 'offline' });
 });
 
+test('prefers the bundled fieldpack before the network root', async () => {
+  const calls: string[] = [];
+  const provider = createMapResourceProvider({
+    databaseName: 'kore-map-resource-local-first-test',
+    page: { location: { origin: 'https://app.test' } },
+    fetchImpl: async (url: URL) => {
+      calls.push(url.href);
+      if (url.origin === 'https://app.test' && url.pathname.endsWith('/EP15.1/prontera.fld2.gz')) {
+        return new Response(gzipSync(fieldBytes), { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    },
+    retryDelaysMs: [],
+  });
+  providers.push(provider);
+
+  const result = await provider.handleResourceRequest({
+    requestId: 21,
+    resourceType: 'fieldMap',
+    mapName: 'prontera',
+    baseName: 'prontera',
+    serverFieldsFolder: 'EP15.1',
+    fieldpackVersion: FIELD_PACK_VERSION,
+    attempt: 0,
+    cacheMode: 'prefer',
+  });
+
+  expect(result.result.kind).toBe('fieldMap');
+  expect(calls).toEqual([
+    'https://app.test/ke/map/fieldpack-2.0.5/EP15.1/prontera.fld2',
+    'https://rodata.ltsd.ro/ke/map/fieldpack-2.0.5/EP15.1/prontera.fld2',
+    'https://app.test/ke/map/fieldpack-2.0.5/EP15.1/prontera.fld2.gz',
+  ]);
+});
+
+test('falls back to the network root when the bundled fieldpack misses', async () => {
+  const calls: string[] = [];
+  const provider = createMapResourceProvider({
+    databaseName: 'kore-map-resource-local-fallback-test',
+    resourceRoots: ['https://app.test', 'https://rodata.test'],
+    fetchImpl: async (url: URL) => {
+      calls.push(url.href);
+      if (url.origin === 'https://rodata.test' && url.pathname.endsWith('/EP15.1/prontera.fld2.gz')) {
+        return new Response(gzipSync(fieldBytes), { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    },
+    retryDelaysMs: [],
+  });
+  providers.push(provider);
+
+  const result = await provider.handleResourceRequest({
+    requestId: 22,
+    resourceType: 'fieldMap',
+    mapName: 'prontera',
+    baseName: 'prontera',
+    serverFieldsFolder: 'EP15.1',
+    fieldpackVersion: FIELD_PACK_VERSION,
+    attempt: 0,
+    cacheMode: 'prefer',
+  });
+
+  expect(result.result.kind).toBe('fieldMap');
+  expect(calls).toEqual([
+    'https://app.test/ke/map/fieldpack-2.0.5/EP15.1/prontera.fld2',
+    'https://rodata.test/ke/map/fieldpack-2.0.5/EP15.1/prontera.fld2',
+    'https://app.test/ke/map/fieldpack-2.0.5/EP15.1/prontera.fld2.gz',
+    'https://rodata.test/ke/map/fieldpack-2.0.5/EP15.1/prontera.fld2.gz',
+  ]);
+});
+
 test('turns a hanging fetch into a retryable timeout error', async () => {
   const provider = createMapResourceProvider({
     databaseName: 'kore-map-resource-timeout-test',

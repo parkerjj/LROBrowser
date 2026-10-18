@@ -124,18 +124,31 @@ function candidatePaths(request, aliases = {}) {
   return paths;
 }
 
+function resolveResourceRoots({ resourceRoots, localResourceRoot, resourceRoot }) {
+  const configured = Array.isArray(resourceRoots) ? resourceRoots : [];
+  const values = configured.length
+    ? configured
+    : [localResourceRoot, resourceRoot];
+  return [...new Set(values
+    .map(value => typeof value === 'string' ? value.trim() : '')
+    .filter(value => value && value !== 'null'))];
+}
+
 export function createMapResourceProvider({
   page = globalThis,
   fetchImpl = page.fetch?.bind(page) ?? globalThis.fetch?.bind(globalThis),
   indexedDBFactory = page.indexedDB ?? globalThis.indexedDB,
   databaseName = 'kore-map-resources',
   resourceRoot = DEFAULT_ROOT,
+  resourceRoots = null,
+  localResourceRoot = page.location?.origin ?? null,
   aliases = {},
   expectedSha256 = {},
   requestTimeoutMs = 15_000,
 } = {}) {
   const cache = new VersionedMapCache(databaseName, indexedDBFactory);
   const pending = new Map();
+  const roots = resolveResourceRoots({ resourceRoots, localResourceRoot, resourceRoot });
   let persistRequested = false;
   let resourceAliases = aliases;
   let resourceChecksums = expectedSha256;
@@ -146,9 +159,9 @@ export function createMapResourceProvider({
     try { await page.navigator?.storage?.persist?.(); } catch { /* persistence is best effort */ }
   }
 
-  async function fetchCandidate(candidate, role = 'field') {
+  async function fetchCandidateFromRoot(root, candidate, role) {
     if (!fetchImpl) throw new Error('fetch-unavailable');
-    const url = new globalThis.URL(`/ke/map/fieldpack-${FIELD_PACK_VERSION}/${candidate.relativePath}`, resourceRoot);
+    const url = new globalThis.URL(`/ke/map/fieldpack-${FIELD_PACK_VERSION}/${candidate.relativePath}`, root);
     const controller = typeof globalThis.AbortController === 'function' ? new globalThis.AbortController() : null;
     const timeout = Number.isFinite(requestTimeoutMs) && requestTimeoutMs > 0
       ? globalThis.setTimeout(() => controller?.abort(), requestTimeoutMs) : null;
@@ -174,6 +187,20 @@ export function createMapResourceProvider({
     } finally {
       if (timeout !== null) globalThis.clearTimeout(timeout);
     }
+  }
+
+  async function fetchCandidate(candidate, role = 'field') {
+    let lastError = null;
+    for (const root of roots) {
+      try {
+        const file = await fetchCandidateFromRoot(root, candidate, role);
+        if (file) return file;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (lastError) throw lastError;
+    return null;
   }
 
   function auxiliaryCandidates(fieldPath, role) {
