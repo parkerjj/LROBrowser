@@ -35,7 +35,8 @@ test('panel renders only read-only Rust status and console output', () => {
   const { view } = viewFor();
   view.update({ status: 'runtime-ready', packageId: null, mode: null, runtimeGeneration: 1, profile: 'lastro-20211103', gameSessionId: null,
     connectionGeneration: null, streamStatus: 'world-ready', worldReady: true, mapResourceState: 'ready', receivedBytes: 10, sentBytes: 4,
-    degradedReason: null, logs: [{ level: 'info', text: 'ready', timestamp: 0 }], runtimeStatus: { nextDeadlineMs: 10 }, lastDiagnostic: null, lastCommandResult: null, configIdentity: null });
+    degradedReason: null, logs: [{ level: 'info', text: 'ready', timestamp: 0 }], runtimeStatus: { nextDeadlineMs: 10 }, lastDiagnostic: null, lastCommandResult: null, configIdentity: null,
+    lastWorldState: null, lastWorldStateAt: null, heartbeat: null, actions: [], diagnosticLog: [] });
   expect(view.infoNode.readOnly).toBe(true); expect(view.consoleNode.readOnly).toBe(true);
   expect(view.infoNode.value).toContain('worldReady'); expect(view.consoleNode.value).toContain('[info] ready');
 });
@@ -136,6 +137,12 @@ test('KE controls receive clicks and typing without reaching capture-phase game 
     expect(clearConsole).toHaveBeenCalledOnce();
     expect(document.activeElement).toBe(view.commandInput);
     expect(gameplay).not.toHaveBeenCalled();
+    view.editor.focus();
+    view.editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', bubbles: true }));
+    view.editor.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    expect(document.activeElement).toBe(view.editor);
+    expect(gameplay).not.toHaveBeenCalled();
+    view.commandInput.focus();
 
     view.commandInput.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
     document.body.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));

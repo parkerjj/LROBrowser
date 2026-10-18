@@ -1249,7 +1249,30 @@ globalThis.KoreEngineNativeAction = (action) => {
     if (!Ctor) return false;
     const packet = new Ctor();
     packet.targetGID = action.targetGid;
-    packet.action = 0;
+    // ACTION_ATTACK_REPEAT (7): OpenKore's normal attack mode. The server
+    // keeps swinging at its own ASPD; action 0 is a single attack only.
+    packet.action = 7;
+    return sendKoreEnginePacket(action, packet);
+  }
+  if (action.type === "Sit" || action.type === "Stand") {
+    const Ctor = PacketVerManager_default.value >= 20180307 ? PACKET.CZ.REQUEST_ACT2 : PACKET.CZ.REQUEST_ACT;
+    if (!Ctor) return false;
+    const packet = new Ctor();
+    packet.targetGID = SessionStorage_default.AID ?? 0;
+    packet.action = action.type === "Sit" ? 2 : 3;
+    return sendKoreEnginePacket(action, packet);
+  }
+  if (action.type === "Equip") {
+    if (!PACKET?.CZ?.REQ_WEAR_EQUIP) return false;
+    const packet = new PACKET.CZ.REQ_WEAR_EQUIP();
+    packet.index = action.inventoryIndex;
+    packet.wearLocation = action.position;
+    return sendKoreEnginePacket(action, packet);
+  }
+  if (action.type === "Unequip") {
+    if (!PACKET?.CZ?.REQ_TAKEOFF_EQUIP) return false;
+    const packet = new PACKET.CZ.REQ_TAKEOFF_EQUIP();
+    packet.index = action.inventoryIndex;
     return sendKoreEnginePacket(action, packet);
   }
   if (action.type === "UseSkillOnTarget" || action.type === "UseSkillSelf") {
@@ -1258,7 +1281,8 @@ globalThis.KoreEngineNativeAction = (action) => {
     const packet = new Ctor();
     packet.selectedLevel = action.level;
     packet.SKID = action.skillId;
-    packet.targetID = action.type === "UseSkillSelf" ? (SessionStorage_default.GID ?? 0) : action.targetGid;
+    // 地图上的自身 actor ID 是 AID；SessionStorage.GID 是角色服务器的 CID，不能作为自身目标。
+    packet.targetID = action.type === "UseSkillSelf" ? (SessionStorage_default.AID ?? 0) : action.targetGid;
     return sendKoreEnginePacket(action, packet);
   }
   if (action.type === "UseSkillAt") {
@@ -1278,7 +1302,7 @@ globalThis.KoreEngineNativeAction = (action) => {
     if (!Ctor) return false;
     const packet = new Ctor();
     packet.index = action.inventoryIndex;
-    packet.AID = action.targetGid || SessionStorage_default.GID || 0;
+    packet.AID = action.targetGid || SessionStorage_default.AID || 0;
     return sendKoreEnginePacket(action, packet);
   }
   if (action.type === "Pickup") {
@@ -1318,6 +1342,20 @@ globalThis.KoreEngineNativeAction = (action) => {
     packet.NAID = action.npcGid;
     return sendKoreEnginePacket(action, packet);
   }
+  if (action.type === "NpcNumber") {
+    if (!PACKET?.CZ?.INPUT_EDITDLG) return false;
+    const packet = new PACKET.CZ.INPUT_EDITDLG();
+    packet.NAID = action.npcGid;
+    packet.value = action.value;
+    return sendKoreEnginePacket(action, packet);
+  }
+  if (action.type === "NpcText") {
+    if (!PACKET?.CZ?.INPUT_EDITDLGSTR) return false;
+    const packet = new PACKET.CZ.INPUT_EDITDLGSTR();
+    packet.NAID = action.npcGid;
+    packet.msg = action.text;
+    return sendKoreEnginePacket(action, packet);
+  }
   if (action.type === "NpcShopSelect") {
     if (!PACKET?.CZ?.ACK_SELECT_DEALTYPE) return false;
     const packet = new PACKET.CZ.ACK_SELECT_DEALTYPE();
@@ -1341,15 +1379,26 @@ globalThis.KoreEngineNativeAction = (action) => {
     if (!PACKET?.CZ?.PRIVATE_AIRSHIP_REQUEST) return false;
     const packet = new PACKET.CZ.PRIVATE_AIRSHIP_REQUEST();
     packet.mapname = String(action.destinationId).replace(/\\.(?:gat|rsw)$/i, "").toLowerCase();
-    packet.x = 0;
-    packet.y = 0;
-    packet.type = 0;
-    packet.itemid = 14527;
+    const hasPosition = Number.isSafeInteger(action.x) && Number.isSafeInteger(action.y);
+    packet.x = hasPosition ? action.x : 0;
+    packet.y = hasPosition ? action.y : 0;
+    packet.type = hasPosition ? 1 : 0;
+    packet.itemid = Number.isSafeInteger(action.itemId) && action.itemId > 0 ? action.itemId : 14527;
     return sendKoreEnginePacket(action, packet);
   }
   return false;
 };
 globalThis.KoreEngineNativeRouteAction = globalThis.KoreEngineNativeAction;
+globalThis.KoreEngineDisconnect = (reason) => {
+	try {
+		console.warn("[KoreEngine] disconnect requested:", String(reason ?? ""));
+		Network.close();
+		return true;
+	} catch (error) {
+		console.error("[KoreEngine] disconnect failed:", error);
+		return false;
+	}
+};
 startOptionalKore({
 	createWorker: (value) => {
 		const url = new URL(value);

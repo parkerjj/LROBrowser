@@ -252,6 +252,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     receivedBytes: 0, sentBytes: 0, degradedReason: null, logs: [],
     runtimeStatus: null, lastDiagnostic: null, lastCommandResult: null,
     configIdentity: null,
+    heartbeat: null, actions: [], diagnosticLog: [],
   };
   let worker = null;
   let session = null;
@@ -368,8 +369,16 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     };
     postEvent('actionResult', fields, 'control', overrides);
   };
-  const supportedActionTypes = new Set(['MoveTo', 'Attack', 'UseSkillOnTarget', 'UseSkillSelf', 'UseSkillAt', 'UseItem', 'Pickup',
-    'StorageTransfer', 'NpcTalk', 'NpcMenu', 'NpcContinue', 'NpcShopSelect', 'ShopBuy', 'ShopSell', 'PrivateAirship']);
+  const ACTION_CONTEXT_KEYS = new Set(['type', 'requestId', 'routeId', 'runtimeSessionId', 'gameSessionId', 'connectionGeneration', 'controlGeneration', 'taskIntentGeneration', 'nextDeadlineMs']);
+  const recordAction = (action, accepted, reason) => {
+    const detail = Object.entries(action && typeof action === 'object' ? action : {})
+      .filter(([key]) => !ACTION_CONTEXT_KEYS.has(key)).map(([key, value]) => `${key}=${value}`).join(' ');
+    state.actions.push({ timestamp: Date.now(), requestId: action?.requestId ?? null, routeId: action?.routeId ?? null,
+      type: String(action?.type ?? '?'), detail, accepted, reason: reason ?? null });
+    if (state.actions.length > 50) state.actions.splice(0, state.actions.length - 50);
+  };
+  const supportedActionTypes = new Set(['MoveTo', 'Attack', 'Sit', 'Stand', 'Equip', 'Unequip', 'UseSkillOnTarget', 'UseSkillSelf', 'UseSkillAt', 'UseItem', 'Pickup',
+    'StorageTransfer', 'NpcTalk', 'NpcMenu', 'NpcContinue', 'NpcNumber', 'NpcText', 'NpcShopSelect', 'ShopBuy', 'ShopSell', 'PrivateAirship']);
   const validActionPayload = action => {
     if (!supportedActionTypes.has(action.type)) return 'unsupported-action';
     const gid = value => validU32(value) && value > 0;
@@ -378,6 +387,10 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     switch (action.type) {
       case 'MoveTo': return validMapCoordinate(action.x) && validMapCoordinate(action.y) ? null : 'malformed-action';
       case 'Attack': return gid(action.targetGid) ? null : 'malformed-action';
+      case 'Sit':
+      case 'Stand': return null;
+      case 'Equip': return validU16(action.inventoryIndex) && validU32(action.position) && action.position > 0 ? null : 'malformed-action';
+      case 'Unequip': return validU16(action.inventoryIndex) ? null : 'malformed-action';
       case 'UseSkillOnTarget': return skill(action.skillId) && level(action.level) && gid(action.targetGid) ? null : 'malformed-action';
       case 'UseSkillSelf': return skill(action.skillId) && level(action.level) ? null : 'malformed-action';
       case 'UseSkillAt': return skill(action.skillId) && level(action.level) && validMapCoordinate(action.x) && validMapCoordinate(action.y) ? null : 'malformed-action';
@@ -386,12 +399,20 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       case 'StorageTransfer': return validU16(action.inventoryIndex) && validU32(action.amount) && action.amount > 0 && typeof action.toStorage === 'boolean' ? null : 'malformed-action';
       case 'NpcTalk':
       case 'NpcContinue': return gid(action.npcGid) ? null : 'malformed-action';
+      case 'NpcNumber': return gid(action.npcGid) && Number.isSafeInteger(action.value) ? null : 'malformed-action';
+      case 'NpcText': return gid(action.npcGid) && typeof action.text === 'string' ? null : 'malformed-action';
       case 'NpcMenu': return gid(action.npcGid) && validU8(action.choice) ? null : 'malformed-action';
       case 'NpcShopSelect': return gid(action.npcGid) && typeof action.sell === 'boolean' ? null : 'malformed-action';
       case 'ShopBuy': return gid(action.npcGid) && gid(action.itemId) && validU32(action.amount) && action.amount > 0 ? null : 'malformed-action';
       case 'ShopSell': return gid(action.npcGid) && validU16(action.inventoryIndex) && validU32(action.amount) && action.amount > 0 ? null : 'malformed-action';
-      case 'PrivateAirship': return typeof action.destinationId === 'string' && action.destinationId.length > 0
-        && typeof action.expectedMap === 'string' && action.expectedMap.length > 0 ? null : 'malformed-action';
+      case 'PrivateAirship': {
+        const hasX = action.x !== undefined;
+        const hasY = action.y !== undefined;
+        if (hasX !== hasY || (hasX && (!validMapCoordinate(action.x) || !validMapCoordinate(action.y)))) return 'malformed-action';
+        if (action.itemId !== undefined && (!validU32(action.itemId) || action.itemId <= 0)) return 'malformed-action';
+        return typeof action.destinationId === 'string' && action.destinationId.length > 0
+          && typeof action.expectedMap === 'string' && action.expectedMap.length > 0 ? null : 'malformed-action';
+      }
       default: return 'unsupported-action';
     }
   };
@@ -404,6 +425,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     const validationReason = malformed ? 'malformed-action' : validActionPayload(action);
     if (validationReason) {
       log('warn', 'Rejected malformed Rust action at the native transport boundary.');
+      recordAction(action, false, validationReason);
       if (action && typeof action === 'object') postActionResult(action, false, validationReason);
       return;
     }
@@ -415,7 +437,35 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     } catch (error) {
       reason = String(error?.message ?? error);
     }
+    recordAction(action, accepted, reason);
+    if (!accepted) log('warn', `action rejected: ${action.type} #${action.requestId} (${reason})`);
     postActionResult(action, accepted, reason);
+  };
+  const setCommandResult = result => {
+    state.lastCommandResult = result;
+    log(result?.kind === 'error' || result?.accepted === false ? 'warn' : 'info', `< ${formatKoreCommandResult(result)}`);
+  };
+  const recordDiagnostic = diagnostic => {
+    state.lastDiagnostic = diagnostic;
+    // ai-state 每个 tick 都会输出；只记录判断内容变化，避免历史被刷屏。
+    const text = formatKoreDiagnosticLine(diagnostic);
+    if (text !== state.diagnosticLog.at(-1)?.text) {
+      state.diagnosticLog.push({ timestamp: Date.now(), text });
+      if (state.diagnosticLog.length > 40) state.diagnosticLog.splice(0, state.diagnosticLog.length - 40);
+    }
+    changed();
+  };
+  const requestDisconnect = reason => {
+    const text = String(reason ?? 'runtime-disconnect-intent').slice(0, 1024);
+    log('warn', `Rust requested disconnect: ${text}`);
+    let accepted = false;
+    try {
+      accepted = page.KoreEngineDisconnect?.(text) === true;
+    } catch (error) {
+      log('error', `disconnect hook failed: ${String(error?.message ?? error)}`);
+      return;
+    }
+    if (!accepted) log('warn', 'disconnect intent was not accepted by the Host socket layer');
   };
   const handleOutputs = outputs => {
     for (const output of Array.isArray(outputs) ? outputs : []) {
@@ -438,13 +488,11 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         if (typeof output.streamStatus === 'string') state.streamStatus = output.streamStatus;
         changed();
       } else if (kind === 'diagnostic') {
-        state.lastDiagnostic = output;
-        changed();
+        recordDiagnostic(output);
       } else if (kind === 'commandResult') {
-        state.lastCommandResult = output.result ?? output;
-        changed();
-      } else if (kind === 'worldState') {
-        // WorldState remains Rust-owned. The host intentionally does not retain it.
+        setCommandResult(output.result ?? output);
+      } else if (kind === 'disconnect') {
+        requestDisconnect(output.reason);
       } else if (kind === 'error') {
         log('error', output.message ?? output.code ?? 'Runtime error');
       }
@@ -488,6 +536,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     if (message.type === 'ready') {
       state.status = 'runtime-ready';
       state.packageId = message.packageId ?? packageInfo?.manifest?.packageId ?? null;
+      state.mode = packageInfo?.manifest?.mode ?? null;
       state.worldReady = message.worldReady === true;
       changed();
       return;
@@ -517,6 +566,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       return;
     }
     if (message.type === 'actionRequest') { forwardAction(message.action, { requireTaskIntentGeneration: message.action?.routeId == null }); return; }
+    if (message.type === 'disconnect') { requestDisconnect(message.reason); return; }
     if (message.type === 'resourceRequest') { void handleResourceRequest(message); return; }
     if (message.type === 'resourceValidation') { void handleResourceValidation(message); return; }
     if (message.type === 'mapResourceReady') {
@@ -528,8 +578,8 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       return;
     }
     if (message.type === 'mapResourceState') { state.mapResourceState = message.mapResourceState ?? 'degraded'; changed(); return; }
-    if (message.type === 'commandResult') { state.lastCommandResult = message.result ?? null; changed(); return; }
-    if (message.type === 'heartbeat') { state.runtimeStatus = message; changed(); return; }
+    if (message.type === 'commandResult') { setCommandResult(message.result ?? null); return; }
+    if (message.type === 'heartbeat') { state.heartbeat = { at: Date.now(), nextDeadlineMs: message.nextDeadlineMs ?? null, queueDepth: message.queueDepth ?? null }; changed(); return; }
     if (message.type === 'fault') { failWorker(message.message ?? 'runtime-fault'); return; }
   };
   const attachWorker = nextWorker => {
@@ -539,18 +589,19 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     worker.addEventListener?.('message', listener);
     worker.addEventListener?.('error', transportFailure);
     worker.addEventListener?.('messageerror', transportFailure);
-    worker.onmessage = listener;
     removeWorkerListener = () => {
       worker?.removeEventListener?.('message', listener);
       worker?.removeEventListener?.('error', transportFailure);
       worker?.removeEventListener?.('messageerror', transportFailure);
-      if (worker?.onmessage === listener) worker.onmessage = null;
     };
   };
   const sendCommand = (command, extraFields = {}) => {
-    if (typeof command !== 'string' || !command.trim() || !worker || !session) return false;
+    const refusal = typeof command !== 'string' || !command.trim() ? 'empty-command' : !worker || !session ? 'runtime-not-ready' : null;
+    if (refusal) { log('warn', `command not sent: ${refusal}`); return false; }
     const fields = { ...extraFields, command, hostNetworkSnapshot: { gameSessionId: gameSession?.id ?? '', bytesSent: state.sentBytes } };
-    return postEvent('command', fields, 'control') !== null;
+    const queued = postEvent('command', fields, 'control') !== null;
+    log(queued ? 'info' : 'warn', queued ? `> ${command}` : `command not sent: ingress-buffer-full (${command})`);
+    return queued;
   };
   const api = {
     state,
@@ -636,13 +687,14 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     clearConsole() { state.logs.length = 0; changed(); },
     debugMapRetry() { if (!gameSession || !connection) return false; resourceCycle += 1; state.mapResourceState = 'loading'; postWorker({ type: 'debugMapRetry', mapName: gameSession.mapName, resourceCycle, connectionGeneration: connection.generation }); changed(); return true; },
     saveConfigDocument(document) { return configStore.saveDocument(document); },
+    getConfigDefault(fileName) { return packageInfo?.configDefaults?.[fileName] ?? null; },
     async getConfigDocuments(identity) {
       await configStore.ensureDefaults(identity, packageInfo?.configDefaults ?? {});
       return configStore.listDocuments(identity);
     },
     reloadConfig(target = 'config.txt') {
       const normalized = String(target).trim();
-      if (!gameSession?.aid || !gameSession?.cid) return false;
+      if (!gameSession?.aid || !gameSession?.cid) { log('warn', 'reload not sent: no verified aid/cid for the current game session'); return false; }
       const gameSessionId = gameSession.id;
       const identity = { profile: state.profile, aid: gameSession.aid, cid: gameSession.cid };
       void api.getConfigDocuments(identity).then(documents => {
@@ -658,6 +710,115 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   return api;
 }
 
+const dash = value => value === null || value === undefined || value === '' ? '-' : String(value);
+const clock = timestamp => { const date = new Date(timestamp); return [date.getHours(), date.getMinutes(), date.getSeconds()].map(part => String(part).padStart(2, '0')).join(':'); };
+const rows = entries => entries.map(([label, value]) => `${label.padEnd(14)}${value}`).join('\n');
+const point = (x, y) => Number.isFinite(x) && Number.isFinite(y) ? `(${x},${y})` : '-';
+const toJson = (value, indent) => {
+  try {
+    return JSON.stringify(value, (_key, item) => typeof item === 'bigint' ? item.toString()
+      : item instanceof Map ? Object.fromEntries(item) : item instanceof Set ? [...item] : item, indent);
+  } catch (error) { return `<unserializable: ${String(error?.message ?? error)}>`; }
+};
+
+export function formatKoreCommandResult(result) {
+  if (!result) return '-';
+  const reloadDiagnostics = Array.isArray(result.diagnostics) ? result.diagnostics : [];
+  switch (result.kind) {
+    case 'aiState': return `ai mode=${dash(result.aiMode)} tasks=${dash(result.taskCount)}`;
+    case 'reload': return `reload ${dash(result.target)}: ${result.accepted ? 'ACCEPTED' : 'REJECTED'} effectiveRevision=${dash(result.effectiveRevision)} diagnostics=${reloadDiagnostics.length}`;
+    case 'error': return `ERROR ${dash(result.code)}: ${dash(result.message)}`;
+    default: return `${dash(result.kind)}: ${toJson(result.report ?? result)}`;
+  }
+}
+
+// 目标的 class id 和名称表里的名字：`monsters` 过滤就是拿它们匹配的，对不上时先看这里。
+const targetClass = diagnostic => diagnostic.targetClassId == null ? '' : ` class=${diagnostic.targetClassId}${diagnostic.targetName ? ` "${diagnostic.targetName}"` : ' (no name)'}`;
+
+export function formatKoreDiagnosticLine(diagnostic) {
+  if (!diagnostic) return '-';
+  const target = diagnostic.targetGid == null ? '-' : `${diagnostic.targetGid}@${point(diagnostic.targetX, diagnostic.targetY)}${targetClass(diagnostic)}`;
+  return `${dash(diagnostic.code)} task=${dash(diagnostic.task)} next=${dash(diagnostic.nextAction)} decided=${dash(diagnostic.decisionAction)} target=${target} why=${dash(diagnostic.reason ?? diagnostic.message)}`;
+}
+
+function formatHost(state) {
+  const beat = state.heartbeat;
+  const runtime = state.runtimeStatus;
+  return [
+    rows([
+      ['status', `${state.status}${state.degradedReason ? `   DEGRADED: ${state.degradedReason}` : ''}`],
+      ['package', `${dash(state.packageId?.slice(0, 12))} mode=${dash(state.mode)} runtimeGen=${state.runtimeGeneration} profile=${state.profile}`],
+      ['gameSession', dash(state.gameSessionId)],
+      ['connection', `generation=${dash(state.connectionGeneration)}`],
+      ['identity', state.configIdentity ? `aid=${state.configIdentity.aid} cid=${state.configIdentity.cid}` : '- (reload needs aid+cid)'],
+      ['stream', `${state.streamStatus} worldReady=${state.worldReady}`],
+      ['mapResource', state.mapResourceState],
+      ['bytes', `received=${state.receivedBytes} sent=${state.sentBytes}`],
+      ['heartbeat', beat ? `${clock(beat.at)} nextDeadlineMs=${dash(beat.nextDeadlineMs)} queues=${toJson(beat.queueDepth)}` : 'none yet'],
+    ]),
+    '--- Rust runtime status ---',
+    runtime ? rows([
+      ['runtime', `state=${dash(runtime.runtimeState)} revision=${dash(runtime.revision)} stream=${dash(runtime.streamStatus)}`],
+      ['ai', `mode=${dash(runtime.aiMode)} ${runtime.aiModeSynced === false ? 'NOT SYNCED' : 'synced'}`],
+      ['nextDeadline', dash(runtime.nextDeadlineMs)],
+    ]) : 'no Status output yet',
+  ].join('\n');
+}
+
+function formatWorld() {
+  return 'Rust retains WorldState; the bridge exposes status and diagnostics only.';
+}
+
+function formatDecision(state) {
+  const diagnostic = state.lastDiagnostic;
+  const history = state.diagnosticLog.map(entry => `${clock(entry.timestamp)} ${entry.text}`).join('\n');
+  return [
+    diagnostic ? rows([
+      ['code', `${dash(diagnostic.code)} bridgeSequence=${dash(diagnostic.bridgeSequence)}`],
+      ['message', dash(diagnostic.message)],
+      ['task', `${dash(diagnostic.task)} intentGeneration=${dash(diagnostic.taskIntentGeneration)}`],
+      ['next/decided', `${dash(diagnostic.nextAction)} / ${dash(diagnostic.decisionAction)}`],
+      ['reason', dash(diagnostic.reason)],
+      ['target', diagnostic.targetGid == null ? '-' : `gid=${diagnostic.targetGid} at ${point(diagnostic.targetX, diagnostic.targetY)}${targetClass(diagnostic)}`],
+      ['monsters', `visible=${dash(diagnostic.visibleMonsters)} eligible=${dash(diagnostic.eligibleMonsters)}`],
+      ['trace', dash(diagnostic.decisionTrace)],
+    ]) : 'no diagnostic yet',
+    '--- history (only changes) ---',
+    history || '-',
+  ].join('\n');
+}
+
+function formatCommand(state) {
+  const result = state.lastCommandResult;
+  if (!result) return 'no command result yet';
+  const lines = [formatKoreCommandResult(result)];
+  if (Array.isArray(result.diagnostics)) {
+    for (const item of result.diagnostics) lines.push(`  [${dash(item.severity)}] ${dash(item.fileName)}:${dash(item.line)} ${dash(item.key)} ${dash(item.code)}: ${dash(item.message)}`);
+  }
+  if (result.report) lines.push(toJson(result.report, 2));
+  return lines.join('\n');
+}
+
+function formatActions(state) {
+  return state.actions.map(entry => `${clock(entry.timestamp)} #${entry.requestId}${entry.routeId == null ? '' : ` route=${entry.routeId}`} ${entry.type} ${entry.detail} -> ${entry.accepted ? 'ACCEPTED' : `REJECTED(${dash(entry.reason)})`}`).join('\n');
+}
+
+export function formatKoreSections(state) {
+  const runtime = state.runtimeStatus;
+  return {
+    headline: `[${state.status}] stream=${state.streamStatus} worldReady=${state.worldReady} ai=${dash(runtime?.aiMode)}${runtime?.aiModeSynced === false ? '(unsynced)' : ''}${state.degradedReason ? ` DEGRADED: ${state.degradedReason}` : ''}`,
+    host: formatHost(state),
+    world: formatWorld(),
+    decision: formatDecision(state),
+    command: formatCommand(state),
+    actions: formatActions(state),
+    console: state.logs.map(entry => `${clock(entry.timestamp)} [${entry.level}] ${entry.text}`).join('\n'),
+  };
+}
+
+const QUICK_COMMANDS = ['ai auto', 'ai off', 'ai clear', 'exp', 'exp report'];
+const RELOAD_FALLBACK = 'config.txt';
+
 export function createKorePanel({ page, host }) {
   const panel = page.document.createElement('details');
   panel.id = 'kore-engine-panel'; panel.open = true;
@@ -667,36 +828,164 @@ export function createKorePanel({ page, host }) {
   };
   Object.assign(panel.style, {
     position: 'fixed', top: '12px', right: '12px', zIndex: '1006', boxSizing: 'border-box',
-    width: 'min(420px, calc(100vw - 24px))', maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100vh - 24px)',
-    overflow: 'auto', padding: '10px', border: '1px solid #687586', borderRadius: '4px',
-    background: 'rgba(255, 255, 255, 0.96)', color: '#1f2933', boxShadow: '0 2px 10px rgba(0, 0, 0, 0.25)',
+    width: 'min(640px, calc(100vw - 24px))', maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100vh - 24px)',
+    overflow: 'auto', padding: '8px', border: '1px solid #687586', borderRadius: '4px',
+    background: 'rgba(255, 255, 255, 0.97)', color: '#1f2933', boxShadow: '0 2px 10px rgba(0, 0, 0, 0.25)',
     font: '12px/1.4 system-ui, sans-serif',
   });
   setCursor(panel, 'default');
-  const summary = page.document.createElement('summary'); summary.textContent = 'KoreEngine'; panel.append(summary);
+  const element = (tag, parent, props = {}) => {
+    const node = page.document.createElement(tag);
+    Object.assign(node, props);
+    parent.append(node);
+    return node;
+  };
+  const summary = element('summary', panel, { textContent: 'KoreEngine debug' });
   setCursor(summary, 'pointer');
-  const clearButton = page.document.createElement('button'); clearButton.type = 'button'; clearButton.textContent = 'Clear console';
-  clearButton.addEventListener('click', () => host.clearConsole()); panel.append(clearButton); setCursor(clearButton, 'pointer');
-  const commandInput = page.document.createElement('input'); commandInput.type = 'text'; commandInput.setAttribute('aria-label', 'KoreEngine command');
-  const commandButton = page.document.createElement('button'); commandButton.type = 'button'; commandButton.textContent = 'Send command';
-  commandButton.addEventListener('click', () => host.debugCommand?.(commandInput.value)); setCursor(commandInput, 'text'); setCursor(commandButton, 'pointer');
-  panel.append(commandInput, commandButton);
-  const infoNode = page.document.createElement('textarea'); infoNode.readOnly = true; infoNode.rows = 8; infoNode.setAttribute('aria-label', 'KoreEngine status'); panel.append(infoNode); setCursor(infoNode, 'text');
-  const consoleNode = page.document.createElement('textarea'); consoleNode.readOnly = true; consoleNode.rows = 10; consoleNode.setAttribute('aria-label', 'KoreEngine console'); panel.append(consoleNode); setCursor(consoleNode, 'text');
-  return { panel, infoNode, consoleNode, clearButton, commandInput, commandButton, update(current) {
-    infoNode.value = JSON.stringify({ status: current.status, streamStatus: current.streamStatus, worldReady: current.worldReady, mapResourceState: current.mapResourceState, runtimeStatus: current.runtimeStatus, lastDiagnostic: current.lastDiagnostic }, null, 2);
-    consoleNode.value = current.logs.map(entry => `[${entry.level}] ${entry.text}`).join('\n');
-  } };
+  const headline = element('div', panel); headline.style.font = '12px/1.4 monospace'; headline.style.fontWeight = 'bold';
+  const note = element('div', panel); note.style.font = '12px/1.4 monospace'; note.style.color = '#8a4b00';
+  let lastState = null;
+  const button = (parent, label, onClick) => {
+    const node = element('button', parent, { type: 'button', textContent: label });
+    node.addEventListener('click', onClick); setCursor(node, 'pointer'); return node;
+  };
+  const run = text => {
+    const command = String(text ?? '').trim();
+    const reload = /^reload(?:\s+(\S+))?$/i.exec(command);
+    // reload 需要 Host 附带 IndexedDB 配置文档和身份，不能只发裸文本。
+    const sent = reload && host.reloadConfig ? host.reloadConfig(reload[1] ?? RELOAD_FALLBACK) : host.debugCommand?.(command);
+    note.textContent = sent ? `sent: ${command}` : `NOT sent: ${command || '(empty)'} - see console`;
+  };
+
+  const tabs = element('div', panel);
+  const statusPane = element('div', panel);
+  const editorPane = element('div', panel);
+  const showTab = name => {
+    statusPane.style.display = name === 'status' ? 'block' : 'none';
+    editorPane.style.display = name === 'editor' ? 'block' : 'none';
+    if (name === 'editor' && !loaded) void loadFile();
+  };
+  const statusTab = button(tabs, 'Status', () => showTab('status'));
+  const editorTab = button(tabs, 'Editor', () => showTab('editor'));
+
+  // ---- Status tab
+  for (const command of QUICK_COMMANDS) button(statusPane, command, () => run(command));
+  button(statusPane, 'map retry', () => { note.textContent = host.debugMapRetry?.() ? 'map retry requested' : 'map retry NOT sent: no game session or map connection'; });
+  const clearButton = button(statusPane, 'Clear console', () => host.clearConsole());
+  button(statusPane, 'Copy snapshot', () => {
+    const text = toJson(lastState, 2);
+    const clipboard = (page.navigator ?? globalThis.navigator)?.clipboard;
+    if (!clipboard?.writeText) { note.textContent = 'clipboard unavailable'; return; }
+    clipboard.writeText(text).then(() => { note.textContent = `snapshot copied (${text.length} chars)`; }, error => { note.textContent = `copy failed: ${String(error?.message ?? error)}`; });
+  });
+  const commandInput = element('input', statusPane, { type: 'text' }); commandInput.setAttribute('aria-label', 'KoreEngine command');
+  commandInput.setAttribute('placeholder', 'ai auto | ai off | reload all | exp'); commandInput.style.width = 'min(320px, 100%)';
+  commandInput.addEventListener('keydown', event => { if (event.key === 'Enter') run(commandInput.value); });
+  const commandButton = button(statusPane, 'Send command', () => run(commandInput.value)); setCursor(commandInput, 'text');
+  const section = (parent, title, label, rowCount) => {
+    const heading = element('div', parent, { textContent: title }); heading.style.fontWeight = 'bold'; heading.style.marginTop = '6px';
+    const node = element('textarea', parent, { readOnly: true, rows: rowCount }); node.setAttribute('aria-label', label); node.setAttribute('wrap', 'off');
+    Object.assign(node.style, { display: 'block', width: '100%', boxSizing: 'border-box', font: '11px/1.35 monospace' });
+    setCursor(node, 'text'); return node;
+  };
+  const infoNode = section(statusPane, 'Host / Rust runtime', 'KoreEngine status', 15);
+  const worldNode = section(statusPane, 'Rust-owned world status', 'KoreEngine world status', 4);
+  const decisionNode = section(statusPane, 'AI decision (last Rust diagnostic + history)', 'KoreEngine decision', 12);
+  const commandResultNode = section(statusPane, 'Last command result', 'KoreEngine command result', 4);
+  const actionsNode = section(statusPane, 'Native actions (newest last)', 'KoreEngine actions', 8);
+  const consoleNode = section(statusPane, 'Console', 'KoreEngine console', 10);
+
+  // ---- Editor tab：编辑保存在 IndexedDB 里的 control 文件，并通过 Host 的 reload 路径交给 Rust。
+  const identity = () => lastState?.configIdentity ? { profile: lastState.profile, ...lastState.configIdentity } : null;
+  const editorNote = element('div', editorPane); editorNote.style.font = '12px/1.4 monospace'; editorNote.style.color = '#8a4b00';
+  const fileSelect = element('select', editorPane); fileSelect.setAttribute('aria-label', 'KoreEngine control file');
+  for (const fileName of M4_CONFIG_FILES) element('option', fileSelect, { value: fileName, textContent: fileName });
+  fileSelect.value = [...M4_CONFIG_FILES][0];
+  setCursor(fileSelect, 'pointer');
+  const editor = element('textarea', editorPane, { rows: 22 }); editor.setAttribute('aria-label', 'KoreEngine control file editor'); editor.setAttribute('wrap', 'off');
+  editor.setAttribute('spellcheck', 'false');
+  Object.assign(editor.style, { display: 'block', width: '100%', boxSizing: 'border-box', font: '11px/1.35 monospace', marginTop: '4px' });
+  setCursor(editor, 'text');
+  let loaded = null;
+  const dirty = () => loaded !== null && editor.value !== loaded.text;
+  const say = text => { editorNote.textContent = text; };
+  const describe = document => `${document.fileName} revision=${document.revision} lines=${document.rawText.split('\n').length}`;
+  async function loadFile() {
+    const owner = identity();
+    if (!owner) { say('No verified aid/cid yet: enter the game first, then click Load.'); return; }
+    const fileName = fileSelect.value;
+    try {
+      const document = (await host.getConfigDocuments(owner)).find(item => item.fileName === fileName);
+      if (!document) { say(`${fileName} is not in storage`); return; }
+      editor.value = document.rawText; loaded = { fileName, text: document.rawText, revision: document.revision };
+      say(`Loaded ${describe(document)}`);
+    } catch (error) { say(`Load failed: ${String(error?.message ?? error)}`); }
+  }
+  async function saveFile() {
+    const owner = identity();
+    if (!owner) { say('No verified aid/cid yet: cannot save.'); return null; }
+    try {
+      const saved = await host.saveConfigDocument({ ...owner, fileName: fileSelect.value, rawText: editor.value });
+      loaded = { fileName: saved.fileName, text: saved.rawText, revision: saved.revision };
+      say(`Saved ${describe(saved)}. Reload it to apply.`);
+      return saved;
+    } catch (error) { say(`Save failed: ${String(error?.message ?? error)}`); return null; }
+  }
+  fileSelect.addEventListener('change', () => {
+    if (dirty()) { fileSelect.value = loaded.fileName; say(`${loaded.fileName} has unsaved changes: Save or Load it before switching.`); return; }
+    void loadFile();
+  });
+  const editorButtons = element('div', editorPane);
+  button(editorButtons, 'Load', () => void loadFile());
+  button(editorButtons, 'Save', () => void saveFile());
+  button(editorButtons, 'Reset to default', () => {
+    const text = host.getConfigDefault?.(fileSelect.value);
+    if (typeof text !== 'string') { say(`No packaged default for ${fileSelect.value}`); return; }
+    editor.value = text; say(`Packaged default of ${fileSelect.value} placed in the editor (not saved).`);
+  });
+  const reloadButtons = element('div', editorPane);
+  reloadButtons.style.marginTop = '4px';
+  button(reloadButtons, 'Save + ai off + reload this file', async () => {
+    if (!await saveFile()) return;
+    // Rust 只在 AI off 时接受 reload；reload 成功后它会按配置重新自动启动。
+    run('ai off'); run(`reload ${fileSelect.value}`);
+  });
+  button(reloadButtons, 'reload this file', () => run(`reload ${fileSelect.value}`));
+  button(reloadButtons, 'reload config', () => run('reload config'));
+  button(reloadButtons, 'reload all', () => run('reload all'));
+  const reloadResultNode = section(editorPane, 'Last command result (reload needs ai off; unchanged revisions are rejected as stale)', 'KoreEngine reload result', 6);
+  showTab('status');
+
+  const setText = (node, text) => {
+    if (node.value === text) return;
+    const follow = node.scrollHeight === undefined || node.scrollTop + node.clientHeight >= node.scrollHeight - 4;
+    node.value = text;
+    if (follow && node.scrollHeight !== undefined) node.scrollTop = node.scrollHeight;
+  };
+  return { panel, infoNode, worldNode, decisionNode, commandResultNode, actionsNode, consoleNode, clearButton, commandInput, commandButton,
+    editor, fileSelect, editorNote, reloadResultNode, editorTab, statusTab, update(current) {
+      lastState = current;
+      const sections = formatKoreSections(current);
+      headline.textContent = sections.headline;
+      setText(infoNode, sections.host); setText(worldNode, sections.world); setText(decisionNode, sections.decision);
+      setText(commandResultNode, sections.command); setText(reloadResultNode, sections.command); setText(actionsNode, sections.actions); setText(consoleNode, sections.console);
+    } };
 }
 
 export function startOptionalKore(options) {
   try {
     const page = globalThis;
     let panelView = null;
-    const host = createKoreIntegration({ ...options, page, manifest: page.LastROExecutableManifest, onChange(current) {
+    let renderTimer = null;
+    const render = current => {
+      renderTimer = null;
       if (!page.document?.body) return;
       if (!panelView) { panelView = createKorePanel({ page, host }); page.document.body.append(panelView.panel); }
       panelView.update(current);
+    };
+    // 每个收包/输出都会触发 onChange，合并渲染避免 debug panel 拖慢客户端。
+    const host = createKoreIntegration({ ...options, page, manifest: page.LastROExecutableManifest, onChange(current) {
+      if (renderTimer === null) renderTimer = page.setTimeout(() => render(current), 200);
     } });
     page.KoreEngine = host; void host.start(); return host;
   } catch (error) { globalThis.console?.error('[KoreEngine] optional host failed', error); return null; }

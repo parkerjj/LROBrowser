@@ -14,9 +14,11 @@ export interface KorePage {
   document?: EventTarget & { hidden: boolean }; performance?: { now(): number };
   crypto?: Pick<Crypto, 'randomUUID'>; setInterval?: typeof globalThis.setInterval;
   clearInterval?: typeof globalThis.clearInterval;
+  KoreEngineDisconnect?: (reason: string) => unknown;
 }
 export interface KoreWorker extends EventTarget { postMessage(message: unknown, transfer?: Transferable[]): void; terminate(): void }
 export interface KoreLog { level: string; text: string; timestamp: number }
+export interface KoreActionRecord { timestamp: number; requestId: number | null; routeId: number | null; type: string; detail: string; accepted: boolean; reason: string | null }
 export interface KoreState {
   status: 'absent' | 'loading' | 'runtime-ready' | 'failed' | 'unavailable' | 'disposed';
   packageId: string | null; mode: 'debug' | 'release' | null; runtimeGeneration: number;
@@ -26,6 +28,10 @@ export interface KoreState {
   receivedBytes: number; sentBytes: number; degradedReason: string | null; logs: KoreLog[];
   runtimeStatus: unknown; lastDiagnostic: unknown; lastCommandResult: unknown;
   configIdentity: { aid: number; cid: number } | null;
+  /** Display-only copies for the debug panel; the Host never decides gameplay from them. */
+  lastWorldState: Record<string, unknown> | null; lastWorldStateAt: number | null;
+  heartbeat: { at: number; nextDeadlineMs: number | null; queueDepth: unknown } | null;
+  actions: KoreActionRecord[]; diagnosticLog: { timestamp: number; text: string }[];
 }
 export interface KoreOptions {
   page?: KorePage; manifest: ExecutableManifest;
@@ -41,14 +47,19 @@ export interface KoreIntegration {
   mirrorSentBytes(bytes: number, gameSessionId?: string | null): boolean;
   endGameSession(): boolean; clearConsole(): void; debugMapRetry(): boolean;
   saveConfigDocument(document: unknown): Promise<unknown>; getConfigDocuments(identity: unknown): Promise<unknown[]>;
+  getConfigDefault(fileName: string): string | null;
   reloadConfig(target?: string): boolean; debugCommand(command: string): boolean; sendCommand(command: string): boolean;
 }
 export interface KoreNativePacketSocket { connected?: boolean; isZone?: boolean; handoffPending?: boolean; readyState?: number }
 export interface KoreNativePacketPage extends Partial<KorePage> { console?: Console; KoreEngine?: { state?: { sentBytes?: number } } }
 export interface KoreNativePacketSendOptions { page?: KoreNativePacketPage; sendPacket?: (packet: unknown) => unknown; socket?: KoreNativePacketSocket | null; refusalReason?: string | null }
-export interface KorePanelView { panel: HTMLElement; infoNode: HTMLTextAreaElement; consoleNode: HTMLTextAreaElement; clearButton: HTMLButtonElement; commandInput: HTMLInputElement; commandButton: HTMLButtonElement; update(state: KoreState): void }
+export interface KorePanelSections { headline: string; host: string; world: string; decision: string; command: string; actions: string; console: string }
+export interface KorePanelView { panel: HTMLElement; infoNode: HTMLTextAreaElement; worldNode: HTMLTextAreaElement; decisionNode: HTMLTextAreaElement; commandResultNode: HTMLTextAreaElement; actionsNode: HTMLTextAreaElement; consoleNode: HTMLTextAreaElement; editor: HTMLTextAreaElement; fileSelect: HTMLSelectElement; editorNote: HTMLElement; reloadResultNode: HTMLTextAreaElement; statusTab: HTMLButtonElement; editorTab: HTMLButtonElement; clearButton: HTMLButtonElement; commandInput: HTMLInputElement; commandButton: HTMLButtonElement; update(state: KoreState): void }
 export const KORE_PROTOCOL_PROFILE: 'lastro-20211103';
-export function createKorePanel(options: { page: { document: Document }; host: Pick<KoreIntegration, 'clearConsole' | 'debugCommand'> }): KorePanelView;
+export function createKorePanel(options: { page: { document: Document; navigator?: Navigator }; host: Pick<KoreIntegration, 'clearConsole' | 'debugCommand'> & Partial<Pick<KoreIntegration, 'reloadConfig' | 'debugMapRetry' | 'getConfigDocuments' | 'saveConfigDocument' | 'getConfigDefault'>> }): KorePanelView;
+export function formatKoreSections(state: KoreState): KorePanelSections;
+export function formatKoreCommandResult(result: unknown): string;
+export function formatKoreDiagnosticLine(diagnostic: unknown): string;
 export function sha256(bytes: BufferSource): Promise<string>;
 export function safePackagePath(value: string): string;
 export function packageKind(file: string): string;

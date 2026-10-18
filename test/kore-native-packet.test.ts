@@ -83,6 +83,58 @@ test('patched MoveTo sender uses the packet logger and preserves the native netw
   }));
 });
 
+test('self-cast skills target the map actor id (AID), not the character-server CID', async () => {
+  const runtime = await readFile('generated/runtime/Online.js', 'utf8');
+  const actionAssignment = extractRuntimeNode(runtime, { kind: 'assignment', name: 'globalThis.KoreEngineNativeAction' });
+  const packetHelper = extractRuntimeNode(runtime, { kind: 'function', name: 'sendKoreEnginePacket' });
+  class FakeUseSkill { SKID = 0; selectedLevel = 0; targetID = -1; build() { return new Uint8Array(10); } }
+  const sent: FakeUseSkill[] = [];
+  const createSender = new Function('globalThis', 'sendKoreNativePacket', 'Network',
+    'PacketVerManager_default', 'PACKET', 'SessionStorage_default', '_socket',
+    'lastroVendingShoppingActive', 'lastroMovementUnavailable',
+    `${packetHelper}\n${actionAssignment}\nreturn globalThis.KoreEngineNativeAction;`);
+  const nativeAction = createSender(runtimePage(), (_action: unknown, packet: FakeUseSkill) => { sent.push(packet); return true; },
+    { sendPacket() {} }, { value: 20211103 }, { CZ: { USE_SKILL2: FakeUseSkill, USE_SKILL: FakeUseSkill } },
+    { AID: 2010367, GID: 194237 }, null, () => false, () => false);
+
+  expect(nativeAction({ type: 'UseSkillSelf', skillId: 28, level: 3 })).toBe(true);
+  expect(nativeAction({ type: 'UseSkillOnTarget', skillId: 20, level: 3, targetGid: 110031484 })).toBe(true);
+  expect(sent.map(packet => [packet.SKID, packet.selectedLevel, packet.targetID])).toEqual([[28, 3, 2010367], [20, 3, 110031484]]);
+});
+
+test('normal attacks request continuous attack mode 7', async () => {
+  const runtime = await readFile('generated/runtime/Online.js', 'utf8');
+  const actionAssignment = extractRuntimeNode(runtime, {
+    kind: 'assignment', name: 'globalThis.KoreEngineNativeAction',
+  });
+  const packetHelper = extractRuntimeNode(runtime, { kind: 'function', name: 'sendKoreEnginePacket' });
+  class FakeAttack {
+    targetGID = 0;
+    action = -1;
+    build() { return new Uint8Array(7); }
+  }
+  const sent: FakeAttack[] = [];
+  const createSender = new Function('globalThis', 'sendKoreNativePacket', 'Network',
+    'PacketVerManager_default', 'PACKET', 'SessionStorage_default', '_socket',
+    'lastroVendingShoppingActive', 'lastroMovementUnavailable',
+    `${packetHelper}\n${actionAssignment}\nreturn globalThis.KoreEngineNativeAction;`);
+  const nativeAction = createSender(
+    runtimePage(),
+    (_action: unknown, packet: FakeAttack) => { sent.push(packet); return true; },
+    { sendPacket() {} },
+    { value: 20211103 },
+    { CZ: { REQUEST_ACT2: FakeAttack, REQUEST_ACT: FakeAttack } },
+    {},
+    null,
+    () => false,
+    () => false,
+  );
+
+  expect(nativeAction({ type: 'Attack', targetGid: 110031484 })).toBe(true);
+  expect(sent).toHaveLength(1);
+  expect(sent.at(0)).toMatchObject({ targetGID: 110031484, action: 7 });
+});
+
 test('native KE packet log reports a protection refusal before packet encoding', () => {
   const page = runtimePage();
   const packet = new PACKET_CZ_REQUEST_MOVE2();
