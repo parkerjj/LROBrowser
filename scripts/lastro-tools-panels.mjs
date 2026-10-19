@@ -812,11 +812,15 @@ export function installLastroToolsPanels(tools, deps, css, presetRoutes = {}) {
     });
     const shellHost = panelRoot.querySelector('.kore-shell-host');
     if (!koreShell && shellHost && deps.createKoreShell) {
-      koreShell = deps.createKoreShell({
-        container: shellHost,
-        getHost: deps.getKoreHost ?? (() => win.KoreEngine ?? globalThis.KoreEngine),
-        onModeChange: mode => applyShellMode(mode, { syncShell: false }),
-      });
+      try {
+        koreShell = deps.createKoreShell({
+          container: shellHost,
+          getHost: deps.getKoreHost ?? (() => win.KoreEngine ?? globalThis.KoreEngine),
+          onModeChange: mode => applyShellMode(mode, { syncShell: false }),
+        });
+      } catch (error) {
+        win.console?.error('[KoreEngine] panel shell failed', error);
+      }
     }
     applyShellMode(koreShell?.mode ?? shellMode, { syncShell: false });
   }
