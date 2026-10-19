@@ -30,8 +30,8 @@ import { patchRuntimeTeleportFeedback } from './lastro-teleport-feedback.mjs';
 import { patchRuntimeEntityAppearance } from './lastro-entity-appearance.mjs';
 import { patchRuntimeEquipmentAppearance, patchRuntimeEquipmentCatalog, patchRuntimeEquipmentView } from './lastro-equipment-view.mjs';
 import { patchRuntimeTeleportFade } from './lastro-teleport-fade.mjs';
-import { installLastroToolsPanels } from './lastro-tools-panels.mjs';
-import { LASTRO_TOOLS_CSS } from './lastro-tools-style.mjs';
+import { installKoreShellPanels, installLastroToolsPanels } from './lastro-tools-panels.mjs';
+import { KORE_SHELL_CSS, LASTRO_TOOLS_CSS } from './lastro-tools-style.mjs';
 import { captureLastroShortcutEntry, installLastroShortcutEntry } from './lastro-shortcut-entry.mjs';
 import { installLastroShortcutSettings } from './lastro-shortcut-settings.mjs';
 import { installLastroTeleportSettings } from './lastro-teleport-settings.mjs';
@@ -947,6 +947,11 @@ export function patchRuntimeToolsPanels(source) {
     getEnabled: getLastroShortcutEntryEnabled,
     normalizeRoute: normalizeRouteEntry,
     requestRoute: route => LastROTools._lastroPanels.requestCustomRoute(route),
+  });
+  (${installKoreShellPanels.toString()})(LastROTools, {
+    document: globalThis.document, window: globalThis, setHtml: setLastROInnerHTML,
+    createKoreShell, getKoreHost: () => globalThis.KoreEngine,
+    shellCss: ${JSON.stringify(KORE_SHELL_CSS)},
   });\n  `;
   const edits = [
     { start: anchor.getStart(file), text: 'init_Preferences$1();\n  ' + install },

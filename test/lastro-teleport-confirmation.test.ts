@@ -94,7 +94,7 @@ class Panel {
 interface ToolsApi { teleport: Panel; showTeleport(): void; select(category: string): void; requestCustomRoute(route: Route): void; deactivate(): void; }
 // Only this small helper is evaluated; no bundle transformation or native AST parse.
 const installTools = runInNewContext(readFileSync('scripts/lastro-tools-panels.mjs', 'utf8')
-  .replace('export function ', 'function ') + '\ninstallLastroToolsPanels;') as
+  .replaceAll('export function ', 'function ') + '\ninstallLastroToolsPanels;') as
   (tools: Panel, deps: Record<string, unknown>, css: string) => ToolsApi;
 function tools(policy?: Policy, approved = true) {
   const popup = prompts(), saved = vi.fn();

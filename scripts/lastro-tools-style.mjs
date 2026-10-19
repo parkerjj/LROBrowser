@@ -56,12 +56,27 @@ button:focus-visible,input:focus-visible,select:focus-visible { outline:2px soli
 .lastro-custom-map-row { display:flex; flex-wrap:wrap; align-items:center; gap:4.5px; }.lastro-custom-map-row .lastro-line { flex:1; min-width:120px; }.lastro-custom-map-row .lastro-button { flex:none; }
 @media(max-width:480px) { :host{font-size:13px}.lastro-settings-view,.lastro-teleport-body{padding:6px;font-size:9.75px}.lastro-slot-grid{grid-template-columns:1fr}.lastro-tab{font-size:9px;line-height:14.625px}.lastro-route-tabs .lastro-tab{font-size:8.25px;line-height:14.625px}.lastro-route-row{gap:3.75px}.lastro-route-name{font-size:10.5px} }
 @container lastro-panel (max-width:450px) { .lastro-slot-grid{grid-template-columns:1fr}.lastro-route-actions{max-width:82.5px}.lastro-custom-coordinates{gap:6px}.lastro-custom-coordinates .lastro-line{grid-template-columns:minmax(0,33.75px) minmax(0,1fr)} }
+`;
+
+// M7 shell styles are injected by installKoreShellPanels for both the native
+// shortcut entry and the classic LastRO panel, so the Switch survives the
+// shortcut-entry mode wrapper.
+export const KORE_SHELL_CSS = `
+:host { width:520px; max-width:calc(100vw - 16px); box-sizing:border-box; }
+.lastro-ro-titlebar { position:relative; height:20px; flex:0 0 20px; box-sizing:border-box; background-repeat:repeat-x; background-size:auto 20px; color:#202536; border-bottom:1px solid #a0acc3; border-radius:3px 3px 0 0; cursor:move; }
+.lastro-title-left,.lastro-title-right { position:absolute; top:0; width:12px; height:20px; background-size:100% 100%; pointer-events:none; }
+.lastro-title-left { left:0; }.lastro-title-right { right:0; }
+.lastro-window-close { position:absolute; right:5px; top:4px; width:11px; height:11px; padding:0; border:0; background-color:transparent; background-repeat:no-repeat; cursor:pointer; }
+.lastro-window-minimize { position:absolute; right:20px; top:4px; width:11px; height:11px; padding:0; border:0; background-color:transparent; background-repeat:no-repeat; cursor:pointer; }
+.lastro-window-settings { position:absolute; right:36px; top:1px; width:16px; height:16px; padding:0; border:0; background:transparent; color:#202536; font:12px/16px Arial,sans-serif; cursor:pointer; }
+.lastro-tools[data-mode="kore"] > :not(.lastro-ro-titlebar):not(.kore-shell-host):not(.lastro-panel-footer):not(.lastro-compact-status):not(style) { display:none !important; }
+.lastro-tools.kore-shell-native[data-mode="lastro"] > .lastro-ro-titlebar { margin:-11px -11px 8px; }
 .lastro-mode-switch { position:absolute; left:50%; top:2px; transform:translateX(-50%); display:flex; gap:1px; padding:1px; border:1px solid #8b99b1; border-radius:9px; background:#e9edf4; box-shadow:inset 0 0 0 1px #fff; z-index:1; }
 .lastro-mode-option { height:14px; padding:0 8px; border:0; border-radius:7px; background:transparent; color:#5a6a85; font:500 9.5px/14px Arial,'Microsoft YaHei','MiSans',sans-serif; cursor:pointer; white-space:nowrap; }
 .lastro-mode-option.is-active { background:#527bc2; color:#fff; box-shadow:inset 0 1px 0 #8cace0; }
 .lastro-mode-option:focus-visible { outline:1px solid #7396d0; outline-offset:1px; }
 .lastro-tools { position:relative; }
-.lastro-tools[data-mode="kore"] { border-color:#2a333c; background:#0a0b0d; box-shadow:inset 0 0 0 1px #11161b,1px 2px 8px #0008; color:#d6dbe1; }
+.lastro-tools[data-mode="kore"] { padding:0; border-color:#2a333c; background:#0a0b0d; box-shadow:inset 0 0 0 1px #11161b,1px 2px 8px #0008; color:#d6dbe1; }
 .lastro-tools[data-mode="kore"] .lastro-ro-titlebar { background-image:none; background:#0c1014; border-bottom-color:#232a31; }
 .lastro-tools[data-mode="kore"] .lastro-title-left,.lastro-tools[data-mode="kore"] .lastro-title-right { background-image:none !important; }
 .lastro-tools[data-mode="kore"] .lastro-mode-switch { background:#07090b; border-color:#2a333c; box-shadow:none; }
