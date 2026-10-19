@@ -31,10 +31,9 @@ describe('repeated NPC GUI append does not accumulate MutationObservers', () => 
       .map(name => method(output, 'src/UI/GUIComponent.js', 'GUIComponent', name)).join('\n');
     const active = new Set<CountingObserver>();
     class CountingObserver {
-      private registered = false;
       constructor(_callback: MutationCallback) {}
-      observe() { this.registered = true; active.add(this); }
-      disconnect() { this.registered = false; active.delete(this); }
+      observe() { active.add(this); }
+      disconnect() { active.delete(this); }
     }
     const context = vm.createContext({
       document, window, Event, MutationObserver: CountingObserver, setTimeout, clearTimeout,
@@ -94,7 +93,7 @@ describe('repeated NPC GUI append does not accumulate MutationObservers', () => 
     }
   });
 
-  it('cancels pending observer initialization when a GUI is removed before its timer fires', async () => {
+  it('has a generation guard and cancels pending initialization on removal', () => {
     vi.useFakeTimers();
     const patched = patchRuntimeScrollbarObserverLifecycle(native);
     const gui = extractVendorRegion('src/UI/GUIComponent.js', patched);
