@@ -5,10 +5,13 @@ export const KORE_RENDER_PREFERENCE = 'ke-render-3d';
 const POWER_SAVE_FPS = 5;
 
 export function createRenderToggle({ page = globalThis } = {}) {
-  const renderer = page.__LastRORenderer;
-  const Renderer = renderer?.Renderer;
-  const settings = renderer?.GraphicsSettings;
-  const available = Boolean(Renderer?.canvas && settings);
+  // The renderer is exposed from Renderer.init, which may run after the panel
+  // is constructed; read it lazily instead of caching availability.
+  const current = () => {
+    const value = page.__LastRORenderer;
+    return value?.Renderer?.canvas && value?.GraphicsSettings ? value : null;
+  };
+  const available = () => Boolean(current());
   const listeners = new Set();
   let saved = null;
   let enabled = true;
@@ -27,7 +30,10 @@ export function createRenderToggle({ page = globalThis } = {}) {
 
   function setEnabled(value, { persist = true } = {}) {
     const next = value === true;
-    if (!available) return false;
+    const renderer = current();
+    if (!renderer) return false;
+    const Renderer = renderer.Renderer;
+    const settings = renderer.GraphicsSettings;
     if (next === enabled) {
       if (persist) writePreference(next);
       return true;
@@ -53,7 +59,7 @@ export function createRenderToggle({ page = globalThis } = {}) {
   }
 
   function applyPreference() {
-    if (!available) return false;
+    if (!current()) return false;
     const stored = readPreference();
     if (stored === '0') return setEnabled(false, { persist: false });
     if (stored === '1') return setEnabled(true, { persist: false });
@@ -61,7 +67,7 @@ export function createRenderToggle({ page = globalThis } = {}) {
   }
 
   return {
-    get available() { return available; },
+    get available() { return available(); },
     get enabled() { return enabled; },
     get revision() { return revision; },
     setEnabled,

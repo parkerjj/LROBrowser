@@ -31,6 +31,10 @@ describe('V2 runtime patch', () => {
   it('requires an unambiguous world-map anchor on upstream updates', () => {
     expect(() => patchRuntimeWorldMapProductActions('unrecognized upstream source')).toThrow('anchor:worldmap-product-actions');
   });
+  it('exposes Renderer and GraphicsSettings from Renderer.init for the 3D toggle', async () => {
+    const runtime = await readFile('generated/runtime/Online.js', 'utf8');
+    expect(runtime).toContain('globalThis.__LastRORenderer = { Renderer: this, GraphicsSettings };');
+  });
   it('loads message IDs and quoted-comma values from the local CSV', async () => {
     const runtime = await readFile('generated/runtime/Online.js', 'utf8');
     const csv = await readFile('vendor/core/data/msgstringtable.csv', 'utf8');

@@ -17,7 +17,7 @@ const blockOf = (result, type) => Array.isArray(result?.blocks) ? result.blocks.
 
 export function createKoreFullscreen({
   page = globalThis, host, poller, consoleModel,
-  history = [], onExit = () => {}, onSwitchLastro = () => {},
+  history = [], onExit = () => {},
 } = {}) {
   const document = page.document;
   const overlay = el(document, 'section', 'kore-fullscreen');
@@ -27,16 +27,10 @@ export function createKoreFullscreen({
   overlay.setAttribute('aria-label', 'KoreEngine 全屏面板');
 
   const titlebar = el(document, 'header', 'kore-fs-titlebar');
-  const modeSwitch = el(document, 'div', 'kore-mode-switch');
-  const lastroSwitch = el(document, 'button', 'kore-mode-option', '生锈的工具箱');
-  const koreSwitch = el(document, 'button', 'kore-mode-option is-active', '科技改变生活');
-  lastroSwitch.type = koreSwitch.type = 'button';
-  lastroSwitch.dataset.shellMode = 'lastro';
-  koreSwitch.dataset.shellMode = 'kore';
-  modeSwitch.append(lastroSwitch, koreSwitch);
+  const title = el(document, 'div', 'kore-fs-title', '科技改变生活');
   const exitButton = el(document, 'button', 'kore-fs-exit', '退出全屏');
   exitButton.type = 'button';
-  titlebar.append(modeSwitch, exitButton);
+  titlebar.append(title, exitButton);
 
   const body = el(document, 'div', 'kore-fs-body');
   const left = el(document, 'div', 'kore-fs-left');
@@ -315,8 +309,6 @@ export function createKoreFullscreen({
   }
 
   exitButton.addEventListener('click', close);
-  lastroSwitch.addEventListener('click', () => { destroy(); onSwitchLastro(); });
-  koreSwitch.addEventListener('click', () => {});
   const keydown = event => {
     if (event.key !== 'Escape') return;
     event.preventDefault();

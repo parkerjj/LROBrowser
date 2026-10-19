@@ -69,14 +69,12 @@ export function createKoreShell({
     poller.start();
     host.onStateChange?.(state => {
       if (!preferenceApplied && state.worldReady === true) {
-        preferenceApplied = true;
-        renderToggle.applyPreference();
+        preferenceApplied = renderToggle.applyPreference();
       }
       applyVisibility();
     });
     if (host.state?.worldReady === true) {
-      preferenceApplied = true;
-      renderToggle.applyPreference();
+      preferenceApplied = renderToggle.applyPreference();
     }
     applyVisibility();
     if (forceDebug) openDebug();
@@ -117,10 +115,6 @@ export function createKoreShell({
     fullscreen = createKoreFullscreen({
       page, host, poller, consoleModel, history,
       onExit: finishFullscreen,
-      onSwitchLastro: () => {
-        finishFullscreen();
-        setMode('lastro');
-      },
     });
   }
 

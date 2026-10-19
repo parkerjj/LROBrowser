@@ -89,6 +89,9 @@ export const KORE_SHELL_CSS = `
 @keyframes kore-switch-pulse { 0%{box-shadow:0 0 0 0 rgba(232,184,75,.55)} 55%{box-shadow:0 0 0 3px rgba(111,179,201,.3)} 100%{box-shadow:none} }
 .kore-shell-host { flex:1 1 auto; height:320px; min-height:0; overflow:hidden; box-sizing:border-box; }
 .kore-window { display:flex; flex-direction:column; height:320px; min-height:0; box-sizing:border-box; padding:8px 10px; background:#0a0b0d; color:#d6dbe1; font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+.kore-window, .kore-window * { cursor:default !important; }
+.kore-window button, .kore-window select { cursor:pointer !important; }
+.kore-window input { cursor:text !important; }
 .kore-summary { display:flex; flex-direction:column; gap:5px; flex:none; }
 .kore-identity-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
 .kore-identity { display:flex; align-items:baseline; gap:8px; min-width:0; }

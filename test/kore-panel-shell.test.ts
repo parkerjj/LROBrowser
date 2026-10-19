@@ -105,20 +105,17 @@ test('fullscreen is an independent overlay and restores 3D on exit', () => {
   shell.dispose();
 });
 
-test('Alt+Shift+K toggles fullscreen and the fullscreen switch exits to LastRO', () => {
+test('Alt+Shift+K toggles the independent fullscreen panel', () => {
   const { shell } = mount();
   shell.setVisible(true);
   shell.setMode('kore');
   const key = () => window.document.dispatchEvent(new KeyboardEvent('keydown', { key: 'K', altKey: true, shiftKey: true }));
   key();
   expect(window.document.querySelector('.kore-fullscreen')).toBeTruthy();
+  expect(window.document.querySelector('.kore-fullscreen .kore-mode-switch')).toBeNull();
+  expect(window.document.querySelector('.kore-fullscreen .kore-fs-title')?.textContent).toBe('科技改变生活');
   key();
   expect(window.document.querySelector('.kore-fullscreen')).toBeNull();
-
-  shell.openFullscreen();
-  window.document.querySelector<HTMLButtonElement>('.kore-fullscreen [data-shell-mode="lastro"]')?.click();
-  expect(window.document.querySelector('.kore-fullscreen')).toBeNull();
-  expect(shell.mode).toBe('lastro');
   shell.dispose();
 });
 

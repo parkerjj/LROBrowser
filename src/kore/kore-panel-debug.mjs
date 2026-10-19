@@ -121,7 +121,10 @@ export function createKoreDebugView({ page = globalThis, host } = {}) {
   }));
 
   let current = 'state';
-  const identity = () => host?.state?.configIdentity ?? null;
+  const identity = () => {
+    const state = host?.state;
+    return state?.configIdentity ? { profile: state.profile, ...state.configIdentity } : null;
+  };
 
   async function loadFile() {
     const owner = identity();

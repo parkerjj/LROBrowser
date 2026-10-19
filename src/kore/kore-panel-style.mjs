@@ -11,6 +11,7 @@ export const KORE_PANEL_CSS = `
 .kore-fullscreen.is-entering::after { content:""; position:absolute; inset:0; pointer-events:none; z-index:5; background:linear-gradient(180deg,transparent 0%,rgba(111,179,201,.18) 50%,transparent 100%); animation:kore-fs-scan 420ms ease-out; }
 @keyframes kore-fs-scan { from{transform:translateY(-100%)} to{transform:translateY(100%)} }
 .kore-fs-titlebar { position:relative; flex:0 0 34px; height:34px; display:flex; align-items:center; justify-content:center; border-bottom:1px solid #232a31; background:#0d1014; }
+.kore-fs-title { color:#d6dbe1; font:500 12px/34px Arial,'Microsoft YaHei','MiSans',sans-serif; letter-spacing:.08em; }
 .kore-fs-exit { position:absolute; right:10px; top:6px; height:22px; padding:0 10px; border:1px solid #3a4650; border-radius:3px; background:#11161b; color:#c5ced6; font:11px/20px ui-monospace,monospace; cursor:pointer; }
 .kore-fs-exit:hover { border-color:#6fb3c9; color:#e8edf2; }
 .kore-mode-switch { display:flex; gap:2px; padding:2px; border:1px solid #2a333c; border-radius:999px; background:#07090b; }
@@ -66,6 +67,19 @@ export const KORE_PANEL_CSS = `
 .kore-debug-actions { display:flex; flex-wrap:wrap; gap:5px; }
 .kore-debug .kore-button { height:22px; padding:0 9px; border:1px solid #2a333c; border-radius:3px; background:#11161b; color:#c5ced6; font:10px/20px ui-monospace,monospace; cursor:pointer; }
 .kore-debug .kore-button:hover { border-color:#6fb3c9; }
+.kore-fullscreen, .kore-debug { cursor:default; }
+.kore-fullscreen button, .kore-debug button, .kore-fullscreen select, .kore-debug select { cursor:pointer; }
+.kore-fullscreen input, .kore-debug input, .kore-fullscreen textarea, .kore-debug textarea { cursor:text; }
+.kore-fullscreen canvas { cursor:crosshair; }
+/* The game hides the native cursor with .custom-cursor *; the overlay must
+   opt back in or the fullscreen/debug pages have no visible pointer. */
+body.custom-cursor .kore-fullscreen, body.custom-cursor .kore-fullscreen *,
+body.custom-cursor .kore-debug, body.custom-cursor .kore-debug * { cursor:default !important; }
+body.custom-cursor .kore-fullscreen button, body.custom-cursor .kore-debug button,
+body.custom-cursor .kore-fullscreen select, body.custom-cursor .kore-debug select { cursor:pointer !important; }
+body.custom-cursor .kore-fullscreen input, body.custom-cursor .kore-debug input,
+body.custom-cursor .kore-fullscreen textarea, body.custom-cursor .kore-debug textarea { cursor:text !important; }
+body.custom-cursor .kore-fullscreen canvas { cursor:crosshair !important; }
 @media (prefers-reduced-motion: reduce) { .kore-fullscreen { transition:none; } .kore-fullscreen.is-entering::after { display:none; } }
 `;
 

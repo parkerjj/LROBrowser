@@ -16,5 +16,4 @@ export function createKoreFullscreen(options?: {
   consoleModel?: Pick<KoreConsoleModel, 'entries' | 'subscribe'>;
   history?: string[];
   onExit?: () => void;
-  onSwitchLastro?: () => void;
 }): KoreFullscreen;

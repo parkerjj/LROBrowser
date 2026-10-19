@@ -1626,11 +1626,6 @@ globalThis.KoreEngineDisconnect = (reason) => {
 		return false;
 	}
 };
-try {
-	if (typeof Renderer !== "undefined" && typeof GraphicsSettings !== "undefined") {
-		globalThis.__LastRORenderer = { Renderer, GraphicsSettings };
-	}
-} catch { /* renderer exposure is optional */ }
 startOptionalKore({
 	createWorker: (value) => {
 		const url = new URL(value);
@@ -1686,6 +1681,14 @@ ${normalizedSource}`;
   if (typeof globalThis.LastRODirectSocketFactory !== "function") throw new Error("Direct TCP factory unavailable");
   return globalThis.LastRODirectSocketFactory(host, port);
 }`);
+  // Renderer.init is the stable point where both Renderer and GraphicsSettings
+  // are in lexical scope; expose only those two references for the 3D toggle.
+  output = replaceOnceAny(output, [
+    ['    static init(param) {\n      if (!this.gl) {',
+      '    static init(param) {\n      try { globalThis.__LastRORenderer = { Renderer: this, GraphicsSettings }; } catch { /* optional */ }\n      if (!this.gl) {'],
+    ['\t\tstatic init(param) {\n\t\t\tif (!this.gl) {',
+      '\t\tstatic init(param) {\n\t\t\ttry { globalThis.__LastRORenderer = { Renderer: this, GraphicsSettings }; } catch { /* optional */ }\n\t\t\tif (!this.gl) {'],
+  ]);
   output = patchLoginRegistrationHook(output);
   output = patchRuntimeEntityAppearance(output);
   output = patchRuntimeEquipmentCatalog(output);
