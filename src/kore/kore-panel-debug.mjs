@@ -80,12 +80,24 @@ export function createKoreDebugView({ page = globalThis, host } = {}) {
   // Tests
   const tests = panes.get('tests');
   const testButtons = el(document, 'div', 'kore-debug-actions');
-  for (const [label, command] of [['map retry', null], ['ai print', 'ai print'], ['exp', 'exp'], ['exp report', 'exp report'], ['help', 'help'], ['清空控制台', null]]) {
+  for (const [label, command] of [['map retry', null], ['ai print', 'ai print'], ['exp', 'exp'], ['exp report', 'exp report'], ['help', 'help'], ['清空控制台', null], ['导出诊断 JSON', null]]) {
     const button = el(document, 'button', 'kore-button', label);
     button.type = 'button';
     button.addEventListener('click', () => {
       if (label === 'map retry') { host?.debugMapRetry?.(); return; }
       if (label === '清空控制台') { host?.clearConsole?.(); return; }
+      if (label === '导出诊断 JSON') {
+        const text = json(host?.state ?? null);
+        const BlobCtor = page.Blob ?? globalThis.Blob;
+        const createObjectURL = page.URL?.createObjectURL ?? globalThis.URL?.createObjectURL;
+        if (!BlobCtor || !createObjectURL) return;
+        const url = createObjectURL(new BlobCtor([text], { type: 'application/json' }));
+        const link = document.createElement('a');
+        link.href = url; link.download = 'kore-state.json';
+        document.body.append(link); link.click(); link.remove();
+        page.setTimeout?.(() => (page.URL?.revokeObjectURL ?? globalThis.URL?.revokeObjectURL)?.(url), 0);
+        return;
+      }
       host?.sendCommandText?.(command);
     });
     testButtons.append(button);
@@ -134,10 +146,10 @@ export function createKoreDebugView({ page = globalThis, host } = {}) {
   loadButton.addEventListener('click', () => void loadFile());
   saveButton.addEventListener('click', () => void saveFile());
   reloadButton.addEventListener('click', async () => {
-    if (await saveFile()) {
-      host.sendCommandText('ai off');
-      host.sendCommandText(`reload ${fileSelect.value}`);
-    }
+    if (!await saveFile()) return;
+    host.sendCommandText('ai off');
+    // reload 需要 Host 附带 IndexedDB 配置文档和身份，不能只发裸文本。
+    if (host.reloadConfig?.(fileSelect.value) !== true) configNote.textContent = 'reload 未发送：需要已验证的 aid/cid';
   });
 
   const unsubscribeOutput = host?.onCommandOutput?.(({ command, result, silent }) => {

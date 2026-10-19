@@ -49,9 +49,10 @@ function pageHarness() {
   return { page, canvas, GraphicsSettings };
 }
 
-function mount() {
+function mount({ search = '' } = {}) {
   const harness = hostHarness();
   const { page, canvas, GraphicsSettings } = pageHarness();
+  page.location = { search };
   const container = window.document.createElement('div');
   container.style.width = '520px';
   container.style.height = '360px';
@@ -119,6 +120,25 @@ test('Alt+Shift+K toggles fullscreen and the fullscreen switch exits to LastRO',
   expect(window.document.querySelector('.kore-fullscreen')).toBeNull();
   expect(shell.mode).toBe('lastro');
   shell.dispose();
+});
+
+test('kore-debug=1 opens the debug page on initialization', () => {
+  const { shell } = mount({ search: '?kore-debug=1' });
+  const debug = window.document.querySelector('.kore-debug');
+  expect(debug).toBeTruthy();
+  expect((debug as HTMLElement).hidden).toBe(false);
+  shell.dispose();
+});
+
+test('disposing the shell while fullscreen restores 3D', () => {
+  const { shell, canvas, GraphicsSettings } = mount();
+  shell.setVisible(true);
+  shell.setMode('kore');
+  shell.openFullscreen();
+  expect(canvas.style.display).toBe('none');
+  shell.dispose();
+  expect(canvas.style.display).toBe('block');
+  expect(GraphicsSettings.fpslimit).toBe(60);
 });
 
 test('a manual 3D change during fullscreen wins over the automatic restore', () => {

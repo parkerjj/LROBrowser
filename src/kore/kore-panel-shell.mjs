@@ -17,6 +17,7 @@ export function createKoreShell({
   onModeChange = () => {}, initialMode = null, history = [],
 } = {}) {
   const document = page.document;
+  const forceDebug = /[?&]kore-debug=1(?:&|$)/.test(String(page.location?.search ?? ''));
   ensureKorePanelStyle(page);
   let host = null;
   let poller = null;
@@ -24,6 +25,8 @@ export function createKoreShell({
   let renderToggle = null;
   let windowView = null;
   let fullscreen = null;
+  let fullscreenPreEnabled = true;
+  let fullscreenAutoRevision = 0;
   let debugView = null;
   let retryTimer = null;
   let preferenceApplied = false;
@@ -76,6 +79,7 @@ export function createKoreShell({
       renderToggle.applyPreference();
     }
     applyVisibility();
+    if (forceDebug) openDebug();
   }
 
   function applyVisibility() {
@@ -89,7 +93,7 @@ export function createKoreShell({
     mode = next;
     writeMode(next);
     container.hidden = next !== 'kore';
-    if (next !== 'kore') debugView?.hide();
+    if (next !== 'kore' && !forceDebug) debugView?.hide();
     applyVisibility();
     onModeChange(next);
   }
@@ -105,27 +109,27 @@ export function createKoreShell({
 
   function openFullscreen() {
     if (!host || fullscreen) return;
-    const preEnabled = renderToggle.enabled;
-    if (renderToggle.available && preEnabled) renderToggle.setEnabled(false, { persist: false });
+    fullscreenPreEnabled = renderToggle.enabled;
+    if (renderToggle.available && fullscreenPreEnabled) renderToggle.setEnabled(false, { persist: false });
     // Remember the revision after the automatic change so a manual toggle
     // made during fullscreen can be detected on exit.
-    const autoRevision = renderToggle.revision;
+    fullscreenAutoRevision = renderToggle.revision;
     fullscreen = createKoreFullscreen({
       page, host, poller, consoleModel, history,
-      onExit: () => finishFullscreen(preEnabled, autoRevision),
+      onExit: finishFullscreen,
       onSwitchLastro: () => {
-        finishFullscreen(preEnabled, autoRevision);
+        finishFullscreen();
         setMode('lastro');
       },
     });
   }
 
-  function finishFullscreen(preEnabled, preRevision) {
+  function finishFullscreen() {
     if (!fullscreen) return;
     fullscreen = null;
     // A manual 3D change made during fullscreen wins over the automatic restore.
-    if (renderToggle.available && renderToggle.revision === preRevision) {
-      renderToggle.setEnabled(preEnabled, { persist: false });
+    if (renderToggle.available && renderToggle.revision === fullscreenAutoRevision) {
+      renderToggle.setEnabled(fullscreenPreEnabled, { persist: false });
     }
     applyVisibility();
   }
@@ -163,8 +167,14 @@ export function createKoreShell({
     dispose() {
       document.removeEventListener?.('keydown', shortcut);
       if (retryTimer !== null) { page.clearTimeout?.(retryTimer); retryTimer = null; }
-      fullscreen?.close();
-      fullscreen = null;
+      if (fullscreen) {
+        fullscreen.close();
+        fullscreen = null;
+        // close() may animate; restore 3D now instead of relying on onExit.
+        if (renderToggle?.available && renderToggle.revision === fullscreenAutoRevision) {
+          renderToggle.setEnabled(fullscreenPreEnabled, { persist: false });
+        }
+      }
       poller?.dispose();
       consoleModel?.dispose();
       debugView?.destroy();

@@ -8,5 +8,5 @@ export interface KoreDebugView {
 }
 export function createKoreDebugView(options?: {
   page?: { document: Document };
-  host?: Pick<KoreIntegration, 'state' | 'sendCommandText' | 'onCommandOutput' | 'onStateChange' | 'clearConsole' | 'debugMapRetry' | 'getConfigDocuments' | 'saveConfigDocument'>;
+  host?: Pick<KoreIntegration, 'state' | 'sendCommandText' | 'onCommandOutput' | 'onStateChange' | 'clearConsole' | 'debugMapRetry' | 'getConfigDocuments' | 'saveConfigDocument' | 'reloadConfig'>;
 }): KoreDebugView;
