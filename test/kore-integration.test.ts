@@ -315,6 +315,42 @@ test('host reports commands that cannot be sent and echoes accepted ones with th
   expect(formatKoreSections(host.state).command).toBe('ERROR ai-world-not-ready: World is not ready');
 });
 
+test('sendCommandText correlates silent outputs without writing the console', async () => {
+  const { host, worker } = await readyHost();
+  const runtimeSessionId = worker.messages[0]!.runtimeSessionId;
+  host.beginGameSession(77, 'prontera.gat');
+  const outputs: Array<{ command: string; result: unknown; silent: boolean }> = [];
+  const unsubscribe = host.onCommandOutput(output => outputs.push(output));
+  expect(host.sendCommandText('s', { silent: true })).toBe(true);
+  const record = bridgeRecord(worker.messages.filter(message => message.type === 'queue').at(-1)!);
+  expect(record.kind).toBe('command');
+  expect(record.command).toBe('s');
+  expect(typeof record.bridgeSequence).toBe('number');
+  expect(host.state.logs.some(entry => entry.text === '> s')).toBe(false);
+
+  worker.reply({ runtimeSessionId, type: 'outputs', outputs: [{
+    kind: 'commandResult', bridgeSequence: record.bridgeSequence,
+    result: { kind: 'output', command: 's', ok: true, blocks: [{ type: 'text', domain: 'info', level: 'message', text: 'ok' }] },
+  }] });
+  expect(outputs).toHaveLength(1);
+  expect(outputs[0]).toMatchObject({ command: 's', silent: true });
+  expect(host.state.logs.some(entry => entry.text.includes('< '))).toBe(false);
+  expect(host.state.lastCommandResult).toBeNull();
+  unsubscribe();
+});
+
+test('host forwards Rust domain logs from both output and legacy log events', async () => {
+  const { host, worker } = await readyHost();
+  const runtimeSessionId = worker.messages[0]!.runtimeSessionId;
+  worker.reply({ runtimeSessionId, type: 'outputs', outputs: [
+    { kind: 'log', level: 'message', domain: 'attackMon', text: '攻击目标 1002', timestamp: 5 },
+  ] });
+  expect(host.state.logs.at(-1)).toMatchObject({ level: 'message', domain: 'attackMon', text: '攻击目标 1002' });
+
+  worker.reply({ runtimeSessionId, type: 'log', level: 'warning', domain: 'route', text: '路线 1 failed' });
+  expect(host.state.logs.at(-1)).toMatchObject({ level: 'warning', domain: 'route', text: '路线 1 failed' });
+});
+
 test('host keeps Rust status and decision history apart from the heartbeat', async () => {
   const { host, worker } = await readyHost();
   const runtimeSessionId = worker.messages[0]!.runtimeSessionId;

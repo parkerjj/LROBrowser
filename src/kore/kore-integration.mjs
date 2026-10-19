@@ -280,12 +280,39 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   });
   const configStore = createKoreConfigStore({ page, indexedDBFactory: page.indexedDB });
   const changed = () => { try { onChange(state); } catch { /* UI must not affect transport. */ } };
-  const log = (level, text) => {
-    const entry = { level, text: String(text).slice(0, 1024), timestamp: Date.now() };
+  const log = (level, text, domain = 'system') => {
+    const entry = { level, domain, text: String(text).slice(0, 1024), timestamp: Date.now() };
     state.logs.push(entry);
     if (state.logs.length > 200) state.logs.splice(0, state.logs.length - 200);
     koreConsoleLog(page, '[KoreEngine] log', entry);
     changed();
+  };
+  const commandOutputSubscribers = new Set();
+  const pendingCommands = new Map();
+  const MAX_PENDING_COMMANDS = 64;
+  const notifyCommandOutput = entry => {
+    for (const listener of commandOutputSubscribers) {
+      try { listener({ command: entry.command, result: entry.result, silent: entry.silent }); } catch { /* UI must not affect transport. */ }
+    }
+  };
+  const settleCommandResult = (result, { requestId = null, bridgeSequence = null } = {}) => {
+    let key = bridgeSequence != null ? `bridge:${bridgeSequence}` : requestId != null ? `request:${requestId}` : null;
+    let entry = key ? pendingCommands.get(key) : null;
+    if (!entry && key === null && pendingCommands.size > 0) {
+      // Legacy Worker commandResult messages do not always carry a usable
+      // correlation id; settle the oldest pending command as a compat fallback.
+      const first = pendingCommands.entries().next().value;
+      if (first) [key, entry] = first;
+    }
+    if (entry) pendingCommands.delete(key);
+    const silent = entry?.silent === true;
+    if (entry) notifyCommandOutput({ ...entry, result });
+    if (!silent) {
+      state.lastCommandResult = result;
+      log(result?.kind === 'error' || result?.accepted === false ? 'warn' : 'info', `< ${formatKoreCommandResult(result)}`);
+    }
+    changed();
+    return entry !== undefined;
   };
   const failWorker = reason => {
     if (state.status === 'disposed' || state.status === 'failed') return;
@@ -293,6 +320,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     state.worldReady = false;
     state.streamStatus = 'degraded';
     state.degradedReason = String(reason || 'worker-transport-failed');
+    pendingCommands.clear();
     log('error', state.degradedReason);
   };
   const postWorker = (message, transfer = []) => {
@@ -441,10 +469,6 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     if (!accepted) log('warn', `action rejected: ${action.type} #${action.requestId} (${reason})`);
     postActionResult(action, accepted, reason);
   };
-  const setCommandResult = result => {
-    state.lastCommandResult = result;
-    log(result?.kind === 'error' || result?.accepted === false ? 'warn' : 'info', `< ${formatKoreCommandResult(result)}`);
-  };
   const recordDiagnostic = diagnostic => {
     state.lastDiagnostic = diagnostic;
     // ai-state 每个 tick 都会输出；只记录判断内容变化，避免历史被刷屏。
@@ -490,7 +514,9 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       } else if (kind === 'diagnostic') {
         recordDiagnostic(output);
       } else if (kind === 'commandResult') {
-        setCommandResult(output.result ?? output);
+        settleCommandResult(output.result ?? output, { bridgeSequence: output.bridgeSequence ?? null });
+      } else if (kind === 'log') {
+        log(output.level ?? 'info', output.text ?? '', output.domain ?? 'info');
       } else if (kind === 'disconnect') {
         requestDisconnect(output.reason);
       } else if (kind === 'error') {
@@ -566,6 +592,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       return;
     }
     if (message.type === 'actionRequest') { forwardAction(message.action, { requireTaskIntentGeneration: message.action?.routeId == null }); return; }
+    if (message.type === 'log') { log(message.level ?? 'info', message.text ?? '', message.domain ?? 'info'); return; }
     if (message.type === 'disconnect') { requestDisconnect(message.reason); return; }
     if (message.type === 'resourceRequest') { void handleResourceRequest(message); return; }
     if (message.type === 'resourceValidation') { void handleResourceValidation(message); return; }
@@ -578,7 +605,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       return;
     }
     if (message.type === 'mapResourceState') { state.mapResourceState = message.mapResourceState ?? 'degraded'; changed(); return; }
-    if (message.type === 'commandResult') { setCommandResult(message.result ?? null); return; }
+    if (message.type === 'commandResult') { settleCommandResult(message.result ?? null, { requestId: message.requestId ?? null }); return; }
     if (message.type === 'heartbeat') { state.heartbeat = { at: Date.now(), nextDeadlineMs: message.nextDeadlineMs ?? null, queueDepth: message.queueDepth ?? null }; changed(); return; }
     if (message.type === 'fault') { failWorker(message.message ?? 'runtime-fault'); return; }
   };
@@ -595,14 +622,26 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       worker?.removeEventListener?.('messageerror', transportFailure);
     };
   };
-  const sendCommand = (command, extraFields = {}) => {
+  const sendCommandRaw = (command, extraFields = {}, { silent = false } = {}) => {
     const refusal = typeof command !== 'string' || !command.trim() ? 'empty-command' : !worker || !session ? 'runtime-not-ready' : null;
-    if (refusal) { log('warn', `command not sent: ${refusal}`); return false; }
+    if (refusal) { if (!silent) log('warn', `command not sent: ${refusal}`); return false; }
     const fields = { ...extraFields, command, hostNetworkSnapshot: { gameSessionId: gameSession?.id ?? '', bytesSent: state.sentBytes } };
-    const queued = postEvent('command', fields, 'control') !== null;
-    log(queued ? 'info' : 'warn', queued ? `> ${command}` : `command not sent: ingress-buffer-full (${command})`);
-    return queued;
+    const bridgeSequence = postEvent('command', fields, 'control');
+    if (bridgeSequence === null) {
+      if (!silent) log('warn', `command not sent: ingress-buffer-full (${command})`);
+      return false;
+    }
+    pendingCommands.set(`bridge:${bridgeSequence}`, { command, silent, bridgeSequence });
+    while (pendingCommands.size > MAX_PENDING_COMMANDS) {
+      const oldest = pendingCommands.keys().next().value;
+      pendingCommands.delete(oldest);
+      log('warn', 'command output correlation overflow; dropped the oldest pending command');
+    }
+    if (!silent) log('info', `> ${command}`);
+    return true;
   };
+  const sendCommand = (command, extraFields = {}) => sendCommandRaw(command, extraFields);
+  const sendCommandText = (text, { silent = false } = {}) => sendCommandRaw(String(text ?? ''), {}, { silent: silent === true });
   const api = {
     state,
     async start() {
@@ -633,6 +672,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       try { if (worker && session) worker.postMessage({ runtimeSessionId: session, type: 'dispose', requestId: ++nextRequestId }); } catch { /* best effort */ }
       try { worker?.terminate?.(); } catch { /* best effort */ }
       worker = null; session = null; ingressPending = []; ingressInFlight.clear(); residentIngressGameChunks = 0; residentIngressGameBytes = 0;
+      pendingCommands.clear();
       gameSession = null; connection = null; activeResourceRequestId = null;
       void resources.close?.(); void configStore.close?.();
       state.gameSessionId = null; state.connectionGeneration = null; state.worldReady = false; state.streamStatus = 'idle'; state.mapResourceState = 'idle';
@@ -682,6 +722,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       if (!worker || !session || !gameSession) return false;
       const ended = gameSession.id;
       postEvent('gameSessionEnded', {}, 'control', { gameSessionId: ended, connectionGeneration: connection?.generation ?? 0 });
+      pendingCommands.clear();
       gameSession = null; connection = null; state.gameSessionId = null; state.connectionGeneration = null; state.worldReady = false; state.streamStatus = 'idle'; changed(); return true;
     },
     clearConsole() { state.logs.length = 0; changed(); },
@@ -704,8 +745,14 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       }).catch(error => log('error', `Configuration reload failed: ${String(error?.message ?? error)}`));
       return true;
     },
-    debugCommand(command) { return sendCommand(String(command ?? '')); },
+    debugCommand(command) { return sendCommandText(command); },
     sendCommand,
+    sendCommandText,
+    onCommandOutput(listener) {
+      if (typeof listener !== 'function') return () => {};
+      commandOutputSubscribers.add(listener);
+      return () => commandOutputSubscribers.delete(listener);
+    },
   };
   return api;
 }
@@ -727,9 +774,22 @@ export function formatKoreCommandResult(result) {
   switch (result.kind) {
     case 'aiState': return `ai mode=${dash(result.aiMode)} tasks=${dash(result.taskCount)}`;
     case 'reload': return `reload ${dash(result.target)}: ${result.accepted ? 'ACCEPTED' : 'REJECTED'} effectiveRevision=${dash(result.effectiveRevision)} diagnostics=${reloadDiagnostics.length}`;
+    case 'output': return formatKoreOutputResult(result);
     case 'error': return `ERROR ${dash(result.code)}: ${dash(result.message)}`;
     default: return `${dash(result.kind)}: ${toJson(result.report ?? result)}`;
   }
+}
+
+function formatKoreOutputResult(result) {
+  const blocks = Array.isArray(result?.blocks) ? result.blocks : [];
+  const text = blocks.map(block => {
+    if (block?.type === 'text') return block.text;
+    if (block?.type === 'table') return [block.columns?.join(' | '), ...(block.rows ?? []).map(row => row.join(' | '))].filter(Boolean).join(' / ');
+    if (block?.type === 'kv') return (block.pairs ?? []).map(([key, value]) => `${key}=${value}`).join(' ');
+    if (block?.type === 'map') return `map ${block.mapName} ${block.width}x${block.height}`;
+    return '';
+  }).filter(Boolean).join(' | ');
+  return text || `${result?.ok ? 'OK' : 'ERROR'} ${dash(result?.command)}`;
 }
 
 // 目标的 class id 和名称表里的名字：`monsters` 过滤就是拿它们匹配的，对不上时先看这里。

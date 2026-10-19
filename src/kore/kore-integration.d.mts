@@ -17,7 +17,7 @@ export interface KorePage {
   KoreEngineDisconnect?: (reason: string) => unknown;
 }
 export interface KoreWorker extends EventTarget { postMessage(message: unknown, transfer?: Transferable[]): void; terminate(): void }
-export interface KoreLog { level: string; text: string; timestamp: number }
+export interface KoreLog { level: string; domain?: string; text: string; timestamp: number }
 export interface KoreActionRecord { timestamp: number; requestId: number | null; routeId: number | null; type: string; detail: string; accepted: boolean; reason: string | null }
 export interface KoreState {
   status: 'absent' | 'loading' | 'runtime-ready' | 'failed' | 'unavailable' | 'disposed';
@@ -38,6 +38,7 @@ export interface KoreOptions {
   createWorker?: (url: string) => KoreWorker; onWorkerReleased?: () => void; onChange?: (state: KoreState) => void;
   mapResourceProvider?: import('./map-resource-provider.mjs').MapResourceProvider; serverFieldsFolder?: string;
 }
+export interface KoreCommandOutput { command: string; result: unknown; silent: boolean }
 export interface KoreIntegration {
   state: KoreState; start(): Promise<void>; dispose(): void;
   beginGameSession(characterGid: number, mapName: string, identity?: { aid?: number; cid?: number }): string | null;
@@ -48,7 +49,9 @@ export interface KoreIntegration {
   endGameSession(): boolean; clearConsole(): void; debugMapRetry(): boolean;
   saveConfigDocument(document: unknown): Promise<unknown>; getConfigDocuments(identity: unknown): Promise<unknown[]>;
   getConfigDefault(fileName: string): string | null;
-  reloadConfig(target?: string): boolean; debugCommand(command: string): boolean; sendCommand(command: string): boolean;
+  reloadConfig(target?: string): boolean; debugCommand(command: string): boolean; sendCommand(command: string, extraFields?: Record<string, unknown>): boolean;
+  sendCommandText(text: string, options?: { silent?: boolean }): boolean;
+  onCommandOutput(listener: (output: KoreCommandOutput) => void): () => void;
 }
 export interface KoreNativePacketSocket { connected?: boolean; isZone?: boolean; handoffPending?: boolean; readyState?: number }
 export interface KoreNativePacketPage extends Partial<KorePage> { console?: Console; KoreEngine?: { state?: { sentBytes?: number } } }
