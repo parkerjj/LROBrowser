@@ -31,7 +31,6 @@ describe('repeated NPC GUI append does not accumulate MutationObservers', () => 
       .map(name => method(output, 'src/UI/GUIComponent.js', 'GUIComponent', name)).join('\n');
     const active = new Set<CountingObserver>();
     class CountingObserver {
-      constructor(_callback: MutationCallback) {}
       observe() { active.add(this); }
       disconnect() { active.delete(this); }
     }
