@@ -2,11 +2,10 @@
 // the small LastROTools host is never resized or restyled by this module.
 
 import { outputLines, renderConsole } from './kore-panel-console.mjs';
-import { createKoreDebugView } from './kore-panel-debug.mjs';
-import { decodeWalkability, drawMap, mapEntities, parsePoint, targetGidFromAi } from './kore-panel-map.mjs';
+import { MAP_COLORS, decodeWalkability, drawMap, entityCounts, mapEntities, parsePoint, targetGidFromAi } from './kore-panel-map.mjs';
+import { EXP_ROWS, equipmentView, groupItems, isBroken, isWorn, parseEarnings, parseItemRows } from './kore-panel-items.mjs';
 import { statusModel } from './kore-panel-window.mjs';
 
-const normalize = value => String(value ?? '').trim().toLowerCase();
 const el = (document, tag, className, text) => {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -14,10 +13,21 @@ const el = (document, tag, className, text) => {
   return node;
 };
 const blockOf = (result, type) => Array.isArray(result?.blocks) ? result.blocks.find(block => block?.type === type) : null;
+const isBlank = value => value === '' || value === '—';
+const grouped = value => Number.isFinite(value) ? value.toLocaleString('en-US') : '—';
+
+// One-click versions of the commands people type most; the same set the debug page offers.
+const QUICK_COMMANDS = [
+  ['状态', [['状态', 's'], ['位置', 'where'], ['AI 状态', 'ai print'], ['技能', 'skills']]],
+  ['周围', [['怪物', 'ml'], ['玩家', 'pl'], ['NPC', 'nl'], ['地面物品', 'il']]],
+  ['物品', [['背包', 'i'], ['手推车', 'cart'], ['经验', 'exp'], ['经验报告', 'exp report']]],
+  ['其他', [['取消路线', 'route cancel'], ['命令表', 'help']]],
+];
+const LEGEND = [['monster', '怪物'], ['player', '玩家'], ['npc', 'NPC'], ['item', '物品'], ['portal', '传送点']];
 
 export function createKoreFullscreen({
   page = globalThis, host, poller, consoleModel,
-  history = [], onExit = () => {},
+  history = [], onExit = () => {}, onDebug = () => {},
 } = {}) {
   const document = page.document;
   const overlay = el(document, 'section', 'kore-fullscreen');
@@ -26,58 +36,81 @@ export function createKoreFullscreen({
   overlay.setAttribute('aria-modal', 'true');
   overlay.setAttribute('aria-label', 'KoreEngine 全屏面板');
 
-  const titlebar = el(document, 'header', 'kore-fs-titlebar');
-  const title = el(document, 'div', 'kore-fs-title', '科技改变生活');
-  const exitButton = el(document, 'button', 'kore-fs-exit', '退出全屏');
+  // Top bar: the product on the left, the two window actions on the right.
+  const bar = el(document, 'header', 'kore-fs-bar');
+  const brand = el(document, 'div', 'kore-fs-brand');
+  brand.append(el(document, 'span', 'kore-fs-mark'), el(document, 'span', 'kore-fs-title', '科技改变生活'));
+  const debugButton = el(document, 'button', 'kore-fs-btn kore-fs-btn-text kore-fs-debug', '调试');
+  debugButton.type = 'button';
+  debugButton.addEventListener('click', () => onDebug());
+  const exitButton = el(document, 'button', 'kore-fs-btn kore-fs-exit', '退出全屏');
   exitButton.type = 'button';
-  titlebar.append(title, exitButton);
+  exitButton.append(el(document, 'span', 'kore-fs-hint', 'Esc'));
+  const barActions = el(document, 'div', 'kore-fs-bar-actions');
+  barActions.append(debugButton, exitButton);
+  bar.append(brand, barActions);
 
-  const body = el(document, 'div', 'kore-fs-body');
-  const left = el(document, 'div', 'kore-fs-left');
-  const right = el(document, 'div', 'kore-fs-right');
+  // Title row: who this is, what the AI is doing right now, and the one job
+  // people come here for (start or stop it).
+  const head = el(document, 'div', 'kore-fs-head');
+  const identity = el(document, 'div', 'kore-fs-id');
+  const identityLine = el(document, 'div', 'kore-fs-id-line');
+  const fsName = el(document, 'h1', 'kore-fs-name', '等待 KE');
+  const fsJob = el(document, 'span', 'kore-fs-job', '');
+  const fsMode = el(document, 'span', 'kore-fs-pill', '');
+  identityLine.append(fsName, fsJob, fsMode);
+  const finding = el(document, 'p', 'kore-fs-finding', '');
+  identity.append(identityLine, finding);
+  const autoButton = el(document, 'button', 'kore-fs-btn kore-fs-btn-primary kore-fs-auto', '开启自动');
+  autoButton.type = 'button';
+  const clearButton = el(document, 'button', 'kore-fs-btn kore-fs-btn-text', '清空 AI 队列');
+  clearButton.type = 'button';
+  clearButton.title = '只清空 KE 内部队列，与游戏任务无关';
+  const headActions = el(document, 'div', 'kore-fs-head-actions');
+  headActions.append(autoButton, clearButton);
+  head.append(identity, headActions);
 
-  // STATUS
-  const statusPane = el(document, 'section', 'kore-fs-pane kore-fs-status');
-  const statusHeading = el(document, 'h2', 'kore-fs-heading', 'STATUS');
-  const statusGrid = el(document, 'div', 'kore-fs-status-grid');
+  const card = (className, title) => {
+    const node = el(document, 'section', `kore-fs-card ${className}`);
+    const header = el(document, 'div', 'kore-fs-card-head');
+    const heading = el(document, 'h2', 'kore-fs-card-title', title);
+    const meta = el(document, 'span', 'kore-fs-meta');
+    header.append(heading, meta);
+    node.append(header);
+    return { node, meta };
+  };
+
+  // Left: vitals, then the item tables.
+  const status = card('kore-fs-status', '状态');
+  const gauges = el(document, 'div', 'kore-fs-gauges');
+  const makeGauge = (label, className) => {
+    const row = el(document, 'div', `kore-fs-gauge ${className}`);
+    const track = el(document, 'span', 'kore-fs-gauge-track');
+    const fill = el(document, 'span', 'kore-fs-gauge-fill');
+    track.append(fill);
+    const value = el(document, 'span', 'kore-fs-gauge-value');
+    const amount = el(document, 'span', '', '—');
+    const percent = el(document, 'span', 'kore-fs-meta', '');
+    value.append(amount, percent);
+    row.append(el(document, 'span', 'kore-fs-gauge-label', label), track, value);
+    gauges.append(row);
+    return { fill, amount, percent };
+  };
+  const fsHp = makeGauge('HP', 'kore-fs-gauge-hp');
+  const fsSp = makeGauge('SP', 'kore-fs-gauge-sp');
+  const facts = el(document, 'dl', 'kore-fs-kv');
   const statusFields = {};
-  for (const [key, label] of [['name', '名称'], ['job', '职业'], ['level', '等级'], ['hp', 'HP'], ['sp', 'SP'], ['weight', '重量'], ['zeny', 'Zeny'], ['mode', '模式'], ['task', '任务'], ['target', '目标'], ['next', '下一步'], ['reason', '原因'], ['map', '地图'], ['position', '坐标']]) {
-    const row = el(document, 'div', 'kore-fs-status-row');
-    const name = el(document, 'span', 'kore-fs-status-label', label);
-    const value = el(document, 'span', 'kore-fs-status-value', '—');
-    row.append(name, value);
-    statusGrid.append(row);
+  for (const [key, label] of [['target', '目标'], ['weight', '重量'], ['zeny', 'Zeny']]) {
+    const value = el(document, 'dd', '', '—');
+    facts.append(el(document, 'dt', '', label), value);
     statusFields[key] = value;
   }
-  statusPane.append(statusHeading, statusGrid);
+  status.node.append(gauges, facts);
 
-  // CONSOLE
-  const consolePane = el(document, 'section', 'kore-fs-pane kore-fs-console');
-  const consoleHeading = el(document, 'h2', 'kore-fs-heading', 'CONSOLE');
-  const consoleNode = el(document, 'div', 'kore-console kore-fs-console-body');
-  const form = el(document, 'form', 'kore-command');
-  const prompt = el(document, 'span', 'kore-prompt', '>');
-  const input = el(document, 'input', 'kore-command-input');
-  input.type = 'text'; input.autocomplete = 'off'; input.spellcheck = false;
-  input.setAttribute('aria-label', 'KoreEngine 全屏命令');
-  input.placeholder = '输入命令，Enter 发送';
-  const sendButton = el(document, 'button', 'kore-send', '发送');
-  sendButton.type = 'submit';
-  form.append(prompt, input, sendButton);
-  consolePane.append(consoleHeading, consoleNode, form);
-
-  // MAP
-  const mapPane = el(document, 'section', 'kore-fs-pane kore-fs-map');
-  const mapHeading = el(document, 'h2', 'kore-fs-heading', 'MAP');
-  const mapNote = el(document, 'div', 'kore-fs-note');
-  const canvas = el(document, 'canvas', 'kore-fs-canvas');
-  mapPane.append(mapHeading, mapNote, canvas);
-
-  // TABS
-  const tabsPane = el(document, 'section', 'kore-fs-pane kore-fs-tabs');
+  const tabsCard = el(document, 'section', 'kore-fs-card kore-fs-tabs');
   const tabsHeader = el(document, 'div', 'kore-fs-tabs-header');
   const tabButtons = new Map();
-  for (const [id, label] of [['inventory', '背包'], ['cart', '手推车'], ['exp', 'EXP'], ['item', '物品信息']]) {
+  for (const [id, label] of [['inventory', '背包'], ['equipment', '穿戴'], ['cart', '手推车'], ['earnings', '收益']]) {
     const button = el(document, 'button', 'kore-fs-tab', label);
     button.type = 'button';
     button.dataset.tab = id;
@@ -85,65 +118,111 @@ export function createKoreFullscreen({
     tabButtons.set(id, button);
     tabsHeader.append(button);
   }
-  const filterBar = el(document, 'div', 'kore-fs-filters');
-  for (const [id, label, command] of [['all', '全部', 'i'], ['eq', '装备', 'i eq'], ['usable', '可用', 'i u'], ['unusable', '不可用', 'i nu']]) {
-    const button = el(document, 'button', 'kore-fs-filter', label);
-    button.type = 'button';
-    button.dataset.filter = id;
-    button.addEventListener('click', () => selectInventoryFilter(id, command));
-    filterBar.append(button);
-  }
+  const searchBar = el(document, 'div', 'kore-fs-search');
+  const searchInput = el(document, 'input', 'kore-fs-input kore-fs-search-input');
+  searchInput.type = 'search'; searchInput.autocomplete = 'off'; searchInput.spellcheck = false;
+  searchInput.placeholder = '搜索物品名称或 ID';
+  searchInput.setAttribute('aria-label', '搜索物品');
+  searchBar.append(searchInput);
   const tabContent = el(document, 'div', 'kore-fs-tab-content');
-  tabsPane.append(tabsHeader, filterBar, tabContent);
+  tabsCard.append(tabsHeader, searchBar, tabContent);
+  const left = el(document, 'div', 'kore-fs-col kore-fs-col-side');
+  left.append(status.node, tabsCard);
 
-  const debugButton = el(document, 'button', 'kore-fs-debug', 'DEBUG');
-  debugButton.type = 'button';
+  // Centre: the console is the biggest block, it is what the AI has been doing.
+  const log = card('kore-fs-console', '控制台');
+  const consoleNode = el(document, 'div', 'kore-fs-log-body');
+  const form = el(document, 'form', 'kore-fs-command');
+  const prompt = el(document, 'span', 'kore-fs-prompt', '>');
+  const input = el(document, 'input', 'kore-fs-input');
+  input.type = 'text'; input.autocomplete = 'off'; input.spellcheck = false;
+  input.setAttribute('aria-label', 'KoreEngine 全屏命令');
+  input.placeholder = '输入命令，Enter 发送';
+  const sendButton = el(document, 'button', 'kore-fs-btn kore-fs-send', '发送');
+  sendButton.type = 'submit';
+  form.append(prompt, input, sendButton);
+  log.node.append(consoleNode, form);
+  const centre = el(document, 'div', 'kore-fs-col kore-fs-col-log');
+  centre.append(log.node);
 
-  left.append(statusPane, consolePane);
-  right.append(mapPane, tabsPane);
-  body.append(left, right);
-  overlay.append(titlebar, body, debugButton);
+  // Right: a small map for orientation (it is not interactive), then the quick commands.
+  const map = card('kore-fs-map', '地图');
+  const stage = el(document, 'div', 'kore-fs-map-stage');
+  const canvas = el(document, 'canvas', 'kore-fs-canvas');
+  const mapEmpty = el(document, 'div', 'kore-fs-empty kore-fs-map-empty', '等待地图…');
+  stage.append(canvas, mapEmpty);
+  const legend = el(document, 'div', 'kore-fs-legend');
+  const legendSelf = el(document, 'span', 'kore-fs-legend-item');
+  const selfMark = el(document, 'span', 'kore-fs-swatch kore-fs-swatch-self');
+  selfMark.style.borderColor = MAP_COLORS.self;
+  const selfText = el(document, 'span', '', '你 —');
+  legendSelf.append(selfMark, selfText);
+  legend.append(legendSelf);
+  const legendCounts = {};
+  for (const [kind, label] of LEGEND) {
+    const item = el(document, 'span', 'kore-fs-legend-item');
+    const mark = el(document, 'span', kind === 'portal' ? 'kore-fs-swatch kore-fs-swatch-ring' : 'kore-fs-swatch');
+    if (kind === 'portal') mark.style.borderColor = MAP_COLORS.portal; else mark.style.background = MAP_COLORS[kind];
+    const count = el(document, 'b', '', '0');
+    item.append(mark, el(document, 'span', '', label), count);
+    legend.append(item);
+    legendCounts[kind] = count;
+  }
+  map.node.append(stage, legend);
+
+  const quick = card('kore-fs-quick', '常用命令');
+  const quickButtons = [];
+  for (const [groupLabel, commands] of QUICK_COMMANDS) {
+    const group = el(document, 'div', 'kore-fs-quick-group');
+    const actions = el(document, 'div', 'kore-fs-quick-actions');
+    for (const [label, command] of commands) {
+      const button = el(document, 'button', 'kore-fs-quick-btn', label);
+      button.type = 'button';
+      button.title = command;
+      button.dataset.command = command;
+      button.addEventListener('click', () => run(command));
+      actions.append(button);
+      quickButtons.push(button);
+    }
+    group.append(el(document, 'h3', 'kore-fs-quick-label', groupLabel), actions);
+    quick.node.append(group);
+  }
+  const right = el(document, 'div', 'kore-fs-col kore-fs-col-map');
+  right.append(map.node, quick.node);
+
+  const grid = el(document, 'div', 'kore-fs-grid');
+  grid.append(left, centre, right);
+  const main = el(document, 'main', 'kore-fs-main');
+  main.append(head, grid);
+  overlay.append(bar, main);
   document.body.append(overlay);
 
-  const debug = createKoreDebugView({ page, host });
-  overlay.append(debug.element);
-  debugButton.addEventListener('click', () => debug.show('state'));
-
   let activeTab = 'inventory';
-  let itemDetail = null;
-  let itemDetailLabel = '';
+  let query = '';
+  // Collapsed groups, remembered per tab for as long as the overlay is open.
+  const collapsed = new Set();
   let lastMapKey = null;
   let mapTimer = null;
   let mapBytes = null;
   let mapRevision = null;
   let closed = false;
   let historyIndex = history.length;
-  const pending = new Map();
-  const overrides = new Map();
 
-  const sendSilent = (command, handler) => {
-    pending.set(normalize(command), handler);
-    if (host?.sendCommandText?.(command, { silent: true }) !== true) pending.delete(normalize(command));
-  };
-  const unsubscribeOutput = host?.onCommandOutput?.(({ command, result, silent }) => {
-    if (!silent) return;
-    const handler = pending.get(normalize(command));
-    if (!handler) return;
-    pending.delete(normalize(command));
-    handler(result);
-    update();
-  }) ?? (() => {});
-
-  function send(text) {
+  // Sends a command through the console; typing in the command line is left alone.
+  function run(text) {
     const command = String(text ?? '').trim();
     if (!command) return false;
     const sent = host?.sendCommandText?.(command) === true;
     if (sent) {
       history.push(command);
       historyIndex = history.length;
-      input.value = '';
       update();
     }
+    return sent;
+  }
+  function send(text) {
+    const sent = run(text);
+    if (sent) input.value = '';
     return sent;
   }
   form.addEventListener('submit', event => { event.preventDefault(); send(input.value); });
@@ -155,69 +234,151 @@ export function createKoreFullscreen({
     historyIndex = event.key === 'ArrowUp' ? Math.max(0, historyIndex - 1) : Math.min(history.length, historyIndex + 1);
     input.value = history[historyIndex] ?? '';
   });
+  autoButton.addEventListener('click', () => run(autoButton.dataset.command));
+  clearButton.addEventListener('click', () => run('ai clear'));
 
+  // The equipment view reads the same `i` result as the bag.
+  const POLLER_TAB = { inventory: 'inventory', equipment: 'inventory', cart: 'cart', earnings: 'exp' };
   function selectTab(tab) {
     activeTab = tab;
     for (const [id, button] of tabButtons) button.classList.toggle('is-active', id === tab);
-    filterBar.hidden = tab !== 'inventory';
-    poller?.setTab?.(tab === 'item' ? null : tab);
+    searchBar.hidden = tab !== 'inventory' && tab !== 'cart';
+    poller?.setTab?.(POLLER_TAB[tab]);
     update();
   }
-  function selectInventoryFilter(filter, command) {
-    for (const button of [...filterBar.children]) button.classList.toggle('is-active', button.dataset.filter === filter);
-    if (filter === 'all') {
-      overrides.delete('inventory');
-      poller?.request?.('inventory');
-      update();
-      return;
-    }
-    sendSilent(command, result => overrides.set('inventory', result));
+  searchInput.addEventListener('keydown', event => event.stopPropagation());
+  searchInput.addEventListener('input', () => { query = searchInput.value; renderTabs(); });
+
+  const ERROR_TEXT = {
+    'inventory-not-ready': '背包数据还没有收到',
+    'cart-not-ready': '没有手推车，或手推车数据还没有收到',
+    'experience-unavailable': '还没有开始统计',
+  };
+  function stateMessage(result, waiting) {
+    if (!result) return el(document, 'div', 'kore-fs-empty', waiting);
+    const line = outputLines(result)[0]?.text ?? '';
+    const code = /^([a-z-]+):/.exec(line)?.[1];
+    return el(document, 'div', 'kore-fs-empty', ERROR_TEXT[code] ?? line);
   }
 
-  function renderTable(container, result, onRow) {
-    const table = blockOf(result, 'table');
-    if (!table) {
-      const pre = el(document, 'pre', 'kore-fs-table');
-      pre.textContent = result
-        ? result.kind === 'output' ? outputLines(result).map(line => line.text).join('\n') : `${result.code ?? result.kind}: ${result.message ?? ''}`
-        : '等待回显…';
-      if (result && (result.ok === false || result.kind === 'error')) pre.classList.add('is-error');
-      container.replaceChildren(pre);
+  // OpenKore marks a damaged item with a "BROKEN " prefix; show that as a flag instead.
+  function itemName(name) {
+    const node = el(document, 'span', 'kore-fs-item-name');
+    node.append(el(document, 'span', 'kore-fs-item-text', name.replace(/^BROKEN /, '')));
+    if (isBroken(name)) node.append(el(document, 'span', 'kore-fs-pill kore-fs-pill-bad', '损坏'));
+    return node;
+  }
+  function itemRow(row) {
+    const node = el(document, 'div', 'kore-fs-item');
+    node.title = `${row.name}\n${row.category} · ID ${row.id}`;
+    node.append(itemName(row.name), el(document, 'span', 'kore-fs-item-qty', row.amount));
+    return node;
+  }
+  function groupNode(key, label, count, rows, makeRow) {
+    const collapsedKey = `${activeTab}:${key}`;
+    const isCollapsed = collapsed.has(collapsedKey);
+    const group = el(document, 'section', `kore-fs-group${isCollapsed ? ' is-collapsed' : ''}`);
+    const head = el(document, 'button', 'kore-fs-group-head');
+    head.type = 'button';
+    head.setAttribute('aria-expanded', String(!isCollapsed));
+    head.append(el(document, 'span', 'kore-fs-chevron'), el(document, 'span', 'kore-fs-group-label', label), el(document, 'span', 'kore-fs-meta', String(count)));
+    head.addEventListener('click', () => {
+      if (!collapsed.delete(collapsedKey)) collapsed.add(collapsedKey);
+      renderTabs();
+    });
+    group.append(head);
+    if (!isCollapsed) for (const row of rows) group.append(makeRow(row));
+    return group;
+  }
+
+  function renderItems(rows, empty) {
+    const groups = groupItems(rows.filter(row => !isWorn(row)), query);
+    if (!groups.length) {
+      tabContent.replaceChildren(el(document, 'div', 'kore-fs-empty', query.trim() ? '没有匹配的物品' : empty));
       return;
     }
-    const node = el(document, 'table', 'kore-fs-table');
-    const head = el(document, 'thead');
-    const headRow = el(document, 'tr');
-    for (const column of table.columns ?? []) headRow.append(el(document, 'th', '', String(column)));
-    head.append(headRow);
-    const bodyNode = el(document, 'tbody');
-    for (const row of table.rows ?? []) {
-      const tr = el(document, 'tr');
-      for (const value of row ?? []) tr.append(el(document, 'td', '', String(value)));
-      if (onRow) { tr.tabIndex = 0; tr.addEventListener('click', () => onRow(row)); }
-      bodyNode.append(tr);
+    tabContent.replaceChildren(...groups.map(group => groupNode(group.key, group.label, group.rows.length, group.rows, itemRow)));
+  }
+
+  function renderEquipment(rows) {
+    const list = el(document, 'div', 'kore-fs-slots');
+    for (const slot of equipmentView(rows)) {
+      const node = el(document, 'div', `kore-fs-slot${slot.item ? '' : ' is-empty'}`);
+      node.title = slot.item ? `${slot.item.name}\n${slot.key} · ID ${slot.item.id}` : slot.key;
+      node.append(el(document, 'span', 'kore-fs-slot-label', slot.label), slot.item ? itemName(slot.item.name) : el(document, 'span', 'kore-fs-item-name', '—'));
+      list.append(node);
     }
-    node.append(head, bodyNode);
-    container.replaceChildren(node);
+    tabContent.replaceChildren(list);
+  }
+
+  const fact = (label, value) => [el(document, 'dt', '', label), el(document, 'dd', '', value)];
+  function earningsSection(title, meta, ...children) {
+    const section = el(document, 'section', 'kore-fs-earn');
+    const head = el(document, 'div', 'kore-fs-earn-head');
+    head.append(el(document, 'h3', 'kore-fs-earn-title', title));
+    if (meta) head.append(el(document, 'span', 'kore-fs-meta', meta));
+    section.append(head, ...children);
+    return section;
+  }
+  function factList(rows) {
+    const list = el(document, 'dl', 'kore-fs-kv kore-fs-kv-tight');
+    for (const [label, value] of rows) list.append(...fact(label, value));
+    return list;
+  }
+  function expSection(name, level, kind, get) {
+    const rows = EXP_ROWS.map(([label, base, job]) => [label, get(kind === 'base' ? base : job)]);
+    const percent = /\((\d+(?:\.\d+)?)%\)/.exec(get(kind === 'base' ? '基础经验' : '职业经验'))?.[1];
+    const track = el(document, 'span', 'kore-fs-gauge-track kore-fs-earn-track');
+    const fill = el(document, 'span', 'kore-fs-gauge-fill');
+    fill.style.width = `${Math.min(100, Number(percent ?? 0))}%`;
+    track.append(fill);
+    return earningsSection(`${name}经验`, `Lv ${level}`, track, factList(rows));
+  }
+  function changeSection(title, items, sign, meta) {
+    if (!items.length) return null;
+    const total = items.reduce((sum, item) => sum + Math.abs(item.amount), 0);
+    const rows = items.map(item => {
+      const node = el(document, 'div', 'kore-fs-item');
+      node.title = `${item.name}\nID ${item.id}`;
+      node.append(el(document, 'span', 'kore-fs-item-name', item.name), el(document, 'span', 'kore-fs-item-qty', `${sign}${Math.abs(item.amount).toLocaleString('en-US')}`));
+      return node;
+    });
+    return earningsSection(title, meta ?? `${items.length} 种 / ${total.toLocaleString('en-US')} 件`, ...rows);
+  }
+  function renderEarnings(result) {
+    const earnings = parseEarnings(result);
+    if (!earnings) { tabContent.replaceChildren(stateMessage(result, '等待收益数据…')); return; }
+    const get = key => earnings.kv.get(key) ?? '—';
+    const kills = earnings.monsters.map(monster => {
+      const node = el(document, 'div', 'kore-fs-item');
+      node.title = `${monster.name}\nID ${monster.id}`;
+      node.append(el(document, 'span', 'kore-fs-item-name', monster.name), el(document, 'span', 'kore-fs-item-qty', monster.count.toLocaleString('en-US')));
+      return node;
+    });
+    // What an AFK player checks first: the rates and the money, then what dropped,
+    // then the experience detail.
+    tabContent.replaceChildren(...[
+      earningsSection('本次挂机', get('时长'), factList([
+        ['击杀', get('击杀')], ['死亡', get('死亡')],
+        ['基础经验每小时', get('基础经验每小时')], ['职业经验每小时', get('职业经验每小时')],
+        ['Zeny 净增', get('Zeny 净增')], ['Zeny 每小时', get('Zeny 每小时')],
+      ])),
+      changeSection('获得道具', earnings.gained, '+', earnings.kv.get('获得道具')),
+      expSection('基础', earnings.baseLevel, 'base', get),
+      expSection('职业', earnings.jobLevel, 'job', get),
+      changeSection('消耗道具', earnings.consumed, '-'),
+      kills.length ? earningsSection('击杀', get('击杀'), ...kills) : null,
+    ].filter(Boolean));
   }
 
   function renderTabs() {
-    if (activeTab === 'item') {
-      filterBar.hidden = true;
-      renderTable(tabContent, itemDetail);
-      if (!itemDetail) tabContent.textContent = itemDetailLabel || '在背包中选择一行';
-      return;
-    }
-    filterBar.hidden = activeTab !== 'inventory';
-    const result = activeTab === 'inventory'
-      ? overrides.get('inventory') ?? poller?.results?.('inventory')
-      : poller?.results?.(activeTab);
-    renderTable(tabContent, result, activeTab === 'inventory' ? row => {
-      const selector = String(row?.[0] ?? '').trim();
-      if (!/^\d+$/.test(selector)) return;
-      itemDetailLabel = `物品 #${selector}`;
-      sendSilent(`i desc ${selector}`, detail => { itemDetail = detail; activeTab = 'item'; update(); });
-    } : null);
+    if (activeTab === 'earnings') { renderEarnings(poller?.results?.('exp')); return; }
+    const cart = activeTab === 'cart';
+    const result = poller?.results?.(cart ? 'cart' : 'inventory');
+    const rows = parseItemRows(result);
+    if (!rows) { tabContent.replaceChildren(stateMessage(result, cart ? '等待手推车数据…' : '等待背包数据…')); return; }
+    if (activeTab === 'equipment') renderEquipment(rows);
+    else renderItems(rows, cart ? '手推车是空的' : '背包是空的');
   }
 
   function renderStatus() {
@@ -225,15 +386,34 @@ export function createKoreFullscreen({
       status: poller?.results?.('status'), ai: poller?.results?.('ai'),
       where: poller?.results?.('where'), state: host?.state,
     });
-    const values = {
-      name: model.name, job: model.job, level: model.level,
-      hp: model.hp.value == null ? '—' : `${model.hp.value}/${model.hp.max} ${model.hp.percent}%`,
-      sp: model.sp.value == null ? '—' : `${model.sp.value}/${model.sp.max} ${model.sp.percent}%`,
-      weight: model.weight, zeny: model.zeny,
-      mode: model.mode === 'AUTO' ? '● 自动' : model.mode === 'OFF' ? '○ 关闭' : '—',
-      task: model.task, target: model.target, next: model.next, reason: model.reason,
-      map: model.map, position: model.position,
+    const ready = model.worldReady;
+    fsName.textContent = ready ? model.name : '等待 KE';
+    fsJob.textContent = ready ? [model.job, `Lv ${model.level}`].filter(part => !isBlank(part.replace(/^Lv /, ''))).join(' · ') : (host?.state?.status ?? '');
+    // Until the world is ready the last answers are stale; say so instead of showing them as live.
+    const auto = ready && model.mode === 'AUTO';
+    fsMode.textContent = !ready ? '' : auto ? '自动' : model.mode === 'OFF' ? '已关闭' : '';
+    fsMode.dataset.mode = model.mode;
+    const doing = [['任务', model.task], ['下一步', model.next], ['原因', model.reason]]
+      .filter(([, value]) => !isBlank(value)).map(([label, value]) => `${label} ${value}`).join(' · ');
+    finding.textContent = ready ? doing || '暂时没有 AI 决策' : '等待 KE 就绪…';
+    autoButton.textContent = auto ? '关闭自动' : '开启自动';
+    autoButton.dataset.command = auto ? 'ai off' : 'ai auto';
+    autoButton.classList.toggle('kore-fs-btn-primary', !auto);
+    autoButton.disabled = !ready;
+    clearButton.disabled = !ready;
+    for (const button of quickButtons) button.disabled = !ready;
+    const setGauge = (gauge, ratio) => {
+      const percent = ratio.percent == null ? 0 : Math.max(0, Math.min(100, ratio.percent));
+      gauge.fill.style.width = `${percent}%`;
+      if (percent <= 12) gauge.fill.dataset.level = 'crit';
+      else if (percent <= 25) gauge.fill.dataset.level = 'warn';
+      else delete gauge.fill.dataset.level;
+      gauge.amount.textContent = ratio.value == null ? '—' : `${grouped(ratio.value)} / ${grouped(ratio.max)}`;
+      gauge.percent.textContent = ratio.value == null ? '' : ` ${percent}%`;
     };
+    setGauge(fsHp, model.hp);
+    setGauge(fsSp, model.sp);
+    const values = { target: model.target, weight: model.weight, zeny: model.zeny };
     for (const [key, node] of Object.entries(statusFields)) node.textContent = values[key] ?? '—';
   }
 
@@ -244,34 +424,47 @@ export function createKoreFullscreen({
   }
 
   function drawCurrentMap() {
-    const map = blockOf(poller?.results?.('map'), 'map');
-    if (!map) {
-      mapNote.textContent = poller?.errors?.('map')?.code ? `MAP: ${poller.errors('map').code}` : '等待地图…';
+    if (closed) return;
+    const field = blockOf(poller?.results?.('map'), 'map');
+    // The map name and your position come from `where`, so they show even before the field data arrives.
+    const where = blockOf(poller?.results?.('where'), 'kv')?.pairs;
+    const selfPair = where?.find(([name]) => name === '坐标')?.[1];
+    const self = parsePoint(selfPair);
+    selfText.textContent = self ? `你 (${self.x}, ${self.y})` : '你 —';
+    if (!field) {
+      mapEmpty.hidden = false;
+      const code = poller?.errors?.('map')?.code;
+      mapEmpty.textContent = code ? `地图不可用 · ${code}` : '等待地图…';
+      map.meta.textContent = where?.find(([name]) => name === '地图')?.[1] ?? '';
       return;
     }
-    const key = `${map.mapName}:${map.mapRevision}`;
+    mapEmpty.hidden = true;
+    const key = `${field.mapName}:${field.mapRevision}`;
     if (key !== lastMapKey) {
       lastMapKey = key;
       poller.request?.('map');
     }
-    mapNote.textContent = `${map.mapName} ${map.width}x${map.height}`;
-    if (map.mapRevision !== mapRevision) { mapRevision = map.mapRevision; mapBytes = null; }
-    if (!mapBytes) mapBytes = decodeWalkability(map.walkability, map.width, map.height);
-    const width = mapPane.clientWidth || 320;
-    const height = mapPane.clientHeight || 320;
-    canvas.width = width;
-    canvas.height = height;
+    if (field.mapRevision !== mapRevision) { mapRevision = field.mapRevision; mapBytes = null; }
+    if (!mapBytes) mapBytes = decodeWalkability(field.walkability, field.width, field.height);
+    const width = stage.clientWidth || 320;
+    const height = stage.clientHeight || 320;
+    const ratio = Math.max(1, page.devicePixelRatio ?? 1);
+    canvas.width = Math.round(width * ratio);
+    canvas.height = Math.round(height * ratio);
     const ctx = canvas.getContext?.('2d');
     if (!ctx) return;
-    const selfPair = blockOf(poller?.results?.('where'), 'kv')?.pairs?.find(([name]) => name === '坐标')?.[1];
+    ctx.setTransform?.(ratio, 0, 0, ratio, 0, 0);
+    const entities = mapEntities({
+      monsters: poller?.results?.('monsters'), players: poller?.results?.('players'),
+      npcs: poller?.results?.('npcs'), items: poller?.results?.('items'),
+    });
+    map.meta.textContent = `${field.mapName} · ${field.width}×${field.height}`;
+    const counts = entityCounts(entities);
+    for (const [kind, node] of Object.entries(legendCounts)) node.textContent = String(counts[kind] ?? 0);
     drawMap(ctx, {
-      map: { ...map, walkabilityBytes: mapBytes },
-      entities: mapEntities({
-        monsters: poller?.results?.('monsters'), players: poller?.results?.('players'),
-        npcs: poller?.results?.('npcs'), items: poller?.results?.('items'),
-      }),
-      self: parsePoint(selfPair), targetGid: targetGidFromAi(poller?.results?.('ai')),
-      maxWidth: width, maxHeight: height,
+      map: { ...field, walkabilityBytes: mapBytes },
+      entities, self, targetGid: targetGidFromAi(poller?.results?.('ai')),
+      maxWidth: width, maxHeight: height, rulers: true,
     });
   }
 
@@ -281,13 +474,21 @@ export function createKoreFullscreen({
     renderConsole(consoleNode, consoleModel?.entries?.() ?? [], { page, maxLines: 200 });
     renderTabs();
     scheduleMap();
-    if (debug.visible) debug.update();
   }
 
   const cleanups = [];
   if (poller?.subscribe) cleanups.push(poller.subscribe(() => update()));
   if (consoleModel?.subscribe) cleanups.push(consoleModel.subscribe(() => renderConsole(consoleNode, consoleModel.entries(), { page, maxLines: 200 })));
   if (host?.onStateChange) cleanups.push(host.onStateChange(() => update()));
+  // The map fills its card, so it is redrawn whenever the card changes size.
+  if (typeof page.ResizeObserver === 'function') {
+    const observer = new page.ResizeObserver(() => scheduleMap());
+    observer.observe(stage);
+    cleanups.push(() => observer.disconnect());
+  } else if (page.addEventListener) {
+    page.addEventListener('resize', scheduleMap);
+    cleanups.push(() => page.removeEventListener?.('resize', scheduleMap));
+  }
 
   function close() {
     if (closed) return;
@@ -302,22 +503,10 @@ export function createKoreFullscreen({
     if (closed && !overlay.isConnected) return;
     closed = true;
     for (const cleanup of cleanups) { try { cleanup(); } catch { /* best effort. */ } }
-    unsubscribeOutput();
-    pending.clear();
-    debug.destroy();
     overlay.remove();
   }
 
-  exitButton.addEventListener('click', close);
-  const keydown = event => {
-    if (event.key !== 'Escape') return;
-    event.preventDefault();
-    event.stopPropagation();
-    if (debug.visible) { debug.hide(); return; }
-    close();
-  };
-  document.addEventListener?.('keydown', keydown);
-  cleanups.push(() => document.removeEventListener?.('keydown', keydown));
+  exitButton.addEventListener('click', () => close());
 
   overlay.classList.add('is-entering');
   page.requestAnimationFrame?.(() => overlay.classList.add('is-ready'));

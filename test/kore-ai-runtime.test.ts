@@ -23,12 +23,12 @@ test('AI command text is sent to Rust without Host mode state', async () => {
 
 test('all Rust action kinds use one opaque native adapter and preserve context', async () => {
   const { worker, page, gameSessionId, connectionGeneration } = await setup();
-  const actionTypes = ['Sit', 'Stand', 'Equip', 'Unequip', 'UseItem', 'Pickup', 'StorageTransfer', 'NpcTalk', 'NpcMenu', 'NpcContinue', 'NpcNumber', 'NpcText', 'NpcShopSelect', 'ShopBuy', 'ShopSell'];
+  const actionTypes = ['Sit', 'Stand', 'Equip', 'Unequip', 'UseItem', 'Pickup', 'StorageTransfer', 'StorageClose', 'NpcTalk', 'NpcMenu', 'NpcContinue', 'NpcNumber', 'NpcText', 'NpcShopSelect', 'ShopBuy', 'ShopSell'];
   const sent: unknown[] = [];
   page.KoreEngineNativeAction.mockImplementation(action => { sent.push(action); return true; });
   const fields: Record<string, Record<string, unknown>> = {
     Sit: {}, Stand: {}, Equip: { inventoryIndex: 1, position: 2 }, Unequip: { inventoryIndex: 1 },
-    UseItem: { inventoryIndex: 1, targetGid: 7 }, Pickup: { itemGid: 7 }, StorageTransfer: { inventoryIndex: 1, amount: 1, toStorage: true },
+    UseItem: { inventoryIndex: 1, targetGid: 7 }, Pickup: { itemGid: 7 }, StorageTransfer: { inventoryIndex: 1, amount: 1, toStorage: true }, StorageClose: {},
     NpcTalk: { npcGid: 7 }, NpcMenu: { npcGid: 7, choice: 1 }, NpcContinue: { npcGid: 7 }, NpcNumber: { npcGid: 7, value: 123 }, NpcText: { npcGid: 7, text: 'answer' }, NpcShopSelect: { npcGid: 7, sell: false },
     ShopBuy: { npcGid: 7, itemId: 501, amount: 1 }, ShopSell: { npcGid: 7, inventoryIndex: 1, amount: 1 },
   };

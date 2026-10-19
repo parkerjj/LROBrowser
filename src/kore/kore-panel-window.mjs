@@ -4,11 +4,11 @@
 import { renderConsole } from './kore-panel-console.mjs';
 
 export const KORE_QUICK_COMMANDS = Object.freeze([
-  { label: '开启自动', command: 'ai auto' },
+  { label: '开启自动', command: 'ai auto', primary: true },
   { label: '关闭自动', command: 'ai off' },
-  { label: '清空队列', command: 'ai clear' },
-  { label: '经验', command: 'exp' },
-  { label: '报告', command: 'exp report' },
+  { label: '清空 AI 队列', command: 'ai clear', title: '只清空 KE 内部队列，与游戏任务无关' },
+  { label: '经验统计', command: 'exp' },
+  { label: '经验报告', command: 'exp report' },
 ]);
 
 const element = (document, tag, className, text) => {
@@ -17,6 +17,20 @@ const element = (document, tag, className, text) => {
   if (text != null) node.textContent = text;
   return node;
 };
+
+// Four outline corners, 14px at 1.5px stroke like the rest of the panel's icons.
+function expandIcon(document) {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  for (const [name, value] of Object.entries({
+    viewBox: '0 0 14 14', width: '14', height: '14', fill: 'none',
+    stroke: 'currentColor', 'stroke-width': '1.5', 'aria-hidden': 'true',
+  })) svg.setAttribute(name, value);
+  const path = document.createElementNS(ns, 'path');
+  path.setAttribute('d', 'M1 5V1h4M9 1h4v4M13 9v4H9M5 13H1V9');
+  svg.append(path);
+  return svg;
+}
 
 export function kvPairs(result) {
   const block = Array.isArray(result?.blocks) ? result.blocks.find(item => item?.type === 'kv') : null;
@@ -75,7 +89,8 @@ export function createKoreWindow({
   const debugButton = element(document, 'button', 'kore-link-button', 'Debug');
   debugButton.type = 'button';
   debugButton.addEventListener('click', () => onDebug());
-  const fullscreenButton = element(document, 'button', 'kore-link-button', '⛶');
+  const fullscreenButton = element(document, 'button', 'kore-link-button');
+  fullscreenButton.append(expandIcon(document));
   fullscreenButton.type = 'button';
   fullscreenButton.setAttribute('aria-label', '进入全屏');
   fullscreenButton.title = '全屏';
@@ -112,8 +127,9 @@ export function createKoreWindow({
   const actions = element(document, 'div', 'kore-actions');
   const commandButtons = [];
   for (const quick of KORE_QUICK_COMMANDS) {
-    const button = element(document, 'button', 'kore-button', quick.label);
+    const button = element(document, 'button', quick.primary ? 'kore-button kore-button-primary' : 'kore-button', quick.label);
     button.type = 'button';
+    if (quick.title) button.title = quick.title;
     button.addEventListener('click', () => send(quick.command));
     actions.append(button);
     commandButtons.push(button);
@@ -173,6 +189,9 @@ export function createKoreWindow({
     const percent = ratio.percent == null ? 0 : Math.max(0, Math.min(100, ratio.percent));
     targetBar.fill.style.width = `${percent}%`;
     targetBar.fill.dataset.percent = String(percent);
+    if (percent <= 12) targetBar.fill.dataset.level = 'crit';
+    else if (percent <= 25) targetBar.fill.dataset.level = 'warn';
+    else delete targetBar.fill.dataset.level;
     targetBar.value.textContent = ratio.value == null ? '—' : `${ratio.value}/${ratio.max} ${percent}%`;
   }
 

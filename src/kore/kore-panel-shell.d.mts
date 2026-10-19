@@ -16,7 +16,8 @@ export interface KoreShell {
   readonly poller: KorePoller | null;
   readonly initialized: boolean;
   setMode(mode: KoreShellMode): void;
-  setVisible(visible: boolean): void;
+  setVisible(visible: boolean, options?: { keepOverlays?: boolean }): void;
+  remountWindow(container: HTMLElement): void;
   openFullscreen(): void;
   openDebug(): void;
   focus(): void;

@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
-import { expect, test, vi } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 import { installKoreShellPanels } from '../scripts/lastro-tools-panels.mjs';
 
 const nativeHtml = `<div class="lastro-tools"><div class="lastro-header"><div class="lastro-header-title"><strong>LastRO 工具</strong><span>已就绪</span></div><button data-action="close"></button></div><div class="lastro-quick"></div><div class="lastro-compact-status" hidden><span data-compact-status-text>战斗：关 · 捡物：关</span></div></div>`;
 const classicHtml = `<div class="lastro-tools"><div class="lastro-ro-titlebar"><strong>挂机设置</strong><button data-action="close"></button></div><div class="lastro-settings-view"></div><div class="lastro-panel-footer"></div></div>`;
 
-function install(html: string) {
+function install(html: string, onAppend: () => void = () => {}, gameSessionId: string | null = null) {
   const host = window.document.createElement('div');
   const shortcut = { setEnabled: vi.fn(), refresh: vi.fn() };
   const tools = {
@@ -15,17 +15,25 @@ function install(html: string) {
     init: vi.fn(),
     hidePanel: vi.fn(),
     restorePanel: vi.fn(),
-    onAppend: vi.fn(),
+    onAppend: vi.fn(onAppend),
     onRemove: vi.fn(),
     renderCompactStatus: vi.fn(),
     getRoot: () => host,
   };
-  const shell = { mode: 'lastro', setMode: vi.fn(), setVisible: vi.fn(), dispose: vi.fn() };
-  const createKoreShell = vi.fn((options?: unknown) => { void options; return shell; });
+  const shell = { mode: 'lastro', setMode: vi.fn(), setVisible: vi.fn(), dispose: vi.fn(), remountWindow: vi.fn() };
+  const createKoreShell = vi.fn((options?: unknown) => {
+    const container = (options as { container?: HTMLElement } | undefined)?.container;
+    if (container) {
+      const win = window.document.createElement('div');
+      win.className = 'kore-window';
+      container.append(win);
+    }
+    return shell;
+  });
   const api = installKoreShellPanels(tools, {
     document: window.document, window,
     setHtml: (node: HTMLElement, value: string) => { node.innerHTML = value; },
-    createKoreShell, getKoreHost: () => ({ state: { worldReady: false } }),
+    createKoreShell, getKoreHost: () => ({ state: { worldReady: false, gameSessionId } }),
     shellCss: '.kore-shell-host{height:320px}',
   });
   return { host, tools, shell, createKoreShell, api, shortcut };
@@ -37,6 +45,7 @@ test('shell wrapper replaces the native header and keeps the switch in both rend
   expect(nativeOutput).toContain('data-shell-mode="lastro"');
   expect(nativeOutput).toContain('科技改变生活');
   expect(nativeOutput).toContain('kore-shell-host');
+  expect(nativeOutput).toContain('lastro-mode-thumb');
   expect(nativeOutput).not.toContain('LastRO 工具');
   // The LastRO Trusted Types policy rejects <style> inside component HTML.
   expect(nativeOutput).not.toContain('<style');
@@ -70,12 +79,27 @@ test('init mounts one shell and the switch changes the panel mode', () => {
   expect(host.querySelector<HTMLElement>('.kore-shell-host')?.hidden).toBe(true);
 });
 
-test('shortcut-entry mode changes reinstall the shell', () => {
-  const { host, tools, createKoreShell, shortcut } = install(nativeHtml);
+test('shortcut-entry mode changes re-mount the window in place', () => {
+  const { host, tools, shell, createKoreShell, shortcut } = install(nativeHtml);
   host.innerHTML = tools.render();
   tools.init();
   expect(createKoreShell).toHaveBeenCalledTimes(1);
+  // A shortcut-entry toggle re-renders the panel, dropping the mounted KE
+  // window into a fresh, empty shell host. The shell survives; only the window
+  // is rebuilt, so the fullscreen/debug state is preserved.
+  host.querySelector('.kore-shell-host')?.replaceChildren();
   shortcut.setEnabled(true);
+  expect(createKoreShell).toHaveBeenCalledTimes(1);
+  expect(shell.remountWindow).toHaveBeenCalled();
+});
+
+test('re-appending after removal re-mounts the KE window', () => {
+  const { host, tools, createKoreShell } = install(nativeHtml);
+  host.innerHTML = tools.render();
+  tools.init();
+  expect(createKoreShell).toHaveBeenCalledTimes(1);
+  tools.onRemove();
+  tools.onAppend();
   expect(createKoreShell).toHaveBeenCalledTimes(2);
 });
 
@@ -89,4 +113,77 @@ test('visible lifecycle forwards to the shared shell', () => {
   expect(shell.setVisible).toHaveBeenCalledWith(false);
   tools.onRemove();
   expect(shell.dispose).toHaveBeenCalledOnce();
+});
+
+test('appending a panel that is already visible (shortcut entry) marks the shell visible', () => {
+  const { host, tools, shell } = install(nativeHtml);
+  host.innerHTML = tools.render();
+  tools.init();
+  // The native shortcut-entry panel is shown by onAppend itself and never goes
+  // through restorePanel, so the poller would stay hidden without this.
+  tools.onAppend();
+  expect(shell.setVisible).toHaveBeenLastCalledWith(true, { keepOverlays: true });
+});
+
+test('appending a panel hidden behind the classic dock keeps the shell hidden', () => {
+  const panelHost = window.document.createElement('div');
+  // Classic onAppend hides the host until the dock opener restores it.
+  const { host, tools, shell } = install(nativeHtml, () => { panelHost.style.display = 'none'; });
+  (tools as unknown as { _host: HTMLElement })._host = panelHost;
+  host.innerHTML = tools.render();
+  tools.init();
+  tools.onAppend();
+  expect(shell.setVisible).toHaveBeenLastCalledWith(false, { keepOverlays: true });
+});
+
+test('a map change removes and re-appends the panel without disposing the shell', () => {
+  // MapRenderer.setMap() calls UIManager.removeComponents() on every map change.
+  const { host, tools, shell, createKoreShell } = install(nativeHtml, () => {}, 'game-1');
+  host.innerHTML = tools.render();
+  tools.init();
+  tools.onRemove();
+  expect(shell.dispose).not.toHaveBeenCalled();
+  expect(shell.setVisible).toHaveBeenLastCalledWith(false, { keepOverlays: true });
+  tools.onAppend();
+  expect(createKoreShell).toHaveBeenCalledTimes(1);
+  expect(shell.setVisible).toHaveBeenLastCalledWith(true, { keepOverlays: true });
+});
+
+afterEach(() => { vi.useRealTimers(); });
+
+test('only the LastRO to KE switch plays the ignition and it cleans up after itself', () => {
+  vi.useFakeTimers();
+  const { host, tools } = install(nativeHtml);
+  host.innerHTML = tools.render();
+  tools.init();
+  const panel = () => host.querySelector('.lastro-tools')!;
+  const tab = (mode: string) => host.querySelector<HTMLButtonElement>(`[data-shell-mode="${mode}"]`)!;
+  expect(panel().querySelector('.kore-boot')).toBeNull();
+
+  tab('kore').click();
+  expect(panel().querySelectorAll('.kore-boot')).toHaveLength(1);
+  expect(panel().classList.contains('is-igniting')).toBe(true);
+  expect(panel().querySelectorAll('.kore-boot > span')).toHaveLength(3);
+
+  vi.advanceTimersByTime(1500);
+  expect(panel().querySelector('.kore-boot')).toBeNull();
+  expect(panel().classList.contains('is-igniting')).toBe(false);
+
+  tab('lastro').click();
+  expect(panel().querySelector('.kore-boot')).toBeNull();
+  expect(panel().classList.contains('is-igniting')).toBe(false);
+});
+
+test('reduced motion skips the ignition', () => {
+  vi.useFakeTimers();
+  const { host, tools } = install(nativeHtml);
+  host.innerHTML = tools.render();
+  tools.init();
+  const original = window.matchMedia;
+  window.matchMedia = ((query: string) => ({ matches: query.includes('reduce') })) as typeof window.matchMedia;
+  try {
+    host.querySelector<HTMLButtonElement>('[data-shell-mode="kore"]')!.click();
+    expect(host.querySelector('.kore-boot')).toBeNull();
+    expect(host.querySelector('.lastro-tools')?.getAttribute('data-mode')).toBe('kore');
+  } finally { window.matchMedia = original; }
 });

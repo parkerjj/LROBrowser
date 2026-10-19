@@ -1,10 +1,10 @@
-// Debug page shared by the small window and the fullscreen panel. It only
-// projects host state and sends raw commands; it never mirrors Rust state.
+// Debug drawer: a right-hand sidebar shared by the small window and the
+// fullscreen panel. It projects host state, sends raw commands and renders the
+// console inline; it never mirrors Rust state and never opens its own transport.
 
 import { KORE_CONFIG_FILES } from './kore-integration.mjs';
-import { outputLines } from './kore-panel-console.mjs';
+import { renderConsole } from './kore-panel-console.mjs';
 
-const normalize = value => String(value ?? '').trim().toLowerCase();
 const el = (document, tag, className, text) => {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -13,51 +13,112 @@ const el = (document, tag, className, text) => {
 };
 const json = value => {
   try {
-    return JSON.stringify(value, (_key, item) => typeof item === 'bigint' ? item.toString() : item, 2);
+    const text = JSON.stringify(value, (_key, item) => typeof item === 'bigint' ? item.toString() : item, 2);
+    return text ?? 'null';
   } catch (error) { return `<unserializable: ${String(error?.message ?? error)}>`; }
 };
-
-const TABS = [['state', '状态'], ['packet', 'Packet'], ['config', '配置'], ['tests', '测试'], ['commands', '命令表']];
 
 export function createKoreDebugView({ page = globalThis, host } = {}) {
   const document = page.document;
   const root = el(document, 'section', 'kore-debug');
   root.hidden = true;
-  root.setAttribute('aria-label', 'KoreEngine Debug');
+  root.setAttribute('aria-label', 'KoreEngine 调试侧边栏');
+
   const header = el(document, 'header', 'kore-debug-header');
-  const title = el(document, 'strong', 'kore-debug-title', 'DEBUG');
-  const tabs = el(document, 'div', 'kore-debug-tabs');
+  const title = el(document, 'strong', 'kore-debug-title', '调试');
   const close = el(document, 'button', 'kore-debug-close', '关闭');
   close.type = 'button';
   close.addEventListener('click', () => hide());
-  header.append(title, tabs, close);
+  header.append(title, close);
+
   const body = el(document, 'div', 'kore-debug-body');
   root.append(header, body);
 
-  const panes = new Map();
-  const buttons = new Map();
-  for (const [id, label] of TABS) {
-    const button = el(document, 'button', 'kore-debug-tab', label);
+  const section = titleText => {
+    const node = el(document, 'section', 'kore-debug-section');
+    node.append(el(document, 'h3', 'kore-debug-section-title', titleText));
+    body.append(node);
+    return node;
+  };
+  const commandButton = (parent, label, command) => {
+    const button = el(document, 'button', 'kore-button', label);
     button.type = 'button';
-    button.dataset.tab = id;
-    button.addEventListener('click', () => show(id));
-    tabs.append(button);
-    buttons.set(id, button);
-    const pane = el(document, 'div', 'kore-debug-pane');
-    pane.dataset.tab = id;
-    pane.hidden = true;
-    body.append(pane);
-    panes.set(id, pane);
+    if (command) button.title = command;
+    button.addEventListener('click', () => host?.sendCommandText?.(command));
+    parent.append(button);
+    return button;
+  };
+
+  // 数据：导出 / 复制 / 清空。
+  const dataSection = section('数据');
+  const dataButtons = el(document, 'div', 'kore-debug-actions');
+  const copyButton = el(document, 'button', 'kore-button', '复制 JSON');
+  const downloadButton = el(document, 'button', 'kore-button', '下载 JSON');
+  const clearButton = el(document, 'button', 'kore-button', '清空控制台');
+  copyButton.type = downloadButton.type = clearButton.type = 'button';
+  copyButton.addEventListener('click', () => {
+    const clipboard = (page.navigator ?? globalThis.navigator)?.clipboard;
+    if (!clipboard?.writeText) { copyButton.textContent = '剪贴板不可用'; return; }
+    clipboard.writeText(json(host?.state ?? null)).then(() => {
+      copyButton.textContent = '已复制';
+      page.setTimeout?.(() => { copyButton.textContent = '复制 JSON'; }, 1200);
+    }, () => { copyButton.textContent = '复制失败'; });
+  });
+  downloadButton.addEventListener('click', () => {
+    const BlobCtor = page.Blob ?? globalThis.Blob;
+    const createObjectURL = page.URL?.createObjectURL ?? globalThis.URL?.createObjectURL;
+    if (!BlobCtor || !createObjectURL) return;
+    const url = createObjectURL(new BlobCtor([json(host?.state ?? null)], { type: 'application/json' }));
+    const link = document.createElement('a');
+    link.href = url; link.download = 'kore-state.json';
+    document.body.append(link); link.click(); link.remove();
+    page.setTimeout?.(() => (page.URL?.revokeObjectURL ?? globalThis.URL?.revokeObjectURL)?.(url), 0);
+  });
+  clearButton.addEventListener('click', () => host?.clearConsole?.());
+  dataButtons.append(copyButton, downloadButton, clearButton);
+  dataSection.append(dataButtons);
+
+  // 状态：只读 host 摘要。
+  const statusSection = section('状态');
+  const statusGrid = el(document, 'div', 'kore-debug-status');
+  const statusFields = {};
+  for (const [key, label] of [['status', '状态'], ['mode', '模式'], ['stream', '流'], ['worldReady', '世界就绪'], ['map', '地图资源'], ['runtime', '运行时'], ['bytes', '收发字节'], ['identity', '身份']]) {
+    statusGrid.append(el(document, 'span', 'kore-debug-status-label', label));
+    const value = el(document, 'span', 'kore-debug-status-value', '—');
+    statusGrid.append(value);
+    statusFields[key] = value;
   }
+  statusSection.append(statusGrid);
 
-  // State / packet
-  const statePre = el(document, 'pre', 'kore-debug-pre');
-  panes.get('state').append(statePre);
-  const packetPre = el(document, 'pre', 'kore-debug-pre');
-  panes.get('packet').append(packetPre);
+  // AI 控制。
+  const aiSection = section('AI 控制');
+  const aiButtons = el(document, 'div', 'kore-debug-actions');
+  for (const [label, command] of [['开启自动', 'ai auto'], ['关闭自动', 'ai off'], ['清空队列', 'ai clear'], ['AI 状态', 'ai print']]) {
+    commandButton(aiButtons, label, command);
+  }
+  aiSection.append(aiButtons);
 
-  // Config
-  const config = panes.get('config');
+  // 查询命令（一次性，回显进控制台）。
+  const querySection = section('查询');
+  const queryButtons = el(document, 'div', 'kore-debug-actions');
+  for (const [label, command] of [['状态', 's'], ['位置', 'where'], ['背包', 'i'], ['怪物', 'ml'], ['玩家', 'pl'], ['NPC', 'nl'], ['地面物品', 'il'], ['技能', 'skills'], ['手推车', 'cart'], ['经验', 'exp'], ['经验报告', 'exp report']]) {
+    commandButton(queryButtons, label, command);
+  }
+  querySection.append(queryButtons);
+
+  // 系统。
+  const sysSection = section('系统');
+  const sysButtons = el(document, 'div', 'kore-debug-actions');
+  commandButton(sysButtons, '命令表', 'help');
+  const mapRetryButton = el(document, 'button', 'kore-button', '地图重试');
+  mapRetryButton.type = 'button';
+  mapRetryButton.title = 'debugMapRetry';
+  mapRetryButton.addEventListener('click', () => host?.debugMapRetry?.());
+  sysButtons.append(mapRetryButton);
+  sysSection.append(sysButtons);
+
+  // 配置编辑器。
+  const configSection = section('配置');
   const configNote = el(document, 'div', 'kore-debug-note');
   const fileSelect = el(document, 'select', 'kore-debug-select');
   for (const file of KORE_CONFIG_FILES) {
@@ -67,60 +128,29 @@ export function createKoreDebugView({ page = globalThis, host } = {}) {
   }
   const editor = el(document, 'textarea', 'kore-debug-editor');
   editor.setAttribute('spellcheck', 'false');
-  editor.rows = 18;
+  editor.rows = 14;
   const configButtons = el(document, 'div', 'kore-debug-actions');
-  const loadButton = el(document, 'button', 'kore-button', 'Load');
-  const saveButton = el(document, 'button', 'kore-button', 'Save');
-  const reloadButton = el(document, 'button', 'kore-button', 'Save + ai off + reload');
+  const loadButton = el(document, 'button', 'kore-button', '加载');
+  const saveButton = el(document, 'button', 'kore-button', '保存');
+  const reloadButton = el(document, 'button', 'kore-button', '应用并重载');
+  reloadButton.title = '先保存，再 ai off，然后 reload 到 Rust';
   loadButton.type = saveButton.type = reloadButton.type = 'button';
   configButtons.append(loadButton, saveButton, reloadButton);
   const configResult = el(document, 'pre', 'kore-debug-pre');
-  config.append(configNote, fileSelect, editor, configButtons, configResult);
+  configSection.append(configNote, fileSelect, editor, configButtons, configResult);
 
-  // Tests
-  const tests = panes.get('tests');
-  const testButtons = el(document, 'div', 'kore-debug-actions');
-  for (const [label, command] of [['map retry', null], ['ai print', 'ai print'], ['exp', 'exp'], ['exp report', 'exp report'], ['help', 'help'], ['清空控制台', null], ['导出诊断 JSON', null]]) {
-    const button = el(document, 'button', 'kore-button', label);
-    button.type = 'button';
-    button.addEventListener('click', () => {
-      if (label === 'map retry') { host?.debugMapRetry?.(); return; }
-      if (label === '清空控制台') { host?.clearConsole?.(); return; }
-      if (label === '导出诊断 JSON') {
-        const text = json(host?.state ?? null);
-        const BlobCtor = page.Blob ?? globalThis.Blob;
-        const createObjectURL = page.URL?.createObjectURL ?? globalThis.URL?.createObjectURL;
-        if (!BlobCtor || !createObjectURL) return;
-        const url = createObjectURL(new BlobCtor([text], { type: 'application/json' }));
-        const link = document.createElement('a');
-        link.href = url; link.download = 'kore-state.json';
-        document.body.append(link); link.click(); link.remove();
-        page.setTimeout?.(() => (page.URL?.revokeObjectURL ?? globalThis.URL?.revokeObjectURL)?.(url), 0);
-        return;
-      }
-      host?.sendCommandText?.(command);
-    });
-    testButtons.append(button);
-  }
-  tests.append(testButtons);
+  // 控制台：命令回显直接显示在这里，无需翻页。
+  const consoleSection = section('控制台');
+  const consoleNode = el(document, 'div', 'kore-debug-console');
+  consoleNode.setAttribute('role', 'log');
+  consoleNode.setAttribute('aria-live', 'polite');
+  consoleSection.append(consoleNode);
 
-  // Command table
-  const commands = panes.get('commands');
-  const commandButton = el(document, 'button', 'kore-button', '加载命令表');
-  commandButton.type = 'button';
-  const commandPre = el(document, 'pre', 'kore-debug-pre');
-  commands.append(commandButton, commandPre);
+  // 网络。
+  const netSection = section('网络');
+  const netPre = el(document, 'pre', 'kore-debug-pre');
+  netSection.append(netPre);
 
-  const pending = new Map();
-  const sendSilent = (command, handler) => {
-    pending.set(normalize(command), handler);
-    if (host?.sendCommandText?.(command, { silent: true }) !== true) pending.delete(normalize(command));
-  };
-  commandButton.addEventListener('click', () => sendSilent('help', result => {
-    commandPre.textContent = outputLines(result).map(line => line.text).join('\n');
-  }));
-
-  let current = 'state';
   const identity = () => {
     const state = host?.state;
     return state?.configIdentity ? { profile: state.profile, ...state.configIdentity } : null;
@@ -155,42 +185,36 @@ export function createKoreDebugView({ page = globalThis, host } = {}) {
     if (host.reloadConfig?.(fileSelect.value) !== true) configNote.textContent = 'reload 未发送：需要已验证的 aid/cid';
   });
 
-  const unsubscribeOutput = host?.onCommandOutput?.(({ command, result, silent }) => {
-    if (!silent) return;
-    const handler = pending.get(normalize(command));
-    if (!handler) return;
-    pending.delete(normalize(command));
-    handler(result);
-  }) ?? (() => {});
   const unsubscribeState = host?.onStateChange?.(() => { if (!root.hidden) update(); }) ?? (() => {});
 
   function update() {
     const state = host?.state;
-    if (!state) { statePre.textContent = 'no host'; packetPre.textContent = ''; return; }
-    statePre.textContent = json({
-      status: state.status, packageId: state.packageId, mode: state.mode,
-      runtimeGeneration: state.runtimeGeneration, gameSessionId: state.gameSessionId,
-      connectionGeneration: state.connectionGeneration, streamStatus: state.streamStatus,
-      worldReady: state.worldReady, mapResourceState: state.mapResourceState,
-      receivedBytes: state.receivedBytes, sentBytes: state.sentBytes,
-      degradedReason: state.degradedReason, runtimeStatus: state.runtimeStatus,
-      heartbeat: state.heartbeat, actions: state.actions.slice(-10),
-    });
-    packetPre.textContent = [
+    if (!state) return;
+    statusFields.status.textContent = state.status ?? '-';
+    statusFields.mode.textContent = state.mode ?? '-';
+    statusFields.stream.textContent = state.streamStatus ?? '-';
+    statusFields.worldReady.textContent = String(state.worldReady);
+    statusFields.map.textContent = state.mapResourceState ?? '-';
+    statusFields.runtime.textContent = state.runtimeStatus
+      ? `${state.runtimeStatus.runtimeState ?? '-'} rev=${state.runtimeStatus.revision ?? '-'}`
+      : '-';
+    statusFields.bytes.textContent = `recv=${state.receivedBytes} sent=${state.sentBytes}`;
+    statusFields.identity.textContent = state.configIdentity
+      ? `aid=${state.configIdentity.aid} cid=${state.configIdentity.cid}`
+      : '-';
+    netPre.textContent = [
       `receivedBytes=${state.receivedBytes} sentBytes=${state.sentBytes}`,
       `lastDiagnostic=${json(state.lastDiagnostic)}`,
-      ...state.diagnosticLog.map(entry => `${new Date(entry.timestamp).toLocaleTimeString()} ${entry.text}`),
+      ...(state.diagnosticLog ?? []).map(entry => `${new Date(entry.timestamp).toLocaleTimeString()} ${entry.text}`),
     ].join('\n');
-    configResult.textContent = json(state.lastCommandResult);
+    configResult.textContent = state.lastCommandResult ? json(state.lastCommandResult) : '暂无命令结果';
+    renderConsole(consoleNode, state.logs ?? [], { page, maxLines: 400 });
   }
 
-  function show(tab = 'state') {
-    current = panes.has(tab) ? tab : 'state';
+  function show() {
     root.hidden = false;
-    for (const [id, pane] of panes) pane.hidden = id !== current;
-    for (const [id, button] of buttons) button.classList.toggle('is-active', id === current);
     update();
-    if (current === 'config' && editor.value === '' && identity()) void loadFile();
+    if (editor.value === '' && identity()) void loadFile();
   }
   function hide() { root.hidden = true; }
 
@@ -198,6 +222,6 @@ export function createKoreDebugView({ page = globalThis, host } = {}) {
     element: root,
     show, hide, update,
     get visible() { return root.hidden !== true; },
-    destroy() { unsubscribeOutput(); unsubscribeState(); pending.clear(); root.remove(); },
+    destroy() { unsubscribeState(); root.remove(); },
   };
 }

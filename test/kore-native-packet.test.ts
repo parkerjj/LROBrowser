@@ -205,3 +205,29 @@ test('drop item actions use PACKET_CZ_ITEM_THROW2 Index/count', async () => {
   expect(sent).toHaveLength(1);
   expect({ index: sent[0]!.Index, count: sent[0]!.count }).toEqual({ index: 5, count: 2 });
 });
+
+test('storage close actions send PACKET_CZ_CLOSE_STORE', async () => {
+  const runtime = await readFile('generated/runtime/Online.js', 'utf8');
+  const actionAssignment = extractRuntimeNode(runtime, {
+    kind: 'assignment', name: 'globalThis.KoreEngineNativeAction',
+  });
+  const packetHelper = extractRuntimeNode(runtime, { kind: 'function', name: 'sendKoreEnginePacket' });
+  class FakeCloseStore {
+    build() { return new Uint8Array(2); }
+  }
+  const sent: FakeCloseStore[] = [];
+  const createSender = new Function('globalThis', 'sendKoreNativePacket', 'Network',
+    'PacketVerManager_default', 'PACKET', 'SessionStorage_default', '_socket',
+    'lastroVendingShoppingActive', 'lastroMovementUnavailable',
+    `${packetHelper}\n${actionAssignment}\nreturn globalThis.KoreEngineNativeAction;`);
+  const nativeAction = createSender(runtimePage(), (_action: unknown, packet: FakeCloseStore) => {
+    sent.push(packet);
+    return true;
+  }, { sendPacket() {} }, { value: 20211103 },
+  { CZ: { CLOSE_STORE: FakeCloseStore } }, {}, null,
+  () => false, () => false);
+
+  expect(nativeAction({ type: 'StorageClose' })).toBe(true);
+  expect(sent).toHaveLength(1);
+  expect(sent[0]).toBeInstanceOf(FakeCloseStore);
+});

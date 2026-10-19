@@ -4,13 +4,13 @@
 const DOMAIN_COLORS = Object.freeze({
   attackMon: '#00bcd4', attackMonMiss: '#00bcd4',
   attacked: '#c050c0', attackedMiss: '#c050c0',
-  connection: '#0a8a0a', startup: '#0a8a0a',
+  connection: '#2e9e4f', startup: '#2e9e4f',
   success: '#2e9e4f', system: '#d8b84a', pm: '#d8b84a', schat: '#d8b84a', teleport: '#d8b84a',
   menu: '#d8b84a', list: '#d6dbe1', info: '#d6dbe1',
   equip: '#9a9a9a', plugin: '#9a9a9a', debug: '#9a9a9a',
   drop: '#5c8dff', useItem: '#5c8dff',
   route: '#2e9e4f', skill: '#2e9e4f', selfSkill: '#2e9e4f',
-  publicchat: '#2e9e4f', selfchat: '#2e9e4f', guildchat: '#0a8a0a', partychat: '#a0522d',
+  publicchat: '#2e9e4f', selfchat: '#2e9e4f', guildchat: '#2e9e4f', partychat: '#a0522d',
 });
 const LEVEL_COLORS = Object.freeze({ error: '#e06060', warning: '#d8b84a', debug: '#9a9a9a', message: null });
 export const KORE_CONSOLE_MAX_ENTRIES = 200;

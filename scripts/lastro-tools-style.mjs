@@ -18,6 +18,8 @@ export const LASTRO_TOOLS_CSS = `
 .lastro-tab { flex:1; min-width:31.5px; padding:3.75px 2.25px; border:1px solid transparent; border-radius:3px; background:none; color:#202536; font:inherit; font-size:10.5px; line-height:15.75px; cursor:pointer; white-space:nowrap; }
 .lastro-tab.is-active { border-color:#698ac5; background:#527bc2; color:white; box-shadow:inset 0 1px 0 #8cace0; }
 .lastro-tab:hover:not(.is-active) { background:#e7edf7; border-color:#ccd7eb; }
+.lastro-tab-action { flex:none; margin-left:auto; align-self:center; width:22px; height:22px; padding:0; border:0; border-radius:3px; background:none; color:#5a6a85; font:12px/22px Arial,'Microsoft YaHei','MiSans',sans-serif; cursor:pointer; }
+.lastro-tab-action:hover { color:#263854; background:#e7edf7; }
 .lastro-button { min-height:20.25px; padding:2.25px 9px; border:1px solid #a9b2c2; border-radius:3px; background:linear-gradient(#fff,#e9edf4); box-shadow:inset 0 0 0 1px #fff; color:#263854; font:inherit; font-size:9.75px; cursor:pointer; white-space:nowrap; }
 .lastro-button:hover { border-color:#7796c5; background:linear-gradient(#fff,#dce7f7); }
 .lastro-button:disabled { cursor:default; color:#9299a7; background:#eef0f5; border-color:#cdd1db; box-shadow:none; }
@@ -63,65 +65,96 @@ button:focus-visible,input:focus-visible,select:focus-visible { outline:2px soli
 // shortcut-entry mode wrapper.
 export const KORE_SHELL_CSS = `
 :host { width:520px; max-width:calc(100vw - 16px); box-sizing:border-box; }
-.lastro-ro-titlebar { position:relative; height:20px; flex:0 0 20px; box-sizing:border-box; background-repeat:repeat-x; background-size:auto 20px; color:#202536; border-bottom:1px solid #a0acc3; border-radius:3px 3px 0 0; cursor:move; }
-.lastro-title-left,.lastro-title-right { position:absolute; top:0; width:12px; height:20px; background-size:100% 100%; pointer-events:none; }
-.lastro-title-left { left:0; }.lastro-title-right { right:0; }
-.lastro-window-close { position:absolute; right:5px; top:4px; width:11px; height:11px; padding:0; border:0; background-color:transparent; background-repeat:no-repeat; cursor:pointer; }
-.lastro-window-minimize { position:absolute; right:20px; top:4px; width:11px; height:11px; padding:0; border:0; background-color:transparent; background-repeat:no-repeat; cursor:pointer; }
-.lastro-window-settings { position:absolute; right:36px; top:1px; width:16px; height:16px; padding:0; border:0; background:transparent; color:#202536; font:12px/16px Arial,sans-serif; cursor:pointer; }
-.lastro-tools[data-mode="kore"] > :not(.lastro-ro-titlebar):not(.kore-shell-host):not(.lastro-panel-footer):not(.lastro-compact-status):not(style) { display:none !important; }
+/* Palette per context: the classic panel is light, the native LastRO panel is
+   dark navy with an amber accent, the KE page is neutral dark with a cyan hue. */
+.lastro-tools { position:relative; --sw-ink:#111827; --sw-muted:#5b6472; --sw-rule:#e3e7ee; --sw-track:#e8ebf1; --sw-border:#cfd5df; --sw-thumb:#ffffff; --sw-thumb-border:#cfd5df; --ke:#0e7490; --ke-ink:#ffffff; --ke-text:#0e7490; }
+.lastro-tools.kore-shell-native { --sw-ink:#e6ecf4; --sw-muted:#9db0c5; --sw-rule:rgba(148,168,196,.14); --sw-track:#121821; --sw-border:rgba(148,168,196,.24); --sw-thumb:#2c3a4e; --sw-thumb-border:rgba(148,168,196,.3); --ke:#6fb3c9; --ke-ink:#06141a; --ke-text:#8fd0e6; }
+.lastro-tools[data-mode="kore"] { --sw-ink:#ffffff; --sw-muted:#8a8c92; --sw-rule:#222224; --sw-track:#0f0f11; --sw-border:#2a2a2e; --ke:#6fb3c9; --ke-ink:#06141a; --ke-text:#8fd0e6; }
+.lastro-ro-titlebar { position:relative; display:flex; align-items:center; justify-content:flex-end; height:44px; flex:0 0 44px; box-sizing:border-box; padding:0 8px 0 12px; background:transparent; color:var(--sw-ink); border-bottom:1px solid var(--sw-rule); cursor:move; }
+.lastro-title-left,.lastro-title-right { display:none; }
+.lastro-window-minimize,.lastro-window-close { position:static; transform:none; flex:none; width:28px; height:28px; margin-left:2px; padding:0; border:0; border-radius:4px; background:transparent; color:color-mix(in srgb,var(--sw-ink) 62%,transparent); font:300 18px/28px Arial,sans-serif; cursor:pointer; transition:background-color 120ms ease-out,color 120ms ease-out; }
+.lastro-window-minimize:hover,.lastro-window-close:hover { background:color-mix(in srgb,var(--sw-ink) 12%,transparent); color:var(--sw-ink); }
+.lastro-tools[data-mode="kore"] > :not(.lastro-ro-titlebar):not(.kore-shell-host):not(.lastro-panel-footer):not(.lastro-compact-status):not(.kore-boot):not(style) { display:none !important; }
 .lastro-tools.kore-shell-native[data-mode="lastro"] > .lastro-ro-titlebar { margin:-11px -11px 8px; }
-.lastro-mode-switch { position:absolute; left:50%; top:2px; transform:translateX(-50%); display:flex; gap:1px; padding:1px; border:1px solid #8b99b1; border-radius:9px; background:#e9edf4; box-shadow:inset 0 0 0 1px #fff; z-index:1; }
-.lastro-mode-option { height:14px; padding:0 8px; border:0; border-radius:7px; background:transparent; color:#5a6a85; font:500 9.5px/14px Arial,'Microsoft YaHei','MiSans',sans-serif; cursor:pointer; white-space:nowrap; }
-.lastro-mode-option.is-active { background:#527bc2; color:#fff; box-shadow:inset 0 1px 0 #8cace0; }
-.lastro-mode-option:focus-visible { outline:1px solid #7396d0; outline-offset:1px; }
-.lastro-tools { position:relative; }
-.lastro-tools[data-mode="kore"] { padding:0; border-color:#2a333c; background:#0a0b0d; box-shadow:inset 0 0 0 1px #11161b,1px 2px 8px #0008; color:#d6dbe1; }
-.lastro-tools[data-mode="kore"] .lastro-ro-titlebar { background-image:none; background:#0c1014; border-bottom-color:#232a31; }
-.lastro-tools[data-mode="kore"] .lastro-title-left,.lastro-tools[data-mode="kore"] .lastro-title-right { background-image:none !important; }
-.lastro-tools[data-mode="kore"] .lastro-mode-switch { background:#07090b; border-color:#2a333c; box-shadow:none; }
-.lastro-tools[data-mode="kore"] .lastro-mode-option { color:#7f8a96; }
-.lastro-tools[data-mode="kore"] .lastro-mode-option.is-active { background:#6fb3c9; color:#061014; box-shadow:none; }
-.lastro-tools[data-mode="kore"] .lastro-panel-footer { background-image:none !important; background:#0c1014; }
-.lastro-tools.is-switching::after { content:""; position:absolute; inset:0; pointer-events:none; z-index:4; background:linear-gradient(180deg,transparent 0%,rgba(111,179,201,.22) 50%,transparent 100%); animation:kore-scan 400ms ease-out; }
-.lastro-tools.is-switching .lastro-mode-switch { animation:kore-switch-pulse 400ms ease-out; }
-@keyframes kore-scan { from{transform:translateY(-100%)} to{transform:translateY(100%)} }
-@keyframes kore-switch-pulse { 0%{box-shadow:0 0 0 0 rgba(232,184,75,.55)} 55%{box-shadow:0 0 0 3px rgba(111,179,201,.3)} 100%{box-shadow:none} }
+/* The switch sits dead centre. The thumb marks the selected side; while the
+   LastRO side is selected, the KE side keeps its hue, a twinkling spark and a
+   slow ring so it reads as the place to go. */
+.lastro-mode-switch { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); display:grid; grid-template-columns:1fr 1fr; width:252px; height:34px; box-sizing:border-box; padding:3px; border:1px solid var(--sw-border); border-radius:9px; background:var(--sw-track); }
+.lastro-mode-thumb { position:absolute; top:3px; bottom:3px; left:3px; width:calc(50% - 3px); box-sizing:border-box; border:1px solid var(--sw-thumb-border); border-radius:6px; background:var(--sw-thumb); pointer-events:none; transition:transform 340ms cubic-bezier(.3,.9,.3,1),background-color 260ms ease-out,border-color 260ms ease-out; }
+.lastro-tools[data-mode="kore"] .lastro-mode-thumb { transform:translateX(100%); background:var(--ke); border-color:var(--ke); }
+.lastro-mode-option { position:relative; z-index:1; display:flex; align-items:center; justify-content:center; gap:6px; padding:0; border:0; border-radius:6px; background:transparent; color:var(--sw-muted); font:600 13px/1 Arial,'Microsoft YaHei','MiSans',sans-serif; cursor:pointer; white-space:nowrap; transition:color 200ms ease-out,background-color 160ms ease-out; }
+.lastro-mode-option.is-active { color:var(--sw-ink); }
+.lastro-mode-option[data-shell-mode="lastro"]:not(.is-active):hover { color:var(--sw-ink); }
+.lastro-mode-option[data-shell-mode="kore"] { color:var(--ke-text); }
+.lastro-mode-option[data-shell-mode="kore"]:not(.is-active) { background:color-mix(in srgb,var(--ke) 14%,transparent); }
+.lastro-mode-option[data-shell-mode="kore"]:not(.is-active):hover { background:color-mix(in srgb,var(--ke) 26%,transparent); }
+.lastro-mode-option[data-shell-mode="kore"].is-active { color:var(--ke-ink); }
+.lastro-mode-option[data-shell-mode="kore"]::before { content:''; flex:none; width:10px; height:10px; background:currentColor; clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%); }
+.lastro-mode-option[data-shell-mode="kore"]:not(.is-active)::before { animation:ke-twinkle 3.2s ease-in-out infinite; }
+.lastro-mode-option[data-shell-mode="kore"]:not(.is-active)::after { content:''; position:absolute; inset:0; box-sizing:border-box; border:1.5px solid var(--ke); border-radius:6px; pointer-events:none; animation:ke-beacon 3.2s ease-out infinite; }
+.lastro-mode-option:focus-visible { outline:2px solid var(--ke); outline-offset:2px; }
+@keyframes ke-twinkle { 0%,55%,100% { transform:scale(.85); opacity:.7; } 70% { transform:scale(1.2); opacity:1; } }
+@keyframes ke-beacon { 0%,40% { transform:scale(1); opacity:0; } 48% { opacity:.85; } 100% { transform:scale(1.14,1.4); opacity:0; } }
+.lastro-tools[data-mode="kore"] { padding:0; border-color:#26272b; background:#171719; box-shadow:none; color:#ffffff; }
+.lastro-tools[data-mode="kore"] .lastro-panel-footer { background-image:none !important; background:#131217; }
+/* LastRO -> KE ignition: a glow at the KE tab, an iridescent ring running the
+   panel edge, a diagonal sheen, then the content rising in. Removed after 1.4s. */
+.kore-boot { position:absolute; inset:0; z-index:5; overflow:hidden; border-radius:inherit; pointer-events:none; }
+.kore-boot-pulse { position:absolute; left:147px; top:18px; width:40px; height:40px; margin:-20px 0 0 -20px; border-radius:50%; background:radial-gradient(circle,rgba(159,227,255,.6),rgba(111,179,201,.25) 40%,transparent 70%); animation:kore-pulse 800ms cubic-bezier(.2,.7,.2,1) both; } /* taste-skill-ignore: requested one-off transition, absent at rest */
+.kore-boot-ring { position:absolute; inset:0; padding:1.5px; box-sizing:border-box; overflow:hidden; border-radius:inherit; -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); mask-composite:exclude; animation:kore-fade 1250ms ease-out both; } /* taste-skill-ignore: solid mask that hollows the ring, not a visible gradient */
+.kore-boot-ring::before { content:''; position:absolute; left:50%; top:50%; width:900px; height:900px; margin:-450px 0 0 -450px; background:conic-gradient(from 0deg,transparent 0 52%,#6fb3c9 68%,#5fc39c 80%,#8b7cf6 91%,#ffffff 98%,transparent 100%); animation:kore-spin 1250ms cubic-bezier(.4,.1,.3,1) both; } /* taste-skill-ignore: requested one-off transition, absent at rest */
+.kore-boot-sheen { position:absolute; top:-20%; bottom:-20%; left:-40%; width:24%; background:linear-gradient(90deg,transparent,rgba(111,179,201,.14) 35%,rgba(255,255,255,.24) 50%,rgba(139,124,246,.16) 65%,transparent); mix-blend-mode:screen; animation:kore-sheen 1000ms 120ms cubic-bezier(.4,.1,.2,1) both; } /* taste-skill-ignore: requested one-off transition, absent at rest */
+.lastro-tools.is-igniting .kore-window > * { animation:kore-rise 460ms cubic-bezier(.2,.8,.2,1) both; }
+.lastro-tools.is-igniting .kore-window > :nth-child(1) { animation-delay:120ms; }
+.lastro-tools.is-igniting .kore-window > :nth-child(2) { animation-delay:180ms; }
+.lastro-tools.is-igniting .kore-window > :nth-child(3) { animation-delay:240ms; }
+.lastro-tools.is-igniting .kore-window > :nth-child(4) { animation-delay:300ms; }
+@keyframes kore-pulse { from { transform:scale(.2); opacity:1; } to { transform:scale(26); opacity:0; } }
+@keyframes kore-fade { 0% { opacity:0; } 15% { opacity:1; } 75% { opacity:1; } 100% { opacity:0; } }
+@keyframes kore-spin { from { transform:rotate(-120deg); } to { transform:rotate(300deg); } }
+@keyframes kore-sheen { from { transform:skewX(-18deg) translateX(0); } to { transform:skewX(-18deg) translateX(620%); } }
+@keyframes kore-rise { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+@media (prefers-reduced-motion: reduce) { .lastro-mode-option,.lastro-mode-thumb,.lastro-window-minimize,.lastro-window-close { transition:none; } .lastro-mode-option::before,.lastro-mode-option::after { animation:none !important; } .kore-boot { display:none; } .lastro-tools.is-igniting .kore-window > * { animation:none; } }
 .kore-shell-host { flex:1 1 auto; height:320px; min-height:0; overflow:hidden; box-sizing:border-box; }
-.kore-window { display:flex; flex-direction:column; height:320px; min-height:0; box-sizing:border-box; padding:8px 10px; background:#0a0b0d; color:#d6dbe1; font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+.kore-window { display:flex; flex-direction:column; height:320px; min-height:0; box-sizing:border-box; padding:10px 12px; background:#171719; color:#ffffff; font:12px/1.5 Arial,'Microsoft YaHei','MiSans',system-ui,sans-serif; }
 .kore-window, .kore-window * { cursor:default !important; }
 .kore-window button, .kore-window select { cursor:pointer !important; }
 .kore-window input { cursor:text !important; }
-.kore-summary { display:flex; flex-direction:column; gap:5px; flex:none; }
+.kore-summary { display:flex; flex-direction:column; gap:6px; flex:none; }
 .kore-identity-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
 .kore-identity { display:flex; align-items:baseline; gap:8px; min-width:0; }
-.kore-name { font:600 13px/1.2 Arial,'Microsoft YaHei','MiSans',sans-serif; color:#e8edf2; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.kore-job { color:#7f8a96; font-size:10.5px; white-space:nowrap; }
-.kore-header-actions { display:flex; gap:4px; flex:none; }
-.kore-link-button { border:1px solid #2a333c; border-radius:3px; background:#11161b; color:#7f8a96; font:10px/1 monospace; padding:3px 6px; cursor:pointer; }
-.kore-link-button:hover { color:#6fb3c9; border-color:#3d4a55; }
-.kore-bars { display:grid; grid-template-columns:1fr 1fr; gap:4px 12px; }
-.kore-bar { display:grid; grid-template-columns:22px minmax(0,1fr) 86px; align-items:center; gap:6px; font-size:10px; }
-.kore-bar-label { color:#7f8a96; }
-.kore-bar-track { height:6px; background:#151a1f; border:1px solid #232a31; border-radius:2px; overflow:hidden; }
-.kore-bar-fill { display:block; height:100%; width:0; background:#6fb3c9; transition:width 200ms ease-out; }
-.kore-bar-hp .kore-bar-fill { background:#63a86f; }
-.kore-bar-value { text-align:right; color:#9aa6b2; font-size:9.5px; white-space:nowrap; }
-.kore-meta { display:flex; flex-wrap:wrap; gap:4px 12px; color:#9aa6b2; font-size:10px; }
-.kore-mode[data-mode="AUTO"] { color:#63d68e; }
-.kore-mode[data-mode="OFF"] { color:#7f8a96; }
-.kore-wait { color:#d8b84a; font-size:10px; }
-.kore-actions { display:flex; flex-wrap:wrap; align-items:center; gap:4px; margin:6px 0; flex:none; }
-.kore-button { border:1px solid #2a333c; border-radius:3px; background:#11161b; color:#c5ced6; font:10px/1 monospace; padding:4px 7px; cursor:pointer; }
-.kore-button:hover { border-color:#6fb3c9; color:#e8edf2; }
-.kore-render-toggle { display:flex; align-items:center; gap:3px; color:#9aa6b2; font-size:10px; margin-left:auto; cursor:pointer; }
-.kore-console { flex:none; height:calc(6 * 1.45em); overflow:hidden; border-top:1px solid #232a31; border-bottom:1px solid #232a31; padding:4px 0; font-size:10px; line-height:1.45em; background:#07090b; }
+.kore-name { font:600 14px/1.2 Arial,'Microsoft YaHei','MiSans',sans-serif; color:#ffffff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.kore-job { color:#8a8c92; font-size:12px; white-space:nowrap; }
+.kore-header-actions { display:flex; gap:6px; flex:none; }
+.kore-link-button { display:inline-flex; align-items:center; border:0; border-radius:4px; background:none; color:#8a8c92; font:12px/1 Arial,'Microsoft YaHei','MiSans',sans-serif; padding:4px 6px; cursor:pointer; }
+.kore-link-button:hover { color:#ffffff; background:#212023; }
+.kore-bars { display:grid; grid-template-columns:1fr 1fr; gap:6px 14px; }
+.kore-bar { display:grid; grid-template-columns:24px minmax(0,1fr) 92px; align-items:center; gap:8px; font-size:12px; }
+.kore-bar-label { color:#8a8c92; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+.kore-bar-track { height:6px; background:#212023; border:1px solid #222224; border-radius:999px; overflow:hidden; }
+.kore-bar-fill { display:block; height:100%; width:0; background:#6fb3c9; transition:width 160ms ease-out; }
+.kore-bar-hp .kore-bar-fill { background:#44a282; }
+.kore-bar-fill[data-level="warn"] { background:#d9a441; }
+.kore-bar-fill[data-level="crit"] { background:#e5566f; }
+.kore-bar-value { text-align:right; color:#8a8c92; font:11px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.kore-meta { display:flex; flex-wrap:wrap; gap:4px 14px; color:#8a8c92; font-size:12px; }
+.kore-mode[data-mode="AUTO"] { color:#5fc39c; }
+.kore-mode[data-mode="OFF"] { color:#8a8c92; }
+.kore-wait { color:#d9a441; font-size:12px; }
+.kore-actions { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:8px 0; flex:none; }
+.kore-button { height:24px; padding:0 10px; border:1px solid #3a3a3e; border-radius:999px; background:#212023; color:#ffffff; font:12px/22px Arial,'Microsoft YaHei','MiSans',sans-serif; cursor:pointer; white-space:nowrap; transition:border-color 120ms ease-out,color 120ms ease-out; }
+.kore-button:hover { border-color:#6fb3c9; color:#ffffff; }
+.kore-button-primary { border-color:#ffffff; background:#ffffff; color:#111111; }
+.kore-button-primary:hover { border-color:#ffffff; color:#111111; }
+.kore-render-toggle { display:flex; align-items:center; gap:4px; color:#8a8c92; font-size:12px; margin-left:auto; cursor:pointer; }
+.kore-console { flex:none; height:calc(6 * 1.5em); overflow:hidden; border:1px solid #222224; border-radius:4px; padding:4px 6px; font:11px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; background:#131217; }
 .kore-console-line { white-space:pre; overflow:hidden; text-overflow:ellipsis; }
-.kore-console-time { color:#5c6670; }
-.kore-command { display:flex; align-items:center; gap:6px; padding-top:6px; flex:none; }
-.kore-prompt { color:#6fb3c9; }
-.kore-command-input { flex:1; min-width:0; height:22px; border:1px solid #232a31; border-radius:3px; background:#0d1115; color:#d6dbe1; font:10px monospace; padding:0 6px; }
+.kore-console-time { color:#8a8c92; }
+.kore-command { display:flex; align-items:center; gap:6px; padding-top:8px; flex:none; }
+.kore-prompt { color:#6fb3c9; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+.kore-command-input { flex:1; min-width:0; height:26px; border:1px solid #3a3a3e; border-radius:4px; background:#131217; color:#ffffff; font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; padding:0 8px; }
 .kore-command-input:focus { outline:none; border-color:#6fb3c9; }
-.kore-send { border:1px solid #2a333c; border-radius:3px; background:#11161b; color:#9aa6b2; font:10px monospace; padding:3px 7px; cursor:pointer; }
-@media (prefers-reduced-motion: reduce) { .lastro-tools.is-switching::after { display:none; } .lastro-tools.is-switching .lastro-mode-switch { animation:none; } .kore-bar-fill { transition:none; } }
+.kore-send { height:26px; padding:0 12px; border:1px solid #3a3a3e; border-radius:4px; background:#212023; color:#ffffff; font:12px/24px Arial,'Microsoft YaHei','MiSans',sans-serif; cursor:pointer; }
+.kore-send:hover { border-color:#6fb3c9; }
+@media (prefers-reduced-motion: reduce) { .kore-bar-fill { transition:none; } .kore-button { transition:none; } }
 `;

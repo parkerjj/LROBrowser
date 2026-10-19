@@ -112,9 +112,69 @@ test('Alt+Shift+K toggles the independent fullscreen panel', () => {
   const key = () => window.document.dispatchEvent(new KeyboardEvent('keydown', { key: 'K', altKey: true, shiftKey: true }));
   key();
   expect(window.document.querySelector('.kore-fullscreen')).toBeTruthy();
-  expect(window.document.querySelector('.kore-fullscreen .kore-mode-switch')).toBeNull();
+  // The mode switch only lives in the small window.
   expect(window.document.querySelector('.kore-fullscreen .kore-fs-title')?.textContent).toBe('科技改变生活');
+  expect(window.document.querySelector('.kore-fullscreen [role="tablist"]')).toBeNull();
   key();
+  expect(window.document.querySelector('.kore-fullscreen')).toBeNull();
+  shell.dispose();
+});
+
+test('re-mounting the window preserves fullscreen and debug state', () => {
+  const { shell, container } = mount();
+  shell.setVisible(true);
+  shell.setMode('kore');
+  shell.openFullscreen();
+  shell.openDebug();
+  expect(window.document.querySelector('.kore-fullscreen')).toBeTruthy();
+  expect(window.document.querySelector('.kore-debug')).toBeTruthy();
+  // A teleport re-render drops the small window into a fresh host; the
+  // fullscreen overlay and debug drawer must survive it.
+  const newHost = window.document.createElement('div');
+  newHost.className = 'kore-shell-host';
+  container.replaceChildren(newHost);
+  shell.remountWindow(newHost);
+  expect(window.document.querySelector('.kore-fullscreen')).toBeTruthy();
+  expect(window.document.querySelector('.kore-debug')).toBeTruthy();
+  expect(newHost.querySelector('.kore-window')).toBeTruthy();
+  shell.dispose();
+});
+
+test('lifecycle hides keep fullscreen and debug open; an explicit hide closes them', () => {
+  const { shell } = mount();
+  shell.setVisible(true);
+  shell.setMode('kore');
+  shell.openFullscreen();
+  shell.openDebug();
+  // A map change removes and re-appends the LastRO panel.
+  shell.setVisible(false, { keepOverlays: true });
+  shell.setVisible(true, { keepOverlays: true });
+  expect(window.document.querySelector('.kore-fullscreen')).toBeTruthy();
+  expect((window.document.querySelector('.kore-debug') as HTMLElement).hidden).toBe(false);
+  shell.setVisible(false);
+  expect(window.document.querySelector('.kore-fullscreen')).toBeNull();
+  expect((window.document.querySelector('.kore-debug') as HTMLElement).hidden).toBe(true);
+  shell.dispose();
+});
+
+test('overlays close when the KE game session ends or is replaced', () => {
+  const { host, shell, emitState } = mount();
+  const state = host.state as { gameSessionId?: string | null };
+  state.gameSessionId = 'game-1';
+  emitState();
+  shell.setVisible(true);
+  shell.setMode('kore');
+  shell.openFullscreen();
+  emitState();
+  expect(window.document.querySelector('.kore-fullscreen')).toBeTruthy();
+  state.gameSessionId = null;
+  emitState();
+  expect(window.document.querySelector('.kore-fullscreen')).toBeNull();
+  state.gameSessionId = 'game-2';
+  emitState();
+  shell.openFullscreen();
+  state.gameSessionId = 'game-3';
+  emitState();
   expect(window.document.querySelector('.kore-fullscreen')).toBeNull();
   shell.dispose();
 });

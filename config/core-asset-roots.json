@@ -35,6 +35,7 @@
     "src/kore/kore-panel-style.mjs",
     "src/kore/kore-panel-debug.mjs",
     "src/kore/kore-panel-window.mjs",
+    "src/kore/kore-panel-items.mjs",
     "src/kore/kore-panel-fullscreen.mjs",
     "src/kore/kore-panel-shell.mjs",
     "src/kore/kore-render-toggle.mjs"

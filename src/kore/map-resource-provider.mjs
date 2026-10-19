@@ -253,7 +253,11 @@ export function createMapResourceProvider({
         return { requestId: request.requestId, result: { kind: 'fieldMap', files } };
       } catch (error) {
         lastError = error;
-        break;
+        // 内容完整性错误（sha256 不匹配）说明这份地图本身有问题，继续换
+        // 候选只会掩盖它。其它错误（静态服务器把缺失路径回退成 index.html、
+        // 超时、网络失败）只说明这条候选在当前根目录不可用：同一张地图
+        // 可能以 .fld2.gz 或根目录形式存在，必须继续尝试。
+        if (String(error?.message ?? error) === 'sha256-mismatch') break;
       }
     }
     return {

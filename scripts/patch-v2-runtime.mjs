@@ -1549,6 +1549,11 @@ globalThis.KoreEngineNativeAction = (action) => {
     packet.count = action.amount;
     return sendKoreEnginePacket(action, packet);
   }
+  if (action.type === "StorageClose") {
+    // OpenKore sendStorageClose：服务端仓库没关时，后续的飞空艇请求会被静默忽略。
+    if (!PACKET?.CZ?.CLOSE_STORE) return false;
+    return sendKoreEnginePacket(action, new PACKET.CZ.CLOSE_STORE());
+  }
   if (action.type === "NpcTalk") {
     if (!PACKET?.CZ?.CONTACTNPC) return false;
     const packet = new PACKET.CZ.CONTACTNPC();
@@ -1566,6 +1571,12 @@ globalThis.KoreEngineNativeAction = (action) => {
   if (action.type === "NpcContinue") {
     if (!PACKET?.CZ?.REQ_NEXT_SCRIPT) return false;
     const packet = new PACKET.CZ.REQ_NEXT_SCRIPT();
+    packet.NAID = action.npcGid;
+    return sendKoreEnginePacket(action, packet);
+  }
+  if (action.type === "NpcClose") {
+    if (!PACKET?.CZ?.CLOSE_DIALOG) return false;
+    const packet = new PACKET.CZ.CLOSE_DIALOG();
     packet.NAID = action.npcGid;
     return sendKoreEnginePacket(action, packet);
   }
@@ -1611,6 +1622,12 @@ globalThis.KoreEngineNativeAction = (action) => {
     packet.y = hasPosition ? action.y : 0;
     packet.type = hasPosition ? 1 : 0;
     packet.itemid = Number.isSafeInteger(action.itemId) && action.itemId > 0 ? action.itemId : 14527;
+    return sendKoreEnginePacket(action, packet);
+  }
+  if (action.type === "Restart") {
+    if (!PACKET?.CZ?.RESTART) return false;
+    const packet = new PACKET.CZ.RESTART();
+    packet.type = 0;
     return sendKoreEnginePacket(action, packet);
   }
   return false;

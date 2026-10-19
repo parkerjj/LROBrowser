@@ -5,11 +5,13 @@ export interface KoreMapBlock { mapName?: string; width?: number; height?: numbe
 export function decodeWalkability(encoded: unknown, width: number, height: number): Uint8Array;
 export function walkableAt(bytes: Uint8Array, width: number, x: number, y: number): boolean;
 export function layoutMap(width: number, height: number, maxWidth: number, maxHeight: number): KoreMapLayout;
+export function cellCenter(layout: KoreMapLayout, height: number, x: number, y: number): { x: number; y: number };
+export function entityCounts(entities?: KoreMapEntity[]): { monster: number; player: number; npc: number; item: number; portal: number };
 export function parsePoint(text: unknown): { x: number; y: number } | null;
 export function parseEntityTable(result: unknown, kind: string): KoreMapEntity[];
 export function mapEntities(results?: { monsters?: unknown; players?: unknown; npcs?: unknown; items?: unknown }): KoreMapEntity[];
 export function drawMap(ctx: CanvasRenderingContext2D, options?: {
   map?: KoreMapBlock; entities?: KoreMapEntity[]; self?: { x: number; y: number } | null;
-  targetGid?: number | null; maxWidth?: number; maxHeight?: number;
+  targetGid?: number | null; maxWidth?: number; maxHeight?: number; rulers?: boolean;
 }): KoreMapLayout | null;
 export function targetGidFromAi(result: unknown): number | null;

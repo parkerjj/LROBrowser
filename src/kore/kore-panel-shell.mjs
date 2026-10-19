@@ -30,6 +30,7 @@ export function createKoreShell({
   let debugView = null;
   let retryTimer = null;
   let preferenceApplied = false;
+  let sessionId = null;
   let mode = initialMode === 'kore' || initialMode === 'lastro' ? initialMode : readMode();
   let visible = false;
 
@@ -58,6 +59,7 @@ export function createKoreShell({
       return;
     }
     placeholder.remove();
+    sessionId = host.state?.gameSessionId ?? null;
     poller = createKorePoller({ host, page });
     consoleModel = createKoreConsoleModel({ host });
     renderToggle = createRenderToggle({ page });
@@ -71,6 +73,10 @@ export function createKoreShell({
       if (!preferenceApplied && state.worldReady === true) {
         preferenceApplied = renderToggle.applyPreference();
       }
+      // Overlays belong to one KE game session. Map changes keep the session,
+      // so only a finished or replaced session closes them.
+      const nextSessionId = state.gameSessionId ?? null;
+      if (nextSessionId !== sessionId) { sessionId = nextSessionId; closeOverlays(); }
       applyVisibility();
     });
     if (host.state?.worldReady === true) {
@@ -96,12 +102,32 @@ export function createKoreShell({
     onModeChange(next);
   }
 
-  function setVisible(next) {
+  function closeOverlays() {
+    debugView?.hide();
+    if (fullscreen) fullscreen.close();
+  }
+
+  // keepOverlays is for lifecycle automation (a map change removes and
+  // re-appends every component); only an explicit hide closes the overlays.
+  function setVisible(next, { keepOverlays = false } = {}) {
     visible = next === true;
-    if (!visible) {
-      debugView?.hide();
-      if (fullscreen) fullscreen.close();
-    }
+    if (!visible && !keepOverlays) closeOverlays();
+    applyVisibility();
+  }
+
+  // Re-mount only the small-window view into a fresh host. The LastROTools
+  // component re-renders its shadow DOM on map changes (teleport), which drops
+  // the shell host; the fullscreen overlay and debug drawer live on
+  // document.body and must survive that, so only the window is rebuilt.
+  function remountWindow(nextContainer) {
+    container = nextContainer;
+    container.hidden = mode !== 'kore';
+    if (windowView) { try { windowView.destroy(); } catch { /* best effort. */ } }
+    windowView = createKoreWindow({
+      page, host, poller, consoleModel, renderToggle, history,
+      onFullscreen: openFullscreen, onDebug: openDebug,
+    });
+    container.append(windowView.element);
     applyVisibility();
   }
 
@@ -114,6 +140,7 @@ export function createKoreShell({
     fullscreenAutoRevision = renderToggle.revision;
     fullscreen = createKoreFullscreen({
       page, host, poller, consoleModel, history,
+      onDebug: openDebug,
       onExit: finishFullscreen,
     });
   }
@@ -132,7 +159,7 @@ export function createKoreShell({
     if (!host) return;
     if (!debugView) debugView = createKoreDebugView({ page, host });
     if (!debugView.element.isConnected) document.body.append(debugView.element);
-    debugView.show('state');
+    debugView.show();
   }
 
   const shortcut = event => {
@@ -142,7 +169,14 @@ export function createKoreShell({
     if (fullscreen) fullscreen.close();
     else openFullscreen();
   };
+  const onKeydown = event => {
+    if (event.key !== 'Escape') return;
+    // The debug drawer closes first; then the fullscreen.
+    if (debugView?.visible) { event.preventDefault(); event.stopPropagation(); debugView.hide(); return; }
+    if (fullscreen) { event.preventDefault(); event.stopPropagation(); fullscreen.close(); }
+  };
   document.addEventListener?.('keydown', shortcut);
+  document.addEventListener?.('keydown', onKeydown);
 
   initialize();
   // The LastROTools patch calls setMode after it has updated its own views.
@@ -155,11 +189,13 @@ export function createKoreShell({
     get initialized() { return Boolean(host); },
     setMode,
     setVisible,
+    remountWindow,
     openFullscreen,
     openDebug,
     focus() { windowView?.focus(); },
     dispose() {
       document.removeEventListener?.('keydown', shortcut);
+      document.removeEventListener?.('keydown', onKeydown);
       if (retryTimer !== null) { page.clearTimeout?.(retryTimer); retryTimer = null; }
       if (fullscreen) {
         fullscreen.close();

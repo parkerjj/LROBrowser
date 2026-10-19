@@ -64,6 +64,48 @@ test('tries server .fld2 then .fld2.gz before global candidates', async () => {
   });
 });
 
+test('an invalid response for one candidate does not skip the remaining paths', async () => {
+  // 静态服务器常把不存在的路径回退成 index.html（200 text/html）。
+  // 这只是一条候选不可用，不能因此放弃 .gz / 根目录候选。
+  const calls: string[] = [];
+  const provider = createMapResourceProvider({
+    databaseName,
+    fetchImpl: async (url: URL) => {
+      calls.push(url.pathname);
+      if (url.pathname.endsWith('/EP15.1/cmd_fild01.fld2')) {
+        return new Response('<!doctype html><html></html>', {
+          status: 200,
+          headers: { 'content-type': 'text/html' },
+        });
+      }
+      if (url.pathname.endsWith('/ke/map/fieldpack-2.0.5/cmd_fild01.fld2.gz')) {
+        return new Response(gzipSync(fieldBytes), { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    },
+  });
+  providers.push(provider);
+
+  const result = await provider.handleResourceRequest({
+    requestId: 1,
+    resourceType: 'fieldMap',
+    mapName: 'cmd_fild01.gat',
+    baseName: 'cmd_fild01',
+    serverFieldsFolder: 'EP15.1',
+    fieldpackVersion: FIELD_PACK_VERSION,
+    attempt: 0,
+    cacheMode: 'prefer',
+  });
+
+  expect(result.result.kind).toBe('fieldMap');
+  if (result.result.kind !== 'fieldMap') throw new Error('expected field map');
+  expect(result.result.files[0]).toMatchObject({
+    role: 'field',
+    relativePath: 'cmd_fild01.fld2.gz',
+    encoding: 'gzip',
+  });
+});
+
 test('fetches optional dist and weight files beside the selected field file', async () => {
   const calls: string[] = [];
   const provider = createMapResourceProvider({

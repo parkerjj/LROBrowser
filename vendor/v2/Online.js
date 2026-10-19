@@ -320907,6 +320907,10 @@ function onReceiveMapInfo(pkt) {
     globalThis.KoreEngine?.beginGameSession?.(SessionStorage_default.AID, pkt.mapName, {
       aid: SessionStorage_default.AID,
       cid: pkt.GID,
+      name: SessionStorage_default.Entity?.display?.name ?? null,
+      baseLevel: SessionStorage_default.Entity?.level ?? null,
+      jobLevel: SessionStorage_default.Entity?.joblevel ?? null,
+      jobId: SessionStorage_default.Entity?.job ?? null,
     });
   }
   catch { /* Optional KE initialization must not change the native login path. */ }

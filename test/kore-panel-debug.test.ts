@@ -31,12 +31,12 @@ test('debug config save includes the profile identity required by the config sto
   const { host } = debugHarness();
   const view = createKoreDebugView({ page: { document: window.document }, host });
   window.document.body.append(view.element);
-  view.show('config');
+  view.show();
   await vi.waitFor(() => expect(host.getConfigDocuments).toHaveBeenCalled());
   const editor = window.document.querySelector<HTMLTextAreaElement>('.kore-debug-editor')!;
   editor.value = 'attackAuto 0\n';
   const save = [...window.document.querySelectorAll<HTMLButtonElement>('.kore-debug-actions button')]
-    .find(button => button.textContent === 'Save')!;
+    .find(button => button.textContent === '保存')!;
   save.click();
   await vi.waitFor(() => expect(host.saveConfigDocument).toHaveBeenCalled());
   expect(host.saveConfigDocument).toHaveBeenCalledWith({

@@ -423,7 +423,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     if (state.actions.length > 50) state.actions.splice(0, state.actions.length - 50);
   };
   const supportedActionTypes = new Set(['MoveTo', 'Attack', 'Sit', 'Stand', 'Equip', 'Unequip', 'UseSkillOnTarget', 'UseSkillSelf', 'UseSkillAt', 'UseItem', 'Pickup', 'DropItem',
-    'StorageTransfer', 'NpcTalk', 'NpcMenu', 'NpcContinue', 'NpcNumber', 'NpcText', 'NpcShopSelect', 'ShopBuy', 'ShopSell', 'PrivateAirship']);
+    'StorageTransfer', 'StorageClose', 'NpcTalk', 'NpcMenu', 'NpcContinue', 'NpcClose', 'NpcNumber', 'NpcText', 'NpcShopSelect', 'ShopBuy', 'ShopSell', 'PrivateAirship', 'Restart']);
   const validActionPayload = action => {
     if (!supportedActionTypes.has(action.type)) return 'unsupported-action';
     const gid = value => validU32(value) && value > 0;
@@ -443,8 +443,10 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       case 'Pickup': return gid(action.itemGid) ? null : 'malformed-action';
       case 'DropItem': return validU16(action.inventoryIndex) && validU16(action.amount) && action.amount > 0 ? null : 'malformed-action';
       case 'StorageTransfer': return validU16(action.inventoryIndex) && validU32(action.amount) && action.amount > 0 && typeof action.toStorage === 'boolean' ? null : 'malformed-action';
+      case 'StorageClose': return null;
       case 'NpcTalk':
-      case 'NpcContinue': return gid(action.npcGid) ? null : 'malformed-action';
+      case 'NpcContinue':
+      case 'NpcClose': return gid(action.npcGid) ? null : 'malformed-action';
       case 'NpcNumber': return gid(action.npcGid) && Number.isSafeInteger(action.value) ? null : 'malformed-action';
       case 'NpcText': return gid(action.npcGid) && typeof action.text === 'string' ? null : 'malformed-action';
       case 'NpcMenu': return gid(action.npcGid) && validU8(action.choice) ? null : 'malformed-action';
@@ -459,6 +461,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         return typeof action.destinationId === 'string' && action.destinationId.length > 0
           && typeof action.expectedMap === 'string' && action.expectedMap.length > 0 ? null : 'malformed-action';
       }
+      case 'Restart': return null;
       default: return 'unsupported-action';
     }
   };
@@ -575,6 +578,21 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       log('error', `Map resource validation failed: ${String(error?.message ?? error)}`);
     }
   }
+  async function handleConfigRequest(message) {
+    if (!session || message.runtimeSessionId !== session) return;
+    const aid = Number.isSafeInteger(message.aid) ? message.aid : gameSession?.aid;
+    const cid = Number.isSafeInteger(message.cid) ? message.cid : gameSession?.cid;
+    if (!aid || !cid) { log('warn', 'config request ignored: no verified aid/cid'); return; }
+    const identity = { profile: message.profile ?? state.profile, aid, cid };
+    try {
+      const documents = await api.getConfigDocuments(identity);
+      const selected = documents.filter(document => M4_CONFIG_FILES.has(document.fileName));
+      if (!selected.length) { log('warn', 'config request: no documents in IndexedDB'); return; }
+      sendCommand('reload all', { documents: selected, profile: identity.profile, aid, cid, gameSessionId: gameSession?.id });
+    } catch (error) {
+      log('error', `Config auto-load failed: ${String(error?.message ?? error)}`);
+    }
+  }
   const handleWorkerMessage = message => {
     if (!message || message.runtimeSessionId !== session) return;
     if (message.type === 'ready') {
@@ -614,6 +632,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     if (message.type === 'disconnect') { requestDisconnect(message.reason); return; }
     if (message.type === 'resourceRequest') { void handleResourceRequest(message); return; }
     if (message.type === 'resourceValidation') { void handleResourceValidation(message); return; }
+    if (message.type === 'configRequest') { void handleConfigRequest(message); return; }
     if (message.type === 'mapResourceReady') {
       postEvent('mapResource', { mapName: message.mapName, version: message.version, ready: true }, 'control', {
         gameSessionId: message.gameSessionId,
@@ -704,7 +723,11 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       connection = null; gameSequence = 0; gameByteOffset = 0;
       state.gameSessionId = id; state.connectionGeneration = null; state.configIdentity = identity.aid && identity.cid ? { aid: identity.aid, cid: identity.cid } : null;
       state.streamStatus = 'awaiting-connection'; state.worldReady = false;
-      const fields = { characterGid, mapName, aid: gameSession.aid, cid: gameSession.cid };
+      const fields = {
+        characterGid, mapName, aid: gameSession.aid, cid: gameSession.cid,
+        name: identity.name ?? null, baseLevel: identity.baseLevel ?? null,
+        jobLevel: identity.jobLevel ?? null, jobId: identity.jobId ?? null,
+      };
       postEvent('gameSessionStarted', fields, 'control', { gameSessionId: id, connectionGeneration: 0 });
       changed(); return id;
     },
