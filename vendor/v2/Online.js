@@ -184721,6 +184721,59 @@ var init_MiniMap$2 = __esmMin(() => {
  * @param {boolean} [config.coordinates] display current coordinates
  * @param {boolean} [config.arrowShadow] render the player arrow with a shadow
  */
+// Local Faceworm minimap: prefer loaded collision terrain, including over blank artwork.
+// This affects display only; packet map names, navigation and cell flags stay intact.
+function isLastroFacewormMiniMap(mapname, aliases = {}) {
+  if (typeof mapname !== "string") return false;
+  const base = mapname.replace(/\.(?:gat|rsw)$/i, "");
+  const names = [base, aliases[mapname], aliases[base + ".gat"], aliases[base + ".rsw"]];
+  return names.some(value => typeof value === "string" &&
+    /^(?:[0-9]{3,4})?1@face(?:\.(?:gat|rsw))?$/i.test(value));
+}
+function createLastroFacewormTerrainMap(altitude, makeCanvas = () => document.createElement("canvas")) {
+  const { width, height } = altitude;
+  if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 ||
+      width > 2048 || height > 2048 || typeof altitude.getCellType !== "function" ||
+      !altitude.TYPE?.WALKABLE) return null;
+  try {
+    // Read native bit flags, not the on-disk GAT enum. Never modify them.
+    const cells = new Uint8Array(width * height);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const type = altitude.getCellType(x, y);
+        if (!Number.isInteger(type) || type < 0 || type > 255) return null;
+        cells[x + y * width] = type;
+      }
+    }
+    const canvas = makeCanvas();
+    canvas.width = canvas.height = 512;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    const pixels = ctx.createImageData(512, 512);
+    const scale = 512 / Math.max(width, height);
+    const left = (512 - width * scale) / 2;
+    const top = (512 - height * scale) / 2;
+    for (let py = 0; py < 512; py++) {
+      const y = height - 1 - Math.floor((py + 0.5 - top) / scale);
+      for (let px = 0; px < 512; px++) {
+        const x = Math.floor((px + 0.5 - left) / scale);
+        const type = x >= 0 && x < width && y >= 0 && y < height ? cells[x + y * width] : 0;
+        const walkable = Boolean(type & altitude.TYPE.WALKABLE);
+        const water = walkable && Boolean(type & altitude.TYPE.WATER);
+        const offset = (px + py * 512) * 4;
+        pixels.data[offset] = water ? 124 : walkable ? 236 : 48;
+        pixels.data[offset + 1] = water ? 180 : walkable ? 234 : 48;
+        pixels.data[offset + 2] = water ? 202 : walkable ? 221 : 48;
+        pixels.data[offset + 3] = 255;
+      }
+    }
+    ctx.putImageData(pixels, 0, 0);
+    return canvas;
+  } catch {
+    // The terrain can still be loading. The minimap retries at most once/second.
+    return null;
+  }
+}
 function createMiniMap({
   name,
   htmlText,
@@ -184798,6 +184851,10 @@ function createMiniMap({
    * @var {Image} minimap image
    */
   const _map = createAsyncImage();
+  let _mapRequest = 0;
+  let _facewormMap = false;
+  let _facewormTerrain = null;
+  let _facewormNextTerrainAt = 0;
   /**
    * @var {CanvasRenderingContext2D} canvas context
    */
@@ -184892,6 +184949,10 @@ function createMiniMap({
    * @param {string} mapname
    */
   MiniMap.setMap = function setMap(mapname) {
+    const request = ++_mapRequest;
+    _facewormMap = isLastroFacewormMiniMap(mapname, DB.mapalias);
+    _facewormTerrain = _facewormMap ? createLastroFacewormTerrainMap(Altitude) : null;
+    _facewormNextTerrainAt = 0;
     _map.src =
       "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==";
     _towninfo = DB.getTownInfo(mapname.replace(/\..*/, ""));
@@ -184902,7 +184963,7 @@ function createMiniMap({
     path = path.replace(/\//g, "\\");
     path = DB.mapalias[path] || path;
     Client.loadFile(`data/texture/${path}`, (dataURI) => {
-      _map.src = dataURI;
+      if (request === _mapRequest) _map.src = dataURI;
     });
   };
   /**
@@ -184923,6 +184984,9 @@ function createMiniMap({
    * Once removed from HTML
    */
   MiniMap.onRemove = function onRemove() {
+    ++_mapRequest;
+    _facewormMap = false;
+    _facewormTerrain = null;
     _party.length = 0;
     _guild.length = 0;
     _markers.length = 0;
@@ -185127,11 +185191,16 @@ function createMiniMap({
       start_y = ((height - max) / 2) * f;
       if (coordinates) MiniMap.updateCoordinates(pos[0], pos[1]);
       _ctx.clearRect(0, 0, 128, 128);
-      if (_map.complete && _map.width) {
-        if (zoom === 1) _ctx.drawImage(_map, 0, 0, 128, 128);
+      if (_facewormMap && !_facewormTerrain && tick >= _facewormNextTerrainAt) {
+        _facewormNextTerrainAt = tick + 1000;
+        _facewormTerrain = createLastroFacewormTerrainMap(Altitude);
+      }
+      const mapImage = _facewormMap && _facewormTerrain ? _facewormTerrain : _map;
+      if (mapImage && (mapImage === _facewormTerrain || mapImage.complete) && mapImage.width) {
+        if (zoom === 1) _ctx.drawImage(mapImage, 0, 0, 128, 128);
         else
           _ctx.drawImage(
-            _map,
+            mapImage,
             ((start_x + pos[0] * f) * 4 - ZOOM_SIZE * zoom) | 0,
             ((start_y + 128 - pos[1] * f) * 4 - ZOOM_SIZE * zoom) | 0,
             ZOOM_SIZE * zoom * 2,
@@ -185202,6 +185271,14 @@ function createMiniMap({
           _ctx.shadowOffsetX = 0;
           _ctx.shadowOffsetY = 0;
         }
+        _ctx.restore();
+      }
+      if (_facewormMap && !(_arrow.complete && _arrow.width)) {
+        _ctx.save();
+        _ctx.fillStyle = "#111";
+        _ctx.fillRect(projectX(pos[0]) - 3, projectY(pos[1]) - 3, 7, 7);
+        _ctx.fillStyle = "#ffe45c";
+        _ctx.fillRect(projectX(pos[0]) - 2, projectY(pos[1]) - 2, 5, 5);
         _ctx.restore();
       }
       if (tick % 1e3 > 500) {
@@ -186331,6 +186408,11 @@ var init_Navigation = __esmMin(() => {
       _isMapClickTarget = false;
     }
     const mapBaseName = mapName.replace(/\..*/, "");
+    // Keep this window's terrain tied to its own requested map, not a previous preview.
+    const display = this._lastroFacewormDisplay = {
+      faceworm: isLastroFacewormMiniMap(mapName, DB.mapalias),
+      terrain: null,
+    };
     _towninfo = DB.getTownInfo(mapBaseName) || [];
     let bmpPath =
       DB.INTERFACE_PATH.replace("data/texture/", "") +
@@ -186340,6 +186422,7 @@ var init_Navigation = __esmMin(() => {
     bmpPath = bmpPath.replace(/\//g, "\\");
     bmpPath = DB.mapalias[bmpPath] || bmpPath;
     Client.loadFile("data/texture/" + bmpPath, (dataURI) => {
+      if (this._lastroFacewormDisplay !== display) return;
       if (dataURI) _map.src = dataURI;
       else
         _map.src =
@@ -186349,6 +186432,7 @@ var init_Navigation = __esmMin(() => {
     gatPath = gatPath.replace(/\//g, "\\");
     gatPath = DB.mapalias[gatPath] || gatPath;
     Client.loadFile("data/" + gatPath, (gatData) => {
+      if (this._lastroFacewormDisplay !== display) return;
       globalThis.roNaviDebug?.log("gat-result", () => ({
         file: gatPath,
         loaded: Boolean(gatData),
@@ -186369,6 +186453,14 @@ var init_Navigation = __esmMin(() => {
           }
           _mapData.cellTypes = cellTypes;
           _mapData.map = mapBaseName;
+          if (display.faceworm) {
+            display.terrain = createLastroFacewormTerrainMap({
+              width: gatData.width,
+              height: gatData.height,
+              TYPE: Altitude.TYPE,
+              getCellType: (x, y) => cellTypes[x + y * gatData.width],
+            });
+          }
         }
       }
     });
@@ -186474,7 +186566,8 @@ var init_Navigation = __esmMin(() => {
     ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, width, height);
-    if (_map.complete && _map.width) {
+    const facewormTerrain = this._lastroFacewormDisplay?.terrain;
+    if (facewormTerrain || (_map.complete && _map.width)) {
       const scaleX = width / _mapData.width;
       const scaleY = height / _mapData.height;
       const scale = Math.min(scaleX, scaleY);
@@ -186482,7 +186575,15 @@ var init_Navigation = __esmMin(() => {
       ctx.translate(width / 2, height / 2);
       ctx.scale(scale, scale);
       ctx.translate(-_mapData.width / 2, -_mapData.height / 2);
-      ctx.drawImage(_map, 0, 0, _mapData.width, _mapData.height);
+      if (facewormTerrain) {
+        // The shared minimap canvas is square; remove padding for Navigation's own fit.
+        const terrainScale = 512 / Math.max(_mapData.width, _mapData.height);
+        const terrainWidth = _mapData.width * terrainScale;
+        const terrainHeight = _mapData.height * terrainScale;
+        ctx.drawImage(facewormTerrain,
+          (512 - terrainWidth) / 2, (512 - terrainHeight) / 2,
+          terrainWidth, terrainHeight, 0, 0, _mapData.width, _mapData.height);
+      } else ctx.drawImage(_map, 0, 0, _mapData.width, _mapData.height);
       ctx.restore();
     }
     const mapToScreenBound = (x, y) => {

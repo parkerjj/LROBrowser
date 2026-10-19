@@ -13,3 +13,6 @@ export function patchRuntimeToolsPanels(source: string): string;
 export function patchRuntimeShortcutSettings(source: string): string;
 export function patchLastROInstancePackets(source: string): string;
 export function patchRuntimeWindowBounds(source: string): string;
+export function patchRuntimeStorageOpening(source: string): string;
+
+export function patchRuntimeStorageItemFlow(source: string): string;

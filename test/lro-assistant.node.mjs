@@ -308,6 +308,84 @@ function fixture() {
   return {dom,page,session,storage,members,bus,cleanup(){page.queueMicrotask(()=>page.close());globalThis.MutationObserver=original;}};
 }
 
+test('local bounty travel exposes 25 destinations and submits once using native packet fields',()=>{
+ const f=fixture();try{
+  const sent=[];f.members.set('Network/NetworkManager',{sendPacket:p=>sent.push(p)});
+  f.members.set('Network/PacketStructure',{ZC:{},CZ:{PRIVATE_AIRSHIP_REQUEST:class {}}});
+  const app=createStandardAssistant({page:f.page,modules:f.members,storage:f.storage,subscribePackets:f.bus.subscribe});
+  app.gameplayVisible=true;app.setModuleEnabled('bountyEnabled',true);app.renderModuleManager();
+  app.shadow.querySelector('.bounty-travel-open').click();
+  assert.equal(app.bountyTravel.window.body.querySelectorAll('[data-travel]').length,25);
+  app.bountyTravel.request('treasure');app.bountyTravel.request('treasure');assert.equal(sent.length,1);
+  assert.deepEqual({...sent[0]},{mapname:'pay_fild11',x:111,y:174,type:1,itemid:14527});
+  f.members.get('Renderer/MapRenderer').currentMap='pay_fild11';f.session.Entity.position=[111,174];
+  app.bountyTravel.checkArrival();assert.equal(app.bountyTravel.pending,null);assert.equal(app.bountyTravel.status,'已到达');
+  assert.equal(typeof app.installUnidentifiedPickupNames,'undefined');assert.equal(app.quickCast,undefined);
+ }finally{f.cleanup();}
+});
+
+test('two simultaneously opened windows save separate characters through pagehide in either order',async()=>{
+ const indexedDB=new IDBFactory(),a=fixture(),b=fixture();b.session.Character.GID=201;b.session.GID=201;
+ const sa=await openAssistantStorage('lastro-2x',{indexedDB}),sb=await openAssistantStorage('lastro-2x',{indexedDB});
+ const aa=createStandardAssistant({page:a.page,modules:a.members,storage:sa,subscribePackets:a.bus.subscribe});
+ const ab=createStandardAssistant({page:b.page,modules:b.members,storage:sb,subscribePackets:b.bus.subscribe});
+ try{
+  aa.setModuleEnabled('equipmentComparisonEnabled',false);aa.settings.shoppingList=['A的清单'];aa.save();
+  ab.setModuleEnabled('equipmentComparisonEnabled',true);ab.settings.shoppingList=['B的清单'];ab.save();
+  await Promise.all([sa.flush(),sb.flush()]);
+  for(const order of [[a,b],[b,a]]){
+   for(const f of order)f.page.dispatchEvent(new f.page.Event('pagehide'));
+   await Promise.all([sa.flush(),sb.flush()]);
+   const fresh=await openAssistantStorage('lastro-2x',{indexedDB});
+   const read=app=>JSON.parse(fresh.getItem(app.characterSettingsKey)).settings;
+   assert.deepEqual(read(aa).shoppingList,['A的清单']);assert.equal(read(aa).equipmentComparisonEnabled,false);
+   assert.deepEqual(read(ab).shoppingList,['B的清单']);assert.equal(read(ab).equipmentComparisonEnabled,true);
+   await fresh.close();
+  }
+ }finally{await sa.close();await sb.close();a.cleanup();b.cleanup();}
+});
+
+test('bounty window reappears after map loading but stays closed after explicit close',()=>{
+ const f=fixture();try{
+  const app=createStandardAssistant({page:f.page,modules:f.members,storage:f.storage,subscribePackets:f.bus.subscribe});
+  app.gameplayVisible=true;app.setModuleEnabled('bountyEnabled',true);app.renderModuleManager();app.shadow.querySelector('.bounty-travel-open').click();
+  const travel=app.bountyTravel;travel.selectTab('delivery');travel.syncVisibility(false);assert.equal(travel.opened,true);
+  travel.syncVisibility(true);assert.equal(travel.window.host.hidden,false);assert.equal(travel.activeTab,'delivery');
+  travel.window.shadow.querySelector('.close').click();travel.syncVisibility(false);travel.syncVisibility(true);
+  assert.equal(travel.opened,false);assert.equal(travel.window.host.hidden,true);
+ }finally{f.cleanup();}
+});
+
+test('existing salted character settings migrate without clearing preferences',async()=>{
+ const f=fixture(),indexedDB=new IDBFactory(),storage=await openAssistantStorage('lastro-2x',{indexedDB});
+ let hash=0x811c9dc5;for(const char of 'saved-salt:100:200'){hash^=char.charCodeAt(0);hash=Math.imul(hash,0x01000193);}
+ const key='p_'+(hash>>>0).toString(36);
+ storage.setItem('ro-market-assistant:character-settings:v1',JSON.stringify({schemaVersion:1,salt:'saved-salt',profiles:{[key]:{settings:{equipmentComparisonEnabled:false,shoppingList:['保留清单'],bountyTravel:{left:42,top:63}}}}}));
+ const app=createStandardAssistant({page:f.page,modules:f.members,storage,subscribePackets:f.bus.subscribe});
+ try{
+  assert.equal(app.settings.equipmentComparisonEnabled,false);assert.deepEqual(app.settings.shoppingList,['保留清单']);
+  assert.deepEqual(app.windowPositions.bountyTravel,{left:42,top:63});await storage.flush();
+  const fresh=await openAssistantStorage('lastro-2x',{indexedDB});
+  assert.equal(JSON.parse(fresh.getItem(app.characterSettingsKey)).settings.equipmentComparisonEnabled,false);await fresh.close();
+ }finally{await storage.close();f.cleanup();}
+});
+
+test('native storage snapshot withdrawal verifies both sides and rejects stale rows',()=>{
+ const f=fixture();try{
+  const component=nativeComponent(f,'Storage');let items=[{index:3,ITID:501,type:0,count:5,IsIdentified:1}];
+  component.lroReadItems=()=>items.map(x=>({...x}));component.setItems=()=>{};component.setItemInfo=()=>{};
+  const inventory=f.members.get('UI/Components/Inventory/Inventory');let requests=0;
+  component.reqRemoveItem=(index,count)=>{requests++;assert.equal(index,3);items[0].count-=count;inventory.list.push({...items[0],index:5,count});};
+  f.members.set('UI/Components/Storage/Storage',component);
+  const app=createStandardAssistant({page:f.page,modules:f.members,storage:f.storage,subscribePackets:f.bus.subscribe});app.gameplayVisible=true;
+  const overview=app.itemOverview;overview.setEnabled(true);overview.open();overview.storageExpectedCount=1;
+  const live=overview.overviewLiveStorage();assert.ok(live);const row=overview.rows().find(r=>r._live);assert.ok(row);
+  overview.withdrawSelection=row;assert.equal(overview.submitOverviewWithdraw('2'),true);assert.equal(requests,1);
+  assert.equal(overview.withdrawPending,null);assert.match(overview.overviewMessage,/已取出 2/);
+  overview.resetOverviewSession();overview.withdrawSelection=row;assert.equal(overview.submitOverviewWithdraw('1'),false);assert.equal(requests,1);
+ }finally{f.cleanup();}
+});
+
 test('standard UI mounts, preserves author, shows adaptation limits, and manual record roundtrip',()=>{
   const f=fixture();
   try{
@@ -349,7 +427,7 @@ test('bounty bottom rows use the scroll viewport and capture tasks open monster 
     assert.equal(item.style.display,'block'); assert.equal(monster.style.display,'block');
     assert.equal(item.textContent,'搜商店'); assert.equal(monster.textContent,'查怪物');
     let searched,lookedUp;
-    app.searchBountyItem=name=>{searched=name;}; app.openBountyMonster=name=>{lookedUp=name;};
+    app.websiteMarket={search:(name,immediate)=>{searched=name;assert.equal(immediate,true);}}; app.openBountyMonster=name=>{lookedUp=name;};
     item.click(); monster.click();
     assert.equal(searched,'艾丽斯的围裙'); assert.equal(lookedUp,'米杜拉');
     rows[0].getBoundingClientRect=()=>box(10,30);

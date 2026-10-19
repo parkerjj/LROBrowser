@@ -38,3 +38,5 @@ export function patchRuntimeEmoticons(source: string): string;
 export function patchRuntimeLocalization(source: string): string;
 export function patchRuntimeJobLocalization(source: string): string;
 export function patchRuntimeSkillLocalization(source: string): string;
+export function formatLastroCharacterMapName(value: unknown): string;
+export function patchRuntimeCharSelectMapName(source: string): string;

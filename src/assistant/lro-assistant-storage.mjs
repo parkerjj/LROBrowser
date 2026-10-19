@@ -89,7 +89,7 @@ export async function openAssistantStorage(profile, options = {}) {
   let switchQueue = Promise.resolve();
   let closed = false;
   let switching = false;
-  const backing = key => SHARED_PREFERENCE_KEYS.has(key) ? preferences : active;
+  const backing = key => SHARED_PREFERENCE_KEYS.has(key) || key.startsWith(`${PREFIX}:character-preferences:v2:`) ? preferences : active;
 
   const storage = {
     get profile() { return activeProfile; },

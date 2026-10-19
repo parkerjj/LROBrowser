@@ -30,7 +30,8 @@ export function installLroAssistant(options) {
         page, storage, modules: options.modules,
         subscribePackets: options.subscribePackets, reportError,
       });
-      const marketApi = page.fetch ? installMarketApi(assistant,page) : null;
+      const marketApi = page.fetch ? installMarketApi(assistant,page,storage) : null;
+      assistant.websiteMarket = marketApi;
       const switchProfile = async profileId => {
         marketApi?.reset?.();
         return assistant.switchProfile(profileId);
