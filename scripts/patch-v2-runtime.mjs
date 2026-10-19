@@ -939,6 +939,8 @@ export function patchRuntimeToolsPanels(source) {
       const key = "LastROTeleportOrder:" + Configs.get("lastroNid", 0);
       return Preferences.get(key, { _key: key, _version: 1, orders: {} }, 1);
     },
+    createKoreShell,
+    getKoreHost: () => globalThis.KoreEngine,
   }, ${JSON.stringify(LASTRO_TOOLS_CSS)});
   (${installLastroShortcutEntry.toString()})(LastROTools, lastroNativeShortcutEntry, {
     document: globalThis.document, setHtml: setLastROInnerHTML,
@@ -1191,6 +1193,7 @@ export function patchV2Runtime(source, { assistant = false } = {}) {
   const normalizedSource = source.replace(/\r\n/g, '\n');
   let output = `import { decorateLastROLoginTemplate, decorateLastROLoginStyles, installLastROLogin, beforeLastROLoginConnect, afterLastROLoginPassword } from "./lastro-account-login.mjs";
 import { sendKoreNativePacket, startOptionalKore } from "./kore-integration.mjs";
+import { createKoreShell } from "./kore-panel-shell.mjs";
 let lastroWorkerPolicy;
 let currentKoreWorkerUrl = null;
 const nativeWorkerUrls = ["LastROThreadEventHandler.js", "PathFindingWorker.js"]
@@ -1408,6 +1411,11 @@ globalThis.KoreEngineDisconnect = (reason) => {
 		return false;
 	}
 };
+try {
+	if (typeof Renderer !== "undefined" && typeof GraphicsSettings !== "undefined") {
+		globalThis.__LastRORenderer = { Renderer, GraphicsSettings };
+	}
+} catch { /* renderer exposure is optional */ }
 startOptionalKore({
 	createWorker: (value) => {
 		const url = new URL(value);

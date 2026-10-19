@@ -56,4 +56,54 @@ button:focus-visible,input:focus-visible,select:focus-visible { outline:2px soli
 .lastro-custom-map-row { display:flex; flex-wrap:wrap; align-items:center; gap:4.5px; }.lastro-custom-map-row .lastro-line { flex:1; min-width:120px; }.lastro-custom-map-row .lastro-button { flex:none; }
 @media(max-width:480px) { :host{font-size:13px}.lastro-settings-view,.lastro-teleport-body{padding:6px;font-size:9.75px}.lastro-slot-grid{grid-template-columns:1fr}.lastro-tab{font-size:9px;line-height:14.625px}.lastro-route-tabs .lastro-tab{font-size:8.25px;line-height:14.625px}.lastro-route-row{gap:3.75px}.lastro-route-name{font-size:10.5px} }
 @container lastro-panel (max-width:450px) { .lastro-slot-grid{grid-template-columns:1fr}.lastro-route-actions{max-width:82.5px}.lastro-custom-coordinates{gap:6px}.lastro-custom-coordinates .lastro-line{grid-template-columns:minmax(0,33.75px) minmax(0,1fr)} }
+.lastro-mode-switch { position:absolute; left:50%; top:2px; transform:translateX(-50%); display:flex; gap:1px; padding:1px; border:1px solid #8b99b1; border-radius:9px; background:#e9edf4; box-shadow:inset 0 0 0 1px #fff; z-index:1; }
+.lastro-mode-option { height:14px; padding:0 8px; border:0; border-radius:7px; background:transparent; color:#5a6a85; font:500 9.5px/14px Arial,'Microsoft YaHei','MiSans',sans-serif; cursor:pointer; white-space:nowrap; }
+.lastro-mode-option.is-active { background:#527bc2; color:#fff; box-shadow:inset 0 1px 0 #8cace0; }
+.lastro-mode-option:focus-visible { outline:1px solid #7396d0; outline-offset:1px; }
+.lastro-tools { position:relative; }
+.lastro-tools[data-mode="kore"] { border-color:#2a333c; background:#0a0b0d; box-shadow:inset 0 0 0 1px #11161b,1px 2px 8px #0008; color:#d6dbe1; }
+.lastro-tools[data-mode="kore"] .lastro-ro-titlebar { background-image:none; background:#0c1014; border-bottom-color:#232a31; }
+.lastro-tools[data-mode="kore"] .lastro-title-left,.lastro-tools[data-mode="kore"] .lastro-title-right { background-image:none !important; }
+.lastro-tools[data-mode="kore"] .lastro-mode-switch { background:#07090b; border-color:#2a333c; box-shadow:none; }
+.lastro-tools[data-mode="kore"] .lastro-mode-option { color:#7f8a96; }
+.lastro-tools[data-mode="kore"] .lastro-mode-option.is-active { background:#6fb3c9; color:#061014; box-shadow:none; }
+.lastro-tools[data-mode="kore"] .lastro-panel-footer { background-image:none !important; background:#0c1014; }
+.lastro-tools.is-switching::after { content:""; position:absolute; inset:0; pointer-events:none; z-index:4; background:linear-gradient(180deg,transparent 0%,rgba(111,179,201,.22) 50%,transparent 100%); animation:kore-scan 400ms ease-out; }
+.lastro-tools.is-switching .lastro-mode-switch { animation:kore-switch-pulse 400ms ease-out; }
+@keyframes kore-scan { from{transform:translateY(-100%)} to{transform:translateY(100%)} }
+@keyframes kore-switch-pulse { 0%{box-shadow:0 0 0 0 rgba(232,184,75,.55)} 55%{box-shadow:0 0 0 3px rgba(111,179,201,.3)} 100%{box-shadow:none} }
+.kore-shell-host { flex:1 1 auto; height:320px; min-height:0; overflow:hidden; box-sizing:border-box; }
+.kore-window { display:flex; flex-direction:column; height:320px; min-height:0; box-sizing:border-box; padding:8px 10px; background:#0a0b0d; color:#d6dbe1; font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+.kore-summary { display:flex; flex-direction:column; gap:5px; flex:none; }
+.kore-identity-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.kore-identity { display:flex; align-items:baseline; gap:8px; min-width:0; }
+.kore-name { font:600 13px/1.2 Arial,'Microsoft YaHei','MiSans',sans-serif; color:#e8edf2; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.kore-job { color:#7f8a96; font-size:10.5px; white-space:nowrap; }
+.kore-header-actions { display:flex; gap:4px; flex:none; }
+.kore-link-button { border:1px solid #2a333c; border-radius:3px; background:#11161b; color:#7f8a96; font:10px/1 monospace; padding:3px 6px; cursor:pointer; }
+.kore-link-button:hover { color:#6fb3c9; border-color:#3d4a55; }
+.kore-bars { display:grid; grid-template-columns:1fr 1fr; gap:4px 12px; }
+.kore-bar { display:grid; grid-template-columns:22px minmax(0,1fr) 86px; align-items:center; gap:6px; font-size:10px; }
+.kore-bar-label { color:#7f8a96; }
+.kore-bar-track { height:6px; background:#151a1f; border:1px solid #232a31; border-radius:2px; overflow:hidden; }
+.kore-bar-fill { display:block; height:100%; width:0; background:#6fb3c9; transition:width 200ms ease-out; }
+.kore-bar-hp .kore-bar-fill { background:#63a86f; }
+.kore-bar-value { text-align:right; color:#9aa6b2; font-size:9.5px; white-space:nowrap; }
+.kore-meta { display:flex; flex-wrap:wrap; gap:4px 12px; color:#9aa6b2; font-size:10px; }
+.kore-mode[data-mode="AUTO"] { color:#63d68e; }
+.kore-mode[data-mode="OFF"] { color:#7f8a96; }
+.kore-wait { color:#d8b84a; font-size:10px; }
+.kore-actions { display:flex; flex-wrap:wrap; align-items:center; gap:4px; margin:6px 0; flex:none; }
+.kore-button { border:1px solid #2a333c; border-radius:3px; background:#11161b; color:#c5ced6; font:10px/1 monospace; padding:4px 7px; cursor:pointer; }
+.kore-button:hover { border-color:#6fb3c9; color:#e8edf2; }
+.kore-render-toggle { display:flex; align-items:center; gap:3px; color:#9aa6b2; font-size:10px; margin-left:auto; cursor:pointer; }
+.kore-console { flex:none; height:calc(6 * 1.45em); overflow:hidden; border-top:1px solid #232a31; border-bottom:1px solid #232a31; padding:4px 0; font-size:10px; line-height:1.45em; background:#07090b; }
+.kore-console-line { white-space:pre; overflow:hidden; text-overflow:ellipsis; }
+.kore-console-time { color:#5c6670; }
+.kore-command { display:flex; align-items:center; gap:6px; padding-top:6px; flex:none; }
+.kore-prompt { color:#6fb3c9; }
+.kore-command-input { flex:1; min-width:0; height:22px; border:1px solid #232a31; border-radius:3px; background:#0d1115; color:#d6dbe1; font:10px monospace; padding:0 6px; }
+.kore-command-input:focus { outline:none; border-color:#6fb3c9; }
+.kore-send { border:1px solid #2a333c; border-radius:3px; background:#11161b; color:#9aa6b2; font:10px monospace; padding:3px 7px; cursor:pointer; }
+@media (prefers-reduced-motion: reduce) { .lastro-tools.is-switching::after { display:none; } .lastro-tools.is-switching .lastro-mode-switch { animation:none; } .kore-bar-fill { transition:none; } }
 `;

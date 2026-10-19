@@ -17,6 +17,14 @@ describe('V2 runtime patch', () => {
   ])('rejects missing or ambiguous tools/map lifecycle anchors', source => {
     expect(() => patchRuntimeToolsPanels(source)).toThrow('anchor:lastro-tools-panels');
   });
+  it('mounts the KE shell switch and host into the LastRO tools template', () => {
+    const source = 'Navigation.navigateTo = function () { _finalTargetData = {}; this.waitForMapData(function () {}); }; Navigation.waitForMapData = function (callback) { Navigation.waitForMapData(callback); }; UIManager.addComponent(LastROTools); var MapRenderer = class MapRenderer { static setMap() { UIManager.removeComponents(); } }; function cleanGameUI() { document._lastroItemDrag?.cancel(); }';
+    const patched = patchRuntimeToolsPanels(source);
+    expect(patched).toContain('data-shell-mode="lastro"');
+    expect(patched).toContain('科技改变生活');
+    expect(patched).toContain('kore-shell-host');
+    expect(patched).toContain('createKoreShell');
+  });
   it('requires unambiguous chat-map integration anchors on upstream updates', () => {
     expect(() => patchRuntimeChatMapLinks('function requestChatMapTeleport(link) { return false; }')).toThrow('anchor:chat-map-links');
   });

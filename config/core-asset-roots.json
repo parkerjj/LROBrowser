@@ -28,7 +28,16 @@
     "src/assistant/lro-market-api.mjs",
     "src/kore/map-resource-provider.mjs",
     "src/kore/kore-config-store.mjs",
-    "src/kore/kore-integration.mjs"
+    "src/kore/kore-integration.mjs",
+    "src/kore/kore-panel-console.mjs",
+    "src/kore/kore-panel-poller.mjs",
+    "src/kore/kore-panel-map.mjs",
+    "src/kore/kore-panel-style.mjs",
+    "src/kore/kore-panel-debug.mjs",
+    "src/kore/kore-panel-window.mjs",
+    "src/kore/kore-panel-fullscreen.mjs",
+    "src/kore/kore-panel-shell.mjs",
+    "src/kore/kore-render-toggle.mjs"
   ],
   "baseline": {
     "luaCount": 473,

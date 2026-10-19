@@ -25,6 +25,7 @@ export function installLastroToolsPanels(tools, deps, css, presetRoutes = {}) {
   const customSources = [['guide', '常用地点'], ['train', '洞穴传送'], ['wild', '野外地图'], ['mine', '我的地点'], ['other', '其他地点']];
   let selected = categories.some(([id]) => id === preferences.category) ? preferences.category : 'npc';
   let root, list, status, dock, drag, resizing, scrollFrame, confirmation, requestGeneration = 0;
+  let koreShell = null, shellMode = 'lastro', previousShellMode = null;
   let editingPlaceId = null, customEditorOpen = false, savingCustom = false, searchQuery = '';
   let customSource = 'mine', customGroup = null;
   const layouts = new Map();
@@ -39,6 +40,7 @@ export function installLastroToolsPanels(tools, deps, css, presetRoutes = {}) {
     return node;
   };
   const titlebar = title => `<div class="lastro-ro-titlebar" data-background="basic_interface/titlebar_mid.bmp"><span class="lastro-title-left" data-background="basic_interface/titlebar_left.bmp"></span><span class="lastro-title-right" data-background="basic_interface/titlebar_right.bmp"></span><strong>${title}</strong><button type="button" class="lastro-window-close" data-action="close" data-background="basic_interface/sys_close_off.bmp" data-hover="basic_interface/sys_close_on.bmp" aria-label="关闭${title}" title="关闭"></button></div>`;
+  const shellTitlebar = () => `<div class="lastro-ro-titlebar" data-background="basic_interface/titlebar_mid.bmp"><span class="lastro-title-left" data-background="basic_interface/titlebar_left.bmp"></span><span class="lastro-title-right" data-background="basic_interface/titlebar_right.bmp"></span><div class="lastro-mode-switch" role="tablist" aria-label="工具箱模式"><button type="button" role="tab" class="lastro-mode-option" data-shell-mode="lastro" aria-selected="true">生锈的工具箱</button><button type="button" role="tab" class="lastro-mode-option" data-shell-mode="kore" aria-selected="false">科技改变生活</button></div><button type="button" class="lastro-window-close" data-action="close" data-background="basic_interface/sys_close_off.bmp" data-hover="basic_interface/sys_close_on.bmp" aria-label="关闭工具箱" title="关闭"></button></div>`;
   const resizeFooter = title => `<div class="lastro-panel-footer" data-background="basic_interface/btnbar_mid.bmp"><button type="button" class="lastro-window-resize" data-background="btn_resize.bmp" aria-label="调整${title}窗口大小"></button></div>`;
   function save(message) {
     try { preferences.save?.(); if (message && status) status.textContent = message; }
@@ -695,7 +697,7 @@ export function installLastroToolsPanels(tools, deps, css, presetRoutes = {}) {
     dock.append(style);
     const automationButton = element('button', ''), teleportButton = element('button', '');
     automationButton.type = teleportButton.type = 'button';
-    automationButton.setAttribute('aria-label', '打开挂机设置'); teleportButton.setAttribute('aria-label', '打开传送列表');
+    automationButton.setAttribute('aria-label', '打开工具箱'); automationButton.title = '打开工具箱'; teleportButton.setAttribute('aria-label', '打开传送列表');
     for (const [button, asset] of [[teleportButton, 'skill'], [automationButton, 'option']]) {
       const icon = element('span', 'lastro-dock-icon'); icon.dataset.background = 'ro_menu_icon/' + asset + '_1.bmp'; icon.dataset.down = 'ro_menu_icon/' + asset + '_2.bmp';
       icon.setAttribute('aria-hidden', 'true'); button.replaceChildren(icon);
@@ -717,7 +719,7 @@ export function installLastroToolsPanels(tools, deps, css, presetRoutes = {}) {
   }
   function showAutomation() {
     tools.restorePanel(); tools.populateItemSelects();
-    tools.getRoot().querySelector('.lastro-settings-view').hidden = false;
+    applyShellMode(koreShell?.mode ?? shellMode, { syncShell: false });
     resetScroll(tools, '.lastro-settings-body');
     tools.focus?.(); ensureDock();
   }
@@ -731,9 +733,9 @@ export function installLastroToolsPanels(tools, deps, css, presetRoutes = {}) {
     setHtml(template, originalRender.call(this));
     const content = template.content;
     const header = content.querySelector('.lastro-header');
-    const bar = doc.createElement('div'); setHtml(bar, titlebar('挂机设置')); header.replaceWith(bar.firstElementChild);
+    const bar = doc.createElement('div'); setHtml(bar, shellTitlebar()); header.replaceWith(bar.firstElementChild);
     content.querySelector('.lastro-settings-bar').remove();
-    const settings = content.querySelector('.lastro-settings-view'); settings.hidden = false;
+    const settings = content.querySelector('.lastro-settings-view'); settings.hidden = shellMode !== 'lastro';
     const options = content.querySelectorAll('[data-option]');
     for (const option of [...options].reverse()) {
       const tab = option.dataset.option === 'autoLoot' ? 'pick' : option.dataset.option === 'autoPots' ? 'eat' : 'battle';
@@ -749,34 +751,109 @@ export function installLastroToolsPanels(tools, deps, css, presetRoutes = {}) {
     content.querySelector('.lastro-ro-titlebar').append(minimize);
     const statusNode = content.querySelector('.lastro-status'); settings.append(statusNode);
     content.querySelector('.lastro-main-view').remove();
+    const shellHost = doc.createElement('div');
+    shellHost.className = 'kore-shell-host';
+    shellHost.hidden = shellMode !== 'kore';
+    const toolsRoot = content.querySelector('.lastro-tools');
+    toolsRoot.append(shellHost);
     const footer = doc.createElement('template'); setHtml(footer, resizeFooter('挂机设置'));
-    content.querySelector('.lastro-tools').append(footer.content);
+    toolsRoot.append(footer.content);
     return template.innerHTML;
   };
+  function applyShellMode(next, { syncShell = true } = {}) {
+    shellMode = next === 'kore' ? 'kore' : 'lastro';
+    const panelRoot = tools.getRoot();
+    const panel = panelRoot?.querySelector('.lastro-tools');
+    if (panel) panel.dataset.mode = shellMode;
+    if (panel && previousShellMode !== null && previousShellMode !== shellMode) {
+      panel.classList.remove('is-switching');
+      void panel.offsetWidth;
+      panel.classList.add('is-switching');
+      win.setTimeout(() => panel.classList.remove('is-switching'), 420);
+    }
+    previousShellMode = shellMode;
+    const settings = panelRoot?.querySelector('.lastro-settings-view');
+    const shellHost = panelRoot?.querySelector('.kore-shell-host');
+    if (settings) settings.hidden = shellMode !== 'lastro';
+    if (shellHost) shellHost.hidden = shellMode !== 'kore';
+    panelRoot?.querySelectorAll('[data-shell-mode]').forEach(button => {
+      const active = button.dataset.shellMode === shellMode;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    const compact = panelRoot?.querySelector('[data-compact-status-text]');
+    if (compact) {
+      if (shellMode === 'kore') {
+        if (!compact.dataset.lastroText) compact.dataset.lastroText = compact.textContent;
+        compact.textContent = '科技改变生活 · KE 运行中';
+      } else if (compact.dataset.lastroText) {
+        compact.textContent = compact.dataset.lastroText;
+        delete compact.dataset.lastroText;
+      }
+    }
+    if (syncShell) koreShell?.setMode(shellMode);
+  }
+  const originalCompactStatus = tools.renderCompactStatus;
+  if (typeof originalCompactStatus === 'function') {
+    tools.renderCompactStatus = function (...args) {
+      originalCompactStatus.apply(this, args);
+      if (shellMode !== 'kore') return;
+      const compact = this.getRoot?.()?.querySelector('[data-compact-status-text]');
+      if (compact) compact.textContent = '科技改变生活 · KE 运行中';
+    };
+  }
+  function installShell() {
+    const panelRoot = tools.getRoot();
+    if (!panelRoot) return;
+    panelRoot.querySelectorAll('[data-shell-mode]').forEach(button => {
+      button.addEventListener('mousedown', event => event.stopPropagation());
+      button.addEventListener('pointerdown', event => event.stopPropagation());
+      button.addEventListener('click', () => applyShellMode(button.dataset.shellMode));
+    });
+    const shellHost = panelRoot.querySelector('.kore-shell-host');
+    if (!koreShell && shellHost && deps.createKoreShell) {
+      koreShell = deps.createKoreShell({
+        container: shellHost,
+        getHost: deps.getKoreHost ?? (() => win.KoreEngine ?? globalThis.KoreEngine),
+        onModeChange: mode => applyShellMode(mode, { syncShell: false }),
+      });
+    }
+    applyShellMode(koreShell?.mode ?? shellMode, { syncShell: false });
+  }
   const originalInit = tools.init;
   tools.init = function () {
     originalInit.call(this);
     setupPanel(this, 'auto', 12);
     this.getRoot().querySelectorAll('[data-tab]').forEach(button => button.addEventListener('click', () => resetScroll(this, '.lastro-settings-body')));
     this.getRoot().querySelectorAll('.lastro-ro-titlebar button').forEach(button => button.addEventListener('mousedown', event => event.stopPropagation()));
+    installShell();
   };
   tools.ensurePanelOpener = () => { ensureDock(); return tools._panelOpener; };
   const originalHide = tools.hidePanel, originalRestore = tools.restorePanel;
-  tools.hidePanel = function () { if (resizing?.component === this) stopPanelResize(true); originalHide.call(this); ensureDock(); };
+  tools.hidePanel = function () {
+    if (resizing?.component === this) stopPanelResize(true);
+    originalHide.call(this);
+    koreShell?.setVisible(false);
+    ensureDock();
+  };
   tools.restorePanel = function () {
     teleport.remove();
     originalRestore.call(this);
-    this.getRoot().querySelector('.lastro-settings-view').hidden = false;
+    applyShellMode(koreShell?.mode ?? shellMode, { syncShell: false });
+    koreShell?.setVisible(true);
     if (this._panelOpener) this._panelOpener.hidden = false;
     fitPanel(this, 'auto', 12);
   };
-  tools.collapseDetailedSettings = function () { this.getRoot()?.querySelector('.lastro-settings-view')?.removeAttribute('hidden'); };
+  tools.collapseDetailedSettings = function () { applyShellMode(koreShell?.mode ?? shellMode, { syncShell: false }); };
   const previousAppend = tools.onAppend, previousRemove = tools.onRemove;
   tools.onAppend = function () { previousAppend?.call(this); this._host.style.display = 'none'; ensureDock(); listenForResize(); };
   tools.onRemove = function () {
     stopPanelResize(true, false);
     stopDrag(true); cancelConfirmation();
     if (!this._lastroMapTransition) deps.cancelRoute?.();
+    koreShell?.setVisible(false);
+    koreShell?.dispose();
+    koreShell = null;
     teleport.remove(); dock?.remove(); dock = null; previousRemove?.call(this);
     stopListeningIfInactive();
   };

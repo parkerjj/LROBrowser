@@ -19,6 +19,7 @@ const validU16 = value => Number.isSafeInteger(value) && value >= 0 && value <= 
 const validU32 = value => Number.isSafeInteger(value) && value >= 0 && value <= 0xffffffff;
 const validMapCoordinate = value => Number.isSafeInteger(value) && value >= 0 && value <= 1023;
 const M4_CONFIG_FILES = new Set(['config.txt', 'mon_control.txt', 'timeouts.txt', 'pickupitems.txt', 'items_control.txt']);
+export const KORE_CONFIG_FILES = Object.freeze([...M4_CONFIG_FILES]);
 function koreConsoleLog(page, label, details) {
   const target = page?.console ?? globalThis.console;
   try { target?.log?.(label, details); } catch { /* Diagnostics must not affect client networking. */ }
@@ -279,14 +280,20 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     databaseName: 'kore-map-resources',
   });
   const configStore = createKoreConfigStore({ page, indexedDBFactory: page.indexedDB });
-  const changed = () => { try { onChange(state); } catch { /* UI must not affect transport. */ } };
-  const log = (level, text, domain = 'system') => {
-    const entry = { level, domain, text: String(text).slice(0, 1024), timestamp: Date.now() };
+  const stateSubscribers = new Set();
+  const changed = () => {
+    try { onChange(state); } catch { /* UI must not affect transport. */ }
+    for (const listener of stateSubscribers) { try { listener(state); } catch { /* UI must not affect transport. */ } }
+  };
+  const logEntry = entry => {
     state.logs.push(entry);
     if (state.logs.length > 200) state.logs.splice(0, state.logs.length - 200);
     koreConsoleLog(page, '[KoreEngine] log', entry);
     changed();
   };
+  const log = (level, text, domain = 'system') => logEntry({
+    level, domain, text: String(text).slice(0, 1024), timestamp: Date.now(),
+  });
   const commandOutputSubscribers = new Set();
   const pendingCommands = new Map();
   const MAX_PENDING_COMMANDS = 64;
@@ -309,7 +316,17 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     if (entry) notifyCommandOutput({ ...entry, result });
     if (!silent) {
       state.lastCommandResult = result;
-      log(result?.kind === 'error' || result?.accepted === false ? 'warn' : 'info', `< ${formatKoreCommandResult(result)}`);
+      // Structured output keeps its blocks so the panel can align tables and
+      // color rows by domain; other results stay one-line diagnostics.
+      if (result?.kind === 'output' && Array.isArray(result.blocks)) {
+        logEntry({
+          level: result.ok ? 'message' : 'error', domain: 'info',
+          text: formatKoreCommandResult(result), timestamp: Date.now(),
+          blocks: result.blocks, command: result.command,
+        });
+      } else {
+        log(result?.kind === 'error' || result?.accepted === false ? 'warn' : 'info', `< ${formatKoreCommandResult(result)}`);
+      }
     }
     changed();
     return entry !== undefined;
@@ -754,6 +771,11 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       commandOutputSubscribers.add(listener);
       return () => commandOutputSubscribers.delete(listener);
     },
+    onStateChange(listener) {
+      if (typeof listener !== 'function') return () => {};
+      stateSubscribers.add(listener);
+      return () => stateSubscribers.delete(listener);
+    },
   };
   return api;
 }
@@ -1036,18 +1058,9 @@ export function createKorePanel({ page, host }) {
 export function startOptionalKore(options) {
   try {
     const page = globalThis;
-    let panelView = null;
-    let renderTimer = null;
-    const render = current => {
-      renderTimer = null;
-      if (!page.document?.body) return;
-      if (!panelView) { panelView = createKorePanel({ page, host }); page.document.body.append(panelView.panel); }
-      panelView.update(current);
-    };
-    // 每个收包/输出都会触发 onChange，合并渲染避免 debug panel 拖慢客户端。
-    const host = createKoreIntegration({ ...options, page, manifest: page.LastROExecutableManifest, onChange(current) {
-      if (renderTimer === null) renderTimer = page.setTimeout(() => render(current), 200);
-    } });
+    const host = createKoreIntegration({ ...options, page, manifest: page.LastROExecutableManifest });
+    // The M7 shell mounts the panel inside LastROTools; the old debug details
+    // panel is kept only through the exported createKorePanel() for tooling.
     page.KoreEngine = host; void host.start(); return host;
   } catch (error) { globalThis.console?.error('[KoreEngine] optional host failed', error); return null; }
 }

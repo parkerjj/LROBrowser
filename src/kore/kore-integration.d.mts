@@ -1,3 +1,4 @@
+export const KORE_CONFIG_FILES: readonly string[];
 export interface ExecutableFile { path: string; bytes: number; sha256: string; kind: string }
 export interface ExecutableManifest { files: ExecutableFile[] }
 export interface KoreManifest {
@@ -17,7 +18,7 @@ export interface KorePage {
   KoreEngineDisconnect?: (reason: string) => unknown;
 }
 export interface KoreWorker extends EventTarget { postMessage(message: unknown, transfer?: Transferable[]): void; terminate(): void }
-export interface KoreLog { level: string; domain?: string; text: string; timestamp: number }
+export interface KoreLog { level: string; domain?: string; text: string; timestamp: number; blocks?: unknown[]; command?: string }
 export interface KoreActionRecord { timestamp: number; requestId: number | null; routeId: number | null; type: string; detail: string; accepted: boolean; reason: string | null }
 export interface KoreState {
   status: 'absent' | 'loading' | 'runtime-ready' | 'failed' | 'unavailable' | 'disposed';
@@ -52,6 +53,7 @@ export interface KoreIntegration {
   reloadConfig(target?: string): boolean; debugCommand(command: string): boolean; sendCommand(command: string, extraFields?: Record<string, unknown>): boolean;
   sendCommandText(text: string, options?: { silent?: boolean }): boolean;
   onCommandOutput(listener: (output: KoreCommandOutput) => void): () => void;
+  onStateChange(listener: (state: KoreState) => void): () => void;
 }
 export interface KoreNativePacketSocket { connected?: boolean; isZone?: boolean; handoffPending?: boolean; readyState?: number }
 export interface KoreNativePacketPage extends Partial<KorePage> { console?: Console; KoreEngine?: { state?: { sentBytes?: number } } }
