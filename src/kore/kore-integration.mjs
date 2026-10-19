@@ -405,7 +405,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       type: String(action?.type ?? '?'), detail, accepted, reason: reason ?? null });
     if (state.actions.length > 50) state.actions.splice(0, state.actions.length - 50);
   };
-  const supportedActionTypes = new Set(['MoveTo', 'Attack', 'Sit', 'Stand', 'Equip', 'Unequip', 'UseSkillOnTarget', 'UseSkillSelf', 'UseSkillAt', 'UseItem', 'Pickup',
+  const supportedActionTypes = new Set(['MoveTo', 'Attack', 'Sit', 'Stand', 'Equip', 'Unequip', 'UseSkillOnTarget', 'UseSkillSelf', 'UseSkillAt', 'UseItem', 'Pickup', 'DropItem',
     'StorageTransfer', 'NpcTalk', 'NpcMenu', 'NpcContinue', 'NpcNumber', 'NpcText', 'NpcShopSelect', 'ShopBuy', 'ShopSell', 'PrivateAirship']);
   const validActionPayload = action => {
     if (!supportedActionTypes.has(action.type)) return 'unsupported-action';
@@ -424,6 +424,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       case 'UseSkillAt': return skill(action.skillId) && level(action.level) && validMapCoordinate(action.x) && validMapCoordinate(action.y) ? null : 'malformed-action';
       case 'UseItem': return validU16(action.inventoryIndex) && gid(action.targetGid) ? null : 'malformed-action';
       case 'Pickup': return gid(action.itemGid) ? null : 'malformed-action';
+      case 'DropItem': return validU16(action.inventoryIndex) && validU16(action.amount) && action.amount > 0 ? null : 'malformed-action';
       case 'StorageTransfer': return validU16(action.inventoryIndex) && validU32(action.amount) && action.amount > 0 && typeof action.toStorage === 'boolean' ? null : 'malformed-action';
       case 'NpcTalk':
       case 'NpcContinue': return gid(action.npcGid) ? null : 'malformed-action';

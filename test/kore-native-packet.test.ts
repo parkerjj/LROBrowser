@@ -177,3 +177,31 @@ test('native KE packet log distinguishes a missing map socket from a sent packet
   }));
 });
 
+
+test('drop item actions use PACKET_CZ_ITEM_THROW2 Index/count', async () => {
+  const runtime = await readFile('generated/runtime/Online.js', 'utf8');
+  const actionAssignment = extractRuntimeNode(runtime, {
+    kind: 'assignment', name: 'globalThis.KoreEngineNativeAction',
+  });
+  const packetHelper = extractRuntimeNode(runtime, { kind: 'function', name: 'sendKoreEnginePacket' });
+  class FakeItemThrow {
+    Index = 0;
+    count = 0;
+    build() { return new Uint8Array(6); }
+  }
+  const sent: FakeItemThrow[] = [];
+  const createSender = new Function('globalThis', 'sendKoreNativePacket', 'Network',
+    'PacketVerManager_default', 'PACKET', 'SessionStorage_default', '_socket',
+    'lastroVendingShoppingActive', 'lastroMovementUnavailable',
+    `${packetHelper}\n${actionAssignment}\nreturn globalThis.KoreEngineNativeAction;`);
+  const nativeAction = createSender(runtimePage(), (_action: unknown, packet: FakeItemThrow) => {
+    sent.push(packet);
+    return true;
+  }, { sendPacket() {} }, { value: 20211103 },
+  { CZ: { ITEM_THROW2: FakeItemThrow, ITEM_THROW: FakeItemThrow } }, {}, null,
+  () => false, () => false);
+
+  expect(nativeAction({ type: 'DropItem', inventoryIndex: 5, amount: 2 })).toBe(true);
+  expect(sent).toHaveLength(1);
+  expect({ index: sent[0]!.Index, count: sent[0]!.count }).toEqual({ index: 5, count: 2 });
+});

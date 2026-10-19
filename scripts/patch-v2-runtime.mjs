@@ -1312,6 +1312,15 @@ globalThis.KoreEngineNativeAction = (action) => {
     packet.ITAID = action.itemGid;
     return sendKoreEnginePacket(action, packet);
   }
+  if (action.type === "DropItem") {
+    // LastRO 20211103: 0x0363 PACKET_CZ_ITEM_THROW2, Index + count.
+    const Ctor = PacketVerManager_default.value >= 20180307 ? PACKET.CZ.ITEM_THROW2 : PACKET.CZ.ITEM_THROW;
+    if (!Ctor) return false;
+    const packet = new Ctor();
+    packet.Index = action.inventoryIndex;
+    packet.count = action.amount;
+    return sendKoreEnginePacket(action, packet);
+  }
   if (action.type === "StorageTransfer") {
     const Ctor = action.toStorage
       ? (PacketVerManager_default.value >= 20180307 ? PACKET.CZ.MOVE_ITEM_FROM_BODY_TO_STORE2 : PACKET.CZ.MOVE_ITEM_FROM_BODY_TO_STORE)
