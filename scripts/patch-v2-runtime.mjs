@@ -8,6 +8,7 @@ import { parseArgs } from 'node:util';
 import process from 'node:process';
 import ts from 'typescript';
 import { patchStrEffectLifecycle } from '../vendor/v2/lastro-effect-compat.mjs';
+import { patchRuntimeScrollbarObserverLifecycle, patchRuntimeSameMapSignboardCleanup } from './lastro-ui-lifecycle.mjs';
 import { patchRuntimeLocalization, patchRuntimeMapLocalization, patchRuntimeStatusTooltips, assertRuntimeLocalizationMount, patchRuntimeUiText, patchRuntimeUiMessages, patchRuntimeEmoticons, patchRuntimeItemName, patchRuntimeCharSelectMapName } from './lastro-display-localization.mjs';
 
 import { patchRuntimeNavigation, patchRuntimePluginLoader, patchRuntimePlainTextSinks } from './patch-csp-runtime.mjs';
@@ -1425,6 +1426,8 @@ function createLastROWorkerScriptUrl(relativePath) {
 ${normalizedSource}`;
   output = output.replace(/\?build=[A-Za-z0-9._-]+/g, '');
   output = patchStrEffectLifecycle(output);
+  output = patchRuntimeScrollbarObserverLifecycle(output);
+  output = patchRuntimeSameMapSignboardCleanup(output);
   output = replaceOnceAny(output, [
     ['\troInitSpinner.add();\n\tPlugins.init();\n\tGameEngine.init();',
       '\troInitSpinner.add();\n\ttry {\n\t\tPlugins.init();\n\t\tGameEngine.init();\n\t} catch (error) {\n\t\troInitSpinner.remove();\n\t\tthrow error;\n\t}'],
