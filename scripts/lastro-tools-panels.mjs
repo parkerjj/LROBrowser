@@ -926,16 +926,22 @@ export function installKoreShellPanels(tools, deps) {
     updateOpenerLabel();
     if (syncShell) koreShell?.setMode(shellMode);
   }
+  function ensureShellStyle(panelRoot) {
+    if (!panelRoot || typeof doc?.createElement !== 'function') return;
+    if (panelRoot.querySelector?.('style[data-kore-shell]')) return;
+    const style = doc.createElement('style');
+    style.setAttribute('data-kore-shell', '1');
+    style.textContent = shellCss;
+    if (typeof panelRoot.appendChild === 'function') panelRoot.appendChild(style);
+    else panelRoot.append(style);
+  }
   function installShell() {
     const panelRoot = tools.getRoot();
     const panel = panelRoot?.querySelector('.lastro-tools');
     if (!panel) return;
-    if (!panel.querySelector('style[data-kore-shell]')) {
-      const style = doc.createElement('style');
-      style.dataset.koreShell = '1';
-      style.textContent = shellCss;
-      panel.prepend(style);
-    }
+    // Component HTML goes through the LastRO Trusted Types policy, which
+    // rejects <style>; append the shell stylesheet directly to the shadow DOM.
+    ensureShellStyle(panelRoot);
     let shellHost = panel.querySelector('.kore-shell-host');
     if (!shellHost) {
       shellHost = doc.createElement('div');
@@ -986,10 +992,6 @@ export function installKoreShellPanels(tools, deps) {
     const panel = content.querySelector('.lastro-tools');
     if (panel) {
       if (nativeHeader) panel.classList.add('kore-shell-native');
-      const style = doc.createElement('style');
-      style.dataset.koreShell = '1';
-      style.textContent = shellCss;
-      panel.prepend(style);
       const shellHost = doc.createElement('div');
       shellHost.className = 'kore-shell-host';
       shellHost.hidden = shellMode !== 'kore';
@@ -1001,7 +1003,8 @@ export function installKoreShellPanels(tools, deps) {
   const originalInit = tools.init;
   tools.init = function () {
     const result = originalInit.apply(this, arguments);
-    installShell();
+    // A KE UI failure must never abort the game's map/UI initialization.
+    try { installShell(); } catch (error) { win.console?.error('[KoreEngine] panel shell failed', error); }
     return result;
   };
   const originalCompactStatus = tools.renderCompactStatus;
@@ -1051,7 +1054,7 @@ export function installKoreShellPanels(tools, deps) {
     if (typeof originalSetEnabled === 'function') {
       shortcut.setEnabled = function (value) {
         const result = originalSetEnabled.call(this, value);
-        installShell();
+        try { installShell(); } catch (error) { win.console?.error('[KoreEngine] panel shell failed', error); }
         return result;
       };
     }
@@ -1059,7 +1062,7 @@ export function installKoreShellPanels(tools, deps) {
     if (typeof originalRefresh === 'function') {
       shortcut.refresh = function () {
         const result = originalRefresh.call(this);
-        installShell();
+        try { installShell(); } catch (error) { win.console?.error('[KoreEngine] panel shell failed', error); }
         return result;
       };
     }

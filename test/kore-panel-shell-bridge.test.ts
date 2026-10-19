@@ -38,12 +38,15 @@ test('shell wrapper replaces the native header and keeps the switch in both rend
   expect(nativeOutput).toContain('科技改变生活');
   expect(nativeOutput).toContain('kore-shell-host');
   expect(nativeOutput).not.toContain('LastRO 工具');
+  // The LastRO Trusted Types policy rejects <style> inside component HTML.
+  expect(nativeOutput).not.toContain('<style');
 
   const classic = install(classicHtml);
   const classicOutput = classic.tools.render();
   expect(classicOutput).toContain('data-shell-mode="lastro"');
   expect(classicOutput).toContain('kore-shell-host');
   expect(classicOutput).not.toContain('<strong>挂机设置</strong>');
+  expect(classicOutput).not.toContain('<style');
 });
 
 test('init mounts one shell and the switch changes the panel mode', () => {
