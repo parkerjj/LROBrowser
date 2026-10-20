@@ -16,6 +16,7 @@ import { patchRuntimeCredentialSecurity } from './lastro-credential-security.mjs
 import { patchRuntimeLastROItemLayouts } from './lastro-item-packet-layouts.mjs';
 import { patchRuntimeCharacterSwitch, patchRuntimeNetworkHandoffCleanup, patchRuntimeMapChangeHandoff } from './lastro-character-switch.mjs';
 import { patchRuntimeNetworkDiagnostics } from './lastro-network-diagnostics.mjs';
+import { patchRuntimeLastROBatteryPower } from './lastro-battery-power.mjs';
 import { patchRuntimeLuaStartup } from './lastro-lua-startup.mjs';
 import { patchRuntimeDebugAccess } from './lastro-debug-access.mjs';
 
@@ -1476,6 +1477,7 @@ ${normalizedSource}`;
   output = patchRuntimeMapChangeHandoff(output);
   output = patchRuntimeNetworkHandoffCleanup(output);
   output = patchRuntimeNetworkDiagnostics(output);
+  output = patchRuntimeLastROBatteryPower(output);
   output = replaceOnce(output, 'init_NodeSocket();', '');
   output = replaceWorkerCreation(output);
   output = replacePathFindingWorkerCreation(output);
