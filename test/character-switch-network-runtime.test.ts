@@ -515,8 +515,10 @@ describe('EOF draining the actual native receive continuations', () => {
     expect(old.state.closed).toBe(true);
     expect(old.state.saveBuffer).toBeNull();
     expect(old.transport.close).toHaveBeenCalledOnce();
-    if (mode === 'decoder-throw') expect(h.timerErrors).toHaveLength(1);
-    else expect(h.timerErrors).toEqual([]);
+    // A decoder failure is reported by the receiver itself and no longer escapes into the continuation timer.
+    expect(h.timerErrors).toEqual([]);
+    if (mode === 'decoder-throw') expect(h.context.console.error).toHaveBeenCalledWith(expect.stringContaining('0x7ffc'),
+      expect.objectContaining({ message: 'Fixture decoder failed' }));
     expect(h.reported).toEqual([]);
   });
 

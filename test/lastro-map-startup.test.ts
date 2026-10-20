@@ -21,7 +21,8 @@ function functions(source: string, path: string, names: string[]) {
   }).join('\n');
 }
 type Handler = (packet: Record<string, unknown>) => void;
-function fixture(source: string, fail: 'card-prepare' | 'tools-append' | null = null) {
+function fixture(source: string, initialFailure: 'card-prepare' | 'tools-append' | null = null) {
+  let fail = initialFailure;
   const timeline: string[] = [], hooks = new Map<string, Handler>();
   const components = new Map<string, Record<string, unknown>>();
   const packetTypes = new Map<string, { new(): { label: string }; id: number; label: string }>();
@@ -124,6 +125,7 @@ function fixture(source: string, fail: 'card-prepare' | 'tools-append' | null = 
     + shoppingLifecycle + '\n' + engine.replaceAll('import.meta.url', '"isolated-app://synthetic/runtime/Online.js"') + '\n' + registers
     + '\ninit_MapEngine();', context);
   return { context, timeline, hooks, components, session, connections, lifecycleFailure, itemInfo, getItemInfo,
+    clearFailure: () => { fail = null; },
     start: () => vm.runInContext('MapEngine.init(0, 5121, "fixture.gat");', context),
     mapLoaded: () => vm.runInContext('onMapChange({xPos:1,yPos:2,mapName:"fixture.gat"}); MapRenderer.onLoad();', context) };
 }
@@ -147,11 +149,22 @@ describe.each([['native', native], ['prepared', prepared]])('%s map initializati
     expect(f.components.get('ShortCut_default')!.setList).toHaveBeenCalledExactlyOnceWith(shortcuts);
   });
 
-  it('exposes a card prepare failure rather than reporting the later status engines as initialized', () => {
+  it('keeps installing status, inventory, skill and shortcut hooks after a card prepare failure, and still reports it', () => {
     const f = fixture(source, 'card-prepare'); expect(() => f.start()).toThrow(f.lifecycleFailure);
-    expect(f.hooks.has('ACCEPT_ENTER')).toBe(true);
-    expect(f.hooks.has('PAR_CHANGE')).toBe(false); expect(f.hooks.has('NORMAL_ITEMLIST')).toBe(false);
-    expect(f.hooks.has('SHORTCUT_KEY_LIST_V2')).toBe(false);
+    for (const name of ['ACCEPT_ENTER', 'PAR_CHANGE', 'NORMAL_ITEMLIST', 'EQUIPMENT_ITEMLIST', 'SHORTCUT_KEY_LIST_V2', 'SKILLINFO_LIST'])
+      expect(f.hooks.has(name)).toBe(true);
+  });
+
+  it('does not mark a failed initialization as complete: the next init retries only the failed step', () => {
+    const f = fixture(source, 'card-prepare'); expect(() => f.start()).toThrow(f.lifecycleFailure);
+    const count = (label: string) => f.timeline.filter(entry => entry === label).length;
+    expect(count('prepare:CardConnection2')).toBe(1); expect(count('prepare:Escape_default')).toBe(1);
+    f.clearFailure(); expect(() => f.start()).not.toThrow();
+    expect(count('prepare:CardConnection2')).toBe(2);
+    expect(count('prepare:Escape_default')).toBe(1);
+    // Completed: a third init (e.g. returning to character selection) prepares nothing again.
+    expect(() => f.start()).not.toThrow();
+    expect(count('prepare:CardConnection2')).toBe(2); expect(count('prepare:Escape_default')).toBe(1);
   });
 
   it('sends actor-ready only after the real map-load callback finishes mounting game UI', () => {
