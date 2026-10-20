@@ -167043,6 +167043,11 @@ function receive(buf) {
               utilsBufferToHexString(buffer_console).toUpperCase(),
             );
           }
+          // The frame length is known and the whole frame is buffered, so a decoder
+          // or handler failure cannot desynchronise the stream: `offset` still
+          // addresses the next packet. Report it and keep the rest of the chunk
+          // (e.g. the inventory and skill lists that follow) instead of dropping it.
+          try {
           packet.instance = new packet.Struct(fp, offset);
           if (this === _socket && this.isZone) this._lastroMovementPacketAt = Date.now();
           if (packetDump)
@@ -167053,6 +167058,12 @@ function receive(buf) {
               packet.callback ? "" : "(no callback)",
             );
           if (packet.callback) packet.callback(packet.instance);
+          } catch (packetError) {
+            console.error(
+              `[Network] Packet 0x${id.toString(16)} (length=${length}) failed; continuing with the next packet in this chunk.`,
+              packetError,
+            );
+          }
         },
         {
           observerMode: isObserverMode(Configs),
@@ -317029,10 +317040,24 @@ var init_MapEngine = __esmMin(() => {
         StorageController.selectUIVersion();
         controller.selectUIVersion();
       }
+      const initFailures = [];
+      // A failed init is retried by the next MapEngine.init(); steps that already
+      // succeeded are not repeated, so UI components are never prepared twice.
+      const initSteps = (MapEngine._initSteps ??= new Set());
+      const initStep = (name, run) => {
+        if (initSteps.has(name)) return;
+        try {
+          run();
+          initSteps.add(name);
+        } catch (error) {
+          initFailures.push(error);
+          console.error(`[MapEngine] init step failed: ${name}`, error);
+        }
+      };
       if (!_isInitialised) {
-        _isInitialised = true;
-        bindGameplayHandlers();
-        MapControl.init();
+        initStep("bindGameplayHandlers", () => bindGameplayHandlers());
+        initStep("MapControl.init", () => MapControl.init());
+        initStep("movement-input-and-packet-hooks", () => {
         // lastro-movement-input-installed
         MapControl._lastroMovementInput = (function createLastroMovementInput({ getTarget, getContext, canMove, sendMove, onManualMove,
   onError, clock = globalThis, now = () => globalThis.performance.now() }) {
@@ -317178,7 +317203,6 @@ var init_MapEngine = __esmMin(() => {
             Network.hookPacket(PACKET.ZC.NOTIFY_SETTARGET2, (pkt) =>
               LastROTools.setOnlyTargetState(pkt),
             );
-          CardConnection2.prepare();
           Network.hookPacket(PACKET.ZC.CARDCONNECTION_RECHARGE_LIST, (pkt) =>
             CardConnection2.rechargeList(pkt),
           );
@@ -317202,121 +317226,112 @@ var init_MapEngine = __esmMin(() => {
           packetMap.set(ZC, CZ);
           Network.hookPacket(ZC, onReassemblyAuth);
         }
-        MainEngine$11();
-        MapStateEngine();
-        NPCEngine$2();
-        EntityEngine();
-        ItemEngine();
-        MailEngine();
-        PrivateMessageEngine();
-        StorageEngine();
-        GroupEngine.init();
-        GuildEngine.init();
-        SkillEngine();
-        MainEngine$10();
-        NPCEngine$1();
-        NPCEngine();
-        MercenaryEngine();
-        MainEngine$9();
-        MainEngine$8();
-        FriendEngine.init();
-        MainEngine$7();
-        MainEngine$6();
-        MainEngine$5();
-        RouletteEngine();
-        MainEngine$4();
-        MainEngine$3();
-        MainEngine$2();
-        if (Configs.get("enableCashShop")) MainEngine$1();
-        if (
-          Configs.get("enableAchievements") &&
-          PacketVerManager_default.value >= 20150513
-        )
-          MainEngine();
-        if (Configs.get("enableBank")) BankEngine.init();
-        Escape_default.prepare();
-        PvPTimer_default.prepare();
-        PvPCount_default.prepare();
-        InventoryController.getUI().prepare();
-        CartItems_default.prepare();
-        Vending_default.prepare();
-        ChangeCart_default.prepare();
-        EquipmentController.getUI().prepare();
-        ShortCuts_default.prepare();
-        ShortCut_default.prepare();
-        ChatRoomCreate_default.prepare();
-        Emoticons_default.prepare();
-        FPS_default.prepare();
-        controller.getUI().prepare();
-        StatusIcons_default.prepare();
-        ChatBox_default.prepare();
-        ChatBoxSettings_default.prepare();
-        Guild_default.prepare();
-        WorldMap_default.prepare();
-        SkillListMH_default.homunculus.prepare();
-        SkillListMH_default.mercenary.prepare();
-        Rodex_default.prepare();
-        RodexIcon_default.prepare();
-        Roulette_default.prepare();
-        PCGoldTimer_default.prepare();
-        Navigation_default.prepare();
-        if (Configs.get("lastroCustomPackets", false)) LastROTools.prepare();
-        CaptchaUpload_default.prepare();
-        CaptchaSelector_default.prepare();
-        CaptchaAnswer_default.prepare();
-        CaptchaPreview_default.prepare();
-        Clan_default.prepare();
-        if (Configs.get("enableMapName")) MapName_default.prepare();
+        });
+        // Own step (not nested above) so a failed card panel is retried on its own.
+        if (Configs.get("lastroCustomPackets", false))
+          initStep("CardConnection2.prepare", () => CardConnection2.prepare());
+        initStep("MainEngine$11()", () => MainEngine$11());
+        initStep("MapStateEngine()", () => MapStateEngine());
+        initStep("NPCEngine$2()", () => NPCEngine$2());
+        initStep("EntityEngine()", () => EntityEngine());
+        initStep("ItemEngine()", () => ItemEngine());
+        initStep("MailEngine()", () => MailEngine());
+        initStep("PrivateMessageEngine()", () => PrivateMessageEngine());
+        initStep("StorageEngine()", () => StorageEngine());
+        initStep("GroupEngine.init()", () => GroupEngine.init());
+        initStep("GuildEngine.init()", () => GuildEngine.init());
+        initStep("SkillEngine()", () => SkillEngine());
+        initStep("MainEngine$10()", () => MainEngine$10());
+        initStep("NPCEngine$1()", () => NPCEngine$1());
+        initStep("NPCEngine()", () => NPCEngine());
+        initStep("MercenaryEngine()", () => MercenaryEngine());
+        initStep("MainEngine$9()", () => MainEngine$9());
+        initStep("MainEngine$8()", () => MainEngine$8());
+        initStep("FriendEngine.init()", () => FriendEngine.init());
+        initStep("MainEngine$7()", () => MainEngine$7());
+        initStep("MainEngine$6()", () => MainEngine$6());
+        initStep("MainEngine$5()", () => MainEngine$5());
+        initStep("RouletteEngine()", () => RouletteEngine());
+        initStep("MainEngine$4()", () => MainEngine$4());
+        initStep("MainEngine$3()", () => MainEngine$3());
+        initStep("MainEngine$2()", () => MainEngine$2());
+        if (Configs.get("enableCashShop")) initStep("MainEngine$1()", () => MainEngine$1());
+        if (Configs.get("enableAchievements") &&
+          PacketVerManager_default.value >= 20150513) initStep("MainEngine()", () => MainEngine());
+        if (Configs.get("enableBank")) initStep("BankEngine.init()", () => BankEngine.init());
+        initStep("Escape_default.prepare()", () => Escape_default.prepare());
+        initStep("PvPTimer_default.prepare()", () => PvPTimer_default.prepare());
+        initStep("PvPCount_default.prepare()", () => PvPCount_default.prepare());
+        initStep("InventoryController.getUI().prepare()", () => InventoryController.getUI().prepare());
+        initStep("CartItems_default.prepare()", () => CartItems_default.prepare());
+        initStep("Vending_default.prepare()", () => Vending_default.prepare());
+        initStep("ChangeCart_default.prepare()", () => ChangeCart_default.prepare());
+        initStep("EquipmentController.getUI().prepare()", () => EquipmentController.getUI().prepare());
+        initStep("ShortCuts_default.prepare()", () => ShortCuts_default.prepare());
+        initStep("ShortCut_default.prepare()", () => ShortCut_default.prepare());
+        initStep("ChatRoomCreate_default.prepare()", () => ChatRoomCreate_default.prepare());
+        initStep("Emoticons_default.prepare()", () => Emoticons_default.prepare());
+        initStep("FPS_default.prepare()", () => FPS_default.prepare());
+        initStep("controller.getUI().prepare()", () => controller.getUI().prepare());
+        initStep("StatusIcons_default.prepare()", () => StatusIcons_default.prepare());
+        initStep("ChatBox_default.prepare()", () => ChatBox_default.prepare());
+        initStep("ChatBoxSettings_default.prepare()", () => ChatBoxSettings_default.prepare());
+        initStep("Guild_default.prepare()", () => Guild_default.prepare());
+        initStep("WorldMap_default.prepare()", () => WorldMap_default.prepare());
+        initStep("SkillListMH_default.homunculus.prepare()", () => SkillListMH_default.homunculus.prepare());
+        initStep("SkillListMH_default.mercenary.prepare()", () => SkillListMH_default.mercenary.prepare());
+        initStep("Rodex_default.prepare()", () => Rodex_default.prepare());
+        initStep("RodexIcon_default.prepare()", () => RodexIcon_default.prepare());
+        initStep("Roulette_default.prepare()", () => Roulette_default.prepare());
+        initStep("PCGoldTimer_default.prepare()", () => PCGoldTimer_default.prepare());
+        initStep("Navigation_default.prepare()", () => Navigation_default.prepare());
+        if (Configs.get("lastroCustomPackets", false)) initStep("LastROTools.prepare()", () => LastROTools.prepare());
+        initStep("CaptchaUpload_default.prepare()", () => CaptchaUpload_default.prepare());
+        initStep("CaptchaSelector_default.prepare()", () => CaptchaSelector_default.prepare());
+        initStep("CaptchaAnswer_default.prepare()", () => CaptchaAnswer_default.prepare());
+        initStep("CaptchaPreview_default.prepare()", () => CaptchaPreview_default.prepare());
+        initStep("Clan_default.prepare()", () => Clan_default.prepare());
+        if (Configs.get("enableMapName")) initStep("MapName_default.prepare()", () => MapName_default.prepare());
         if (Configs.get("enableCashShop")) {
-          CashShopIcon_default.prepare();
-          CashShop_default.prepare();
+          initStep("CashShopIcon_default.prepare()", () => CashShopIcon_default.prepare());
+          initStep("CashShop_default.prepare()", () => CashShop_default.prepare());
         }
-        if (Configs.get("enableBank")) Bank_default.prepare();
+        if (Configs.get("enableBank")) initStep("Bank_default.prepare()", () => Bank_default.prepare());
         if (PacketVerManager_default.value >= 20090617) {
-          WhisperBox.prepare();
-          WhisperBox.init();
+          initStep("WhisperBox.prepare()", () => WhisperBox.prepare());
+          initStep("WhisperBox.init()", () => WhisperBox.init());
         }
-        if (PacketVerManager_default.value >= 20141016)
-          VendingReport_default.prepare();
-        if (PacketVerManager_default.value >= 20160601)
-          LaphineSys_default.prepare();
-        if (PacketVerManager_default.value >= 20170726)
-          LaphineUpg_default.prepare();
-        if (
-          Configs.get("enableRefineUI") &&
-          PacketVerManager_default.value >= 20161012
-        )
-          Refine_default.prepare();
+        if (PacketVerManager_default.value >= 20141016) initStep("VendingReport_default.prepare()", () => VendingReport_default.prepare());
+        if (PacketVerManager_default.value >= 20160601) initStep("LaphineSys_default.prepare()", () => LaphineSys_default.prepare());
+        if (PacketVerManager_default.value >= 20170726) initStep("LaphineUpg_default.prepare()", () => LaphineUpg_default.prepare());
+        if (Configs.get("enableRefineUI") &&
+          PacketVerManager_default.value >= 20161012) initStep("Refine_default.prepare()", () => Refine_default.prepare());
         if (PacketVerManager_default.value >= 20170208) {
-          SwitchEquip_default.prepare();
-          SwitchEquip_default.onAddSwitchEquip = onAddSwitchEquip;
-          SwitchEquip_default.onRemoveSwitchEquip = onRemoveSwitchEquip;
+          initStep("SwitchEquip_default.prepare()", () => SwitchEquip_default.prepare());
+          initStep("SwitchEquip_default.onAddSwitchEquip = onAddSwitchEquip", () => { SwitchEquip_default.onAddSwitchEquip = onAddSwitchEquip; });
+          initStep("SwitchEquip_default.onRemoveSwitchEquip = onRemoveSwitchEquip", () => { SwitchEquip_default.onRemoveSwitchEquip = onRemoveSwitchEquip; });
         }
-        if (
-          Configs.get("enableCheckAttendance") &&
-          PacketVerManager_default.value >= 20180307
-        )
-          CheckAttendance_default.prepare();
-        if (PacketVerManager_default.value >= 20200916)
-          ItemReform_default.prepare();
-        if (PacketVerManager_default.value >= 20220330)
-          Reputation_default.prepare();
-        if (
-          Configs.get("enableAchievements") &&
-          PacketVerManager_default.value >= 20150513
-        )
-          Achievement_default.prepare();
-        PetInformations_default.onConfigUpdate = onConfigUpdate;
-        HomunInformations_default.onConfigUpdate = onConfigUpdate;
-        Escape_default.onSetofflineRequest = onSetofflineRequest$2;
-        Escape_default.onExitRequest = onExitRequest$2;
-        Escape_default.onCharSelectionRequest = onRestartRequest;
-        Escape_default.onReturnSavePointRequest = onReturnSavePointRequest;
-        Escape_default.onResurectionRequest = onResurectionRequest;
-        ChatBox_default.onRequestTalk = onRequestTalk;
-        WhisperBox.onRequestTalk = onRequestTalk;
+        if (Configs.get("enableCheckAttendance") &&
+          PacketVerManager_default.value >= 20180307) initStep("CheckAttendance_default.prepare()", () => CheckAttendance_default.prepare());
+        if (PacketVerManager_default.value >= 20200916) initStep("ItemReform_default.prepare()", () => ItemReform_default.prepare());
+        if (PacketVerManager_default.value >= 20220330) initStep("Reputation_default.prepare()", () => Reputation_default.prepare());
+        if (Configs.get("enableAchievements") &&
+          PacketVerManager_default.value >= 20150513) initStep("Achievement_default.prepare()", () => Achievement_default.prepare());
+        initStep("PetInformations_default.onConfigUpdate = onConfigUpdate", () => { PetInformations_default.onConfigUpdate = onConfigUpdate; });
+        initStep("HomunInformations_default.onConfigUpdate = onConfigUpdate", () => { HomunInformations_default.onConfigUpdate = onConfigUpdate; });
+        initStep("Escape_default.onSetofflineRequest = onSetofflineRequest$2", () => { Escape_default.onSetofflineRequest = onSetofflineRequest$2; });
+        initStep("Escape_default.onExitRequest = onExitRequest$2", () => { Escape_default.onExitRequest = onExitRequest$2; });
+        initStep("Escape_default.onCharSelectionRequest = onRestartRequest", () => { Escape_default.onCharSelectionRequest = onRestartRequest; });
+        initStep("Escape_default.onReturnSavePointRequest = onReturnSavePointRequest", () => { Escape_default.onReturnSavePointRequest = onReturnSavePointRequest; });
+        initStep("Escape_default.onResurectionRequest = onResurectionRequest", () => { Escape_default.onResurectionRequest = onResurectionRequest; });
+        initStep("ChatBox_default.onRequestTalk = onRequestTalk", () => { ChatBox_default.onRequestTalk = onRequestTalk; });
+        initStep("WhisperBox.onRequestTalk = onRequestTalk", () => { WhisperBox.onRequestTalk = onRequestTalk; });
+        if (!initFailures.length) _isInitialised = true;
       }
-      if (MapEngine.needsUIVerUpdate || !_isInitialised) {
+      // `_isInitialised` is only set once every step above succeeded; this block
+      // must keep running only for a server change, so a retried init does not
+      // prepare these components a second time.
+      if (MapEngine.needsUIVerUpdate) {
         Controller$5.getUI().prepare();
         Controller$4.getUI().prepare();
         if (PacketVerManager_default.value < 20200520)
@@ -317334,6 +317349,7 @@ var init_MapEngine = __esmMin(() => {
         InventoryController.getUI().onEquipItem = onEquipItem;
         MapEngine.needsUIVerUpdate = false;
       }
+      if (initFailures.length) throw initFailures[0];
     }
   };
   _walkTimer = null;

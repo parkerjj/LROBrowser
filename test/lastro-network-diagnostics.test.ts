@@ -84,10 +84,11 @@ describe('passive native network diagnostics', () => {
     expect(h.context.LastRONetworkDiagnostic).toBeUndefined(); expect(h.socket.close).not.toHaveBeenCalled();
   });
 
-  it('records decoder metadata and throws the identical original exception without closing', () => {
+  it('records decoder metadata and reports the identical original exception without closing', () => {
     const h = runtime(), original = new RangeError('private message must not appear');
     h.packetList[0x00b3]!.Struct = function () { throw original; };
-    expect(() => h.send(frame(0x00b3, 3))).toThrow(original);
+    expect(() => h.send(frame(0x00b3, 3))).not.toThrow();
+    expect(h.errors).toHaveBeenCalledExactlyOnceWith(expect.stringContaining('0xb3'), original);
     expect(h.context.LastRONetworkDiagnostic).toEqual({ event: 'packet-failure', atMs: 12345, opcode: 0x00b3, length: 3,
       phase: 'map', kind: 'decode', errorName: 'RangeError' });
     expect(h.warning).toHaveBeenCalledExactlyOnceWith('[LastRO] Network diagnostic', h.context.LastRONetworkDiagnostic);
@@ -98,15 +99,16 @@ describe('passive native network diagnostics', () => {
   it('distinguishes handler errors and preserves the native continuation on the next read', () => {
     const h = runtime(), original = new TypeError('private handler input');
     h.packetList[0x00b3]!.callback = () => { throw original; };
-    let actual: unknown; try { h.send(frame(0x00b3, 3)); } catch (error) { actual = error; }
-    expect(actual).toBe(original); expect(h.context.LastRONetworkDiagnostic.kind).toBe('handler');
+    expect(() => h.send(frame(0x00b3, 3))).not.toThrow();
+    expect(h.errors).toHaveBeenCalledExactlyOnceWith(expect.stringContaining('0xb3'), original);
+    expect(h.context.LastRONetworkDiagnostic.kind).toBe('handler');
     h.send(frame(0x0073, 11)); expect(h.decoded).toEqual([0x0073]);
     expect(h.socket.close).not.toHaveBeenCalled(); expect(JSON.stringify(h.context.LastRONetworkDiagnostic)).not.toContain('private');
   });
 
   it('associates a later unexpected disconnect with this socket only', () => {
     const h = runtime(); h.packetList[0x00b3]!.callback = () => { throw new Error('private'); };
-    expect(() => h.send(frame(0x00b3, 3))).toThrow(); h.close();
+    expect(() => h.send(frame(0x00b3, 3))).not.toThrow(); h.close();
     expect(h.context.LastRONetworkDiagnostic).toEqual({ event: 'disconnect', atMs: 12345, ageMs: 0, opcode: 0x00b3, length: 3,
       phase: 'map', kind: 'handler', errorName: 'Error' });
     expect(h.disconnect).toHaveBeenCalledOnce();

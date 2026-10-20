@@ -268,6 +268,47 @@ describe('real native LastRO item packet layout and network compatibility', () =
     expect(() => decode(h, 0x009e, frame(0x009e, 17))).toThrow(RangeError);
   });
 
+  describe('a failing packet does not discard the rest of its receive chunk', () => {
+    const NORMAL_ITEMLIST4 = 0x0991, SKILLINFO_LIST = 0x010f, SHORTCUT_KEY_LIST_V2 = 0x07d9;
+    // Variable-length list packets with an empty body, then the fixed-length shortcut list.
+    const list = (id: number) => { const bytes = frame(id, 4); new DataView(bytes.buffer).setUint16(2, 4, true); return bytes; };
+    const initPackets = () => join(list(NORMAL_ITEMLIST4), list(SKILLINFO_LIST), frame(SHORTCUT_KEY_LIST_V2, 268));
+    const delivered = (h: ReturnType<typeof runtime>) => h.decoded.map(packet => packet.id);
+
+    it('delivers the baseline initialization packets in one chunk', () => {
+      const h = runtime(); h.send(initPackets());
+      expect(delivered(h)).toEqual([NORMAL_ITEMLIST4, SKILLINFO_LIST, SHORTCUT_KEY_LIST_V2]);
+    });
+
+    it('still delivers the skill and shortcut lists when the inventory handler throws', () => {
+      const h = runtime(), failure = new Error('synthetic inventory UI failure');
+      h.context.Packets.list[NORMAL_ITEMLIST4].callback = () => { throw failure; };
+      expect(() => h.send(initPackets())).not.toThrow();
+      expect(delivered(h)).toEqual([SKILLINFO_LIST, SHORTCUT_KEY_LIST_V2]);
+      expect(h.errors).toHaveBeenCalledWith(expect.stringContaining('0x991'), failure);
+      expect(h.socket.close).not.toHaveBeenCalled();
+    });
+
+    it('does not lose bytes of the next packet when 0x009e overruns its frame at the end of a chunk', () => {
+      // The registered LastRO decoder reads 19 bytes from the 17-byte frame. At the
+      // end of a chunk that throws RangeError; the following packet's first byte must stay buffered.
+      const init = initPackets(), h = runtime();
+      expect(() => h.send(join(frame(0x009e, 17), init.slice(0, 1)))).not.toThrow();
+      expect(h.errors).toHaveBeenCalledWith(expect.stringContaining('0x9e'), expect.any(RangeError));
+      expect(h.state.saveBuffer?.byteLength).toBe(1);
+      h.send(init.slice(1));
+      expect(delivered(h)).toEqual([NORMAL_ITEMLIST4, SKILLINFO_LIST, SHORTCUT_KEY_LIST_V2]);
+    });
+
+    it('keeps the sync point for every TCP split of a 0x009e frame followed by the initialization packets', () => {
+      const stream = join(frame(0x009e, 17), initPackets());
+      for (let split = 1; split < stream.length; split++) {
+        const h = runtime(); h.send(stream.slice(0, split)); h.send(stream.slice(split));
+        expect(delivered(h).filter(id => id !== 0x009e), `split at ${split}`).toEqual([NORMAL_ITEMLIST4, SKILLINFO_LIST, SHORTCUT_KEY_LIST_V2]);
+      }
+    });
+  });
+
   it('fails the patch if a reviewed item-width branch changes upstream', () => {
     expect(() => patchRuntimeLastROItemLayouts(native.replace('PACKET.ZC.ITEM_FALL_ENTRY2 = function PACKET_ZC_ITEM_FALL_ENTRY2', 'PACKET.ZC.ITEM_FALL_ENTRY2 = function PACKET_ZC_CHANGED_ITEM_FALL_ENTRY2'))).toThrow('anchor:network-security:item-layout');
   });
