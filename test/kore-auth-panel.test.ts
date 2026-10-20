@@ -118,9 +118,12 @@ test('a manual sync keeps the console visible and disables the sync button while
 });
 
 test('quota state lists active instances and retries start through Rust command text', () => {
-  const { host, view } = mount({ phase: 'quota-exceeded', user: { displayName: 'Parker' },
-    detail: { active_instances: [{ instance_id: 'instance-a', char_name: '旧角色', map_name: 'prontera' }] } });
+  const { host, view } = mount({ phase: 'quota-exceeded', user: { displayName: 'Parker' }, error: 'KE_QUOTA_EXCEEDED',
+    detail: { active_instances: [{ instance_id: 'instance-a', char_name: '旧角色', map_name: 'prontera' }, { instance_id: 'instance-b', char_name: '另一个', map_name: 'payon' }] } });
 
+  expect(view.element.textContent).toContain('同时运行的实例已达上限：2 个');
+  expect(view.element.textContent?.match(/同时运行的实例已达上限/g)).toHaveLength(1);
+  expect(view.element.textContent).not.toContain('额度已用完');
   expect(view.element.textContent).toContain('旧角色');
   expect(view.element.textContent).toContain('prontera');
   const replace = view.element.querySelector('.kore-quota-replace') as HTMLButtonElement;
@@ -130,6 +133,22 @@ test('quota state lists active instances and retries start through Rust command 
   replace.click();
 
   expect(host.sendCommandText).toHaveBeenCalledWith('ai auto kick instance-a');
+  view.destroy();
+});
+
+test('quota instances with an empty name fall back to a readable label', () => {
+  const { view } = mount({ phase: 'quota-exceeded', user: { displayName: 'Parker' }, error: 'KE_QUOTA_EXCEEDED',
+    detail: { active_instances: [{ instance_id: 'instance-a', char_name: '', map_name: null }] } });
+
+  expect(view.element.querySelector('.kore-quota-instance-name')?.textContent).toBe('LastRO 角色');
+  view.destroy();
+});
+
+test('quota state without a replaceable list says so once instead of repeating the instruction', () => {
+  const { view } = mount({ phase: 'quota-exceeded', user: { displayName: 'Parker' }, error: 'KE_QUOTA_EXCEEDED', detail: null });
+
+  expect(view.element.textContent).toContain('LTSD 没有返回可替换的实例');
+  expect(view.element.textContent).not.toContain('选择一个仍在运行的实例并替换');
   view.destroy();
 });
 

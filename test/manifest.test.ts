@@ -15,6 +15,7 @@ describe('Phase A IWA', () => {
     expect(manifest.permissions_policy.gamepad).toEqual(['self']);
     expect(manifest.permissions_policy['cross-origin-isolated']).toEqual(['self']);
     expect(manifest.permissions_policy.autoplay).toEqual(['self']);
+    expect(manifest.permissions_policy['clipboard-write']).toEqual(['self']);
     expect(manifest.protocol_handlers).toEqual([
       { protocol: 'web+lastro', url: '/?protocol=%s' },
     ]);

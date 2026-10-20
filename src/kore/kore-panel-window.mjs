@@ -3,6 +3,7 @@
 
 import { renderConsole } from './kore-panel-console.mjs';
 import { authorizationGuide } from './kore-auth-guide.mjs';
+import { copyText } from './kore-clipboard.mjs';
 
 // Entries with a `mode` form the mode switch (the active one is highlighted from KE's own
 // answer); the rest are plain one-shot commands.
@@ -22,7 +23,7 @@ const quotaInstanceLabel = value => {
     || !/^[A-Za-z0-9-]{1,64}$/.test(value.instance_id)) return null;
   return {
     id: value.instance_id,
-    name: String(value.char_name ?? 'LastRO 角色'),
+    name: String(value.char_name || 'LastRO 角色'),
     map: String(value.map_name ?? ''),
     lastHeartbeat: value.last_heartbeat_at == null ? '' : String(value.last_heartbeat_at),
   };
@@ -232,7 +233,8 @@ export function createKoreWindow({
   function errorCard(guide) {
     const card = element(document, 'section', 'kore-error-card');
     card.setAttribute('role', 'alert');
-    card.append(element(document, 'h3', 'kore-error-title', guide.title), element(document, 'p', 'kore-onboarding-error', guide.cause));
+    card.append(element(document, 'h3', 'kore-error-title', guide.title));
+    if (guide.cause) card.append(element(document, 'p', 'kore-onboarding-error', guide.cause));
     if (guide.steps.length) {
       const steps = element(document, 'ol', 'kore-error-steps');
       for (const step of guide.steps) steps.append(element(document, 'li', null, step));
@@ -245,15 +247,11 @@ export function createKoreWindow({
   function copyDiagnostics(event, code) {
     const button = event.currentTarget;
     const report = host?.getAuthorizationDiagnostics?.() ?? `错误码: ${code ?? '-'}`;
-    const clipboard = page.navigator?.clipboard;
-    if (typeof clipboard?.writeText !== 'function') {
+    void copyText(page, report).then(copied => {
+      if (copied) { button.textContent = '已复制错误信息'; return; }
       page.console?.log?.('[KoreEngine] diagnostics', report);
-      button.textContent = '复制不可用，已输出到控制台';
-      return;
-    }
-    Promise.resolve(clipboard.writeText(report))
-      .then(() => { button.textContent = '已复制错误信息'; })
-      .catch(() => { page.console?.log?.('[KoreEngine] diagnostics', report); button.textContent = '复制失败，已输出到控制台'; });
+      button.textContent = '复制失败，已输出到控制台';
+    });
   }
 
   let runtimeShown = false;
@@ -301,7 +299,11 @@ export function createKoreWindow({
     // 后台运行环境已停止时，即使授权阶段没有错误码也必须说明原因，不能让用户对着不动的面板干等。
     const workerFailed = host?.state?.status === 'failed';
     const errorCode = auth.error ?? (workerFailed ? host.state.degradedReason ?? 'worker-stopped' : null);
-    const guide = authorizationGuide(errorCode, { stalled: auth.stalled === true });
+    const baseGuide = authorizationGuide(errorCode, { stalled: auth.stalled === true });
+    // LTSD 返回的在线实例数就是当前占用的名额：额度用完时直接告诉用户上限是几个。
+    const quotaCount = Array.isArray(auth.detail?.active_instances) ? auth.detail.active_instances.length : 0;
+    const guide = baseGuide && errorCode === 'KE_QUOTA_EXCEEDED' && quotaCount > 0
+      ? { ...baseGuide, title: `同时运行的实例已达上限：${quotaCount} 个`, cause: '' } : baseGuide;
     if (guide) onboardingContent.append(errorCard(guide));
     const phaseTitle = {
       'signed-out': '连接 KoreEngine',
@@ -347,14 +349,7 @@ export function createKoreWindow({
       authButton('打开 LTSD 批准页', 'kore-auth-primary kore-auth-open', () => host.openLtsdApproval?.());
       authButton('复制验证码', 'kore-auth-secondary kore-auth-copy', event => {
         const button = event.currentTarget;
-        const clipboard = page.navigator?.clipboard;
-        if (typeof clipboard?.writeText !== 'function') {
-          button.textContent = '复制不可用';
-          return;
-        }
-        Promise.resolve(clipboard.writeText(String(auth.userCode ?? '')))
-          .then(() => { button.textContent = '已复制'; })
-          .catch(() => { button.textContent = '复制失败'; });
+        void copyText(page, String(auth.userCode ?? '')).then(copied => { button.textContent = copied ? '已复制' : '复制失败'; });
       });
       authButton('重新申请验证码', 'kore-auth-secondary', () => { void host.beginLtsdLogin?.(); });
       authButton('取消', 'kore-auth-link', () => host.cancelLtsdLogin?.());
@@ -379,11 +374,11 @@ export function createKoreWindow({
       status(`最后成功同步：${Number.isFinite(updatedAt) && updatedAt > 0 ? new Date(updatedAt).toLocaleString() : '时间未知'}`);
       authButton('重试同步', 'kore-auth-primary', () => { void host.refreshConfiguration?.(); });
     } else if (phase === 'quota-exceeded') {
-      status('选择一个仍在运行的实例并明确替换，然后重试自动模式。');
       const instances = Array.isArray(auth.detail?.active_instances)
         ? auth.detail.active_instances.map(quotaInstanceLabel).filter(Boolean).slice(0, 32) : [];
       if (!instances.some(instance => instance.id === selectedQuotaInstanceId)) selectedQuotaInstanceId = null;
       if (instances.length) {
+        status('选择一个仍在运行的实例并替换，然后启动自动模式：');
         const list = element(document, 'div', 'kore-quota-list');
         let replaceButton = null;
         for (const instance of instances) {

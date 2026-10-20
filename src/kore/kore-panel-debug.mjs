@@ -4,6 +4,7 @@
 
 import { KORE_CONFIG_FILES } from './kore-integration.mjs';
 import { renderConsole } from './kore-panel-console.mjs';
+import { copyText } from './kore-clipboard.mjs';
 
 const el = (document, tag, className, text) => {
   const node = document.createElement(tag);
@@ -57,12 +58,10 @@ export function createKoreDebugView({ page = globalThis, host } = {}) {
   const clearButton = el(document, 'button', 'kore-button', '清空控制台');
   copyButton.type = downloadButton.type = clearButton.type = 'button';
   copyButton.addEventListener('click', () => {
-    const clipboard = (page.navigator ?? globalThis.navigator)?.clipboard;
-    if (!clipboard?.writeText) { copyButton.textContent = '剪贴板不可用'; return; }
-    clipboard.writeText(json(host?.state ?? null)).then(() => {
-      copyButton.textContent = '已复制';
-      page.setTimeout?.(() => { copyButton.textContent = '复制 JSON'; }, 1200);
-    }, () => { copyButton.textContent = '复制失败'; });
+    void copyText(page, json(host?.state ?? null)).then(copied => {
+      copyButton.textContent = copied ? '已复制' : '复制失败';
+      if (copied) page.setTimeout?.(() => { copyButton.textContent = '复制 JSON'; }, 1200);
+    });
   });
   downloadButton.addEventListener('click', () => {
     const BlobCtor = page.Blob ?? globalThis.Blob;

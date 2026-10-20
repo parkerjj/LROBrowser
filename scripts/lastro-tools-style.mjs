@@ -133,7 +133,8 @@ export const KORE_SHELL_CSS = `
 .kore-onboarding-step[data-state="current"] { color:#ffffff; }
 .kore-onboarding-step[data-state="current"]::before { color:#6fb3c9; border-bottom:1px solid #6fb3c9; }
 .kore-onboarding-step[data-state="complete"] { color:#b4b4b4; }
-.kore-onboarding-content { display:flex; flex:1 1 auto; min-height:0; flex-direction:column; gap:6px; }
+/* 内容按自然高度排布，由 .kore-onboarding 滚动；允许内容被压缩会让文字盖到下面的按钮上。 */
+.kore-onboarding-content { display:flex; flex:0 0 auto; flex-direction:column; gap:6px; }
 .kore-onboarding-status, .kore-onboarding-error { margin:0; color:#b4b4b4; font-size:12px; line-height:1.4; overflow-wrap:anywhere; }
 .kore-onboarding-error { color:#e58686; }
 .kore-error-card { display:flex; flex-direction:column; gap:6px; padding:9px 10px; border:1px solid #4a2a2e; border-radius:4px; background:#1c1517; }
@@ -141,7 +142,7 @@ export const KORE_SHELL_CSS = `
 .kore-error-steps { margin:0; padding-left:18px; color:#d8d8da; font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
 .kore-error-code { align-self:flex-start; max-width:100%; padding:2px 6px; border-radius:3px; background:#2a2224; color:#f0b4b4; font:11px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; overflow-wrap:anywhere; user-select:all; }
 .kore-device-code { align-self:flex-start; color:#ffffff; font:500 24px/1.25 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-variant-numeric:tabular-nums; user-select:all; }
-.kore-onboarding-actions { display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding-top:4px; }
+.kore-onboarding-actions { display:flex; flex:none; flex-wrap:wrap; align-items:center; gap:6px; padding-top:4px; }
 .kore-auth-primary, .kore-auth-secondary { min-height:32px; max-width:100%; padding:5px 11px; border:1px solid #ffffff; border-radius:4px; background:#ffffff; color:#111111; font:500 12px/1.25 Arial,'Microsoft YaHei','MiSans',sans-serif; overflow-wrap:anywhere; }
 .kore-auth-primary:hover { background:#e6e6ea; }
 .kore-auth-secondary { border-color:#3a3a3e; background:transparent; color:#ffffff; }
@@ -160,7 +161,8 @@ export const KORE_SHELL_CSS = `
 .kore-device-expiry { color:#b4b4b4; font-size:11px; font-variant-numeric:tabular-nums; }
 .kore-quota-list { display:flex; flex-direction:column; gap:4px; min-height:0; max-height:120px; overflow:auto; border-top:1px solid #29292d; border-bottom:1px solid #29292d; }
 .kore-quota-instance { display:flex; align-items:center; gap:8px; min-height:32px; padding:3px 0; color:#ffffff; font-size:12px; cursor:pointer !important; }
-.kore-quota-instance input { flex:none; accent-color:#6fb3c9; }
+/* 站点全局样式给 input 设了 width:100%，不覆盖的话单选框撑满整行，实例名被挤成 0 宽。 */
+.kore-quota-instance input { flex:none; width:14px; height:14px; min-width:0; min-height:0; margin:0; padding:0; accent-color:#6fb3c9; }
 .kore-quota-instance-details { display:flex; flex:1 1 auto; justify-content:space-between; gap:8px; min-width:0; }
 .kore-quota-instance-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .kore-quota-instance-map { color:#b4b4b4; white-space:nowrap; }

@@ -16,7 +16,8 @@
     "direct-sockets": ["self"],
     "gamepad": ["self"],
     "cross-origin-isolated": ["self"],
-    "autoplay": ["self"]
+    "autoplay": ["self"],
+    "clipboard-write": ["self"]
   },
   "protocol_handlers": [
     { "protocol": "web+lastro", "url": "/?protocol=%s" }

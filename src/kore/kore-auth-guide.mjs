@@ -22,8 +22,8 @@ const GUIDES = {
     steps: ['点击“前往 LTSD 配置”，为当前角色创建并启用一套配置', '回到这里点击“重新检查”'],
   },
   KE_QUOTA_EXCEEDED: {
-    title: '实例额度已用完',
-    cause: '当前账号的 KoreEngine 实例额度已用完。',
+    title: '同时运行的实例已达上限',
+    cause: '当前账号同时运行的 KoreEngine 实例已达上限。',
     steps: ['在其他窗口或设备上停止自动模式', '或者选择一个正在运行的实例并替换'],
   },
   KE_INSTANCE_KICKED: {

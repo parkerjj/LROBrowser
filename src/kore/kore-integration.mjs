@@ -2,6 +2,7 @@
 import { createMapResourceProvider } from './map-resource-provider.mjs';
 import { createKoreConfigStore } from './kore-config-store.mjs';
 import { createKoreLtsdClient } from './kore-ltsd-client.mjs';
+import { copyText } from './kore-clipboard.mjs';
 export const KORE_PROTOCOL_PROFILE = 'lastro-20211103';
 const compatibleProfiles = new Set([KORE_PROTOCOL_PROFILE, 'lastro-2x']);
 const idPattern = /^[a-f0-9]{64}$/;
@@ -1534,9 +1535,7 @@ export function createKorePanel({ page, host }) {
   const clearButton = button(statusPane, 'Clear console', () => host.clearConsole());
   button(statusPane, 'Copy snapshot', () => {
     const text = toJson(lastState, 2);
-    const clipboard = (page.navigator ?? globalThis.navigator)?.clipboard;
-    if (!clipboard?.writeText) { note.textContent = 'clipboard unavailable'; return; }
-    clipboard.writeText(text).then(() => { note.textContent = `snapshot copied (${text.length} chars)`; }, error => { note.textContent = `copy failed: ${String(error?.message ?? error)}`; });
+    void copyText(page, text).then(copied => { note.textContent = copied ? `snapshot copied (${text.length} chars)` : 'copy failed'; });
   });
   const commandInput = element('input', statusPane, { type: 'text' }); commandInput.setAttribute('aria-label', 'KoreEngine command');
   commandInput.setAttribute('placeholder', 'ai auto | ai manual | ai off | reload all | exp'); commandInput.style.width = 'min(320px, 100%)';
