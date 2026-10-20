@@ -14,7 +14,7 @@ function region(source: string, path: string) {
 
 function batteryFixture() {
   const sample = `//#region src/UI/Components/StatusIcons/StatusIcons.js
-var StatusInfo_default = {}, StatusIcons = {}, _status = {};
+var StatusInfo = {}, StatusIcons = {}, _status = {};
 function renderStatus(status, now) {
   if (!status.img) return;
   status.ctx.drawImage(status.img, 0, 0);
@@ -32,7 +32,7 @@ function onParameterChange$1(pkt) { otherPackets.push(pkt); }
     otherPackets: [] as Array<{ varID: number; count: number }>
   };
   const patched = patchRuntimeLastROBatteryPower(sample);
-  const api = vm.runInNewContext(patched + '\nvar StatusIcons_default = StatusIcons;\n({handle:onParameterChange$1,render:renderStatus,items:_status,info:StatusInfo_default});', ctx) as {
+  const api = vm.runInNewContext(patched + '\nvar StatusIcons_default = StatusIcons;\n({handle:onParameterChange$1,render:renderStatus,items:_status,info:StatusInfo});', ctx) as {
     handle: (pkt: {varID:number; count:number}) => void;
     render: (status: unknown, now: number) => void;
     items: Record<number, {lastroBatteryPower:number; time:{textContent:string}; img:unknown; ctx:unknown}>;
@@ -46,7 +46,7 @@ describe('LastRO phone battery status compatibility', () => {
     const output = patchRuntimeLastROBatteryPower(native);
     expect(output).toContain('StatusIcons.updateBatteryPower');
     expect(output).toContain('pkt.varID === 300');
-    expect(output).toContain('StatusInfo_default[2000]');
+    expect(output).toContain('StatusInfo[2000]');
     expect(region(output,'src/Network/NetworkManager.js')).toBe(region(native,'src/Network/NetworkManager.js'));
     expect(() => patchRuntimeLastROBatteryPower(output)).toThrow('already-installed');
     for (const path of ['src/UI/Components/StatusIcons/StatusIcons.js', 'src/Engine/MapEngine/Main.js']) {
@@ -60,7 +60,7 @@ describe('LastRO phone battery status compatibility', () => {
     f.handle({varID:300,count:100});
     expect(f.ctx.otherPackets).toEqual([]);
     expect(f.info[2000]!.icon).toBe('rk_lux.tga');
-    expect(f.info[2000]!.descript[0][0]).toBe('电量');
+    expect(f.info[2000]!.descript[0]![0]).toBe('电量');
     f.render(f.items[2000]!,1234);
     expect(f.items[2000]!.time.textContent).toBe('100%');
     expect(f.ctx.mockCanvas.fillRect).toHaveBeenLastCalledWith(0,0,32,32);

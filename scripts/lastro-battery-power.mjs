@@ -36,18 +36,11 @@ export function patchRuntimeLastROBatteryPower(source) {
       ts.forEachChild(node, visit);
     }
     visit(file);
-    if (assignments.length !== 1 || !region.includes('StatusInfo_default') || !region.includes('_status')) {
-      throw new Error('anchor:lastro-battery:status-icons:' + JSON.stringify({
-        updates: assignments.map(a => a.left.getText(file)),
-        hasStatusInfoDefault: region.includes('StatusInfo_default'),
-        hasStatusField: region.includes('_status'),
-        header: region.slice(0, 1100),
-        renderTail: region.slice(render.getStart(file), render.getStart(file) + 360)
-      }));
-    }
+    if (assignments.length !== 1 || !region.includes('StatusInfo') || !region.includes('_status'))
+      throw new Error('anchor:lastro-battery:status-icons');
     const installAt = assignments[0].parent.getStart(file);
     const install = `// LastRO phone battery percentage buff.
-  StatusInfo_default[${BATTERY_STATUS_ID}] = {
+  StatusInfo[${BATTERY_STATUS_ID}] = {
     icon: "rk_lux.tga",
     descript: [
       ["电量", "rgb(155, 202, 155)"],
