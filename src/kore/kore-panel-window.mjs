@@ -18,6 +18,12 @@ export const KORE_QUICK_COMMANDS = Object.freeze([
 
 const MODE_LABELS = Object.freeze({ AUTO: '● 自动', MANUAL: '◊ 半自动', OFF: '○ 关闭' });
 
+// KE 命令失败是 {kind:'output', ok:false, blocks:[{text:'<code>: <msg>'}]}，没有 message/code 字段。
+const pollErrorText = error => {
+  const text = error.blocks?.find(block => typeof block?.text === 'string' && block.text)?.text;
+  return String(error.message ?? error.code ?? text ?? 'KE 回显失败');
+};
+
 const quotaInstanceLabel = value => {
   if (!value || typeof value !== 'object' || typeof value.instance_id !== 'string'
     || !/^[A-Za-z0-9-]{1,64}$/.test(value.instance_id)) return null;
@@ -479,7 +485,7 @@ export function createKoreWindow({
     const error = statusError ?? aiError ?? whereError;
     waitLine.hidden = !error && model.worldReady;
     waitLine.textContent = error
-      ? String(error.message ?? error.code ?? 'KE 回显失败')
+      ? pollErrorText(error)
       : model.connected ? '等待世界状态…' : '等待 KoreEngine…';
     if (renderToggle) {
       renderCheckbox.disabled = renderToggle.available !== true;

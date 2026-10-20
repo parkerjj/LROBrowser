@@ -869,7 +869,8 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     try {
       log('info', `LTSD ${message.method} ${message.endpoint} ...`);
       const response = await ltsd.request(message.method, message.endpoint, { body: message.body });
-      log(response.ok ? 'info' : 'warn', `LTSD ${message.method} ${message.endpoint} -> HTTP ${response.status}`);
+      const errorCode = response.ok ? null : response.body?.error?.code;
+      log(response.ok ? 'info' : 'warn', `LTSD ${message.method} ${message.endpoint} -> HTTP ${response.status}${errorCode ? ` ${errorCode}` : ''}`);
       if (response.status === 401) {
         ltsd.clearToken();
         updateAuthorization({ phase: 'signed-out', user: null, configCached: false, error: 'KE_AUTH_UNAUTHENTICATED' });

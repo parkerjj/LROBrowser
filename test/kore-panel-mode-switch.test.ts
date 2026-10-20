@@ -54,3 +54,19 @@ test('no mode is highlighted before KE has answered', () => {
   expect(view.element.querySelector('.kore-mode')?.textContent).toBe('模式 —');
   view.destroy();
 });
+
+test('a failed status poll shows KE\'s own error text instead of a generic echo failure', () => {
+  const host = {
+    state: { status: 'runtime-ready', worldReady: true, authorization: { phase: 'ready', user: { displayName: 'Parker' } } },
+    onStateChange: () => () => {},
+    sendCommandText: vi.fn(() => true),
+  };
+  const failure = { kind: 'output', ok: false, blocks: [{ type: 'text', text: 'world-session-not-initialized: Command arrived before a world session' }] };
+  const poller = { results: () => null, errors: (name: string) => (name === 'status' ? failure : null), subscribe: () => () => {} };
+  const view = createKoreWindow({ page: window, host: host as never, poller: poller as never });
+  window.document.body.append(view.element);
+  view.update();
+  expect(view.element.textContent).toContain('world-session-not-initialized: Command arrived before a world session');
+  expect(view.element.textContent).not.toContain('KE 回显失败');
+  view.destroy();
+});

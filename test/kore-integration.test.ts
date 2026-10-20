@@ -52,6 +52,28 @@ test('LTSD transport returns the raw response to the requesting Rust boot operat
   });
 });
 
+test('a rejected LTSD request logs the HTTP status and the server error code', async () => {
+  const fixture = packageFixture();
+  const worker = new FakeWorker();
+  const bodyText = '{"error":{"code":"KE_INSTANCE_KICKED"}}';
+  const ltsdClient = {
+    hasToken: () => true,
+    request: vi.fn(async () => ({ status: 409, ok: false, bodyText, body: { error: { code: 'KE_INSTANCE_KICKED' } } })),
+  };
+  const host = createKoreIntegration({
+    page: pageFor(fixture), manifest: fixture.executable, createWorker: () => worker, ltsdClient: ltsdClient as never,
+  });
+  await host.start();
+  const runtimeSessionId = worker.messages[0]!.runtimeSessionId;
+
+  worker.reply({ runtimeSessionId, type: 'ltsdRequest', ltsdRequestId: 42, method: 'POST',
+    endpoint: '/instances/instance/heartbeat', body: { instance_id: 'instance' } });
+  await vi.waitFor(() => expect(host.state.logs.some((entry: { text: string }) => entry.text.includes('-> HTTP 409'))).toBe(true));
+
+  expect(host.state.logs.map((entry: { text: string }) => entry.text))
+    .toContain('LTSD POST /instances/instance/heartbeat -> HTTP 409 KE_INSTANCE_KICKED');
+});
+
 test('character identity reaches boot without the Host making a bind API decision', async () => {
   const fixture = packageFixture();
   const worker = new FakeWorker();
