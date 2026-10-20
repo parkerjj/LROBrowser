@@ -9,10 +9,9 @@ import { REQUIRED_HEADERS } from './iwa-security.mjs';
 /* eslint-disable no-control-regex -- Reject control characters in untrusted package paths. */
 
 const ALLOWED_ORIGINS = new Set(['https://game.lastro.cn', 'https://rodata.ltsd.ro']);
-const API_ORIGIN_PATHS = new Map([['https://ltsd.ro', '/api/v1/market/search']]);
 const RELAY_ORIGINS = new Set(['wss://port.lastro.cn']);
 const NON_RESOURCE_ORIGINS = new Set(['http://www.w3.org']);
-const REMOTE_EXECUTABLE = /https?:\/\/[^\s"'`]+\.(?:js|mjs|cjs|wasm|lua|lub)(?:[?#]|$)/i;
+const REMOTE_EXECUTABLE = /https?:\/\/[^\s"'`]+\.(?:js|mjs|cjs|wasm(?:\.enc)?|lua|lub)(?:[?#]|$)/i;
 const PROHIBITED_TEXT = [
   ['socket-proxy', /socketProxy/i],
   ['electron', /electronAPI|NodeSocket/i],
@@ -37,6 +36,16 @@ async function walk(root) {
 
 function readManifestJson(contents, name) {
   try { return JSON.parse(contents); } catch (error) { throw new Error(`${name}: invalid JSON (${error.message})`); }
+}
+
+function isLtsdUrl(url) {
+  return url.protocol === 'https:' && (url.hostname === 'ltsd.ro' || url.hostname.endsWith('.ltsd.ro'))
+    && !url.username && !url.password;
+}
+
+function isAllowedLtsdOrigin(origin, referencedUrls) {
+  const urls = referencedUrls.filter(url => url.origin === origin);
+  return urls.length > 0 && urls.every(isLtsdUrl);
 }
 
 function validateProtocolHandlers(manifest) {
@@ -103,7 +112,7 @@ export async function auditDist(distDirectory, reportPath = path.resolve('releas
     }
     if (manifestEntries.has(entry.path)) throw new Error('duplicate executable asset');
     if (!Number.isSafeInteger(entry.bytes) || entry.bytes < 0 || !/^[a-f0-9]{64}$/.test(entry.sha256)
-      || !['runtime', 'lua', 'lub', 'wasm', 'data-json', 'passive'].includes(entry.kind)) throw new Error('invalid executable asset integrity');
+      || !['runtime', 'lua', 'lub', 'wasm', 'wasm-encrypted', 'data-json', 'passive'].includes(entry.kind)) throw new Error('invalid executable asset integrity');
     manifestEntries.set(entry.path, entry);
   }
   if (relativeFiles.some((file) => file.endsWith('.map'))) throw new Error('source maps are not allowed in the IWA bundle');
@@ -156,11 +165,8 @@ export async function auditDist(distDirectory, reportPath = path.resolve('releas
     }
   }
   const unapprovedOrigins = [...originSet].filter((origin) => {
-    if (ALLOWED_ORIGINS.has(origin) || RELAY_ORIGINS.has(origin) || NON_RESOURCE_ORIGINS.has(origin)) return false;
-    const allowedPath = API_ORIGIN_PATHS.get(origin);
-    if (!allowedPath) return true;
-    return referencedUrls.some((url) => url.origin === origin
-      && (url.pathname !== allowedPath || url.username || url.password || url.hash));
+    return !ALLOWED_ORIGINS.has(origin) && !RELAY_ORIGINS.has(origin) && !NON_RESOURCE_ORIGINS.has(origin)
+      && !isAllowedLtsdOrigin(origin, referencedUrls);
   });
   if (unapprovedOrigins.length) {
     const filesByOrigin = unapprovedOrigins.map(origin => {
@@ -186,7 +192,7 @@ export async function auditDist(distDirectory, reportPath = path.resolve('releas
     }
   }
   for (const file of relativeFiles) {
-    if (file.startsWith('core/') && /\.(?:[cm]?js|lua|lub|wasm)$/i.test(file) && !manifestEntries.has(file.slice(5))) throw new Error('unlisted executable asset: ' + file);
+    if (file.startsWith('core/') && /\.(?:[cm]?js|lua|lub|wasm|wasm\.enc)$/i.test(file) && !manifestEntries.has(file.slice(5))) throw new Error('unlisted executable asset: ' + file);
     if (file.startsWith('runtime/') && !runtimeAliases.has(file)) throw new Error('unlisted runtime asset: ' + file);
   }
 
@@ -197,7 +203,7 @@ export async function auditDist(distDirectory, reportPath = path.resolve('releas
     totalBytes,
     bytesByCategory,
     navigationOrigins: [...navigationOrigins],
-    externalOrigins: [...originSet].filter((origin) => ALLOWED_ORIGINS.has(origin) || API_ORIGIN_PATHS.has(origin)),
+    externalOrigins: [...originSet].filter((origin) => ALLOWED_ORIGINS.has(origin) || isAllowedLtsdOrigin(origin, referencedUrls)),
     coreManifestSummary: { fileCount: coreManifest.files.length, packagedBytes: coreManifest.files.reduce((sum, file) => sum + file.bytes, 0) },
     prohibitedPatternResults: [],
     requiredHeaders: REQUIRED_HEADERS,

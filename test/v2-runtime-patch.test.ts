@@ -21,7 +21,7 @@ describe('V2 runtime patch', () => {
     const source = 'Navigation.navigateTo = function () { _finalTargetData = {}; this.waitForMapData(function () {}); }; Navigation.waitForMapData = function (callback) { Navigation.waitForMapData(callback); }; UIManager.addComponent(LastROTools); var MapRenderer = class MapRenderer { static setMap() { UIManager.removeComponents(); } }; function cleanGameUI() { document._lastroItemDrag?.cancel(); }';
     const patched = patchRuntimeToolsPanels(source);
     expect(patched).toContain('data-shell-mode="lastro"');
-    expect(patched).toContain('科技改变生活');
+    expect(patched).toContain('>KoreEngine<');
     expect(patched).toContain('kore-shell-host');
     expect(patched).toContain('createKoreShell');
   });

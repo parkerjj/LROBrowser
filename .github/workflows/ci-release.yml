@@ -49,42 +49,24 @@ jobs:
         run: pnpm exec vitest run --exclude test/release-smoke.test.ts
 
   build-iwa:
-    name: Build IWA bundle
+    name: Build non-production IWA CI bundle
     needs: lint
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref != 'refs/heads/main')
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    env:
-      RELEASE_BUILD: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
       - run: pnpm build
-      - name: Minify production JavaScript
-        if: env.RELEASE_BUILD == 'true'
-        run: pnpm minify:release
-      - name: Inject production manifest metadata
-        if: env.RELEASE_BUILD == 'true'
-        env:
-          IWA_VERSION: 0.1.${{ github.run_number }}
-        run: node scripts/apply-release-manifest.mjs
-      - name: Audit IWA distribution
+      - name: Audit IWA CI distribution
         run: pnpm audit:iwa
-        env:
-          IWA_ALLOW_UPDATE_MANIFEST: ${{ (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')) && '1' || '' }}
-      - name: Bundle IWA Web Bundle
-        run: |
-          if [ "$RELEASE_BUILD" = "true" ]; then
-            pnpm bundle:iwa -- --out "release/lastro-v2-${GITHUB_SHA}.wbn"
-          else
-            pnpm bundle:iwa -- --out release/lastro-v2-ci.wbn
-          fi
-        env:
-          IWA_ALLOW_UPDATE_MANIFEST: ${{ (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')) && '1' || '' }}
+      - name: Bundle IWA CI Web Bundle
+        run: pnpm bundle:iwa -- --out release/lastro-v2-ci.wbn
       - uses: actions/upload-artifact@v7
         with:
-          name: iwa-bundle
+          name: iwa-ci-bundle
           path: |
             release/*.wbn
             release/audit-report.json
@@ -93,7 +75,7 @@ jobs:
 
   release-iwa:
     name: Sign & publish IWA release
-    needs: [lint, test, build-iwa]
+    needs: [lint, test]
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-24.04
     environment:
@@ -106,10 +88,74 @@ jobs:
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
-      - uses: actions/download-artifact@v8
+      - name: Check production release configuration
+        env:
+          IWA_WEB_BUNDLE_ID: ${{ secrets.IWA_WEB_BUNDLE_ID || vars.IWA_WEB_BUNDLE_ID }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID || vars.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET || vars.R2_BUCKET }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT || vars.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          KE_CORE_KEY: ${{ secrets.KE_CORE_KEY }}
+          KE_REPOSITORY_READ_TOKEN: ${{ secrets.KE_REPOSITORY_READ_TOKEN }}
+        run: |
+          test -n "$IWA_WEB_BUNDLE_ID" || { echo "Missing IWA_WEB_BUNDLE_ID in the production Environment (secret or variable)." >&2; exit 1; }
+          test -n "$R2_ACCOUNT_ID" || { echo "Missing R2_ACCOUNT_ID in the production Environment." >&2; exit 1; }
+          test -n "$R2_BUCKET" || { echo "Missing R2_BUCKET in the production Environment." >&2; exit 1; }
+          test -n "$R2_ENDPOINT" || { echo "Missing R2_ENDPOINT in the production Environment." >&2; exit 1; }
+          test -n "$R2_ACCESS_KEY_ID" || { echo "Missing R2_ACCESS_KEY_ID in the production Environment secrets." >&2; exit 1; }
+          test -n "$R2_SECRET_ACCESS_KEY" || { echo "Missing R2_SECRET_ACCESS_KEY in the production Environment secrets." >&2; exit 1; }
+          test -n "$KE_CORE_KEY" || { echo "Missing KE_CORE_KEY in the production Environment secrets." >&2; exit 1; }
+          test -n "$KE_REPOSITORY_READ_TOKEN" || { echo "Missing KE_REPOSITORY_READ_TOKEN in the production Environment secrets." >&2; exit 1; }
+          echo "Production release configuration is present."
+      - uses: actions/checkout@v7
         with:
-          name: iwa-bundle
-          path: release
+          repository: parkerjj/KoreEngine
+          ref: ${{ github.ref_name }}
+          token: ${{ secrets.KE_REPOSITORY_READ_TOKEN }}
+          path: kore-engine
+          fetch-depth: 1
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: 1.99.0
+          target: wasm32-unknown-unknown
+          build-warnings: ''
+          rust-src-dir: kore-engine
+      - name: Install pinned Binaryen 133
+        run: |
+          archive="${RUNNER_TEMP}/binaryen-version_133-x86_64-linux.tar.gz"
+          curl --fail --location --retry 3 --retry-connrefused \
+            "https://github.com/WebAssembly/binaryen/releases/download/version_133/binaryen-version_133-x86_64-linux.tar.gz" \
+            --output "$archive"
+          printf '%s  %s\n' '2dc9c7813f5375db93d96ead4b78222fcc3e2677bbb832297af4797782a37489' "$archive" | sha256sum --check --status
+          mkdir -p "$GITHUB_WORKSPACE/kore-engine/.tools"
+          tar -xzf "$archive" -C "$GITHUB_WORKSPACE/kore-engine/.tools"
+          "$GITHUB_WORKSPACE/kore-engine/.tools/binaryen-version_133/bin/wasm-opt" --version
+      - name: Install pinned wasm-bindgen CLI
+        run: |
+          cargo +1.99.0 install wasm-bindgen-cli --version 0.2.129 --locked --root "$HOME/.cargo" --force
+          mkdir -p "$GITHUB_WORKSPACE/kore-engine/.tools/bin"
+          ln -sf "$HOME/.cargo/bin/wasm-bindgen" "$GITHUB_WORKSPACE/kore-engine/.tools/bin/wasm-bindgen"
+          "$GITHUB_WORKSPACE/kore-engine/.tools/bin/wasm-bindgen" --version
+      - name: Build encrypted KoreEngine package
+        env:
+          KE_CORE_KEY: ${{ secrets.KE_CORE_KEY }}
+        run: pnpm ke:local --source "$GITHUB_WORKSPACE/kore-engine" --mode release
+      - run: pnpm build
+      - name: Minify production JavaScript
+        run: pnpm minify:release
+      - name: Inject production manifest metadata
+        env:
+          IWA_VERSION: 0.1.${{ github.run_number }}
+        run: node scripts/apply-release-manifest.mjs
+      - name: Audit IWA release distribution
+        run: pnpm audit:iwa
+        env:
+          IWA_ALLOW_UPDATE_MANIFEST: '1'
+      - name: Bundle IWA Web Bundle
+        run: pnpm bundle:iwa -- --out "release/lastro-v2-${GITHUB_SHA}.wbn"
+        env:
+          IWA_ALLOW_UPDATE_MANIFEST: '1'
       - name: Prepare production signing key
         id: key
         env:
@@ -120,22 +166,6 @@ jobs:
           printf '%s' "$IWA_SIGNING_KEY" > "$key_path"
           chmod 600 "$key_path"
           echo "path=$key_path" >> "$GITHUB_OUTPUT"
-      - name: Check production release configuration
-        env:
-          IWA_WEB_BUNDLE_ID: ${{ secrets.IWA_WEB_BUNDLE_ID || vars.IWA_WEB_BUNDLE_ID }}
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID || vars.R2_ACCOUNT_ID }}
-          R2_BUCKET: ${{ secrets.R2_BUCKET || vars.R2_BUCKET }}
-          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT || vars.R2_ENDPOINT }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-        run: |
-          test -n "$IWA_WEB_BUNDLE_ID" || { echo "Missing IWA_WEB_BUNDLE_ID in the production Environment (secret or variable)." >&2; exit 1; }
-          test -n "$R2_ACCOUNT_ID" || { echo "Missing R2_ACCOUNT_ID in the production Environment." >&2; exit 1; }
-          test -n "$R2_BUCKET" || { echo "Missing R2_BUCKET in the production Environment." >&2; exit 1; }
-          test -n "$R2_ENDPOINT" || { echo "Missing R2_ENDPOINT in the production Environment." >&2; exit 1; }
-          test -n "$R2_ACCESS_KEY_ID" || { echo "Missing R2_ACCESS_KEY_ID in the production Environment secrets." >&2; exit 1; }
-          test -n "$R2_SECRET_ACCESS_KEY" || { echo "Missing R2_SECRET_ACCESS_KEY in the production Environment secrets." >&2; exit 1; }
-          echo "Production release configuration is present."
       - name: Verify production release inputs
         env:
           IWA_WEB_BUNDLE_ID: ${{ vars.IWA_WEB_BUNDLE_ID || secrets.IWA_WEB_BUNDLE_ID }}

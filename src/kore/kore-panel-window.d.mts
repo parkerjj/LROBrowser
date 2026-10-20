@@ -22,7 +22,7 @@ export interface KoreWindow {
   readonly commandButtons: HTMLButtonElement[]; readonly renderCheckbox: HTMLInputElement;
   readonly fullscreenButton: HTMLButtonElement; readonly debugButton: HTMLButtonElement;
 }
-export const KORE_QUICK_COMMANDS: ReadonlyArray<{ label: string; command: string }>;
+export const KORE_QUICK_COMMANDS: ReadonlyArray<{ label: string; command: string; mode?: 'AUTO' | 'MANUAL' | 'OFF'; title?: string }>;
 export function kvPairs(result: unknown): Map<string, string>;
 export function parseRatio(text: unknown): { value: number | null; max: number | null; percent: number | null };
 export function statusModel(options: {
@@ -31,7 +31,8 @@ export function statusModel(options: {
 }): KoreStatusModel;
 export function createKoreWindow(options?: {
   page?: { document: Document };
-  host?: Pick<KoreIntegration, 'state' | 'sendCommandText' | 'onStateChange'>;
+  host?: Pick<KoreIntegration, 'state' | 'sendCommandText' | 'onStateChange' | 'beginLtsdLogin'
+    | 'openLtsdApproval' | 'cancelLtsdLogin' | 'logoutLtsd' | 'refreshConfiguration'>;
   poller?: Pick<KorePoller, 'results' | 'errors' | 'subscribe'>;
   consoleModel?: Pick<KoreConsoleModel, 'entries' | 'subscribe'>;
   renderToggle?: KoreRenderToggleLike | null;

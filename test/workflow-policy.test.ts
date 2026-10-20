@@ -26,11 +26,14 @@ describe('GitHub workflow policy', () => {
       expect(section).not.toContain('contents: write');
     }
 
-    // Signed production releases are gated by every verification stage.
+    // Production releases wait for source verification, then build and audit
+    // the signed artifact inside the protected job.
     const release = sections.get('release-iwa');
-    expect(release).toContain('needs: [lint, test, build-iwa]');
+    expect(release).toContain('needs: [lint, test]');
     expect(release).toContain('environment:');
     expect(release).toContain('name: production');
+    expect(release).toContain('name: Build encrypted KoreEngine package');
+    expect(release).toContain('run: pnpm audit:iwa');
     expect(release).toContain('secrets.IWA_SIGNING_KEY');
     expect(release).toContain('if: always()');
     expect(release).toContain('rm -f');

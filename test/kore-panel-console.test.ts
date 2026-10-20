@@ -1,6 +1,7 @@
+// @vitest-environment jsdom
 import { expect, test, vi } from 'vitest';
 import {
-  consoleColor, consoleLines, createKoreConsoleModel, outputBlockLines, outputLines, tableText,
+  consoleColor, consoleLines, createConsoleFilter, createKoreConsoleModel, outputBlockLines, outputLines, renderConsole, tableText,
 } from '../src/kore/kore-panel-console.mjs';
 
 test('domain colors follow consolecolors defaults and level overrides', () => {
@@ -64,4 +65,52 @@ test('console model follows host logs, caps entries and clears through the host'
 test('log lines preserve timestamps and fall back to info', () => {
   const [line] = consoleLines([{ level: 'message', text: 'hello', timestamp: 0 }]);
   expect(line).toMatchObject({ text: 'hello', domain: 'info', level: 'message', timestamp: 0 });
+});
+
+function memoryStorage(initial: Record<string, string> = {}) {
+  const data = new Map(Object.entries(initial));
+  return { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value); } };
+}
+
+test('console filter hides third-party combat by default and keeps unlisted domains always visible', () => {
+  const filter = createConsoleFilter({ storage: memoryStorage() });
+  expect(filter.isVisible('others')).toBe(false);
+  expect(filter.isVisible('attackMon')).toBe(true);
+  expect(filter.isVisible('attackMonMiss')).toBe(true);
+  expect(filter.isVisible('system')).toBe(true);
+  expect(filter.isVisible('info')).toBe(true);
+  expect(filter.hiddenCount()).toBe(1);
+});
+
+test('console filter choices persist, notify and reset; both Miss domains follow their category', () => {
+  const storage = memoryStorage();
+  const filter = createConsoleFilter({ storage });
+  const listener = vi.fn();
+  filter.subscribe(listener);
+  filter.setCategoryVisible('attacked', false);
+  filter.setCategoryVisible('others', true);
+  expect(listener).toHaveBeenCalledTimes(2);
+  expect(filter.isVisible('attacked')).toBe(false);
+  expect(filter.isVisible('attackedMiss')).toBe(false);
+  expect(filter.isVisible('others')).toBe(true);
+
+  const reloaded = createConsoleFilter({ storage });
+  expect(reloaded.isVisible('attacked')).toBe(false);
+  expect(reloaded.isVisible('others')).toBe(true);
+  reloaded.reset();
+  expect(reloaded.isVisible('attacked')).toBe(true);
+  expect(reloaded.isVisible('others')).toBe(false);
+  expect(createConsoleFilter({ storage: memoryStorage({ 'kore.console.hidden': '{bad json' }) }).isVisible('others')).toBe(false);
+});
+
+test('renderConsole drops hidden categories before applying the line limit', () => {
+  const filter = createConsoleFilter({ storage: memoryStorage() });
+  const container = document.createElement('div');
+  const entries = [
+    { level: 'message', domain: 'attackMon', text: '你对 海獭 造成了 5 点伤害', timestamp: 1 },
+    ...Array.from({ length: 5 }, (_, index) => ({ level: 'message', domain: 'others', text: `别人 ${index}`, timestamp: 2 + index })),
+  ];
+  renderConsole(container, entries as never, { page: globalThis, maxLines: 3, filter });
+  expect(container.textContent).toContain('你对 海獭 造成了 5 点伤害');
+  expect(container.textContent).not.toContain('别人');
 });

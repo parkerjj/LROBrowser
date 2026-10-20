@@ -884,7 +884,7 @@ export function installKoreShellPanels(tools, deps) {
     throw new TypeError('Kore shell requires a native tools component');
   }
   const { document: doc, window: win, setHtml, createKoreShell, getKoreHost, shellCss } = deps;
-  const shellTitlebar = () => `<div class="lastro-ro-titlebar"><div class="lastro-mode-switch" role="tablist" aria-label="工具箱模式"><span class="lastro-mode-thumb" aria-hidden="true"></span><button type="button" role="tab" class="lastro-mode-option" data-shell-mode="lastro" aria-selected="true">生锈的工具箱</button><button type="button" role="tab" class="lastro-mode-option" data-shell-mode="kore" aria-selected="false">科技改变生活</button></div><button type="button" class="lastro-window-minimize" data-action="minimize" aria-label="最小化工具箱" title="最小化">−</button><button type="button" class="lastro-window-close" data-action="close" aria-label="关闭工具箱" title="关闭">×</button></div>`;
+  const shellTitlebar = () => `<div class="lastro-ro-titlebar"><div class="lastro-mode-switch" role="tablist" aria-label="工具箱模式"><span class="lastro-mode-thumb" aria-hidden="true"></span><button type="button" role="tab" class="lastro-mode-option" data-shell-mode="lastro" aria-selected="true">工具箱</button><button type="button" role="tab" class="lastro-mode-option" data-shell-mode="kore" aria-selected="false">KoreEngine</button></div><button type="button" class="lastro-window-minimize" data-action="minimize" aria-label="最小化工具箱" title="最小化">−</button><button type="button" class="lastro-window-close" data-action="close" aria-label="关闭工具箱" title="关闭">×</button></div>`;
   const history = tools._koreShellHistory ?? (tools._koreShellHistory = []);
   let koreShell = null, shellMode = 'lastro', previousShellMode = null;
 
@@ -922,7 +922,7 @@ export function installKoreShellPanels(tools, deps) {
     void panel.offsetWidth;
     panel.classList.add('is-igniting');
     win.clearTimeout(igniteTimer);
-    igniteTimer = win.setTimeout(() => { boot.remove(); panel.classList.remove('is-igniting'); }, 1400);
+    igniteTimer = win.setTimeout(() => { boot.remove(); panel.classList.remove('is-igniting'); }, 2800);
   }
   function applyShellMode(next, { syncShell = true } = {}) {
     shellMode = next === 'kore' ? 'kore' : 'lastro';
@@ -942,7 +942,7 @@ export function installKoreShellPanels(tools, deps) {
     if (compact) {
       if (shellMode === 'kore') {
         if (!compact.dataset.lastroText) compact.dataset.lastroText = compact.textContent;
-        compact.textContent = '科技改变生活 · KE 运行中';
+        compact.textContent = 'KoreEngine 运行中';
       } else if (compact.dataset.lastroText) {
         compact.textContent = compact.dataset.lastroText;
         delete compact.dataset.lastroText;
@@ -1053,7 +1053,7 @@ export function installKoreShellPanels(tools, deps) {
       originalCompactStatus.apply(this, args);
       if (shellMode !== 'kore') return;
       const compact = this.getRoot?.()?.querySelector('[data-compact-status-text]');
-      if (compact) compact.textContent = '科技改变生活 · KE 运行中';
+      if (compact) compact.textContent = 'KoreEngine 运行中';
     };
   }
   const originalHide = tools.hidePanel, originalRestore = tools.restorePanel;

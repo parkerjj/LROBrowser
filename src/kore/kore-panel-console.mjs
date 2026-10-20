@@ -4,6 +4,7 @@
 const DOMAIN_COLORS = Object.freeze({
   attackMon: '#00bcd4', attackMonMiss: '#00bcd4',
   attacked: '#c050c0', attackedMiss: '#c050c0',
+  others: '#7d8087', exp: '#d6dbe1',
   connection: '#2e9e4f', startup: '#2e9e4f',
   success: '#2e9e4f', system: '#d8b84a', pm: '#d8b84a', schat: '#d8b84a', teleport: '#d8b84a',
   menu: '#d8b84a', list: '#d6dbe1', info: '#d6dbe1',
@@ -13,7 +14,60 @@ const DOMAIN_COLORS = Object.freeze({
   publicchat: '#2e9e4f', selfchat: '#2e9e4f', guildchat: '#2e9e4f', partychat: '#a0522d',
 });
 const LEVEL_COLORS = Object.freeze({ error: '#e06060', warning: '#d8b84a', debug: '#9a9a9a', message: null });
-export const KORE_CONSOLE_MAX_ENTRIES = 200;
+export const KORE_CONSOLE_MAX_ENTRIES = 1000;
+
+// Console categories the user can hide from the fullscreen panel. Domains outside
+// this list (system, info, list, errors, warnings, command replies) are always shown.
+export const KORE_CONSOLE_CATEGORIES = Object.freeze([
+  { id: 'attackMon', label: '我的攻击', domains: ['attackMon', 'attackMonMiss'] },
+  { id: 'attacked', label: '受到攻击', domains: ['attacked', 'attackedMiss'] },
+  { id: 'selfSkill', label: '我的技能', domains: ['selfSkill'] },
+  { id: 'skill', label: '他人对我的技能', domains: ['skill'] },
+  { id: 'others', label: '他人之间的战斗', domains: ['others'], hiddenByDefault: true },
+  { id: 'exp', label: '经验与击杀', domains: ['exp'] },
+  { id: 'drop', label: '掉落', domains: ['drop'] },
+  { id: 'useItem', label: '物品与拾取', domains: ['useItem'] },
+  { id: 'npc', label: 'NPC 对话', domains: ['npc'] },
+  { id: 'route', label: '移动路线', domains: ['route'] },
+  { id: 'equip', label: '装备', domains: ['equip'] },
+  { id: 'supply', label: '补给', domains: ['supply'] },
+  { id: 'respawn', label: '复活', domains: ['respawn'] },
+]);
+const FILTER_STORAGE_KEY = 'kore.console.hidden';
+
+export function createConsoleFilter({ storage = null } = {}) {
+  const categoryByDomain = new Map(KORE_CONSOLE_CATEGORIES.flatMap(category => category.domains.map(domain => [domain, category.id])));
+  const defaults = () => new Set(KORE_CONSOLE_CATEGORIES.filter(category => category.hiddenByDefault).map(category => category.id));
+  let hidden = defaults();
+  try {
+    const saved = JSON.parse(storage?.getItem?.(FILTER_STORAGE_KEY) ?? 'null');
+    if (Array.isArray(saved)) hidden = new Set(saved.filter(id => KORE_CONSOLE_CATEGORIES.some(category => category.id === id)));
+  } catch { /* A corrupt saved filter falls back to the defaults. */ }
+  const listeners = new Set();
+  const commit = () => {
+    try { storage?.setItem?.(FILTER_STORAGE_KEY, JSON.stringify([...hidden])); } catch { /* Persistence is best effort. */ }
+    for (const listener of listeners) { try { listener(); } catch { /* UI must not affect transport. */ } }
+  };
+  return {
+    isVisible(domain) {
+      const id = categoryByDomain.get(domain);
+      return id === undefined || !hidden.has(id);
+    },
+    isCategoryVisible: id => !hidden.has(id),
+    hiddenCount: () => hidden.size,
+    setCategoryVisible(id, visible) {
+      if (!KORE_CONSOLE_CATEGORIES.some(category => category.id === id)) return;
+      if (visible === !hidden.has(id)) return;
+      if (visible) hidden.delete(id); else hidden.add(id);
+      commit();
+    },
+    reset() { hidden = defaults(); commit(); },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  };
+}
 
 export function consoleColor(domain, level) {
   const override = LEVEL_COLORS[String(level ?? '').toLowerCase()];
@@ -95,7 +149,8 @@ export function consoleLines(entries) {
   return (entries ?? []).flatMap(logLines);
 }
 
-export function createKoreConsoleModel({ host, maxEntries = KORE_CONSOLE_MAX_ENTRIES }) {
+export function createKoreConsoleModel({ host, maxEntries = KORE_CONSOLE_MAX_ENTRIES, storage = null }) {
+  const filter = createConsoleFilter({ storage });
   let entries = [];
   let lastLength = -1, lastEntry = null;
   const listeners = new Set();
@@ -109,22 +164,26 @@ export function createKoreConsoleModel({ host, maxEntries = KORE_CONSOLE_MAX_ENT
   };
   const unsubscribe = host?.onStateChange?.(sync) ?? (() => {});
   sync();
+  const unsubscribeFilter = filter.subscribe(() => {
+    for (const listener of listeners) { try { listener(entries); } catch { /* UI must not affect transport. */ } }
+  });
   return {
     entries: () => entries,
+    filter,
     clear: () => { host?.clearConsole?.(); sync(); },
     subscribe(listener) {
       if (typeof listener !== 'function') return () => {};
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    dispose() { listeners.clear(); unsubscribe(); },
+    dispose() { listeners.clear(); unsubscribeFilter(); unsubscribe(); },
   };
 }
 
-export function renderConsole(container, entries, { page = globalThis, maxLines = 200 } = {}) {
+export function renderConsole(container, entries, { page = globalThis, maxLines = 200, filter = null } = {}) {
   const document = page.document;
   if (!document || !container) return;
-  const lines = consoleLines(entries).slice(-maxLines);
+  const lines = consoleLines(entries).filter(line => filter?.isVisible(line.domain) ?? true).slice(-maxLines);
   const signature = lines.map(line => `${line.timestamp ?? ''}\u0000${line.domain}\u0000${line.level}\u0000${line.text}`).join('\u0001');
   if (container.dataset.renderSignature === signature) return;
   container.dataset.renderSignature = signature;

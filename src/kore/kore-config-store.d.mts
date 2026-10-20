@@ -2,18 +2,21 @@ export interface KoreConfigIdentity {
   profile: string;
   aid: number;
   cid: number;
+  nid: number;
 }
 export interface KoreConfigDocument extends KoreConfigIdentity {
   fileName: string;
   rawText: string;
   revision: number;
+  savedAt: number | null;
 }
 export interface KoreConfigDocumentInput extends KoreConfigIdentity {
   fileName: string;
   rawText: string;
 }
 export interface KoreConfigStore {
-  ensureDefaults(identity: KoreConfigIdentity, defaults: Record<string, string>): Promise<void>;
+  replaceProfile(identity: KoreConfigIdentity, files: Record<string, string | undefined>): Promise<KoreConfigDocument[]>;
+  getProfile(identity: KoreConfigIdentity): Promise<KoreConfigDocument[] | null>;
   saveDocument(document: KoreConfigDocumentInput): Promise<KoreConfigDocument>;
   getDocument(identity: KoreConfigIdentity & { fileName: string }): Promise<KoreConfigDocument | null>;
   listDocuments(identity: KoreConfigIdentity): Promise<KoreConfigDocument[]>;

@@ -113,7 +113,7 @@ test('Alt+Shift+K toggles the independent fullscreen panel', () => {
   key();
   expect(window.document.querySelector('.kore-fullscreen')).toBeTruthy();
   // The mode switch only lives in the small window.
-  expect(window.document.querySelector('.kore-fullscreen .kore-fs-title')?.textContent).toBe('科技改变生活');
+  expect(window.document.querySelector('.kore-fullscreen .kore-fs-title')?.textContent).toBe('KoreEngine');
   expect(window.document.querySelector('.kore-fullscreen [role="tablist"]')).toBeNull();
   key();
   expect(window.document.querySelector('.kore-fullscreen')).toBeNull();

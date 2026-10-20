@@ -3,17 +3,17 @@ import { expect, test } from 'vitest';
 import { createKoreIntegration } from '../src/kore/kore-integration.mjs';
 import { bridgeRecord, packageFixture, TestWorkerStub as WorkerStub } from './kore-fixture';
 
-async function setup() {
+async function setup(restartPolicy: Record<string, unknown> = {}) {
   const fixture = packageFixture('lastro-20211103', {}, 2); const worker = new WorkerStub();
   const page = Object.assign(new EventTarget(), { location: { href: 'http://localhost/' }, fetch: fixture.fetch,
     performance: { now: () => 1 }, crypto: globalThis.crypto, setInterval, clearInterval });
-  const host = createKoreIntegration({ page, manifest: fixture.executable, createWorker: () => worker }); await host.start();
+  const host = createKoreIntegration({ page, manifest: fixture.executable, createWorker: () => worker, restartPolicy }); await host.start();
   const init = worker.messages[0]!; worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false });
   return { fixture, worker, page, host, runtimeSessionId: init.runtimeSessionId };
 }
 
-test('Worker transport errors mark the runtime failed without restoring Host state', async () => {
-  const { host, worker } = await setup();
+test('Worker transport errors mark the runtime failed once the restart budget is spent', async () => {
+  const { host, worker } = await setup({ maxRestarts: 0 });
   const error = new Event('error');
   Object.defineProperty(error, 'message', { value: 'worker load failed' });
   worker.dispatchEvent(error);
@@ -21,8 +21,8 @@ test('Worker transport errors mark the runtime failed without restoring Host sta
   expect(host.state.degradedReason).toBe('worker load failed');
 });
 
-test('failed bridge posts mark the runtime failed', async () => {
-  const { host, worker } = await setup();
+test('failed bridge posts mark the runtime failed once the restart budget is spent', async () => {
+  const { host, worker } = await setup({ maxRestarts: 0 });
   worker.postError = new Error('bridge queue unavailable');
   host.beginGameSession(7, 'prontera.gat');
   expect(host.state.status).toBe('failed');

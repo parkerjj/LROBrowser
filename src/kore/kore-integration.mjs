@@ -1,10 +1,11 @@
 // Public, optional host. Only the passive inbound map stream crosses this boundary.
 import { createMapResourceProvider } from './map-resource-provider.mjs';
 import { createKoreConfigStore } from './kore-config-store.mjs';
+import { createKoreLtsdClient } from './kore-ltsd-client.mjs';
 export const KORE_PROTOCOL_PROFILE = 'lastro-20211103';
 const compatibleProfiles = new Set([KORE_PROTOCOL_PROFILE, 'lastro-2x']);
 const idPattern = /^[a-f0-9]{64}$/;
-const metadataFields = ['schemaVersion', 'engineVersion', 'bridgeApiVersion', 'schedulerCapabilities', 'packetver', 'profile', 'commitSha', 'sourceDirty', 'mode', 'toolVersions', 'files'];
+const metadataFields = ['schemaVersion', 'engineVersion', 'bridgeApiVersion', 'schedulerCapabilities', 'packetver', 'profile', 'commitSha', 'sourceDirty', 'mode', 'toolVersions', 'buildId', 'chunks', 'files'];
 const schedulerCapabilities = ['fourQueues', 'oneShotDeadline', 'residentExecutor'];
 const MAX_PENDING_GAME_CHUNKS = 512;
 const MAX_PENDING_GAME_BYTES = 2 * 1024 * 1024;
@@ -14,6 +15,7 @@ const RESIDENT_PRIORITY_EVENTS = new Set([
   'gameSessionStarted', 'mapConnectionStarted', 'connectionDegraded', 'gameSessionEnded', 'mapResource', 'actionResult',
 ]);
 const HEARTBEAT_INTERVAL_MS = 1000;
+const WORKER_BUSY_MS = 300;
 const validU8 = value => Number.isSafeInteger(value) && value >= 0 && value <= 0xff;
 const validU16 = value => Number.isSafeInteger(value) && value >= 0 && value <= 0xffff;
 const validU32 = value => Number.isSafeInteger(value) && value >= 0 && value <= 0xffffffff;
@@ -162,18 +164,20 @@ export function safePackagePath(value) {
 }
 export function packageKind(file) {
   if (/\.(mjs|js)$/.test(file)) return 'runtime';
+  if (file.endsWith('.wasm.enc')) return 'wasm-encrypted';
   if (file.endsWith('.wasm')) return 'wasm';
   if (file.endsWith('.json')) return 'data-json';
   if (file.endsWith('.txt')) return 'passive';
   throw Error('unsupported-package-file');
 }
 export async function validateKoreManifest(manifest) {
-  if (!manifest || manifest.schemaVersion !== 1 || manifest.bridgeApiVersion !== 2 || manifest.packetver !== 20211103
+  if (!manifest || manifest.schemaVersion !== 2 || manifest.bridgeApiVersion !== 2 || manifest.packetver !== 20211103
     || !compatibleProfiles.has(manifest.profile) || !/^\d+\.\d+\.\d+$/.test(manifest.engineVersion)
     || !['debug', 'release'].includes(manifest.mode) || typeof manifest.sourceDirty !== 'boolean'
     || !(manifest.commitSha === null || /^[a-f0-9]{40}$/.test(manifest.commitSha))
     || manifest.toolVersions?.rust !== '1.99.0' || manifest.toolVersions?.wasmBindgen !== '0.2.129'
     || manifest.toolVersions?.binaryen !== (manifest.mode === 'release' ? '133' : null)
+    || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(manifest.buildId ?? '')
     || !Array.isArray(manifest.files) || !idPattern.test(manifest.packageId)) throw Error('incompatible-package');
   if (!Array.isArray(manifest.schedulerCapabilities)
     || JSON.stringify(manifest.schedulerCapabilities) !== JSON.stringify(schedulerCapabilities)) throw Error('incompatible-package');
@@ -184,9 +188,18 @@ export async function validateKoreManifest(manifest) {
       || !Number.isSafeInteger(file.bytes) || file.bytes <= 0 || !idPattern.test(file.sha256)) throw Error('invalid-package-file');
     paths.add(file.path);
   }
-  for (const required of ['kore-worker.mjs', 'kore_wasm.js', 'kore_wasm_bg.wasm']) {
+  for (const required of ['kore-worker.mjs', 'kore_boot.js', 'kore_boot_bg.wasm', 'kore_wasm.js', 'core.wasm.enc', 'shared-queue.mjs']) {
     if (!paths.has(required)) throw Error('incomplete-package');
   }
+  const boot = manifest.chunks?.boot;
+  const core = manifest.chunks?.core;
+  const filesByPath = new Map(manifest.files.map(file => [file.path, file]));
+  if (!boot || boot.file !== 'kore_boot_bg.wasm' || boot.encrypted !== false || !idPattern.test(boot.sha256 ?? '')
+    || !core || core.file !== 'core.wasm.enc' || core.encrypted !== true || !Number.isSafeInteger(core.keyVersion) || core.keyVersion < 1
+    || !idPattern.test(core.sha256 ?? '')
+    || filesByPath.get(boot.file)?.kind !== 'wasm' || filesByPath.get(boot.file)?.sha256 !== boot.sha256
+    || filesByPath.get(core.file)?.kind !== 'wasm-encrypted' || filesByPath.get(core.file)?.sha256 !== core.sha256
+    || paths.has('kore_wasm_bg.wasm')) throw Error('invalid-wasm-chunks');
   if (manifest.files.map(file => file.path).join('\n') !== [...paths].sort().join('\n')) throw Error('unsorted-package-files');
   const metadata = Object.fromEntries(metadataFields.map(key => [key, manifest[key]]));
   if (await sha256(new globalThis.TextEncoder().encode(JSON.stringify(canonical(metadata)))) !== manifest.packageId) throw Error('package-id-mismatch');
@@ -245,7 +258,7 @@ export async function loadKorePackage({ page = globalThis, manifest, signal }) {
   };
 }
 
-export function createKoreIntegration({ page = globalThis, manifest, createWorker = url => new page.Worker(url, { type: 'module' }), onWorkerReleased = () => {}, onChange = () => {}, mapResourceProvider = null, serverFieldsFolder = 'EP15.1' }) {
+export function createKoreIntegration({ page = globalThis, manifest, createWorker = url => new page.Worker(url, { type: 'module' }), onWorkerReleased = () => {}, onChange = () => {}, mapResourceProvider = null, ltsdClient = null, serverFieldsFolder = 'EP15.1', restartPolicy = {} }) {
   const state = {
     status: 'absent', packageId: null, mode: null, runtimeGeneration: 0,
     profile: KORE_PROTOCOL_PROFILE, gameSessionId: null, connectionGeneration: null,
@@ -253,12 +266,29 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     receivedBytes: 0, sentBytes: 0, degradedReason: null, logs: [],
     runtimeStatus: null, lastDiagnostic: null, lastCommandResult: null,
     configIdentity: null,
+    bootSession: null,
+    authorization: {
+      phase: 'signed-out', user: null, userCode: null, verificationUriComplete: null,
+      expiresAt: null, interval: 5, profileUpdatedAt: null, configCached: false, error: null, detail: null, stalled: false,
+    },
     heartbeat: null, actions: [], diagnosticLog: [],
+    recovery: { restarts: 0, stage: 'idle', lastReason: null },
   };
+  // Worker 崩溃后的自动重建：窗口内最多 maxRestarts 次，按 backoffMs 递增等待；用尽后才进入 failed。
+  const policy = { maxRestarts: 3, windowMs: 10 * 60_000, backoffMs: [500, 2000, 5000], resyncDelayMs: 500, resyncTimeoutMs: 30_000, ...restartPolicy };
+  let restartTimes = [];
+  let restartTimer = null;
+  let recovery = null;
+  let recoveryTimer = null;
+  let lastAiMode = null;
   let worker = null;
   let session = null;
+  let coreReady = false;
+  let bootReady = false;
   let runtimeGeneration = 0;
   let packageInfo = null;
+  const GAME_BOUND_PHASES = new Set(['ready', 'starting-license', 'loading-profile', 'loading-runtime', 'profile-missing',
+    'profile-unavailable', 'cache-fallback', 'quota-exceeded', 'rebuilding-instance', 'waiting-bind', 'binding-character', 'error']);
   let gameSession = null;
   let connection = null;
   let nextRequestId = 0;
@@ -272,6 +302,9 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   let ingressPending = [];
   const ingressInFlight = new Map();
   let heartbeatTimer = null;
+  let outputsSinceHeartbeat = false;
+  let outputsPendingAtHeartbeat = false;
+  let lastBusyLogAt = 0;
   let removeWorkerListener = () => {};
   const resources = mapResourceProvider ?? createMapResourceProvider({
     page,
@@ -280,6 +313,8 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     databaseName: 'kore-map-resources',
   });
   const configStore = createKoreConfigStore({ page, indexedDBFactory: page.indexedDB });
+  const ltsd = ltsdClient ?? createKoreLtsdClient({ page, fetchImpl: page.fetch?.bind(page), storage: page.localStorage });
+  let devicePollTimer = null;
   const stateSubscribers = new Set();
   const changed = () => {
     try { onChange(state); } catch { /* UI must not affect transport. */ }
@@ -287,7 +322,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   };
   const logEntry = entry => {
     state.logs.push(entry);
-    if (state.logs.length > 200) state.logs.splice(0, state.logs.length - 200);
+    if (state.logs.length > 1000) state.logs.splice(0, state.logs.length - 1000);
     koreConsoleLog(page, '[KoreEngine] log', entry);
     changed();
   };
@@ -312,6 +347,10 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       if (first) [key, entry] = first;
     }
     if (entry) pendingCommands.delete(key);
+    if (entry?.command === 'reload all') {
+      const accepted = result?.accepted === true || result?.ok === true;
+      updateAuthorization({ phase: accepted ? 'ready' : 'error', error: accepted ? null : result?.code ?? 'config-reload-rejected', detail: null });
+    }
     const silent = entry?.silent === true;
     if (entry) notifyCommandOutput({ ...entry, result });
     if (!silent) {
@@ -331,14 +370,17 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     changed();
     return entry !== undefined;
   };
-  const failWorker = reason => {
-    if (state.status === 'disposed' || state.status === 'failed') return;
+  const failWorker = (reason, { retryable = true } = {}) => {
+    if (state.status === 'disposed' || state.status === 'failed' || state.status === 'restarting') return;
+    if (retryable && scheduleRestart(String(reason || 'worker-transport-failed'))) return;
     state.status = 'failed';
     state.worldReady = false;
     state.streamStatus = 'degraded';
     state.degradedReason = String(reason || 'worker-transport-failed');
     pendingCommands.clear();
     log('error', state.degradedReason);
+    // 授权流程中途失败时面板不能停在等待状态，必须展示原因。
+    if (state.authorization.phase !== 'ready') updateAuthorization({ phase: 'error', error: state.degradedReason, detail: null });
   };
   const postWorker = (message, transfer = []) => {
     if (!worker || !session) return null;
@@ -359,7 +401,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     bridgeSequence: ++bridgeSequence,
   });
   const flushIngress = () => {
-    if (!worker) return;
+    if (!worker || !coreReady) return;
     while (ingressPending.length && ingressInFlight.size < MAX_RESIDENT_IN_FLIGHT_EVENTS) {
       const entry = ingressPending.shift();
       const requestId = ++nextRequestId;
@@ -529,7 +571,10 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         forwardAction(routeAction, { requireTaskIntentGeneration: false });
       } else if (kind === 'status') {
         state.runtimeStatus = output;
+        // 恢复期间新 Runtime 一律汇报 off，不能覆盖崩溃前记下的 AI 模式。
+        if (!recovery && typeof output.aiMode === 'string') lastAiMode = output.aiMode;
         state.worldReady = output.worldReady === true;
+        advanceRecovery();
         if (typeof output.streamStatus === 'string') state.streamStatus = output.streamStatus;
         changed();
       } else if (kind === 'diagnostic') {
@@ -578,29 +623,417 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       log('error', `Map resource validation failed: ${String(error?.message ?? error)}`);
     }
   }
+  // 这些阶段本应在几秒内结束；超时说明某一步没有回应，需要给用户和日志明确的线索。
+  const STALL_PHASES = new Set(['waiting-bind', 'binding-character', 'loading-profile', 'loading-runtime']);
+  const STALL_MS = 10000;
+  let stallTimer = null;
+  const describeAuthorizationContext = () => {
+    const character = gameSession
+      ? `aid=${gameSession.aid} cid=${gameSession.cid} nid=${gameSession.nid} map=${gameSession.mapName}` : 'none';
+    return `status=${state.status} worker=${Boolean(worker)} boot=${bootReady} core=${coreReady} `
+      + `account=${Boolean(state.authorization.user)} character=${character}`;
+  };
+  const armStallWatch = () => {
+    if (stallTimer !== null) page.clearTimeout?.(stallTimer);
+    stallTimer = null;
+    const phase = state.authorization.phase;
+    if (!STALL_PHASES.has(phase) || typeof page.setTimeout !== 'function') return;
+    stallTimer = page.setTimeout(() => {
+      stallTimer = null;
+      if (state.authorization.phase !== phase) return;
+      log('warn', `authorization stalled in "${phase}" for ${STALL_MS / 1000}s: ${describeAuthorizationContext()}`);
+      updateAuthorization({ stalled: true });
+    }, STALL_MS);
+  };
+  const updateAuthorization = values => {
+    const previous = state.authorization;
+    const phaseChanged = values.phase !== undefined && values.phase !== previous.phase;
+    state.authorization = { ...previous, ...values, ...(phaseChanged && values.stalled === undefined ? { stalled: false } : {}) };
+    const { phase, error } = state.authorization;
+    if (phaseChanged || (values.error !== undefined && values.error !== previous.error)) {
+      log(phase === 'error' ? 'error' : error ? 'warn' : 'info',
+        `authorization ${previous.phase} -> ${phase}${error ? ` (${error})` : ''}`);
+    }
+    if (phaseChanged) armStallWatch();
+    changed();
+    if (phaseChanged) advanceRecovery();
+  };
+  const authorizationDiagnostics = () => {
+    const auth = state.authorization;
+    const character = gameSession
+      ? `aid=${gameSession.aid} cid=${gameSession.cid} nid=${gameSession.nid} map=${gameSession.mapName}` : '无';
+    const clock = timestamp => new Date(timestamp).toISOString().slice(11, 19);
+    return [
+      'KoreEngine 诊断信息',
+      `时间: ${new Date().toISOString()}`,
+      `授权阶段: ${auth.phase}${auth.stalled ? '（长时间无响应）' : ''}`,
+      `错误码: ${auth.error ?? '-'}`,
+      `运行状态: ${state.status}${state.degradedReason ? ` (${state.degradedReason})` : ''}`,
+      `启动层就绪: ${bootReady}  核心就绪: ${coreReady}`,
+      `构建: ${state.bootSession?.buildId ?? '-'}  包: ${state.packageId ?? '-'}`,
+      `实例: ${state.bootSession?.instanceId ?? '-'}`,
+      `LTSD 账号: ${auth.user ? (auth.user.id ?? auth.user.user_id ?? '已登录') : '未登录'}`,
+      `角色: ${character}`,
+      '最近日志:',
+      ...state.logs.slice(-20).map(entry => `  [${clock(entry.timestamp)}] ${entry.level} ${entry.text}`),
+    ].join('\n');
+  };
+  function sendAuthorizationToBoot() {
+    if (!bootReady || !worker || !session || !state.authorization.user) {
+      log('info', `LTSD account not handed to boot yet: ${describeAuthorizationContext()}`);
+      return false;
+    }
+    const userId = state.authorization.user.id ?? state.authorization.user.user_id;
+    if (userId === null || userId === undefined || String(userId).trim() === '') {
+      log('error', 'LTSD account has no usable id; cannot hand it to boot');
+      return false;
+    }
+    return postWorker({ type: 'authorizationAvailable', userId: String(userId) }) !== null;
+  }
+  function sendCharacterToBoot() {
+    if (!bootReady || !worker || !session || !gameSession) {
+      log('info', `character not handed to boot yet: ${describeAuthorizationContext()}`);
+      return false;
+    }
+    const { aid, cid, nid } = gameSession;
+    if (![aid, cid, nid].every(Number.isSafeInteger) || !(aid > 0 && cid > 0 && nid > 0)) {
+      log('warn', `character identity incomplete (aid=${aid} cid=${cid} nid=${nid}); LTSD binding cannot start`);
+      updateAuthorization({ phase: 'error', error: 'character-identity-incomplete' });
+      return false;
+    }
+    const sent = postWorker({ type: 'bindCharacter', character: {
+      aid, cid, nid, name: gameSession.name ?? '', baseLevel: gameSession.baseLevel ?? null,
+      jobLevel: gameSession.jobLevel ?? null, jobId: gameSession.jobId ?? null, mapName: gameSession.mapName,
+    } }) !== null;
+    if (sent && !state.authorization.user) updateAuthorization({ phase: 'signed-out' });
+    return sent;
+  }
+  function stopDevicePolling() {
+    if (devicePollTimer !== null) page.clearTimeout?.(devicePollTimer);
+    devicePollTimer = null;
+  }
+  function scheduleDevicePoll(delaySeconds) {
+    stopDevicePolling();
+    if (typeof page.setTimeout !== 'function') return;
+    devicePollTimer = page.setTimeout(() => { devicePollTimer = null; void pollDeviceAuthorization(); }, delaySeconds * 1000);
+  }
+  async function pollDeviceAuthorization() {
+    try {
+      const result = await ltsd.pollDeviceAuthorization();
+      if (result.status === 'pending' || result.status === 'slow-down') {
+        updateAuthorization({ phase: 'awaiting-approval', interval: result.interval });
+        scheduleDevicePoll(result.interval);
+        return;
+      }
+      if (result.status === 'expired' || result.status === 'denied') {
+        updateAuthorization({ phase: result.status === 'expired' ? 'device-expired' : 'device-denied', error: null });
+        return;
+      }
+      stopDevicePolling();
+      updateAuthorization({ phase: 'checking-account', userCode: null, verificationUriComplete: null, expiresAt: null });
+      const account = await ltsd.getMe();
+      if (!account.ok || !account.user) {
+        updateAuthorization({ phase: 'signed-out', user: null, error: account.body?.error?.code ?? 'account-check-failed' });
+        return;
+      }
+      updateAuthorization({ phase: gameSession ? 'waiting-bind' : 'waiting-character', user: account.user, error: null });
+      sendAuthorizationToBoot();
+      sendCharacterToBoot();
+    } catch (error) {
+      stopDevicePolling();
+      updateAuthorization({ phase: ltsd.hasToken() ? 'error' : 'signed-out', error: String(error?.message ?? error) });
+    }
+  }
+  async function refreshLtsdAccount() {
+    if (!ltsd.hasToken()) {
+      updateAuthorization({ phase: 'signed-out', user: null, error: null });
+      return;
+    }
+    updateAuthorization({ phase: 'checking-account', error: null });
+    try {
+      const account = await ltsd.getMe();
+      if (account.ok && account.user) {
+        updateAuthorization({ phase: gameSession ? 'waiting-bind' : 'waiting-character', user: account.user, error: null });
+        sendAuthorizationToBoot();
+        sendCharacterToBoot();
+      } else if (account.status === 401) {
+        ltsd.clearToken();
+        updateAuthorization({ phase: 'signed-out', user: null, error: 'KE_AUTH_UNAUTHENTICATED' });
+      } else {
+        updateAuthorization({ phase: 'error', error: account.body?.error?.code ?? 'account-check-failed' });
+      }
+    } catch (error) {
+      updateAuthorization({ phase: 'error', error: String(error?.message ?? error) });
+    }
+  }
+  async function refreshConfiguration(requestedIdentity = null, requestedGameSessionId = gameSession?.id) {
+    const current = gameSession;
+    if (!current || current.id !== requestedGameSessionId) {
+      log('warn', `config sync skipped: no matching game session (${describeAuthorizationContext()})`);
+      return { status: 'stale-session' };
+    }
+    const identity = requestedIdentity ?? { profile: state.profile, aid: current.aid, cid: current.cid, nid: current.nid };
+    if (identity.profile !== state.profile || identity.aid !== current.aid || identity.cid !== current.cid || identity.nid !== current.nid
+      || !Number.isSafeInteger(identity.aid) || !Number.isSafeInteger(identity.cid) || !Number.isSafeInteger(identity.nid)) {
+      log('error', `config sync skipped: character identity mismatch (${describeAuthorizationContext()})`);
+      return { status: 'identity-mismatch' };
+    }
+    if (!ltsd.hasToken()) {
+      updateAuthorization({ phase: 'signed-out', configCached: false, error: null });
+      return { status: 'unauthorized' };
+    }
+    updateAuthorization({ phase: 'loading-profile', configCached: false, error: null, detail: null });
+    let response = null;
+    let failure = null;
+    try {
+      const query = new globalThis.URLSearchParams({ aid: String(identity.aid), cid: String(identity.cid), nid: String(identity.nid) });
+      response = await ltsd.request('GET', `/profiles/active?${query}`);
+    } catch (error) { failure = String(error?.message ?? error); }
+    if (gameSession?.id !== current.id) return { status: 'stale-session' };
+    if (response?.status === 401) {
+      ltsd.clearToken();
+      updateAuthorization({ phase: 'signed-out', user: null, configCached: false, error: 'KE_AUTH_UNAUTHENTICATED' });
+      return { status: 'unauthorized' };
+    }
+    if (response?.status === 404 && response.body?.error?.code === 'KE_PROFILE_NOT_FOUND') {
+      updateAuthorization({ phase: 'profile-missing', configCached: false, error: 'KE_PROFILE_NOT_FOUND' });
+      return { status: 'profile-missing' };
+    }
+    let documents = null;
+    let fetchedAt = null;
+    let configCached = false;
+    if (response?.ok && response.body?.files && typeof response.body.files === 'object' && !Array.isArray(response.body.files)
+      && Object.keys(response.body.files).length === KORE_CONFIG_FILES.length
+      && KORE_CONFIG_FILES.every(fileName => typeof response.body.files[fileName] === 'string')) {
+      const saved = await configStore.replaceProfile(identity, response.body.files);
+      documents = saved.filter(document => M4_CONFIG_FILES.has(document.fileName));
+      fetchedAt = Date.now();
+      failure = null;
+    } else if (response?.ok) {
+      failure = 'active-profile-response-invalid';
+    } else if (response) {
+      failure = response.body?.error?.code ?? `ltsd-http-${response.status}`;
+    }
+    if (!documents) {
+      const rejectedRequest = response && response.status >= 400 && response.status < 500
+        && ![404, 429].includes(response.status);
+      if (rejectedRequest) {
+        updateAuthorization({ phase: 'error', error: failure ?? response.body?.error?.code ?? 'active-profile-request-failed' });
+        return { status: response.status === 401 ? 'unauthorized' : 'request-rejected' };
+      }
+      try {
+        documents = await configStore.getProfile(identity);
+      } catch (error) { failure ??= String(error?.message ?? error); }
+      documents = (documents ?? []).filter(document => M4_CONFIG_FILES.has(document.fileName));
+      if (documents.length !== KORE_CONFIG_FILES.length) {
+        updateAuthorization({ phase: 'profile-unavailable', error: failure ?? 'active-profile-unavailable' });
+        return { status: 'unavailable', error: failure };
+      }
+      fetchedAt = Math.max(...documents.map(document => Number(document.savedAt) || 0)) || null;
+      configCached = true;
+    }
+    const sent = sendCommand('reload all', {
+      documents,
+      profile: identity.profile,
+      aid: identity.aid,
+      cid: identity.cid,
+      nid: identity.nid,
+      gameSessionId: current.id,
+    });
+    if (!sent) {
+      updateAuthorization({ phase: 'error', configCached, profileUpdatedAt: fetchedAt, error: 'reload-all-not-sent' });
+      return { status: 'reload-failed' };
+    }
+    updateAuthorization({
+      phase: configCached ? 'cache-fallback' : 'loading-runtime',
+      configCached,
+      profileUpdatedAt: fetchedAt,
+      error: configCached ? failure ?? 'active-profile-unavailable' : null,
+    });
+    return { status: 'loaded', cached: configCached, updatedAt: fetchedAt, error: configCached ? failure : null };
+  }
   async function handleConfigRequest(message) {
     if (!session || message.runtimeSessionId !== session) return;
     const aid = Number.isSafeInteger(message.aid) ? message.aid : gameSession?.aid;
     const cid = Number.isSafeInteger(message.cid) ? message.cid : gameSession?.cid;
-    if (!aid || !cid) { log('warn', 'config request ignored: no verified aid/cid'); return; }
-    const identity = { profile: message.profile ?? state.profile, aid, cid };
+    const nid = Number.isSafeInteger(message.nid) ? message.nid : gameSession?.nid;
+    if (!aid || !cid || !nid) { log('warn', 'config request ignored: no verified aid/cid/nid'); return; }
+    const identity = { profile: message.profile ?? state.profile, aid, cid, nid };
+    const result = await refreshConfiguration(identity, gameSession?.id);
+    if (result.status !== 'loaded') log(result.status === 'profile-missing' ? 'warn' : 'error', `Config auto-load: ${result.status}${result.error ? ` (${result.error})` : ''}`);
+  }
+  async function handleLtsdRequest(message) {
+    if (!session || message.runtimeSessionId !== session || typeof message.endpoint !== 'string'
+      || !['GET', 'POST'].includes(message.method)) return;
     try {
-      const documents = await api.getConfigDocuments(identity);
-      const selected = documents.filter(document => M4_CONFIG_FILES.has(document.fileName));
-      if (!selected.length) { log('warn', 'config request: no documents in IndexedDB'); return; }
-      sendCommand('reload all', { documents: selected, profile: identity.profile, aid, cid, gameSessionId: gameSession?.id });
+      log('info', `LTSD ${message.method} ${message.endpoint} ...`);
+      const response = await ltsd.request(message.method, message.endpoint, { body: message.body });
+      log(response.ok ? 'info' : 'warn', `LTSD ${message.method} ${message.endpoint} -> HTTP ${response.status}`);
+      if (response.status === 401) {
+        ltsd.clearToken();
+        updateAuthorization({ phase: 'signed-out', user: null, configCached: false, error: 'KE_AUTH_UNAUTHENTICATED' });
+        postWorker({ type: 'authorizationUnavailable' });
+      }
+      postWorker({ type: 'ltsdResponse', ltsdRequestId: message.ltsdRequestId, status: response.status, body: response.bodyText });
     } catch (error) {
-      log('error', `Config auto-load failed: ${String(error?.message ?? error)}`);
+      log('error', `LTSD ${message.method} ${message.endpoint} failed: ${String(error?.message ?? error)}`);
+      postWorker({ type: 'ltsdResponse', ltsdRequestId: message.ltsdRequestId, status: 0, body: String(error?.message ?? error) });
     }
   }
+  // ---- Worker 自动重建与会话恢复 ----
+  // 重建后 Runtime 是全新的：世界状态（背包、技能、实体）为空，且收包流从中途开始。恢复步骤：
+  //  1. 重新握手（账号、角色 id 取自 Host 已保存的 gameSession，不依赖 Worker 旧状态）；
+  //  2. 在原生接收缓冲没有半个包的地方重新对齐字节流，不能从封包中间开始解析；
+  //  3. 用私人飞艇换图，让服务器重新下发技能/背包/地图信息（已在 prontera 则改去 payon）；
+  //  4. 世界就绪且配置加载完成后恢复崩溃前的 AI 模式。
+  const timerSet = (callback, delay) => (page.setTimeout ?? globalThis.setTimeout)(callback, delay);
+  const timerClear = id => (page.clearTimeout ?? globalThis.clearTimeout)(id);
+  const normalizeMapName = value => String(value ?? '').trim().replace(/\.(?:gat|rsw)$/i, '').toLowerCase();
+  const currentMapName = () => {
+    let live = '';
+    try { live = String(page.KoreEngineCurrentMap?.() ?? ''); } catch { /* 取不到就用登录时的地图 */ }
+    return normalizeMapName(live) || normalizeMapName(gameSession?.mapName);
+  };
+  const setRecoveryStage = (stage, reason = state.recovery.lastReason) => {
+    state.recovery = { restarts: state.recovery.restarts, stage, lastReason: reason };
+    changed();
+  };
+  function finishRecovery(outcome) {
+    if (recoveryTimer !== null) timerClear(recoveryTimer);
+    recoveryTimer = null;
+    if (!recovery) return;
+    log(outcome === 'done' ? 'info' : 'warn', `会话恢复结束: ${outcome}`);
+    recovery = null;
+    setRecoveryStage('idle');
+  }
+  const teardownWorker = () => {
+    removeWorkerListener(); removeWorkerListener = () => {};
+    if (heartbeatTimer !== null && page.clearInterval) page.clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+    if (stallTimer !== null) timerClear(stallTimer);
+    stallTimer = null;
+    try { worker?.terminate?.(); } catch { /* best effort */ }
+    worker = null; session = null; coreReady = false; bootReady = false;
+    ingressPending = []; ingressInFlight.clear(); residentIngressGameChunks = 0; residentIngressGameBytes = 0;
+    pendingCommands.clear(); activeResourceRequestId = null;
+    outputsSinceHeartbeat = false; outputsPendingAtHeartbeat = false;
+    state.bootSession = null; state.heartbeat = null; state.worldReady = false; state.runtimeStatus = null;
+    state.mapResourceState = 'idle';
+    try { onWorkerReleased(); } catch { /* best effort */ }
+  };
+  // 返回 true 表示已安排重建（调用方不要再标记 failed）。
+  function scheduleRestart(reason, { manual = false } = {}) {
+    if (!packageInfo || state.status === 'disposed') return false;
+    const now = Date.now();
+    restartTimes = restartTimes.filter(time => now - time < policy.windowMs);
+    if (!manual && restartTimes.length >= policy.maxRestarts) {
+      log('error', `Worker 在 ${Math.round(policy.windowMs / 60000)} 分钟内已自动重启 ${restartTimes.length} 次，不再重试；请刷新页面。最后原因: ${reason}`);
+      return false;
+    }
+    restartTimes.push(now);
+    const attempt = restartTimes.length;
+    const delay = policy.backoffMs[Math.min(attempt - 1, policy.backoffMs.length - 1)] ?? 0;
+    recovery = { stage: 'restarting', aiMode: recovery?.aiMode ?? lastAiMode, destination: null };
+    if (recoveryTimer !== null) timerClear(recoveryTimer);
+    recoveryTimer = null;
+    teardownWorker();
+    state.status = 'restarting'; state.degradedReason = reason; state.streamStatus = 'degraded';
+    state.recovery = { restarts: state.recovery.restarts + 1, stage: 'restarting', lastReason: reason };
+    updateAuthorization({ phase: gameSession ? 'waiting-bind' : state.authorization.user ? 'waiting-character' : 'signed-out', error: null, detail: null });
+    log('warn', `KoreEngine Worker 异常（${reason}），${delay}ms 后自动重启（窗口内第 ${attempt} 次）`);
+    if (restartTimer !== null) timerClear(restartTimer);
+    restartTimer = timerSet(() => {
+      restartTimer = null;
+      if (state.status !== 'restarting') return;
+      state.status = 'loading'; changed();
+      void launchWorker({ restart: true });
+    }, delay);
+    changed();
+    return true;
+  }
+  // Worker 的 core 重新就绪后：把仍然有效的游戏会话/地图连接重新告诉新 Runtime。
+  const resumeAfterRestart = () => {
+    if (!recovery) return;
+    state.status = 'runtime-ready'; state.degradedReason = null;
+    if (!gameSession) { finishRecovery('没有进行中的游戏会话，无需恢复'); return; }
+    const id = `${session}:game:${++nextRequestId}`;
+    gameSession.id = id; state.gameSessionId = id;
+    gameSession.mapName = currentMapName() || gameSession.mapName;
+    gameSequence = 0; gameByteOffset = 0;
+    postEvent('gameSessionStarted', {
+      characterGid: gameSession.characterGid, mapName: gameSession.mapName, aid: gameSession.aid, cid: gameSession.cid, nid: gameSession.nid,
+      name: gameSession.name, baseLevel: gameSession.baseLevel, jobLevel: gameSession.jobLevel, jobId: gameSession.jobId,
+    }, 'control', { gameSessionId: id, connectionGeneration: 0 });
+    if (!connection || connection.degraded) { finishRecovery('地图连接已关闭，等待重新登录'); return; }
+    // 原生 socket 仍是同一个连接：保持 generation 不变（Online.js 持有的就是这个值），只重置字节序号。
+    connection.awaitingAlignment = true;
+    state.streamStatus = 'awaiting-sync'; state.worldReady = false; resourceCycle += 1; state.mapResourceState = 'loading';
+    postEvent('mapConnectionStarted', { mapName: gameSession.mapName, serverFieldsFolder, resourceCycle }, 'control',
+      { gameSessionId: id, connectionGeneration: connection.generation });
+    recovery.stage = 'awaiting-alignment';
+    setRecoveryStage('awaiting-alignment');
+    log('info', 'Worker 已重建，等待收包流对齐到完整封包边界');
+  };
+  const resyncAfterAlignment = () => {
+    if (!recovery || recovery.stage !== 'awaiting-alignment') return;
+    const here = currentMapName();
+    const destination = here === 'prontera' ? 'payon' : 'prontera';
+    let accepted = false;
+    try {
+      accepted = page.KoreEngineNativeAction?.({ type: 'PrivateAirship', destinationId: destination, expectedMap: destination, requestId: 0 }) === true;
+    } catch (error) { log('error', `恢复换图失败: ${String(error?.message ?? error)}`); }
+    if (!accepted) { finishRecovery(`飞艇请求未发出（当前地图 ${here || '未知'}），请手动换图以刷新数据`); return; }
+    recovery.stage = 'awaiting-world'; recovery.destination = destination;
+    setRecoveryStage('awaiting-world');
+    log('info', `已请求飞艇前往 ${destination} 以重新同步技能/背包/地图`);
+    recoveryTimer = timerSet(() => {
+      recoveryTimer = null;
+      finishRecovery('换图后 30 秒内世界仍未就绪，请手动换图或重新登录');
+    }, policy.resyncTimeoutMs);
+  };
+  // 世界就绪且配置已加载，才恢复 AI；否则 `ai auto` 会在配置之前执行。
+  function advanceRecovery() {
+    if (!recovery || recovery.stage !== 'awaiting-world') return;
+    if (!state.worldReady || state.authorization.phase !== 'ready') return;
+    const mode = recovery.aiMode;
+    if (mode === 'auto' || mode === 'manual') {
+      const sent = sendCommandRaw(`ai ${mode}`, {}, { silent: false });
+      log(sent ? 'info' : 'warn', `已${sent ? '' : '尝试'}恢复崩溃前的 AI 模式: ${mode}`);
+    }
+    finishRecovery('done');
+  }
+
   const handleWorkerMessage = message => {
     if (!message || message.runtimeSessionId !== session) return;
     if (message.type === 'ready') {
+      coreReady = true;
       state.status = 'runtime-ready';
       state.packageId = message.packageId ?? packageInfo?.manifest?.packageId ?? null;
       state.mode = packageInfo?.manifest?.mode ?? null;
       state.worldReady = message.worldReady === true;
+      resumeAfterRestart();
+      flushIngress();
       changed();
+      return;
+    }
+    if (message.type === 'bootReady') {
+      bootReady = true;
+      state.bootSession = { instanceId: message.instanceId, publicKey: message.publicKey,
+        buildId: message.buildId, buildHash: message.buildHash };
+      sendAuthorizationToBoot();
+      sendCharacterToBoot();
+      if (!gameSession) updateAuthorization({ phase: state.authorization.user ? 'waiting-character' : 'signed-out' });
+      return;
+    }
+    if (message.type === 'authorizationStatus') {
+      const phase = String(message.phase ?? 'error');
+      if (phase === 'signed-out') {
+        ltsd.clearToken();
+        updateAuthorization({ phase, user: null, error: message.error ?? 'KE_AUTH_UNAUTHENTICATED', detail: null });
+      } else {
+        updateAuthorization({ phase, error: message.error ?? null, detail: message.detail ?? null });
+        if (phase === 'loading-profile' && gameSession) void refreshConfiguration(null, gameSession.id);
+      }
       return;
     }
     if (message.type === 'eventAccepted') {
@@ -621,6 +1054,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       return;
     }
     if (message.type === 'outputs') {
+      outputsSinceHeartbeat = true;
       handleOutputs(message.outputs ?? [
         ...(message.actions ?? []).map(action => ({ kind: 'action', action })),
         ...(message.status ?? []),
@@ -633,6 +1067,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     if (message.type === 'resourceRequest') { void handleResourceRequest(message); return; }
     if (message.type === 'resourceValidation') { void handleResourceValidation(message); return; }
     if (message.type === 'configRequest') { void handleConfigRequest(message); return; }
+    if (message.type === 'ltsdRequest') { void handleLtsdRequest(message); return; }
     if (message.type === 'mapResourceReady') {
       postEvent('mapResource', { mapName: message.mapName, version: message.version, ready: true }, 'control', {
         gameSessionId: message.gameSessionId,
@@ -643,8 +1078,40 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     }
     if (message.type === 'mapResourceState') { state.mapResourceState = message.mapResourceState ?? 'degraded'; changed(); return; }
     if (message.type === 'commandResult') { settleCommandResult(message.result ?? null, { requestId: message.requestId ?? null }); return; }
-    if (message.type === 'heartbeat') { state.heartbeat = { at: Date.now(), nextDeadlineMs: message.nextDeadlineMs ?? null, queueDepth: message.queueDepth ?? null }; changed(); return; }
-    if (message.type === 'fault') { failWorker(message.message ?? 'runtime-fault'); return; }
+    if (message.type === 'heartbeat') {
+      state.heartbeat = { at: Date.now(), nextDeadlineMs: message.nextDeadlineMs ?? null, queueDepth: message.queueDepth ?? null };
+      // 输出已在 Worker 队列里却连续两次心跳都没有被取走，说明“有输出”的通知丢了；
+      // 此后 Worker 不会再通知，AI 的动作和日志会一直卡在队列里。主动取一次即可恢复。
+      const depth = message.queueDepth;
+      const pending = depth && ((depth.actions ?? 0) > 0 || (depth.status ?? 0) > 0);
+      // Worker 单线程串行处理消息：被一个长任务占住时，心跳请求和 drainOutputs 都在后面排队，
+      // 任务一结束就连着回两个“有输出”的心跳，看起来像通知丢了，其实 drain 已经在队列里。
+      const waitMs = message.queueWaitMs ?? 0;
+      const slow = message.slowTask;
+      const busy = waitMs >= WORKER_BUSY_MS;
+      if ((busy || (slow?.ms ?? 0) >= WORKER_BUSY_MS) && Date.now() - lastBusyLogAt >= 10_000) {
+        lastBusyLogAt = Date.now();
+        log('warn', `Worker 处理被占住：心跳排队 ${waitMs}ms，最慢任务 ${slow ? `${slow.label} ${slow.ms}ms` : '未知'}`);
+      }
+      if (pending && !busy && !outputsSinceHeartbeat && outputsPendingAtHeartbeat) {
+        log('warn', `Worker 输出队列滞留（actions=${depth.actions ?? 0} status=${depth.status ?? 0} 已通知=${message.outputNotice === true}），已主动取出`);
+        postWorker({ type: 'drainOutputs' });
+      }
+      outputsPendingAtHeartbeat = pending === true;
+      outputsSinceHeartbeat = false;
+      changed();
+      return;
+    }
+    if (message.type === 'fault') {
+      log('error', `worker fault: ${message.message ?? 'runtime-fault'}${message.messageType ? ` while handling "${message.messageType}"` : ''}${message.stack ? `\n${message.stack}` : ''}`);
+      failWorker(message.message ?? 'runtime-fault', { retryable: message.retryable !== false });
+      return;
+    }
+    if (message.type === 'workerError') {
+      // Worker 已自行消化的非致命错误：只记录，不改变运行状态。
+      log('warn', `worker error (recovered): ${message.message ?? message.code ?? 'unknown'}${message.messageType ? ` while handling "${message.messageType}"` : ''}`);
+      return;
+    }
   };
   const attachWorker = nextWorker => {
     worker = nextWorker;
@@ -679,38 +1146,53 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   };
   const sendCommand = (command, extraFields = {}) => sendCommandRaw(command, extraFields);
   const sendCommandText = (text, { silent = false } = {}) => sendCommandRaw(String(text ?? ''), {}, { silent: silent === true });
+  // 创建 Worker 并发起 init。首次启动与自动重建共用；restart 时失败要回到重建/失败判定，而不是静默停在 loading。
+  async function launchWorker({ restart = false } = {}) {
+    try {
+      packageInfo = await loadKorePackage({ page, manifest });
+      if (!packageInfo) { state.status = 'absent'; changed(); return; }
+      if (packageInfo.mapResourceConfig) resources.configure?.(packageInfo.mapResourceConfig);
+      session = typeof page.crypto?.randomUUID === 'function' ? page.crypto.randomUUID() : `ke-${Date.now()}-${Math.random()}`;
+      runtimeGeneration += 1; state.runtimeGeneration = runtimeGeneration;
+      if (page.crossOriginIsolated === false
+        && !(typeof globalThis.SharedArrayBuffer === 'function' && typeof globalThis.Atomics === 'object')) {
+        state.status = 'unavailable'; state.degradedReason = 'shared-array-buffer-unavailable'; log('error', state.degradedReason); return;
+      }
+      attachWorker(createWorker(packageInfo.workerUrl));
+      postWorker({ type: 'residentInit', expectedPackageId: packageInfo.manifest.packageId,
+        bridgeApiVersion: packageInfo.manifest.bridgeApiVersion, packetver: packageInfo.manifest.packetver,
+        startMs: 0, executor: 'resident', runtimeGeneration });
+      if (heartbeatTimer === null && page.setInterval) heartbeatTimer = page.setInterval(() => postWorker({ type: 'heartbeatRequest', sentAt: Date.now() }), HEARTBEAT_INTERVAL_MS);
+    } catch (error) {
+      const reason = String(error?.message ?? error);
+      if (restart) { failWorker(reason); return; }
+      state.status = 'failed'; state.degradedReason = reason; log('error', reason);
+    }
+  }
   const api = {
     state,
     async start() {
-      if (state.status === 'runtime-ready' || state.status === 'loading') return;
+      if (state.status === 'runtime-ready' || state.status === 'loading' || state.status === 'restarting') return;
+      coreReady = false;
+      bootReady = false;
       state.status = 'loading'; changed();
-      try {
-        packageInfo = await loadKorePackage({ page, manifest });
-        if (!packageInfo) { state.status = 'absent'; changed(); return; }
-        if (packageInfo.mapResourceConfig) resources.configure?.(packageInfo.mapResourceConfig);
-        session = typeof page.crypto?.randomUUID === 'function' ? page.crypto.randomUUID() : `ke-${Date.now()}-${Math.random()}`;
-        runtimeGeneration += 1; state.runtimeGeneration = runtimeGeneration;
-        if (page.crossOriginIsolated === false
-          && !(typeof globalThis.SharedArrayBuffer === 'function' && typeof globalThis.Atomics === 'object')) {
-          state.status = 'unavailable'; state.degradedReason = 'shared-array-buffer-unavailable'; log('error', state.degradedReason); return;
-        }
-        attachWorker(createWorker(packageInfo.workerUrl));
-        postWorker({ type: 'residentInit', expectedPackageId: packageInfo.manifest.packageId,
-          bridgeApiVersion: packageInfo.manifest.bridgeApiVersion, packetver: packageInfo.manifest.packetver,
-          startMs: 0, executor: 'resident', runtimeGeneration });
-        if (heartbeatTimer === null && page.setInterval) heartbeatTimer = page.setInterval(() => postWorker({ type: 'heartbeatRequest' }), HEARTBEAT_INTERVAL_MS);
-      } catch (error) {
-        state.status = 'failed'; state.degradedReason = String(error?.message ?? error); log('error', state.degradedReason);
-      }
+      void refreshLtsdAccount();
+      await launchWorker();
     },
     dispose() {
+      if (restartTimer !== null) (page.clearTimeout ?? globalThis.clearTimeout)(restartTimer);
+      restartTimer = null; finishRecovery('disposed');
+      stopDevicePolling();
+      if (stallTimer !== null) page.clearTimeout?.(stallTimer);
+      stallTimer = null;
       if (heartbeatTimer !== null && page.clearInterval) page.clearInterval(heartbeatTimer);
       heartbeatTimer = null; removeWorkerListener();
       try { if (worker && session) worker.postMessage({ runtimeSessionId: session, type: 'dispose', requestId: ++nextRequestId }); } catch { /* best effort */ }
       try { worker?.terminate?.(); } catch { /* best effort */ }
-      worker = null; session = null; ingressPending = []; ingressInFlight.clear(); residentIngressGameChunks = 0; residentIngressGameBytes = 0;
+      worker = null; session = null; coreReady = false; bootReady = false; ingressPending = []; ingressInFlight.clear(); residentIngressGameChunks = 0; residentIngressGameBytes = 0;
       pendingCommands.clear();
       gameSession = null; connection = null; activeResourceRequestId = null;
+      state.bootSession = null;
       void resources.close?.(); void configStore.close?.();
       state.gameSessionId = null; state.connectionGeneration = null; state.worldReady = false; state.streamStatus = 'idle'; state.mapResourceState = 'idle';
       try { onWorkerReleased(); } catch { /* best effort */ }
@@ -719,17 +1201,20 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     beginGameSession(characterGid, mapName, identity = {}) {
       if (!worker || !session || !Number.isSafeInteger(characterGid) || typeof mapName !== 'string' || !mapName) return null;
       const id = `${session}:game:${++nextRequestId}`;
-      gameSession = { id, characterGid, mapName, aid: identity.aid ?? null, cid: identity.cid ?? null };
+      gameSession = { id, characterGid, mapName, aid: identity.aid ?? null, cid: identity.cid ?? null, nid: identity.nid ?? null,
+        name: identity.name ?? null, baseLevel: identity.baseLevel ?? null, jobLevel: identity.jobLevel ?? null, jobId: identity.jobId ?? null };
       connection = null; gameSequence = 0; gameByteOffset = 0;
-      state.gameSessionId = id; state.connectionGeneration = null; state.configIdentity = identity.aid && identity.cid ? { aid: identity.aid, cid: identity.cid } : null;
+      state.gameSessionId = id; state.connectionGeneration = null;
+      state.configIdentity = identity.aid > 0 && identity.cid > 0 && identity.nid > 0
+        ? { aid: identity.aid, cid: identity.cid, nid: identity.nid } : null;
       state.streamStatus = 'awaiting-connection'; state.worldReady = false;
       const fields = {
-        characterGid, mapName, aid: gameSession.aid, cid: gameSession.cid,
+        characterGid, mapName, aid: gameSession.aid, cid: gameSession.cid, nid: gameSession.nid,
         name: identity.name ?? null, baseLevel: identity.baseLevel ?? null,
         jobLevel: identity.jobLevel ?? null, jobId: identity.jobId ?? null,
       };
       postEvent('gameSessionStarted', fields, 'control', { gameSessionId: id, connectionGeneration: 0 });
-      changed(); return id;
+      changed(); sendCharacterToBoot(); return id;
     },
     beginMapConnection() {
       if (!worker || !session || !gameSession) return null;
@@ -740,8 +1225,15 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       postEvent('mapConnectionStarted', { mapName: gameSession.mapName, serverFieldsFolder, resourceCycle }, 'control', { gameSessionId: gameSession.id, connectionGeneration: generation });
       changed(); return generation;
     },
-    mirrorMapData(connectionGeneration, data) {
+    mirrorMapData(connectionGeneration, data, options = {}) {
       if (!worker || !session || !gameSession || connection?.generation !== connectionGeneration || connection.degraded) return false;
+      if (connection.awaitingAlignment) {
+        // 重建后的 Runtime 只能从完整封包边界开始吃数据；aligned 缺省（旧版挂钩）按已对齐处理。
+        if (options?.aligned === false) return false;
+        connection.awaitingAlignment = false;
+        log('info', '收包流已对齐，开始向新 Runtime 转发');
+        timerSet(resyncAfterAlignment, policy.resyncDelayMs);
+      }
       const bytes = data instanceof Uint8Array ? data.slice() : new Uint8Array(data instanceof ArrayBuffer ? data : data.buffer, data.byteOffset ?? 0, data.byteLength ?? data.length);
       const event = { sequence: gameSequence, byteOffset: gameByteOffset, receivedAtMs: (page.performance ?? globalThis.performance).now(), bytes };
       const queued = postEvent('gameData', event, 'game', { gameSessionId: gameSession.id, connectionGeneration });
@@ -764,26 +1256,88 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       const ended = gameSession.id;
       postEvent('gameSessionEnded', {}, 'control', { gameSessionId: ended, connectionGeneration: connection?.generation ?? 0 });
       pendingCommands.clear();
-      gameSession = null; connection = null; state.gameSessionId = null; state.connectionGeneration = null; state.worldReady = false; state.streamStatus = 'idle'; changed(); return true;
+      gameSession = null; connection = null; state.gameSessionId = null; state.connectionGeneration = null; state.worldReady = false; state.streamStatus = 'idle';
+      // 退出到选角/登录页后，上一个角色的就绪或错误状态不再适用；新角色进入时会重新绑定。
+      if (state.authorization.user && GAME_BOUND_PHASES.has(state.authorization.phase)) {
+        updateAuthorization({ phase: 'waiting-character', error: null, detail: null, configCached: false });
+      } else changed();
+      return true;
     },
     clearConsole() { state.logs.length = 0; changed(); },
     debugMapRetry() { if (!gameSession || !connection) return false; resourceCycle += 1; state.mapResourceState = 'loading'; postWorker({ type: 'debugMapRetry', mapName: gameSession.mapName, resourceCycle, connectionGeneration: connection.generation }); changed(); return true; },
     saveConfigDocument(document) { return configStore.saveDocument(document); },
     getConfigDefault(fileName) { return packageInfo?.configDefaults?.[fileName] ?? null; },
     async getConfigDocuments(identity) {
-      await configStore.ensureDefaults(identity, packageInfo?.configDefaults ?? {});
       return configStore.listDocuments(identity);
     },
+    async refreshConfiguration(identity = null) {
+      return refreshConfiguration(identity, gameSession?.id);
+    },
+    // 面板“重试”：core 已就绪则重新同步配置，否则重新发起角色绑定。
+    async retryAuthorization() {
+      log('info', `retry requested: ${describeAuthorizationContext()}`);
+      if (!state.authorization.user || !worker || !session) {
+        log('warn', 'retry ignored: not signed in to LTSD or the runtime worker is not available');
+        return false;
+      }
+      if (state.status === 'failed') {
+        // 自动重建次数用尽后，用户手动重试仍可重建（不受次数限制）。
+        state.status = 'loading';
+        if (scheduleRestart(state.degradedReason ?? 'manual-retry', { manual: true })) return true;
+        state.status = 'failed';
+        log('error', `retry ignored: the runtime worker stopped (${state.degradedReason ?? 'unknown'}); reload the page`);
+        return false;
+      }
+      if (coreReady && gameSession) {
+        const result = await refreshConfiguration(null, gameSession.id);
+        log(result.status === 'loaded' ? 'info' : 'warn', `retry finished: config sync ${result.status}`);
+        return result.status === 'loaded';
+      }
+      updateAuthorization({ phase: gameSession ? 'waiting-bind' : 'waiting-character', error: null, detail: null });
+      const available = sendAuthorizationToBoot();
+      const sent = sendCharacterToBoot();
+      log(sent && available ? 'info' : 'warn', `retry finished: account handed to boot=${available}, character handed to boot=${sent}`);
+      return sent && available;
+    },
+    getAuthorizationDiagnostics() { return authorizationDiagnostics(); },
+    async beginLtsdLogin() {
+      stopDevicePolling();
+      updateAuthorization({ phase: 'requesting-device', userCode: null, verificationUriComplete: null, expiresAt: null, error: null });
+      try {
+        const device = await ltsd.beginDeviceAuthorization();
+        updateAuthorization({ phase: 'awaiting-approval', userCode: device.userCode,
+          verificationUriComplete: device.verificationUriComplete, expiresAt: device.expiresAt, interval: device.interval });
+        scheduleDevicePoll(device.interval);
+        return true;
+      } catch (error) {
+        updateAuthorization({ phase: 'error', error: String(error?.message ?? error) });
+        return false;
+      }
+    },
+    openLtsdApproval() {
+      const url = state.authorization.verificationUriComplete;
+      if (!url) return false;
+      try { return Boolean(page.open?.(url, '_blank', 'noopener,noreferrer')); } catch { return false; }
+    },
+    cancelLtsdLogin() {
+      stopDevicePolling();
+      ltsd.cancelDeviceAuthorization();
+      updateAuthorization({ phase: ltsd.hasToken() ? 'waiting-character' : 'signed-out', userCode: null,
+        verificationUriComplete: null, expiresAt: null, error: null });
+    },
+    async logoutLtsd() {
+      stopDevicePolling();
+      try { await ltsd.revokeToken(); } catch { /* Local sign-out must complete when LTSD is unreachable. */ }
+      ltsd.clearToken();
+      if (bootReady && worker && session) postWorker({ type: 'authorizationUnavailable' });
+      updateAuthorization({ phase: 'signed-out', user: null, userCode: null, verificationUriComplete: null, expiresAt: null,
+        profileUpdatedAt: null, configCached: false, error: null });
+      return true;
+    },
     reloadConfig(target = 'config.txt') {
-      const normalized = String(target).trim();
-      if (!gameSession?.aid || !gameSession?.cid) { log('warn', 'reload not sent: no verified aid/cid for the current game session'); return false; }
-      const gameSessionId = gameSession.id;
-      const identity = { profile: state.profile, aid: gameSession.aid, cid: gameSession.cid };
-      void api.getConfigDocuments(identity).then(documents => {
-        if (gameSession?.id !== gameSessionId) return;
-        const selected = documents.filter(document => M4_CONFIG_FILES.has(document.fileName));
-        sendCommand(`reload ${normalized}`, { documents: selected, profile: identity.profile, aid: identity.aid, cid: identity.cid, gameSessionId });
-      }).catch(error => log('error', `Configuration reload failed: ${String(error?.message ?? error)}`));
+      if (!gameSession?.aid || !gameSession?.cid || !gameSession?.nid) { log('warn', 'reload not sent: no verified aid/cid/nid for the current game session'); return false; }
+      void target;
+      void refreshConfiguration(null, gameSession.id);
       return true;
     },
     debugCommand(command) { return sendCommandText(command); },
@@ -922,7 +1476,7 @@ export function formatKoreSections(state) {
   };
 }
 
-const QUICK_COMMANDS = ['ai auto', 'ai off', 'ai clear', 'exp', 'exp report'];
+const QUICK_COMMANDS = ['ai auto', 'ai manual', 'ai off', 'ai clear', 'exp', 'exp report'];
 const RELOAD_FALLBACK = 'config.txt';
 
 export function createKorePanel({ page, host }) {
@@ -985,7 +1539,7 @@ export function createKorePanel({ page, host }) {
     clipboard.writeText(text).then(() => { note.textContent = `snapshot copied (${text.length} chars)`; }, error => { note.textContent = `copy failed: ${String(error?.message ?? error)}`; });
   });
   const commandInput = element('input', statusPane, { type: 'text' }); commandInput.setAttribute('aria-label', 'KoreEngine command');
-  commandInput.setAttribute('placeholder', 'ai auto | ai off | reload all | exp'); commandInput.style.width = 'min(320px, 100%)';
+  commandInput.setAttribute('placeholder', 'ai auto | ai manual | ai off | reload all | exp'); commandInput.style.width = 'min(320px, 100%)';
   commandInput.addEventListener('keydown', event => { if (event.key === 'Enter') run(commandInput.value); });
   const commandButton = button(statusPane, 'Send command', () => run(commandInput.value)); setCursor(commandInput, 'text');
   const section = (parent, title, label, rowCount) => {

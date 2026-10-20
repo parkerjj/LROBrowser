@@ -1,7 +1,7 @@
 // Independent fullscreen overlay. It is created on enter and removed on exit;
 // the small LastROTools host is never resized or restyled by this module.
 
-import { outputLines, renderConsole } from './kore-panel-console.mjs';
+import { KORE_CONSOLE_CATEGORIES, consoleColor, outputLines, renderConsole } from './kore-panel-console.mjs';
 import { MAP_COLORS, decodeWalkability, drawMap, entityCounts, mapEntities, parsePoint, targetGidFromAi } from './kore-panel-map.mjs';
 import { EXP_ROWS, equipmentView, groupItems, isBroken, isWorn, parseEarnings, parseItemRows } from './kore-panel-items.mjs';
 import { statusModel } from './kore-panel-window.mjs';
@@ -39,7 +39,7 @@ export function createKoreFullscreen({
   // Top bar: the product on the left, the two window actions on the right.
   const bar = el(document, 'header', 'kore-fs-bar');
   const brand = el(document, 'div', 'kore-fs-brand');
-  brand.append(el(document, 'span', 'kore-fs-mark'), el(document, 'span', 'kore-fs-title', '科技改变生活'));
+  brand.append(el(document, 'span', 'kore-fs-mark'), el(document, 'span', 'kore-fs-title', 'KoreEngine'));
   const debugButton = el(document, 'button', 'kore-fs-btn kore-fs-btn-text kore-fs-debug', '调试');
   debugButton.type = 'button';
   debugButton.addEventListener('click', () => onDebug());
@@ -63,11 +63,14 @@ export function createKoreFullscreen({
   identity.append(identityLine, finding);
   const autoButton = el(document, 'button', 'kore-fs-btn kore-fs-btn-primary kore-fs-auto', '开启自动');
   autoButton.type = 'button';
+  const manualButton = el(document, 'button', 'kore-fs-btn kore-fs-manual', '半自动');
+  manualButton.type = 'button';
+  manualButton.title = '只执行 manualAI 为 1/2 的自助项（用药、BUFF、自身技能），移动与攻击由你操作；需要 LTSD 授权，不占实例额度';
   const clearButton = el(document, 'button', 'kore-fs-btn kore-fs-btn-text', '清空 AI 队列');
   clearButton.type = 'button';
   clearButton.title = '只清空 KE 内部队列，与游戏任务无关';
   const headActions = el(document, 'div', 'kore-fs-head-actions');
-  headActions.append(autoButton, clearButton);
+  headActions.append(autoButton, manualButton, clearButton);
   head.append(identity, headActions);
 
   const card = (className, title) => {
@@ -77,7 +80,7 @@ export function createKoreFullscreen({
     const meta = el(document, 'span', 'kore-fs-meta');
     header.append(heading, meta);
     node.append(header);
-    return { node, meta };
+    return { node, meta, header };
   };
 
   // Left: vitals, then the item tables.
@@ -142,6 +145,53 @@ export function createKoreFullscreen({
   sendButton.type = 'submit';
   form.append(prompt, input, sendButton);
   log.node.append(consoleNode, form);
+
+  // Which message categories the console shows; the choice is shared with the small panel.
+  const consoleFilter = consoleModel?.filter ?? null;
+  const filterButton = el(document, 'button', 'kore-fs-btn kore-fs-btn-text kore-fs-filter-button');
+  filterButton.type = 'button';
+  filterButton.setAttribute('aria-haspopup', 'true');
+  filterButton.setAttribute('aria-expanded', 'false');
+  const filterMenu = el(document, 'div', 'kore-fs-filter-menu');
+  filterMenu.hidden = true;
+  filterMenu.setAttribute('role', 'group');
+  filterMenu.setAttribute('aria-label', '控制台显示的信息类别');
+  const filterChecks = new Map();
+  for (const category of KORE_CONSOLE_CATEGORIES) {
+    const row = el(document, 'label', 'kore-fs-filter-row');
+    const check = el(document, 'input');
+    check.type = 'checkbox';
+    check.addEventListener('change', () => consoleFilter?.setCategoryVisible(category.id, check.checked));
+    const swatch = el(document, 'span', 'kore-fs-filter-swatch');
+    swatch.style.background = consoleColor(category.domains[0]);
+    row.append(check, swatch, el(document, 'span', '', category.label));
+    filterMenu.append(row);
+    filterChecks.set(category.id, check);
+  }
+  const filterReset = el(document, 'button', 'kore-fs-btn kore-fs-btn-text kore-fs-filter-reset', '恢复默认');
+  filterReset.type = 'button';
+  filterReset.addEventListener('click', () => consoleFilter?.reset());
+  filterMenu.append(filterReset);
+  const filterWrap = el(document, 'div', 'kore-fs-filter');
+  filterWrap.append(filterButton, filterMenu);
+  const setFilterOpen = open => {
+    filterMenu.hidden = !open;
+    filterButton.setAttribute('aria-expanded', String(open));
+  };
+  filterButton.addEventListener('click', () => setFilterOpen(filterMenu.hidden));
+  const closeFilterOnOutside = event => { if (!filterMenu.hidden && !filterWrap.contains(event.target)) setFilterOpen(false); };
+  const closeFilterOnEscape = event => {
+    if (event.key === 'Escape' && !filterMenu.hidden) { event.stopPropagation(); setFilterOpen(false); filterButton.focus?.(); }
+  };
+  const renderFilter = () => {
+    for (const [id, check] of filterChecks) check.checked = consoleFilter?.isCategoryVisible(id) ?? true;
+    const hidden = consoleFilter?.hiddenCount() ?? 0;
+    filterButton.textContent = hidden ? `筛选（隐藏 ${hidden}）` : '筛选';
+  };
+  if (consoleFilter) {
+    renderFilter();
+    log.header.append(filterWrap);
+  }
   const centre = el(document, 'div', 'kore-fs-col kore-fs-col-log');
   centre.append(log.node);
 
@@ -235,6 +285,7 @@ export function createKoreFullscreen({
     input.value = history[historyIndex] ?? '';
   });
   autoButton.addEventListener('click', () => run(autoButton.dataset.command));
+  manualButton.addEventListener('click', () => run(manualButton.dataset.command));
   clearButton.addEventListener('click', () => run('ai clear'));
 
   // The equipment view reads the same `i` result as the bag.
@@ -391,7 +442,8 @@ export function createKoreFullscreen({
     fsJob.textContent = ready ? [model.job, `Lv ${model.level}`].filter(part => !isBlank(part.replace(/^Lv /, ''))).join(' · ') : (host?.state?.status ?? '');
     // Until the world is ready the last answers are stale; say so instead of showing them as live.
     const auto = ready && model.mode === 'AUTO';
-    fsMode.textContent = !ready ? '' : auto ? '自动' : model.mode === 'OFF' ? '已关闭' : '';
+    const manual = ready && model.mode === 'MANUAL';
+    fsMode.textContent = !ready ? '' : auto ? '自动' : manual ? '半自动' : model.mode === 'OFF' ? '已关闭' : '';
     fsMode.dataset.mode = model.mode;
     const doing = [['任务', model.task], ['下一步', model.next], ['原因', model.reason]]
       .filter(([, value]) => !isBlank(value)).map(([label, value]) => `${label} ${value}`).join(' · ');
@@ -400,6 +452,9 @@ export function createKoreFullscreen({
     autoButton.dataset.command = auto ? 'ai off' : 'ai auto';
     autoButton.classList.toggle('kore-fs-btn-primary', !auto);
     autoButton.disabled = !ready;
+    manualButton.textContent = manual ? '关闭半自动' : '半自动';
+    manualButton.dataset.command = manual ? 'ai off' : 'ai manual';
+    manualButton.disabled = !ready;
     clearButton.disabled = !ready;
     for (const button of quickButtons) button.disabled = !ready;
     const setGauge = (gauge, ratio) => {
@@ -471,14 +526,23 @@ export function createKoreFullscreen({
   function update() {
     if (closed) return;
     renderStatus();
-    renderConsole(consoleNode, consoleModel?.entries?.() ?? [], { page, maxLines: 200 });
+    renderConsole(consoleNode, consoleModel?.entries?.() ?? [], { page, maxLines: 200, filter: consoleFilter });
     renderTabs();
     scheduleMap();
   }
 
   const cleanups = [];
   if (poller?.subscribe) cleanups.push(poller.subscribe(() => update()));
-  if (consoleModel?.subscribe) cleanups.push(consoleModel.subscribe(() => renderConsole(consoleNode, consoleModel.entries(), { page, maxLines: 200 })));
+  if (consoleFilter) {
+    cleanups.push(consoleFilter.subscribe(renderFilter));
+    page.document.addEventListener('pointerdown', closeFilterOnOutside);
+    page.document.addEventListener('keydown', closeFilterOnEscape, true);
+    cleanups.push(() => {
+      page.document.removeEventListener('pointerdown', closeFilterOnOutside);
+      page.document.removeEventListener('keydown', closeFilterOnEscape, true);
+    });
+  }
+  if (consoleModel?.subscribe) cleanups.push(consoleModel.subscribe(() => renderConsole(consoleNode, consoleModel.entries(), { page, maxLines: 200, filter: consoleFilter })));
   if (host?.onStateChange) cleanups.push(host.onStateChange(() => update()));
   // The map fills its card, so it is redrawn whenever the card changes size.
   if (typeof page.ResizeObserver === 'function') {

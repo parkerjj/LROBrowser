@@ -33,6 +33,7 @@ export const KORE_PANEL_CSS = `
 .kore-fs-pill { flex:none; height:20px; padding:0 8px; border-radius:10px; font:500 12px/20px Arial,'Microsoft YaHei','MiSans',sans-serif; white-space:nowrap; }
 .kore-fs-pill:empty { display:none; }
 .kore-fs-pill[data-mode="AUTO"] { background:rgba(95,195,156,.14); color:#5fc39c; }
+.kore-fs-pill[data-mode="MANUAL"] { background:rgba(111,179,201,.14); color:#6fb3c9; }
 .kore-fs-pill[data-mode="OFF"] { background:#212023; color:#b4b4b4; }
 .kore-fs-finding { margin:6px 0 0; color:#b4b4b4; font-size:14px; line-height:1.4; }
 .kore-fs-grid { flex:1 1 auto; min-height:0; display:grid; grid-template-columns:320px minmax(0,1fr) 380px; gap:16px; }
@@ -107,6 +108,17 @@ export const KORE_PANEL_CSS = `
 .kore-fs-quick-btn:hover { border-color:#6a6a70; color:#ffffff; }
 .kore-fs-quick-btn:focus-visible { outline:1px solid #6fb3c9; outline-offset:2px; }
 .kore-fs-quick-btn:disabled { border-color:#222224; color:#8a8c92; cursor:default !important; }
+.kore-fs-filter { position:relative; }
+.kore-fs-filter-button { height:26px; padding:0 8px; font-size:12px; }
+.kore-fs-filter-menu { position:absolute; right:0; top:calc(100% + 6px); z-index:5; display:flex; flex-direction:column; min-width:200px; padding:6px; border:1px solid #3a3a3e; border-radius:8px; background:#1b1a1f; box-shadow:0 8px 24px rgba(0,0,0,0.45); }
+.kore-fs-filter-menu[hidden] { display:none; }
+.kore-fs-filter-row { display:flex; align-items:center; gap:8px; min-height:30px; padding:0 8px; border-radius:4px; color:#ffffff; font:13px/1 Arial,'Microsoft YaHei','MiSans',sans-serif; }
+.kore-fs-filter-row:hover { background:#212023; }
+/* 站点全局样式给 input 设了 width:100%、min-height:38px，不覆盖的话复选框会撑满一整行，把文字挤成竖排。 */
+.kore-fs-filter-row input { flex:none; width:14px; height:14px; min-width:0; min-height:0; margin:0; padding:0; accent-color:#6fb3c9; }
+.kore-fs-filter-row span:last-child { flex:1 1 auto; min-width:0; white-space:nowrap; }
+.kore-fs-filter-swatch { flex:none; width:8px; height:8px; border-radius:50%; }
+.kore-fs-filter-reset { align-self:flex-end; height:28px; margin-top:4px; padding:0 8px; font-size:12px; }
 .kore-fs-log-body { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; overflow:auto; font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
 .kore-fs-log-body > :first-child { margin-top:auto; }
 .kore-fs-log-body .kore-console-line { flex:none; white-space:pre; }

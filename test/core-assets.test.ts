@@ -38,6 +38,7 @@ describe('core executable asset importer', () => {
 
     expect(runtimeFiles).toEqual(expect.arrayContaining([
       'runtime/kore-integration.mjs',
+      'runtime/kore-ltsd-client.mjs',
       'runtime/map-resource-provider.mjs',
       'runtime/kore-config-store.mjs',
     ]));

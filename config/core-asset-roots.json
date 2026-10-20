@@ -29,6 +29,8 @@
     "src/kore/map-resource-provider.mjs",
     "src/kore/kore-config-store.mjs",
     "src/kore/kore-integration.mjs",
+    "src/kore/kore-ltsd-client.mjs",
+    "src/kore/kore-auth-guide.mjs",
     "src/kore/kore-panel-console.mjs",
     "src/kore/kore-panel-poller.mjs",
     "src/kore/kore-panel-map.mjs",

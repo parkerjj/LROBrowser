@@ -98,11 +98,12 @@ export const KORE_SHELL_CSS = `
 .lastro-tools[data-mode="kore"] { padding:0; border-color:#26272b; background:#171719; box-shadow:none; color:#ffffff; }
 .lastro-tools[data-mode="kore"] .lastro-panel-footer { background-image:none !important; background:#131217; }
 /* LastRO -> KE ignition: a glow at the KE tab, an iridescent ring running the
-   panel edge, a diagonal sheen, then the content rising in. Removed after 1.4s. */
+   panel edge for three laps while its arc swells and shrinks, a diagonal sheen,
+   then the content rising in. Removed after 2.8s. */
 .kore-boot { position:absolute; inset:0; z-index:5; overflow:hidden; border-radius:inherit; pointer-events:none; }
 .kore-boot-pulse { position:absolute; left:147px; top:18px; width:40px; height:40px; margin:-20px 0 0 -20px; border-radius:50%; background:radial-gradient(circle,rgba(159,227,255,.6),rgba(111,179,201,.25) 40%,transparent 70%); animation:kore-pulse 800ms cubic-bezier(.2,.7,.2,1) both; } /* taste-skill-ignore: requested one-off transition, absent at rest */
-.kore-boot-ring { position:absolute; inset:0; padding:1.5px; box-sizing:border-box; overflow:hidden; border-radius:inherit; -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); mask-composite:exclude; animation:kore-fade 1250ms ease-out both; } /* taste-skill-ignore: solid mask that hollows the ring, not a visible gradient */
-.kore-boot-ring::before { content:''; position:absolute; left:50%; top:50%; width:900px; height:900px; margin:-450px 0 0 -450px; background:conic-gradient(from 0deg,transparent 0 52%,#6fb3c9 68%,#5fc39c 80%,#8b7cf6 91%,#ffffff 98%,transparent 100%); animation:kore-spin 1250ms cubic-bezier(.4,.1,.3,1) both; } /* taste-skill-ignore: requested one-off transition, absent at rest */
+.kore-boot-ring { position:absolute; inset:0; padding:1.5px; box-sizing:border-box; overflow:hidden; border-radius:inherit; -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); mask-composite:exclude; animation:kore-fade 2600ms ease-out both; } /* taste-skill-ignore: solid mask that hollows the ring, not a visible gradient */
+.kore-boot-ring::before { content:''; position:absolute; left:50%; top:50%; width:900px; height:900px; margin:-450px 0 0 -450px; background:conic-gradient(from 0deg,transparent 0 calc(360deg - var(--kore-arc,120deg)),#6fb3c9 calc(360deg - var(--kore-arc,120deg) * .67),#5fc39c calc(360deg - var(--kore-arc,120deg) * .42),#8b7cf6 calc(360deg - var(--kore-arc,120deg) * .19),#ffffff calc(360deg - var(--kore-arc,120deg) * .04),transparent 360deg); animation:kore-spin 2600ms cubic-bezier(.35,.1,.3,1) both,kore-arc 2600ms ease-in-out both; } /* taste-skill-ignore: requested one-off transition, absent at rest */
 .kore-boot-sheen { position:absolute; top:-20%; bottom:-20%; left:-40%; width:24%; background:linear-gradient(90deg,transparent,rgba(111,179,201,.14) 35%,rgba(255,255,255,.24) 50%,rgba(139,124,246,.16) 65%,transparent); mix-blend-mode:screen; animation:kore-sheen 1000ms 120ms cubic-bezier(.4,.1,.2,1) both; } /* taste-skill-ignore: requested one-off transition, absent at rest */
 .lastro-tools.is-igniting .kore-window > * { animation:kore-rise 460ms cubic-bezier(.2,.8,.2,1) both; }
 .lastro-tools.is-igniting .kore-window > :nth-child(1) { animation-delay:120ms; }
@@ -111,7 +112,9 @@ export const KORE_SHELL_CSS = `
 .lastro-tools.is-igniting .kore-window > :nth-child(4) { animation-delay:300ms; }
 @keyframes kore-pulse { from { transform:scale(.2); opacity:1; } to { transform:scale(26); opacity:0; } }
 @keyframes kore-fade { 0% { opacity:0; } 15% { opacity:1; } 75% { opacity:1; } 100% { opacity:0; } }
-@keyframes kore-spin { from { transform:rotate(-120deg); } to { transform:rotate(300deg); } }
+@property --kore-arc { syntax:'<angle>'; inherits:false; initial-value:120deg; }
+@keyframes kore-spin { from { transform:rotate(-120deg); } to { transform:rotate(960deg); } }
+@keyframes kore-arc { 0%,100% { --kore-arc:36deg; } 50% { --kore-arc:300deg; } }
 @keyframes kore-sheen { from { transform:skewX(-18deg) translateX(0); } to { transform:skewX(-18deg) translateX(620%); } }
 @keyframes kore-rise { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
 @media (prefers-reduced-motion: reduce) { .lastro-mode-option,.lastro-mode-thumb,.lastro-window-minimize,.lastro-window-close { transition:none; } .lastro-mode-option::before,.lastro-mode-option::after { animation:none !important; } .kore-boot { display:none; } .lastro-tools.is-igniting .kore-window > * { animation:none; } }
@@ -120,6 +123,47 @@ export const KORE_SHELL_CSS = `
 .kore-window, .kore-window * { cursor:default !important; }
 .kore-window button, .kore-window select { cursor:pointer !important; }
 .kore-window input { cursor:text !important; }
+.kore-window [hidden] { display:none !important; }
+.kore-onboarding { display:flex; flex:1 1 auto; min-height:0; flex-direction:column; gap:9px; overflow:auto; }
+.kore-onboarding-title { margin:0; color:#ffffff; font:600 18px/1.2 Arial,'Microsoft YaHei','MiSans',sans-serif; }
+.kore-onboarding-lead { margin:0; color:#b4b4b4; font-size:12px; overflow-wrap:anywhere; }
+.kore-onboarding-steps { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:2px 0 0; padding:8px 0 0; border-top:1px solid #29292d; list-style:none; }
+.kore-onboarding-step { min-width:0; color:#8a8c92; font-size:11px; line-height:1.3; overflow-wrap:anywhere; }
+.kore-onboarding-step::before { content:attr(data-step); display:block; width:18px; height:18px; margin-bottom:4px; color:#8a8c92; font:500 11px/18px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+.kore-onboarding-step[data-state="current"] { color:#ffffff; }
+.kore-onboarding-step[data-state="current"]::before { color:#6fb3c9; border-bottom:1px solid #6fb3c9; }
+.kore-onboarding-step[data-state="complete"] { color:#b4b4b4; }
+.kore-onboarding-content { display:flex; flex:1 1 auto; min-height:0; flex-direction:column; gap:6px; }
+.kore-onboarding-status, .kore-onboarding-error { margin:0; color:#b4b4b4; font-size:12px; line-height:1.4; overflow-wrap:anywhere; }
+.kore-onboarding-error { color:#e58686; }
+.kore-error-card { display:flex; flex-direction:column; gap:6px; padding:9px 10px; border:1px solid #4a2a2e; border-radius:4px; background:#1c1517; }
+.kore-error-title { margin:0; color:#ffffff; font-size:13px; line-height:1.3; font-weight:600; }
+.kore-error-steps { margin:0; padding-left:18px; color:#d8d8da; font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+.kore-error-code { align-self:flex-start; max-width:100%; padding:2px 6px; border-radius:3px; background:#2a2224; color:#f0b4b4; font:11px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; overflow-wrap:anywhere; user-select:all; }
+.kore-device-code { align-self:flex-start; color:#ffffff; font:500 24px/1.25 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-variant-numeric:tabular-nums; user-select:all; }
+.kore-onboarding-actions { display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding-top:4px; }
+.kore-auth-primary, .kore-auth-secondary { min-height:32px; max-width:100%; padding:5px 11px; border:1px solid #ffffff; border-radius:4px; background:#ffffff; color:#111111; font:500 12px/1.25 Arial,'Microsoft YaHei','MiSans',sans-serif; overflow-wrap:anywhere; }
+.kore-auth-primary:hover { background:#e6e6ea; }
+.kore-auth-secondary { border-color:#3a3a3e; background:transparent; color:#ffffff; }
+.kore-auth-secondary:hover { border-color:#6a6a70; }
+.kore-auth-link { min-height:28px; padding:4px 7px; border:0; border-radius:3px; background:transparent; color:#b4b4b4; font:12px/1.2 Arial,'Microsoft YaHei','MiSans',sans-serif; }
+.kore-auth-link:hover { color:#ffffff; background:#212023; }
+.kore-auth-primary:focus-visible, .kore-auth-secondary:focus-visible, .kore-auth-link:focus-visible { outline:1px solid #6fb3c9; outline-offset:2px; }
+.kore-auth-primary:disabled, .kore-auth-secondary:disabled { border-color:#333337; background:#222224; color:#8a8c92; }
+.kore-runtime-view { display:flex; flex:1 1 auto; min-height:0; flex-direction:column; }
+.kore-config-notice { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:0 0 8px; flex:none; }
+.kore-config-source { flex:1 1 120px; min-width:0; color:#8a8c92; font-size:12px; line-height:1.4; overflow-wrap:anywhere; }
+.kore-config-source[data-cached="true"] { color:#e5a93b; }
+.kore-config-edit, .kore-config-retry { flex:none; }
+.kore-button:disabled { border-color:#333337; background:#222224; color:#8a8c92; }
+.kore-button:focus-visible { outline:1px solid #6fb3c9; outline-offset:2px; }
+.kore-device-expiry { color:#b4b4b4; font-size:11px; font-variant-numeric:tabular-nums; }
+.kore-quota-list { display:flex; flex-direction:column; gap:4px; min-height:0; max-height:120px; overflow:auto; border-top:1px solid #29292d; border-bottom:1px solid #29292d; }
+.kore-quota-instance { display:flex; align-items:center; gap:8px; min-height:32px; padding:3px 0; color:#ffffff; font-size:12px; cursor:pointer !important; }
+.kore-quota-instance input { flex:none; accent-color:#6fb3c9; }
+.kore-quota-instance-details { display:flex; flex:1 1 auto; justify-content:space-between; gap:8px; min-width:0; }
+.kore-quota-instance-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.kore-quota-instance-map { color:#b4b4b4; white-space:nowrap; }
 .kore-summary { display:flex; flex-direction:column; gap:6px; flex:none; }
 .kore-identity-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
 .kore-identity { display:flex; align-items:baseline; gap:8px; min-width:0; }
@@ -139,13 +183,15 @@ export const KORE_SHELL_CSS = `
 .kore-bar-value { text-align:right; color:#8a8c92; font:11px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-variant-numeric:tabular-nums; white-space:nowrap; }
 .kore-meta { display:flex; flex-wrap:wrap; gap:4px 14px; color:#8a8c92; font-size:12px; }
 .kore-mode[data-mode="AUTO"] { color:#5fc39c; }
+.kore-mode[data-mode="MANUAL"] { color:#6fb3c9; }
 .kore-mode[data-mode="OFF"] { color:#8a8c92; }
 .kore-wait { color:#d9a441; font-size:12px; }
 .kore-actions { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:8px 0; flex:none; }
 .kore-button { height:24px; padding:0 10px; border:1px solid #3a3a3e; border-radius:999px; background:#212023; color:#ffffff; font:12px/22px Arial,'Microsoft YaHei','MiSans',sans-serif; cursor:pointer; white-space:nowrap; transition:border-color 120ms ease-out,color 120ms ease-out; }
 .kore-button:hover { border-color:#6fb3c9; color:#ffffff; }
-.kore-button-primary { border-color:#ffffff; background:#ffffff; color:#111111; }
-.kore-button-primary:hover { border-color:#ffffff; color:#111111; }
+.kore-mode-switch { display:flex; gap:6px; margin:8px 0 0; flex:none; }
+.kore-mode-button { flex:1 1 0; min-width:0; padding:0 6px; overflow:hidden; text-overflow:ellipsis; }
+.kore-mode-button[data-active="true"] { border-color:#ffffff; background:#ffffff; color:#111111; }
 .kore-render-toggle { display:flex; align-items:center; gap:4px; color:#8a8c92; font-size:12px; margin-left:auto; cursor:pointer; }
 .kore-console { flex:none; height:calc(6 * 1.5em); overflow:hidden; border:1px solid #222224; border-radius:4px; padding:4px 6px; font:11px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; background:#131217; }
 .kore-console-line { white-space:pre; overflow:hidden; text-overflow:ellipsis; }
@@ -156,5 +202,6 @@ export const KORE_SHELL_CSS = `
 .kore-command-input:focus { outline:none; border-color:#6fb3c9; }
 .kore-send { height:26px; padding:0 12px; border:1px solid #3a3a3e; border-radius:4px; background:#212023; color:#ffffff; font:12px/24px Arial,'Microsoft YaHei','MiSans',sans-serif; cursor:pointer; }
 .kore-send:hover { border-color:#6fb3c9; }
+@media (max-width:360px) { .kore-window { padding:8px 9px; } .kore-onboarding { gap:7px; } .kore-onboarding-steps { gap:4px; } .kore-auth-primary, .kore-auth-secondary { flex:1 1 auto; } }
 @media (prefers-reduced-motion: reduce) { .kore-bar-fill { transition:none; } .kore-button { transition:none; } }
 `;

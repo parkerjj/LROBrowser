@@ -93,7 +93,7 @@ export function createKoreDebugView({ page = globalThis, host } = {}) {
   // AI 控制。
   const aiSection = section('AI 控制');
   const aiButtons = el(document, 'div', 'kore-debug-actions');
-  for (const [label, command] of [['开启自动', 'ai auto'], ['关闭自动', 'ai off'], ['清空队列', 'ai clear'], ['AI 状态', 'ai print']]) {
+  for (const [label, command] of [['开启自动', 'ai auto'], ['半自动', 'ai manual'], ['关闭自动', 'ai off'], ['清空队列', 'ai clear'], ['AI 状态', 'ai print']]) {
     commandButton(aiButtons, label, command);
   }
   aiSection.append(aiButtons);

@@ -166688,7 +166688,9 @@ function connect(host, port, callback, isZone) {
         catch { koreConnectionGeneration = null; }
         socket.onMessage = function onMapMessage(buffer) {
           try {
-            if (koreConnectionGeneration !== null) globalThis.KoreEngine?.mirrorMapData?.(koreConnectionGeneration, buffer);
+            // aligned：本块数据从完整封包边界开始（原生接收缓冲里没有残留的半个包）。
+            // KE 重启后据此在流中间重新对齐，不能从半个包开始解析。
+            if (koreConnectionGeneration !== null) globalThis.KoreEngine?.mirrorMapData?.(koreConnectionGeneration, buffer, { aligned: !getReceiveState(socket)?.saveBuffer });
           } catch { /* Optional KE failures must not change native receive. */ }
           return receive.call(socket, buffer);
         };
@@ -231351,6 +231353,7 @@ var init_SpiritSphere = __esmMin(() => {
       this.ready = false;
     }
     static init(gl) {
+      const initId = (SpiritSphere._initId = (SpiritSphere._initId || 0) + 1);
       _program$1 = WebGL_default.createShaderProgram(
         gl,
         SpiritSphere_default$1,
@@ -231368,6 +231371,8 @@ var init_SpiritSphere = __esmMin(() => {
       );
       Client.loadFile("data/texture/effect/thunder_center.bmp", (buffer) => {
         Texture.load(buffer, function () {
+          // free() 可能在贴图异步加载期间发生：此时 _program 已为 null，不能再置 ready
+          if (SpiritSphere._initId !== initId || !_program$1) return;
           const enableMipmap = Configs.get("enableMipmap");
           const ctx = this.getContext("2d");
           ctx.save();
@@ -231402,6 +231407,7 @@ var init_SpiritSphere = __esmMin(() => {
         _program$1 = null;
       }
       if (_buffer$1) gl.deleteBuffer(_buffer$1);
+      _buffer$1 = null;
       this.ready = false;
     }
     static beforeRender(gl, modelView, projection, fog, tick) {
@@ -270033,6 +270039,13 @@ function loadHatEffectInfo(onEnd) {
           basePath + "footprinteffectinfo.lub",
           async function (buf) {
             try {
+              // hateffectinfo.lub 会用精简版 HatEFID 覆盖全局表，footprint 依赖完整 ID 表，需先还原
+              lua.mountFile(
+                "hateffectids.lub",
+                idBuf instanceof ArrayBuffer ? new Uint8Array(idBuf) : idBuf,
+              );
+              await lua.doFile("hateffectids.lub");
+              lua.unmountFile("hateffectids.lub");
               lua.mountFile(
                 "footprinteffectinfo.lub",
                 buf instanceof ArrayBuffer ? new Uint8Array(buf) : buf,
@@ -271797,7 +271810,7 @@ var init_DBManager = __esmMin(() => {
             loadLuaTable(
               [
                 DB.LUA_PATH + "datainfo/enumvar.lub",
-                DB.LUA_PATH + "addrandomoptionnametable_f.lub",
+                DB.LUA_PATH + "datainfo/addrandomoptionnametable_f.lub",
               ],
               "NameTable_VAR",
               function (extendedJson) {
@@ -320907,6 +320920,7 @@ function onReceiveMapInfo(pkt) {
     globalThis.KoreEngine?.beginGameSession?.(SessionStorage_default.AID, pkt.mapName, {
       aid: SessionStorage_default.AID,
       cid: pkt.GID,
+      nid: Number(Configs.get("lastroNid", 0)),
       name: SessionStorage_default.Entity?.display?.name ?? null,
       baseLevel: SessionStorage_default.Entity?.level ?? null,
       jobLevel: SessionStorage_default.Entity?.joblevel ?? null,

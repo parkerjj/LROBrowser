@@ -5,7 +5,12 @@ import path from 'node:path';
 import { packageRuntime } from '../vite.config';
 import { packageFixture } from './kore-fixture';
 import { minifyReleaseJavaScript } from '../scripts/minify-release-js.mjs';
-import { loadKorePackage } from '../src/kore/kore-integration.mjs';
+import { loadKorePackage, validateKoreManifest } from '../src/kore/kore-integration.mjs';
+
+test('M8 loader rejects an older package that ships a cleartext core WASM', async () => {
+  const fixture = packageFixture('lastro-20211103', {}, 2, 1);
+  await expect(validateKoreManifest(fixture.manifest)).rejects.toThrow('incompatible-package');
+});
 
 test('Web and IWA packaging preserve optional KE imports and WASM under their package directory', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'kore-build-'));

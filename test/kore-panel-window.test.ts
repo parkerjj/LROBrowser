@@ -4,7 +4,7 @@ import { KORE_QUICK_COMMANDS, kvPairs, parseRatio, statusModel } from '../src/ko
 const kv = (pairs: [string, string][]) => ({ kind: 'output', ok: true, blocks: [{ type: 'kv', domain: 'info', level: 'message', pairs }] });
 
 test('quick commands send the exact raw command text', () => {
-  expect(KORE_QUICK_COMMANDS.map(entry => entry.command)).toEqual(['ai auto', 'ai off', 'ai clear', 'exp', 'exp report']);
+  expect(KORE_QUICK_COMMANDS.map(entry => entry.command)).toEqual(['ai auto', 'ai manual', 'ai off', 'ai clear', 'exp', 'exp report']);
 });
 
 test('status model reads Rust kv blocks without inventing values', () => {

@@ -2,14 +2,31 @@
 // it never decides gameplay state or updates anything optimistically.
 
 import { renderConsole } from './kore-panel-console.mjs';
+import { authorizationGuide } from './kore-auth-guide.mjs';
 
+// Entries with a `mode` form the mode switch (the active one is highlighted from KE's own
+// answer); the rest are plain one-shot commands.
 export const KORE_QUICK_COMMANDS = Object.freeze([
-  { label: '开启自动', command: 'ai auto', primary: true },
-  { label: '关闭自动', command: 'ai off' },
+  { label: '自动', command: 'ai auto', mode: 'AUTO', title: '全自动：索敌、拾取、补给、寻路。需要 LTSD 授权并占用实例额度' },
+  { label: '半自动', command: 'ai manual', mode: 'MANUAL', title: '只执行 manualAI 为 1/2 的自助项（用药、BUFF、自身技能），移动与攻击由你操作。需要 LTSD 授权，不占实例额度' },
+  { label: '关闭', command: 'ai off', mode: 'OFF', title: '关闭 KE 的自动功能' },
   { label: '清空 AI 队列', command: 'ai clear', title: '只清空 KE 内部队列，与游戏任务无关' },
   { label: '经验统计', command: 'exp' },
   { label: '经验报告', command: 'exp report' },
 ]);
+
+const MODE_LABELS = Object.freeze({ AUTO: '● 自动', MANUAL: '◊ 半自动', OFF: '○ 关闭' });
+
+const quotaInstanceLabel = value => {
+  if (!value || typeof value !== 'object' || typeof value.instance_id !== 'string'
+    || !/^[A-Za-z0-9-]{1,64}$/.test(value.instance_id)) return null;
+  return {
+    id: value.instance_id,
+    name: String(value.char_name ?? 'LastRO 角色'),
+    map: String(value.map_name ?? ''),
+    lastHeartbeat: value.last_heartbeat_at == null ? '' : String(value.last_heartbeat_at),
+  };
+};
 
 const element = (document, tag, className, text) => {
   const node = document.createElement(tag);
@@ -78,7 +95,38 @@ export function createKoreWindow({
 } = {}) {
   const document = page.document;
   const root = element(document, 'div', 'kore-window');
-  root.setAttribute('aria-label', 'KoreEngine 科技改变生活');
+  root.setAttribute('aria-label', 'KoreEngine');
+
+  const onboarding = element(document, 'section', 'kore-onboarding');
+  onboarding.setAttribute('aria-labelledby', 'kore-onboarding-title');
+  const onboardingTitle = element(document, 'h2', 'kore-onboarding-title', '连接 KoreEngine');
+  onboardingTitle.id = 'kore-onboarding-title';
+  const onboardingLead = element(document, 'p', 'kore-onboarding-lead');
+  const onboardingSteps = element(document, 'ol', 'kore-onboarding-steps');
+  const stepNodes = ['LTSD 账号', 'LastRO 角色', '配置同步'].map((label, index) => {
+    const item = element(document, 'li', 'kore-onboarding-step', label);
+    item.dataset.step = String(index + 1);
+    onboardingSteps.append(item);
+    return item;
+  });
+  const onboardingContent = element(document, 'div', 'kore-onboarding-content');
+  onboardingContent.setAttribute('aria-live', 'polite');
+  const onboardingActions = element(document, 'div', 'kore-onboarding-actions');
+  onboarding.append(onboardingTitle, onboardingLead, onboardingSteps, onboardingContent, onboardingActions);
+  const runtimeView = element(document, 'div', 'kore-runtime-view');
+  // 配置栏：配置来源/同步时间在左，“编辑配置 → 同步并重载”两步操作在右，顺序即日常使用流程。
+  const configNotice = element(document, 'div', 'kore-config-notice');
+  const configSource = element(document, 'span', 'kore-config-source');
+  configSource.setAttribute('role', 'status');
+  const configEdit = element(document, 'button', 'kore-button kore-config-edit', '编辑配置 ↗');
+  configEdit.type = 'button';
+  configEdit.title = '在 LTSD 打开配置编辑页（新标签页）';
+  configEdit.addEventListener('click', () => { page.open?.('https://ltsd.ro/ke', '_blank', 'noopener,noreferrer'); });
+  const configRetry = element(document, 'button', 'kore-button kore-config-retry', '同步并重载');
+  configRetry.type = 'button';
+  configRetry.title = '从 LTSD 拉取最新配置并重新加载 KoreEngine';
+  configRetry.addEventListener('click', () => { void host?.refreshConfiguration?.(); });
+  configNotice.append(configSource, configEdit, configRetry);
 
   const summary = element(document, 'div', 'kore-summary');
   const identity = element(document, 'div', 'kore-identity');
@@ -124,14 +172,25 @@ export function createKoreWindow({
   waitLine.hidden = true;
   summary.append(identityRow, bars, meta, waitLine);
 
+  const modeSwitch = element(document, 'div', 'kore-mode-switch');
+  modeSwitch.setAttribute('role', 'group');
+  modeSwitch.setAttribute('aria-label', 'AI 模式');
   const actions = element(document, 'div', 'kore-actions');
   const commandButtons = [];
+  const modeButtons = [];
   for (const quick of KORE_QUICK_COMMANDS) {
-    const button = element(document, 'button', quick.primary ? 'kore-button kore-button-primary' : 'kore-button', quick.label);
+    const button = element(document, 'button', quick.mode ? 'kore-button kore-mode-button' : 'kore-button', quick.label);
     button.type = 'button';
     if (quick.title) button.title = quick.title;
     button.addEventListener('click', () => send(quick.command));
-    actions.append(button);
+    if (quick.mode) {
+      button.dataset.mode = quick.mode;
+      button.setAttribute('aria-pressed', 'false');
+      modeSwitch.append(button);
+      modeButtons.push(button);
+    } else {
+      actions.append(button);
+    }
     commandButtons.push(button);
   }
   const renderLabel = element(document, 'label', 'kore-render-toggle');
@@ -158,7 +217,210 @@ export function createKoreWindow({
   form.append(prompt, input, sendButton);
   form.addEventListener('submit', event => { event.preventDefault(); send(input.value); });
   root.addEventListener('keydown', event => event.stopPropagation());
-  root.append(summary, actions, consoleNode, form);
+  runtimeView.append(summary, modeSwitch, actions, configNotice, consoleNode, form);
+  root.append(onboarding, runtimeView);
+
+  function authButton(label, className, action) {
+    const button = element(document, 'button', className, label);
+    button.type = 'button';
+    button.addEventListener('click', action);
+    onboardingActions.append(button);
+    return button;
+  }
+
+  let selectedQuotaInstanceId = null;
+  function errorCard(guide) {
+    const card = element(document, 'section', 'kore-error-card');
+    card.setAttribute('role', 'alert');
+    card.append(element(document, 'h3', 'kore-error-title', guide.title), element(document, 'p', 'kore-onboarding-error', guide.cause));
+    if (guide.steps.length) {
+      const steps = element(document, 'ol', 'kore-error-steps');
+      for (const step of guide.steps) steps.append(element(document, 'li', null, step));
+      card.append(steps);
+    }
+    if (guide.code) card.append(element(document, 'code', 'kore-error-code', guide.code));
+    return card;
+  }
+
+  function copyDiagnostics(event, code) {
+    const button = event.currentTarget;
+    const report = host?.getAuthorizationDiagnostics?.() ?? `错误码: ${code ?? '-'}`;
+    const clipboard = page.navigator?.clipboard;
+    if (typeof clipboard?.writeText !== 'function') {
+      page.console?.log?.('[KoreEngine] diagnostics', report);
+      button.textContent = '复制不可用，已输出到控制台';
+      return;
+    }
+    Promise.resolve(clipboard.writeText(report))
+      .then(() => { button.textContent = '已复制错误信息'; })
+      .catch(() => { page.console?.log?.('[KoreEngine] diagnostics', report); button.textContent = '复制失败，已输出到控制台'; });
+  }
+
+  let runtimeShown = false;
+  function renderAuthorization() {
+    const auth = host?.state?.authorization;
+    if (!auth || typeof auth !== 'object') {
+      onboarding.hidden = true;
+      runtimeView.hidden = false;
+      configNotice.hidden = true;
+      return;
+    }
+    const phase = String(auth.phase ?? 'signed-out');
+    // 运行中手动“同步并重载”会经过 loading-profile/loading-runtime；此时保留控制台，不退回首次接入界面。
+    const syncing = ['loading-profile', 'loading-runtime'].includes(phase);
+    const showRuntime = phase === 'ready' || phase === 'starting-license' || (syncing && runtimeShown);
+    runtimeShown = showRuntime;
+    onboarding.hidden = showRuntime;
+    runtimeView.hidden = !showRuntime;
+    const updatedAt = Number(auth.profileUpdatedAt);
+    const hasSyncTime = Number.isFinite(updatedAt) && updatedAt > 0;
+    configNotice.hidden = false;
+    configSource.dataset.cached = String(auth.configCached === true);
+    if (auth.configCached === true) {
+      configSource.textContent = hasSyncTime
+        ? `本地缓存 · 最后成功同步 ${new Date(updatedAt).toLocaleString()}`
+        : '本地缓存 · 尚无同步时间';
+    } else {
+      configSource.textContent = syncing ? '正在同步配置…'
+        : hasSyncTime ? `配置已同步 ${new Date(updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : '配置';
+    }
+    configRetry.disabled = syncing;
+    configRetry.textContent = syncing ? '同步中…' : '同步并重载';
+    onboardingContent.replaceChildren();
+    onboardingActions.replaceChildren();
+    onboardingContent.removeAttribute('data-tone');
+    const user = auth.user && typeof auth.user === 'object' ? auth.user : null;
+    const hasAccount = Boolean(user);
+    const beforeCore = host?.state?.status !== 'runtime-ready';
+    const step = hasAccount ? (['waiting-character', 'waiting-bind', 'binding-character'].includes(phase) || (phase === 'error' && beforeCore) ? 2 : 3) : 1;
+    for (const [index, node] of stepNodes.entries()) {
+      node.dataset.state = index + 1 < step ? 'complete' : index + 1 === step ? 'current' : 'upcoming';
+    }
+    const accountName = String(user?.displayName ?? user?.display_name ?? '');
+    const status = text => onboardingContent.append(element(document, 'p', 'kore-onboarding-status', text));
+    // 后台运行环境已停止时，即使授权阶段没有错误码也必须说明原因，不能让用户对着不动的面板干等。
+    const workerFailed = host?.state?.status === 'failed';
+    const errorCode = auth.error ?? (workerFailed ? host.state.degradedReason ?? 'worker-stopped' : null);
+    const guide = authorizationGuide(errorCode, { stalled: auth.stalled === true });
+    if (guide) onboardingContent.append(errorCard(guide));
+    const phaseTitle = {
+      'signed-out': '连接 KoreEngine',
+      'requesting-device': '正在连接 LTSD',
+      'awaiting-approval': '批准此设备',
+      'checking-account': '正在验证 LTSD 账号',
+      'waiting-character': '等待 LastRO 角色',
+      'waiting-bind': '准备绑定角色',
+      'binding-character': '绑定 LastRO 角色',
+      'rebuilding-instance': '恢复授权实例',
+      'loading-profile': '同步角色配置',
+      'loading-runtime': '重新加载 KoreEngine',
+      'profile-missing': '还没有活动配置',
+      'profile-unavailable': '配置暂时不可用',
+      'cache-fallback': '使用本地缓存',
+      'device-expired': '验证码已过期',
+      'device-denied': '设备授权未批准',
+      error: '连接未完成',
+    };
+    onboardingTitle.textContent = phaseTitle[phase] ?? '连接 KoreEngine';
+    onboardingLead.textContent = hasAccount ? `LTSD 账号：${accountName}` : '通过 LTSD.ro 登录，然后同步当前角色配置。';
+
+    if (phase === 'signed-out' || phase === 'device-expired' || phase === 'device-denied' || phase === 'error') {
+      if (!auth.error) status(phase === 'device-expired' ? '请重新申请设备验证码。'
+        : phase === 'device-denied' ? '请在 LTSD 授权页确认后重新开始。' : '首次使用 KoreEngine 需要先连接 LTSD。');
+      if (phase === 'error' && hasAccount) authButton('重试', 'kore-auth-primary', () => { void host.retryAuthorization?.(); });
+      authButton(phase === 'signed-out' ? '通过 LTSD.ro 登录' : '重新登录 LTSD', phase === 'error' && hasAccount ? 'kore-auth-secondary' : 'kore-auth-primary', () => { void host.beginLtsdLogin?.(); });
+    } else if (phase === 'requesting-device' || phase === 'checking-account') {
+      status(phase === 'requesting-device' ? '正在申请一次性设备验证码…' : '正在确认账号状态…');
+    } else if (phase === 'awaiting-approval') {
+      status('请在打开的 LTSD 页面核对验证码并批准。');
+      const code = element(document, 'div', 'kore-device-code', String(auth.userCode ?? ''));
+      code.setAttribute('aria-label', '设备验证码');
+      onboardingContent.append(code);
+      const expiresAt = Number(auth.expiresAt);
+      if (Number.isFinite(expiresAt) && expiresAt > 0) {
+        const expiry = new Date(expiresAt);
+        const expiryNode = element(document, 'time', 'kore-device-expiry', `有效期至 ${expiry.toLocaleTimeString()}`);
+        expiryNode.dateTime = expiry.toISOString();
+        expiryNode.title = expiry.toLocaleString();
+        onboardingContent.append(expiryNode);
+      }
+      authButton('打开 LTSD 批准页', 'kore-auth-primary kore-auth-open', () => host.openLtsdApproval?.());
+      authButton('复制验证码', 'kore-auth-secondary kore-auth-copy', event => {
+        const button = event.currentTarget;
+        const clipboard = page.navigator?.clipboard;
+        if (typeof clipboard?.writeText !== 'function') {
+          button.textContent = '复制不可用';
+          return;
+        }
+        Promise.resolve(clipboard.writeText(String(auth.userCode ?? '')))
+          .then(() => { button.textContent = '已复制'; })
+          .catch(() => { button.textContent = '复制失败'; });
+      });
+      authButton('重新申请验证码', 'kore-auth-secondary', () => { void host.beginLtsdLogin?.(); });
+      authButton('取消', 'kore-auth-link', () => host.cancelLtsdLogin?.());
+    } else if (phase === 'waiting-character' || phase === 'waiting-bind' || phase === 'binding-character') {
+      status(phase === 'waiting-character' ? '登录游戏角色后，KoreEngine 会继续绑定。'
+        : phase === 'binding-character' ? '正在向 LTSD 验证当前角色…' : '等待启动层准备当前角色的绑定请求…');
+      if (hasAccount && phase === 'waiting-bind') authButton('重试', 'kore-auth-secondary', () => { void host.retryAuthorization?.(); });
+      if (hasAccount) authButton('退出 LTSD', 'kore-auth-link', () => { void host.logoutLtsd?.(); });
+    } else if (phase === 'rebuilding-instance') {
+      status('LTSD 已清理旧实例，正在使用当前角色和实例 ID 重新绑定。');
+    } else if (phase === 'loading-profile' || phase === 'loading-runtime') {
+      status(phase === 'loading-profile' ? '正在获取 LTSD 活动配置…' : '配置已获取，正在让 KoreEngine 执行 reload all…');
+    } else if (phase === 'profile-missing') {
+      status('前往 LTSD 为当前角色创建并启用一套配置。');
+      authButton('前往 LTSD 配置', 'kore-auth-primary', () => page.open?.('https://ltsd.ro/ke', '_blank', 'noopener,noreferrer'));
+      authButton('重新检查', 'kore-auth-secondary', () => { void host.refreshConfiguration?.(); });
+    } else if (phase === 'profile-unavailable') {
+      status('配置接口暂时失败；成功同步过的配置会按账号和角色保存在本地。');
+      authButton('重试同步', 'kore-auth-primary', () => { void host.refreshConfiguration?.(); });
+    } else if (phase === 'cache-fallback') {
+      const updatedAt = Number(auth.profileUpdatedAt);
+      status(`最后成功同步：${Number.isFinite(updatedAt) && updatedAt > 0 ? new Date(updatedAt).toLocaleString() : '时间未知'}`);
+      authButton('重试同步', 'kore-auth-primary', () => { void host.refreshConfiguration?.(); });
+    } else if (phase === 'quota-exceeded') {
+      status('选择一个仍在运行的实例并明确替换，然后重试自动模式。');
+      const instances = Array.isArray(auth.detail?.active_instances)
+        ? auth.detail.active_instances.map(quotaInstanceLabel).filter(Boolean).slice(0, 32) : [];
+      if (!instances.some(instance => instance.id === selectedQuotaInstanceId)) selectedQuotaInstanceId = null;
+      if (instances.length) {
+        const list = element(document, 'div', 'kore-quota-list');
+        let replaceButton = null;
+        for (const instance of instances) {
+          const label = element(document, 'label', 'kore-quota-instance');
+          const radio = element(document, 'input');
+          radio.type = 'radio';
+          radio.name = 'kore-quota-instance';
+          radio.value = instance.id;
+          radio.checked = instance.id === selectedQuotaInstanceId;
+          radio.addEventListener('change', () => {
+            selectedQuotaInstanceId = instance.id;
+            if (replaceButton) replaceButton.disabled = false;
+          });
+          const details = element(document, 'span', 'kore-quota-instance-details');
+          details.append(element(document, 'span', 'kore-quota-instance-name', instance.name));
+          if (instance.map) details.append(element(document, 'span', 'kore-quota-instance-map', instance.map));
+          label.append(radio, details);
+          list.append(label);
+        }
+        onboardingContent.append(list);
+        replaceButton = authButton('替换所选实例并启动', 'kore-auth-primary kore-quota-replace', () => {
+          if (selectedQuotaInstanceId) host.sendCommandText?.(`ai auto kick ${selectedQuotaInstanceId}`);
+        });
+        replaceButton.disabled = selectedQuotaInstanceId === null;
+      } else {
+        status('LTSD 没有返回可替换的实例；请在其他已登录设备停止自动模式后重试。');
+        authButton('重试自动模式', 'kore-auth-secondary', () => host.sendCommandText?.('ai auto'));
+      }
+    }
+    if (guide) {
+      authButton('复制错误信息', 'kore-auth-secondary kore-auth-copy-error', event => copyDiagnostics(event, errorCode));
+      if (workerFailed) authButton('刷新页面', 'kore-auth-primary kore-auth-reload', () => page.location?.reload?.());
+    }
+    if (hasAccount && !['waiting-character', 'waiting-bind', 'binding-character', 'awaiting-approval'].includes(phase)) {
+      authButton('退出 LTSD', 'kore-auth-link', () => { void host.logoutLtsd?.(); });
+    }
+  }
 
   let historyIndex = history.length;
   function send(text) {
@@ -196,6 +458,7 @@ export function createKoreWindow({
   }
 
   function update() {
+    renderAuthorization();
     const state = host?.state ?? null;
     const status = poller?.results?.('status') ?? null;
     const ai = poller?.results?.('ai') ?? null;
@@ -205,8 +468,13 @@ export function createKoreWindow({
     job.textContent = model.worldReady ? `${model.job} Lv ${model.level}` : (state?.status ?? '');
     setRatio(hpBar, model.hp);
     setRatio(spBar, model.sp);
-    mode.textContent = model.mode === 'AUTO' ? '● 自动' : model.mode === 'OFF' ? '○ 关闭' : '模式 —';
+    mode.textContent = MODE_LABELS[model.mode] ?? '模式 —';
     mode.dataset.mode = model.mode;
+    for (const button of modeButtons) {
+      const active = button.dataset.mode === model.mode;
+      button.dataset.active = String(active);
+      button.setAttribute('aria-pressed', String(active));
+    }
     task.textContent = `任务 ${model.task}`;
     map.textContent = `地图 ${model.map} ${model.position}`.trim();
     target.textContent = `目标 ${model.target}`;
@@ -223,12 +491,12 @@ export function createKoreWindow({
       renderCheckbox.checked = renderToggle.enabled === true;
       renderLabel.title = renderToggle.available === true ? '切换 3D 渲染' : '当前客户端未暴露渲染接口';
     }
-    renderConsole(consoleNode, consoleModel?.entries?.() ?? [], { page, maxLines: 6 });
+    renderConsole(consoleNode, consoleModel?.entries?.() ?? [], { page, maxLines: 6, filter: consoleModel?.filter });
   }
 
   const cleanups = [];
   if (poller?.subscribe) cleanups.push(poller.subscribe(() => update()));
-  if (consoleModel?.subscribe) cleanups.push(consoleModel.subscribe(() => renderConsole(consoleNode, consoleModel.entries(), { page, maxLines: 6 })));
+  if (consoleModel?.subscribe) cleanups.push(consoleModel.subscribe(() => renderConsole(consoleNode, consoleModel.entries(), { page, maxLines: 6, filter: consoleModel?.filter })));
   if (host?.onStateChange) cleanups.push(host.onStateChange(() => update()));
   if (renderToggle?.onChange) cleanups.push(renderToggle.onChange(() => update()));
   update();

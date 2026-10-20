@@ -6,20 +6,34 @@ function canonical(value: unknown): unknown {
   if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : 1).map(([key, item]) => [key, canonical(item)]));
   return value;
 }
-export function packageFixture(profile = 'lastro-20211103', extraFiles: Record<string, string> = {}, bridgeApiVersion: 1 | 2 = 2) {
-  const payload = new Map<string, Uint8Array>([
+export function packageFixture(profile = 'lastro-20211103', extraFiles: Record<string, string> = {}, bridgeApiVersion: 1 | 2 = 2, schemaVersion: 1 | 2 = 2) {
+  const payload = schemaVersion === 1 ? new Map<string, Uint8Array>([
     ['kore-worker.mjs', new TextEncoder().encode('export {};')],
     ['kore_wasm.js', new TextEncoder().encode('export default function init() {}')],
     ['kore_wasm_bg.wasm', new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0])],
+  ]) : new Map<string, Uint8Array>([
+    ['kore-worker.mjs', new TextEncoder().encode('export {};')],
+    ['kore_boot.js', new TextEncoder().encode('export default function init() {}')],
+    ['kore_boot_bg.wasm', new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0])],
+    ['kore_wasm.js', new TextEncoder().encode('export default function init() {}')],
+    ['core.wasm.enc', new TextEncoder().encode('nonce+ciphertext+tag')],
+    ['shared-queue.mjs', new TextEncoder().encode('export {};')],
   ]);
   for (const [name, text] of Object.entries(extraFiles)) payload.set(name, new TextEncoder().encode(text));
-  const kind = (name: string) => name.endsWith('.json') ? 'data-json' : name.endsWith('.txt') ? 'passive' : name.endsWith('.wasm') ? 'wasm' : 'runtime';
+  const kind = (name: string) => name.endsWith('.json') ? 'data-json' : name.endsWith('.txt') ? 'passive'
+    : name.endsWith('.wasm.enc') ? 'wasm-encrypted' : name.endsWith('.wasm') ? 'wasm' : 'runtime';
+  const bootBytes = payload.get('kore_boot_bg.wasm');
+  const coreBytes = payload.get('core.wasm.enc');
   const metadata = {
-    schemaVersion: 1, engineVersion: '0.1.0', bridgeApiVersion,
+    schemaVersion, engineVersion: '0.1.0', bridgeApiVersion,
     ...(bridgeApiVersion === 2 ? { schedulerCapabilities: ['fourQueues', 'oneShotDeadline', 'residentExecutor'] } : {}),
     packetver: 20211103,
     profile, commitSha: null, sourceDirty: true, mode: 'debug',
     toolVersions: { rust: '1.99.0', wasmBindgen: '0.2.129', binaryen: null },
+    ...(schemaVersion === 2 ? { buildId: 'm8-test-build', chunks: {
+      boot: { file: 'kore_boot_bg.wasm', sha256: digest(bootBytes!), encrypted: false },
+      core: { file: 'core.wasm.enc', sha256: digest(coreBytes!), encrypted: true, keyVersion: 1 },
+    } } : {}),
     files: [...payload].map(([name, bytes]) => ({ path: name, bytes: bytes.length, sha256: digest(bytes), kind: kind(name) })).sort((a, b) => a.path < b.path ? -1 : 1),
   };
   const manifest = { ...metadata, packageId: digest(JSON.stringify(canonical(metadata))) };

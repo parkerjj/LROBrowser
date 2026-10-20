@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, expect, test, vi } from 'vitest';
 import { createKoreFullscreen } from '../src/kore/kore-panel-fullscreen.mjs';
+import { createConsoleFilter } from '../src/kore/kore-panel-console.mjs';
 
 const kv = (pairs: Array<[string, string]>) => ({ kind: 'output', ok: true, blocks: [{ type: 'kv', pairs }] });
 const table = (columns: string[], rows: string[][]) => ({ kind: 'output', ok: true, blocks: [{ type: 'table', columns, rows }] });
@@ -61,6 +62,24 @@ test('the main button stops the AI while it runs and starts it otherwise, withou
   expect(stopped.$('.kore-fs-auto').classList.contains('kore-fs-btn-primary')).toBe(true);
   stopped.$('.kore-fs-auto').click();
   expect(stopped.host.sendCommandText).toHaveBeenCalledWith('ai auto');
+});
+
+test('the semi-automatic button switches to manual mode and back off, and is disabled until the world is ready', () => {
+  const stopped = open({ mode: 'OFF' });
+  expect(stopped.$('.kore-fs-manual').textContent).toBe('半自动');
+  stopped.$('.kore-fs-manual').click();
+  expect(stopped.host.sendCommandText).toHaveBeenCalledWith('ai manual');
+  window.document.body.replaceChildren();
+
+  const manual = open({ mode: 'MANUAL' });
+  expect(manual.$('.kore-fs-pill').textContent).toBe('半自动');
+  expect(manual.$('.kore-fs-manual').textContent).toBe('关闭半自动');
+  expect(manual.$('.kore-fs-auto').textContent).toBe('开启自动');
+  manual.$('.kore-fs-manual').click();
+  expect(manual.host.sendCommandText).toHaveBeenCalledWith('ai off');
+  window.document.body.replaceChildren();
+
+  expect((open({ worldReady: false }).$('.kore-fs-manual') as HTMLButtonElement).disabled).toBe(true);
 });
 
 test('before the world is ready the last answers are not shown as live', () => {
@@ -190,4 +209,36 @@ test('the console is the large centre column and the map sits in the right colum
   expect(window.document.querySelector('.kore-fs-col-log .kore-fs-console')).toBeTruthy();
   expect(window.document.querySelector('.kore-fs-col-map .kore-fs-map')).toBeTruthy();
   expect(window.document.querySelector('.kore-fs-col-map .kore-fs-quick')).toBeTruthy();
+});
+
+test('the console filter menu lists the categories, toggles them and closes on Escape', () => {
+  const filter = createConsoleFilter({ storage: null });
+  const consoleModel = { entries: () => [], filter, subscribe: () => () => {}, clear: vi.fn(), dispose: vi.fn() };
+  const outputs = new Set();
+  const host = { state: { status: 'runtime-ready', worldReady: true, logs: [] }, sendCommandText: vi.fn(() => true), onCommandOutput: () => () => {}, onStateChange: () => () => {} };
+  void outputs;
+  const poller = { results: () => null, errors: () => null, subscribe: () => () => {}, setView: vi.fn(), setTab: vi.fn(), request: vi.fn() };
+  const page = {
+    document: window.document, setTimeout: window.setTimeout.bind(window), requestAnimationFrame: (fn: () => void) => fn(),
+    matchMedia: () => ({ matches: true }), atob: window.atob.bind(window),
+  };
+  createKoreFullscreen({ page, host, poller, consoleModel, history: [] } as never);
+  const button = window.document.querySelector('.kore-fs-filter-button') as HTMLButtonElement;
+  const menu = window.document.querySelector('.kore-fs-filter-menu') as HTMLElement;
+  expect(button.textContent).toBe('筛选（隐藏 1）');
+  expect(menu.hidden).toBe(true);
+
+  button.click();
+  expect(menu.hidden).toBe(false);
+  const rows = [...menu.querySelectorAll('.kore-fs-filter-row')];
+  expect(rows.length).toBe(13);
+  const others = rows.find(row => row.textContent === '他人之间的战斗')!.querySelector('input') as HTMLInputElement;
+  expect(others.checked).toBe(false);
+  others.click();
+  expect(filter.isVisible('others')).toBe(true);
+  expect(button.textContent).toBe('筛选');
+
+  window.document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  expect(menu.hidden).toBe(true);
+  expect(window.document.querySelector('.kore-fullscreen')).not.toBeNull();
 });

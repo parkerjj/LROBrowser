@@ -1633,6 +1633,10 @@ globalThis.KoreEngineNativeAction = (action) => {
   return false;
 };
 globalThis.KoreEngineNativeRouteAction = globalThis.KoreEngineNativeAction;
+// Worker 重建后的会话恢复需要知道角色此刻所在的地图（登录时的地图可能早已过期）。
+globalThis.KoreEngineCurrentMap = () => {
+  try { return String(MapRenderer?.currentMap ?? ""); } catch { return ""; }
+};
 globalThis.KoreEngineDisconnect = (reason) => {
 	try {
 		console.warn("[KoreEngine] disconnect requested:", String(reason ?? ""));

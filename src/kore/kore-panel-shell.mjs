@@ -61,7 +61,7 @@ export function createKoreShell({
     placeholder.remove();
     sessionId = host.state?.gameSessionId ?? null;
     poller = createKorePoller({ host, page });
-    consoleModel = createKoreConsoleModel({ host });
+    consoleModel = createKoreConsoleModel({ host, storage: page.localStorage });
     renderToggle = createRenderToggle({ page });
     windowView = createKoreWindow({
       page, host, poller, consoleModel, renderToggle, history,

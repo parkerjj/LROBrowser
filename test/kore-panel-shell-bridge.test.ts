@@ -43,7 +43,7 @@ test('shell wrapper replaces the native header and keeps the switch in both rend
   const native = install(nativeHtml);
   const nativeOutput = native.tools.render();
   expect(nativeOutput).toContain('data-shell-mode="lastro"');
-  expect(nativeOutput).toContain('科技改变生活');
+  expect(nativeOutput).toContain('>KoreEngine<');
   expect(nativeOutput).toContain('kore-shell-host');
   expect(nativeOutput).toContain('lastro-mode-thumb');
   expect(nativeOutput).not.toContain('LastRO 工具');
@@ -166,6 +166,8 @@ test('only the LastRO to KE switch plays the ignition and it cleans up after its
   expect(panel().querySelectorAll('.kore-boot > span')).toHaveLength(3);
 
   vi.advanceTimersByTime(1500);
+  expect(panel().querySelector('.kore-boot')).not.toBeNull();
+  vi.advanceTimersByTime(1400);
   expect(panel().querySelector('.kore-boot')).toBeNull();
   expect(panel().classList.contains('is-igniting')).toBe(false);
 

@@ -1,11 +1,12 @@
 import { expect, test, vi } from 'vitest';
+import { IDBFactory } from 'fake-indexeddb';
 import { createKoreIntegration, createKorePanel, formatKoreDiagnosticLine, formatKoreSections, loadKorePackage, validateKoreManifest } from '../src/kore/kore-integration.mjs';
 import { bridgeRecord, packageFixture, TestWorkerStub as FakeWorker } from './kore-fixture';
 
 function pageFor(fixture: ReturnType<typeof packageFixture>) {
   return Object.assign(new EventTarget(), {
     location: { href: 'http://localhost/' }, fetch: fixture.fetch,
-    performance: { now: () => 10 }, crypto: globalThis.crypto, console: { log() {} },
+    indexedDB: new IDBFactory(), performance: { now: () => 10 }, crypto: globalThis.crypto, console: { log() {} },
   });
 }
 
@@ -23,6 +24,244 @@ async function readyHost() {
 test('ready runtime reports the package mode for the debug panel', async () => {
   const { host, fixture } = await readyHost();
   expect(host.state).toMatchObject({ status: 'runtime-ready', packageId: fixture.manifest.packageId, mode: 'debug' });
+});
+
+test('LTSD transport returns the raw response to the requesting Rust boot operation', async () => {
+  const fixture = packageFixture();
+  const worker = new FakeWorker();
+  const bodyText = '{"key_bundles":{"core":{"ephemeral_public":"e","nonce":"n","ciphertext":"c","tag":"t"}}}';
+  const ltsdClient = {
+    hasToken: () => true,
+    request: vi.fn(async () => ({ status: 200, ok: true, bodyText, body: { key_bundles: { core: {} } } })),
+  };
+  const host = createKoreIntegration({
+    page: pageFor(fixture), manifest: fixture.executable, createWorker: () => worker, ltsdClient: ltsdClient as never,
+  });
+  await host.start();
+  const runtimeSessionId = worker.messages[0]!.runtimeSessionId;
+
+  worker.reply({ runtimeSessionId, type: 'ltsdRequest', ltsdRequestId: 41, method: 'POST',
+    endpoint: '/instances/bind', body: { instance_id: 'instance', aid: 11, cid: 22, nid: 33 } });
+  await vi.waitFor(() => expect(ltsdClient.request).toHaveBeenCalledOnce());
+
+  expect(ltsdClient.request).toHaveBeenCalledWith('POST', '/instances/bind', {
+    body: { instance_id: 'instance', aid: 11, cid: 22, nid: 33 },
+  });
+  expect(worker.messages.at(-1)).toMatchObject({
+    type: 'ltsdResponse', ltsdRequestId: 41, status: 200, body: bodyText,
+  });
+});
+
+test('character identity reaches boot without the Host making a bind API decision', async () => {
+  const fixture = packageFixture();
+  const worker = new FakeWorker();
+  const ltsdClient = {
+    hasToken: () => false,
+    request: vi.fn(),
+  };
+  const host = createKoreIntegration({
+    page: pageFor(fixture), manifest: fixture.executable, createWorker: () => worker, ltsdClient: ltsdClient as never,
+  });
+  await host.start();
+  const runtimeSessionId = worker.messages[0]!.runtimeSessionId;
+  const gameSessionId = host.beginGameSession(77, 'prontera.gat', {
+    aid: 11, cid: 22, nid: 33, name: 'Test Character', baseLevel: 50, jobLevel: 20, jobId: 1,
+  });
+  expect(worker.messages.some(message => message.type === 'queue' && bridgeRecord(message).kind === 'gameSessionStarted')).toBe(false);
+  worker.reply({ runtimeSessionId, type: 'bootReady', packageId: fixture.manifest.packageId,
+    instanceId: 'instance', publicKey: 'public', buildId: 'build', buildHash: 'a'.repeat(64) });
+
+  expect(gameSessionId).toBeTruthy();
+  expect(worker.messages.find(message => message.type === 'bindCharacter')).toMatchObject({
+    character: { aid: 11, cid: 22, nid: 33, name: 'Test Character', baseLevel: 50, jobLevel: 20, jobId: 1, mapName: 'prontera.gat' },
+  });
+  expect(ltsdClient.request).not.toHaveBeenCalled();
+
+  worker.reply({ runtimeSessionId, requestId: worker.messages[0]!.requestId, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false });
+  expect(worker.messages.some(message => message.type === 'queue' && bridgeRecord(message).kind === 'gameSessionStarted'
+    && bridgeRecord(message).gameSessionId === gameSessionId)).toBe(true);
+});
+
+test('an incomplete character identity surfaces an error instead of leaving the panel waiting', async () => {
+  const fixture = packageFixture();
+  const worker = new FakeWorker();
+  const host = createKoreIntegration({
+    page: pageFor(fixture), manifest: fixture.executable, createWorker: () => worker,
+    ltsdClient: { hasToken: () => false, request: vi.fn() } as never,
+  });
+  await host.start();
+  const runtimeSessionId = worker.messages[0]!.runtimeSessionId;
+  worker.reply({ runtimeSessionId, type: 'bootReady', packageId: fixture.manifest.packageId,
+    instanceId: 'instance', publicKey: 'public', buildId: 'build', buildHash: 'a'.repeat(64) });
+
+  host.beginGameSession(77, 'prontera.gat', { aid: 11, cid: 22 });
+
+  expect(worker.messages.some(message => message.type === 'bindCharacter')).toBe(false);
+  expect(host.state.authorization).toMatchObject({ phase: 'error', error: 'character-identity-incomplete' });
+});
+
+async function signedInHost() {
+  const fixture = packageFixture();
+  const worker = new FakeWorker();
+  const ltsdClient = {
+    hasToken: () => true,
+    getMe: vi.fn(async () => ({ ok: true, status: 200, user: { id: 'user-1', displayName: 'Parker' } })),
+    request: vi.fn(),
+  };
+  const host = createKoreIntegration({
+    page: pageFor(fixture), manifest: fixture.executable, createWorker: () => worker, ltsdClient: ltsdClient as never,
+  });
+  await host.start();
+  const runtimeSessionId = worker.messages[0]!.runtimeSessionId;
+  await vi.waitFor(() => expect(ltsdClient.getMe).toHaveBeenCalledOnce());
+  await vi.waitFor(() => expect(host.state.authorization?.user).toBeTruthy());
+  worker.reply({ runtimeSessionId, type: 'bootReady', packageId: fixture.manifest.packageId,
+    instanceId: 'instance', publicKey: 'public', buildId: 'build', buildHash: 'a'.repeat(64) });
+  return { worker, host, runtimeSessionId };
+}
+
+test('a worker fault during authorization surfaces its reason instead of leaving the panel waiting', async () => {
+  const { worker, host, runtimeSessionId } = await signedInHost();
+  host.beginGameSession(77, 'prontera.gat', { aid: 11, cid: 22, nid: 33 });
+  worker.reply({ runtimeSessionId, type: 'authorizationStatus', phase: 'binding-character' });
+
+  worker.reply({ runtimeSessionId, type: 'fault', code: 'runtime-fault', message: 'boot-key-bundle-invalid', retryable: false });
+
+  expect(host.state.authorization).toMatchObject({ phase: 'error', error: 'boot-key-bundle-invalid' });
+});
+
+test('retrying authorization sends the character to boot again', async () => {
+  const { worker, host, runtimeSessionId } = await signedInHost();
+  host.beginGameSession(77, 'prontera.gat', { aid: 11, cid: 22, nid: 33 });
+  worker.reply({ runtimeSessionId, type: 'authorizationStatus', phase: 'error', error: 'boot-bind-unavailable' });
+  const sentBefore = worker.messages.filter(message => message.type === 'bindCharacter').length;
+
+  expect(await host.retryAuthorization()).toBe(true);
+
+  expect(worker.messages.filter(message => message.type === 'bindCharacter')).toHaveLength(sentBefore + 1);
+  expect(host.state.authorization).toMatchObject({ phase: 'waiting-bind', error: null });
+});
+
+test('leaving the game returns a signed-in panel to waiting for a character', async () => {
+  const { worker, host, runtimeSessionId } = await signedInHost();
+  host.beginGameSession(77, 'prontera.gat', { aid: 11, cid: 22, nid: 33 });
+  worker.reply({ runtimeSessionId, type: 'authorizationStatus', phase: 'ready' });
+
+  host.endGameSession();
+
+  expect(host.state.authorization).toMatchObject({ phase: 'waiting-character', error: null });
+});
+
+test('authorization phase changes are written to the KoreEngine console with their error code', async () => {
+  const { worker, host, runtimeSessionId } = await signedInHost();
+  host.beginGameSession(77, 'prontera.gat', { aid: 11, cid: 22, nid: 33 });
+
+  worker.reply({ runtimeSessionId, type: 'authorizationStatus', phase: 'error', error: 'boot-bind-unavailable' });
+
+  const entry = host.state.logs.find(log => log.text.includes('-> error (boot-bind-unavailable)'));
+  expect(entry).toMatchObject({ level: 'error' });
+});
+
+test('a worker fault is logged with the message type that caused it, and manual retry rebuilds the worker', async () => {
+  const { worker, host, runtimeSessionId } = await signedInHost();
+  worker.reply({ runtimeSessionId, type: 'fault', code: 'runtime-fault', message: 'runtime-not-initialized:heartbeatRequest',
+    messageType: 'heartbeatRequest', stack: 'Error: boom', retryable: false });
+
+  expect(host.state.logs.some(log => log.text.includes('worker fault') && log.text.includes('"heartbeatRequest"'))).toBe(true);
+  expect(host.state.status).toBe('failed');
+  expect(await host.retryAuthorization()).toBe(true);
+  expect(host.state.status).toBe('restarting');
+  host.dispose();
+});
+
+test('a bind step that never answers is flagged after the stall timeout with the context needed to debug it', async () => {
+  vi.useFakeTimers();
+  try {
+    const fixture = packageFixture();
+    const worker = new FakeWorker();
+    const page = Object.assign(pageFor(fixture), { setTimeout: globalThis.setTimeout.bind(globalThis), clearTimeout: globalThis.clearTimeout.bind(globalThis) });
+    const host = createKoreIntegration({
+      page, manifest: fixture.executable, createWorker: () => worker,
+      ltsdClient: { hasToken: () => true, getMe: vi.fn(async () => ({ ok: true, status: 200, user: { id: 'user-1' } })), request: vi.fn() } as never,
+    });
+    await host.start();
+    await vi.advanceTimersByTimeAsync(0);
+    const runtimeSessionId = worker.messages[0]!.runtimeSessionId;
+    worker.reply({ runtimeSessionId, type: 'bootReady', packageId: fixture.manifest.packageId,
+      instanceId: 'instance-x', publicKey: 'public', buildId: 'build-7', buildHash: 'a'.repeat(64) });
+    host.beginGameSession(77, 'prontera.gat', { aid: 11, cid: 22, nid: 33 });
+    worker.reply({ runtimeSessionId, type: 'authorizationStatus', phase: 'binding-character' });
+    expect(host.state.authorization?.stalled).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(host.state.authorization).toMatchObject({ phase: 'binding-character', stalled: true });
+    expect(host.state.logs.some(log => log.level === 'warn' && log.text.includes('stalled in "binding-character"') && log.text.includes('aid=11 cid=22 nid=33'))).toBe(true);
+    const report = host.getAuthorizationDiagnostics();
+    expect(report).toContain('授权阶段: binding-character（长时间无响应）');
+    expect(report).toContain('实例: instance-x');
+    expect(report).toContain('构建: build-7');
+    expect(report).toContain('aid=11 cid=22 nid=33');
+    expect(report).not.toMatch(/token|Bearer/i);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test('a verified LTSD account is made available to boot after its session is ready', async () => {
+  const fixture = packageFixture();
+  const worker = new FakeWorker();
+  const ltsdClient = {
+    hasToken: () => true,
+    getMe: vi.fn(async () => ({ ok: true, status: 200, user: { id: 'user-1', displayName: 'Parker' } })),
+    request: vi.fn(),
+  };
+  const host = createKoreIntegration({
+    page: pageFor(fixture), manifest: fixture.executable, createWorker: () => worker, ltsdClient: ltsdClient as never,
+  });
+  await host.start();
+  const runtimeSessionId = worker.messages[0]!.runtimeSessionId;
+  await vi.waitFor(() => expect(ltsdClient.getMe).toHaveBeenCalledOnce());
+  worker.reply({ runtimeSessionId, type: 'bootReady', packageId: fixture.manifest.packageId,
+    instanceId: 'instance', publicKey: 'public', buildId: 'build', buildHash: 'a'.repeat(64) });
+
+  expect(worker.messages.some(message => message.type === 'authorizationAvailable')).toBe(true);
+  expect(ltsdClient.request).not.toHaveBeenCalled();
+});
+
+test('Rust quota details are forwarded to the authorization panel without Host interpretation', async () => {
+  const { host, worker } = await readyHost();
+  const runtimeSessionId = worker.messages[0]!.runtimeSessionId;
+  const detail = { active_instances: [{ instance_id: 'instance-a', char_name: '旧角色', map_name: 'prontera' }] };
+
+  worker.reply({ runtimeSessionId, type: 'authorizationStatus', phase: 'quota-exceeded',
+    error: 'KE_QUOTA_EXCEEDED', detail });
+
+  expect(host.state.authorization).toMatchObject({ phase: 'quota-exceeded', error: 'KE_QUOTA_EXCEEDED', detail });
+});
+
+test('boot profile status refreshes LTSD configuration through the existing Host transport', async () => {
+  const fixture = packageFixture();
+  const worker = new FakeWorker();
+  const files = Object.fromEntries(['config.txt', 'mon_control.txt', 'timeouts.txt', 'pickupitems.txt', 'items_control.txt']
+    .map(fileName => [fileName, `${fileName}\n`]));
+  const ltsdClient = {
+    hasToken: () => true,
+    getMe: vi.fn(async () => ({ ok: true, status: 200, user: { id: 'user-1', displayName: 'Parker' } })),
+    request: vi.fn(async () => ({ ok: true, status: 200, bodyText: JSON.stringify({ files }), body: { files } })),
+  };
+  const host = createKoreIntegration({
+    page: pageFor(fixture), manifest: fixture.executable, createWorker: () => worker, ltsdClient: ltsdClient as never,
+  });
+  await host.start();
+  const runtimeSessionId = worker.messages[0]!.runtimeSessionId;
+  host.beginGameSession(77, 'prontera.gat', { aid: 11, cid: 22, nid: 33, name: 'Test Character' });
+  await vi.waitFor(() => expect(ltsdClient.getMe).toHaveBeenCalledOnce());
+  worker.reply({ runtimeSessionId, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false });
+  worker.reply({ runtimeSessionId, type: 'authorizationStatus', phase: 'loading-profile' });
+  await vi.waitFor(() => expect(ltsdClient.request).toHaveBeenCalledWith('GET', expect.stringContaining('/profiles/active?')));
+  await vi.waitFor(() => expect(worker.messages.some(message => message.type === 'queue' && bridgeRecord(message).kind === 'command'
+    && bridgeRecord(message).command === 'reload all')).toBe(true));
 });
 
 test('rust disconnect intents reach the host socket hook', async () => {
@@ -351,6 +590,39 @@ test('host forwards Rust domain logs from both output and legacy log events', as
   expect(host.state.logs.at(-1)).toMatchObject({ level: 'warning', domain: 'route', text: '路线 1 failed' });
 });
 
+test('host drains Worker outputs that stay queued across two heartbeats, but not ones it is already collecting', async () => {
+  const { host, worker } = await readyHost();
+  const runtimeSessionId = worker.messages[0]!.runtimeSessionId;
+  const drains = () => worker.messages.filter(message => message.type === 'drainOutputs').length;
+  const queued = { actions: 2, status: 1 };
+
+  worker.reply({ runtimeSessionId, type: 'heartbeat', nextDeadlineMs: 1, queueDepth: queued });
+  expect(drains()).toBe(0);
+  worker.reply({ runtimeSessionId, type: 'outputs', outputs: [] });
+  worker.reply({ runtimeSessionId, type: 'heartbeat', nextDeadlineMs: 1, queueDepth: queued });
+  expect(drains()).toBe(0);
+
+  worker.reply({ runtimeSessionId, type: 'heartbeat', nextDeadlineMs: 1, queueDepth: queued });
+  expect(drains()).toBe(1);
+  expect(host.state.logs.some(log => log.level === 'warn' && log.text.includes('Worker 输出队列滞留'))).toBe(true);
+});
+
+test('a busy Worker is reported as busy instead of as a lost output notice', async () => {
+  const { host, worker } = await readyHost();
+  const runtimeSessionId = worker.messages[0]!.runtimeSessionId;
+  const drains = () => worker.messages.filter(message => message.type === 'drainOutputs').length;
+  const beat = { type: 'heartbeat', nextDeadlineMs: 1, queueDepth: { actions: 1, status: 0 }, queueWaitMs: 1800, slowTask: { label: 'queue', ms: 1700 } };
+
+  worker.reply({ runtimeSessionId, ...beat });
+  worker.reply({ runtimeSessionId, ...beat });
+  worker.reply({ runtimeSessionId, ...beat });
+  expect(drains()).toBe(0);
+  expect(host.state.logs.some(log => log.text.includes('输出队列滞留'))).toBe(false);
+  const busyLogs = host.state.logs.filter(log => log.text.includes('Worker 处理被占住'));
+  expect(busyLogs).toHaveLength(1);
+  expect(busyLogs[0]!.text).toContain('queue 1700ms');
+});
+
 test('host keeps Rust status and decision history apart from the heartbeat', async () => {
   const { host, worker } = await readyHost();
   const runtimeSessionId = worker.messages[0]!.runtimeSessionId;
@@ -421,7 +693,7 @@ test('reload buttons live in the Editor tab, not the Status tab', () => {
 });
 
 test('control file editor loads, guards unsaved edits, saves, resets and reloads through the host', async () => {
-  const owner = { profile: 'lastro-20211103', aid: 1, cid: 2 };
+  const owner = { profile: 'lastro-20211103', aid: 1, cid: 2, nid: 3 };
   const documents = [{ ...owner, fileName: 'config.txt', rawText: 'attackAuto 1\n', revision: 1 }, { ...owner, fileName: 'mon_control.txt', rawText: 'all 0 0 0\n', revision: 1 }];
   const debugCommand = vi.fn(() => true);
   const reloadConfig = vi.fn(() => true);
@@ -436,7 +708,7 @@ test('control file editor loads, guards unsaved edits, saves, resets and reloads
   expect(editorNote()).toContain('No verified aid/cid');
   expect(getConfigDocuments).not.toHaveBeenCalled();
 
-  view.update({ ...baseState, configIdentity: { aid: 1, cid: 2 }, logs: [], actions: [], diagnosticLog: [] });
+  view.update({ ...baseState, configIdentity: { aid: 1, cid: 2, nid: 3 }, logs: [], actions: [], diagnosticLog: [] });
   buttonLabelled(view, 'Load').dispatchEvent(new Event('click'));
   await flush();
   expect(getConfigDocuments).toHaveBeenCalledWith(owner);
