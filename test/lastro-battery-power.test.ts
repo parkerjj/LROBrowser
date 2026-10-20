@@ -51,7 +51,7 @@ describe('LastRO phone battery status compatibility', () => {
     expect(() => patchRuntimeLastROBatteryPower(output)).toThrow('already-installed');
     for (const path of ['src/UI/Components/StatusIcons/StatusIcons.js', 'src/Engine/MapEngine/Main.js']) {
       const parsed = ts.createSourceFile(path,region(output,path),ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
-      expect(parsed.parseDiagnostics, path).toHaveLength(0);
+      expect((parsed as ts.SourceFile & {parseDiagnostics: ts.Diagnostic[]}).parseDiagnostics, path).toHaveLength(0);
     }
   });
 
@@ -59,14 +59,14 @@ describe('LastRO phone battery status compatibility', () => {
     const f = batteryFixture();
     f.handle({varID:300,count:100});
     expect(f.ctx.otherPackets).toEqual([]);
-    expect(f.info[2000].icon).toBe('rk_lux.tga');
-    expect(f.info[2000].descript[0][0]).toBe('电量');
-    f.render(f.items[2000],1234);
-    expect(f.items[2000].time.textContent).toBe('100%');
+    expect(f.info[2000]!.icon).toBe('rk_lux.tga');
+    expect(f.info[2000]!.descript[0][0]).toBe('电量');
+    f.render(f.items[2000]!,1234);
+    expect(f.items[2000]!.time.textContent).toBe('100%');
     expect(f.ctx.mockCanvas.fillRect).toHaveBeenLastCalledWith(0,0,32,32);
     f.handle({varID:300,count:25});
-    f.render(f.items[2000],1235);
-    expect(f.items[2000].time.textContent).toBe('25%');
+    f.render(f.items[2000]!,1235);
+    expect(f.items[2000]!.time.textContent).toBe('25%');
     expect(f.ctx.mockCanvas.fillRect).toHaveBeenLastCalledWith(0,24,32,32);
     f.handle({varID:6,count:9000});
     expect(f.ctx.otherPackets).toEqual([{varID:6,count:9000}]);
@@ -75,10 +75,10 @@ describe('LastRO phone battery status compatibility', () => {
   it('clamps values to 0..100 and ignores invalid updates', () => {
     const f = batteryFixture();
     f.handle({varID:300,count:-10});
-    expect(f.items[2000].lastroBatteryPower).toBe(0);
+    expect(f.items[2000]!.lastroBatteryPower).toBe(0);
     f.handle({varID:300,count:999});
-    expect(f.items[2000].lastroBatteryPower).toBe(100);
+    expect(f.items[2000]!.lastroBatteryPower).toBe(100);
     f.handle({varID:300,count:NaN});
-    expect(f.items[2000].lastroBatteryPower).toBe(100);
+    expect(f.items[2000]!.lastroBatteryPower).toBe(100);
   });
 });
