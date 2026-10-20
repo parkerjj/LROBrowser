@@ -2,8 +2,54 @@ import { createEncryptedAccountStorage, validateAccountCredentials } from '../ac
 import { saveLoginPreferences } from './login-preferences.mjs';
 
 const UNAVAILABLE_REASON = 'App服协议参数尚未完成验证';
+// Chrome performs the real IWA update from the manifest's update_manifest_url. This
+// is only the in-app notice for installs that Chrome did not update.
+const UPDATE_MANIFEST_URL = 'https://client.ltsd.ro/updates.json';
+const UPDATE_PACKAGE_HOST = 'client.ltsd.ro';
+const UPDATE_CHANNEL = 'default';
+// Web content cannot navigate to chrome:// pages, so the address is only copied for the user.
+const IWA_INSTALL_PAGE = 'chrome://iwa-dev';
+// Unreleased builds keep the placeholder manifest version and must not report an update.
+const UNRELEASED_VERSION = '0.1.0';
 let activeLogin;
 const installed = new WeakMap();
+const VERSION_PATTERN = /^\d+(?:\.\d+)*$/;
+export function compareLastROVersions(left, right) {
+  const a = String(left).split('.').map(Number), b = String(right).split('.').map(Number);
+  for (let index = 0; index < Math.max(a.length, b.length); index += 1) {
+    const diff = (a[index] ?? 0) - (b[index] ?? 0);
+    if (diff) return diff;
+  }
+  return 0;
+}
+/** Highest version published on the channel, or null when the manifest has no usable entry. */
+export function selectLastROUpdate(manifest, channel = UPDATE_CHANNEL) {
+  let best = null;
+  for (const entry of Array.isArray(manifest?.versions) ? manifest.versions : []) {
+    if (typeof entry?.version !== 'string' || !VERSION_PATTERN.test(entry.version)
+      || !Array.isArray(entry.channels) || !entry.channels.includes(channel)) continue;
+    let src;
+    try { src = new globalThis.URL(entry.src); } catch { continue; }
+    if (src.protocol !== 'https:' || src.hostname !== UPDATE_PACKAGE_HOST || src.username || src.password) continue;
+    if (!best || compareLastROVersions(entry.version, best.version) > 0) best = { version: entry.version, src: src.href };
+  }
+  return best;
+}
+async function readInstalledVersion() {
+  const response = await globalThis.fetch('/.well-known/manifest.webmanifest', { cache: 'no-store' });
+  const version = response.ok ? (await response.json())?.version : undefined;
+  return typeof version === 'string' && VERSION_PATTERN.test(version) ? version : null;
+}
+async function copyText(text) {
+  try { await globalThis.navigator.clipboard.writeText(text); return true; } catch { /* Fall back below. */ }
+  const { document } = globalThis;
+  const area = document.createElement('textarea');
+  area.value = text;
+  area.setAttribute('readonly', '');
+  area.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none';
+  document.body.append(area);
+  try { area.select(); return document.execCommand('copy') === true; } catch { return false; } finally { area.remove(); }
+}
 export function beforeLastROLoginConnect(username, password) {
   try { validateAccountCredentials(username, password); } catch { return false; }
   return activeLogin?.before(username, password) ?? false;
@@ -61,7 +107,16 @@ export function decorateLastROLoginTemplate(name, htmlText) {
     + '<span class="lastro-dedication-heart" aria-hidden="true">♥</span>'
     + '<span class="lastro-dedication-text"><span>此项目献给最珍爱的</span> <strong>北京Sara服 · 寳包</strong></span>'
     + '<span class="lastro-dedication-heart" aria-hidden="true">♥</span>'
-    + '</footer></section>';
+    + '</footer>'
+    + '<div class="lastro-version" data-lastro-version hidden>'
+    + '<div class="lastro-update-detail" data-lastro-update-detail hidden>'
+    + '<p data-lastro-update-text></p>'
+    + '<div class="lastro-account-toolbar">'
+    + '<a class="lastro-update-download" data-lastro-update-download target="_blank" rel="noopener noreferrer">下载新版安装包</a>'
+    + `<button type="button" data-lastro-action="copy-install-page">复制 ${IWA_INSTALL_PAGE}</button>`
+    + '</div></div>'
+    + '<button type="button" class="lastro-version-badge" data-lastro-version-badge></button>'
+    + '</div></section>';
   return `${cleaned.slice(0, closingIndex)}${panel}${cleaned.slice(closingIndex)}`;
 }
 
@@ -117,6 +172,14 @@ export function decorateLastROLoginStyles(name, cssText) {
 .lastro-dedication-text > span, .lastro-dedication-text > strong { white-space: nowrap; }
 .lastro-dedication-text strong { color: #c74c70; font-weight: 600; }
 .lastro-dedication-heart { flex: none; color: #ec7090; font: 20px/1 Arial, sans-serif; }
+.lastro-version { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); z-index: 30; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; font: 12px/1.4 "Segoe UI", "Microsoft YaHei", sans-serif; }
+.lastro-version[hidden], .lastro-update-detail[hidden] { display: none; }
+.lastro-login-panel .lastro-version-badge { min-height: 24px; padding: 2px 12px; border: 1px solid rgba(255, 255, 255, .85); border-radius: 12px; background: rgba(255, 250, 252, .9); color: #735766; font-size: 12px; cursor: default; }
+.lastro-login-panel .lastro-version[data-update="available"] .lastro-version-badge { border-color: #e8590c; background: #e8590c; color: #fff; font-weight: 600; cursor: pointer; animation: lastro-update-pulse 1.6s ease-in-out infinite; }
+@keyframes lastro-update-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(232, 89, 12, .55); } 50% { box-shadow: 0 0 0 8px rgba(232, 89, 12, 0); } }
+.lastro-update-detail { width: 300px; max-width: calc(100vw - 32px); box-sizing: border-box; padding: 12px; border: 1px solid #f0c9a8; border-radius: 8px; background: #fff; box-shadow: 0 4px 16px rgba(0, 0, 0, .18); color: #243447; }
+.lastro-update-detail p { margin: 0; white-space: pre-line; }
+.lastro-update-detail .lastro-account-toolbar a { flex: 1; box-sizing: border-box; min-height: 28px; padding: 4px 10px; border: 1px solid #4a90d9; border-radius: 6px; background: #4a90d9; color: #fff; font-weight: 600; text-align: center; text-decoration: none; }
 @media (max-width: 760px), (max-height: 560px) {
   :host { top: 16px; left: calc(50% - 140px); }
   #WinLogin { top: 0; }
@@ -572,4 +635,43 @@ export function installLastROLogin({ root, component, configs, onAssistantProfil
     input?.addEventListener('input', () => { ++revision; });
   }
   void refreshAccounts();
+  void showVersion(panel);
+}
+
+/** Show the installed version bottom-right and flag a newer published IWA package. */
+async function showVersion(panel) {
+  const box = panel.querySelector('[data-lastro-version]');
+  const badge = panel.querySelector('[data-lastro-version-badge]');
+  const detail = panel.querySelector('[data-lastro-update-detail]');
+  const text = panel.querySelector('[data-lastro-update-text]');
+  const download = panel.querySelector('[data-lastro-update-download]');
+  const copy = panel.querySelector('[data-lastro-action="copy-install-page"]');
+  // The web build is replaced on reload; only an installed IWA can be out of date.
+  if (!box || !badge || !detail || !text || !download || !copy || globalThis.LastROWebBuild === true) return;
+  let current;
+  try { current = await readInstalledVersion(); } catch { return; }
+  if (!current) return;
+  badge.textContent = `v${current}`;
+  box.hidden = false;
+  if (current === UNRELEASED_VERSION) return;
+  let latest;
+  try {
+    const response = await globalThis.fetch(UPDATE_MANIFEST_URL, { cache: 'no-store', credentials: 'omit' });
+    latest = response.ok ? selectLastROUpdate(await response.json()) : null;
+  } catch { return; }
+  if (!latest || compareLastROVersions(latest.version, current) <= 0) return;
+  box.dataset.update = 'available';
+  badge.textContent = `v${current} · 发现新版本 v${latest.version}`;
+  badge.setAttribute('aria-expanded', 'false');
+  text.textContent = `当前版本 v${current}，最新版本 v${latest.version}。\n`
+    + `Chrome 没有自动更新时：先下载新版安装包，再在浏览器地址栏打开 ${IWA_INSTALL_PAGE}（应用无法直接打开该页面），按页面提示安装。`;
+  download.href = latest.src;
+  badge.addEventListener('click', () => {
+    detail.hidden = !detail.hidden;
+    badge.setAttribute('aria-expanded', String(!detail.hidden));
+  });
+  copy.addEventListener('click', async () => {
+    const copied = await copyText(IWA_INSTALL_PAGE);
+    copy.textContent = copied ? '已复制，请粘贴到地址栏' : `复制失败，请手动输入 ${IWA_INSTALL_PAGE}`;
+  });
 }

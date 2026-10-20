@@ -9,7 +9,7 @@ import { REQUIRED_HEADERS } from './iwa-security.mjs';
 /* eslint-disable no-control-regex -- Reject control characters in untrusted package paths. */
 
 const ALLOWED_ORIGINS = new Set(['https://game.lastro.cn', 'https://rodata.ltsd.ro']);
-const API_ORIGIN_PATHS = new Map([['https://ltsd.ro', '/api/v1/market/search']]);
+const API_ORIGIN_PATHS = new Map([['https://ltsd.ro', '/api/v1/market/search'], ['https://client.ltsd.ro', '/updates.json']]);
 const RELAY_ORIGINS = new Set(['wss://port.lastro.cn']);
 const NON_RESOURCE_ORIGINS = new Set(['http://www.w3.org']);
 const REMOTE_EXECUTABLE = /https?:\/\/[^\s"'`]+\.(?:js|mjs|cjs|wasm|lua|lub)(?:[?#]|$)/i;
