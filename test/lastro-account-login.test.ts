@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { IDBFactory } from 'fake-indexeddb';
@@ -10,7 +10,7 @@ import { getAvailableServerProfile } from '../src/servers/server-profiles';
 
 // The runtime module is deliberately shipped as an executable MJS asset.
 // @ts-expect-error Runtime MJS is validated by the Vite bundle and this focused test.
-import { decorateLastROLoginStyles, decorateLastROLoginTemplate, installLastROLogin, beforeLastROLoginConnect, afterLastROLoginPassword } from '../src/runtime/lastro-account-login.mjs';
+import { decorateLastROLoginStyles, decorateLastROLoginTemplate, installLastROLogin, beforeLastROLoginConnect, afterLastROLoginPassword, compareLastROVersions, selectLastROUpdate } from '../src/runtime/lastro-account-login.mjs';
 
 describe('LastRO native login integration', () => {
   async function savedLogin() {
@@ -221,5 +221,107 @@ describe('LastRO native login integration', () => {
       await new Promise(resolve => setTimeout(resolve, 0));
       expect(native.value).toBe('new-user-input');
     } finally { decrypt.mockRestore(); host.remove(); vi.unstubAllGlobals(); }
+  });
+});
+
+describe('LastRO login version badge', () => {
+  const UPDATES = 'https://client.ltsd.ro/updates.json';
+  const published = { versions: [
+    { version: '0.1.102', src: 'https://client.ltsd.ro/releases/0.1.102/lastro-v2-a.swbn', channels: ['default'] },
+    { version: '0.1.91', src: 'https://client.ltsd.ro/releases/0.1.91/lastro-v2-b.swbn', channels: ['default'] },
+    { version: '0.1.66', src: 'https://client.ltsd.ro/releases/0.1.66/lastro-v2-c.swbn', channels: ['default'] },
+  ], channels: { default: { name: 'Stable' } } };
+  const reply = (body: unknown) => ({ ok: true, json: async () => body });
+  function mount(installed: string | null, updates: () => Promise<unknown> = async () => reply(published)) {
+    vi.stubGlobal('indexedDB', new IDBFactory());
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === '/.well-known/manifest.webmanifest') return installed === null ? { ok: false, json: async () => ({}) } : reply({ version: installed });
+      if (url === UPDATES) return updates();
+      throw new Error('unexpected fetch ' + url);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const config = buildClientConfig(getAvailableServerProfile('lastro-2x'), { username: '', password: '' });
+    const host = document.createElement('div'), root = host.attachShadow({ mode: 'open' });
+    root.innerHTML = decorateLastROLoginTemplate('WinLogin', '<div id="WinLogin"><input class="user"><input class="pass"><button class="connect"></button></div>');
+    document.body.append(host);
+    installLastROLogin({ root, component: {}, configs: { get: (key: keyof typeof config) => config[key], getServer: () => config.servers[0] } });
+    const box = root.querySelector<HTMLElement>('[data-lastro-version]')!;
+    return { host, root, box, fetchMock, badge: box.querySelector<HTMLElement>('[data-lastro-version-badge]')!,
+      detail: box.querySelector<HTMLElement>('[data-lastro-update-detail]')! };
+  }
+  afterEach(() => { document.body.innerHTML = ''; vi.unstubAllGlobals(); });
+
+  it('compares dotted versions numerically', () => {
+    expect(compareLastROVersions('0.1.102', '0.1.91')).toBeGreaterThan(0);
+    expect(compareLastROVersions('0.1.66', '0.1.66')).toBe(0);
+    expect(compareLastROVersions('0.2', '0.1.99')).toBeGreaterThan(0);
+  });
+
+  it('selects the newest default-channel https package from the project host only', () => {
+    expect(selectLastROUpdate(published)).toEqual({ version: '0.1.102', src: published.versions[0]!.src });
+    const hostile = { versions: [
+      { version: '9.9.9', src: 'https://evil.example/x.swbn', channels: ['default'] },
+      { version: '9.9.8', src: 'http://client.ltsd.ro/x.swbn', channels: ['default'] },
+      { version: '9.9.7', src: 'https://client.ltsd.ro/x.swbn', channels: ['beta'] },
+      { version: 'v9', src: 'https://client.ltsd.ro/x.swbn', channels: ['default'] },
+      { version: '0.1.5', src: 'https://client.ltsd.ro/ok.swbn', channels: ['default'] },
+    ] };
+    expect(selectLastROUpdate(hostile)).toEqual({ version: '0.1.5', src: 'https://client.ltsd.ro/ok.swbn' });
+    expect(selectLastROUpdate({})).toBeNull(); expect(selectLastROUpdate(null)).toBeNull();
+  });
+
+  it('shows the installed version and a prominent, expandable notice when a newer package is published', async () => {
+    const { box, badge, detail, root, fetchMock } = mount('0.1.91');
+    await vi.waitFor(() => expect(box.dataset.update).toBe('available'));
+    expect(box.hidden).toBe(false);
+    expect(badge.textContent).toBe('v0.1.91 · 发现新版本 v0.1.102');
+    expect(fetchMock).toHaveBeenCalledWith(UPDATES, expect.objectContaining({ credentials: 'omit' }));
+    const download = root.querySelector<HTMLAnchorElement>('[data-lastro-update-download]')!;
+    expect(download.href).toBe(published.versions[0]!.src); expect(download.rel).toContain('noopener');
+    expect(detail.hidden).toBe(true); badge.click(); expect(detail.hidden).toBe(false);
+    expect(detail.textContent).toContain('chrome://iwa-dev'); badge.click(); expect(detail.hidden).toBe(true);
+  });
+
+  it('copies the install page address because web content cannot open chrome:// pages', async () => {
+    const writeText = vi.fn(async () => undefined);
+    const { box, badge, root } = mount('0.1.66');
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+    await vi.waitFor(() => expect(box.dataset.update).toBe('available'));
+    badge.click();
+    const copy = root.querySelector<HTMLButtonElement>('[data-lastro-action="copy-install-page"]')!;
+    copy.click();
+    await vi.waitFor(() => expect(copy.textContent).toBe('已复制，请粘贴到地址栏'));
+    expect(writeText).toHaveBeenCalledExactlyOnceWith('chrome://iwa-dev');
+  });
+
+  it('shows only the version when the installed package is current', async () => {
+    const { box, badge, fetchMock } = mount('0.1.102');
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledWith(UPDATES, expect.anything()));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(badge.textContent).toBe('v0.1.102'); expect(box.dataset.update).toBeUndefined();
+  });
+
+  it('does not report an update for the unreleased placeholder version', async () => {
+    const { box, badge, fetchMock } = mount('0.1.0');
+    await vi.waitFor(() => expect(box.hidden).toBe(false));
+    expect(badge.textContent).toBe('v0.1.0'); expect(fetchMock).not.toHaveBeenCalledWith(UPDATES, expect.anything());
+  });
+
+  it('keeps the version visible and stays quiet when the update list cannot be read', async () => {
+    const { box, badge, fetchMock } = mount('0.1.91', async () => { throw new TypeError('Failed to fetch'); });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledWith(UPDATES, expect.anything()));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(box.hidden).toBe(false); expect(badge.textContent).toBe('v0.1.91'); expect(box.dataset.update).toBeUndefined();
+  });
+
+  it('stays hidden when the installed version is unknown or in the web build', async () => {
+    const unknown = mount(null);
+    await vi.waitFor(() => expect(unknown.fetchMock).toHaveBeenCalled());
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(unknown.box.hidden).toBe(true);
+    vi.stubGlobal('LastROWebBuild', true);
+    const web = mount('0.1.91');
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(web.box.hidden).toBe(true); expect(web.fetchMock).not.toHaveBeenCalled();
   });
 });
