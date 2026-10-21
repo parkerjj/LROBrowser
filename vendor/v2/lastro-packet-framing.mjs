@@ -10,7 +10,8 @@ export const LASTRO_PACKET_STREAM_MARKER = 0x0906;
 export const LASTRO_PACKET_STREAM_MARKER_ALT = 0x060c;
 // Additional marker byte orders observed in LastRO captures.  These are
 // stream delimiters, not business packets, and occur immediately before
-// otherwise valid movement/entity frames.
+// otherwise valid movement/entity frames.  Together with 0x0303, 0x0c09,
+// 0x0906 and 0x060c the markers cover every pair of the bytes 03/06/09/0c.
 export const LASTRO_PACKET_STREAM_MARKER_VARIANTS = Object.freeze([
   0x090c,
   0x0306,
@@ -22,7 +23,8 @@ export const LASTRO_PACKET_STREAM_MARKER_VARIANTS = Object.freeze([
   0x0606,
   0x0609,
   0x0909,
-  0x0c06
+  0x0c06,
+  0x0c0c
 ]);
 
 /**
