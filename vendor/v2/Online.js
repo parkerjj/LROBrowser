@@ -149568,7 +149568,7 @@ var init_PacketStructure = __esmMin(() => {
     end,
   ) {
     this.ITAID = fp.readULong();
-    this.ITID = fp.readULong();
+    this.ITID = fp.readUShort();
     this.IsIdentified = fp.readUChar();
     this.xPos = fp.readShort();
     this.yPos = fp.readShort();
@@ -149576,7 +149576,7 @@ var init_PacketStructure = __esmMin(() => {
     this.subY = fp.readUChar();
     this.count = fp.readShort();
   };
-  PACKET.ZC.LASTRO_ITEM_FALL_ENTRY.size = 19;
+  PACKET.ZC.LASTRO_ITEM_FALL_ENTRY.size = 17;
   PACKET.ZC.NOTIFY_NEWENTRY = function PACKET_ZC_NOTIFY_NEWENTRY(fp, end) {
     this.GID = fp.readULong();
     this.speed = fp.readShort();

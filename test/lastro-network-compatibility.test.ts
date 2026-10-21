@@ -192,8 +192,8 @@ describe('real native LastRO item packet layout and network compatibility', () =
       catch { failures.push(id); }
     }
     expect(checked).toBeGreaterThan(700);
-    // Keep the unresolved baseline definition contradiction visible.
-    expect(failures).toEqual([0x009e]);
+    // Every fixed packet, including 0x009e, must decode within its declared frame length.
+    expect(failures).toEqual([]);
   });
 
   it.each([
@@ -259,13 +259,21 @@ describe('real native LastRO item packet layout and network compatibility', () =
     expect(h.socket.close).not.toHaveBeenCalled();
   });
 
-  it('keeps the unresolved 0x009e protocol definition unchanged without inventing a layout', () => {
-    // 0x009e has conflicting 17-byte length and 19-byte field definitions in
-    // the baseline. No captured layout establishes which field must change.
-    const baseline = runtime(native), h = runtime();
-    expect(h.context.getPacketLength(0x009e)).toBe(baseline.context.getPacketLength(0x009e));
-    expect(h.context.PacketRegister[0x009e].toString()).toBe(baseline.context.PacketRegister[0x009e].toString());
-    expect(() => decode(h, 0x009e, frame(0x009e, 17))).toThrow(RangeError);
+  it('decodes the 17-byte 0x009e ground item drop within its declared frame', () => {
+    // Length table and decoder agree on the official layout: u32 ITAID, u16 ITID, u8 identified,
+    // i16 x, i16 y, u8 subX, u8 subY, i16 count = 17 bytes including the opcode.
+    const h = runtime(), bytes = frame(0x009e, 17), view = new DataView(bytes.buffer);
+    view.setUint32(2, 0x01020304, true); view.setUint16(6, 501, true); view.setUint8(8, 1);
+    view.setInt16(9, 150, true); view.setInt16(11, 160, true); view.setUint8(13, 7); view.setUint8(14, 8); view.setInt16(15, 3, true);
+    expect(h.context.getPacketLength(0x009e)).toBe(17);
+    expect(h.context.PacketRegister[0x009e].name).toBe('PACKET_ZC_LASTRO_ITEM_FALL_ENTRY');
+    expect(decode(h, 0x009e, bytes)).toEqual({
+      packet: { ITAID: 0x01020304, ITID: 501, IsIdentified: 1, xPos: 150, yPos: 160, subX: 7, subY: 8, count: 3 },
+      offset: 17,
+    });
+    h.send(join(bytes, frame(0x0073, 11)));
+    expect(h.decoded.map(packet => packet.id)).toEqual([0x009e, 0x0073]);
+    expect(h.errors).not.toHaveBeenCalled();
   });
 
   describe('a failing packet does not discard the rest of its receive chunk', () => {
@@ -289,10 +297,11 @@ describe('real native LastRO item packet layout and network compatibility', () =
       expect(h.socket.close).not.toHaveBeenCalled();
     });
 
-    it('does not lose bytes of the next packet when 0x009e overruns its frame at the end of a chunk', () => {
-      // The registered LastRO decoder reads 19 bytes from the 17-byte frame. At the
-      // end of a chunk that throws RangeError; the following packet's first byte must stay buffered.
+    it('does not lose bytes of the next packet when a decoder fails at the end of a chunk', () => {
+      // A decoder reading past its frame at the end of a chunk throws RangeError; the following
+      // packet's first byte must stay buffered instead of being dropped with the chunk.
       const init = initPackets(), h = runtime();
+      h.context.Packets.list[0x009e].Struct = function () { throw new RangeError('Offset is outside the bounds of the DataView'); };
       expect(() => h.send(join(frame(0x009e, 17), init.slice(0, 1)))).not.toThrow();
       expect(h.errors).toHaveBeenCalledWith(expect.stringContaining('0x9e'), expect.any(RangeError));
       expect(h.state.saveBuffer?.byteLength).toBe(1);
