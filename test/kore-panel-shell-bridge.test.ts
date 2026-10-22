@@ -189,3 +189,18 @@ test('reduced motion skips the ignition', () => {
     expect(host.querySelector('.lastro-tools')?.getAttribute('data-mode')).toBe('kore');
   } finally { window.matchMedia = original; }
 });
+
+// 真实面板结构：设置视图默认隐藏，只有点主视图里的齿轮才能打开。
+const realHtml = `<div class="lastro-tools"><div class="lastro-header"><div class="lastro-header-title"><strong>LastRO 工具</strong></div><div class="lastro-header-actions"><button data-action="open-settings">⚙</button><button data-action="close"></button></div></div><div class="lastro-main-view"><div class="lastro-quick-toggles"><label><span>战斗</span><input type="checkbox" data-option="autoAttack"></label><label><span>捡物</span><input type="checkbox" data-option="autoLoot"></label></div></div><div class="lastro-settings-view" hidden><div class="lastro-tabs"><button data-tab="battle">战斗设置</button></div></div><div class="lastro-panel-footer"></div></div>`;
+
+test('settings gear sits next to the battle switches in the main view, not inside the hidden settings view', () => {
+  const { host, tools } = install(realHtml);
+  host.innerHTML = tools.render();
+  const gears = host.querySelectorAll('[data-action="open-settings"]');
+  expect(gears).toHaveLength(1);
+  const gear = gears[0] as HTMLElement;
+  expect(gear.closest('.lastro-settings-view')).toBeNull();
+  expect(gear.closest('[hidden]')).toBeNull();
+  expect(gear.parentElement?.classList.contains('lastro-quick-toggles')).toBe(true);
+  expect(gear.getAttribute('aria-label')).toBe('打开挂机设置');
+});

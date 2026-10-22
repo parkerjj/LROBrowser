@@ -1024,18 +1024,20 @@ export function installKoreShellPanels(tools, deps) {
       shellHost.hidden = shellMode !== 'kore';
       const footer = panel.querySelector('.lastro-panel-footer');
       panel.insertBefore(shellHost, footer ?? null);
-      // The settings gear configures the LastRO page only, so it belongs on the
-      // settings tab row (right edge) instead of the shared titlebar.
-      const tabBar = content.querySelector('.lastro-settings-view .lastro-tabs');
-      if (tabBar && !tabBar.querySelector('[data-action="open-settings"]')) {
+      // The titlebar gear is gone with the shared switch bar. Settings (offline
+      // hosting) are opened from the main view, next to the battle/loot switches;
+      // the settings view itself is hidden until this button opens it, so the
+      // button must not live inside it.
+      const toggles = content.querySelector('.lastro-main-view .lastro-quick-toggles');
+      if (toggles && !content.querySelector('[data-action="open-settings"]')) {
         const settingsButton = doc.createElement('button');
         settingsButton.type = 'button';
-        settingsButton.className = 'lastro-tab-action';
+        settingsButton.className = 'lastro-toggles-settings';
         settingsButton.dataset.action = 'open-settings';
         settingsButton.setAttribute('aria-label', '打开挂机设置');
-        settingsButton.title = '挂机设置';
-        settingsButton.textContent = '⚙';
-        tabBar.append(settingsButton);
+        settingsButton.title = '挂机设置（离线挂机）';
+        settingsButton.textContent = '⚙ 挂机设置';
+        toggles.append(settingsButton);
       }
     }
     return template.innerHTML;

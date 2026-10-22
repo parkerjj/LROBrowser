@@ -18,8 +18,8 @@ export const LASTRO_TOOLS_CSS = `
 .lastro-tab { flex:1; min-width:31.5px; padding:3.75px 2.25px; border:1px solid transparent; border-radius:3px; background:none; color:#202536; font:inherit; font-size:10.5px; line-height:15.75px; cursor:pointer; white-space:nowrap; }
 .lastro-tab.is-active { border-color:#698ac5; background:#527bc2; color:white; box-shadow:inset 0 1px 0 #8cace0; }
 .lastro-tab:hover:not(.is-active) { background:#e7edf7; border-color:#ccd7eb; }
-.lastro-tab-action { flex:none; margin-left:auto; align-self:center; width:22px; height:22px; padding:0; border:0; border-radius:3px; background:none; color:#5a6a85; font:12px/22px Arial,'Microsoft YaHei','MiSans',sans-serif; cursor:pointer; }
-.lastro-tab-action:hover { color:#263854; background:#e7edf7; }
+.lastro-quick-toggles .lastro-toggles-settings { grid-column:1 / -1; justify-self:end; height:22px; padding:0 8px; border:1px solid rgba(148,168,196,.24); border-radius:6px; background:none; color:#9db0c5; font:11.5px/20px Arial,'Microsoft YaHei','MiSans',sans-serif; cursor:pointer; }
+.lastro-quick-toggles .lastro-toggles-settings:hover { color:#e6ecf4; background:rgba(148,168,196,.14); }
 .lastro-button { min-height:20.25px; padding:2.25px 9px; border:1px solid #a9b2c2; border-radius:3px; background:linear-gradient(#fff,#e9edf4); box-shadow:inset 0 0 0 1px #fff; color:#263854; font:inherit; font-size:9.75px; cursor:pointer; white-space:nowrap; }
 .lastro-button:hover { border-color:#7796c5; background:linear-gradient(#fff,#dce7f7); }
 .lastro-button:disabled { cursor:default; color:#9299a7; background:#eef0f5; border-color:#cdd1db; box-shadow:none; }

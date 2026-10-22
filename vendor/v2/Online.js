@@ -167153,7 +167153,7 @@ function onClose$9(event) {
             Promise.resolve()
               .then(() => (init_UIManager(), UIManager_exports))
               .then((UIManager) => {
-                UIManager.default.showErrorBox("Disconnected from Server.");
+                UIManager.default.showErrorBox("Disconnected from Server.", { modal: false });
               }),
           void 0,
           import.meta.url,
@@ -285789,17 +285789,24 @@ var init_UIManager = __esmMin(() => {
      * Will reload the game once selected
      *
      * @param {string} error message
+     * @param {{modal?: boolean}} [options] modal:false keeps the rest of the UI (e.g. the KoreEngine
+     *   panel) clickable: no blocking overlay, no Enter/Escape reload, stacked below other windows.
      */
-    static showErrorBox(text) {
+    static showErrorBox(text, options) {
+      const modal = options?.modal !== false;
       const WinError = this.getComponent("WinPopup").clone("WinError");
       let overlay;
       WinError.init = function Init() {
         const root = this._shadow;
         root.querySelector(".text").textContent = text;
         Object.assign(this._host.style, _popupPosition());
+        if (!modal) {
+          this._host.style.zIndex = "40";
+          this.draggable();
+        }
         root.querySelector(".btns").appendChild(
           _createButton("ok", () => {
-            overlay.remove();
+            overlay?.remove();
             WinError.remove();
             __vitePreload(
               () =>
@@ -285812,25 +285819,26 @@ var init_UIManager = __esmMin(() => {
           }),
         );
       };
-      WinError.onKeyDown = function OnKeyDown(event) {
-        event.stopImmediatePropagation();
-        switch (event.which) {
-          case KEYS.ENTER:
-          case KEYS.ESCAPE:
-            overlay.remove();
-            this.remove();
-            __vitePreload(
-              () =>
-                Promise.resolve()
-                  .then(() => (init_GameEngine(), GameEngine_exports))
-                  .then((m) => m.default.reload()),
-              void 0,
-              import.meta.url,
-            );
-        }
-      };
-      overlay = _createOverlay();
-      WinError.onAppend = _prioritizeKeyDown;
+      if (modal)
+        WinError.onKeyDown = function OnKeyDown(event) {
+          event.stopImmediatePropagation();
+          switch (event.which) {
+            case KEYS.ENTER:
+            case KEYS.ESCAPE:
+              overlay.remove();
+              this.remove();
+              __vitePreload(
+                () =>
+                  Promise.resolve()
+                    .then(() => (init_GameEngine(), GameEngine_exports))
+                    .then((m) => m.default.reload()),
+                void 0,
+                import.meta.url,
+              );
+          }
+        };
+      overlay = modal ? _createOverlay() : null;
+      if (modal) WinError.onAppend = _prioritizeKeyDown;
       WinError.append();
       return WinError;
     }
