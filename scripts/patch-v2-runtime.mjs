@@ -1626,6 +1626,15 @@ globalThis.KoreEngineNativeAction = (action) => {
     packet.itemid = Number.isSafeInteger(action.itemId) && action.itemId > 0 ? action.itemId : 14527;
     return sendKoreEnginePacket(action, packet);
   }
+  if (action.type === "SelectWarpPoint") {
+    // 瞬间移动 Lv2 弹出传送点列表后的选择（0x011B：skillID u16 + mapName Z16）。
+    // 选哪一项由 KE 决定，Host 只编码发送。
+    if (!PACKET?.CZ?.SELECT_WARPPOINT) return false;
+    const packet = new PACKET.CZ.SELECT_WARPPOINT();
+    packet.SKID = action.skillId;
+    packet.mapName = action.mapName;
+    return sendKoreEnginePacket(action, packet);
+  }
   if (action.type === "Restart") {
     if (!PACKET?.CZ?.RESTART) return false;
     const packet = new PACKET.CZ.RESTART();
@@ -1641,11 +1650,9 @@ globalThis.KoreEngineCurrentMap = () => {
 };
 globalThis.KoreEngineDisconnect = (reason) => {
 	try {
-		console.warn("[KoreEngine] disconnect requested:", String(reason ?? ""));
 		Network.close();
 		return true;
-	} catch (error) {
-		console.error("[KoreEngine] disconnect failed:", error);
+	} catch {
 		return false;
 	}
 };

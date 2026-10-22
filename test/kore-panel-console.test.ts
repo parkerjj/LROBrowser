@@ -10,6 +10,8 @@ test('domain colors follow consolecolors defaults and level overrides', () => {
   expect(consoleColor('unknown-domain', 'message')).toBe('#d6dbe1');
   expect(consoleColor('skill', 'error')).toBe('#e06060');
   expect(consoleColor('skill', 'warning')).toBe('#d8b84a');
+  // Host 自己的日志用 'warn'，必须与 Rust 的 'warning' 同色。
+  expect(consoleColor('system', 'warn')).toBe('#d8b84a');
   expect(consoleColor('skill', 'debug')).toBe('#9a9a9a');
 });
 

@@ -23,131 +23,10 @@ const validU32 = value => Number.isSafeInteger(value) && value >= 0 && value <= 
 const validMapCoordinate = value => Number.isSafeInteger(value) && value >= 0 && value <= 1023;
 const M4_CONFIG_FILES = new Set(['config.txt', 'mon_control.txt', 'timeouts.txt', 'pickupitems.txt', 'items_control.txt']);
 export const KORE_CONFIG_FILES = Object.freeze([...M4_CONFIG_FILES]);
-function koreConsoleLog(page, label, details) {
-  const target = page?.console ?? globalThis.console;
-  try { target?.log?.(label, details); } catch { /* Diagnostics must not affect client networking. */ }
-  // 浏览器保存的控制台日志会把对象折叠成 `…`，额外输出一行可直接阅读的 JSON 文本。
-  let json;
-  try {
-    json = JSON.stringify(details, (_key, item) => typeof item === 'bigint' ? item.toString()
-      : item instanceof Map ? Object.fromEntries(item) : item);
-  } catch (error) { json = JSON.stringify({ unserializable: String(error?.message ?? error) }); }
-  try { target?.log?.(`${label} json`, json); } catch { /* Diagnostics must not affect client networking. */ }
-}
-
-export function sendKoreNativePacket(action, packet, {
-  page = globalThis,
-  sendPacket,
-  socket = null,
-  refusalReason = null,
-} = {}) {
-  const packetClass = packet?.constructor?.name ?? null;
-  let packetId = null;
-  let encodedBytes = 0;
-  let encodedPacketHex = null;
-  let networkResult;
-  let thrown = null;
-  let didCallNetwork = false;
-  const currentSentBytes = () => Number.isSafeInteger(page?.KoreEngine?.state?.sentBytes)
-    ? page.KoreEngine.state.sentBytes : null;
-  const sentBytesBefore = currentSentBytes();
-  try {
-    const version = packet?.getPacketVersion?.();
-    const fallbackPacketId = Array.isArray(version) ? version[1] : packet?.constructor?.id;
-    if (Number.isSafeInteger(fallbackPacketId) && fallbackPacketId >= 0 && fallbackPacketId <= 0xffff) {
-      packetId = `0x${fallbackPacketId.toString(16).padStart(4, '0')}`;
-    }
-  } catch { /* A packet may not expose version metadata before build. */ }
-
-  const hasOwnBuild = Boolean(packet && Object.hasOwn(packet, 'build'));
-  const originalBuild = packet?.build;
-  try {
-    if (!packet || typeof sendPacket !== 'function') {
-      networkResult = false;
-    } else {
-      if (typeof originalBuild === 'function') {
-        packet.build = function (...args) {
-          const encoded = Reflect.apply(originalBuild, this, args);
-          const value = encoded?.buffer ?? encoded;
-          let bytes = null;
-          if (value instanceof ArrayBuffer) bytes = new Uint8Array(value);
-          else if (ArrayBuffer.isView(value)) bytes = new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
-          if (bytes) {
-            encodedBytes = bytes.byteLength;
-            encodedPacketHex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('').toUpperCase();
-            if (bytes.byteLength >= 2) {
-              packetId = `0x${(bytes[0] | (bytes[1] << 8)).toString(16).padStart(4, '0')}`;
-            }
-          }
-          return encoded;
-        };
-      }
-      didCallNetwork = true;
-      networkResult = sendPacket(packet);
-    }
-  } catch (error) {
-    thrown = error;
-  } finally {
-    if (packet && typeof originalBuild === 'function') {
-      if (hasOwnBuild) packet.build = originalBuild;
-      else delete packet.build;
-    }
-  }
-
-  const sentBytesAfter = currentSentBytes();
-  const sentBytesDelta = sentBytesBefore !== null && sentBytesAfter !== null
-    ? sentBytesAfter - sentBytesBefore : null;
-  const socketState = {
-    present: Boolean(socket),
-    connected: socket?.connected === true,
-    isZone: socket?.isZone === true,
-    handoffPending: socket?.handoffPending === true,
-    readyState: Number.isInteger(socket?.readyState) ? socket.readyState : null,
-  };
-  let outcome;
-  let reason = null;
-  if (thrown) {
-    outcome = 'threw';
-    reason = String(thrown?.message ?? thrown);
-  } else if (!didCallNetwork || networkResult === false) {
-    outcome = 'rejected';
-    reason = refusalReason ?? (!packet ? 'packet-constructor-unavailable' : 'network-send-returned-false');
-  } else if (sentBytesDelta > 0) {
-    outcome = 'sent';
-  } else if (!socketState.present) {
-    outcome = 'socket-unavailable';
-    reason = 'map-socket-unavailable';
-  } else if (!socketState.isZone) {
-    outcome = 'non-map-socket';
-    reason = 'active-socket-is-not-map-channel';
-  } else if (!socketState.connected) {
-    outcome = 'socket-disconnected';
-    reason = 'map-socket-not-connected';
-  } else if (sentBytesDelta === null) {
-    outcome = 'sent-byte-counter-unavailable';
-    reason = 'sent-byte-counter-unavailable';
-  } else {
-    outcome = 'sent-bytes-unchanged';
-    reason = 'sent-byte-counter-unchanged';
-  }
-
-  koreConsoleLog(page, '[KoreEngine] native packet send', {
-    action: action && typeof action === 'object' ? { ...action } : action ?? null,
-    packetClass,
-    packetId,
-    encodedBytes,
-    encodedPacketHex,
-    sentBytesBefore,
-    sentBytesAfter,
-    sentBytesDelta,
-    socket: socketState,
-    networkResult: thrown ? 'threw' : networkResult,
-    outcome,
-    reason,
-  });
-
-  if (thrown) throw thrown;
-  return didCallNetwork && networkResult !== false;
+// 只负责把 Rust 动作交给客户端原生发包；不向 Chrome console 输出任何内容。
+export function sendKoreNativePacket(action, packet, { sendPacket } = {}) {
+  if (!packet || typeof sendPacket !== 'function') return false;
+  return sendPacket(packet) !== false;
 }
 
 function canonical(value) {
@@ -324,7 +203,6 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   const logEntry = entry => {
     state.logs.push(entry);
     if (state.logs.length > 1000) state.logs.splice(0, state.logs.length - 1000);
-    koreConsoleLog(page, '[KoreEngine] log', entry);
     changed();
   };
   const log = (level, text, domain = 'system') => logEntry({
@@ -364,7 +242,9 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
           text: formatKoreCommandResult(result), timestamp: Date.now(),
           blocks: result.blocks, command: result.command,
         });
-      } else {
+      } else if (result?.kind !== 'reload') {
+        // reload 的结果由 Rust 以 `config` 域日志给出（摘要 + 每条诊断的中文提示），
+        // Host 不再自己拼英文摘要；lastCommandResult 仍保留给调试面板。
         log(result?.kind === 'error' || result?.accepted === false ? 'warn' : 'info', `< ${formatKoreCommandResult(result)}`);
       }
     }
@@ -466,7 +346,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     if (state.actions.length > 50) state.actions.splice(0, state.actions.length - 50);
   };
   const supportedActionTypes = new Set(['MoveTo', 'Attack', 'Sit', 'Stand', 'Equip', 'Unequip', 'UseSkillOnTarget', 'UseSkillSelf', 'UseSkillAt', 'UseItem', 'Pickup', 'DropItem',
-    'StorageTransfer', 'StorageClose', 'NpcTalk', 'NpcMenu', 'NpcContinue', 'NpcClose', 'NpcNumber', 'NpcText', 'NpcShopSelect', 'ShopBuy', 'ShopSell', 'PrivateAirship', 'Restart']);
+    'StorageTransfer', 'StorageClose', 'NpcTalk', 'NpcMenu', 'NpcContinue', 'NpcClose', 'NpcNumber', 'NpcText', 'NpcShopSelect', 'ShopBuy', 'ShopSell', 'PrivateAirship', 'SelectWarpPoint', 'Restart']);
   const validActionPayload = action => {
     if (!supportedActionTypes.has(action.type)) return 'unsupported-action';
     const gid = value => validU32(value) && value > 0;
@@ -504,6 +384,9 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         return typeof action.destinationId === 'string' && action.destinationId.length > 0
           && typeof action.expectedMap === 'string' && action.expectedMap.length > 0 ? null : 'malformed-action';
       }
+      // 0x011B 的 mapName 是 Z16：最多 15 个可见字符（含 .gat），不能为空。
+      case 'SelectWarpPoint': return skill(action.skillId) && typeof action.mapName === 'string'
+        && action.mapName.length > 0 && action.mapName.length <= 15 && [...action.mapName].every(char => char.charCodeAt(0) > 0x1f) ? null : 'malformed-action';
       case 'Restart': return null;
       default: return 'unsupported-action';
     }

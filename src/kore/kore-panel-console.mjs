@@ -13,7 +13,7 @@ const DOMAIN_COLORS = Object.freeze({
   route: '#2e9e4f', skill: '#2e9e4f', selfSkill: '#2e9e4f',
   publicchat: '#2e9e4f', selfchat: '#2e9e4f', guildchat: '#2e9e4f', partychat: '#a0522d',
 });
-const LEVEL_COLORS = Object.freeze({ error: '#e06060', warning: '#d8b84a', debug: '#9a9a9a', message: null });
+const LEVEL_COLORS = Object.freeze({ error: '#e06060', warning: '#d8b84a', warn: '#d8b84a', debug: '#9a9a9a', message: null });
 export const KORE_CONSOLE_MAX_ENTRIES = 1000;
 
 // Console categories the user can hide from the fullscreen panel. Domains outside

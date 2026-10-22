@@ -430,6 +430,31 @@ test('malformed action variants and unsupported capabilities are rejected before
     .toEqual(['malformed-action', 'unsupported-action']);
 });
 
+test('SelectWarpPoint actions are validated at the native transport boundary', async () => {
+  const { host, worker, page } = await readyHost();
+  const native = vi.fn(() => true);
+  Object.assign(page, { KoreEngineNativeAction: native });
+  const gameId = host.beginGameSession(77, 'prontera.gat');
+  const generation = host.beginMapConnection();
+  const runtimeSessionId = worker.messages[0]!.runtimeSessionId;
+  const action = (requestId: number, extra: object) => ({ requestId, runtimeSessionId, gameSessionId: gameId, connectionGeneration: generation, controlGeneration: 0, taskIntentGeneration: 1, type: 'SelectWarpPoint', ...extra });
+  worker.reply({ runtimeSessionId, type: 'outputs', outputs: [
+    { kind: 'action', action: action(1, { skillId: 26, mapName: 'prontera.gat' }) },
+    { kind: 'action', action: action(2, { skillId: 0, mapName: 'prontera.gat' }) },
+    { kind: 'action', action: action(3, { skillId: 26, mapName: '' }) },
+    { kind: 'action', action: action(4, { skillId: 26, mapName: 'a_map_name_that_is_far_too_long.gat' }) },
+    { kind: 'action', action: action(5, { skillId: 26 }) },
+  ] });
+  expect(native).toHaveBeenCalledTimes(1);
+  expect(host.state.actions.map(entry => [entry.requestId, entry.accepted, entry.reason])).toEqual([
+    [1, true, null],
+    [2, false, 'malformed-action'],
+    [3, false, 'malformed-action'],
+    [4, false, 'malformed-action'],
+    [5, false, 'malformed-action'],
+  ]);
+});
+
 test('native refusal is returned to Rust and Host exposes no route or recovery controller', async () => {
   const { host, worker, page } = await readyHost();
   Object.assign(page, { KoreEngineNativeAction: () => false });
@@ -574,6 +599,20 @@ test('host reports commands that cannot be sent and echoes accepted ones with th
   expect(host.state.lastCommandResult).toMatchObject({ kind: 'error' });
   expect(host.state.logs.at(-1)).toMatchObject({ level: 'warn', text: '< ERROR ai-world-not-ready: World is not ready' });
   expect(formatKoreSections(host.state).command).toBe('ERROR ai-world-not-ready: World is not ready');
+});
+
+test('host leaves reload summaries to the Rust config logs', async () => {
+  const { host, worker } = await readyHost();
+  const runtimeSessionId = worker.messages[0]!.runtimeSessionId;
+  host.beginGameSession(77, 'prontera.gat');
+  expect(host.debugCommand('reload all')).toBe(true);
+  worker.reply({ runtimeSessionId, type: 'outputs', outputs: [
+    { kind: 'log', level: 'warning', domain: 'config', text: '您的配置行 config.txt 第 2 行 `a -1` 无效，该配置将使用默认值代替，请检查您的配置文件。', timestamp: 5 },
+    { kind: 'commandResult', result: { kind: 'reload', accepted: true, target: 'all', effectiveRevision: 1, diagnostics: [{ severity: 'warning', fileName: 'config.txt', line: 2, key: 'a', code: 'config-value-invalid', message: 'x' }] } },
+  ] });
+  expect(host.state.lastCommandResult).toMatchObject({ kind: 'reload', accepted: true });
+  expect(host.state.logs.some(entry => entry.domain === 'config' && entry.level === 'warning' && entry.text.includes('无效'))).toBe(true);
+  expect(host.state.logs.some(entry => entry.text.includes('ACCEPTED') || entry.text.includes('REJECTED'))).toBe(false);
 });
 
 test('sendCommandText correlates silent outputs without writing the console', async () => {
