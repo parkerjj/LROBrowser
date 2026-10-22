@@ -34,6 +34,9 @@ const packetSource = ['REQ_NEXT_SCRIPT', 'CLOSE_DIALOG'].map(name => {
   if (start < 0 || end < start) throw new Error('Missing native NPC request');
   return native.slice(start, end);
 }).join('\n');
+const reformHover = ['onHoverDetails', 'onHoverOutDetails'].map(name => extractRuntimeNode(native, {
+  region: 'src/UI/Components/ItemReform/ItemReform.js', kind: 'function', name,
+})).join('\n');
 const hotkeys = patchRuntimeHotkeys(native);
 const hotkeyFunctions = ['lastroHotkeyId', 'lastroHotkeyComponentVisible', 'lastroHotkeyEditable'].map(name =>
   nodeText(hotkeys.slice(0, hotkeys.indexOf('//#region src/Controls/KeyEventHandler.js')),
@@ -61,7 +64,7 @@ function fixture(source = patched, mode: 'immediate' | 'delayed' | 'failed' = 'd
   const menu = { __active: false, _host: null }, input = { __active: false, _host: null };
   const logs = { error: vi.fn(), warn: vi.fn(), log: vi.fn() };
   const components: Record<string, NativeNpc> = {};
-  const context = vm.createContext({ window: win, document: doc, HTMLElement: win.HTMLElement, Event: win.Event,
+  const context = vm.createContext({ window: win, document: doc, HTMLElement: win.HTMLElement, Event: win.Event, Image: win.Image,
     customElements: win.customElements, console: logs,
     getComputedStyle(element: HTMLElement) {
       // jsdom does not apply Shadow DOM styles. Use the native .btn default
@@ -143,8 +146,10 @@ describe('NPC terminal button protocol state', () => {
     f.packet('CLOSE_DIALOG');
     expect(f.button('close').style.display).toBe('');
     expect(f.button('close').textContent).toBe('');
-    expect(f.key('Escape').defaultPrevented).toBe(false);
-    expect(f.npc.__active).toBe(true); expect(f.sent).toEqual([]);
+    // The native close button is lost, but Escape still sends the cancel request.
+    expect(f.key('Escape').defaultPrevented).toBe(true);
+    expect(f.npc.__active).toBe(false);
+    expect(f.sent).toEqual([{ name: 'PACKET_CZ_CLOSE_DIALOG', NAID: 42, bytes: [70, 1, 42, 0, 0, 0] }]);
   });
 
   it('keeps terminal CLOSE_DIALOG after NEXT and sends exactly the native requests', () => {
@@ -184,7 +189,7 @@ describe('NPC terminal button protocol state', () => {
     expect(f.npc._host.isConnected).toBe(false); expect(f.button('close').style.display).toBe('none');
     f.packet('SAY_DIALOG', 99, '另一个NPC'); f.packet('CLOSE_DIALOG', 42);
     expect(f.npc.ownerID).toBe(99); expect(f.button('close').style.display).toBe('none');
-    f.key('Enter'); f.key('Escape'); expect(f.sent).toEqual([]);
+    f.key('Enter'); expect(f.sent).toEqual([]);
     f.packet('CLOSE_DIALOG', 99); f.key('Enter');
     expect(f.sent).toEqual([{ name: 'PACKET_CZ_CLOSE_DIALOG', NAID: 99, bytes: [70, 1, 99, 0, 0, 0] }]);
   });
@@ -205,10 +210,9 @@ describe('NPC terminal button protocol state', () => {
   it('does not invent a close button for messages, menus, input or while waiting for the next page', () => {
     const f = fixture(); f.packet('SAY_DIALOG');
     expect(f.button('close').style.display).toBe('');
-    f.key('Enter'); f.key('Escape'); expect(f.sent).toEqual([]);
+    f.key('Enter'); expect(f.sent).toEqual([]);
     f.packet('WAIT_DIALOG'); f.key('Enter');
     expect(f.sent).toHaveLength(1); expect(f.button('close').style.display).toBe('');
-    f.key('Escape'); expect(f.sent).toHaveLength(1);
     f.packet('SAY_DIALOG'); f.packet('CLOSE_DIALOG');
     const host = f.doc.createElement('div'); f.doc.body.append(host);
     Object.assign(f.menu, { _host: host, __active: true });
@@ -217,6 +221,33 @@ describe('NPC terminal button protocol state', () => {
     f.key('Escape'); expect(f.sent).toHaveLength(1);
     Object.assign(f.input, { __active: false }); f.key('Escape');
     expect(f.sent).toHaveLength(2);
+  });
+
+  it('lets Escape cancel a dialog whose CLOSE_DIALOG never arrived and releases the frozen UI', () => {
+    const f = fixture(); f.packet('SAY_DIALOG', 42);
+    expect(f.button('close').style.display).toBe(''); expect(f.button('next').style.display).toBe('');
+    expect(f.context.SessionStorage_default.FreezeUI).toBe(true);
+    expect(f.key('Escape', true).defaultPrevented).toBe(true); expect(f.sent).toEqual([]);
+    expect(f.key('Escape').defaultPrevented).toBe(true);
+    expect(f.sent).toEqual([{ name: 'PACKET_CZ_CLOSE_DIALOG', NAID: 42, bytes: [70, 1, 42, 0, 0, 0] }]);
+    expect(f.npc.__active).toBe(false); expect(f.npc._host.isConnected).toBe(false); expect(f.npc.ownerID).toBe(0);
+    expect(f.context.SessionStorage_default.FreezeUI).toBe(false);
+  });
+
+  it('lets Escape cancel after "next" was pressed and the server never answered', () => {
+    const f = fixture(); f.packet('SAY_DIALOG', 42); f.packet('WAIT_DIALOG', 42);
+    f.key('Enter'); expect(f.sent.map(row => row.name)).toEqual(['PACKET_CZ_REQ_NEXT_SCRIPT']);
+    f.key('Escape');
+    expect(f.sent.map(row => row.name)).toEqual(['PACKET_CZ_REQ_NEXT_SCRIPT', 'PACKET_CZ_CLOSE_DIALOG']);
+    expect(f.npc.__active).toBe(false);
+  });
+
+  it('does not let Escape skip a visible "next" button or cancel a dialog without an NPC owner', () => {
+    const f = fixture(); f.packet('SAY_DIALOG', 42); f.packet('WAIT_DIALOG', 42);
+    f.key('Escape'); expect(f.sent).toEqual([]); expect(f.npc.__active).toBe(true);
+    f.npc.remove(); f.packet('SAY_DIALOG', 0, '物品提示');
+    expect(f.npc.ownerID).toBe(0); f.key('Escape');
+    expect(f.sent).toEqual([]); expect(f.npc.__active).toBe(true);
   });
 
   it.each(['Enter', 'Escape', ' '] as const)('closes with %s and removes its native keyboard listener', name => {
@@ -298,5 +329,49 @@ describe('permanent NPC dialog button behavior', () => {
     const component = extractVendorRegion('src/UI/Components/NpcBox/NpcBox.js', native);
     expect(component).toContain('lastro-npc-button-fallback');
     expect(component).toContain('observer?.disconnect()');
+  });
+});
+
+describe('NPC illustration and item-reform tooltip safety', () => {
+  const image = 'data:image/png;base64,AA==';
+  const load = (f: ReturnType<typeof fixture>, name: string) =>
+    f.pending.find(row => row.path.endsWith('illust/' + name + '.bmp'))!.callback(image);
+  const show = (f: ReturnType<typeof fixture>, imageName: string, type = 1) =>
+    f.hooks.get('SHOW_IMAGE')!({ imageName, type });
+
+  it('keeps a single cutin when SHOW_IMAGE requests finish loading out of order', () => {
+    const f = fixture(); show(f, 'a'); show(f, 'b');
+    load(f, 'b'); load(f, 'a');
+    expect(f.doc.querySelectorAll('#cutin')).toHaveLength(1);
+  });
+
+  it('does not bring back an image that was cleared or whose script closed while it loaded', () => {
+    const f = fixture(); f.context.NpcMenu_default.remove = vi.fn();
+    show(f, 'a'); show(f, '', 255); load(f, 'a');
+    expect(f.doc.querySelectorAll('#cutin')).toHaveLength(0);
+    f.packet('SAY_DIALOG', 42); show(f, 'c'); f.packet('CLOSE_SCRIPT', 42); load(f, 'c');
+    expect(f.doc.querySelectorAll('#cutin')).toHaveLength(0);
+  });
+
+  it('does not overwrite or remove a live NPC dialog with the item reform tooltip', () => {
+    const f = fixture(); f.packet('SAY_DIALOG', 42, '剧情');
+    vm.runInContext(`var SelectedReformInfo = { InformationString: ['提示'] }; var _npcBoxMoveHandler = null;\n${reformHover}`, f.context);
+    f.npc.ui.is = () => true;
+    vm.runInContext('onHoverDetails(); onHoverOutDetails();', f.context);
+    expect(f.npc.ownerID).toBe(42); expect(f.npc.__active).toBe(true);
+    expect(f.npc.getRoot().querySelector('.content')?.textContent).toBe('剧情');
+  });
+
+  it('shows the tooltip in an idle NpcBox without leaking mousemove listeners', () => {
+    const f = fixture();
+    vm.runInContext(`var SelectedReformInfo = { InformationString: ['提示'] }; var _npcBoxMoveHandler = null;\n${reformHover}`, f.context);
+    f.npc.append(); f.npc.ui.is = () => true;
+    const added = vi.spyOn(f.doc, 'addEventListener'), removed = vi.spyOn(f.doc, 'removeEventListener');
+    vm.runInContext('onHoverDetails(); onHoverDetails();', f.context);
+    expect(f.npc.getRoot().querySelector('.content')?.textContent).toContain('提示');
+    vm.runInContext('onHoverOutDetails();', f.context);
+    const moves = (spy: typeof added) => spy.mock.calls.filter(call => call[0] === 'mousemove').map(call => call[1]);
+    expect(moves(added)).toHaveLength(2); expect(moves(removed)).toEqual(moves(added));
+    expect(f.npc.__active).toBe(false);
   });
 });

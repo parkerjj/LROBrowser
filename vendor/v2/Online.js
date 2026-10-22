@@ -166902,6 +166902,48 @@ function receive(buf) {
     return true;
   };
   const RECEIVE_BATCH_LIMIT = 32;
+  // LastRO prefixes batches with a two-byte marker whose value is not stable, and every new
+  // value used to discard the rest of the chunk (e.g. a trailing CLOSE_DIALOG, so the NPC
+  // window never got its close button). An unregistered opcode is treated as such a marker
+  // only when registered frames follow it up to the end of the chunk; a frame cut off by the
+  // end of the chunk is completed by the next read.
+  const framesFollow = (start) => {
+    const bytes = new Uint8Array(buffer);
+    let position = start;
+    let frames = 0;
+    // The opcode being judged precedes `start`, so a second unknown opcode right behind it
+    // means the stream is desynchronised rather than carrying a marker.
+    let afterUnknown = true;
+    while (position < bytes.length) {
+      if (frames === 64 || position + 2 > bytes.length) return true;
+      const frameId = bytes[position] | (bytes[position + 1] << 8);
+      if (frameId === CARD_CONNECTION_PACKET_IDS.rechargeList) return true;
+      const marker = parseLastROFrameHeader(bytes, position, Configs.get("lastroProtocol", false));
+      if (marker) {
+        position += marker.headerLength;
+        afterUnknown = false;
+        continue;
+      }
+      if (!Packets.list[frameId]) {
+        if (afterUnknown) return false;
+        afterUnknown = true;
+        position += 2;
+        continue;
+      }
+      afterUnknown = false;
+      let frameLength = PacketLength_default.getPacketLength(frameId);
+      if (!frameLength) return false;
+      if (frameLength < 0) {
+        if (position + 4 > bytes.length) return true;
+        frameLength = bytes[position + 2] | (bytes[position + 3] << 8);
+        if (frameLength < 4) return false;
+      }
+      if (position + frameLength > bytes.length) return true;
+      position += frameLength;
+      frames++;
+    }
+    return true;
+  };
   const readCallback = state ? state.readCallback : read$1.callback;
   if (readCallback) {
     readCallback(fp);
@@ -166967,6 +167009,23 @@ function receive(buf) {
       continue;
     }
     if (Configs.get("lastroCustomPackets", false) && !Packets.list[id]) {
+      if (framesFollow(offset + 2)) {
+        const seen = (receive.unknownMarkers ??= new Set());
+        if (!seen.has(id)) {
+          seen.add(id);
+          console.warn(
+            `[Network] Unregistered opcode 0x${id.toString(16)} is followed by registered frames; skipping it as a two-byte stream marker.`,
+          );
+        }
+        fp.seek(offset + 2, SEEK_SET);
+        processedPackets++;
+        if (
+          processedPackets >= RECEIVE_BATCH_LIMIT &&
+          scheduleReceiveContinuation()
+        )
+          return;
+        continue;
+      }
       console.error(
         `[Network] Packet "0x${id.toString(16)}" not registered; skipping ${fp.length - fp.tell()} remaining bytes in this receive chunk.`,
       );
@@ -211171,6 +211230,13 @@ var init_NpcBox = __esmMin(() => {
         return true;
       case KEYS.ESCAPE:
         if (_isVisible$1(root.querySelector(".close"))) {
+          this.close();
+          break;
+        }
+        // A dialog showing neither "next" nor "close" (its CLOSE_DIALOG never arrived)
+        // would trap the player: send the same cancel request as the close button.
+        // Without an owner it is not an NPC dialog (e.g. the item reform tooltip).
+        if (NpcBox.ownerID && !_isVisible$1(root.querySelector(".next"))) {
           this.close();
           break;
         }
@@ -294772,8 +294838,11 @@ function UpdatePossibleReformUI(item, info) {
   }
 }
 function onHoverDetails() {
-  if (SelectedReformInfo) {
+  // The tooltip borrows the NPC dialog window: never overwrite a dialog an NPC owns.
+  if (SelectedReformInfo && !NpcBox_default.ownerID) {
     const infoText = SelectedReformInfo.InformationString.join("\n");
+    if (_npcBoxMoveHandler)
+      document.removeEventListener("mousemove", _npcBoxMoveHandler);
     NpcBox_default.append();
     NpcBox_default.setText(infoText, 0);
     NpcBox_default.ui.css("height", "150px");
@@ -294798,7 +294867,8 @@ function onHoverOutDetails() {
       document.removeEventListener("mousemove", _npcBoxMoveHandler);
       _npcBoxMoveHandler = null;
     }
-    if (NpcBox_default.ui.is(":visible")) NpcBox_default.remove();
+    if (NpcBox_default.ui.is(":visible") && !NpcBox_default.ownerID)
+      NpcBox_default.remove();
   }
 }
 /**
@@ -295036,7 +295106,11 @@ var init_ItemReform = __esmMin(() => {
       document.removeEventListener("mousemove", _npcBoxMoveHandler);
       _npcBoxMoveHandler = null;
     }
-    if (NpcBox_default.ui && NpcBox_default.ui.is(":visible"))
+    if (
+      NpcBox_default.ui &&
+      NpcBox_default.ui.is(":visible") &&
+      !NpcBox_default.ownerID
+    )
       NpcBox_default.remove();
     resetReformUIState();
   };
@@ -302089,6 +302163,7 @@ function onCloseScript(pkt) {
   if (NpcBox_default.ownerID === pkt.NAID) {
     NpcBox_default.remove();
     NpcMenu_default.remove();
+    _cutinRequest++;
     const cutin = document.getElementById("cutin");
     if (cutin && cutin.parentNode) document.body.removeChild(cutin);
   }
@@ -302231,7 +302306,11 @@ function onDealSelection(pkt) {
  * Receive NPC image to display
  * @param {object} pkt - PACKET.ZC.SHOW_IMAGE
  */
+let _cutinRequest = 0;
 function onCutin(pkt) {
+  // Images load asynchronously: a superseded request must not add a second #cutin
+  // (only one is ever removed) or bring back an image that was already cleared.
+  const request = ++_cutinRequest;
   const cutin = document.getElementById("cutin");
   if (cutin) document.body.removeChild(cutin);
   if (!pkt.imageName.length) return;
@@ -302239,6 +302318,7 @@ function onCutin(pkt) {
   Client.loadFile(
     DB.INTERFACE_PATH + "illust/" + pkt.imageName,
     function (url) {
+      if (request !== _cutinRequest) return;
       const img = new Image();
       img.decoding = "async";
       img.src = url;
