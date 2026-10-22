@@ -27,7 +27,7 @@ export function createRuntimeResourceLoader(options: RuntimeResourceOptions): (p
   const cache = createResourceCache();
   const directHttpFetch = createDirectHttpFetch({ nativeFetch: globalThis.fetch });
   const inFlight = new Map<string, Promise<ArrayBuffer>>();
-  const schedule = createResourceScheduler(12);
+  const schedule = createResourceScheduler(6);
   const sourceHealth = new ResourceSourceHealth();
   const notFoundUntil = new Map<string, number>();
   return (path) => {

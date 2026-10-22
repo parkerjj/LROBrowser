@@ -111,7 +111,7 @@ describe('Direct HTTP resource transport', () => {
     expect(request).toContain('GET /ro/client_re/data/test.gat HTTP/1.1\r\n');
     expect(request).toContain('Host: game.lastro.cn\r\n');
     expect(request).toContain('Accept-Encoding: identity\r\n');
-    expect(request).toContain('Connection: close\r\n');
+    expect(request).not.toContain('Connection:');
     expect(request).not.toContain('Authorization:');
     expect(request).not.toContain('Cookie:');
     expect(request).not.toContain('fixture-secret');
@@ -130,7 +130,8 @@ describe('Direct HTTP resource transport', () => {
 
     expect(result.status).toBe(200);
     expect(new Uint8Array(await result.arrayBuffer())).toEqual(body);
-    expect(h.close).toHaveBeenCalledOnce();
+    // The keep-alive connection stays pooled for the next request.
+    expect(h.close).not.toHaveBeenCalled();
   });
 
   it('uses Chrome fetch for the HTTPS backup source instead of opening plaintext TCP', async () => {
@@ -251,6 +252,7 @@ describe('Direct HTTP resource transport', () => {
     const text = await (await allowed.fetch('https://game.lastro.cn/ro/Online.js')).text();
     expect(text).toContain('103.8.222.164');
     expect(new TextDecoder().decode(allowed.requests[0])).toContain('GET /ro/Online.js HTTP/1.1\r\n');
+    expect(new TextDecoder().decode(allowed.requests[0])).toContain('Connection: close\r\n');
     expect(allowed.constructorArgs).toEqual([['game.lastro.cn', 443, { noDelay: true, keepAliveDelay: 60_000 }]]);
     expect(tlsCertificateVerification).toHaveBeenLastCalledWith(true);
     await expect(allowed.fetch('https://game.lastro.cn/ro/not-allowed.js')).rejects.toThrow('passive resource paths');
@@ -261,5 +263,158 @@ describe('Direct HTTP resource transport', () => {
     await expect(h.fetch('https://user:password@game.lastro.cn/ro/client_re/data/test.gat')).rejects.toThrow('credentials');
     await expect(h.fetch('https://game.lastro.cn/ro/client_re/data/test.gat', { method: 'POST', body: 'fixture' })).rejects.toThrow('GET');
     expect(h.constructorArgs).toEqual([]);
+  });
+});
+
+
+// A fake server per TCP connection, so reuse and reconnects are observable.
+function poolHarness(
+  respond: (conn: number, nth: number, request: string) => Uint8Array[] | 'close',
+  extra: Partial<Parameters<typeof createDirectHttpFetch>[0]> = {},
+) {
+  const natives: { close: ReturnType<typeof vi.fn>; closeStream: () => void }[] = [];
+  const requests: { conn: number; text: string }[] = [];
+  class Native {
+    opened: Promise<{ readable: ReadableStream<Uint8Array>; writable: WritableStream<Uint8Array> }>;
+    closed = new Promise<void>(() => {});
+    close = vi.fn(async () => {});
+    constructor() {
+      const conn = natives.length;
+      let controller!: ReadableStreamDefaultController<Uint8Array>;
+      let nth = 0;
+      const readable = new ReadableStream<Uint8Array>({ start(value) { controller = value; } });
+      const writable = new WritableStream<Uint8Array>({
+        write(chunk) {
+          const text = new TextDecoder().decode(chunk);
+          requests.push({ conn, text });
+          const reply = respond(conn, nth++, text);
+          if (reply === 'close') controller.close();
+          else for (const part of reply) controller.enqueue(part);
+        },
+      });
+      natives.push({ close: this.close, closeStream: () => controller.close() });
+      this.opened = Promise.resolve({ readable, writable });
+    }
+  }
+  const fetch = createDirectHttpFetch({ TCPSocket: Native, tlsClientFactory: transparentTls, ...extra });
+  return { fetch, natives, requests };
+}
+
+function okResponse(body: string, extraHeaders: string[] = []): Uint8Array {
+  const bytes = ascii(body);
+  return responseBytes('HTTP/1.1 200 OK', ['Content-Type: application/octet-stream', `Content-Length: ${bytes.length}`, ...extraHeaders], bytes);
+}
+
+describe('Direct HTTP keep-alive connection pool', () => {
+  const url = (name: string) => `https://game.lastro.cn/ro/client_re/data/${name}`;
+
+  it('serves sequential requests over one TLS connection', async () => {
+    const h = poolHarness((_conn, nth) => [okResponse(`body-${nth}`)]);
+
+    expect(await (await h.fetch(url('a.spr'))).text()).toBe('body-0');
+    expect(await (await h.fetch(url('b.spr'))).text()).toBe('body-1');
+    expect(await (await h.fetch(url('c.spr'))).text()).toBe('body-2');
+
+    expect(h.natives).toHaveLength(1);
+    expect(h.requests.map(request => request.conn)).toEqual([0, 0, 0]);
+    expect(h.requests[1]!.text).toContain('GET /ro/client_re/data/b.spr HTTP/1.1\r\n');
+    expect(h.requests[1]!.text).not.toContain('Connection:');
+    expect(h.natives[0]!.close).not.toHaveBeenCalled();
+  });
+
+  it('never opens more than the configured number of connections and queues the rest', async () => {
+    const h = poolHarness((_conn, _nth, request) => [okResponse(request.split(' ')[1]!)], { maxConnections: 4 });
+
+    const results = await Promise.all(Array.from({ length: 10 }, (_, i) => h.fetch(url(`f${i}.spr`)).then(r => r.text())));
+
+    expect(results).toEqual(Array.from({ length: 10 }, (_, i) => `/ro/client_re/data/f${i}.spr`));
+    expect(h.natives).toHaveLength(4);
+    expect(h.requests).toHaveLength(10);
+  });
+
+  it('keeps chunked, split responses framed so the next response is not corrupted', async () => {
+    const chunked = responseBytes('HTTP/1.1 200 OK', ['Transfer-Encoding: chunked'], concatBytes(
+      ascii('3\r\nabc\r\n'), ascii('2\r\nde\r\n'), ascii('0\r\n\r\n'),
+    ));
+    const h = poolHarness((_conn, nth) => nth === 0
+      ? [chunked.slice(0, 40), chunked.slice(40, chunked.length - 3), chunked.slice(chunked.length - 3)]
+      : [okResponse('second')]);
+
+    expect(await (await h.fetch(url('a.txt'))).text()).toBe('abcde');
+    expect(await (await h.fetch(url('b.txt'))).text()).toBe('second');
+    expect(h.natives).toHaveLength(1);
+  });
+
+  it('opens a new connection after the server says Connection: close', async () => {
+    const h = poolHarness((_conn, nth) => [okResponse(`r${nth}`, nth === 0 ? ['Connection: close'] : [])]);
+
+    expect(await (await h.fetch(url('a.spr'))).text()).toBe('r0');
+    expect(h.natives[0]!.close).toHaveBeenCalledOnce();
+    expect(await (await h.fetch(url('b.spr'))).text()).toBe('r0');
+    expect(h.natives).toHaveLength(2);
+  });
+
+  it('replays a request when a reused idle connection was already closed by the server', async () => {
+    const h = poolHarness((conn, nth) => {
+      if (conn === 0 && nth === 1) return 'close'; // keep-alive timeout fired while idle
+      return [okResponse(`c${conn}-${nth}`)];
+    });
+
+    expect(await (await h.fetch(url('a.spr'))).text()).toBe('c0-0');
+    expect(await (await h.fetch(url('b.spr'))).text()).toBe('c1-0');
+    expect(h.natives).toHaveLength(2);
+    expect(h.natives[0]!.close).toHaveBeenCalled();
+  });
+
+  it('does not replay a request on a fresh connection that fails', async () => {
+    const h = poolHarness(() => 'close');
+
+    await expect(h.fetch(url('a.spr'))).rejects.toThrow(/closed before response headers/);
+    expect(h.requests).toHaveLength(1);
+  });
+
+  it('drops a connection whose request was aborted and frees its slot', async () => {
+    const h = poolHarness((conn) => conn === 0 ? [] : [okResponse('after')], { maxConnections: 1, readTimeoutMs: 1_000 });
+    const abort = new AbortController();
+    const pending = h.fetch(url('slow.spr'), { signal: abort.signal });
+    await vi.waitFor(() => expect(h.requests).toHaveLength(1));
+    abort.abort();
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(await (await h.fetch(url('next.spr'))).text()).toBe('after');
+    expect(h.natives).toHaveLength(2);
+    expect(h.natives[0]!.close).toHaveBeenCalled();
+  });
+
+  it('lets an aborted queued request leave without taking a connection', async () => {
+    const h = poolHarness((conn) => conn === 0 ? [] : [okResponse('ok')], { maxConnections: 1, readTimeoutMs: 50 });
+    const first = h.fetch(url('hang.spr'));
+    const abort = new AbortController();
+    const queued = h.fetch(url('queued.spr'), { signal: abort.signal });
+    abort.abort();
+
+    await expect(queued).rejects.toMatchObject({ name: 'AbortError' });
+    await expect(first).rejects.toThrow(/read timeout/);
+    expect(h.requests).toHaveLength(1);
+    expect(await (await h.fetch(url('later.spr'))).text()).toBe('ok');
+  });
+
+  it('closes connections that stay idle past the idle timeout', async () => {
+    const h = poolHarness(() => [okResponse('x')], { idleTimeoutMs: 20 });
+    await (await h.fetch(url('a.spr'))).arrayBuffer();
+
+    await vi.waitFor(() => expect(h.natives[0]!.close).toHaveBeenCalled());
+    await (await h.fetch(url('b.spr'))).arrayBuffer();
+    expect(h.natives).toHaveLength(2);
+  });
+
+  it('does not treat a body-less 304 as a reason to drop the connection', async () => {
+    const h = poolHarness((_conn, nth) => nth === 0
+      ? [ascii('HTTP/1.1 304 Not Modified\r\nETag: "x"\r\n\r\n')]
+      : [okResponse('next')]);
+
+    expect((await h.fetch(url('a.spr'))).status).toBe(304);
+    expect(await (await h.fetch(url('b.spr'))).text()).toBe('next');
+    expect(h.natives).toHaveLength(1);
   });
 });

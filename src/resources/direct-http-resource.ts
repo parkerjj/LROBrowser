@@ -9,13 +9,16 @@ const RESOURCE_ROOTS = new Map([
 const REQUEST_HEADERS = [
   ['Accept', '*/*'],
   ['Accept-Encoding', 'identity'],
-  ['Connection', 'close'],
 ];
 
 const DEFAULT_OPEN_TIMEOUT_MS = 8_000;
 const DEFAULT_READ_TIMEOUT_MS = 8_000;
 const DEFAULT_MAX_HEADER_BYTES = 64 * 1024;
 const DEFAULT_MAX_BODY_BYTES = 128 * 1024 * 1024;
+// game.lastro.cn throttles clients that open many short connections, so
+// passive resources share a small pool of keep-alive TLS connections.
+const DEFAULT_MAX_CONNECTIONS = 4;
+const DEFAULT_IDLE_TIMEOUT_MS = 30_000;
 
 interface DirectHttpOptions {
   TCPSocket?: DirectTcpConstructor;
@@ -24,6 +27,8 @@ interface DirectHttpOptions {
   readTimeoutMs?: number;
   maxHeaderBytes?: number;
   maxBodyBytes?: number;
+  maxConnections?: number;
+  idleTimeoutMs?: number;
   /** Restrict the extra executable-text path to the reviewed metadata downloader. */
   allowOfficialProfileScript?: boolean;
   /** Test seam: production always uses the bundled TLS 1.2/1.3 client. */
@@ -41,8 +46,10 @@ function abortError(): DOMException {
   return new DOMException('The operation was aborted', 'AbortError');
 }
 
+class DirectHttpTimeoutError extends Error {}
+
 function timeoutError(kind: 'open' | 'read'): Error {
-  return new Error(`Direct HTTP ${kind} timeout`);
+  return new DirectHttpTimeoutError(`Direct HTTP ${kind} timeout`);
 }
 
 function asUrl(input: RequestInfo | URL): URL {
@@ -92,13 +99,14 @@ function joinBytes(chunks: readonly Uint8Array[], maxBytes: number): Uint8Array 
   return bytes;
 }
 
-function parseChunkedBody(body: Uint8Array, maxBodyBytes: number): Uint8Array {
+/** Returns null while the chunked body is still incomplete; throws when it is invalid. */
+function decodeChunkedBody(body: Uint8Array, maxBodyBytes: number): { body: Uint8Array; consumed: number } | null {
   const chunks: Uint8Array[] = [];
   let offset = 0;
   let total = 0;
   while (true) {
     const lineEnd = findBytes(body, [13, 10], offset);
-    if (lineEnd < 0) throw new Error('Direct HTTP chunk size is incomplete');
+    if (lineEnd < 0) return null;
     const sizeLine = ascii(body.subarray(offset, lineEnd));
     const sizeMatch = /^([0-9a-f]+)(?:;.*)?$/i.exec(sizeLine);
     if (!sizeMatch) throw new Error('Direct HTTP chunk size is invalid');
@@ -106,14 +114,13 @@ function parseChunkedBody(body: Uint8Array, maxBodyBytes: number): Uint8Array {
     if (!Number.isSafeInteger(size)) throw new Error('Direct HTTP chunk size is invalid');
     offset = lineEnd + 2;
     if (size === 0) {
-      if (body[offset] === 13 && body[offset + 1] === 10) return joinBytes(chunks, maxBodyBytes);
+      if (body[offset] === 13 && body[offset + 1] === 10) return { body: joinBytes(chunks, maxBodyBytes), consumed: offset + 2 };
       const trailerEnd = findBytes(body, [13, 10, 13, 10], offset);
-      if (trailerEnd < 0) throw new Error('Direct HTTP chunk trailers are incomplete');
-      return joinBytes(chunks, maxBodyBytes);
+      if (trailerEnd < 0) return null;
+      return { body: joinBytes(chunks, maxBodyBytes), consumed: trailerEnd + 4 };
     }
-    if (size > maxBodyBytes - total || offset + size + 2 > body.byteLength) {
-      throw new Error('Direct HTTP response body is too large or incomplete');
-    }
+    if (size > maxBodyBytes - total) throw new Error('Direct HTTP response body is too large or incomplete');
+    if (offset + size + 2 > body.byteLength) return null;
     chunks.push(body.slice(offset, offset + size));
     total += size;
     offset += size;
@@ -122,7 +129,14 @@ function parseChunkedBody(body: Uint8Array, maxBodyBytes: number): Uint8Array {
   }
 }
 
+function parseChunkedBody(body: Uint8Array, maxBodyBytes: number): Uint8Array {
+  const decoded = decodeChunkedBody(body, maxBodyBytes);
+  if (!decoded) throw new Error('Direct HTTP response body is too large or incomplete');
+  return decoded.body;
+}
+
 interface ParsedResponseHead {
+  httpVersion: '1.0' | '1.1';
   status: number;
   statusText: string;
   headers: Headers;
@@ -141,7 +155,7 @@ function parseResponseHead(bytes: Uint8Array, maxHeaderBytes: number): ParsedRes
   if (headerBytes > maxHeaderBytes) throw new Error('Direct HTTP response headers are incomplete or too large');
   const lines = ascii(bytes.subarray(0, separator)).split('\r\n');
   const statusLine = lines.shift();
-  const statusMatch = statusLine ? /^HTTP\/1\.[01] ([1-5][0-9]{2})(?: (.*))?$/.exec(statusLine) : null;
+  const statusMatch = statusLine ? /^HTTP\/(1\.[01]) ([1-5][0-9]{2})(?: (.*))?$/.exec(statusLine) : null;
   if (!statusMatch) throw new Error('Direct HTTP response status is invalid');
   const headers = new Headers();
   let contentLength: number | undefined;
@@ -176,8 +190,9 @@ function parseResponseHead(bytes: Uint8Array, maxHeaderBytes: number): ParsedRes
     throw new Error('Direct HTTP response has both content-length and transfer-encoding');
   }
   return {
-    status: Number(statusMatch[1]),
-    statusText: statusMatch[2] ?? '',
+    httpVersion: statusMatch[1] === '1.0' ? '1.0' : '1.1',
+    status: Number(statusMatch[2]),
+    statusText: statusMatch[3] ?? '',
     headers,
     bodyStart: headerBytes,
     ...(contentLength === undefined ? {} : { contentLength }),
@@ -398,6 +413,205 @@ export async function openEncryptedHttpStreams(
   return { readable, writable };
 }
 
+/** A reused connection that died before returning any byte: the request is safe to replay. */
+class StaleConnectionError extends Error {
+  constructor(readonly reason: unknown) { super('Direct HTTP pooled connection was closed by the server'); }
+}
+
+interface PooledConnection {
+  readonly native: DirectTcpConnection;
+  readonly reader: ReadableStreamDefaultReader<Uint8Array>;
+  readonly writer: WritableStreamDefaultWriter<Uint8Array>;
+  served: number;
+}
+
+type ExchangeOptions = Required<Pick<DirectHttpOptions, 'readTimeoutMs' | 'maxHeaderBytes' | 'maxBodyBytes'>> & { signal?: AbortSignal };
+
+function endsWithCrlfCrlf(bytes: Uint8Array): boolean {
+  const n = bytes.byteLength;
+  return n >= 4 && bytes[n - 4] === 13 && bytes[n - 3] === 10 && bytes[n - 2] === 13 && bytes[n - 1] === 10;
+}
+
+/**
+ * Sends one request and reads exactly one response, leaving the connection
+ * usable when the response is self-delimited and the server allows reuse.
+ */
+async function exchange(
+  conn: PooledConnection,
+  request: Uint8Array,
+  options: ExchangeOptions,
+): Promise<{ parts: DirectHttpResponseParts; reusable: boolean }> {
+  const { readTimeoutMs, maxHeaderBytes, maxBodyBytes, signal } = options;
+  const rawLimit = maxHeaderBytes + maxBodyBytes;
+  let received = 0;
+  const readChunk = async () => {
+    while (true) {
+      const result = await waitFor(conn.reader.read(), readTimeoutMs, signal, 'read');
+      if (result.done) return null;
+      if (result.value?.byteLength) {
+        received += result.value.byteLength;
+        if (received > rawLimit) throw new Error('Direct HTTP response is too large');
+        return result.value.slice();
+      }
+    }
+  };
+  try {
+    await waitFor(conn.writer.write(request), readTimeoutMs, signal, 'read');
+    const headChunks: Uint8Array[] = [];
+    let head: ParsedResponseHead | null = null;
+    let bodyChunks: Uint8Array[] = [];
+    let bodyTotal = 0;
+    while (!head) {
+      const chunk = await readChunk();
+      if (!chunk) throw new Error('Direct HTTP connection closed before response headers');
+      headChunks.push(chunk);
+      const joined = joinBytes(headChunks, rawLimit);
+      head = parseResponseHead(joined, maxHeaderBytes);
+      if (head) {
+        const rest = joined.subarray(head.bodyStart).slice();
+        bodyChunks = [rest];
+        bodyTotal = rest.byteLength;
+      }
+    }
+    if (head.status < 200) throw new Error('Direct HTTP interim responses are unsupported');
+    const connectionTokens = (head.headers.get('connection') ?? '').toLowerCase().split(',').map(token => token.trim());
+    let reusable = head.httpVersion === '1.1' && !connectionTokens.includes('close');
+    let body: Uint8Array;
+    if (head.status === 204 || head.status === 304) {
+      // No body by definition, regardless of any Content-Length header.
+      body = new Uint8Array();
+      if (bodyTotal) reusable = false;
+    } else if (head.contentLength !== undefined) {
+      if (head.contentLength > maxBodyBytes) throw new Error('Direct HTTP content-length does not match the response body');
+      while (bodyTotal < head.contentLength) {
+        const chunk = await readChunk();
+        if (!chunk) throw new Error('Direct HTTP content-length does not match the response body');
+        bodyChunks.push(chunk);
+        bodyTotal += chunk.byteLength;
+      }
+      const joined = joinBytes(bodyChunks, rawLimit);
+      if (joined.byteLength > head.contentLength) reusable = false; // unexpected pipelined bytes
+      body = joined.slice(0, head.contentLength);
+    } else if (head.transferEncoding === 'chunked') {
+      let decoded: { body: Uint8Array; consumed: number } | null = null;
+      while (!decoded) {
+        // Only a terminating CRLF CRLF can complete the body: skip re-parsing on every read.
+        const last = bodyChunks[bodyChunks.length - 1]!;
+        if (last.byteLength < 4 || endsWithCrlfCrlf(last)) {
+          const joined = joinBytes(bodyChunks, rawLimit);
+          bodyChunks = [joined];
+          decoded = decodeChunkedBody(joined, maxBodyBytes);
+          if (decoded && decoded.consumed < joined.byteLength) reusable = false;
+          if (decoded) break;
+        }
+        const chunk = await readChunk();
+        if (!chunk) throw new Error('Direct HTTP response body is too large or incomplete');
+        bodyChunks.push(chunk);
+      }
+      body = decoded.body;
+    } else {
+      // No framing: the body ends at EOF, so the connection cannot be reused.
+      reusable = false;
+      while (true) {
+        const chunk = await readChunk();
+        if (!chunk) break;
+        bodyChunks.push(chunk);
+      }
+      body = joinBytes(bodyChunks, maxBodyBytes);
+    }
+    return {
+      parts: { status: head.status, statusText: head.statusText, headers: head.headers, body: body.slice().buffer as ArrayBuffer },
+      reusable,
+    };
+  } catch (error) {
+    const gaveUp = error instanceof DirectHttpTimeoutError || (error instanceof DOMException && error.name === 'AbortError');
+    if (conn.served > 0 && received === 0 && !gaveUp) throw new StaleConnectionError(error);
+    throw error;
+  }
+}
+
+/** Fixed-size pool of keep-alive connections; excess callers queue FIFO. */
+class ConnectionPool {
+  private readonly idle: { conn: PooledConnection; timer: ReturnType<typeof setTimeout> }[] = [];
+  private readonly waiters: ((conn: PooledConnection | undefined) => void)[] = [];
+  private total = 0; // idle + busy + opening
+
+  constructor(
+    private readonly maxSize: number,
+    private readonly idleTimeoutMs: number,
+    private readonly open: (signal: AbortSignal | undefined) => Promise<PooledConnection>,
+  ) {}
+
+  async acquire(signal: AbortSignal | undefined): Promise<PooledConnection> {
+    if (signal?.aborted) throw abortError();
+    const reused = this.idle.pop();
+    if (reused) {
+      clearTimeout(reused.timer);
+      return reused.conn;
+    }
+    if (this.total < this.maxSize) return this.openReserved(signal);
+    let waiter!: (conn: PooledConnection | undefined) => void;
+    let onAbort!: () => void;
+    const granted = await new Promise<PooledConnection | undefined>((resolve, reject) => {
+      waiter = resolve;
+      onAbort = () => {
+        const index = this.waiters.indexOf(waiter);
+        if (index >= 0) this.waiters.splice(index, 1);
+        reject(abortError());
+      };
+      this.waiters.push(waiter);
+      signal?.addEventListener('abort', onAbort, { once: true });
+    }).finally(() => signal?.removeEventListener('abort', onAbort));
+    // `undefined` hands over a reserved slot rather than a live connection.
+    return granted ?? this.openReserved(signal, true);
+  }
+
+  release(conn: PooledConnection, reusable: boolean): void {
+    if (!reusable) {
+      this.discard(conn);
+      return;
+    }
+    const waiter = this.waiters.shift();
+    if (waiter) {
+      waiter(conn);
+      return;
+    }
+    const timer = setTimeout(() => {
+      const index = this.idle.findIndex(entry => entry.conn === conn);
+      if (index >= 0) this.idle.splice(index, 1);
+      this.discard(conn);
+    }, this.idleTimeoutMs);
+    (timer as { unref?: () => void }).unref?.();
+    this.idle.push({ conn, timer });
+  }
+
+  discard(conn: PooledConnection): void {
+    void conn.reader.cancel().catch(() => undefined);
+    void conn.writer.abort().catch(() => undefined);
+    void closeNative(conn.native);
+    this.freeSlot();
+  }
+
+  private freeSlot(): void {
+    this.total -= 1;
+    const waiter = this.waiters.shift();
+    if (waiter) {
+      this.total += 1;
+      waiter(undefined);
+    }
+  }
+
+  private async openReserved(signal: AbortSignal | undefined, alreadyReserved = false): Promise<PooledConnection> {
+    if (!alreadyReserved) this.total += 1;
+    try {
+      return await this.open(signal);
+    } catch (error) {
+      this.freeSlot();
+      throw error;
+    }
+  }
+}
+
 export function createDirectHttpFetch(options: DirectHttpOptions = {}): typeof globalThis.fetch {
   const constructorForSocket = options.TCPSocket ?? globalThis.TCPSocket;
   const nativeFetch = options.nativeFetch ?? globalThis.fetch;
@@ -405,6 +619,55 @@ export function createDirectHttpFetch(options: DirectHttpOptions = {}): typeof g
   const readTimeoutMs = Math.max(1, options.readTimeoutMs ?? DEFAULT_READ_TIMEOUT_MS);
   const maxHeaderBytes = Math.max(1, options.maxHeaderBytes ?? DEFAULT_MAX_HEADER_BYTES);
   const maxBodyBytes = Math.max(1, options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES);
+  const maxConnections = Math.max(1, options.maxConnections ?? DEFAULT_MAX_CONNECTIONS);
+  const idleTimeoutMs = Math.max(1, options.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS);
+  const buildRequest = (pathname: string, host: string, connection?: 'close') => new TextEncoder().encode([
+    `GET ${pathname} HTTP/1.1`,
+    `Host: ${host}`,
+    ...REQUEST_HEADERS.map(([name, value]) => `${name}: ${value}`),
+    ...(connection ? [`Connection: ${connection}`] : []),
+    '',
+    '',
+  ].join('\r\n'));
+  const openPooled = async (signal: AbortSignal | undefined): Promise<PooledConnection> => {
+    const native = new constructorForSocket!('game.lastro.cn', 443, { noDelay: true, keepAliveDelay: 60_000 });
+    void native.closed.catch(() => undefined);
+    try {
+      const connection = await waitFor(native.opened, openTimeoutMs, signal, 'open');
+      // Keep TLS bundled in the IWA worker, never load code from a remote URL.
+      const encrypted = await openEncryptedHttpStreams(native, connection, 'game.lastro.cn', {
+        tlsClientFactory: options.tlsClientFactory,
+        timeoutMs: openTimeoutMs,
+        verifyServerCertificate: false,
+        signal,
+      });
+      return { native, reader: encrypted.readable.getReader(), writer: encrypted.writable.getWriter(), served: 0 };
+    } catch (error) {
+      await closeNative(native);
+      throw error;
+    }
+  };
+  const pool = new ConnectionPool(maxConnections, idleTimeoutMs, openPooled);
+  const fetchPooled = async (pathname: string, signal: AbortSignal | undefined): Promise<DirectHttpResponseParts> => {
+    const request = buildRequest(pathname, 'game.lastro.cn');
+    // Idle connections the server already closed are replayed on another one.
+    for (let attempt = 0; ; attempt += 1) {
+      const conn = await pool.acquire(signal);
+      try {
+        const { parts, reusable } = await exchange(conn, request, { readTimeoutMs, maxHeaderBytes, maxBodyBytes, signal });
+        conn.served += 1;
+        pool.release(conn, reusable);
+        return parts;
+      } catch (error) {
+        pool.discard(conn);
+        if (error instanceof StaleConnectionError) {
+          if (attempt < maxConnections) continue;
+          throw error.reason;
+        }
+        throw error;
+      }
+    }
+  };
   return (async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const url = asUrl(input);
     const host = RESOURCE_ROOTS.get(url.origin);
@@ -429,19 +692,18 @@ export function createDirectHttpFetch(options: DirectHttpOptions = {}): typeof g
       });
     }
     if (!constructorForSocket) throw new Error('Direct TCP is unavailable');
+    if (!officialProfileRequest) {
+      const parsed = await fetchPooled(url.pathname, signal);
+      const body = parsed.status === 204 || parsed.status === 205 || parsed.status === 304 ? null : parsed.body;
+      return new Response(body, { status: parsed.status, statusText: parsed.statusText, headers: parsed.headers });
+    }
     const native = new constructorForSocket(host, 443, { noDelay: true, keepAliveDelay: 60_000 });
     void native.closed.catch(() => undefined);
     let opened = false;
     try {
       const connection = await waitFor(native.opened, openTimeoutMs, signal, 'open');
       opened = true;
-      const request = new TextEncoder().encode([
-        `GET ${url.pathname} HTTP/1.1`,
-        `Host: ${host}`,
-        ...REQUEST_HEADERS.map(([name, value]) => `${name}: ${value}`),
-        '',
-        '',
-      ].join('\r\n'));
+      const request = buildRequest(url.pathname, host, 'close');
       // Keep TLS bundled in the IWA worker, never load code from a remote URL.
       const encrypted = await openEncryptedHttpStreams(native, connection, host, {
         tlsClientFactory: options.tlsClientFactory,
