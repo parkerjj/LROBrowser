@@ -90,7 +90,7 @@ export function patchRuntimeNetworkDiagnostics(source) {
       text: '\n      lastroNetworkDiagnostics.record(ownerSocket || _socket, id, null, "unknown");' },
     { start: discards[0].getStart(file) + 1, end: discards[0].getStart(file) + 1,
       text: '\n    lastroNetworkDiagnostics.record(ownerSocket || _socket, id, length, "framing", undefined, reason);' },
-    { start: warnings[0].end, end: warnings[0].end, text: '\n    if (this.isZone) globalThis.KoreEngine?.degradeConnection?.("map-socket-closed");\n    lastroNetworkDiagnostics.disconnected(this);' },
+    { start: warnings[0].end, end: warnings[0].end, text: '\n    if (this.isZone) globalThis.KoreEngine?.degradeConnection?.("map-socket-closed", { code: event?.code, reason: event?.reason, wasClean: event?.wasClean });\n    lastroNetworkDiagnostics.disconnected(this);' },
   ];
   let output = region;
   for (const change of changes.sort((a, b) => b.start - a.start)) output = output.slice(0, change.start) + change.text + output.slice(change.end);

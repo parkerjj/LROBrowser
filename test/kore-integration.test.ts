@@ -852,3 +852,27 @@ test('decision section shows the target class id and the name the monsters filte
   const unnamed = formatKoreSections({ ...baseState, lastDiagnostic: { ...diagnostic, targetClassId: 0, targetName: null }, diagnosticLog: [], logs: [], actions: [] });
   expect(unnamed.decision).toContain('class=0 (no name)');
 });
+
+test('disconnect keeps close code and the recent send rate for post-mortem', async () => {
+  const { host } = await readyHost();
+  host.beginGameSession(77, 'prontera.gat');
+  const generation = host.beginMapConnection();
+  expect(host.mirrorMapData(generation!, new Uint8Array([1, 2, 3, 4]))).toBe(true);
+  for (let index = 0; index < 5; index += 1) expect(host.mirrorSentBytes(6, undefined, 0x0089)).toBe(true);
+  expect(host.mirrorSentBytes(2, undefined, 0x007e)).toBe(true);
+  expect(host.degradeConnection('map-socket-closed', { code: 1006, reason: 'gone', wasClean: false })).toBe(true);
+  // 同一次断线的第二次无详情调用不能覆盖带 close 详情的那份。
+  expect(host.degradeConnection('map-socket-closed')).toBe(true);
+  const disconnect = host.state.disconnect!;
+  expect(disconnect).toMatchObject({
+    reason: 'map-socket-closed', closeCode: 1006, closeReason: 'gone', wasClean: false,
+    sendsLast1s: 6, sendsLast10s: 6, sendsLast60s: 6, sentBytes: 32, receivedBytes: 4,
+  });
+  expect(disconnect.peakSendsPerSecond).toBe(6);
+  expect(disconnect.topPacketsLast10s[0]).toEqual({ id: '0x0089', count: 5 });
+  expect(disconnect.lastReceiveAgoMs).not.toBeNull();
+  expect(host.state.logs.some(entry => entry.text.includes('连接断开') && entry.text.includes('code=1006'))).toBe(true);
+  // 新连接开始后清掉上一次的断线记录。
+  host.beginMapConnection();
+  expect(host.state.disconnect).toBeNull();
+});

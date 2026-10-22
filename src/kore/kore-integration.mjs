@@ -151,8 +151,35 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       phase: 'signed-out', user: null, userCode: null, verificationUriComplete: null,
       expiresAt: null, interval: 5, profileUpdatedAt: null, configCached: false, error: null, detail: null, stalled: false,
     },
-    heartbeat: null, actions: [], diagnosticLog: [],
+    heartbeat: null, actions: [], diagnosticLog: [], disconnect: null,
     recovery: { restarts: 0, stage: 'idle', lastReason: null },
+  };
+  // 断线取证：只记发包时间/包号和最近一次收包时间，断线时汇总进 state.disconnect。
+  const traffic = { sends: [], lastReceiveAt: null, connectedAt: null };
+  const trafficNow = () => (page.performance ?? globalThis.performance).now();
+  const TRAFFIC_WINDOW_MS = 60_000;
+  const summarizeDisconnect = (reason, details) => {
+    const now = trafficNow();
+    const sends = traffic.sends.filter(entry => now - entry.t <= TRAFFIC_WINDOW_MS);
+    const countWithin = ms => sends.filter(entry => now - entry.t <= ms).length;
+    const perSecond = new Map();
+    for (const entry of sends) { const bucket = Math.floor((now - entry.t) / 1000); perSecond.set(bucket, (perSecond.get(bucket) ?? 0) + 1); }
+    const byPacket = new Map();
+    for (const entry of sends) if (now - entry.t <= 10_000) byPacket.set(entry.id, (byPacket.get(entry.id) ?? 0) + 1);
+    const ago = value => (value == null ? null : Math.round(now - value));
+    return {
+      at: Date.now(), reason: String(reason),
+      closeCode: Number.isInteger(details?.code) ? details.code : null,
+      closeReason: typeof details?.reason === 'string' ? details.reason.slice(0, 120) : null,
+      wasClean: typeof details?.wasClean === 'boolean' ? details.wasClean : null,
+      socketAgeMs: ago(traffic.connectedAt),
+      lastSendAgoMs: ago(sends.at(-1)?.t), lastReceiveAgoMs: ago(traffic.lastReceiveAt),
+      sendsLast1s: countWithin(1000), sendsLast10s: countWithin(10_000), sendsLast60s: sends.length,
+      peakSendsPerSecond: Math.max(0, ...perSecond.values()),
+      topPacketsLast10s: [...byPacket].sort((a, b) => b[1] - a[1]).slice(0, 6)
+        .map(([id, count]) => ({ id: id == null ? 'unknown' : `0x${id.toString(16).padStart(4, '0')}`, count })),
+      sentBytes: state.sentBytes, receivedBytes: state.receivedBytes,
+    };
   };
   // Worker 崩溃后的自动重建：窗口内最多 maxRestarts 次，按 backoffMs 递增等待；用尽后才进入 failed。
   const policy = { maxRestarts: 3, windowMs: 10 * 60_000, backoffMs: [500, 2000, 5000], resyncDelayMs: 500, resyncTimeoutMs: 30_000, ...restartPolicy };
@@ -1105,6 +1132,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       if (!worker || !session || !gameSession) return null;
       const generation = (connection?.generation ?? 0) + 1;
       connection = { generation, degraded: false }; gameSequence = 0; gameByteOffset = 0;
+      traffic.sends.length = 0; traffic.lastReceiveAt = null; traffic.connectedAt = trafficNow(); state.disconnect = null;
       state.connectionGeneration = generation; state.streamStatus = 'awaiting-sync'; state.worldReady = false;
       resourceCycle += 1; state.mapResourceState = 'loading';
       postEvent('mapConnectionStarted', { mapName: gameSession.mapName, serverFieldsFolder, resourceCycle }, 'control', { gameSessionId: gameSession.id, connectionGeneration: generation });
@@ -1119,6 +1147,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         log('info', '收包流已对齐，开始向新 Runtime 转发');
         timerSet(resyncAfterAlignment, policy.resyncDelayMs);
       }
+      traffic.lastReceiveAt = trafficNow();
       const bytes = data instanceof Uint8Array ? data.slice() : new Uint8Array(data instanceof ArrayBuffer ? data : data.buffer, data.byteOffset ?? 0, data.byteLength ?? data.length);
       const event = { sequence: gameSequence, byteOffset: gameByteOffset, receivedAtMs: (page.performance ?? globalThis.performance).now(), bytes };
       const queued = postEvent('gameData', event, 'game', { gameSessionId: gameSession.id, connectionGeneration });
@@ -1126,12 +1155,24 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       gameSequence += 1; gameByteOffset += bytes.byteLength; state.receivedBytes += bytes.byteLength;
       changed(); return true;
     },
-    mirrorSentBytes(bytes, gameSessionId = gameSession?.id) {
+    mirrorSentBytes(bytes, gameSessionId = gameSession?.id, packetId = null) {
       if (!Number.isSafeInteger(bytes) || bytes < 0 || (gameSessionId && gameSessionId !== gameSession?.id)) return false;
+      const now = trafficNow();
+      traffic.sends.push({ t: now, id: Number.isInteger(packetId) ? packetId : null });
+      if (traffic.sends.length > 2000 || now - traffic.sends[0].t > TRAFFIC_WINDOW_MS * 2) {
+        const cutoff = now - TRAFFIC_WINDOW_MS;
+        traffic.sends = traffic.sends.filter(entry => entry.t >= cutoff).slice(-2000);
+      }
       state.sentBytes += bytes; changed(); return true;
     },
-    degradeConnection(reason = 'connection-degraded') {
+    degradeConnection(reason = 'connection-degraded', details = null) {
       if (!worker || !session || !gameSession || !connection) return false;
+      // 同一次断线可能被调用两次（原生路径与诊断补丁）；带 close 详情的那次为准。
+      if (details || !state.disconnect) {
+        state.disconnect = summarizeDisconnect(reason, details);
+        const d = state.disconnect;
+        log('warn', `连接断开 ${d.reason} code=${d.closeCode ?? '?'} clean=${d.wasClean ?? '?'} 连接时长=${d.socketAgeMs ?? '?'}ms 距上次发包=${d.lastSendAgoMs ?? '?'}ms 距上次收包=${d.lastReceiveAgoMs ?? '?'}ms 近1s/10s/60s发包=${d.sendsLast1s}/${d.sendsLast10s}/${d.sendsLast60s} 峰值=${d.peakSendsPerSecond}/s`);
+      }
       connection.degraded = true; state.worldReady = false; state.streamStatus = 'degraded'; state.mapResourceState = 'degraded'; state.degradedReason = String(reason);
       const queued = postEvent('connectionDegraded', { reason: String(reason) }, 'control', { gameSessionId: gameSession.id, connectionGeneration: connection.generation }) !== null;
       changed(); return queued;

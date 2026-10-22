@@ -27,6 +27,12 @@ export interface KorePage {
 export interface KoreWorker extends EventTarget { postMessage(message: unknown, transfer?: Transferable[]): void; terminate(): void }
 export interface KoreLog { level: string; domain?: string; text: string; timestamp: number; blocks?: unknown[]; command?: string }
 export interface KoreActionRecord { timestamp: number; requestId: number | null; routeId: number | null; type: string; detail: string; accepted: boolean; reason: string | null }
+export interface KoreDisconnectSummary {
+  at: number; reason: string; closeCode: number | null; closeReason: string | null; wasClean: boolean | null;
+  socketAgeMs: number | null; lastSendAgoMs: number | null; lastReceiveAgoMs: number | null;
+  sendsLast1s: number; sendsLast10s: number; sendsLast60s: number; peakSendsPerSecond: number;
+  topPacketsLast10s: { id: string; count: number }[]; sentBytes: number; receivedBytes: number;
+}
 export interface KoreState {
   status: 'absent' | 'loading' | 'restarting' | 'runtime-ready' | 'failed' | 'unavailable' | 'disposed';
   packageId: string | null; mode: 'debug' | 'release' | null; runtimeGeneration: number;
@@ -34,6 +40,7 @@ export interface KoreState {
   streamStatus: 'idle' | 'awaiting-connection' | 'awaiting-sync' | 'world-ready' | 'degraded';
   worldReady: boolean; mapResourceState: 'idle' | 'loading' | 'retrying' | 'ready' | 'degraded';
   receivedBytes: number; sentBytes: number; degradedReason: string | null; logs: KoreLog[];
+  disconnect: KoreDisconnectSummary | null;
   runtimeStatus: unknown; lastDiagnostic: unknown; lastCommandResult: unknown;
   configIdentity: { aid: number; cid: number; nid: number } | null;
   bootSession?: { instanceId: string; publicKey: string; buildId: string; buildHash: string } | null;
@@ -63,8 +70,8 @@ export interface KoreIntegration {
     name?: string; baseLevel?: number; jobLevel?: number; jobId?: number }): string | null;
   beginMapConnection(): number | null;
   mirrorMapData(connectionGeneration: number, data: ArrayBuffer | ArrayBufferView, options?: { aligned?: boolean }): boolean;
-  degradeConnection(reason?: string): boolean;
-  mirrorSentBytes(bytes: number, gameSessionId?: string | null): boolean;
+  degradeConnection(reason?: string, details?: { code?: number; reason?: string; wasClean?: boolean } | null): boolean;
+  mirrorSentBytes(bytes: number, gameSessionId?: string | null, packetId?: number | null): boolean;
   endGameSession(): boolean; clearConsole(): void; debugMapRetry(): boolean;
   saveConfigDocument(document: unknown): Promise<unknown>; getConfigDocuments(identity: unknown): Promise<unknown[]>;
   getConfigDefault(fileName: string): string | null;

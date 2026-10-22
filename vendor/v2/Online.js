@@ -166751,10 +166751,11 @@ function sendPacket(Packet) {
     );
   }
   if (packetDump) console.log("%c[Network] Send:", "color:#007070", Packet);
+  const lastroSentPacketId = pkt.buffer.byteLength >= 2 ? new DataView(pkt.buffer).getUint16(0, true) : null;
   if (_socket && _socket.isZone) PacketCrypt_default.process(pkt.view);
   send(pkt.buffer);
   if (_socket && globalThis.KoreEngine?.mirrorSentBytes) {
-    try { globalThis.KoreEngine.mirrorSentBytes(pkt.buffer.byteLength); } catch { /* Optional KE accounting must not affect the client. */ }
+    try { globalThis.KoreEngine.mirrorSentBytes(pkt.buffer.byteLength, undefined, lastroSentPacketId); } catch { /* Optional KE accounting must not affect the client. */ }
   }
   if (traceNavigation)
     globalThis.roNaviDebug.log("network-send-returned", {
@@ -167128,7 +167129,7 @@ function onClose$9(event) {
   }
 
   if (this === _socket && this.isZone && !this.handoffPending) {
-    try { globalThis.KoreEngine?.degradeConnection?.("map-socket-closed"); }
+    try { globalThis.KoreEngine?.degradeConnection?.("map-socket-closed", { code: event?.code, reason: event?.reason, wasClean: event?.wasClean }); }
     catch { /* Optional KE failures must not change the native disconnect path. */ }
     lastroCancelMovement(SessionStorage_default.Entity);
     if (typeof MapControl !== "undefined") MapControl._lastroMovementInput?.cancel();
