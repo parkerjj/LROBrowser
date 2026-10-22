@@ -108,6 +108,23 @@ describe('worker runtime resource in-flight sharing', () => {
     expect(Array.from(new Uint8Array(first))).toEqual([1, 2, 3]);
   });
 
+  it('matches manifest entries case-insensitively and follows a replaced manifest', async () => {
+    const actual = await vi.importActual<typeof import('../src/resources/resource-resolver')>('../src/resources/resource-resolver');
+    resolver.mockImplementation(actual.resolvePassiveResource);
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => new Response(bytes(), { headers: { 'content-type': 'text/javascript' } }));
+    vi.stubGlobal('fetch', fetch);
+    let manifest: readonly { path: string }[] | undefined = [{ path: 'data/ui/First.mjs' }];
+    const load = createRuntimeResourceLoader({ packageBaseUrl: 'https://iwa.invalid/core/', getCharset: () => 'gbk', getManifest: () => manifest });
+    await load('data/ui/first.mjs');
+    expect(String(fetch.mock.calls[0]?.[0])).toBe('https://iwa.invalid/core/data/ui/First.mjs');
+    await expect(load('data/ui/second.mjs')).rejects.toThrow('package-only-resource');
+    manifest = [{ path: 'data/ui/second.mjs' }];
+    await load('data/ui/second.mjs');
+    expect(String(fetch.mock.calls[1]?.[0])).toBe('https://iwa.invalid/core/data/ui/second.mjs');
+    manifest = undefined;
+    await expect(load('data/ui/third.mjs')).rejects.toThrow('package-only-resource');
+  });
+
   it('keeps unlisted executables package-only and rejects invalid paths before any transport', async () => {
     const actual = await vi.importActual<typeof import('../src/resources/resource-resolver')>('../src/resources/resource-resolver');
     resolver.mockImplementation(actual.resolvePassiveResource);

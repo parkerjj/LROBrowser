@@ -207,15 +207,72 @@ describe('real native LastRO item packet layout and network compatibility', () =
     expect(h.socket.close).not.toHaveBeenCalled(); expect(h.errors).not.toHaveBeenCalled();
   });
 
-  it('retains the native discard-current-chunk behavior for unknown opcodes', () => {
+  it('discards the rest of the chunk when an unknown opcode is not followed by registered frames', () => {
     for (const id of [0x0c0d, 0xffff]) {
       const h = runtime();
-      h.send(join(new Uint8Array([id & 255, id >> 8]), frame(0x0073, 11)));
+      // A second unknown opcode directly behind the first means the stream is desynchronised.
+      h.send(join(new Uint8Array([id & 255, id >> 8, 0xab, 0xcd]), frame(0x0073, 11)));
       expect(h.decoded).toEqual([]); expect(h.state.saveBuffer).toBeNull();
       h.send(frame(0x0073, 11));
       expect(h.decoded.map(packet => packet.id)).toEqual([0x0073]);
       expect(h.socket.close).not.toHaveBeenCalled(); expect(h.state.closed).toBe(false);
     }
+  });
+
+  describe('an unregistered two-byte opcode in front of registered frames is a stream marker', () => {
+    const say = (npc: number, text: string) => {
+      const body = new TextEncoder().encode(text), bytes = new Uint8Array(8 + body.length), view = new DataView(bytes.buffer);
+      view.setUint16(0, 0x00b4, true); view.setUint16(2, bytes.length, true); view.setUint32(4, npc, true); bytes.set(body, 8);
+      return bytes;
+    };
+    const closeDialog = (npc: number) => { const bytes = frame(0x00b6, 6); new DataView(bytes.buffer).setUint32(2, npc, true); return bytes; };
+    const marker = (value: number) => new Uint8Array([value & 255, value >> 8]);
+    const ids = (h: ReturnType<typeof runtime>) => h.decoded.map(packet => packet.id);
+
+    it.each([0x0f0f, 0x1212, 0x0c0d, 0xffff])('keeps CLOSE_DIALOG behind the unknown marker %s and warns once', value => {
+      const h = runtime();
+      h.send(join(say(42, '再见'), marker(value), closeDialog(42)));
+      expect(ids(h)).toEqual([0x00b4, 0x00b6]);
+      expect(h.decoded[1]!.packet).toEqual({ NAID: 42 });
+      expect(h.errors).not.toHaveBeenCalled(); expect(h.state.saveBuffer).toBeNull();
+      h.send(join(marker(value), frame(0x0073, 11)));
+      expect(ids(h)).toEqual([0x00b4, 0x00b6, 0x0073]);
+      expect(h.context.console.warn).toHaveBeenCalledTimes(1);
+    });
+
+    it('recovers when markers precede both the dialog text and the CLOSE_DIALOG', () => {
+      const h = runtime();
+      h.send(join(marker(0x0f0f), say(42, '再见'), marker(0x1212), closeDialog(42), marker(0x0f03), frame(0x0073, 11)));
+      expect(ids(h)).toEqual([0x00b4, 0x00b6, 0x0073]);
+      expect(h.errors).not.toHaveBeenCalled();
+    });
+
+    it('keeps CLOSE_DIALOG at every TCP split position', () => {
+      const stream = join(say(42, '再见'), marker(0x0f0f), closeDialog(42));
+      for (let split = 1; split < stream.length; split++) {
+        const h = runtime(); h.send(stream.slice(0, split)); h.send(stream.slice(split));
+        expect(ids(h), `split at ${split}`).toEqual([0x00b4, 0x00b6]);
+      }
+    });
+
+    it('resumes at the next read after a marker whose frame is cut off by the chunk end', () => {
+      const h = runtime(), close = closeDialog(42);
+      h.send(join(marker(0x0f0f), close.subarray(0, 3)));
+      expect(h.state.saveBuffer?.byteLength).toBe(3);
+      h.send(close.subarray(3));
+      expect(ids(h)).toEqual([0x00b6]);
+    });
+
+    it('does not accept an unknown opcode followed by an unregistered or malformed frame', () => {
+      for (const tail of [new Uint8Array([0xab, 0xcd, 0, 0, 0, 0]), join(frame(0x008e, 4), frame(0x0073, 11))]) {
+        const h = runtime();
+        if (tail.length === 15) new DataView(tail.buffer).setUint16(2, 3, true);
+        h.send(join(marker(0x0f0f), tail));
+        expect(h.decoded).toEqual([]); expect(h.state.saveBuffer).toBeNull();
+        h.send(frame(0x0073, 11));
+        expect(ids(h)).toEqual([0x0073]);
+      }
+    });
   });
 
   it('discards a malformed variable frame without permanently disabling later TCP reads', () => {
