@@ -401,8 +401,12 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       case 'NpcText': return gid(action.npcGid) && typeof action.text === 'string' ? null : 'malformed-action';
       case 'NpcMenu': return gid(action.npcGid) && validU8(action.choice) ? null : 'malformed-action';
       case 'NpcShopSelect': return gid(action.npcGid) && typeof action.sell === 'boolean' ? null : 'malformed-action';
-      case 'ShopBuy': return gid(action.npcGid) && gid(action.itemId) && validU32(action.amount) && action.amount > 0 ? null : 'malformed-action';
-      case 'ShopSell': return gid(action.npcGid) && validU16(action.inventoryIndex) && validU32(action.amount) && action.amount > 0 ? null : 'malformed-action';
+      // 同一个 NPC 的所有物品合并成一个 0x00C8 封包（服务器买一次就关商店窗口）。
+      case 'ShopBuy': return gid(action.npcGid) && Array.isArray(action.items) && action.items.length > 0 && action.items.length <= 64
+        && action.items.every(entry => entry && gid(entry.itemId) && validU32(entry.amount) && entry.amount > 0) ? null : 'malformed-action';
+      // 所有该卖的合并成一个 0x00C9 封包（OpenKore sendSellBulk）。
+      case 'ShopSell': return gid(action.npcGid) && Array.isArray(action.items) && action.items.length > 0 && action.items.length <= 64
+        && action.items.every(entry => entry && validU16(entry.inventoryIndex) && validU32(entry.amount) && entry.amount > 0) ? null : 'malformed-action';
       case 'PrivateAirship': {
         const hasX = action.x !== undefined;
         const hasY = action.y !== undefined;
@@ -518,6 +522,32 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     } catch (error) {
       postWorker({ type: 'resourceResult', requestId: message.requestId, resourceCycle: message.resourceCycle,
         result: { kind: 'error', code: 'host-resource-error', message: String(error?.message ?? error) } });
+    }
+  }
+  // 规划路线用的目标地图 field 预载：和当前地图的加载流程互不干扰（不碰 activeResourceRequestId
+  // 和 mapResourceState），只负责取文件、事后把校验过的文件写进缓存。
+  async function handlePreloadRequest(message) {
+    if (!session || message.runtimeSessionId !== session) return;
+    try {
+      const response = await resources.handleResourceRequest(message);
+      const result = response.result?.kind === 'fieldMap'
+        ? { ...response.result, files: response.result.files.map(file => ({ ...file, bytes: file.bytes.slice(0) })) }
+        : response.result;
+      const transfer = result?.kind === 'fieldMap'
+        ? result.files.map(file => file.bytes).filter(bytes => bytes instanceof ArrayBuffer) : [];
+      postWorker({ type: 'preloadResult', requestId: message.requestId, result }, transfer);
+    } catch (error) {
+      postWorker({ type: 'preloadResult', requestId: message.requestId,
+        result: { kind: 'error', code: 'host-resource-error', message: String(error?.message ?? error) } });
+    }
+  }
+  async function handlePreloadCommit(message) {
+    if (!session || message.runtimeSessionId !== session) return;
+    try {
+      await resources.handleResourceValidation({ sourceRequestId: message.sourceRequestId,
+        acceptedFiles: message.acceptedFiles, rejectedFiles: message.rejectedFiles });
+    } catch (error) {
+      log('warn', `Field preload cache commit failed: ${String(error?.message ?? error)}`);
     }
   }
   async function handleResourceValidation(message) {
@@ -978,6 +1008,8 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     if (message.type === 'disconnect') { requestDisconnect(message.reason); return; }
     if (message.type === 'resourceRequest') { void handleResourceRequest(message); return; }
     if (message.type === 'resourceValidation') { void handleResourceValidation(message); return; }
+    if (message.type === 'preloadRequest') { void handlePreloadRequest(message); return; }
+    if (message.type === 'preloadCommit') { void handlePreloadCommit(message); return; }
     if (message.type === 'configRequest') { void handleConfigRequest(message); return; }
     if (message.type === 'ltsdRequest') { void handleLtsdRequest(message); return; }
     if (message.type === 'mapResourceReady') {

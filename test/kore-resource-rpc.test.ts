@@ -129,3 +129,51 @@ test('keeps pending resource bytes intact when the Host transfers a Worker copy'
     });
   }
 });
+
+test('field preload for route planning does not disturb the active map resource state', async () => {
+  const fixture = packageFixture();
+  const commits: any[] = [];
+  const provider = {
+    handleResourceRequest: async (message: any) => ({
+      requestId: message.requestId,
+      result: {
+        kind: 'fieldMap' as const,
+        files: [{ role: 'field' as const, relativePath: `EP15.1/${message.baseName}.fld2`, sha256: 'a'.repeat(64), encoding: 'identity' as const, bytes: new Uint8Array([1, 2]).buffer }],
+      },
+    }),
+    handleResourceValidation: async (message: any) => { commits.push(message); return { requestId: message.requestId, sourceRequestId: message.sourceRequestId, committedFiles: message.acceptedFiles, deletedFiles: [] }; },
+    close: async () => undefined,
+  };
+  const page = Object.assign(new EventTarget(), {
+    location: { href: 'http://localhost/' }, fetch: fixture.fetch,
+    performance: { now: () => 42 }, crypto: globalThis.crypto,
+    setInterval, clearInterval, setTimeout, clearTimeout,
+  });
+  class PreloadWorker extends EventTarget {
+    messages: Record<string, any>[] = [];
+    postMessage(message: Record<string, any>) { this.messages.push(message); }
+    terminate() {}
+    reply(message: Record<string, any>) { this.dispatchEvent(new MessageEvent('message', { data: message })); }
+  }
+  const worker = new PreloadWorker();
+  const host = createKoreIntegration({ page, manifest: fixture.executable, createWorker: () => worker, mapResourceProvider: provider });
+  await host.start();
+  const init = worker.messages[0]!;
+  worker.reply({ ...init, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false, aiState: 'off', capabilities: { mapStream: true },
+    buildInfo: { engineVersion: '0.1.0', bridgeApiVersion: 2, packetver: 20211103, target: 'wasm32-unknown-unknown' } });
+  host.beginGameSession(7, 'prontera.gat');
+  host.beginMapConnection();
+  const stateBefore = host.state.mapResourceState;
+
+  worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'preloadRequest', requestId: 950, resourceType: 'fieldMap', mapName: 'prt_in', baseName: 'prt_in', serverFieldsFolder: 'EP15.1', fieldpackVersion: '2.0.5', attempt: 0, cacheMode: 'prefer' });
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(worker.messages.find(message => message.type === 'preloadResult')).toMatchObject({ requestId: 950, result: { kind: 'fieldMap' } });
+  expect(host.state.mapResourceState).toBe(stateBefore);
+
+  worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'preloadCommit', sourceRequestId: 950, acceptedFiles: ['EP15.1/prt_in.fld2'], rejectedFiles: [] });
+  await Promise.resolve();
+  expect(commits).toEqual([{ sourceRequestId: 950, acceptedFiles: ['EP15.1/prt_in.fld2'], rejectedFiles: [] }]);
+  expect(host.state.mapResourceState).toBe(stateBefore);
+  host.dispose();
+});

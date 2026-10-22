@@ -1606,13 +1606,13 @@ globalThis.KoreEngineNativeAction = (action) => {
   if (action.type === "ShopBuy") {
     if (!PACKET?.CZ?.PC_PURCHASE_ITEMLIST) return false;
     const packet = new PACKET.CZ.PC_PURCHASE_ITEMLIST();
-    packet.itemList = [{ ITID: action.itemId, count: action.amount }];
+    packet.itemList = action.items.map((entry) => ({ ITID: entry.itemId, count: entry.amount }));
     return sendKoreEnginePacket(action, packet);
   }
   if (action.type === "ShopSell") {
     if (!PACKET?.CZ?.PC_SELL_ITEMLIST) return false;
     const packet = new PACKET.CZ.PC_SELL_ITEMLIST();
-    packet.itemList = [{ index: action.inventoryIndex, count: action.amount }];
+    packet.itemList = action.items.map((entry) => ({ index: entry.inventoryIndex, count: entry.amount }));
     return sendKoreEnginePacket(action, packet);
   }
   if (action.type === "PrivateAirship") {
