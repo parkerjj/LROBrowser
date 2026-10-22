@@ -59,6 +59,25 @@ describe('official HTTPS via raw TCP and JavaScript TLS', () => {
     expect(body.byteLength).toBeGreaterThan(4);
   }, 30_000);
 
+  it.skipIf(!live)('reuses one keep-alive connection for sequential and concurrent requests', async () => {
+    let connections = 0;
+    class CountingShim extends LiveSocketShim {
+      constructor(host: string, port: number) { super(host, port); connections += 1; }
+    }
+    const fetch = createDirectHttpFetch({
+      TCPSocket: CountingShim as unknown as NonNullable<Parameters<typeof createDirectHttpFetch>[0]>['TCPSocket'],
+      openTimeoutMs: 12_000,
+      readTimeoutMs: 12_000,
+      maxConnections: 2,
+    });
+    const url = 'https://game.lastro.cn/ro/client_re/data/mp3nametable.txt';
+    for (let i = 0; i < 3; i += 1) expect((await fetch(url)).status).toBe(200);
+    expect(connections).toBe(1);
+    const parallel = await Promise.all(Array.from({ length: 4 }, () => fetch(url).then(r => r.arrayBuffer())));
+    expect(parallel.every(buffer => buffer.byteLength > 4)).toBe(true);
+    expect(connections).toBeLessThanOrEqual(2);
+  }, 60_000);
+
   it.skipIf(!live)('authenticates the official HTTPS certificate before bootstrap', async () => {
     await prepareLastROLoginSession({
       TCPSocket: LiveSocketShim as unknown as NonNullable<Parameters<typeof createDirectHttpFetch>[0]>['TCPSocket'],
