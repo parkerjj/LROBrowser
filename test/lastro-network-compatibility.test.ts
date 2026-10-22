@@ -207,8 +207,8 @@ describe('real native LastRO item packet layout and network compatibility', () =
     expect(h.socket.close).not.toHaveBeenCalled(); expect(h.errors).not.toHaveBeenCalled();
   });
 
-  it('retains the native discard-current-chunk behavior for unconfirmed 0x0c0c and unknown opcodes', () => {
-    for (const id of [0x0c0c, 0xffff]) {
+  it('retains the native discard-current-chunk behavior for unknown opcodes', () => {
+    for (const id of [0x0c0d, 0xffff]) {
       const h = runtime();
       h.send(join(new Uint8Array([id & 255, id >> 8]), frame(0x0073, 11)));
       expect(h.decoded).toEqual([]); expect(h.state.saveBuffer).toBeNull();
