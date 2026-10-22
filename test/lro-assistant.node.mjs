@@ -86,7 +86,7 @@ test('real native GUI owns assistant focus, cursor, visibility and reconnect lif
     assert.ok(start>0 && end>start);
     const Mouse = {intersect:true};
     const context = {window:page,document:page.document,Event:page.Event,HTMLElement:page.HTMLElement,
-      MutationObserver:page.MutationObserver,setTimeout:page.setTimeout.bind(page),
+      MutationObserver:page.MutationObserver,setTimeout:page.setTimeout.bind(page),clearTimeout:page.clearTimeout.bind(page),
       Mouse,MouseMode:{STOP:0,FREEZE:1,CROSS:2},SessionStorage_default:{FreezeUI:false},
       _ensureDeps(){},_EntityManager:{setOverEntity(){}},_Cursor:{ACTION:{DEFAULT:0},setType(){}},
       _ScrollBar:null,_Renderer:null,CSS_NUMBER:{zIndex:true},
@@ -623,6 +623,28 @@ test('damage is counted once across before/after notifications',async()=>{
     const damage={GID:100,targetGID:300,damage:123,leftDamage:7,action:0,count:1};
     f.bus.emit(structure,damage,'before');f.bus.emit(structure,damage,'after');
     const report=app.dps.getReport();assert.equal(report.received,1);assert.equal(report.total.damage,130);assert.equal(report.errors,0);
+  }finally{f.cleanup();}
+});
+
+test('DPS rows are only replaced when their content changes and are not built while hidden',async()=>{
+  const f=fixture();
+  try{
+    const app=createStandardAssistant({page:f.page,modules:f.members,storage:f.storage,subscribePackets:f.bus.subscribe});
+    await new Promise(resolve=>globalThis.setTimeout(resolve,120));
+    const structure=f.members.get('Network/PacketStructure').ZC.NOTIFY_ACT;
+    const hit=packet=>{f.bus.emit(structure,packet,'before');f.bus.emit(structure,packet,'after');};
+    hit({GID:100,targetGID:300,damage:123,leftDamage:7,action:0,count:1});
+    app.dps.setVisible(false);
+    const hostNode=f.page.document.getElementById('ro-dps-meter');assert.ok(hostNode);
+    assert.equal(hostNode.shadowRoot.querySelector('.rows .row'),null);
+    app.dps.setVisible(true);
+    const rows=hostNode.shadowRoot.querySelector('.rows');
+    const row=rows.querySelector('.row');assert.ok(row);
+    app.dps.applySettings();
+    assert.equal(rows.querySelector('.row'),row);
+    hit({GID:100,targetGID:301,damage:456,leftDamage:0,action:0,count:1});
+    app.dps.applySettings();
+    assert.notEqual(rows.querySelector('.row'),row);
   }finally{f.cleanup();}
 });
 

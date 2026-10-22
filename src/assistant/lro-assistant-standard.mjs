@@ -2459,8 +2459,6 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
             if (!assistant?.shadow) return;
             mountTarget();
             if (!targetRoot) return;
-            const nativeStyle = page.getComputedStyle(assistant.host);
-            targetRoot.querySelector('.close').classList.toggle('native-close', Boolean(nativeStyle.getPropertyValue('--ro-close-image').trim()));
             const map = String(assistant.currentMap || '');
             if (targetMap && map && targetMap !== map) {
                 targetGID = ''; targetTouchedAt = 0; lastFocusGID = ''; castStarts.clear(); monsterVictims.clear(); monsterLifePackets.clear(); shownVictimPortrait = ''; targetInfoRequestedFor = '';
@@ -2469,6 +2467,8 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
             if (!assistant.settings.targetWindowEnabled || !assistant.gameplayVisible || targetWindowHiddenByUser) {
                 targetHost.hidden = true; return;
             }
+            const nativeStyle = page.getComputedStyle(assistant.host);
+            targetRoot.querySelector('.close').classList.toggle('native-close', Boolean(nativeStyle.getPropertyValue('--ro-close-image').trim()));
             const manager = amd('Renderer/EntityManager');
             const focus = manager?.getFocusEntity?.();
             const focusedMonster = isMonster(focus) && manager?.get?.(Number(focus.GID)) === focus ? focus : null;
@@ -2564,8 +2564,16 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
             }
             targetHost.hidden = false;
         }
+        let rowsHtml = '';
+        // Replacing identical rows every tick drops keyboard focus and turns a click whose press and
+        // release straddle a refresh into a click on the container, which selects nothing.
+        function commitRows(rows) {
+            if (rows.innerHTML === rowsHtml) return;
+            rowsHtml = rows.innerHTML;
+            rowsNode.replaceChildren(...rows.childNodes);
+        }
         function render() {
-            if (!root) return;
+            if (!root || host.hidden) return;
             syncSession();
             const nativeStyle = page.getComputedStyle(assistant.host);
             root.querySelector('#collapse').classList.toggle('native-mini', Boolean(nativeStyle.getPropertyValue('--ro-mini-image').trim()));
@@ -2587,7 +2595,7 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
             root.querySelector('.labels').lastElementChild.textContent = ability ? '次数 / 占比' : player ? '伤害 / 占比 ↓' : '伤害 / DPS ↓';
             const shownDamage = ability ? ability.damage : player ? player.damage : data.damage;
             summary.textContent = `${(data.duration / 1000).toFixed(1)} 秒  ·  总伤害 ${format(shownDamage)}  ·  DPS ${format(shownDamage / Math.max(1, data.duration / 1000))}`;
-            rowsNode.replaceChildren();
+            const rows = page.document.createElement('div');
             if (ability) {
                 const skillCriticalUnknown = ability.skillID !== null;
                 const outcomes = [
@@ -2602,14 +2610,15 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
                     const name = page.document.createElement('span'); name.textContent = label;
                     const value = page.document.createElement('b'); value.textContent = count === null ? '?? 下 / ??%'
                         : `${format(count)} 下 / ${total ? (100 * count / total).toFixed(1) : '0.0'}%`;
-                    bar.append(fill, name, value); rowsNode.append(bar);
+                    bar.append(fill, name, value); rows.append(bar);
                 }
+                commitRows(rows);
                 return;
             }
             if (!data.rows.length) {
                 const empty = page.document.createElement('p');
                 empty.textContent = '暂无伤害记录。进入地图后攻击怪物即可开始。';
-                rowsNode.append(empty);
+                rows.append(empty);
             }
             const displayedRows = player ? player.abilities : data.rows;
             displayedRows.forEach((row, index) => {
@@ -2636,8 +2645,9 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
                 value.textContent = player ? `${format(row.damage)} / ${row.percent.toFixed(1)}%` : `${format(row.damage)} / ${format(row.dps)}`;
                 bar.title = player ? `${abilityName(row)}：伤害 ${format(row.damage)}；占比 ${row.percent.toFixed(1)}%`
                     : `${row.name}：伤害 ${format(row.damage)}；DPS ${format(row.dps)}；占比 ${(100 * row.damage / Math.max(1, data.damage)).toFixed(1)}%`;
-                bar.append(fill, label, value); rowsNode.append(bar);
+                bar.append(fill, label, value); rows.append(bar);
             });
+            commitRows(rows);
         }
         function mount() {
             if (root || !assistant?.shadow) return;
