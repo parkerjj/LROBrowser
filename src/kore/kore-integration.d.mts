@@ -67,7 +67,7 @@ export interface KoreCommandOutput { command: string; result: unknown; silent: b
 export interface KoreIntegration {
   state: KoreState; start(): Promise<void>; dispose(): void;
   beginGameSession(characterGid: number, mapName: string, identity?: { aid?: number; cid?: number; nid?: number;
-    name?: string; baseLevel?: number; jobLevel?: number; jobId?: number }): string | null;
+    name?: string; baseLevel?: number; jobLevel?: number; jobId?: number; zeny?: number }): string | null;
   beginMapConnection(): number | null;
   mirrorMapData(connectionGeneration: number, data: ArrayBuffer | ArrayBufferView, options?: { aligned?: boolean }): boolean;
   degradeConnection(reason?: string, details?: { code?: number; reason?: string; wasClean?: boolean } | null): boolean;

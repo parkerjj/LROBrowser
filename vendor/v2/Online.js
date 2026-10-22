@@ -320950,6 +320950,7 @@ function onReceiveMapInfo(pkt) {
       baseLevel: SessionStorage_default.Entity?.level ?? null,
       jobLevel: SessionStorage_default.Entity?.joblevel ?? null,
       jobId: SessionStorage_default.Entity?.job ?? null,
+      zeny: SessionStorage_default.Entity?.money ?? null,
     });
   }
   catch { /* Optional KE initialization must not change the native login path. */ }

@@ -87,7 +87,7 @@ test('character identity reaches boot without the Host making a bind API decisio
   await host.start();
   const runtimeSessionId = worker.messages[0]!.runtimeSessionId;
   const gameSessionId = host.beginGameSession(77, 'prontera.gat', {
-    aid: 11, cid: 22, nid: 33, name: 'Test Character', baseLevel: 50, jobLevel: 20, jobId: 1,
+    aid: 11, cid: 22, nid: 33, name: 'Test Character', baseLevel: 50, jobLevel: 20, jobId: 1, zeny: 123456,
   });
   expect(worker.messages.some(message => message.type === 'queue' && bridgeRecord(message).kind === 'gameSessionStarted')).toBe(false);
   worker.reply({ runtimeSessionId, type: 'bootReady', packageId: fixture.manifest.packageId,
@@ -102,6 +102,8 @@ test('character identity reaches boot without the Host making a bind API decisio
   worker.reply({ runtimeSessionId, requestId: worker.messages[0]!.requestId, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false });
   expect(worker.messages.some(message => message.type === 'queue' && bridgeRecord(message).kind === 'gameSessionStarted'
     && bridgeRecord(message).gameSessionId === gameSessionId)).toBe(true);
+  expect(worker.messages.find(message => message.type === 'queue' && bridgeRecord(message).kind === 'gameSessionStarted'))
+    .toMatchObject({ record: { zeny: 123456 } });
 });
 
 test('an incomplete character identity surfaces an error instead of leaving the panel waiting', async () => {

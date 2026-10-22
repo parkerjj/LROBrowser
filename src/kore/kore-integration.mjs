@@ -1156,6 +1156,8 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         characterGid, mapName, aid: gameSession.aid, cid: gameSession.cid, nid: gameSession.nid,
         name: identity.name ?? null, baseLevel: identity.baseLevel ?? null,
         jobLevel: identity.jobLevel ?? null, jobId: identity.jobId ?? null,
+        // 登录状态包在 KE 启动前就发完了，zeny 没变化就不会再收到，只能靠这里补初值。
+        zeny: identity.zeny ?? null,
       };
       postEvent('gameSessionStarted', fields, 'control', { gameSessionId: id, connectionGeneration: 0 });
       changed(); sendCharacterToBoot(); return id;
