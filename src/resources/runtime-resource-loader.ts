@@ -30,6 +30,22 @@ export function createRuntimeResourceLoader(options: RuntimeResourceOptions): (p
   const schedule = createResourceScheduler(6);
   const sourceHealth = new ResourceSourceHealth();
   const notFoundUntil = new Map<string, number>();
+  // Every resource request consults the manifest: index it once per manifest instead of scanning it.
+  let indexedManifest: readonly { path: string }[] | undefined;
+  let manifestIndex = new Map<string, { path: string }>();
+  const findPackaged = (lowerPath: string) => {
+    const manifest = options.getManifest();
+    if (!manifest) return undefined;
+    if (manifest !== indexedManifest) {
+      indexedManifest = manifest;
+      manifestIndex = new Map();
+      for (const file of manifest) {
+        const key = file.path.toLowerCase();
+        if (!manifestIndex.has(key)) manifestIndex.set(key, file);
+      }
+    }
+    return manifestIndex.get(lowerPath);
+  };
   return (path) => {
     const normalizedPath = normalizeResourcePath(path);
     const charset = options.getCharset();
@@ -46,7 +62,7 @@ export function createRuntimeResourceLoader(options: RuntimeResourceOptions): (p
         notFoundUntil,
         primaryCharset: charset,
         packageLookup: async (normalizedPath) => {
-          const entry = options.getManifest()?.find(file => file.path.toLowerCase() === normalizedPath.toLowerCase());
+          const entry = findPackaged(normalizedPath.toLowerCase());
           if (!entry) return null;
           if (normalizeResourcePath(entry.path) !== entry.path) throw new Error('Invalid package resource path');
           const encodedPath = entry.path.split('/').map(encodeURIComponent).join('/');

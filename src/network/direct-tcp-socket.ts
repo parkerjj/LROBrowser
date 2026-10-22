@@ -122,7 +122,7 @@ export class DirectTcpSocket implements LegacyClientSocket {
         if (!this.terminated && result.value) {
           const started = this.now();
           const value = result.value;
-          const bytes = new Uint8Array(value).slice().buffer;
+          const bytes = value.slice().buffer;
           this.safeInvoke(() => this.onMessage?.(bytes));
           workDuration += Math.max(0, this.now() - started);
           if (++readCount >= 8 || workDuration >= 4) {

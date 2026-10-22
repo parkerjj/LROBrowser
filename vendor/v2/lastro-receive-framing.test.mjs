@@ -204,16 +204,26 @@ for (const [id, length] of [[0x00f2, 6], [0x0171, 30]]) {
   });
 }
 
-test('unknown 0c0c after 009d discards trailing packet-like bytes without waiting or disconnecting', () => {
+test('0c0c after 009d is a stream marker and the following packet still decodes', () => {
   const decoded = [];
   const harness = loadReceiveHarness(decoded);
   const bytes = new Uint8Array(17 + 2 + 6);
   bytes.set([0x9d, 0x00]);
   bytes.set([0x0c, 0x0c, 0xf2, 0, 0, 0, 0, 0], 17);
   harness.receive(bytes.buffer);
-  assert.deepEqual(decoded, [{ id: 0x009d }]);
+  assert.deepEqual(decoded, [{ id: 0x009d }, { id: 0x00f2 }]);
   assert.equal(harness.getSavedBytes(), null);
   assert.equal(harness.getCloseCount(), 0);
+});
+
+test('unknown two-byte opcode in front of registered frames is skipped as a stream marker', () => {
+  const decoded = [];
+  const harness = loadReceiveHarness(decoded);
+  harness.receive(new Uint8Array([0x0f, 0x0f, 0xf2, 0, 1, 2, 3, 4]).buffer);
+  assert.deepEqual(decoded, [{ id: 0x00f2 }]);
+  assert.equal(harness.getSavedBytes(), null);
+  assert.equal(harness.getCloseCount(), 0);
+  assert.deepEqual(harness.getErrors(), []);
 });
 
 test('unregistered packet with a known packet-table length still discards the rest of its receive chunk', () => {
