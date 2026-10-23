@@ -160011,6 +160011,10 @@ var init_PacketStructure = __esmMin(() => {
     this.AutoUseSit_reSpUpVal = readByte();
     this.AutoUseSit_xw = readByte();
     this.onlynoattack = readByte();
+    // 官方 Online.js（ROWeb/ro、ROWeb/v1-debug）的 NOTIFY_LOADINFO 在 onlynoattack 后面还有这一个
+    // 字节，之后才是四个 start* 开关；缺了它，开关组和后面的所有字段都会被读早一个字节。
+    // 对照 OpenKore LastroFollow：startAutofollow 在 payload@43。
+    this.AutoUseItem_Protection = readByte();
     this.startAutoAtk = readByte();
     this.startAutoLoot = readByte();
     this.startAutopots = readByte();
@@ -160025,7 +160029,6 @@ var init_PacketStructure = __esmMin(() => {
     this.useManuals = readByte();
     this.useBubbles = readByte();
     this.useAspersio = readByte();
-    this.reserved = readByte();
   };
   PACKET.ZC.NOTIFY_LOADINFO.size = 58;
   PACKET.ZC.NOTIFY_RELOADINFOS = function PACKET_ZC_NOTIFY_RELOADINFOS(
