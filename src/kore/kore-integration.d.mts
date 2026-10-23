@@ -40,6 +40,8 @@ export interface KoreState {
   streamStatus: 'idle' | 'awaiting-connection' | 'awaiting-sync' | 'world-ready' | 'degraded';
   worldReady: boolean; mapResourceState: 'idle' | 'loading' | 'retrying' | 'ready' | 'degraded';
   receivedBytes: number; sentBytes: number; degradedReason: string | null; logs: KoreLog[];
+  /** error 级别与封包层（domain=protocol）的日志另存一份：不受控制台条数上限和「清空控制台」影响，最多 200 条。 */
+  errorLog?: KoreLog[];
   disconnect: KoreDisconnectSummary | null;
   runtimeStatus: unknown; lastDiagnostic: unknown; lastCommandResult: unknown;
   configIdentity: { aid: number; cid: number; nid: number } | null;

@@ -617,6 +617,43 @@ test('host leaves reload summaries to the Rust config logs', async () => {
   expect(host.state.logs.some(entry => entry.text.includes('ACCEPTED') || entry.text.includes('REJECTED'))).toBe(false);
 });
 
+test('error and protocol logs are also kept in errorLog, which the console cap and clear do not touch', async () => {
+  const { host, worker } = await readyHost();
+  const runtimeSessionId = worker.messages[0]!.runtimeSessionId;
+  host.beginGameSession(77, 'prontera.gat');
+  const dropped = '封包：unknown-packet-length:0xfffe，同一数据块里后面的 46 字节封包被丢弃。前后字节：01 02 | fe ff fd ff';
+  worker.reply({ runtimeSessionId, type: 'outputs', outputs: [
+    { kind: 'log', level: 'message', domain: 'protocol', text: '封包：未登记的 opcode 0x0c0a 已当作 marker', timestamp: 1 },
+    { kind: 'log', level: 'error', domain: 'protocol', text: dropped, timestamp: 2 },
+    { kind: 'log', level: 'error', domain: 'protocol', text: dropped, timestamp: 3 },
+    { kind: 'log', level: 'message', domain: 'attackMon', text: '攻击目标 1002', timestamp: 4 },
+    { kind: 'error', code: 'route-plan-failed', message: 'Runtime failed' },
+  ] });
+  // 只留 error 与 protocol；连续相同的同一条不重复记。
+  expect(host.state.errorLog!.map(entry => entry.text)).toEqual([
+    '封包：未登记的 opcode 0x0c0a 已当作 marker', dropped, 'Runtime failed',
+  ]);
+  expect(host.state.errorLog![1]).toMatchObject({ level: 'error', domain: 'protocol' });
+
+  host.clearConsole();
+  expect(host.state.logs).toHaveLength(0);
+  expect(host.state.errorLog).toHaveLength(3);
+});
+
+test('errorLog keeps the newest 200 severe entries while the console keeps 1000', async () => {
+  const { host, worker } = await readyHost();
+  const runtimeSessionId = worker.messages[0]!.runtimeSessionId;
+  host.beginGameSession(77, 'prontera.gat');
+  const outputs = Array.from({ length: 1100 }, (_, index) => ({
+    kind: 'log', level: index % 2 === 0 ? 'message' : 'error', domain: index % 2 === 0 ? 'attackMon' : 'protocol', text: `entry ${index}`, timestamp: index,
+  }));
+  worker.reply({ runtimeSessionId, type: 'outputs', outputs });
+  expect(host.state.logs).toHaveLength(1000);
+  expect(host.state.errorLog).toHaveLength(200);
+  expect(host.state.errorLog!.at(-1)!.text).toBe('entry 1099');
+  expect(host.state.errorLog![0]!.text).toBe('entry 701');
+});
+
 test('sendCommandText correlates silent outputs without writing the console', async () => {
   const { host, worker } = await readyHost();
   const runtimeSessionId = worker.messages[0]!.runtimeSessionId;

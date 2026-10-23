@@ -143,7 +143,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     status: 'absent', packageId: null, mode: null, runtimeGeneration: 0,
     profile: KORE_PROTOCOL_PROFILE, gameSessionId: null, connectionGeneration: null,
     streamStatus: 'idle', worldReady: false, mapResourceState: 'idle',
-    receivedBytes: 0, sentBytes: 0, degradedReason: null, logs: [],
+    receivedBytes: 0, sentBytes: 0, degradedReason: null, logs: [], errorLog: [],
     runtimeStatus: null, lastDiagnostic: null, lastCommandResult: null,
     configIdentity: null,
     bootSession: null,
@@ -227,9 +227,21 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     try { onChange(state); } catch { /* UI must not affect transport. */ }
     for (const listener of stateSubscribers) { try { listener(state); } catch { /* UI must not affect transport. */ } }
   };
+  // 严重错误另存一份：控制台只留 1000 条，还能被「清空控制台」清掉，长时间挂机或手动操作一阵就把
+  // 现场冲没了。error 级别和封包层（domain=protocol：未知 marker、成帧失败丢包）的日志都留在这里，
+  // 随 kore-state.json 一起导出；连续重复的同一条不重复记。
+  const ERROR_LOG_LIMIT = 200;
+  const retainSevere = entry => {
+    if (entry.level !== 'error' && entry.domain !== 'protocol') return;
+    const last = state.errorLog.at(-1);
+    if (last && last.level === entry.level && last.domain === entry.domain && last.text === entry.text) return;
+    state.errorLog.push(entry);
+    if (state.errorLog.length > ERROR_LOG_LIMIT) state.errorLog.splice(0, state.errorLog.length - ERROR_LOG_LIMIT);
+  };
   const logEntry = entry => {
     state.logs.push(entry);
     if (state.logs.length > 1000) state.logs.splice(0, state.logs.length - 1000);
+    retainSevere(entry);
     changed();
   };
   const log = (level, text, domain = 'system') => logEntry({

@@ -9,7 +9,7 @@ import { copyText } from './kore-clipboard.mjs';
 // answer); the rest are plain one-shot commands.
 export const KORE_QUICK_COMMANDS = Object.freeze([
   { label: '自动', command: 'ai auto', mode: 'AUTO', title: '全自动：索敌、拾取、补给、寻路。需要 LTSD 授权并占用实例额度' },
-  { label: '半自动', command: 'ai manual', mode: 'MANUAL', title: '只执行 manualAI 为 1/2 的自助项（用药、BUFF、自身技能），移动与攻击由你操作。需要 LTSD 授权，不占实例额度' },
+  { label: '半自动', command: 'ai manual', mode: 'MANUAL', title: '半自动：全自动砍掉自动补给、自动走路（寻怪/追怪/随机走动/拾取/回挂机图）、寻怪瞬移、自动坐/站和死亡复活。保留自动换装、用药、BUFF、保命瞬移，以及射程内的怪自动选技能出手（不追怪、不走位、不普攻，各项按 manualAI 为 1/2 过滤）。位置由你控制。需要 LTSD 授权，和自动模式一样占实例额度' },
   { label: '关闭', command: 'ai off', mode: 'OFF', title: '关闭 KE 的自动功能' },
   { label: '清空 AI 队列', command: 'ai clear', title: '只清空 KE 内部队列，与游戏任务无关' },
   { label: '经验统计', command: 'exp' },
@@ -380,11 +380,14 @@ export function createKoreWindow({
       status(`最后成功同步：${Number.isFinite(updatedAt) && updatedAt > 0 ? new Date(updatedAt).toLocaleString() : '时间未知'}`);
       authButton('重试同步', 'kore-auth-primary', () => { void host.refreshConfiguration?.(); });
     } else if (phase === 'quota-exceeded') {
+      // 半自动也占额度：额度已满时用用户当初请求的模式（Rust 放在 detail.requested_mode）重新启动。
+      const startCommand = auth.detail?.requested_mode === 'manual' ? 'manual' : 'auto';
+      const modeLabel = startCommand === 'manual' ? '半自动' : '自动';
       const instances = Array.isArray(auth.detail?.active_instances)
         ? auth.detail.active_instances.map(quotaInstanceLabel).filter(Boolean).slice(0, 32) : [];
       if (!instances.some(instance => instance.id === selectedQuotaInstanceId)) selectedQuotaInstanceId = null;
       if (instances.length) {
-        status('选择一个仍在运行的实例并替换，然后启动自动模式：');
+        status(`选择一个仍在运行的实例并替换，然后启动${modeLabel}模式：`);
         const list = element(document, 'div', 'kore-quota-list');
         let replaceButton = null;
         for (const instance of instances) {
@@ -406,12 +409,12 @@ export function createKoreWindow({
         }
         onboardingContent.append(list);
         replaceButton = authButton('替换所选实例并启动', 'kore-auth-primary kore-quota-replace', () => {
-          if (selectedQuotaInstanceId) host.sendCommandText?.(`ai auto kick ${selectedQuotaInstanceId}`);
+          if (selectedQuotaInstanceId) host.sendCommandText?.(`ai ${startCommand} kick ${selectedQuotaInstanceId}`);
         });
         replaceButton.disabled = selectedQuotaInstanceId === null;
       } else {
         status('LTSD 没有返回可替换的实例；请在其他已登录设备停止自动模式后重试。');
-        authButton('重试自动模式', 'kore-auth-secondary', () => host.sendCommandText?.('ai auto'));
+        authButton(`重试${modeLabel}模式`, 'kore-auth-secondary', () => host.sendCommandText?.(`ai ${startCommand}`));
       }
     }
     if (guide) {

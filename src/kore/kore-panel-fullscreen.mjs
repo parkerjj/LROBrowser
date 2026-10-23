@@ -65,7 +65,7 @@ export function createKoreFullscreen({
   autoButton.type = 'button';
   const manualButton = el(document, 'button', 'kore-fs-btn kore-fs-manual', '半自动');
   manualButton.type = 'button';
-  manualButton.title = '只执行 manualAI 为 1/2 的自助项（用药、BUFF、自身技能），移动与攻击由你操作；需要 LTSD 授权，不占实例额度';
+  manualButton.title = '半自动：全自动砍掉自动补给、自动走路（寻怪/追怪/随机走动/拾取/回挂机图）、寻怪瞬移、自动坐/站和死亡复活。保留自动换装、用药、BUFF、保命瞬移，以及射程内的怪自动选技能出手（不追怪、不走位、不普攻，各项按 manualAI 为 1/2 过滤）。位置由你控制；需要 LTSD 授权，和自动模式一样占实例额度';
   const clearButton = el(document, 'button', 'kore-fs-btn kore-fs-btn-text', '清空 AI 队列');
   clearButton.type = 'button';
   clearButton.title = '只清空 KE 内部队列，与游戏任务无关';
