@@ -1,5 +1,5 @@
 // LastRO's original client handles only these explicit rejection responses.
-export function createLastroTeleportFeedback({ showNotice, writeChat, onRejected, onError }) {
+export function createLastroTeleportFeedback({ showNotice, writeChat, onRejected, onResponse, onError }) {
   if (typeof showNotice !== 'function' || typeof writeChat !== 'function') {
     throw new TypeError('Teleport feedback requires native notice and chat callbacks');
   }
@@ -9,6 +9,7 @@ export function createLastroTeleportFeedback({ showNotice, writeChat, onRejected
   }
 
   return function onPrivateAirshipResponse(packet) {
+    try { onResponse?.(packet?.response); } catch (error) { report(error); }
     let message;
     switch (packet?.response) {
       case 2: message = '传送失败：背包中没有 VIP 卡或传送券。'; break;
@@ -71,6 +72,7 @@ ${anchor}
     onRejected: (message, response) => {
       if (typeof LastROTools !== "undefined") LastROTools?._lastroTeleportRejected?.(message, response);
     },
+    onResponse: response => globalThis.KoreEngine?.handleAirshipResponse?.(response),
     onError: error => console.warn("[LastRO] Teleport rejection feedback failed", error),
   });
   Network.hookPacket(PACKET.ZC.PRIVATE_AIRSHIP_RESPONSE, lastroPrivateAirshipFeedback);`, 'main-hook');

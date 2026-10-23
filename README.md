@@ -1,5 +1,9 @@
 # LastRO V2 IWA 客户端
 
+KoreEngine M0 为可选本机接入。默认安装、测试、dev 和 Web/IWA 构建无需 KE 源码或 Rust，也不下载 KE 包。显式运行 `pnpm ke:local --source <absolute-path> --mode debug|release` 构建并暂存完整包，再执行普通 dev/build；运行 `pnpm ke:local --disable` 撤销接入。切换后重新加载已打开的客户端。私有路径、源码和生成物只留在被忽略的 `generated/` 中，不进入公开源码。
+
+接入与 prepare 共用 `generated/ke/.staging.lock`。重叠调用会报告未开始，不改变另一调用的结果；进程崩溃留下锁时，查看锁中的 PID，确认进程已停止后才删除该锁并重试。构建失败、坏包或版本不兼容会撤销 KE，后续普通构建仍可继续。宿主只校验并加载当前包的同源 module Worker，初始化和运行故障只关闭 KE，不等待它完成原客户端启动。M0 仅显示运行状态和有界日志，没有 AI、游戏数据或配置功能。
+
 这是独立的 LastRO V2 Isolated Web App 客户端。游戏连接支持在登录面板显式选择官方 WSS 传统模式或 Direct TCP / `TCPSocket` 直连。当前直连仅 App服可用，二转和三转使用传统模式。
 
 连接模式位于服务器选择上方，三个服务器按钮同排显示，只显示当前模式的一行说明。切换模式或服务器即时生效，无需重新载入页面。传统模式下 App服按钮置灰；切到直连自动选择 App服，切回传统自动选择2转。模式和服务器选择保存在本地，刷新后恢复；没有有效记录时默认传统 + 2转。账号仍按服务器 profile 管理，切换连接模式不改变已保存账号信息。

@@ -17,7 +17,7 @@ const DEFAULT_MAX_HEADER_BYTES = 64 * 1024;
 const DEFAULT_MAX_BODY_BYTES = 128 * 1024 * 1024;
 // game.lastro.cn throttles clients that open many short connections, so
 // passive resources share a small pool of keep-alive TLS connections.
-const DEFAULT_MAX_CONNECTIONS = 4;
+const DEFAULT_MAX_CONNECTIONS = 3;
 const DEFAULT_IDLE_TIMEOUT_MS = 30_000;
 
 interface DirectHttpOptions {

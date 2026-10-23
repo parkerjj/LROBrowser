@@ -26,18 +26,32 @@ describe('GitHub workflow policy', () => {
       expect(section).not.toContain('contents: write');
     }
 
-    // Signed production releases are gated by every verification stage.
+    // Production releases wait for source verification, then build and audit
+    // the signed artifact inside the protected job.
     const release = sections.get('release-iwa');
-    expect(release).toContain('needs: [lint, test, build-iwa]');
+    expect(release).toContain('needs: [lint, test, build-production-iwa, build-web]');
     expect(release).toContain('environment:');
     expect(release).toContain('name: production');
+    const fetchKe = sections.get('fetch-ke');
+    expect(fetchKe).toContain('secrets.KE_REPOSITORY_READ_TOKEN');
+    expect(fetchKe).toContain('--download-release');
+    expect(workflow).not.toContain('secrets.KE_CORE_KEY');
+    expect(workflow).not.toContain('repository: parkerjj/KoreEngine');
+    const productionIwa = sections.get('build-production-iwa');
+    expect(productionIwa).toContain("KE_REQUIRE_PACKAGE: '1'");
+    expect(productionIwa).toContain('--verify-dist dist');
+    expect(productionIwa).toContain('run: pnpm audit:iwa');
+    const web = sections.get('build-web');
+    expect(web).toContain('verified-ke-release');
+    expect(web).toContain('--verify-dist dist-web');
+    expect(web).toContain('--verify-web-hosting');
     expect(release).toContain('secrets.IWA_SIGNING_KEY');
     expect(release).toContain('if: always()');
     expect(release).toContain('rm -f');
 
     // Web deploys also wait for the single shared test gate.
     const deployWeb = sections.get('deploy-web');
-    expect(deployWeb).toContain('needs: [lint, test, build-web]');
+    expect(deployWeb).toContain('needs: [lint, test, build-web, build-production-iwa]');
     expect(deployWeb).toContain('name: production-web');
     expect(deployWeb).toContain('surge@0.24.6');
   });

@@ -11,7 +11,7 @@ export function stripViteClientInjection(html: string): string {
   return html.replace(/<script\b(?=[^>]*\bsrc=["'][^"']*\/@vite\/client["'])[^>]*>\s*<\/script>\s*/g, '');
 }
 
-function packageRuntime(target: 'iwa' | 'web'): Plugin {
+export function packageRuntime(target: 'iwa' | 'web', root = process.cwd()): Plugin {
   function serveStagedRuntime(server: ViteDevServer) {
     server.middlewares.use((request, response, next) => {
       for (const [name, value] of Object.entries(REQUIRED_HEADERS)) response.setHeader(name, value);
@@ -53,16 +53,16 @@ function packageRuntime(target: 'iwa' | 'web'): Plugin {
         const index = bundle['index.html'];
         if (index && index.type === 'asset') this.emitFile({ type: 'asset', fileName: '200.html', source: index.source });
       }
-      const runtime = path.resolve('generated/runtime/Online.js');
+      const runtime = path.resolve(root, 'generated/runtime/Online.js');
       if (existsSync(runtime)) this.emitFile({ type: 'asset', fileName: 'runtime/Online.js', source: readFileSync(runtime) });
-      const manifestPath = path.resolve('generated/core/executable-assets.json');
+      const manifestPath = path.resolve(root, 'generated/core/executable-assets.json');
       if (!existsSync(manifestPath)) return;
       const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { files: Array<{ path: string; kind: string }> };
       for (const file of manifest.files) {
-        const source = path.resolve('generated/core', file.path);
+        const source = path.resolve(root, 'generated/core', file.path);
         if (!existsSync(source)) throw new Error(`Missing core asset: ${file.path}`);
         this.emitFile({ type: 'asset', fileName: `core/${file.path}`, source: readFileSync(source) });
-        if (file.kind === 'runtime' && file.path !== 'runtime/Online.js') {
+        if (file.kind === 'runtime' && file.path.startsWith('runtime/') && file.path !== 'runtime/Online.js') {
           this.emitFile({ type: 'asset', fileName: `runtime/${path.basename(file.path)}`, source: readFileSync(source) });
         }
       }

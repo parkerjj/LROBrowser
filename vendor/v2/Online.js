@@ -145837,6 +145837,53 @@ var init_BinaryWriter = __esmMin(() => {
 function readTrailingName(fp, end) {
   return fp.readString(NAME_LENGTH);
 }
+/**
+ * 官方 Online.js(1.js) 的 37 字节技能条目列表：0x0AD1-0x0AD4 四个包共用。
+ *
+ * @param {object} fp - BinaryReader
+ * @param {number} end - packet end offset
+ * @returns {object[]}
+ */
+function readLastROSkillInfoList(fp, end) {
+  const count = ((end - fp.tell()) / 37) | 0;
+  const out = new Array(count);
+  for (let i = 0; i < count; ++i) {
+    out[i] = {};
+    out[i].SKID = fp.readShort();
+    out[i].type = fp.readLong();
+    out[i].level = fp.readShort();
+    out[i].spcost = fp.readShort();
+    out[i].attackRange = fp.readShort();
+    out[i].skillName = fp.readBinaryString(24);
+    out[i].upgradable = fp.readChar();
+  }
+  return out;
+}
+/**
+ * 物品 ID 在 LastRO 的帧里可能是 32 位（官方 Online.js 当前布局）或 16 位（旧布局）。
+ * 按帧里剩余的字节数判断；trailing 是物品 ID 之后还固定跟着的字节数。
+ *
+ * @param {object} fp - BinaryReader
+ * @param {number} end - packet end offset
+ * @param {number} trailing - bytes that always follow the item id
+ * @returns {number}
+ */
+function readLastROItemId(fp, end, trailing = 0) {
+  return end - fp.tell() - trailing >= 4 ? fp.readULong() : fp.readUShort();
+}
+/**
+ * 列表包的单元长度随版本变化：返回第一个能整除列表字节数的候选长度。候选按优先级排列，
+ * 官方 Online.js(1.js) 当前使用的长度排在最前；都不能整除时返回 fallback。
+ *
+ * @param {number} length - bytes of the list part
+ * @param {number[]} units - candidate entry sizes
+ * @param {number} fallback
+ * @returns {number}
+ */
+function pickLastROListUnit(length, units, fallback = units[units.length - 1]) {
+  for (const unit of units) if (length > 0 && length % unit === 0) return unit;
+  return fallback;
+}
 function readLastROEntity9Prefix(fp) {
   const data = {};
   data.objecttype = fp.readUChar();
@@ -149078,9 +149125,26 @@ var init_PacketStructure = __esmMin(() => {
     fp,
     end,
   ) {
-    this.len = fp.readULong();
-    this.openIdentity = fp.readULong();
-    this.itemcount = fp.readUShort();
+    const start = fp.tell();
+    // 官方 Online.js(1.js)：标签(4) 数量(2) 之后是每项 6 字节的 {物品 ID(2) 价格(4)}。
+    if (end - start >= 6) {
+      this.tab = fp.readULong();
+      this.count = fp.readUShort();
+      const entries = ((end - fp.tell()) / 6) | 0;
+      this.itemList = new Array(entries);
+      for (let i = 0; i < entries; ++i) {
+        this.itemList[i] = {};
+        this.itemList[i].ITID = fp.readUShort();
+        this.itemList[i].price = fp.readLong();
+      }
+      fp.seek(start, SEEK_SET);
+    }
+    // 仓库原有读法：同一段字节的另一种解读，保留给已有的使用方。
+    if (end - start >= 10) {
+      this.len = fp.readULong();
+      this.openIdentity = fp.readULong();
+      this.itemcount = fp.readUShort();
+    }
   };
   PACKET.ZC.ACK_SE_CASH_ITEM_LIST2.size = 8;
   PACKET.CZ.REQ_SE_CASH_TAB_CODE = function PACKET_CZ_REQ_SE_CASH_TAB_CODE() {
@@ -149151,6 +149215,15 @@ var init_PacketStructure = __esmMin(() => {
   };
   PACKET.ZC.SE_PC_BUY_CASHITEM_RESULT =
     function PACKET_ZC_SE_PC_BUY_CASHITEM_RESULT(fp, end) {
+      if (end - fp.tell() >= 14) {
+        // 官方 Online.js(1.js) 的 16 字节帧：物品 ID(4) 结果(2) 点数(4) 卡普拉点(4)。
+        this.itemId = fp.readULong();
+        this.ITID = this.itemId;
+        this.result = fp.readUShort();
+        this.cashPoints = fp.readULong();
+        this.kafraPoints = fp.readULong();
+        return;
+      }
       this.kafraPoints = fp.readUShort();
       this.itemId = fp.readShort();
       this.result = fp.readShort();
@@ -149761,7 +149834,9 @@ var init_PacketStructure = __esmMin(() => {
   };
   PACKET.ZC.NOTIFY_PLAYERCHAT.size = -1;
   PACKET.ZC.ENTRY_ACK = function PACKET_ZC_ENTRY_ACK(fp, end) {
-    this.Header = fp.readShort();
+    // 官方 Online.js(1.js) 声明 6 字节帧（ID + AID），解析函数却多读了 2 字节 Header；
+    // 帧里放得下才读，避免越过帧边界。
+    if (end - fp.tell() >= 6) this.Header = fp.readShort();
     this.AID = fp.readLong();
   };
   PACKET.ZC.ENTRY_ACK.size = 6;
@@ -150099,7 +150174,12 @@ var init_PacketStructure = __esmMin(() => {
     end,
   ) {
     this.itemList = (function () {
-      const item_size = PacketVerManager_default.value >= 20181121 ? 13 : 11;
+      // 官方 Online.js(1.js) 的条目是 11 字节（物品 ID 16 位）；13 字节是物品 ID 32 位的布局。
+      const item_size = pickLastROListUnit(
+        end - fp.tell(),
+        [11, 13],
+        PacketVerManager_default.value >= 20181121 ? 13 : 11,
+      );
       const count = ((end - fp.tell()) / item_size) | 0;
       const out = new Array(count);
       for (let i = 0; i < count; ++i) {
@@ -150107,10 +150187,7 @@ var init_PacketStructure = __esmMin(() => {
         out[i].price = fp.readLong();
         out[i].discountprice = fp.readLong();
         out[i].type = fp.readUChar();
-        out[i].ITID =
-          PacketVerManager_default.value >= 20181121
-            ? fp.readULong()
-            : fp.readUShort();
+        out[i].ITID = item_size === 13 ? fp.readULong() : fp.readUShort();
       }
       return out;
     })();
@@ -150401,9 +150478,9 @@ var init_PacketStructure = __esmMin(() => {
   };
   PACKET.ZC.NOTIFY_CHAT_PARTY.size = -1;
   PACKET.ZC.MVP_GETTING_ITEM = function PACKET_ZC_MVP_GETTING_ITEM(fp, end) {
-    this.ITID = fp.readUShort();
+    this.ITID = readLastROItemId(fp, end);
   };
-  PACKET.ZC.MVP_GETTING_ITEM.size = 4;
+  PACKET.ZC.MVP_GETTING_ITEM.size = 6;
   PACKET.ZC.MVP_GETTING_SPECIAL_EXP =
     function PACKET_ZC_MVP_GETTING_SPECIAL_EXP(fp, end) {
       this.exp = fp.readULong();
@@ -151280,9 +151357,9 @@ var init_PacketStructure = __esmMin(() => {
   PACKET.ZC.MAKABLEITEMLIST.size = -1;
   PACKET.ZC.ACK_REQMAKINGITEM = function PACKET_ZC_ACK_REQMAKINGITEM(fp, end) {
     this.result = fp.readShort();
-    this.ITID = fp.readUShort();
+    this.ITID = readLastROItemId(fp, end);
   };
-  PACKET.ZC.ACK_REQMAKINGITEM.size = 6;
+  PACKET.ZC.ACK_REQMAKINGITEM.size = 8;
   PACKET.ZC.TALKBOX_CHATCONTENTS = function PACKET_ZC_TALKBOX_CHATCONTENTS(
     fp,
     end,
@@ -151356,9 +151433,9 @@ var init_PacketStructure = __esmMin(() => {
   PACKET.ZC.PROPERTY_PET.size = 37;
   PACKET.ZC.FEED_PET = function PACKET_ZC_FEED_PET(fp, end) {
     this.cRet = fp.readChar();
-    this.ITID = fp.readUShort();
+    this.ITID = readLastROItemId(fp, end);
   };
-  PACKET.ZC.FEED_PET.size = 5;
+  PACKET.ZC.FEED_PET.size = 7;
   PACKET.ZC.CHANGESTATE_PET = function PACKET_ZC_CHANGESTATE_PET(fp, end) {
     this.type = fp.readChar();
     this.GID = fp.readLong();
@@ -151938,8 +152015,15 @@ var init_PacketStructure = __esmMin(() => {
     this.AID = fp.readULong();
     this.GID = fp.readULong();
     this.State = fp.readUChar();
+    // 官方 Online.js(1.js)：packetver >= 20180221 的 35 字节帧还带 24 字节好友名；
+    // 观察者模式的 11 字节帧没有。
+    if (
+      PacketVerManager_default.value >= 20180221 &&
+      end - fp.tell() >= NAME_LENGTH
+    )
+      this.Name = fp.readString(NAME_LENGTH);
   };
-  PACKET.ZC.FRIENDS_STATE.size = 11;
+  PACKET.ZC.FRIENDS_STATE.size = 35;
   PACKET.ZC.REQ_ADD_FRIENDS = function PACKET_ZC_REQ_ADD_FRIENDS(fp, end) {
     this.ReqAID = fp.readULong();
     this.ReqGID = fp.readULong();
@@ -152095,18 +152179,22 @@ var init_PacketStructure = __esmMin(() => {
     end,
   ) {
     this.itemList = (function () {
-      const count = ((end - fp.tell()) / 13) | 0;
+      // 官方 Online.js(1.js) 的条目是 23 字节（物品 ID 与 4 张卡片均为 32 位）；
+      // 13 字节是旧布局。按列表字节数判断，都支持。
+      const length = end - fp.tell();
+      const wide = pickLastROListUnit(length, [23, 13]) === 23;
+      const count = (length / (wide ? 23 : 13)) | 0;
       const out = new Array(count);
       for (let i = 0; i < count; ++i) {
         out[i] = {};
         out[i].index = fp.readShort();
-        out[i].ITID = fp.readUShort();
+        out[i].ITID = wide ? fp.readULong() : fp.readUShort();
         out[i].RefiningLevel = fp.readUChar();
         out[i].slot = {};
-        out[i].slot.card1 = fp.readUShort();
-        out[i].slot.card2 = fp.readUShort();
-        out[i].slot.card3 = fp.readUShort();
-        out[i].slot.card4 = fp.readUShort();
+        out[i].slot.card1 = wide ? fp.readULong() : fp.readUShort();
+        out[i].slot.card2 = wide ? fp.readULong() : fp.readUShort();
+        out[i].slot.card3 = wide ? fp.readULong() : fp.readUShort();
+        out[i].slot.card4 = wide ? fp.readULong() : fp.readUShort();
       }
       return out;
     })();
@@ -152268,9 +152356,9 @@ var init_PacketStructure = __esmMin(() => {
   PACKET.ZC.PROPERTY_HOMUN.size = 71;
   PACKET.ZC.FEED_MER = function PACKET_ZC_FEED_MER(fp, end) {
     this.cRet = fp.readChar();
-    this.ITID = fp.readUShort();
+    this.ITID = readLastROItemId(fp, end);
   };
-  PACKET.ZC.FEED_MER.size = 5;
+  PACKET.ZC.FEED_MER.size = 7;
   PACKET.ZC.CHANGESTATE_MER = function PACKET_ZC_CHANGESTATE_MER(fp, end) {
     this.type = fp.readChar();
     this.state = fp.readChar();
@@ -152364,27 +152452,40 @@ var init_PacketStructure = __esmMin(() => {
       this.MaxPage = fp.readLong();
       this.Number = fp.readLong();
       this.auctionItemList = (function () {
-        const count = ((end - fp.tell()) / 83) | 0;
+        // 条目：118（官方 Online.js(1.js)：32 位物品 ID/卡片 + 5 组随机属性）、
+        // 108（16 位 + 随机属性）、83（16 位，无随机属性，仓库原有布局）。
+        const unit = pickLastROListUnit(end - fp.tell(), [118, 108, 83]);
+        const wide = unit === 118;
+        const withOptions = unit !== 83;
+        const count = ((end - fp.tell()) / unit) | 0;
         const out = new Array(count);
         for (let i = 0; i < count; ++i) {
           out[i] = {};
           out[i].AuctionID = fp.readULong();
           out[i].SellerName = fp.readString(NAME_LENGTH);
-          out[i].ITID = fp.readUShort();
+          out[i].ITID = wide ? fp.readULong() : fp.readUShort();
           out[i].Type = fp.readLong();
           out[i].count = fp.readShort();
           out[i].IsIdentified = fp.readUChar();
           out[i].IsDamaged = fp.readUChar();
           out[i].RefiningLevel = fp.readUChar();
           out[i].slot = {};
-          out[i].slot.card1 = fp.readUShort();
-          out[i].slot.card2 = fp.readUShort();
-          out[i].slot.card3 = fp.readUShort();
-          out[i].slot.card4 = fp.readUShort();
+          out[i].slot.card1 = wide ? fp.readULong() : fp.readUShort();
+          out[i].slot.card2 = wide ? fp.readULong() : fp.readUShort();
+          out[i].slot.card3 = wide ? fp.readULong() : fp.readUShort();
+          out[i].slot.card4 = wide ? fp.readULong() : fp.readUShort();
           out[i].NowPrice = fp.readLong();
           out[i].MaxPrice = fp.readLong();
           out[i].BuyerName = fp.readString(NAME_LENGTH);
           out[i].DeleteTime = fp.readLong();
+          if (withOptions) {
+            out[i].options = {};
+            for (let j = 0; j < 5; ++j) {
+              out[i].options["Index" + j] = fp.readUShort();
+              out[i].options["Value" + j] = fp.readUShort();
+              out[i].options["Param" + j] = fp.readUChar();
+            }
+          }
         }
         return out;
       })();
@@ -152632,11 +152733,19 @@ var init_PacketStructure = __esmMin(() => {
   ) {
     this.KafraPoint = fp.readULong();
     this.CashPoint = fp.readULong();
+    // 官方 Online.js(1.js) 把这 8 字节读成：点数(4) + 条目数(2) + 条目长度(2)。
+    this.officialCashPoint = this.KafraPoint;
+    this.md_itemcount = this.CashPoint & 0xffff;
+    this.md_itemSize = (this.CashPoint >>> 16) & 0xffff;
     this.itemList = (function () {
-      const div = PacketVerManager_default.value >= 20181121 ? 13 : 11;
+      // 条目：11（官方，ITID 16 位）、13（ITID 32 位）、18/20（带 viewSprite/location/unused）。
       const itemListLen = end - fp.tell();
-      const itemLen =
-        itemListLen % 20 === 0 ? 20 : itemListLen % 18 == 0 ? 18 : div;
+      const itemLen = pickLastROListUnit(
+        itemListLen,
+        [20, 18, 11, 13],
+        PacketVerManager_default.value >= 20181121 ? 13 : 11,
+      );
+      const wide = itemLen === 13 || itemLen === 20;
       const count = ((end - fp.tell()) / itemLen) | 0;
       const out = new Array(count);
       for (let i = 0; i < count; ++i) {
@@ -152644,10 +152753,7 @@ var init_PacketStructure = __esmMin(() => {
         out[i].price = fp.readLong();
         out[i].discountprice = fp.readLong();
         out[i].type = fp.readUChar();
-        out[i].ITID =
-          PacketVerManager_default.value >= 20181121
-            ? fp.readULong()
-            : fp.readUShort();
+        out[i].ITID = wide ? fp.readULong() : fp.readUShort();
         if (itemLen >= 18) {
           out[i].viewSprite = fp.readUShort();
           out[i].location = fp.readLong();
@@ -152697,7 +152803,8 @@ var init_PacketStructure = __esmMin(() => {
   PACKET.ZC.MSG.size = 4;
   PACKET.ZC.MSG_COLOR = function PACKET_ZC_MSG_COLOR(fp, end) {
     this.msg = fp.readUShort();
-    this.color = fp.readUShort();
+    // 官方 Online.js(1.js)：颜色是 32 位（8 字节帧）；4 字节的旧帧只有 16 位。
+    this.color = end - fp.tell() >= 4 ? fp.readLong() : fp.readUShort();
   };
   PACKET.ZC.MSG_COLOR.size = 8;
   PACKET.ZC.BOSS_INFO = function PACKET_ZC_BOSS_INFO(fp, end) {
@@ -152797,15 +152904,15 @@ var init_PacketStructure = __esmMin(() => {
     };
   PACKET.ZC.CART_EQUIPMENT_ITEMLIST2.size = -1;
   PACKET.ZC.CASH_TIME_COUNTER = function PACKET_ZC_CASH_TIME_COUNTER(fp, end) {
-    this.ITID = fp.readUShort();
+    this.ITID = readLastROItemId(fp, end, 4);
     this.RemainSecond = fp.readULong();
   };
-  PACKET.ZC.CASH_TIME_COUNTER.size = 8;
+  PACKET.ZC.CASH_TIME_COUNTER.size = 10;
   PACKET.ZC.CASH_ITEM_DELETE = function PACKET_ZC_CASH_ITEM_DELETE(fp, end) {
     this.index = fp.readShort();
-    this.ITID = fp.readUShort();
+    this.ITID = readLastROItemId(fp, end);
   };
-  PACKET.ZC.CASH_ITEM_DELETE.size = 6;
+  PACKET.ZC.CASH_ITEM_DELETE.size = 8;
   PACKET.ZC.ITEM_PICKUP_ACK2 = function PACKET_ZC_ITEM_PICKUP_ACK2(fp, end) {
     this.index = fp.readUShort();
     this.count = fp.readUShort();
@@ -152956,7 +153063,8 @@ var init_PacketStructure = __esmMin(() => {
     fp,
     end,
   ) {
-    this.packetType = fp.readShort();
+    // 官方声明 18 字节帧（ID + 16 字节密钥），解析函数却多读了 2 字节 packetType；同上，放得下才读。
+    if (end - fp.tell() >= 18) this.packetType = fp.readShort();
     this.lingoKey = {};
     this.lingoKey.dwAlgNum = fp.readULong();
     this.lingoKey.dwAlgKey1 = fp.readULong();
@@ -154022,48 +154130,42 @@ var init_PacketStructure = __esmMin(() => {
       this.AID = fp.readULong();
       this.UniqueID = fp.readULong();
       this.itemList = (function () {
-        let count = 0,
-          i;
+        // 条目长度：53 是官方 Online.js(1.js) 当前使用的（16 位物品 ID/卡片 + 随机属性 + location/viewSprite）；
+        // 64/63 是 32 位物品 ID/卡片，47/22 是更早的布局。按列表字节数判断，都支持。
+        const length = end - fp.tell();
+        const unit = pickLastROListUnit(
+          length,
+          [53, 64, 63, 47, 22],
+          PacketVerManager_default.value >= 20200723
+            ? 64
+            : PacketVerManager_default.value >= 20181121
+              ? 63
+              : PacketVerManager_default.value >= 20160921
+                ? 53
+                : PacketVerManager_default.value >= 20150226
+                  ? 47
+                  : 22,
+        );
+        const wide = unit === 64 || unit === 63;
+        const count = (length / unit) | 0;
         const out = new Array(count);
-        if (PacketVerManager_default.value >= 20200723)
-          count = (end - fp.tell()) / 64;
-        else if (PacketVerManager_default.value >= 20181121)
-          count = (end - fp.tell()) / 63;
-        else if (PacketVerManager_default.value >= 20160921)
-          count = (end - fp.tell()) / 53;
-        else if (PacketVerManager_default.value >= 20150226)
-          count = (end - fp.tell()) / 47;
-        else count = (end - fp.tell()) / 22;
-        for (i = 0; i < count; ++i) {
+        const option = new Struct("short index", "short value", "char param");
+        for (let i = 0; i < count; ++i) {
           out[i] = {};
           out[i].price = fp.readLong();
           out[i].count = fp.readShort();
           out[i].index = fp.readShort();
           out[i].type = fp.readUChar();
-          if (PacketVerManager_default.value >= 20181121)
-            out[i].ITID = fp.readULong();
-          else out[i].ITID = fp.readUShort();
+          out[i].ITID = wide ? fp.readULong() : fp.readUShort();
           out[i].IsIdentified = fp.readUChar();
           out[i].IsDamaged = fp.readUChar();
           out[i].RefiningLevel = fp.readUChar();
           out[i].slot = {};
-          if (PacketVerManager_default.value >= 20181121) {
-            out[i].slot.card1 = fp.readULong();
-            out[i].slot.card2 = fp.readULong();
-            out[i].slot.card3 = fp.readULong();
-            out[i].slot.card4 = fp.readULong();
-          } else {
-            out[i].slot.card1 = fp.readUShort();
-            out[i].slot.card2 = fp.readUShort();
-            out[i].slot.card3 = fp.readUShort();
-            out[i].slot.card4 = fp.readUShort();
-          }
-          if (PacketVerManager_default.value >= 20150226) {
-            const option = new Struct(
-              "short index",
-              "short value",
-              "char param",
-            );
+          out[i].slot.card1 = wide ? fp.readULong() : fp.readUShort();
+          out[i].slot.card2 = wide ? fp.readULong() : fp.readUShort();
+          out[i].slot.card3 = wide ? fp.readULong() : fp.readUShort();
+          out[i].slot.card4 = wide ? fp.readULong() : fp.readUShort();
+          if (unit >= 47) {
             out[i].Options = [];
             out[i].Options[1] = fp.readStruct(option);
             out[i].Options[2] = fp.readStruct(option);
@@ -154071,12 +154173,12 @@ var init_PacketStructure = __esmMin(() => {
             out[i].Options[4] = fp.readStruct(option);
             out[i].Options[5] = fp.readStruct(option);
           }
-          if (PacketVerManager_default.value >= 20160921) {
+          if (unit >= 53) {
             out[i].location = fp.readULong();
             out[i].viewSprite = fp.readUShort();
+            out[i].WearState = out[i].viewSprite;
           }
-          if (PacketVerManager_default.value >= 20200723)
-            out[i].grade = fp.readUChar();
+          if (unit === 64) out[i].grade = fp.readUChar();
         }
         return out;
       })();
@@ -154309,9 +154411,9 @@ var init_PacketStructure = __esmMin(() => {
   PACKET.ZC.FAILED_TRADE_BUYING_STORE_TO_SELLER =
     function PACKET_ZC_FAILED_TRADE_BUYING_STORE_TO_SELLER(fp, end) {
       this.Result = fp.readShort();
-      this.ITID = fp.readUShort();
+      this.ITID = readLastROItemId(fp, end);
     };
-  PACKET.ZC.FAILED_TRADE_BUYING_STORE_TO_SELLER.size = 6;
+  PACKET.ZC.FAILED_TRADE_BUYING_STORE_TO_SELLER.size = 8;
   PACKET.AC.SSO_LOGIN_ACK = function PACKET_AC_SSO_LOGIN_ACK(fp, end) {
     this.Result = fp.readUShort();
   };
@@ -154470,6 +154572,9 @@ var init_PacketStructure = __esmMin(() => {
   PACKET.ZC.ITEM_FALL_ENTRY2.size =
     PacketVerManager_default.value >= 20181121 ? 21 : 19;
   PACKET.ZC.NOTIFY_MOVEENTRY6 = function PACKET_ZC_NOTIFY_MOVEENTRY6(fp, end) {
+    // 官方 Online.js(1.js) 的这个包没有 shield 字段（负载 91 字节，含 24 字节名字）；
+    // 带 shield 的帧比它长 4 字节，按帧长判断两种都读。
+    const lastroOfficialLayout = end - fp.tell() === 91;
     this.objecttype = fp.readUChar();
     this.GID = fp.readULong();
     this.speed = fp.readShort();
@@ -154479,7 +154584,11 @@ var init_PacketStructure = __esmMin(() => {
     this.job = fp.readShort();
     this.head = fp.readShort();
     this.weapon = fp.readLong();
-    if (PacketVerManager_default.value >= 20181121) this.shield = fp.readLong();
+    if (
+      PacketVerManager_default.value >= 20181121 &&
+      !lastroOfficialLayout
+    )
+      this.shield = fp.readLong();
     this.accessory = fp.readShort();
     this.moveStartTime = fp.readULong();
     this.accessory2 = fp.readShort();
@@ -154506,6 +154615,9 @@ var init_PacketStructure = __esmMin(() => {
     fp,
     end,
   ) {
+    // 官方 Online.js(1.js) 的这个包没有 shield 字段（负载 84 字节，含 24 字节名字）；
+    // 带 shield 的帧比它长 4 字节，按帧长判断两种都读。
+    const lastroOfficialLayout = end - fp.tell() === 84;
     this.objecttype = fp.readUChar();
     this.GID = fp.readULong();
     this.speed = fp.readShort();
@@ -154515,7 +154627,11 @@ var init_PacketStructure = __esmMin(() => {
     this.job = fp.readShort();
     this.head = fp.readShort();
     this.weapon = fp.readLong();
-    if (PacketVerManager_default.value >= 20181121) this.shield = fp.readLong();
+    if (
+      PacketVerManager_default.value >= 20181121 &&
+      !lastroOfficialLayout
+    )
+      this.shield = fp.readLong();
     this.accessory = fp.readShort();
     this.accessory2 = fp.readShort();
     this.accessory3 = fp.readShort();
@@ -154538,6 +154654,9 @@ var init_PacketStructure = __esmMin(() => {
   };
   PACKET.ZC.NOTIFY_STANDENTRY6.size = -1;
   PACKET.ZC.NOTIFY_NEWENTRY6 = function PACKET_ZC_NOTIFY_NEWENTRY6(fp, end) {
+    // 官方 Online.js(1.js) 的这个包没有 shield 字段（负载 85 字节，含 24 字节名字）；
+    // 带 shield 的帧比它长 4 字节，按帧长判断两种都读。
+    const lastroOfficialLayout = end - fp.tell() === 85;
     this.objecttype = fp.readUChar();
     this.GID = fp.readULong();
     this.speed = fp.readShort();
@@ -154547,7 +154666,11 @@ var init_PacketStructure = __esmMin(() => {
     this.job = fp.readShort();
     this.head = fp.readShort();
     this.weapon = fp.readLong();
-    if (PacketVerManager_default.value >= 20181121) this.shield = fp.readLong();
+    if (
+      PacketVerManager_default.value >= 20181121 &&
+      !lastroOfficialLayout
+    )
+      this.shield = fp.readLong();
     this.accessory = fp.readShort();
     this.accessory2 = fp.readShort();
     this.accessory3 = fp.readShort();
@@ -155744,9 +155867,11 @@ var init_PacketStructure = __esmMin(() => {
   PACKET.ZC.SKILL_ENTRY4.size = -1;
   PACKET.HC.CHARLIST_NOTIFY = function PACKET_HC_CHARLIST_NOTIFY(fp, end) {
     this.TotalCnt = fp.readLong();
+    // 官方 Online.js(1.js) 在 packetver >= 20151001 一律读第二个 32 位槽位数；这里按帧里
+    // 是否真的带了这 4 个字节来读，兼容 6 字节的旧帧。
     if (
       PacketVerManager_default.value >= 20151001 &&
-      PacketVerManager_default.value < 20180103
+      (PacketVerManager_default.value < 20180103 || end - fp.tell() >= 4)
     )
       this.charSlots = fp.readLong();
   };
@@ -157638,8 +157763,14 @@ var init_PacketStructure = __esmMin(() => {
     end,
   ) {
     this.AID = fp.readULong();
-    this.GID = fp.readULong();
+    // 官方 Online.js(1.js)：队伍角色(4) 职业(2) 等级(2) 坐标(2+2)。此前仓库把职业和等级
+    // 读成了一个 32 位 role，并多出一个 GID，导致 role 永远不是 0（队长）。
     this.role = fp.readULong();
+    this.Role = this.role;
+    this.class_ = fp.readShort();
+    this.Job = this.class_;
+    this.baseLevel = fp.readShort();
+    this.Level = this.baseLevel;
     this.xPos = fp.readShort();
     this.yPos = fp.readShort();
     this.state = fp.readUChar();
@@ -158029,7 +158160,9 @@ var init_PacketStructure = __esmMin(() => {
   };
   PACKET.ZC.MEMBERMGR_INFO2 = function PACKET_ZC_MEMBERMGR_INFO2(fp, end) {
     this.memberInfo = (function () {
-      const count = ((end - fp.tell()) / 34) | 0;
+      // 条目：108（官方 Online.js(1.js)：带 50 字节备注和 24 字节角色名）或 34（仓库原有布局，无字符串）。
+      const unit = pickLastROListUnit(end - fp.tell(), [108, 34]);
+      const count = ((end - fp.tell()) / unit) | 0;
       const out = new Array(count);
       for (let i = 0; i < count; ++i) {
         out[i] = {};
@@ -158043,9 +158176,9 @@ var init_PacketStructure = __esmMin(() => {
         out[i].MemberExp = fp.readLong();
         out[i].CurrentState = fp.readLong();
         out[i].GPositionID = fp.readLong();
-        out[i].Memo = "";
-        out[i].CharName = "";
         out[i].LastLogin = fp.readLong();
+        out[i].Memo = unit === 108 ? fp.readString(50) : "";
+        out[i].CharName = unit === 108 ? fp.readString(NAME_LENGTH) : "";
       }
       return out;
     })();
@@ -160050,13 +160183,40 @@ var init_PacketStructure = __esmMin(() => {
   };
   PACKET.ZC.NOTIFY_SETTARGET2.size = 7;
   PACKET.ZC.NOTIFY_OFFLINEMSG = function PACKET_ZC_NOTIFY_OFFLINEMSG(fp, end) {
-    this.msg = fp.readString(Math.max(0, end - fp.tell()));
+    const start = fp.tell();
+    this.msg = fp.readString(Math.max(0, end - start));
+    // 官方 Online.js(1.js) 把这 28 字节解析成离线挂机结算；msg 保留给已有的使用方。
+    if (end - start >= 28) {
+      fp.seek(start, SEEK_SET);
+      this.op = fp.readUChar();
+      this.endtime = fp.readLong();
+      this.time = fp.readLong();
+      this.cash = fp.readUShort();
+      this.baselv = fp.readUShort();
+      this.joblv = fp.readUShort();
+      this.zeny = fp.readLong();
+      this.equipCount = fp.readUShort();
+      this.cardCount = fp.readUShort();
+      this.bpower = fp.readUShort();
+      this.brepower = fp.readUShort();
+      this.feedback = fp.readUChar();
+    }
   };
   PACKET.ZC.NOTIFY_OFFLINEMSG.size = 30;
   PACKET.ZC.SELECTCART = function PACKET_ZC_SELECTCART(fp, end) {
+    const start = fp.tell();
     this.identity = fp.readLong();
     this.typeList = [];
     while (fp.tell() < end) this.typeList.push(fp.readUChar());
+    // 官方 Online.js(1.js) 把同一段 9 字节读成：短整型标识 + 账号 ID + 3 个车类型；
+    // 原有的 identity/typeList 读法保持不变，官方读法作为附加字段。
+    if (end - start >= 9) {
+      fp.seek(start, SEEK_SET);
+      this.cartIdentity = fp.readShort();
+      this.AID = fp.readLong();
+      this.CartList = [fp.readUChar(), fp.readUChar(), fp.readUChar()];
+      fp.seek(end, SEEK_SET);
+    }
   };
   PACKET.ZC.SELECTCART.size = -1;
   PACKET.CZ.SELECTCART = function PACKET_CZ_SELECTCART() {
@@ -160068,6 +160228,242 @@ var init_PacketStructure = __esmMin(() => {
     pkt_buf.writeShort(2432);
     pkt_buf.writeLong(this.identity);
     pkt_buf.writeUChar(this.type);
+    return pkt_buf;
+  };
+  // ---- 与官方 Online.js(1.js) 对齐：官方注册而此前仓库缺少的接收封包 ----
+  // 每个包的用途与字节布局见 docs/iwa/lastro-official-packets.md。
+  PACKET.HC.ACCEPT_ENTER_NEO_UNION2 = function PACKET_HC_ACCEPT_ENTER_NEO_UNION2(
+    fp,
+    end,
+  ) {
+    PACKET.HC.ACCEPT_ENTER_NEO_UNION.call(this, fp, end);
+  };
+  PACKET.HC.ACCEPT_ENTER_NEO_UNION2.size = -1;
+  PACKET.HC.ACCEPT_ENTER2 = function PACKET_HC_ACCEPT_ENTER2(fp, end) {
+    this.entity = PacketVerManager_default.parseCharInfo(fp, end)[0];
+  };
+  PACKET.HC.ACCEPT_ENTER2.size = -1;
+  PACKET.ZC.NAVIGATETO = function PACKET_ZC_NAVIGATETO(fp, end) {
+    this.type = fp.readUChar();
+    this.flag = fp.readUChar();
+    this.noshow = fp.readUChar();
+    this.mapname = fp.readString(16);
+    this.x = fp.readShort();
+    this.y = fp.readShort();
+    this.mobid = fp.readShort();
+  };
+  PACKET.ZC.NAVIGATETO.size = 27;
+  PACKET.ZC.UPDATE_RANKING_POINT = function PACKET_ZC_UPDATE_RANKING_POINT(
+    fp,
+    end,
+  ) {
+    this.Type = fp.readShort();
+    this.Point = fp.readLong();
+    this.TotalPoint = fp.readLong();
+  };
+  PACKET.ZC.UPDATE_RANKING_POINT.size = 12;
+  PACKET.ZC.UPDATE_ITEM_FROM_BUYING_STORE2 =
+    function PACKET_ZC_UPDATE_ITEM_FROM_BUYING_STORE2(fp, end) {
+      this.ITID = fp.readULong();
+      this.count = fp.readShort();
+      this.Zeny = fp.readLong();
+      this.limitZeny = fp.readLong();
+      this.GID = fp.readULong();
+      this.Date = fp.readULong();
+    };
+  PACKET.ZC.UPDATE_ITEM_FROM_BUYING_STORE2.size = 24;
+  PACKET.ZC.CAMERA_INFO = function PACKET_ZC_CAMERA_INFO(fp, end) {
+    this.show = fp.getInt8();
+    this.range = fp.readULong();
+    this.rotation = fp.readULong();
+    this.latitude = fp.readULong();
+  };
+  PACKET.ZC.CAMERA_INFO.size = 15;
+  PACKET.ZC.ACK_BAN_GUILD_SSO2 = function PACKET_ZC_ACK_BAN_GUILD_SSO2(
+    fp,
+    end,
+  ) {
+    this.charID = fp.readLong();
+    this.reasonDesc = fp.readString(40);
+  };
+  PACKET.ZC.ACK_BAN_GUILD_SSO2.size = 46;
+  PACKET.ZC.ACK_LEAVE_GUILD2 = function PACKET_ZC_ACK_LEAVE_GUILD2(fp, end) {
+    this.charID = fp.readLong();
+    this.reasonDesc = fp.readString(40);
+  };
+  PACKET.ZC.ACK_LEAVE_GUILD2.size = 46;
+  PACKET.ZC.PARTY_JOB_AND_LEVEL = function PACKET_ZC_PARTY_JOB_AND_LEVEL(
+    fp,
+    end,
+  ) {
+    this.AID = fp.readLong();
+    this.Job = fp.readUShort();
+    this.Level = fp.readUShort();
+  };
+  PACKET.ZC.PARTY_JOB_AND_LEVEL.size = 10;
+  PACKET.ZC.ATTACK_SKILLINFO_LIST = function PACKET_ZC_ATTACK_SKILLINFO_LIST(
+    fp,
+    end,
+  ) {
+    this.skillList = readLastROSkillInfoList(fp, end);
+  };
+  PACKET.ZC.ATTACK_SKILLINFO_LIST.size = -1;
+  PACKET.ZC.ADDIS_SKILLINFO_LIST = function PACKET_ZC_ADDIS_SKILLINFO_LIST(
+    fp,
+    end,
+  ) {
+    this.skillList = readLastROSkillInfoList(fp, end);
+  };
+  PACKET.ZC.ADDIS_SKILLINFO_LIST.size = -1;
+  PACKET.ZC.TOUCH_SKILLINFO_LIST = function PACKET_ZC_TOUCH_SKILLINFO_LIST(
+    fp,
+    end,
+  ) {
+    this.skillList = readLastROSkillInfoList(fp, end);
+  };
+  PACKET.ZC.TOUCH_SKILLINFO_LIST.size = -1;
+  PACKET.ZC.QOATTACK_SKILLINFO_LIST =
+    function PACKET_ZC_QOATTACK_SKILLINFO_LIST(fp, end) {
+      this.skillList = readLastROSkillInfoList(fp, end);
+    };
+  PACKET.ZC.QOATTACK_SKILLINFO_LIST.size = -1;
+  PACKET.ZC.PARTY_REQ_MASTER_TO_JOIN =
+    function PACKET_ZC_PARTY_REQ_MASTER_TO_JOIN(fp, end) {
+      this.CID = fp.readULong();
+      this.AID = fp.readULong();
+      this.name = fp.readString(NAME_LENGTH);
+      this.xPos = fp.readShort();
+      this.yPos = fp.readShort();
+    };
+  PACKET.ZC.PARTY_REQ_MASTER_TO_JOIN.size = 38;
+  PACKET.ZC.NOTIFY_ATTENDANCE = function PACKET_ZC_NOTIFY_ATTENDANCE(fp, end) {
+    this.unknown = fp.readULong();
+    this.data = fp.readULong();
+  };
+  PACKET.ZC.NOTIFY_ATTENDANCE.size = 10;
+  PACKET.ZC.SKILL_AUTOSHADOWSPELL = function PACKET_ZC_SKILL_AUTOSHADOWSPELL(
+    fp,
+    end,
+  ) {
+    this.why = fp.readLong();
+    const count = ((end - fp.tell()) / 2) | 0;
+    const out = new Array(count);
+    for (let i = 0; i < count; ++i) out[i] = fp.readUShort();
+    this.SKID = out;
+  };
+  PACKET.ZC.SKILL_AUTOSHADOWSPELL.size = -1;
+  PACKET.ZC.PARTY_JOIN_REQ_ACK_FROM_MASTER =
+    function PACKET_ZC_PARTY_JOIN_REQ_ACK_FROM_MASTER(fp, end) {
+      this.player_name = fp.readString(NAME_LENGTH);
+      this.party_name = fp.readString(NAME_LENGTH);
+      this.AID = fp.readULong();
+      this.refused = fp.readULong();
+    };
+  PACKET.ZC.PARTY_JOIN_REQ_ACK_FROM_MASTER.size = 58;
+  PACKET.ZC.CHANGE_GUILD2 = function PACKET_ZC_CHANGE_GUILD2(fp, end) {
+    this.GDID = fp.readLong();
+    this.emblemVersion = fp.readULong();
+    this.AID = fp.readULong();
+  };
+  PACKET.ZC.CHANGE_GUILD2.size = 14;
+  // 官方里它也叫 ZC.BAN_LIST；仓库已有同名的 0x0163 结构，所以这里命名为 BAN_LIST2。
+  PACKET.ZC.BAN_LIST2 = function PACKET_ZC_BAN_LIST2(fp, end) {
+    const count = ((end - fp.tell()) / 68) | 0;
+    const out = new Array(count);
+    for (let i = 0; i < count; ++i) {
+      out[i] = {};
+      out[i].AID = fp.readLong();
+      out[i].reason = fp.readString(40);
+      out[i].charname = fp.readString(NAME_LENGTH);
+    }
+    this.banList = out;
+  };
+  PACKET.ZC.BAN_LIST2.size = -1;
+  // ---- 与官方 Online.js(1.js) 对齐：官方会发、此前仓库缺少的客户端封包 ----
+  PACKET.CZ.USE_SKILL_START = function PACKET_CZ_USE_SKILL_START() {
+    this.SKID = 0;
+    this.selectedLevel = 0;
+    this.targetID = 0;
+  };
+  PACKET.CZ.USE_SKILL_START.prototype.build = function () {
+    const pkt_buf = new BinaryWriter(10);
+    pkt_buf.writeShort(2832);
+    pkt_buf.writeShort(this.SKID);
+    pkt_buf.writeShort(this.selectedLevel);
+    pkt_buf.writeULong(this.targetID);
+    return pkt_buf;
+  };
+  PACKET.CZ.USE_SKILL_END = function PACKET_CZ_USE_SKILL_END() {
+    this.SKID = 0;
+  };
+  PACKET.CZ.USE_SKILL_END.prototype.build = function () {
+    const pkt_buf = new BinaryWriter(4);
+    pkt_buf.writeShort(2833);
+    pkt_buf.writeShort(this.SKID);
+    return pkt_buf;
+  };
+  PACKET.CZ.REQ_GIVE_MANNER_POINT = function PACKET_CZ_REQ_GIVE_MANNER_POINT() {
+    this.otherAID = 0;
+    this.type = 0;
+    this.point = 0;
+  };
+  PACKET.CZ.REQ_GIVE_MANNER_POINT.prototype.build = function () {
+    const pkt_buf = new BinaryWriter(9);
+    pkt_buf.writeShort(329);
+    pkt_buf.writeULong(this.otherAID);
+    pkt_buf.writeUChar(this.type);
+    pkt_buf.writeShort(this.point);
+    return pkt_buf;
+  };
+  PACKET.CZ.REQ_DEL_QUEST = function PACKET_CZ_REQ_DEL_QUEST() {
+    this.Qid = 0;
+  };
+  PACKET.CZ.REQ_DEL_QUEST.prototype.build = function () {
+    const pkt_buf = new BinaryWriter(6);
+    pkt_buf.writeShort(702);
+    pkt_buf.writeLong(this.Qid);
+    return pkt_buf;
+  };
+  PACKET.CZ.REQ_ONECLICK_ITEMIDENTIFY =
+    function PACKET_CZ_REQ_ONECLICK_ITEMIDENTIFY() {
+      this.result = 0;
+    };
+  PACKET.CZ.REQ_ONECLICK_ITEMIDENTIFY.prototype.build = function () {
+    const pkt_buf = new BinaryWriter(4);
+    pkt_buf.writeShort(2613);
+    pkt_buf.writeShort(this.result);
+    return pkt_buf;
+  };
+  PACKET.CZ.AUCTION_CLOSE = function PACKET_CZ_AUCTION_CLOSE() {};
+  PACKET.CZ.AUCTION_CLOSE.prototype.build = function () {
+    const pkt_buf = new BinaryWriter(2);
+    pkt_buf.writeShort(2765);
+    return pkt_buf;
+  };
+  PACKET.CZ.PARTY_REQ_MASTER_TO_JOIN =
+    function PACKET_CZ_PARTY_REQ_MASTER_TO_JOIN() {
+      this.CID = 0;
+      this.AID = 0;
+    };
+  PACKET.CZ.PARTY_REQ_MASTER_TO_JOIN.prototype.build = function () {
+    const pkt_buf = new BinaryWriter(10);
+    pkt_buf.writeShort(2790);
+    pkt_buf.writeLong(this.CID);
+    pkt_buf.writeLong(this.AID);
+    return pkt_buf;
+  };
+  PACKET.CZ.PARTY_REQ_ACK_MASTER_TO_JOIN =
+    function PACKET_CZ_PARTY_REQ_ACK_MASTER_TO_JOIN() {
+      this.CID = 0;
+      this.AID = 0;
+      this.accept = 0;
+    };
+  PACKET.CZ.PARTY_REQ_ACK_MASTER_TO_JOIN.prototype.build = function () {
+    const pkt_buf = new BinaryWriter(11);
+    pkt_buf.writeShort(2808);
+    pkt_buf.writeLong(this.CID);
+    pkt_buf.writeLong(this.AID);
+    pkt_buf.writeUChar(this.accept);
     return pkt_buf;
   };
 });
@@ -165928,6 +166324,29 @@ var init_PacketRegister = __esmMin(() => {
     2509: PACKET.ZC.MSG_COLOR,
     2842: PACKET.ZC.USESKILL_ACK3,
   };
+  // 官方 Online.js(1.js) 注册而此前仓库缺少的接收封包；字节布局见 docs/iwa/lastro-official-packets.md。
+  // 不放进 lastroCustomPackets 分支：CharEngine 会无条件 hook 0x06B1/0x06B2。
+  Object.assign(PacketRegister, {
+    1713: PACKET.HC.ACCEPT_ENTER_NEO_UNION2,
+    1714: PACKET.HC.ACCEPT_ENTER2,
+    2274: PACKET.ZC.NAVIGATETO,
+    2430: PACKET.ZC.UPDATE_RANKING_POINT,
+    2534: PACKET.ZC.UPDATE_ITEM_FROM_BUYING_STORE2,
+    2680: PACKET.ZC.CAMERA_INFO,
+    2690: PACKET.ZC.ACK_BAN_GUILD_SSO2,
+    2691: PACKET.ZC.ACK_LEAVE_GUILD2,
+    2749: PACKET.ZC.PARTY_JOB_AND_LEVEL,
+    2769: PACKET.ZC.ATTACK_SKILLINFO_LIST,
+    2770: PACKET.ZC.ADDIS_SKILLINFO_LIST,
+    2771: PACKET.ZC.TOUCH_SKILLINFO_LIST,
+    2772: PACKET.ZC.QOATTACK_SKILLINFO_LIST,
+    2791: PACKET.ZC.PARTY_REQ_MASTER_TO_JOIN,
+    2800: PACKET.ZC.NOTIFY_ATTENDANCE,
+    2809: PACKET.ZC.SKILL_AUTOSHADOWSPELL,
+    2810: PACKET.ZC.PARTY_JOIN_REQ_ACK_FROM_MASTER,
+    2887: PACKET.ZC.CHANGE_GUILD2,
+    2940: PACKET.ZC.BAN_LIST2,
+  });
   if (Configs.get("lastroCustomPackets", false)) {
     Object.assign(PacketRegister, {
       2773: PACKET.ZC.SECOND_CHECK,
@@ -166676,6 +167095,7 @@ function connect(host, port, callback, isZone) {
     ? _socketFactory(host, port)
     : defaultSocketFactory(host, port);
   socket.isZone = !!isZone;
+  let koreConnectionGeneration = null;
   socket.onClose = onClose$9;
   socket.onComplete = function onComplete(success) {
     let msg = "Fail";
@@ -166685,7 +167105,18 @@ function connect(host, port, callback, isZone) {
       color = "green";
       if (_socket && _socket.ping) clearInterval(_socket.ping);
       getReceiveState(socket);
-      socket.onMessage = receive.bind(socket);
+      if (isZone) {
+        try { koreConnectionGeneration = globalThis.KoreEngine?.beginMapConnection?.() ?? null; }
+        catch { koreConnectionGeneration = null; }
+        socket.onMessage = function onMapMessage(buffer) {
+          try {
+            // aligned：本块数据从完整封包边界开始（原生接收缓冲里没有残留的半个包）。
+            // KE 重启后据此在流中间重新对齐，不能从半个包开始解析。
+            if (koreConnectionGeneration !== null) globalThis.KoreEngine?.mirrorMapData?.(koreConnectionGeneration, buffer, { aligned: !getReceiveState(socket)?.saveBuffer });
+          } catch { /* Optional KE failures must not change native receive. */ }
+          return receive.call(socket, buffer);
+        };
+      } else socket.onMessage = receive.bind(socket);
       _sockets.push((_socket = socket));
       if (isZone) PacketCrypt_default.init();
     }
@@ -166742,8 +167173,12 @@ function sendPacket(Packet) {
     );
   }
   if (packetDump) console.log("%c[Network] Send:", "color:#007070", Packet);
+  const lastroSentPacketId = pkt.buffer.byteLength >= 2 ? new DataView(pkt.buffer).getUint16(0, true) : null;
   if (_socket && _socket.isZone) PacketCrypt_default.process(pkt.view);
   send(pkt.buffer);
+  if (_socket && globalThis.KoreEngine?.mirrorSentBytes) {
+    try { globalThis.KoreEngine.mirrorSentBytes(pkt.buffer.byteLength, undefined, lastroSentPacketId); } catch { /* Optional KE accounting must not affect the client. */ }
+  }
   if (traceNavigation)
     globalThis.roNaviDebug.log("network-send-returned", {
       socketPresent: Boolean(_socket),
@@ -167175,6 +167610,8 @@ function onClose$9(event) {
   }
 
   if (this === _socket && this.isZone && !this.handoffPending) {
+    try { globalThis.KoreEngine?.degradeConnection?.("map-socket-closed", { code: event?.code, reason: event?.reason, wasClean: event?.wasClean }); }
+    catch { /* Optional KE failures must not change the native disconnect path. */ }
     lastroCancelMovement(SessionStorage_default.Entity);
     if (typeof MapControl !== "undefined") MapControl._lastroMovementInput?.cancel();
   }
@@ -167198,7 +167635,7 @@ function onClose$9(event) {
             Promise.resolve()
               .then(() => (init_UIManager(), UIManager_exports))
               .then((UIManager) => {
-                UIManager.default.showErrorBox("Disconnected from Server.");
+                UIManager.default.showErrorBox("Disconnected from Server.", { modal: false });
               }),
           void 0,
           import.meta.url,
@@ -231416,6 +231853,7 @@ var init_SpiritSphere = __esmMin(() => {
       this.ready = false;
     }
     static init(gl) {
+      const initId = (SpiritSphere._initId = (SpiritSphere._initId || 0) + 1);
       _program$1 = WebGL_default.createShaderProgram(
         gl,
         SpiritSphere_default$1,
@@ -231433,6 +231871,8 @@ var init_SpiritSphere = __esmMin(() => {
       );
       Client.loadFile("data/texture/effect/thunder_center.bmp", (buffer) => {
         Texture.load(buffer, function () {
+          // free() 可能在贴图异步加载期间发生：此时 _program 已为 null，不能再置 ready
+          if (SpiritSphere._initId !== initId || !_program$1) return;
           const enableMipmap = Configs.get("enableMipmap");
           const ctx = this.getContext("2d");
           ctx.save();
@@ -231467,6 +231907,7 @@ var init_SpiritSphere = __esmMin(() => {
         _program$1 = null;
       }
       if (_buffer$1) gl.deleteBuffer(_buffer$1);
+      _buffer$1 = null;
       this.ready = false;
     }
     static beforeRender(gl, modelView, projection, fog, tick) {
@@ -270098,6 +270539,13 @@ function loadHatEffectInfo(onEnd) {
           basePath + "footprinteffectinfo.lub",
           async function (buf) {
             try {
+              // hateffectinfo.lub 会用精简版 HatEFID 覆盖全局表，footprint 依赖完整 ID 表，需先还原
+              lua.mountFile(
+                "hateffectids.lub",
+                idBuf instanceof ArrayBuffer ? new Uint8Array(idBuf) : idBuf,
+              );
+              await lua.doFile("hateffectids.lub");
+              lua.unmountFile("hateffectids.lub");
               lua.mountFile(
                 "footprinteffectinfo.lub",
                 buf instanceof ArrayBuffer ? new Uint8Array(buf) : buf,
@@ -271862,7 +272310,7 @@ var init_DBManager = __esmMin(() => {
             loadLuaTable(
               [
                 DB.LUA_PATH + "datainfo/enumvar.lub",
-                DB.LUA_PATH + "addrandomoptionnametable_f.lub",
+                DB.LUA_PATH + "datainfo/addrandomoptionnametable_f.lub",
               ],
               "NameTable_VAR",
               function (extendedJson) {
@@ -278885,6 +279333,19 @@ function lastroHitStartTick(packet) {
   // Old or implausible clock samples must not rewind a currently approved path.
   return elapsed >= 0 && elapsed <= 5000 ? now - elapsed : now;
 }
+function lastroStopAtHit(entity, route, tick) {
+  const previous = entity._lastroHitStop;
+  const epoch = entity._lastroMovementEpoch || 0;
+  if (route && !(previous?.epoch === epoch && previous.tick <= tick)) {
+    route.walkProcess(tick);
+    // The server stops at the nearer path cell after an interrupting hit.
+    entity.position[0] = Math.round(route.position[0]);
+    entity.position[1] = Math.round(route.position[1]);
+    entity.position[2] = Altitude.getCellHeight(entity.position[0], entity.position[1]);
+  }
+  lastroCancelMovement(entity, false);
+  if (!previous || previous.epoch !== epoch || tick < previous.tick) entity._lastroHitStop = { epoch, tick };
+}
 function findLastroServerWalkPath(x0, y0, x1, y1, out, altitude) {
   const MAX_STEPS = 32, MAX_NODES = 2048;
   const width = altitude?.width, height = altitude?.height;
@@ -279476,6 +279937,7 @@ function walkProcess(lastroTick) {
     this.action !== this.ACTION.WALK &&
     this.objecttype !== this.constructor.TYPE_FALCON &&
     this.objecttype !== this.constructor.TYPE_WUG &&
+    this.action !== this.ACTION.HURT &&
     this.action !== this.ACTION.SIT &&
     this.action !== this.ACTION.DIE &&
     this.action !== this.ACTION.FREEZE &&
@@ -285830,17 +286292,24 @@ var init_UIManager = __esmMin(() => {
      * Will reload the game once selected
      *
      * @param {string} error message
+     * @param {{modal?: boolean}} [options] modal:false keeps the rest of the UI (e.g. the KoreEngine
+     *   panel) clickable: no blocking overlay, no Enter/Escape reload, stacked below other windows.
      */
-    static showErrorBox(text) {
+    static showErrorBox(text, options) {
+      const modal = options?.modal !== false;
       const WinError = this.getComponent("WinPopup").clone("WinError");
       let overlay;
       WinError.init = function Init() {
         const root = this._shadow;
         root.querySelector(".text").textContent = text;
         Object.assign(this._host.style, _popupPosition());
+        if (!modal) {
+          this._host.style.zIndex = "40";
+          this.draggable();
+        }
         root.querySelector(".btns").appendChild(
           _createButton("ok", () => {
-            overlay.remove();
+            overlay?.remove();
             WinError.remove();
             __vitePreload(
               () =>
@@ -285853,25 +286322,26 @@ var init_UIManager = __esmMin(() => {
           }),
         );
       };
-      WinError.onKeyDown = function OnKeyDown(event) {
-        event.stopImmediatePropagation();
-        switch (event.which) {
-          case KEYS.ENTER:
-          case KEYS.ESCAPE:
-            overlay.remove();
-            this.remove();
-            __vitePreload(
-              () =>
-                Promise.resolve()
-                  .then(() => (init_GameEngine(), GameEngine_exports))
-                  .then((m) => m.default.reload()),
-              void 0,
-              import.meta.url,
-            );
-        }
-      };
-      overlay = _createOverlay();
-      WinError.onAppend = _prioritizeKeyDown;
+      if (modal)
+        WinError.onKeyDown = function OnKeyDown(event) {
+          event.stopImmediatePropagation();
+          switch (event.which) {
+            case KEYS.ENTER:
+            case KEYS.ESCAPE:
+              overlay.remove();
+              this.remove();
+              __vitePreload(
+                () =>
+                  Promise.resolve()
+                    .then(() => (init_GameEngine(), GameEngine_exports))
+                    .then((m) => m.default.reload()),
+                void 0,
+                import.meta.url,
+              );
+          }
+        };
+      overlay = modal ? _createOverlay() : null;
+      if (modal) WinError.onAppend = _prioritizeKeyDown;
       WinError.append();
       return WinError;
     }
@@ -302253,12 +302723,17 @@ function onInputAppear(pkt) {
   InputBox_default.append();
   InputBox_default.setType(type, true);
 }
+let lastroDealSelectionId = 0;
 /**
  * On Shop selection (buy/sell)
  * @param {object} pkt - PACKET.ZC.SELECT_DEALTYPE
  */
 function onDealSelection(pkt) {
-  const WinDeal = WinPopup_default.clone("WinDeal");
+  // Register each clone so map loading removes all outstanding NPC selections.
+  const WinDeal = UIManager.addComponent(
+    WinPopup_default.clone("WinDeal" + ++lastroDealSelectionId),
+  );
+  WinDeal.onRemove = () => { delete UIManager.components[WinDeal.name]; };
   const NAID = pkt.NAID;
   WinDeal.init = function Init() {
     this.draggable();
@@ -305600,8 +306075,10 @@ function onEntityWillBeHitSub(pkt, dstEntity) {
     // that predates the currently approved movement.
     const saved = dstEntity._lastroApprovedRoute;
     const approved = dstEntity._lastroApprovedEpoch === epoch && saved?.walk.speed === dstEntity.walk?.speed ? saved : null;
+    const route = lastroCaptureHitRoute(approved || dstEntity);
     const hitStart = lastroHitStartTick(pkt);
     if (approved && hitStart + pkt.attackMT < approved.walk.tick) return;
+    let stopped = false;
     const lastHitDelay =
       pkt.attackMT +
       C_MULTIHIT_DELAY * (pkt.leftDamage ? 1.75 : 1) * (count - 1);
@@ -305611,6 +306088,11 @@ function onEntityWillBeHitSub(pkt, dstEntity) {
     );
     function impendingAttack() {
       if (EntityManager.get(dstEntity.GID) !== dstEntity || (self && dstEntity !== SessionStorage_default.Entity) || (dstEntity._lastroMovementEpoch || 0) !== epoch || dstEntity.action === dstEntity.ACTION.DIE || lastroMovementBlocked(dstEntity)) return;
+      // 被打断的瞬间让实体停在命中时路线上最近的格子（只在第一次命中时做一次）。
+      if (!stopped) {
+        lastroStopAtHit(dstEntity, route, hitStart + pkt.attackMT);
+        stopped = true;
+      }
       if (dstEntity.action !== dstEntity.ACTION.DIE)
         dstEntity.setAction({
           action: dstEntity.ACTION.HURT,
@@ -305626,20 +306108,6 @@ function onEntityWillBeHitSub(pkt, dstEntity) {
           },
         });
     }
-    function resumeWalk() {
-      if (EntityManager.get(dstEntity.GID) !== dstEntity || (self && dstEntity !== SessionStorage_default.Entity) || (dstEntity._lastroMovementEpoch || 0) !== epoch || dstEntity.action === dstEntity.ACTION.DIE || lastroMovementBlocked(dstEntity)) return;
-      if (
-        dstEntity.action !== dstEntity.ACTION.DIE &&
-        EntityManager.getFocusEntity() &&
-        dstEntity.walk.index < dstEntity.walk.total
-      )
-        dstEntity.setAction({
-          action: dstEntity.ACTION.WALK,
-          frame: 0,
-          repeat: false,
-          play: true,
-        });
-    }
     for (let i = 0; i < count; i++) {
       if (pkt.damage)
         Events.setTimeout(impendingAttack, Math.max(0, hitStart + pkt.attackMT + C_MULTIHIT_DELAY * i - Date.now()));
@@ -305649,10 +306117,6 @@ function onEntityWillBeHitSub(pkt, dstEntity) {
           Math.max(0, hitStart + pkt.attackMT + C_MULTIHIT_DELAY * 1.75 * i - Date.now()),
         );
     }
-    Events.setTimeout(
-      resumeWalk,
-      Math.max(0, hitStart + lastHitDelay + pkt.attackedMT - Date.now()),
-    );
   }
 }
 /**
@@ -316406,6 +316870,8 @@ function onExitSuccess() {
     Events.clearTimeout(_exitTimer);
     _exitTimer = null;
   }
+  try { globalThis.KoreEngine?.endGameSession?.(); }
+  catch { /* Optional KE cleanup must not change the native exit path. */ }
   if (
     PacketVerManager_default.value >= 20170315 &&
     SessionStorage_default.WebToken
@@ -320472,6 +320938,33 @@ function onConnectionAccepted$1(pkt) {
    */
 }
 /**
+ * 字符服直接给出唯一的角色（官方 HC.ACCEPT_ENTER2，0x06B2）：不显示选角界面，
+ * 记录该角色后等待字符服随后下发的 NOTIFY_ZONESVR 进入地图。
+ * 与官方 Online.js(1.js) 的处理一致：先建立字符服心跳，再清掉加载界面。
+ *
+ * @param {object} pkt - PACKET.HC.ACCEPT_ENTER2
+ */
+function onConnectionAcceptedSingle(pkt) {
+  const ping = new PACKET.CZ.PING();
+  ping.AID = SessionStorage_default.AID;
+  Network.setPing(() => {
+    Network.sendPacket(ping);
+  });
+  SessionStorage_default.Playing = false;
+  SessionStorage_default.hasCart = false;
+  const Announce = UIManager.getComponent("Announce");
+  if (Announce) Announce.remove();
+  const MapName = UIManager.getComponent("MapName");
+  if (MapName) {
+    MapName.remove();
+    MapName.resetState();
+  }
+  UIManager.getComponent("WinLoading").remove();
+  // 与 onConnectRequest 选定角色时一样：之后的 NOTIFY_ZONESVR / 进图流程读取的是 Entity。
+  if (pkt.entity) SessionStorage_default.Entity = new Player(pkt.entity);
+  else console.warn("[CharEngine] HC.ACCEPT_ENTER2 carried no character block.");
+}
+/**
  * Server don't want the user to select a character
  *
  * @param {object} pkt - PACKET.HC.REFUSE_SELECTCHAR
@@ -320984,6 +321477,20 @@ function onReceiveMapInfo(pkt) {
   DB.startedLazyInit = false;
   retryCount = 0;
   SessionStorage_default.GID = pkt.GID;
+  try {
+    // Map actors use the account ID; the character-server GID is the saved CID.
+    globalThis.KoreEngine?.beginGameSession?.(SessionStorage_default.AID, pkt.mapName, {
+      aid: SessionStorage_default.AID,
+      cid: pkt.GID,
+      nid: Number(Configs.get("lastroNid", 0)),
+      name: SessionStorage_default.Entity?.display?.name ?? null,
+      baseLevel: SessionStorage_default.Entity?.level ?? null,
+      jobLevel: SessionStorage_default.Entity?.joblevel ?? null,
+      jobId: SessionStorage_default.Entity?.job ?? null,
+      zeny: SessionStorage_default.Entity?.money ?? null,
+    });
+  }
+  catch { /* Optional KE initialization must not change the native login path. */ }
   MapEngine.init(pkt.addr.ip, pkt.addr.port, pkt.mapName);
 }
 var _server$1,
@@ -321052,6 +321559,11 @@ var init_CharEngine = __esmMin(() => {
         PACKET.HC.ACCEPT_ENTER_NEO_UNION,
         onConnectionAccepted$1,
       );
+      Network.hookPacket(
+        PACKET.HC.ACCEPT_ENTER_NEO_UNION2,
+        onConnectionAccepted$1,
+      );
+      Network.hookPacket(PACKET.HC.ACCEPT_ENTER2, onConnectionAcceptedSingle);
       Network.hookPacket(PACKET.HC.REFUSE_ENTER, onConnectionRefused$1);
       Network.hookPacket(PACKET.HC.REFUSE_SELECTCHAR, onSelectionRefused);
       Network.hookPacket(

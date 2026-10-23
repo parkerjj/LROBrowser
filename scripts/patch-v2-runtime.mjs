@@ -32,8 +32,8 @@ import { patchRuntimeTeleportFeedback } from './lastro-teleport-feedback.mjs';
 import { patchRuntimeEntityAppearance } from './lastro-entity-appearance.mjs';
 import { patchRuntimeEquipmentAppearance, patchRuntimeEquipmentCatalog, patchRuntimeEquipmentView } from './lastro-equipment-view.mjs';
 import { patchRuntimeTeleportFade } from './lastro-teleport-fade.mjs';
-import { installLastroToolsPanels } from './lastro-tools-panels.mjs';
-import { LASTRO_TOOLS_CSS } from './lastro-tools-style.mjs';
+import { installKoreShellPanels, installLastroToolsPanels } from './lastro-tools-panels.mjs';
+import { KORE_SHELL_CSS, LASTRO_TOOLS_CSS } from './lastro-tools-style.mjs';
 import { captureLastroShortcutEntry, installLastroShortcutEntry } from './lastro-shortcut-entry.mjs';
 import { installLastroShortcutSettings } from './lastro-shortcut-settings.mjs';
 import { installLastroTeleportSettings } from './lastro-teleport-settings.mjs';
@@ -941,12 +941,19 @@ export function patchRuntimeToolsPanels(source) {
       const key = "LastROTeleportOrder:" + Configs.get("lastroNid", 0);
       return Preferences.get(key, { _key: key, _version: 1, orders: {} }, 1);
     },
+    createKoreShell,
+    getKoreHost: () => globalThis.KoreEngine,
   }, ${JSON.stringify(LASTRO_TOOLS_CSS)});
   (${installLastroShortcutEntry.toString()})(LastROTools, lastroNativeShortcutEntry, {
     document: globalThis.document, setHtml: setLastROInnerHTML,
     getEnabled: getLastroShortcutEntryEnabled,
     normalizeRoute: normalizeRouteEntry,
     requestRoute: route => LastROTools._lastroPanels.requestCustomRoute(route),
+  });
+  (${installKoreShellPanels.toString()})(LastROTools, {
+    document: globalThis.document, window: globalThis, setHtml: setLastROInnerHTML,
+    createKoreShell, getKoreHost: () => globalThis.KoreEngine,
+    shellCss: ${JSON.stringify(KORE_SHELL_CSS)},
   });\n  `;
   const edits = [
     { start: anchor.getStart(file), text: 'init_Preferences$1();\n  ' + install },
@@ -1402,27 +1409,292 @@ export function patchV2Runtime(source, { assistant = false } = {}) {
   if (!source.startsWith('import ')) fail('anchor:runtime-imports');
   const normalizedSource = source.replace(/\r\n/g, '\n');
   let output = `import { decorateLastROLoginTemplate, decorateLastROLoginStyles, installLastROLogin, beforeLastROLoginConnect, afterLastROLoginPassword } from "./lastro-account-login.mjs";
+import { sendKoreNativePacket, startOptionalKore } from "./kore-integration.mjs";
+import { createKoreShell } from "./kore-panel-shell.mjs";
 let lastroWorkerPolicy;
+let currentKoreWorkerUrl = null;
+const nativeWorkerUrls = ["LastROThreadEventHandler.js", "PathFindingWorker.js"]
+	.map(path => new URL(path, import.meta.url).href);
+function trustLastROWorkerUrl(value) {
+	const candidate = new URL(value, import.meta.url);
+	if (!nativeWorkerUrls.includes(candidate.href) && candidate.href !== currentKoreWorkerUrl) {
+		throw new TypeError("Unexpected worker URL");
+	}
+	const trustedTypes = globalThis.trustedTypes;
+	if (!trustedTypes) return candidate.href;
+	const policy = lastroWorkerPolicy ?? (lastroWorkerPolicy = trustedTypes.createPolicy("lastro-iwa-worker", {
+		createScriptURL: (url) => {
+			const allowed = new URL(url, import.meta.url).href;
+			if (!nativeWorkerUrls.includes(allowed) && allowed !== currentKoreWorkerUrl) {
+				throw new TypeError("Unexpected worker URL");
+			}
+			return allowed;
+		},
+	}));
+	return policy.createScriptURL(candidate.href);
+}
 function createLastROWorkerScriptUrl(relativePath) {
 	if (relativePath !== "LastROThreadEventHandler.js" && relativePath !== "PathFindingWorker.js") {
 		throw new TypeError("Unexpected worker path");
 	}
-	const workerUrl = new URL(relativePath, import.meta.url);
-	const trustedTypes = globalThis.trustedTypes;
-	if (!trustedTypes) return workerUrl.href;
-	const allowedWorkerUrls = ["LastROThreadEventHandler.js", "PathFindingWorker.js"]
-		.map(path => new URL(path, import.meta.url).href);
-	const policy = lastroWorkerPolicy ?? (lastroWorkerPolicy = trustedTypes.createPolicy("lastro-iwa-worker", {
-		createScriptURL: (value) => {
-			const candidate = new URL(value, import.meta.url);
-			if (!allowedWorkerUrls.includes(candidate.href)) {
-				throw new TypeError("Unexpected worker URL");
-			}
-			return candidate.href;
-		},
-	}));
-	return policy.createScriptURL(workerUrl.href);
+	return trustLastROWorkerUrl(new URL(relativePath, import.meta.url).href);
 }
+function sendKoreEnginePacket(action, packet) {
+  let refusalReason = null;
+  if (/REQUEST_MOVE2?$/.test(packet?.constructor?.name || "")) {
+    try {
+      if (lastroVendingShoppingActive()) refusalReason = "vending-store-active";
+      else if (lastroMovementUnavailable()) refusalReason = "movement-connection-unavailable";
+    } catch { /* The native sender remains authoritative if diagnostics cannot inspect a guard. */ }
+  }
+  return sendKoreNativePacket(action, packet, {
+    page: globalThis,
+    sendPacket: value => Network.sendPacket(value),
+    socket: typeof _socket === "undefined" ? null : _socket,
+    refusalReason,
+  });
+}
+globalThis.KoreEngineNativeAction = (action) => {
+  if (!action) return false;
+  if (action.type === "MoveTo") {
+    const packet = PacketVerManager_default.value >= 20180307
+      ? new PACKET.CZ.REQUEST_MOVE2()
+      : new PACKET.CZ.REQUEST_MOVE();
+    packet.dest[0] = action.x;
+    packet.dest[1] = action.y;
+    return sendKoreEnginePacket(action, packet);
+  }
+  if (action.type === "Attack") {
+    const Ctor = PacketVerManager_default.value >= 20180307 ? PACKET.CZ.REQUEST_ACT2 : PACKET.CZ.REQUEST_ACT;
+    if (!Ctor) return false;
+    const packet = new Ctor();
+    packet.targetGID = action.targetGid;
+    // ACTION_ATTACK_REPEAT (7): OpenKore's normal attack mode. The server
+    // keeps swinging at its own ASPD; action 0 is a single attack only.
+    packet.action = 7;
+    return sendKoreEnginePacket(action, packet);
+  }
+  if (action.type === "Sit" || action.type === "Stand") {
+    const Ctor = PacketVerManager_default.value >= 20180307 ? PACKET.CZ.REQUEST_ACT2 : PACKET.CZ.REQUEST_ACT;
+    if (!Ctor) return false;
+    const packet = new Ctor();
+    packet.targetGID = SessionStorage_default.AID ?? 0;
+    packet.action = action.type === "Sit" ? 2 : 3;
+    return sendKoreEnginePacket(action, packet);
+  }
+  if (action.type === "Equip") {
+    if (!PACKET?.CZ?.REQ_WEAR_EQUIP) return false;
+    const packet = new PACKET.CZ.REQ_WEAR_EQUIP();
+    packet.index = action.inventoryIndex;
+    packet.wearLocation = action.position;
+    return sendKoreEnginePacket(action, packet);
+  }
+  if (action.type === "Unequip") {
+    if (!PACKET?.CZ?.REQ_TAKEOFF_EQUIP) return false;
+    const packet = new PACKET.CZ.REQ_TAKEOFF_EQUIP();
+    packet.index = action.inventoryIndex;
+    return sendKoreEnginePacket(action, packet);
+  }
+  if (action.type === "UseSkillOnTarget" || action.type === "UseSkillSelf") {
+    const Ctor = PacketVerManager_default.value >= 20180307 ? PACKET.CZ.USE_SKILL2 : PACKET.CZ.USE_SKILL;
+    if (!Ctor) return false;
+    const packet = new Ctor();
+    packet.selectedLevel = action.level;
+    packet.SKID = action.skillId;
+    // 地图上的自身 actor ID 是 AID；SessionStorage.GID 是角色服务器的 CID，不能作为自身目标。
+    packet.targetID = action.type === "UseSkillSelf" ? (SessionStorage_default.AID ?? 0) : action.targetGid;
+    return sendKoreEnginePacket(action, packet);
+  }
+  if (action.type === "UseSkillAt") {
+    const Ctor = PacketVerManager_default.value >= 20190904
+      ? PACKET.CZ.USE_SKILL_TOGROUND3
+      : PacketVerManager_default.value >= 20180307 ? PACKET.CZ.USE_SKILL_TOGROUND2 : PACKET.CZ.USE_SKILL_TOGROUND;
+    if (!Ctor) return false;
+    const packet = new Ctor();
+    packet.selectedLevel = action.level;
+    packet.SKID = action.skillId;
+    packet.xPos = action.x;
+    packet.yPos = action.y;
+    return sendKoreEnginePacket(action, packet);
+  }
+  if (action.type === "UseItem") {
+    const Ctor = PacketVerManager_default.value >= 20180307 ? PACKET.CZ.USE_ITEM2 : PACKET.CZ.USE_ITEM;
+    if (!Ctor) return false;
+    const packet = new Ctor();
+    packet.index = action.inventoryIndex;
+    packet.AID = action.targetGid || SessionStorage_default.AID || 0;
+    return sendKoreEnginePacket(action, packet);
+  }
+  if (action.type === "Pickup") {
+    const Ctor = PacketVerManager_default.value >= 20180307 ? PACKET.CZ.ITEM_PICKUP2 : PACKET.CZ.ITEM_PICKUP;
+    if (!Ctor) return false;
+    const packet = new Ctor();
+    packet.ITAID = action.itemGid;
+    return sendKoreEnginePacket(action, packet);
+  }
+  if (action.type === "DropItem") {
+    // LastRO 20211103: 0x0363 PACKET_CZ_ITEM_THROW2, Index + count.
+    const Ctor = PacketVerManager_default.value >= 20180307 ? PACKET.CZ.ITEM_THROW2 : PACKET.CZ.ITEM_THROW;
+    if (!Ctor) return false;
+    const packet = new Ctor();
+    packet.Index = action.inventoryIndex;
+    packet.count = action.amount;
+    return sendKoreEnginePacket(action, packet);
+  }
+  if (action.type === "StorageTransfer") {
+    const Ctor = action.toStorage
+      ? (PacketVerManager_default.value >= 20180307 ? PACKET.CZ.MOVE_ITEM_FROM_BODY_TO_STORE2 : PACKET.CZ.MOVE_ITEM_FROM_BODY_TO_STORE)
+      : (PacketVerManager_default.value >= 20180307 ? PACKET.CZ.MOVE_ITEM_FROM_STORE_TO_BODY2 : PACKET.CZ.MOVE_ITEM_FROM_STORE_TO_BODY);
+    if (!Ctor) return false;
+    const packet = new Ctor();
+    packet.index = action.inventoryIndex;
+    packet.count = action.amount;
+    return sendKoreEnginePacket(action, packet);
+  }
+  if (action.type === "ToggleServerAutoFight" || action.type === "ToggleServerFollow") {
+    // LastRO 服务器版“自动战斗 / 自动跟随”开关是切换：nid 5/6 发 NOTIFY_UPDATEINFO(34 或 37, 1)，
+    // nid 3 私聊 NPC:setautoattack / NPC:setfollow。编码方式和工具箱的开关一致；状态由服务器 0x0AF6 回报给 KE。
+    const option = action.type === "ToggleServerFollow" ? "autoFollow" : "autoAttack";
+    const request = buildAutoToggleRequest({ nid: Configs.get("lastroNid", 0), option, enabled: false });
+    if (request?.kind === "whisper") {
+      if (!PACKET?.CZ?.WHISPER) return false;
+      const packet = new PACKET.CZ.WHISPER();
+      packet.receiver = request.receiver;
+      packet.msg = request.msg;
+      return sendKoreEnginePacket(action, packet);
+    }
+    if (request?.kind === "update") {
+      if (!PACKET?.CZ?.NOTIFY_UPDATEINFO) return false;
+      const packet = new PACKET.CZ.NOTIFY_UPDATEINFO();
+      Object.assign(packet, mapScalarUpdate(request));
+      return sendKoreEnginePacket(action, packet);
+    }
+    return false;
+  }
+  if (action.type === "RequestServerSettings") {
+    // 向服务器要整份自动战斗设置：官方工具箱每次换图发的同一个 2 字节包（CZ.NOTIFY_LOADINFO，0x0AFF），
+    // 服务器用 0x0AF5 快照回答。KE 靠它问出自动战斗/跟随开关的真实状态——服务器不会回报每一次切换。
+    if (!PACKET?.CZ?.NOTIFY_LOADINFO) return false;
+    return sendKoreEnginePacket(action, new PACKET.CZ.NOTIFY_LOADINFO());
+  }
+  if (action.type === "StorageClose") {
+    // OpenKore sendStorageClose：服务端仓库没关时，后续的飞空艇请求会被静默忽略。
+    if (!PACKET?.CZ?.CLOSE_STORE) return false;
+    return sendKoreEnginePacket(action, new PACKET.CZ.CLOSE_STORE());
+  }
+  if (action.type === "NpcTalk") {
+    if (!PACKET?.CZ?.CONTACTNPC) return false;
+    const packet = new PACKET.CZ.CONTACTNPC();
+    packet.NAID = action.npcGid;
+    packet.type = 1;
+    return sendKoreEnginePacket(action, packet);
+  }
+  if (action.type === "NpcMenu") {
+    if (!PACKET?.CZ?.CHOOSE_MENU) return false;
+    const packet = new PACKET.CZ.CHOOSE_MENU();
+    packet.NAID = action.npcGid;
+    packet.num = action.choice;
+    return sendKoreEnginePacket(action, packet);
+  }
+  if (action.type === "NpcContinue") {
+    if (!PACKET?.CZ?.REQ_NEXT_SCRIPT) return false;
+    const packet = new PACKET.CZ.REQ_NEXT_SCRIPT();
+    packet.NAID = action.npcGid;
+    return sendKoreEnginePacket(action, packet);
+  }
+  if (action.type === "NpcClose") {
+    if (!PACKET?.CZ?.CLOSE_DIALOG) return false;
+    const packet = new PACKET.CZ.CLOSE_DIALOG();
+    packet.NAID = action.npcGid;
+    return sendKoreEnginePacket(action, packet);
+  }
+  if (action.type === "NpcNumber") {
+    if (!PACKET?.CZ?.INPUT_EDITDLG) return false;
+    const packet = new PACKET.CZ.INPUT_EDITDLG();
+    packet.NAID = action.npcGid;
+    packet.value = action.value;
+    return sendKoreEnginePacket(action, packet);
+  }
+  if (action.type === "NpcText") {
+    if (!PACKET?.CZ?.INPUT_EDITDLGSTR) return false;
+    const packet = new PACKET.CZ.INPUT_EDITDLGSTR();
+    packet.NAID = action.npcGid;
+    packet.msg = action.text;
+    return sendKoreEnginePacket(action, packet);
+  }
+  if (action.type === "NpcShopSelect") {
+    if (!PACKET?.CZ?.ACK_SELECT_DEALTYPE) return false;
+    const packet = new PACKET.CZ.ACK_SELECT_DEALTYPE();
+    packet.NAID = action.npcGid;
+    packet.type = action.sell ? 1 : 0;
+    return sendKoreEnginePacket(action, packet);
+  }
+  if (action.type === "ShopBuy") {
+    if (!PACKET?.CZ?.PC_PURCHASE_ITEMLIST) return false;
+    const packet = new PACKET.CZ.PC_PURCHASE_ITEMLIST();
+    packet.itemList = action.items.map((entry) => ({ ITID: entry.itemId, count: entry.amount }));
+    return sendKoreEnginePacket(action, packet);
+  }
+  if (action.type === "ShopSell") {
+    if (!PACKET?.CZ?.PC_SELL_ITEMLIST) return false;
+    const packet = new PACKET.CZ.PC_SELL_ITEMLIST();
+    packet.itemList = action.items.map((entry) => ({ index: entry.inventoryIndex, count: entry.amount }));
+    return sendKoreEnginePacket(action, packet);
+  }
+  if (action.type === "PrivateAirship") {
+    if (!PACKET?.CZ?.PRIVATE_AIRSHIP_REQUEST) return false;
+    const packet = new PACKET.CZ.PRIVATE_AIRSHIP_REQUEST();
+    packet.mapname = String(action.destinationId).replace(/\\.(?:gat|rsw)$/i, "").toLowerCase();
+    const hasPosition = Number.isSafeInteger(action.x) && Number.isSafeInteger(action.y);
+    packet.x = hasPosition ? action.x : 0;
+    packet.y = hasPosition ? action.y : 0;
+    packet.type = hasPosition ? 1 : 0;
+    packet.itemid = Number.isSafeInteger(action.itemId) && action.itemId > 0 ? action.itemId : 14527;
+    return sendKoreEnginePacket(action, packet);
+  }
+  if (action.type === "SelectWarpPoint") {
+    // 瞬间移动 Lv2 弹出传送点列表后的选择（0x011B：skillID u16 + mapName Z16）。
+    // 选哪一项由 KE 决定，Host 只编码发送。
+    if (!PACKET?.CZ?.SELECT_WARPPOINT) return false;
+    const packet = new PACKET.CZ.SELECT_WARPPOINT();
+    packet.SKID = action.skillId;
+    packet.mapName = action.mapName;
+    return sendKoreEnginePacket(action, packet);
+  }
+  if (action.type === "Restart") {
+    if (!PACKET?.CZ?.RESTART) return false;
+    const packet = new PACKET.CZ.RESTART();
+    packet.type = 0;
+    return sendKoreEnginePacket(action, packet);
+  }
+  return false;
+};
+globalThis.KoreEngineNativeRouteAction = globalThis.KoreEngineNativeAction;
+// Worker 重建后的会话恢复需要知道角色此刻所在的地图（登录时的地图可能早已过期）。
+globalThis.KoreEngineCurrentMap = () => {
+  try { return String(MapRenderer?.currentMap ?? ""); } catch { return ""; }
+};
+globalThis.KoreEngineDisconnect = (reason) => {
+	try {
+		Network.close();
+		return true;
+	} catch {
+		return false;
+	}
+};
+startOptionalKore({
+	createWorker: (value) => {
+		const url = new URL(value);
+		const local = new URL(import.meta.url);
+		if (url.protocol !== local.protocol || url.host !== local.host || url.username || url.password || url.search || url.hash
+			|| !/^\\/core\\/ke\\/[a-f0-9]{64}\\/kore-worker\\.mjs$/.test(url.pathname)) {
+			throw new TypeError("Unexpected KoreEngine worker URL");
+		}
+		currentKoreWorkerUrl = url.href;
+		return new Worker(trustLastROWorkerUrl(url.href), { type: "module" });
+	},
+	onWorkerReleased: () => { currentKoreWorkerUrl = null; },
+});
 
 ${normalizedSource}`;
   output = output.replace(/\?build=[A-Za-z0-9._-]+/g, '');
@@ -1467,6 +1739,14 @@ ${normalizedSource}`;
   if (typeof globalThis.LastRODirectSocketFactory !== "function") throw new Error("Direct TCP factory unavailable");
   return globalThis.LastRODirectSocketFactory(host, port);
 }`);
+  // Renderer.init is the stable point where both Renderer and GraphicsSettings
+  // are in lexical scope; expose only those two references for the 3D toggle.
+  output = replaceOnceAny(output, [
+    ['    static init(param) {\n      if (!this.gl) {',
+      '    static init(param) {\n      try { globalThis.__LastRORenderer = { Renderer: this, GraphicsSettings }; } catch { /* optional */ }\n      if (!this.gl) {'],
+    ['\t\tstatic init(param) {\n\t\t\tif (!this.gl) {',
+      '\t\tstatic init(param) {\n\t\t\ttry { globalThis.__LastRORenderer = { Renderer: this, GraphicsSettings }; } catch { /* optional */ }\n\t\t\tif (!this.gl) {'],
+  ]);
   output = patchLoginRegistrationHook(output);
   output = patchRuntimeEntityAppearance(output);
   output = patchRuntimeEquipmentCatalog(output);
