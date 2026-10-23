@@ -27,7 +27,7 @@ export function createRuntimeResourceLoader(options: RuntimeResourceOptions): (p
   const cache = createResourceCache();
   const directHttpFetch = createDirectHttpFetch({ nativeFetch: globalThis.fetch });
   const inFlight = new Map<string, Promise<ArrayBuffer>>();
-  const schedule = createResourceScheduler(6);
+  const schedule = createResourceScheduler(3);
   const sourceHealth = new ResourceSourceHealth();
   const notFoundUntil = new Map<string, number>();
   // Every resource request consults the manifest: index it once per manifest instead of scanning it.

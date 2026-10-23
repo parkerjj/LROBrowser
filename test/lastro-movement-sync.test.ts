@@ -560,7 +560,7 @@ describe('authoritative FASTMOVE Body Relocation targets', () => {
 
 describe('damage visuals on server-approved movement', () => {
 
-  it.each([1, 3])('finishes a whole approved route after a real 0x8a damage action with %s hits and no new movement packet', count => {
+  it.each([1, 3])('stops at the impact cell after a real 0x8a damage action with %s hits and does not finish the old route', count => {
     const f = fixture();
     const moveBytes = new Uint8Array(12), view = new DataView(moveBytes.buffer);
     view.setUint16(0, 0x87, true); view.setUint32(2, 10000, true);
@@ -576,31 +576,31 @@ describe('damage visuals on server-approved movement', () => {
     expect(action).toMatchObject({ GID: 999, targetGID: 123, startTime: 10000, damage: 10, action: 0, count });
     f.flush(10150); f.entity.walkProcess();
     expect(f.entity.action).toBe(f.entity.ACTION.HURT);
-    expect(f.entity.position[0]).toBe(2);
-    expect(f.entity.walk.total).toBeGreaterThan(0);
-    expect(f.entity.walk.onEnd).toBe(routeEnd);
-    f.flush(10300); f.entity.walkProcess();
-    expect(f.entity.position[0]).toBe(3);
-    f.flush(13000); f.entity.walkProcess();
-    expect(Array.from(f.entity.position)).toEqual([20, 1, 21]);
+    expect(Array.from(f.entity.position)).toEqual([2, 1, 3]);
     expect(f.entity.walk.total).toBe(0);
-    expect(routeEnd).toHaveBeenCalledOnce(); expect(walkEnd).toHaveBeenCalledOnce();
+    f.flush(10300); f.entity.walkProcess();
+    expect(f.entity.position[0]).toBe(2);
+    f.flush(13000); f.entity.walkProcess();
+    expect(Array.from(f.entity.position)).toEqual([2, 1, 3]);
+    expect(f.entity.walk.total).toBe(0);
+    expect(routeEnd).not.toHaveBeenCalled(); expect(walkEnd).not.toHaveBeenCalled();
+    expect(f.entity.action).not.toBe(f.entity.ACTION.WALK);
     expect(f.Network.sendPacket).not.toHaveBeenCalled();
   });
 
-  it('schedules a late real damage visual at its impact time without rewinding the current position', () => {
+  it('stops a late real damage action at its historical impact cell instead of the current display position', () => {
     const f = fixture(); beginWalk(f);
     f.setNow(10300); f.SessionStorage_default.serverTick = 10300;
     f.entity.walkProcess(); expect(f.entity.position[0]).toBe(3);
     receiveNativeDamageAction(f);
     f.flush(10300); f.entity.walkProcess();
     expect(f.entity.action).toBe(f.entity.ACTION.HURT);
-    expect(f.entity.position[0]).toBe(3);
-    expect(f.entity.walk.total).toBeGreaterThan(0);
+    expect(Array.from(f.entity.position)).toEqual([2, 1, 3]);
+    expect(f.entity.walk.total).toBe(0);
     f.flush(10450);
-    expect(f.entity.action).toBe(f.entity.ACTION.WALK);
+    expect(f.entity.action).not.toBe(f.entity.ACTION.WALK);
     f.setNow(12000); f.entity.walkProcess();
-    expect(Array.from(f.entity.position)).toEqual([12, 1, 13]);
+    expect(Array.from(f.entity.position)).toEqual([2, 1, 3]);
   });
 
   it('does not let old damage recovery replace a newer attack action on a newer route', () => {
@@ -618,20 +618,22 @@ describe('damage visuals on server-approved movement', () => {
     expect(f.entity.position[1]).toBeCloseTo(1 + 800 / 150);
   });
 
-  it('preserves native LastRO movement during HURT and recovery of the same approved route', () => {
+  it('does not resume the old route when HURT recovery finishes', () => {
     const f = fixture();
     beginWalk(f);
     f.functions.hit(normalHit, f.entity);
     f.flush(10150);
     expect(f.entity.action).toBe(f.entity.ACTION.HURT);
     f.entity.walkProcess();
-    expect(f.entity.position[0]).toBe(2);
     f.setNow(10300);
     f.entity.walkProcess();
-    expect(f.entity.position[0]).toBe(3);
+    expect(f.entity.position[0]).toBe(2);
     f.flush(10450);
-    expect(f.entity.action).toBe(f.entity.ACTION.WALK);
-    expect(f.entity.walk.total).toBeGreaterThan(0);
+    expect(f.entity.action).not.toBe(f.entity.ACTION.WALK);
+    expect(f.entity.walk.total).toBe(0);
+    f.setNow(12000);
+    f.entity.walkProcess();
+    expect(Array.from(f.entity.position)).toEqual([2, 1, 3]);
   });
 
   it.each([4, 9, 11, 14])('keeps immune or lucky-dodge action %s moving without interruption', action => {
@@ -830,7 +832,7 @@ function moveRequest() {
   return { constructor: { name: 'PACKET_CZ_REQUEST_MOVE2' }, build: vi.fn(() => ({ buffer, view: new DataView(buffer) })) };
 }
 
-describe('nearby route joins after damage notifications', () => {
+describe('server routes received after a damage stop', () => {
   function receiveNearRoute(f: ReturnType<typeof fixture>, time = 10210) {
     const bytes = new Uint8Array(12), view = new DataView(bytes.buffer);
     view.setUint16(0, 0x87, true); view.setUint32(2, time, true);
@@ -846,22 +848,24 @@ describe('nearby route joins after damage notifications', () => {
     receiveNativeDamageAction(f, count);
     f.SessionStorage_default.serverTick = 10210; f.flush(10210); f.entity.walkProcess();
     expect(f.entity.action).toBe(f.entity.ACTION.HURT);
-    expect(f.entity.position[0]).toBeCloseTo(2.4, 5);
+    // 命中时刻 10150 路线正好走到第 2 格；实体被钉在这一格，旧路线已取消。
+    expect(Array.from(f.entity.position)).toEqual([2, 1, 3]);
+    expect(f.entity.walk.total).toBe(0);
     return f;
   }
 
-  it.each(['player', 'entity'] as const)('keeps the shown hurt position for a real decoded MOVE via %s and rejoins the server deadline', entry => {
+  it.each(['player', 'entity'] as const)('starts a real decoded MOVE via %s from the stopped cell and keeps the server deadline', entry => {
     const f = hurtRoute(), before = Array.from(f.entity.position);
     if (entry === 'player') receiveNearRoute(f);
     else f.functions.move({ GID: 123, MoveData: [2, 1, 12, 1], moveStartTime: 10210 });
     expect(Array.from(f.entity.position)).toEqual(before);
-    f.flush(10300); f.entity.walkProcess(); expect(f.entity.position[0]).toBeCloseTo(2.76, 5);
+    f.flush(10300); f.entity.walkProcess(); expect(f.entity.position[0]).toBeCloseTo(2.6, 5);
     f.flush(10360); f.entity.walkProcess(); expect(Array.from(f.entity.position)).toEqual([3, 1, 4]);
     f.flush(10375); f.entity.walkProcess(); expect(f.entity.position[0]).toBeCloseTo(3.1, 5);
     expect(f.Network.sendPacket).not.toHaveBeenCalled();
   });
 
-  it('invalidates remaining old multihit animations without canceling the joined route', () => {
+  it('invalidates remaining old multihit animations without canceling the new server route', () => {
     const f = hurtRoute(3); receiveNearRoute(f);
     const arrived = vi.fn(); f.entity.walk.onEnd = arrived;
     f.flush(10560); f.entity.walkProcess(); expect(f.entity.action).toBe(f.entity.ACTION.WALK);
@@ -870,16 +874,16 @@ describe('nearby route joins after damage notifications', () => {
     expect(Array.from(f.entity.position)).toEqual([12, 1, 13]); expect(arrived).toHaveBeenCalledOnce();
   });
 
-  it('rejects an older MOVE without disturbing the joined segment or its deadline', () => {
+  it('rejects an older MOVE without disturbing the new segment or its deadline', () => {
     const f = hurtRoute(); receiveNearRoute(f); const before = Array.from(f.entity.position);
     f.functions.playerMove({ MoveData: [1, 1, 12, 1], moveStartTime: 10000 });
     expect(Array.from(f.entity.position)).toEqual(before);
     f.flush(10360); f.entity.walkProcess(); expect(f.entity.position[0]).toBe(3);
   });
 
-  it.each(['stop', 'jump'] as const)('preserves authoritative %s during a join and gives a later first route its exact server origin', kind => {
+  it.each(['stop', 'jump'] as const)('preserves authoritative %s during a new route and gives a later first route its exact server origin', kind => {
     const f = hurtRoute(); receiveNearRoute(f);
-    f.setNow(10240); f.entity.walkProcess(); expect(f.entity.position[0]).toBeCloseTo(2.52, 5);
+    f.setNow(10240); f.entity.walkProcess(); expect(f.entity.position[0]).toBeCloseTo(2.2, 5);
     f.functions[kind]({ AID: 123, xPos: 7, yPos: 8 });
     expect(Array.from(f.entity.position)).toEqual([7, 8, 15]); expect(f.entity.walk.total).toBe(0);
     f.flush(11000); f.entity.walkProcess(); expect(Array.from(f.entity.position)).toEqual([7, 8, 15]);
@@ -888,7 +892,7 @@ describe('nearby route joins after damage notifications', () => {
     expect(Array.from(f.entity.position)).toEqual([7, 8, 15]);
   });
 
-  it('retains FASTMOVE speed and endpoint semantics after a nearby join', () => {
+  it('retains FASTMOVE speed and endpoint semantics after a damage stop', () => {
     const f = hurtRoute(); receiveNearRoute(f);
     f.functions.fastMove({ AID: 123, targetXpos: 12, targetYpos: 1 });
     expect(f.entity.walk.speed).toBe(10);
@@ -897,7 +901,7 @@ describe('nearby route joins after damage notifications', () => {
     expect(f.entity.walk.speed).toBe(150); expect(f.entity.walk.total).toBe(0);
   });
 
-  it('does not preserve a joined display position for a zero-distance server correction', () => {
+  it('applies a zero-distance server correction exactly after a damage stop', () => {
     const f = hurtRoute(); receiveNearRoute(f);
     f.functions.playerMove({ MoveData: [2, 1, 2, 1], moveStartTime: 10210 });
     expect(Array.from(f.entity.position)).toEqual([2, 1, 3]); expect(f.entity.walk.total).toBe(0);
@@ -1046,5 +1050,257 @@ describe('movement while the server is silent or disconnected', () => {
     f.entity.walkProcess();
     expect(Array.from(f.entity.position)).toEqual([4, 6, 10]);
     expect(f.entity.action).toBe(f.entity.ACTION.WALK);
+  });
+});
+
+
+describe('hit interrupts walking at the impact cell', () => {
+  it.each([0, 8, 10, 13])('halts the old approved route at impact for damage action %s', action => {
+    const f = fixture();
+    beginWalk(f);
+    f.functions.hit({ ...normalHit, action }, f.entity);
+    f.setNow(10100);
+    f.entity.walkProcess();
+    expect(f.entity.position[0]).toBeCloseTo(1 + 100 / 150);
+    expect(f.entity.walk.total).toBeGreaterThan(0);
+    f.flush(10150);
+    expect(f.entity.position[0]).toBe(2);
+    expect(f.entity.walk.total).toBe(0);
+    expect(f.entity.action).toBe(f.entity.ACTION.HURT);
+    const stopped = Array.from(f.entity.position);
+    f.setNow(10400);
+    f.entity.walkProcess();
+    f.flush(10800);
+    f.entity.walkProcess();
+    expect(Array.from(f.entity.position)).toEqual(stopped);
+    expect(f.entity.action).not.toBe(f.entity.ACTION.WALK);
+  });
+
+  it('cancels route completion callbacks and keeps each multihit visual without resuming the route', () => {
+    const f = fixture();
+    beginWalk(f);
+    const routeEnd = vi.fn(), walkEnd = vi.fn();
+    f.entity.walk.onEnd = routeEnd;
+    f.entity.onWalkEnd = walkEnd;
+    f.functions.hit({ ...normalHit, leftDamage: 5, count: 3 }, f.entity);
+    f.flush(10150);
+    const stopped = Array.from(f.entity.position);
+    f.entity.setAction({ action: f.entity.ACTION.IDLE! });
+    f.flush(10350);
+    expect(f.entity.action).toBe(f.entity.ACTION.HURT);
+    f.flush(11000);
+    expect(Array.from(f.entity.position)).toEqual(stopped);
+    expect(f.entity.walk.total).toBe(0);
+    expect(routeEnd).not.toHaveBeenCalled();
+    expect(walkEnd).not.toHaveBeenCalled();
+  });
+
+  it('only stops on an actual nearest route cell when diagonal movement passes an obstacle', () => {
+    const f = fixture();
+    f.cells[3 + 3 * 24] = 1;
+    f.entity.position.set([1, 3, 4]);
+    f.entity.walk.speed = 150;
+    f.functions.playerMove({ MoveData: [1, 3, 6, 3], moveStartTime: 10000 });
+    const route = Array.from(f.entity.walk.path.slice(0, f.entity.walk.total));
+    f.functions.hit({ ...normalHit, attackMT: 380 }, f.entity);
+    f.flush(10380);
+    expect(f.entity.walk.total).toBe(0);
+    const x = f.entity.position[0]!, y = f.entity.position[1]!;
+    expect(Number.isInteger(x)).toBe(true);
+    expect(Number.isInteger(y)).toBe(true);
+    expect(f.cells[x + y * 24]).not.toBe(1);
+    expect(route.some((point, index) => index % 2 === 0 && point === x && route[index + 1] === y)).toBe(true);
+  });
+
+  it('does not advance a delayed hit to the current far-ahead display clock after a stalled frame', () => {
+    const f = fixture();
+    beginWalk(f);
+    f.functions.hit(normalHit, f.entity);
+    f.flush(11500);
+    expect(Array.from(f.entity.position)).toEqual([2, 1, 3]);
+    expect(f.entity.walk.total).toBe(0);
+  });
+
+  it('subtracts known packet latency from a pending impact instead of allowing additional movement', () => {
+    const f = fixture();
+    beginWalk(f);
+    f.setNow(10100);
+    f.SessionStorage_default.serverTick = 10100;
+    f.entity.walkProcess();
+    f.functions.hit({ ...normalHit, startTime: 10000 }, f.entity);
+    f.flush(10149);
+    expect(f.entity.action).toBe(f.entity.ACTION.WALK);
+    f.flush(10150);
+    expect(Array.from(f.entity.position)).toEqual([2, 1, 3]);
+    expect(f.entity.action).toBe(f.entity.ACTION.HURT);
+    expect(f.entity.walk.total).toBe(0);
+  });
+
+  it('applies a late received hit at its historical impact cell without waiting a second full attack motion', () => {
+    const f = fixture();
+    beginWalk(f);
+    f.setNow(10300);
+    f.SessionStorage_default.serverTick = 10300;
+    f.entity.walkProcess();
+    expect(f.entity.position[0]).toBe(3);
+    f.functions.hit({ ...normalHit, startTime: 10000 }, f.entity);
+    f.flush(10300);
+    expect(Array.from(f.entity.position)).toEqual([2, 1, 3]);
+    expect(f.entity.walk.total).toBe(0);
+    expect(f.entity.action).toBe(f.entity.ACTION.HURT);
+  });
+
+  it('retains the approved route before initial movement catchup when a delayed hit needs an earlier cell', () => {
+    const f = fixture();
+    f.setNow(10200);
+    f.SessionStorage_default.serverTick = 10200;
+    beginWalk(f);
+    expect(f.entity.position[0]).toBeCloseTo(1 + 200 / 150);
+    f.setNow(10500);
+    f.SessionStorage_default.serverTick = 10500;
+    f.functions.hit({ ...normalHit, attackMT: 50, startTime: 10000 }, f.entity);
+    f.flush(10500);
+    expect(Array.from(f.entity.position)).toEqual([1, 1, 2]);
+    expect(f.entity.walk.total).toBe(0);
+  });
+
+  it('corrects a late impact along the approved route even if its display interpolation has already reached the endpoint', () => {
+    const f = fixture();
+    beginWalk(f);
+    f.setNow(12500);
+    f.SessionStorage_default.serverTick = 12500;
+    f.entity.walkProcess();
+    expect(Array.from(f.entity.position)).toEqual([12, 1, 13]);
+    expect(f.entity.walk.total).toBe(0);
+    f.functions.hit({ ...normalHit, attackMT: 450, startTime: 10000 }, f.entity);
+    f.flush(12500);
+    expect(Array.from(f.entity.position)).toEqual([4, 1, 5]);
+    expect(f.entity.action).toBe(f.entity.ACTION.HURT);
+  });
+
+  it.each([undefined, NaN, Infinity, -1, 0x100000000, 1.5, '10000', 10400])('falls back to native receipt timing for unusable attack startTime %s', startTime => {
+    const f = fixture();
+    beginWalk(f);
+    f.setNow(10300);
+    f.SessionStorage_default.serverTick = 10300;
+    f.entity.walkProcess();
+    f.functions.hit({ ...normalHit, startTime }, f.entity);
+    f.flush(10300);
+    expect(f.entity.action).toBe(f.entity.ACTION.WALK);
+    f.flush(10450);
+    expect(Array.from(f.entity.position)).toEqual([4, 1, 5]);
+    expect(f.entity.action).toBe(f.entity.ACTION.HURT);
+  });
+
+  it('falls back to native receipt timing when no server-clock sample exists', () => {
+    const f = fixture();
+    beginWalk(f);
+    f.setNow(10300);
+    f.SessionStorage_default.serverTick = 0;
+    f.entity.walkProcess();
+    f.functions.hit({ ...normalHit, startTime: 10000 }, f.entity);
+    f.flush(10300);
+    expect(f.entity.action).toBe(f.entity.ACTION.WALK);
+    f.flush(10450);
+    expect(Array.from(f.entity.position)).toEqual([4, 1, 5]);
+  });
+
+  it('does not trust an implausibly old timestamp to rewind a currently approved route', () => {
+    const f = fixture();
+    beginWalk(f, 10000);
+    f.setNow(16000);
+    f.SessionStorage_default.serverTick = 16000;
+    f.entity.walkProcess();
+    f.functions.hit({ ...normalHit, startTime: 10000 }, f.entity);
+    f.flush(16000);
+    expect(f.entity.action).toBe(f.entity.ACTION.WALK);
+    f.flush(16150);
+    expect(f.entity.position[0]).toBe(2);
+    expect(f.entity.walk.total).toBe(0);
+  });
+
+  it('accounts for uint32 rollover when scheduling an attack impact', () => {
+    const f = fixture();
+    f.SessionStorage_default.serverTick = 0xfffffff0;
+    f.functions.playerMove({ MoveData: [1, 1, 12, 1], moveStartTime: 0xfffffff0 });
+    f.setNow(10032);
+    f.SessionStorage_default.serverTick = 16;
+    f.functions.hit({ ...normalHit, startTime: 0xfffffff0 }, f.entity);
+    f.flush(10149);
+    expect(f.entity.action).toBe(f.entity.ACTION.WALK);
+    f.flush(10150);
+    expect(Array.from(f.entity.position)).toEqual([2, 1, 3]);
+    expect(f.entity.action).toBe(f.entity.ACTION.HURT);
+  });
+
+  it('keeps the first stopping cell when different attack groups were scheduled against the same approved route', () => {
+    const f = fixture();
+    beginWalk(f);
+    f.functions.hit(normalHit, f.entity);
+    f.functions.hit({ ...normalHit, attackMT: 450, count: 3 }, f.entity);
+    f.flush(10150);
+    expect(Array.from(f.entity.position)).toEqual([2, 1, 3]);
+    f.flush(10450);
+    expect(Array.from(f.entity.position)).toEqual([2, 1, 3]);
+    f.flush(11200);
+    f.entity.walkProcess();
+    expect(Array.from(f.entity.position)).toEqual([2, 1, 3]);
+    expect(f.entity.walk.total).toBe(0);
+  });
+
+  it('does not reuse approved route history to advance a character already stopped by an earlier hit packet', () => {
+    const f = fixture();
+    beginWalk(f);
+    f.functions.hit(normalHit, f.entity);
+    f.flush(10150);
+    f.setNow(10200);
+    f.functions.hit(normalHit, f.entity);
+    f.flush(10350);
+    expect(Array.from(f.entity.position)).toEqual([2, 1, 3]);
+    expect(f.entity.action).toBe(f.entity.ACTION.HURT);
+    expect(f.entity.walk.total).toBe(0);
+  });
+
+  it('can correct an earlier historical stop delivered late without letting subsequent hits advance it', () => {
+    const f = fixture();
+    beginWalk(f);
+    f.functions.hit({ ...normalHit, attackMT: 450, startTime: 10000 }, f.entity);
+    f.flush(10450);
+    expect(Array.from(f.entity.position)).toEqual([4, 1, 5]);
+    f.setNow(10500);
+    f.SessionStorage_default.serverTick = 10500;
+    f.functions.hit({ ...normalHit, startTime: 10000 }, f.entity);
+    f.flush(10500);
+    expect(Array.from(f.entity.position)).toEqual([2, 1, 3]);
+    f.functions.hit({ ...normalHit, attackMT: 600, startTime: 10000 }, f.entity);
+    f.flush(10600);
+    expect(Array.from(f.entity.position)).toEqual([2, 1, 3]);
+    expect(f.entity.walk.total).toBe(0);
+  });
+
+  it('samples a hit during fast movement using its actual temporary speed before restoring normal speed', () => {
+    const f = fixture();
+    f.functions.fastMove({ AID: 123, targetXpos: 1, targetYpos: 12 });
+    expect(f.entity.walk.speed).toBe(10);
+    f.functions.hit({ ...normalHit, attackMT: 50 }, f.entity);
+    f.flush(10050);
+    expect(Array.from(f.entity.position)).toEqual([1, 6, 7]);
+    expect(f.entity.walk.total).toBe(0);
+    expect(f.entity.walk.speed).toBe(150);
+  });
+
+  it.each([10000, 10150])('uses the current native checkpoint after a server speed update at %s', updateAt => {
+    const f = fixture();
+    beginWalk(f);
+    f.setNow(updateAt);
+    f.entity.walkProcess();
+    f.functions.parameter({ varID: 0, amount: 50 });
+    expect(f.entity.walk.speed).toBe(50);
+    f.functions.hit({ ...normalHit, attackMT: 50 }, f.entity);
+    f.flush(updateAt + 50);
+    const expectedX = updateAt === 10000 ? 2 : 3;
+    expect(Array.from(f.entity.position)).toEqual([expectedX, 1, expectedX + 1]);
+    expect(f.entity.walk.total).toBe(0);
+    expect(f.entity.walk.speed).toBe(50);
   });
 });

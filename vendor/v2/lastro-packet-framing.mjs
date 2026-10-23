@@ -81,7 +81,24 @@ export const LASTRO_PACKET_LENGTH_OVERRIDES = Object.freeze({
   0x0af1: 7,
   0x0af8: 7,
   0x0af9: -1,
-  0x0afa: 58
+  0x0afa: 58,
+  // 以下长度取自官方 Online.js(1.js) 对这些包的声明，2021 长度表里没有它们；
+  // 缺长度的已注册包会让整个接收块被当成失步丢弃。详见 docs/iwa/lastro-official-packets.md。
+  0x008f: 6,
+  0x0158: 2,
+  0x0186: 6,
+  0x026e: 4,
+  0x02a3: 18,
+  0x02bf: 12,
+  0x06b1: -1,
+  0x06b2: -1,
+  0x07d0: 6,
+  0x07d2: 6,
+  0x07d5: 4,
+  0x07d6: 4,
+  0x07ff: 8,
+  0x0826: 4,
+  0x0aea: 5
 });
 
 // Observer traffic has a standalone FRIENDS_STATE frame, while ordinary

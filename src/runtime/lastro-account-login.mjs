@@ -103,6 +103,7 @@ export function decorateLastROLoginTemplate(name, htmlText) {
     + '<button type="button" class="lastro-primary" data-lastro-action="save">保存</button>'
     + '</div></form>'
     + '<p class="lastro-login-message" data-lastro-login-message role="status"></p>'
+    + '<div class="lastro-login-brand"><img src="/icons/icon-64.png" alt="" width="32" height="32"><span>LRO进阶客户端</span></div>'
     + '<footer class="lastro-login-dedication">'
     + '<span class="lastro-dedication-heart" aria-hidden="true">♥</span>'
     + '<span class="lastro-dedication-text"><span>此项目献给最珍爱的</span> <strong>北京Sara服 · 寳包</strong></span>'
@@ -167,6 +168,8 @@ export function decorateLastROLoginStyles(name, cssText) {
 .lastro-login-panel label { display: block; margin: 8px 0 0; font-size: 12px; color: #55677c; }
 .lastro-login-panel input:focus { border-color: #4a90d9; outline: 2px solid rgba(74, 144, 217, .2); }
 .lastro-edit-actions { flex-wrap: wrap; }
+.lastro-login-brand { position: fixed; left: max(16px, env(safe-area-inset-left)); top: max(16px, env(safe-area-inset-top)); z-index: 30; display: flex; align-items: center; gap: 10px; box-sizing: border-box; padding: 6px 18px 6px 8px; border: 1px solid rgba(255, 255, 255, .95); border-radius: 24px; background: rgba(255, 250, 252, .9); backdrop-filter: blur(8px); box-shadow: 0 3px 14px rgba(83, 42, 65, .12); color: #735766; font: 600 16px/1.5 Arial, "Microsoft YaHei", "MiSans", "LastRO Glyph Fallback", sans-serif; white-space: nowrap; pointer-events: none; }
+.lastro-login-brand img { flex: none; width: 32px; height: 32px; }
 .lastro-login-dedication { position: fixed; left: 50%; bottom: max(20px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; align-items: center; justify-content: center; gap: 14px; width: 560px; max-width: calc(100vw - 32px); min-height: 46px; box-sizing: border-box; padding: 10px 24px; border: 1px solid rgba(255, 255, 255, .95); border-radius: 24px; background: rgba(255, 250, 252, .9); backdrop-filter: blur(8px); box-shadow: 0 3px 14px rgba(83, 42, 65, .12); color: #735766; font: 16px/1.5 Arial, "Microsoft YaHei", "MiSans", "LastRO Glyph Fallback", sans-serif; text-align: center; pointer-events: none; }
 .lastro-dedication-text { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 8px; }
 .lastro-dedication-text > span, .lastro-dedication-text > strong { white-space: nowrap; }

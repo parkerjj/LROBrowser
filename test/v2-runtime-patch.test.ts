@@ -17,11 +17,23 @@ describe('V2 runtime patch', () => {
   ])('rejects missing or ambiguous tools/map lifecycle anchors', source => {
     expect(() => patchRuntimeToolsPanels(source)).toThrow('anchor:lastro-tools-panels');
   });
+  it('mounts the KE shell switch and host into the LastRO tools template', () => {
+    const source = 'Navigation.navigateTo = function () { _finalTargetData = {}; this.waitForMapData(function () {}); }; Navigation.waitForMapData = function (callback) { Navigation.waitForMapData(callback); }; UIManager.addComponent(LastROTools); var MapRenderer = class MapRenderer { static setMap() { UIManager.removeComponents(); } }; function cleanGameUI() { document._lastroItemDrag?.cancel(); }';
+    const patched = patchRuntimeToolsPanels(source);
+    expect(patched).toContain('data-shell-mode="lastro"');
+    expect(patched).toContain('>KoreEngine<');
+    expect(patched).toContain('kore-shell-host');
+    expect(patched).toContain('createKoreShell');
+  });
   it('requires unambiguous chat-map integration anchors on upstream updates', () => {
     expect(() => patchRuntimeChatMapLinks('function requestChatMapTeleport(link) { return false; }')).toThrow('anchor:chat-map-links');
   });
   it('requires an unambiguous world-map anchor on upstream updates', () => {
     expect(() => patchRuntimeWorldMapProductActions('unrecognized upstream source')).toThrow('anchor:worldmap-product-actions');
+  });
+  it('exposes Renderer and GraphicsSettings from Renderer.init for the 3D toggle', async () => {
+    const runtime = await readFile('generated/runtime/Online.js', 'utf8');
+    expect(runtime).toContain('globalThis.__LastRORenderer = { Renderer: this, GraphicsSettings };');
   });
   it('loads message IDs and quoted-comma values from the local CSV', async () => {
     const runtime = await readFile('generated/runtime/Online.js', 'utf8');

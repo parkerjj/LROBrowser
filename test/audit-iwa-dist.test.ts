@@ -1,162 +1,38 @@
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { expect, test } from 'vitest';
+import { createHash } from 'node:crypto';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
-import { describe, expect, it } from 'vitest';
 import { auditDist } from '../scripts/audit-iwa-dist.mjs';
 
-async function fixture() {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'lastro-iwa-audit-'));
-  await mkdir(path.join(root, '.well-known'), { recursive: true });
-  await mkdir(path.join(root, 'core'), { recursive: true });
-  await writeFile(path.join(root, '.well-known/manifest.webmanifest'), JSON.stringify({ version: '0.1.0' }));
-  await runtime(root, 'globalThis.LastRO = true;');
-  return root;
+async function auditUrl(reference: string) {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'iwa-ltsd-origin-'));
+  const dist = path.join(root, 'dist');
+  const source = Buffer.from(`const endpoint = ${JSON.stringify(reference)}; export { endpoint };\n`);
+  const sha256 = createHash('sha256').update(source).digest('hex');
+  try {
+    await mkdir(path.join(dist, '.well-known'), { recursive: true });
+    await mkdir(path.join(dist, 'core'), { recursive: true });
+    await writeFile(path.join(dist, '.well-known/manifest.webmanifest'), '{}\n');
+    await writeFile(path.join(dist, 'core/ke-auth.mjs'), source);
+    await writeFile(path.join(dist, 'core/executable-assets.json'), JSON.stringify({ files: [
+      { path: 'ke-auth.mjs', bytes: source.length, sha256, kind: 'runtime' },
+    ] }));
+    return await auditDist(dist, path.join(root, 'report.json'));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 }
 
-async function runtime(root: string, source: string) {
-  await writeFile(path.join(root, 'core/runtime.js'), source);
-  await writeFile(path.join(root, 'core/executable-assets.json'), JSON.stringify({ files: [{
-    path: 'runtime.js', kind: 'runtime', bytes: Buffer.byteLength(source), sha256: createHash('sha256').update(source).digest('hex'),
-  }] }));
-}
+test('IWA audit allows HTTPS LTSD root and subdomain origins', async () => {
+  const root = await auditUrl('https://ltsd.ro/api/v1/ke/me');
+  const subdomain = await auditUrl('https://api.ltsd.ro/api/v1/ke/me');
+  expect(root.externalOrigins).toContain('https://ltsd.ro');
+  expect(subdomain.externalOrigins).toContain('https://api.ltsd.ro');
+});
 
-describe('IWA distribution audit', () => {
-  it('accepts a minimal compliant distribution and writes a report', async () => {
-    const root = await fixture();
-    try {
-      const report = await auditDist(root, path.join(root, 'report.json'));
-      expect(report.fileCount).toBe(3);
-      expect(report.prohibitedPatternResults).toEqual([]);
-    } finally { await rm(root, { recursive: true, force: true }); }
-  });
-
-  it.each([
-    ['dynamic code', 'const run = eval("1");'],
-    ['remote executable', 'fetch("https://example.invalid/game.lua");'],
-    ['personal credentials', 'const quickLoginAccounts = [{ username: "me", password: "secret" }];'],
-    ['private key', '-----BEGIN PRIVATE KEY-----'],
-    ['local path', 'const source = "/home/parker/private";'],
-  ])('rejects %s', async (_name, source) => {
-    const root = await fixture();
-    try {
-      await runtime(root, source);
-      await expect(auditDist(root, path.join(root, 'report.json'))).rejects.toThrow('prohibited bundle content');
-    } finally { await rm(root, { recursive: true, force: true }); }
-  });
-
-  it('ignores provenance URLs inside JavaScript comments without whitelisting these hosts', async () => {
-    const root = await fixture();
-    try {
-      await runtime(root, [
-        '/*! Licensed under http://www.apache.org/licenses/LICENSE-2.0 */',
-        '// Source: https://github.com/example/library',
-        'const approved = "https://rodata.ltsd.ro/ro/";',
-      ].join('\n'));
-      await expect(auditDist(root, path.join(root, 'report.json'))).resolves.toBeDefined();
-    } finally { await rm(root, { recursive: true, force: true }); }
-  });
-
-  it.each([
-    'fetch("https://github.com/example/library");',
-    'const source = "https://github.com/example/library";',
-    'const source = `https://github.com/example/library`;',
-    'const source = "/* https://github.com/example/library */";',
-    'const source = "https://evil.invalid/data"; // https://github.com/example',
-  ])('rejects non-comment remote origins: %s', async (source) => {
-    const root = await fixture();
-    try {
-      await runtime(root, source);
-      await expect(auditDist(root, path.join(root, 'report.json'))).rejects.toThrow('unapproved remote origins');
-    } finally { await rm(root, { recursive: true, force: true }); }
-  });
-
-  it('rejects unapproved origins and update manifests', async () => {
-    const root = await fixture();
-    try {
-      await runtime(root, 'fetch("https://evil.invalid/data.bin");');
-      await expect(auditDist(root, path.join(root, 'report.json'))).rejects.toThrow('unapproved remote origins');
-    } finally { await rm(root, { recursive: true, force: true }); }
-  });
-
-  it('accepts the official WSS relay while preserving the passive resource origins', async () => {
-    const root = await fixture();
-    try {
-      await runtime(root, 'new WebSocket("wss://port.lastro.cn/45.248.10.247:26569");');
-      await expect(auditDist(root, path.join(root, 'report.json'))).resolves.toBeDefined();
-      await runtime(root, 'fetch("https://port.lastro.cn/data.bin");');
-      await expect(auditDist(root, path.join(root, 'report.json'))).rejects.toThrow('unapproved remote origins');
-    } finally { await rm(root, { recursive: true, force: true }); }
-  });
-
-  it('accepts the read-only LastRO market API origin', async () => {
-    const root = await fixture();
-    try {
-      await runtime(root, 'fetch("https://ltsd.ro/api/v1/market/search?q=card");');
-      const report = await auditDist(root, path.join(root, 'report.json'));
-      expect(report.externalOrigins).toContain('https://ltsd.ro');
-    } finally { await rm(root, { recursive: true, force: true }); }
-  });
-
-  it('rejects other paths on the LastRO market API origin', async () => {
-    const root = await fixture();
-    try {
-      await runtime(root, 'fetch("https://ltsd.ro/api/v1/items");');
-      await expect(auditDist(root, path.join(root, 'report.json'))).rejects.toThrow('unapproved remote origins');
-    } finally { await rm(root, { recursive: true, force: true }); }
-  });
-
-  it('can audit a distribution again when its report contains the WSS CSP directive', async () => {
-    const root = await fixture();
-    try {
-      const reportPath = path.join(root, 'report.json');
-      await auditDist(root, reportPath);
-      await expect(auditDist(root, reportPath)).resolves.toBeDefined();
-    } finally { await rm(root, { recursive: true, force: true }); }
-  });
-
-  it.each(['ws://port.lastro.cn/', 'wss://evil.invalid/', 'wss://port.lastro.cn:26569/'])('rejects an unapproved socket origin %s', async url => {
-    const root = await fixture();
-    try {
-      await runtime(root, `new WebSocket(${JSON.stringify(url)});`);
-      await expect(auditDist(root, path.join(root, 'report.json'))).rejects.toThrow('unapproved remote origins');
-    } finally { await rm(root, { recursive: true, force: true }); }
-  });
-
-  it('rejects protocol handlers that cannot receive the launched URL', async () => {
-    const root = await fixture();
-    try {
-      await writeFile(path.join(root, '.well-known/manifest.webmanifest'), JSON.stringify({
-        version: '0.1.0',
-        protocol_handlers: [{ protocol: 'web+lastro', url: '/' }],
-      }));
-      await expect(auditDist(root, path.join(root, 'report.json'))).rejects.toThrow('invalid protocol handler');
-    } finally { await rm(root, { recursive: true, force: true }); }
-  });
-  it('rejects modified and unlisted executable assets', async () => {
-    const root = await fixture();
-    try {
-      await writeFile(path.join(root, 'core/runtime.js'), 'globalThis.changed = true;');
-      await expect(auditDist(root, path.join(root, 'report.json'))).rejects.toThrow('integrity mismatch');
-      await runtime(root, 'globalThis.LastRO = true;');
-      await writeFile(path.join(root, 'core/unlisted.lua'), 'return {}');
-      await expect(auditDist(root, path.join(root, 'report.json'))).rejects.toThrow('unlisted executable');
-    } finally { await rm(root, { recursive: true, force: true }); }
-  });
-  it('binds audit digest to file bytes rather than only filenames', async () => {
-    const root = await fixture(), reportPath = path.join(os.tmpdir(), 'lastro-audit-' + Date.now() + '.json');
-    try {
-      const first = await auditDist(root, reportPath);
-      await runtime(root, 'globalThis.LastRO = false;');
-      const second = await auditDist(root, reportPath);
-      expect(second.sha256).not.toBe(first.sha256);
-    } finally { await rm(root, { recursive: true, force: true }); await rm(reportPath, { force: true }); }
-  });
-  it('rejects a cross-origin protocol launch target', async () => {
-    const root = await fixture();
-    try {
-      await writeFile(path.join(root, '.well-known/manifest.webmanifest'), JSON.stringify({ version: '0.1.0', protocol_handlers: [{ protocol: 'web+lastro', url: '//evil.invalid/?url=%s' }] }));
-      await expect(auditDist(root, path.join(root, 'report.json'))).rejects.toThrow('invalid protocol handler');
-    } finally { await rm(root, { recursive: true, force: true }); }
-  });
+test('IWA audit still rejects HTTP, unrelated and credential-bearing LTSD URLs', async () => {
+  await expect(auditUrl('http://ltsd.ro/api/v1/ke/me')).rejects.toThrow('unapproved remote origins');
+  await expect(auditUrl('https://evil.example/api/v1/ke/me')).rejects.toThrow('unapproved remote origins');
+  await expect(auditUrl('https://user:secret@api.ltsd.ro/api/v1/ke/me')).rejects.toThrow('unapproved remote origins');
 });

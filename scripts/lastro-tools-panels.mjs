@@ -695,7 +695,7 @@ export function installLastroToolsPanels(tools, deps, css, presetRoutes = {}) {
     dock.append(style);
     const automationButton = element('button', ''), teleportButton = element('button', '');
     automationButton.type = teleportButton.type = 'button';
-    automationButton.setAttribute('aria-label', '打开挂机设置'); teleportButton.setAttribute('aria-label', '打开传送列表');
+    automationButton.setAttribute('aria-label', '打开工具箱'); automationButton.title = '打开工具箱'; teleportButton.setAttribute('aria-label', '打开传送列表');
     for (const [button, asset] of [[teleportButton, 'skill'], [automationButton, 'option']]) {
       const icon = element('span', 'lastro-dock-icon'); icon.dataset.background = 'ro_menu_icon/' + asset + '_1.bmp'; icon.dataset.down = 'ro_menu_icon/' + asset + '_2.bmp';
       icon.setAttribute('aria-hidden', 'true'); button.replaceChildren(icon);
@@ -717,7 +717,6 @@ export function installLastroToolsPanels(tools, deps, css, presetRoutes = {}) {
   }
   function showAutomation() {
     tools.restorePanel(); tools.populateItemSelects();
-    tools.getRoot().querySelector('.lastro-settings-view').hidden = false;
     resetScroll(tools, '.lastro-settings-body');
     tools.focus?.(); ensureDock();
   }
@@ -762,7 +761,11 @@ export function installLastroToolsPanels(tools, deps, css, presetRoutes = {}) {
   };
   tools.ensurePanelOpener = () => { ensureDock(); return tools._panelOpener; };
   const originalHide = tools.hidePanel, originalRestore = tools.restorePanel;
-  tools.hidePanel = function () { if (resizing?.component === this) stopPanelResize(true); originalHide.call(this); ensureDock(); };
+  tools.hidePanel = function () {
+    if (resizing?.component === this) stopPanelResize(true);
+    originalHide.call(this);
+    ensureDock();
+  };
   tools.restorePanel = function () {
     teleport.remove();
     originalRestore.call(this);
@@ -870,4 +873,265 @@ export function installLastroToolsPanels(tools, deps, css, presetRoutes = {}) {
     cancelRoute: () => { tools._lastroMapTransition = false; cancelConfirmation(); cancelPendingRequest(); deps.cancelRoute?.(); },
   };
   return tools._lastroPanels;
+}
+
+// M7 shell wrapper. It runs after the shortcut-entry mode wrapper so the
+// Switch titlebar and KE host survive both the native and classic LastRO
+// render implementations.
+export function installKoreShellPanels(tools, deps) {
+  if (tools._koreShellPanels) return tools._koreShellPanels;
+  if (!tools || typeof tools.render !== 'function' || typeof tools.init !== 'function') {
+    throw new TypeError('Kore shell requires a native tools component');
+  }
+  const { document: doc, window: win, setHtml, createKoreShell, getKoreHost, shellCss } = deps;
+  const shellTitlebar = () => `<div class="lastro-ro-titlebar"><div class="lastro-mode-switch" role="tablist" aria-label="工具箱模式"><span class="lastro-mode-thumb" aria-hidden="true"></span><button type="button" role="tab" class="lastro-mode-option" data-shell-mode="lastro" aria-selected="true">工具箱</button><button type="button" role="tab" class="lastro-mode-option" data-shell-mode="kore" aria-selected="false">KoreEngine</button></div><button type="button" class="lastro-window-minimize" data-action="minimize" aria-label="最小化工具箱" title="最小化">−</button><button type="button" class="lastro-window-close" data-action="close" aria-label="关闭工具箱" title="关闭">×</button></div>`;
+  const history = tools._koreShellHistory ?? (tools._koreShellHistory = []);
+  let koreShell = null, shellMode = 'lastro', previousShellMode = null;
+
+  function updateOpenerLabel() {
+    const opener = tools._panelOpener;
+    if (!opener) return;
+    opener.setAttribute('aria-label', '打开工具箱');
+    opener.title = '打开工具箱';
+  }
+  // The LastRO -> KE switch plays a one-off ignition (see .kore-boot in the
+  // shell CSS); the way back stays quiet.
+  let igniteTimer = 0;
+  function ignite(panel) {
+    if (win.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) return;
+    panel.querySelectorAll('.kore-boot').forEach(node => node.remove());
+    const boot = doc.createElement('div');
+    boot.className = 'kore-boot';
+    boot.setAttribute('aria-hidden', 'true');
+    for (const layer of ['pulse', 'ring', 'sheen']) {
+      const node = doc.createElement('span');
+      node.className = `kore-boot-${layer}`;
+      if (layer === 'pulse') {
+        // The glow starts at the KE side of the switch, wherever the panel is.
+        const tab = panel.querySelector('[data-shell-mode="kore"]')?.getBoundingClientRect();
+        const box = panel.getBoundingClientRect();
+        if (tab && box) {
+          node.style.left = `${tab.left + tab.width / 2 - box.left}px`;
+          node.style.top = `${tab.top + tab.height / 2 - box.top}px`;
+        }
+      }
+      boot.append(node);
+    }
+    panel.append(boot);
+    panel.classList.remove('is-igniting');
+    void panel.offsetWidth;
+    panel.classList.add('is-igniting');
+    win.clearTimeout(igniteTimer);
+    igniteTimer = win.setTimeout(() => { boot.remove(); panel.classList.remove('is-igniting'); }, 2800);
+  }
+  function applyShellMode(next, { syncShell = true } = {}) {
+    shellMode = next === 'kore' ? 'kore' : 'lastro';
+    const panelRoot = tools.getRoot();
+    const panel = panelRoot?.querySelector('.lastro-tools');
+    if (panel) panel.dataset.mode = shellMode;
+    if (panel && previousShellMode === 'lastro' && shellMode === 'kore') ignite(panel);
+    previousShellMode = shellMode;
+    const shellHost = panelRoot?.querySelector('.kore-shell-host');
+    if (shellHost) shellHost.hidden = shellMode !== 'kore';
+    panelRoot?.querySelectorAll('[data-shell-mode]').forEach(button => {
+      const active = button.dataset.shellMode === shellMode;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    const compact = panelRoot?.querySelector('[data-compact-status-text]');
+    if (compact) {
+      if (shellMode === 'kore') {
+        if (!compact.dataset.lastroText) compact.dataset.lastroText = compact.textContent;
+        compact.textContent = 'KoreEngine 运行中';
+      } else if (compact.dataset.lastroText) {
+        compact.textContent = compact.dataset.lastroText;
+        delete compact.dataset.lastroText;
+      }
+    }
+    updateOpenerLabel();
+    if (syncShell) koreShell?.setMode(shellMode);
+  }
+  function ensureShellStyle(panelRoot) {
+    if (!panelRoot || typeof doc?.createElement !== 'function') return;
+    if (panelRoot.querySelector?.('style[data-kore-shell]')) return;
+    const style = doc.createElement('style');
+    style.setAttribute('data-kore-shell', '1');
+    style.textContent = shellCss;
+    if (typeof panelRoot.appendChild === 'function') panelRoot.appendChild(style);
+    else panelRoot.append(style);
+  }
+  function installShell() {
+    const panelRoot = tools.getRoot();
+    const panel = panelRoot?.querySelector('.lastro-tools');
+    if (!panel) return;
+    // Component HTML goes through the LastRO Trusted Types policy, which
+    // rejects <style>; append the shell stylesheet directly to the shadow DOM.
+    ensureShellStyle(panelRoot);
+    let shellHost = panel.querySelector('.kore-shell-host');
+    if (!shellHost) {
+      shellHost = doc.createElement('div');
+      shellHost.className = 'kore-shell-host';
+      shellHost.hidden = shellMode !== 'kore';
+      const footer = panel.querySelector('.lastro-panel-footer');
+      panel.insertBefore(shellHost, footer ?? null);
+    }
+    if (koreShell && !shellHost.querySelector('.kore-window')) {
+      // The host was replaced by a re-render (e.g. teleport). Rebuild only the
+      // small window; the fullscreen overlay and debug drawer live on
+      // document.body and must keep their state across this.
+      koreShell.remountWindow(shellHost);
+    }
+    panelRoot.querySelectorAll('[data-shell-mode]').forEach(button => {
+      if (button.dataset.koreShellBound) return;
+      button.dataset.koreShellBound = '1';
+      button.addEventListener('mousedown', event => event.stopPropagation());
+      button.addEventListener('pointerdown', event => event.stopPropagation());
+      button.addEventListener('click', () => applyShellMode(button.dataset.shellMode));
+    });
+    if (!koreShell && createKoreShell) {
+      try {
+        koreShell = createKoreShell({
+          container: shellHost,
+          getHost: getKoreHost ?? (() => win.KoreEngine ?? globalThis.KoreEngine),
+          onModeChange: mode => applyShellMode(mode, { syncShell: false }),
+          history,
+        });
+      } catch (error) {
+        win.console?.error('[KoreEngine] panel shell failed', error);
+      }
+    }
+    applyShellMode(koreShell?.mode ?? shellMode, { syncShell: false });
+    updateOpenerLabel();
+  }
+
+  const originalRender = tools.render;
+  tools.render = function () {
+    const template = doc.createElement('template');
+    setHtml(template, originalRender.call(this));
+    const content = template.content;
+    const nativeHeader = content.querySelector('.lastro-header');
+    const bar = nativeHeader ?? content.querySelector('.lastro-ro-titlebar');
+    if (bar) {
+      const holder = doc.createElement('div');
+      setHtml(holder, shellTitlebar());
+      bar.replaceWith(holder.firstElementChild);
+    }
+    const panel = content.querySelector('.lastro-tools');
+    if (panel) {
+      if (nativeHeader) panel.classList.add('kore-shell-native');
+      const shellHost = doc.createElement('div');
+      shellHost.className = 'kore-shell-host';
+      shellHost.hidden = shellMode !== 'kore';
+      const footer = panel.querySelector('.lastro-panel-footer');
+      panel.insertBefore(shellHost, footer ?? null);
+      // The titlebar gear is gone with the shared switch bar. Settings (offline
+      // hosting) are opened from the main view, next to the battle/loot switches;
+      // the settings view itself is hidden until this button opens it, so the
+      // button must not live inside it.
+      const toggles = content.querySelector('.lastro-main-view .lastro-quick-toggles');
+      if (toggles && !content.querySelector('[data-action="open-settings"]')) {
+        const settingsButton = doc.createElement('button');
+        settingsButton.type = 'button';
+        settingsButton.className = 'lastro-toggles-settings';
+        settingsButton.dataset.action = 'open-settings';
+        settingsButton.setAttribute('aria-label', '打开挂机设置');
+        settingsButton.title = '挂机设置（离线挂机）';
+        settingsButton.textContent = '⚙';
+        // 放在开关行最末，作为与开关卡片同高的方形按钮。
+        toggles.append(settingsButton);
+      }
+    }
+    return template.innerHTML;
+  };
+  const originalInit = tools.init;
+  tools.init = function () {
+    const result = originalInit.apply(this, arguments);
+    // A KE UI failure must never abort the game's map/UI initialization.
+    try { installShell(); } catch (error) { win.console?.error('[KoreEngine] panel shell failed', error); }
+    return result;
+  };
+  const originalCompactStatus = tools.renderCompactStatus;
+  if (typeof originalCompactStatus === 'function') {
+    tools.renderCompactStatus = function (...args) {
+      originalCompactStatus.apply(this, args);
+      if (shellMode !== 'kore') return;
+      const compact = this.getRoot?.()?.querySelector('[data-compact-status-text]');
+      if (compact) compact.textContent = 'KoreEngine 运行中';
+    };
+  }
+  const originalHide = tools.hidePanel, originalRestore = tools.restorePanel;
+  const originalMinimize = tools.minimizePanel;
+  const originalAppend = tools.onAppend, originalRemove = tools.onRemove;
+  tools.hidePanel = function (...args) {
+    koreShell?.setVisible(false);
+    return originalHide?.apply(this, args);
+  };
+  if (typeof originalMinimize === 'function') {
+    tools.minimizePanel = function (...args) {
+      const result = originalMinimize.apply(this, args);
+      koreShell?.setVisible(false);
+      return result;
+    };
+  }
+  tools.restorePanel = function (...args) {
+    const result = originalRestore?.apply(this, args);
+    // Re-mount the KE window if a re-render dropped it (idempotent). The panel
+    // can be removed and re-appended by character switch / UI refresh, and
+    // onAppend alone would leave the shell host empty ("pure black").
+    try { installShell(); } catch (error) { win.console?.error('[KoreEngine] panel shell failed', error); }
+    koreShell?.setVisible(true);
+    applyShellMode(koreShell?.mode ?? shellMode, { syncShell: false });
+    updateOpenerLabel();
+    return result;
+  };
+  tools.onAppend = function (...args) {
+    const result = originalAppend?.apply(this, args);
+    try { installShell(); } catch (error) { win.console?.error('[KoreEngine] panel shell failed', error); }
+    // The shortcut-entry panel is shown by onAppend itself and never goes
+    // through restorePanel; the classic dock hides the host until it is opened.
+    // Follow the real host state, otherwise the poller stays hidden and the
+    // small window never receives status/ai/where output.
+    koreShell?.setVisible(this._host?.style?.display !== 'none', { keepOverlays: true });
+    updateOpenerLabel();
+    return result;
+  };
+  tools.onRemove = function (...args) {
+    // MapRenderer.setMap() removes every component on each map change or
+    // teleport and appends them again once the map is loaded. While the KE game
+    // session is alive keep the shell, so fullscreen and the debug drawer
+    // survive; a finished session (endGameSession) still tears it down.
+    const sessionActive = Boolean((getKoreHost ?? (() => win.KoreEngine))()?.state?.gameSessionId);
+    if (koreShell && sessionActive) koreShell.setVisible(false, { keepOverlays: true });
+    else {
+      koreShell?.setVisible(false);
+      koreShell?.dispose();
+      koreShell = null;
+    }
+    return originalRemove?.apply(this, args);
+  };
+  const shortcut = tools._lastroShortcutEntry;
+  if (shortcut && !shortcut._koreShellBound) {
+    const originalSetEnabled = shortcut.setEnabled;
+    if (typeof originalSetEnabled === 'function') {
+      shortcut.setEnabled = function (value) {
+        const result = originalSetEnabled.call(this, value);
+        try { installShell(); } catch (error) { win.console?.error('[KoreEngine] panel shell failed', error); }
+        return result;
+      };
+    }
+    const originalRefresh = shortcut.refresh;
+    if (typeof originalRefresh === 'function') {
+      shortcut.refresh = function () {
+        const result = originalRefresh.call(this);
+        try { installShell(); } catch (error) { win.console?.error('[KoreEngine] panel shell failed', error); }
+        return result;
+      };
+    }
+    shortcut._koreShellBound = true;
+  }
+  tools._koreShellPanels = {
+    setMode: applyShellMode,
+    get mode() { return shellMode; },
+  };
+  return tools._koreShellPanels;
 }

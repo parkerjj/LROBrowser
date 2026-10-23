@@ -6,7 +6,7 @@ export function mountAppShell(root: HTMLElement, onLogin?: LoginHandler): void {
   const header = document.createElement('header');
   header.className = 'app-header';
   const icon = document.createElement('img');
-  icon.src = '/icons/icon.svg';
+  icon.src = '/icons/icon-128.png';
   icon.alt = '';
   icon.width = 40;
   icon.height = 40;

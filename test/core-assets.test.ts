@@ -31,6 +31,19 @@ async function fixture() {
 }
 
 describe('core executable asset importer', () => {
+  it('packages the Kore runtime entry and its module dependencies', async () => {
+    const f = await fixture();
+    const manifest = await importCoreAssets({ coreRoot: f.core, moduleRoot: f.modules, output: f.output });
+    const runtimeFiles = manifest.files.filter(file => file.kind === 'runtime').map(file => file.path);
+
+    expect(runtimeFiles).toEqual(expect.arrayContaining([
+      'runtime/kore-integration.mjs',
+      'runtime/kore-ltsd-client.mjs',
+      'runtime/map-resource-provider.mjs',
+      'runtime/kore-config-store.mjs',
+    ]));
+  });
+
   it('packages the prepared navigation worker and records its final integrity', async () => {
     const f = await fixture();
     const runtime = path.join(f.root, 'runtime');

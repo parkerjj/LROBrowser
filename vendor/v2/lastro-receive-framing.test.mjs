@@ -118,6 +118,35 @@ function loadReceiveHarness(decodedPackets) {
   return buildHarness(BinaryReader, parseLastROFrameHeader, packetLength, packets);
 }
 
+function loadCloseHarness() {
+  const source = readFileSync(ONLINE_PATH, 'utf8');
+  const closeSource = extractFunction(source, 'function onClose$9(event)').replaceAll('import.meta.url', 'undefined');
+  const buildHarness = new Function(`
+    const events = [];
+    const socket = { isZone: true, handoffPending: false, ping: null };
+    const _socket = socket;
+    const _sockets = [socket];
+    const receiveState = { closed: false, yieldPending: false, closePending: false, saveBuffer: null, readCallback: null };
+    const _receiveStates = new WeakMap([[socket, receiveState]]);
+    const clearReceiveState = value => { const state = _receiveStates.get(value); if (state) state.closed = true; };
+    const globalThis = { KoreEngine: { degradeConnection: reason => events.push(['degrade', reason]) } };
+    const lastroCancelMovement = () => events.push('cancel-movement');
+    const SessionStorage_default = { Entity: {} };
+    const MapControl = { _lastroMovementInput: { cancel: () => events.push('cancel-input') } };
+    const Configs = {};
+    const isObserverMode = () => true;
+    const console = { warn() {} };
+    let _onDisconnect = null;
+    const __vitePreload = () => Promise.resolve();
+    ${closeSource}
+    onClose$9.call(socket, { code: 1006, reason: 'closed', wasClean: false });
+    socket.handoffPending = true;
+    onClose$9.call(socket, { code: 1000, reason: 'handoff', wasClean: true });
+    return events;
+  `);
+  return buildHarness();
+}
+
 test('receive retains the 09ff header after an incomplete 03 03 marker collision and decodes it after continuation', () => {
   const decodedPackets = [];
   const harness = loadReceiveHarness(decodedPackets);
@@ -146,6 +175,14 @@ test('receive retains the 09fd header after an incomplete 03 03 marker and decod
 
   assert.deepEqual(decodedPackets, [{ id: 0x09fd, start: 4, end: 114, payload: 0 }]);
   assert.equal(harness.getSavedBytes(), null);
+});
+
+test('active zone socket close degrades KoreEngine while handoff close stays transport-only', () => {
+  assert.deepEqual(loadCloseHarness(), [
+    ['degrade', 'map-socket-closed'],
+    'cancel-movement',
+    'cancel-input',
+  ]);
 });
 
 for (const [id, length] of [[0x00f2, 6], [0x0171, 30]]) {
@@ -229,4 +266,58 @@ test('valid fixed packets survive every WebSocket split position', () => {
     assert.equal(harness.getCloseCount(), 0);
     assert.equal(harness.getSavedBytes(), null);
   }
+});
+
+test('map mirror transfer and failure never change or skip native receive', () => {
+  const source = readFileSync(ONLINE_PATH, 'utf8');
+  const connect = extractFunction(source, 'function connect(host, port, callback, isZone)');
+  const events = [];
+  const socket = { onComplete: null, onMessage: null, ping: null };
+  const connectHarness = new Function('socket', 'events', `
+    let _socket = null;
+    const _sockets = [];
+    const _socketFactory = () => socket;
+    const PacketCrypt_default = { init() {}, reset() {} };
+    const packetDump = false;
+    const console = { log() {} };
+    const onClose$9 = () => {};
+    const defaultSocketFactory = () => socket;
+    const getReceiveState = () => ({});
+    let failMirror = false;
+    const globalThis = { KoreEngine: {
+      beginMapConnection() { events.push('begin'); return 7; },
+      mirrorMapData(generation, bytes) {
+        const source = new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        const copy = source.slice();
+        const transferred = structuredClone(copy, { transfer: [copy.buffer] });
+        events.push(['mirror', generation, bytes, [...transferred]]);
+        if (failMirror) throw new Error('KE unavailable');
+        return true;
+      }
+    } };
+    const receive = function (bytes) { events.push(['receive', this, bytes]); };
+    ${connect}
+    connect('localhost', 1234, success => events.push(['connected', success]), true);
+    socket.onComplete(true);
+    return { socket, failMirror() { failMirror = true; } };
+  `);
+  const harness = connectHarness(socket, events);
+  const backing = new Uint8Array([0xaa, 0x73, 0, 1, 0xbb]);
+  const input = backing.subarray(1, 4);
+  harness.socket.onMessage(input);
+  assert.deepEqual(events.map(event => Array.isArray(event) ? event[0] : event), ['begin', 'connected', 'mirror', 'receive']);
+  assert.equal(events[2][1], 7);
+  assert.equal(events[2][2], input);
+  assert.deepEqual(events[2][3], [0x73, 0, 1]);
+  assert.equal(events[3][1], socket);
+  assert.equal(events[3][2], input);
+  assert.deepEqual([...backing], [0xaa, 0x73, 0, 1, 0xbb]);
+  assert.deepEqual([...input], [0x73, 0, 1]);
+
+  harness.failMirror();
+  harness.socket.onMessage(input);
+  assert.deepEqual(events.slice(4).map(event => Array.isArray(event) ? event[0] : event), ['mirror', 'receive']);
+  assert.equal(events[5][1], socket);
+  assert.equal(events[5][2], input);
+  assert.deepEqual([...input], [0x73, 0, 1]);
 });

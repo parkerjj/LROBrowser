@@ -29,7 +29,8 @@
     "release:update-manifest": "node scripts/build-update-manifest.mjs",
     "release:verify": "node scripts/verify-release-inputs.mjs",
     "minify:release": "node scripts/minify-release-js.mjs",
-    "test:assistant": "node --test test/lro-assistant.node.mjs"
+    "test:assistant": "node --test test/lro-assistant.node.mjs",
+    "ke:local": "node scripts/kore-local.mjs"
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "3.1143.0",
