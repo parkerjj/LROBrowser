@@ -72,6 +72,41 @@ function toggleAutomation(nid: number, option: string, enabled: boolean) {
   return sent;
 }
 
+describe("0x0AF5 load info layout", () => {
+  // 整份设置快照：58 字节，id 之后 56 字节。OpenKore LastroFollow 在真服上验证过 startAutofollow 在
+  // payload@43；四个 start* 开关连续，所以 startAutoAtk@40、startAutoLoot@41、startAutopots@42。
+  function parseLoadInfo(payload: number[]) {
+    const match = runtime.match(/PACKET\.ZC\.NOTIFY_LOADINFO = function PACKET_ZC_NOTIFY_LOADINFO\(fp, end\) \{([\s\S]*?)\n\x20{2}\};/);
+    if (!match?.[1]) throw new Error("Missing NOTIFY_LOADINFO parser");
+    const bytes = Uint8Array.from(payload);
+    const view = new DataView(bytes.buffer);
+    let at = 0;
+    const fp = {
+      tell: () => at,
+      readUChar: () => view.getUint8(at++),
+      readUShort: () => { const value = view.getUint16(at, true); at += 2; return value; },
+      readLong: () => { const value = view.getInt32(at, true); at += 4; return value; },
+    };
+    const packet: Record<string, number> = {};
+    new Function("fp", "end", match[1]).call(packet, fp, bytes.length);
+    return { packet, consumed: at };
+  }
+  const withByte = (offset: number) => Array.from({ length: 56 }, (_, index) => (index === offset ? 1 : 0));
+
+  it.each([
+    [40, "startAutoAtk"], [41, "startAutoLoot"], [42, "startAutopots"], [43, "startAutofollow"],
+  ])("reads payload@%i as %s", (offset, field) => {
+    const { packet } = parseLoadInfo(withByte(offset));
+    expect(packet[field]).toBe(1);
+    for (const other of ["startAutoAtk", "startAutoLoot", "startAutopots", "startAutofollow"].filter(name => name !== field))
+      expect(packet[other]).toBe(0);
+  });
+
+  it("consumes exactly the 56 payload bytes", () => {
+    expect(parseLoadInfo(withByte(0)).consumed).toBe(56);
+  });
+});
+
 describe("automatic battle toggle", () => {
   it("keeps nid=3 online and sends only the auto-attack whisper", () => {
     expect(toggleAutomation(3, "autoAttack", true)).toEqual([

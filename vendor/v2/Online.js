@@ -160011,6 +160011,10 @@ var init_PacketStructure = __esmMin(() => {
     this.AutoUseSit_reSpUpVal = readByte();
     this.AutoUseSit_xw = readByte();
     this.onlynoattack = readByte();
+    // startAutofollow 在 payload@43（OpenKore LastroFollow 靠它在真服上恢复自动跟随），四个 start*
+    // 开关连续排列，所以 startAutoAtk 在 @40。这之前已命名的字段只有 39 字节，缺的这 1 字节位置
+    // 没有抓包可查，先放在开关组前面，让开关组和它后面的字段对齐。
+    this.unknownBeforeStart = readByte();
     this.startAutoAtk = readByte();
     this.startAutoLoot = readByte();
     this.startAutopots = readByte();
@@ -160025,7 +160029,6 @@ var init_PacketStructure = __esmMin(() => {
     this.useManuals = readByte();
     this.useBubbles = readByte();
     this.useAspersio = readByte();
-    this.reserved = readByte();
   };
   PACKET.ZC.NOTIFY_LOADINFO.size = 58;
   PACKET.ZC.NOTIFY_RELOADINFOS = function PACKET_ZC_NOTIFY_RELOADINFOS(
