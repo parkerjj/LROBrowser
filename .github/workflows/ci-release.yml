@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
@@ -55,7 +55,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
@@ -64,7 +64,7 @@ jobs:
         run: pnpm audit:iwa
       - name: Bundle IWA CI Web Bundle
         run: pnpm bundle:iwa -- --out release/lastro-v2-ci.wbn
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: iwa-ci-bundle
           path: |
@@ -73,21 +73,89 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  fetch-ke:
+    name: Download & verify latest KoreEngine Release
+    needs: [lint, test]
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-24.04
+    environment: production
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Download and validate stable private KE Release
+        env:
+          KE_REPOSITORY_READ_TOKEN: ${{ secrets.KE_REPOSITORY_READ_TOKEN }}
+        run: node scripts/kore-local.mjs --download-release --out "$RUNNER_TEMP/ke-release"
+      - name: Record KE provenance
+        run: cat "$RUNNER_TEMP/ke-release/release.json" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: verified-ke-release
+          path: ${{ runner.temp }}/ke-release/
+          if-no-files-found: error
+          retention-days: 3
+
+  build-production-iwa:
+    name: Build production IWA with verified KE
+    needs: [lint, test, fetch-ke]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      KE_REQUIRE_PACKAGE: '1'
+      IWA_ALLOW_UPDATE_MANIFEST: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: verified-ke-release
+          path: ${{ runner.temp }}/ke-release
+      - name: Import verified KE package
+        run: node scripts/kore-local.mjs --import-package "$RUNNER_TEMP/ke-release/package" --release-metadata "$RUNNER_TEMP/ke-release/release.json"
+      - run: pnpm build
+      - run: pnpm minify:release
+      - name: Inject production manifest metadata
+        env:
+          IWA_VERSION: 0.1.${{ github.run_number }}
+        run: node scripts/apply-release-manifest.mjs
+      - name: Require intact KE in final IWA distribution
+        run: node scripts/kore-local.mjs --verify-dist dist --release-metadata "$RUNNER_TEMP/ke-release/release.json"
+      - run: pnpm audit:iwa
+      - name: Bundle production IWA
+        run: pnpm bundle:iwa -- --out "release/lastro-v2-${GITHUB_SHA}.wbn"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: iwa-production-bundle
+          path: |
+            release/*.wbn
+            release/audit-report.json
+          if-no-files-found: error
+          retention-days: 14
+
   release-iwa:
     name: Sign & publish IWA release
-    needs: [lint, test]
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    needs: [lint, test, build-production-iwa, build-web]
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-24.04
     environment:
       name: production
     permissions:
       contents: write
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: iwa-production-bundle
+          path: release
       - name: Check production release configuration
         env:
           IWA_WEB_BUNDLE_ID: ${{ secrets.IWA_WEB_BUNDLE_ID || vars.IWA_WEB_BUNDLE_ID }}
@@ -96,8 +164,6 @@ jobs:
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT || vars.R2_ENDPOINT }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          KE_CORE_KEY: ${{ secrets.KE_CORE_KEY }}
-          KE_REPOSITORY_READ_TOKEN: ${{ secrets.KE_REPOSITORY_READ_TOKEN }}
         run: |
           test -n "$IWA_WEB_BUNDLE_ID" || { echo "Missing IWA_WEB_BUNDLE_ID in the production Environment (secret or variable)." >&2; exit 1; }
           test -n "$R2_ACCOUNT_ID" || { echo "Missing R2_ACCOUNT_ID in the production Environment." >&2; exit 1; }
@@ -105,57 +171,7 @@ jobs:
           test -n "$R2_ENDPOINT" || { echo "Missing R2_ENDPOINT in the production Environment." >&2; exit 1; }
           test -n "$R2_ACCESS_KEY_ID" || { echo "Missing R2_ACCESS_KEY_ID in the production Environment secrets." >&2; exit 1; }
           test -n "$R2_SECRET_ACCESS_KEY" || { echo "Missing R2_SECRET_ACCESS_KEY in the production Environment secrets." >&2; exit 1; }
-          test -n "$KE_CORE_KEY" || { echo "Missing KE_CORE_KEY in the production Environment secrets." >&2; exit 1; }
-          test -n "$KE_REPOSITORY_READ_TOKEN" || { echo "Missing KE_REPOSITORY_READ_TOKEN in the production Environment secrets." >&2; exit 1; }
           echo "Production release configuration is present."
-      - uses: actions/checkout@v7
-        with:
-          repository: parkerjj/KoreEngine
-          ref: ${{ github.ref_name }}
-          token: ${{ secrets.KE_REPOSITORY_READ_TOKEN }}
-          path: kore-engine
-          fetch-depth: 1
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: 1.99.0
-          target: wasm32-unknown-unknown
-          build-warnings: ''
-          rust-src-dir: kore-engine
-      - name: Install pinned Binaryen 133
-        run: |
-          archive="${RUNNER_TEMP}/binaryen-version_133-x86_64-linux.tar.gz"
-          curl --fail --location --retry 3 --retry-connrefused \
-            "https://github.com/WebAssembly/binaryen/releases/download/version_133/binaryen-version_133-x86_64-linux.tar.gz" \
-            --output "$archive"
-          printf '%s  %s\n' '2dc9c7813f5375db93d96ead4b78222fcc3e2677bbb832297af4797782a37489' "$archive" | sha256sum --check --status
-          mkdir -p "$GITHUB_WORKSPACE/kore-engine/.tools"
-          tar -xzf "$archive" -C "$GITHUB_WORKSPACE/kore-engine/.tools"
-          "$GITHUB_WORKSPACE/kore-engine/.tools/binaryen-version_133/bin/wasm-opt" --version
-      - name: Install pinned wasm-bindgen CLI
-        run: |
-          cargo +1.99.0 install wasm-bindgen-cli --version 0.2.129 --locked --root "$HOME/.cargo" --force
-          mkdir -p "$GITHUB_WORKSPACE/kore-engine/.tools/bin"
-          ln -sf "$HOME/.cargo/bin/wasm-bindgen" "$GITHUB_WORKSPACE/kore-engine/.tools/bin/wasm-bindgen"
-          "$GITHUB_WORKSPACE/kore-engine/.tools/bin/wasm-bindgen" --version
-      - name: Build encrypted KoreEngine package
-        env:
-          KE_CORE_KEY: ${{ secrets.KE_CORE_KEY }}
-        run: pnpm ke:local --source "$GITHUB_WORKSPACE/kore-engine" --mode release
-      - run: pnpm build
-      - name: Minify production JavaScript
-        run: pnpm minify:release
-      - name: Inject production manifest metadata
-        env:
-          IWA_VERSION: 0.1.${{ github.run_number }}
-        run: node scripts/apply-release-manifest.mjs
-      - name: Audit IWA release distribution
-        run: pnpm audit:iwa
-        env:
-          IWA_ALLOW_UPDATE_MANIFEST: '1'
-      - name: Bundle IWA Web Bundle
-        run: pnpm bundle:iwa -- --out "release/lastro-v2-${GITHUB_SHA}.wbn"
-        env:
-          IWA_ALLOW_UPDATE_MANIFEST: '1'
       - name: Prepare production signing key
         id: key
         env:
@@ -175,6 +191,12 @@ jobs:
           WEB_BUNDLE_SIGNING_PASSPHRASE: ${{ secrets.WEB_BUNDLE_SIGNING_PASSPHRASE }}
           IWA_WEB_BUNDLE_ID: ${{ vars.IWA_WEB_BUNDLE_ID || secrets.IWA_WEB_BUNDLE_ID }}
         run: node scripts/sign-production-iwa.mjs --input "release/lastro-v2-${{ github.sha }}.wbn" --key "${{ steps.key.outputs.path }}" --out "release/lastro-v2-${{ github.sha }}.swbn" --bundle-id "$IWA_WEB_BUNDLE_ID" --commit-sha "${{ github.sha }}"
+      - name: Refuse stale production source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          current_main=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
+          test "$current_main" = "$GITHUB_SHA" || { echo 'Refusing stale main production release.' >&2; exit 1; }
       - name: Publish to Cloudflare R2
         env:
           R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID || secrets.R2_ACCOUNT_ID }}
@@ -194,6 +216,7 @@ jobs:
             "release/lastro-v2-${{ github.sha }}.swbn.sha256" \
             "release/release-manifest.json" \
             "release/audit-report.json" \
+            --target "$GITHUB_SHA" \
             --title "IWA ${{ github.run_number }}" \
             --generate-notes
       - name: Remove temporary signing material
@@ -202,17 +225,29 @@ jobs:
 
   build-web:
     name: Build web distribution
-    needs: lint
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')))
+    needs: [lint, fetch-ke]
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: verified-ke-release
+          path: ${{ runner.temp }}/ke-release
+      - name: Import verified KE package
+        run: node scripts/kore-local.mjs --import-package "$RUNNER_TEMP/ke-release/package" --release-metadata "$RUNNER_TEMP/ke-release/release.json"
       - run: pnpm build:web
-      - uses: actions/upload-artifact@v7
+        env:
+          KE_REQUIRE_PACKAGE: '1'
+      - name: Require intact KE in final Web distribution
+        run: node scripts/kore-local.mjs --verify-dist dist-web --release-metadata "$RUNNER_TEMP/ke-release/release.json"
+      - name: Verify Web hosting supports the KE shared-memory Worker
+        run: node scripts/kore-local.mjs --verify-web-hosting
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: web-dist
           path: dist-web/
@@ -221,24 +256,30 @@ jobs:
 
   deploy-web:
     name: Deploy web to Surge
-    needs: [lint, test, build-web]
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')))
+    needs: [lint, test, build-web, build-production-iwa]
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-24.04
     environment:
       name: production-web
       url: https://game.ltsd.ro
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
         with:
           install: "false"
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: web-dist
           path: dist-web
+      - name: Refuse stale production source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          current_main=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
+          test "$current_main" = "$GITHUB_SHA" || { echo 'Refusing stale main web deployment.' >&2; exit 1; }
       - name: Deploy to Surge
         env:
           SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }}

@@ -18,8 +18,6 @@ export const LASTRO_TOOLS_CSS = `
 .lastro-tab { flex:1; min-width:31.5px; padding:3.75px 2.25px; border:1px solid transparent; border-radius:3px; background:none; color:#202536; font:inherit; font-size:10.5px; line-height:15.75px; cursor:pointer; white-space:nowrap; }
 .lastro-tab.is-active { border-color:#698ac5; background:#527bc2; color:white; box-shadow:inset 0 1px 0 #8cace0; }
 .lastro-tab:hover:not(.is-active) { background:#e7edf7; border-color:#ccd7eb; }
-.lastro-quick-toggles .lastro-toggles-settings { grid-column:1 / -1; justify-self:end; height:22px; padding:0 8px; border:1px solid rgba(148,168,196,.24); border-radius:6px; background:none; color:#9db0c5; font:11.5px/20px Arial,'Microsoft YaHei','MiSans',sans-serif; cursor:pointer; }
-.lastro-quick-toggles .lastro-toggles-settings:hover { color:#e6ecf4; background:rgba(148,168,196,.14); }
 .lastro-button { min-height:20.25px; padding:2.25px 9px; border:1px solid #a9b2c2; border-radius:3px; background:linear-gradient(#fff,#e9edf4); box-shadow:inset 0 0 0 1px #fff; color:#263854; font:inherit; font-size:9.75px; cursor:pointer; white-space:nowrap; }
 .lastro-button:hover { border-color:#7796c5; background:linear-gradient(#fff,#dce7f7); }
 .lastro-button:disabled { cursor:default; color:#9299a7; background:#eef0f5; border-color:#cdd1db; box-shadow:none; }
@@ -72,6 +70,12 @@ export const KORE_SHELL_CSS = `
 .lastro-tools[data-mode="kore"] { --sw-ink:#ffffff; --sw-muted:#8a8c92; --sw-rule:#222224; --sw-track:#0f0f11; --sw-border:#2a2a2e; --ke:#6fb3c9; --ke-ink:#06141a; --ke-text:#8fd0e6; }
 .lastro-ro-titlebar { position:relative; display:flex; align-items:center; justify-content:flex-end; height:44px; flex:0 0 44px; box-sizing:border-box; padding:0 8px 0 12px; background:transparent; color:var(--sw-ink); border-bottom:1px solid var(--sw-rule); cursor:move; }
 .lastro-title-left,.lastro-title-right { display:none; }
+/* 原生面板的开关行：四个开关卡片 + 末尾一个与卡片同高的方形设置按钮，保持一行。 */
+.lastro-main-view .lastro-quick-toggles { grid-template-columns:repeat(4,minmax(0,1fr)) 32px; }
+.lastro-main-view .lastro-quick-toggles label { box-sizing:border-box; height:32px; }
+.lastro-quick-toggles .lastro-toggles-settings { box-sizing:border-box; width:32px; height:32px; padding:0; display:flex; align-items:center; justify-content:center; border:1px solid rgba(148,168,196,.12); border-radius:6px; background:#18202c; color:#9db0c5; font:14px/1 Arial,'Microsoft YaHei','MiSans',sans-serif; cursor:pointer; }
+.lastro-quick-toggles .lastro-toggles-settings:hover { color:#e6ecf4; border-color:rgba(232,184,75,.5); background:#26313f; }
+@media(max-width:480px) { .lastro-main-view .lastro-quick-toggles { grid-template-columns:repeat(2,minmax(0,1fr)); } .lastro-quick-toggles .lastro-toggles-settings { grid-column:2; justify-self:end; } }
 .lastro-window-minimize,.lastro-window-close { position:static; transform:none; flex:none; width:28px; height:28px; margin-left:2px; padding:0; border:0; border-radius:4px; background:transparent; color:color-mix(in srgb,var(--sw-ink) 62%,transparent); font:300 18px/28px Arial,sans-serif; cursor:pointer; transition:background-color 120ms ease-out,color 120ms ease-out; }
 .lastro-window-minimize:hover,.lastro-window-close:hover { background:color-mix(in srgb,var(--sw-ink) 12%,transparent); color:var(--sw-ink); }
 .lastro-tools[data-mode="kore"] > :not(.lastro-ro-titlebar):not(.kore-shell-host):not(.lastro-panel-footer):not(.lastro-compact-status):not(.kore-boot):not(style) { display:none !important; }

@@ -385,7 +385,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     if (state.actions.length > 50) state.actions.splice(0, state.actions.length - 50);
   };
   const supportedActionTypes = new Set(['MoveTo', 'Attack', 'Sit', 'Stand', 'Equip', 'Unequip', 'UseSkillOnTarget', 'UseSkillSelf', 'UseSkillAt', 'UseItem', 'Pickup', 'DropItem',
-    'StorageTransfer', 'StorageClose', 'NpcTalk', 'NpcMenu', 'NpcContinue', 'NpcClose', 'NpcNumber', 'NpcText', 'NpcShopSelect', 'ShopBuy', 'ShopSell', 'PrivateAirship', 'SelectWarpPoint', 'Restart', 'ToggleServerAutoFight']);
+    'StorageTransfer', 'StorageClose', 'NpcTalk', 'NpcMenu', 'NpcContinue', 'NpcClose', 'NpcNumber', 'NpcText', 'NpcShopSelect', 'ShopBuy', 'ShopSell', 'PrivateAirship', 'SelectWarpPoint', 'Restart', 'ToggleServerAutoFight', 'ToggleServerFollow', 'RequestServerSettings']);
   const validActionPayload = action => {
     if (!supportedActionTypes.has(action.type)) return 'unsupported-action';
     const gid = value => validU32(value) && value > 0;
@@ -431,7 +431,9 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       case 'SelectWarpPoint': return skill(action.skillId) && typeof action.mapName === 'string'
         && action.mapName.length > 0 && action.mapName.length <= 15 && [...action.mapName].every(char => char.charCodeAt(0) > 0x1f) ? null : 'malformed-action';
       case 'Restart':
-      case 'ToggleServerAutoFight': return null;
+      case 'ToggleServerAutoFight':
+      case 'ToggleServerFollow':
+      case 'RequestServerSettings': return null;
       default: return 'unsupported-action';
     }
   };

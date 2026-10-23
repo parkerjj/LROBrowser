@@ -211,7 +211,9 @@ test('a manual 3D change during fullscreen wins over the automatic restore', () 
 
   const checkbox = container.querySelector<HTMLInputElement>('.kore-render-toggle input');
   expect(checkbox).toBeTruthy();
-  checkbox!.checked = true;
+  expect(checkbox!.parentElement?.textContent?.trim()).toBe('省电模式');
+  expect(checkbox!.checked).toBe(true);
+  checkbox!.checked = false;
   checkbox!.dispatchEvent(new Event('change'));
   expect(canvas.style.display).toBe('block');
   expect(GraphicsSettings.fpslimit).toBe(60);

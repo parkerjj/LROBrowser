@@ -1036,7 +1036,8 @@ export function installKoreShellPanels(tools, deps) {
         settingsButton.dataset.action = 'open-settings';
         settingsButton.setAttribute('aria-label', '打开挂机设置');
         settingsButton.title = '挂机设置（离线挂机）';
-        settingsButton.textContent = '⚙ 挂机设置';
+        settingsButton.textContent = '⚙';
+        // 放在开关行最末，作为与开关卡片同高的方形按钮。
         toggles.append(settingsButton);
       }
     }

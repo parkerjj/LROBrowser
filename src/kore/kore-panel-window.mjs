@@ -203,8 +203,9 @@ export function createKoreWindow({
   const renderLabel = element(document, 'label', 'kore-render-toggle');
   const renderCheckbox = element(document, 'input');
   renderCheckbox.type = 'checkbox';
-  renderCheckbox.addEventListener('change', () => renderToggle?.setEnabled?.(renderCheckbox.checked));
-  renderLabel.append(renderCheckbox, document.createTextNode(' 3D'));
+  // 勾选 = 省电模式（黑屏），与 renderToggle 的 enabled（3D 开启）语义相反。
+  renderCheckbox.addEventListener('change', () => renderToggle?.setEnabled?.(!renderCheckbox.checked));
+  renderLabel.append(renderCheckbox, document.createTextNode(' 省电模式'));
   actions.append(renderLabel);
 
   const consoleNode = element(document, 'div', 'kore-console');
@@ -492,8 +493,8 @@ export function createKoreWindow({
       : model.connected ? '等待世界状态…' : '等待 KoreEngine…';
     if (renderToggle) {
       renderCheckbox.disabled = renderToggle.available !== true;
-      renderCheckbox.checked = renderToggle.enabled === true;
-      renderLabel.title = renderToggle.available === true ? '切换 3D 渲染' : '当前客户端未暴露渲染接口';
+      renderCheckbox.checked = renderToggle.enabled !== true;
+      renderLabel.title = renderToggle.available === true ? '勾选后黑屏省电，取消勾选恢复正常显示' : '当前客户端未暴露渲染接口';
     }
     renderConsole(consoleNode, consoleModel?.entries?.() ?? [], { page, maxLines: 6, filter: consoleModel?.filter });
   }

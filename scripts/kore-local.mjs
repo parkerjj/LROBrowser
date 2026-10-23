@@ -1,11 +1,13 @@
 // The only CLI that may build a user-selected private KE checkout.
 import { mkdir, open, readFile, writeFile, rm, rename, readdir, lstat, cp, mkdtemp } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
-import { promisify, parseArgs } from 'node:util';
+import { promisify, parseArgs, TextDecoder } from 'node:util';
 import path from 'node:path';
 import process from 'node:process';
+import { Buffer } from 'node:buffer';
+import { gunzipSync } from 'node:zlib';
 import { fileURLToPath, URL } from 'node:url';
-import { sha256, safePackagePath, validateKoreManifest, validateKorePointer } from '../src/kore/kore-integration.mjs';
+import { sha256, safePackagePath, validateKoreManifest, validateKorePointer, loadKorePackage } from '../src/kore/kore-integration.mjs';
 
 const run = promisify(execFile);
 export async function withKoreLock(repo, action) {
@@ -87,9 +89,12 @@ export async function enableLocal({ repo, source, mode }) {
   });
 }
 // Caller holds the same lock around the *entire* core preparation.
-export async function mergeKorePackage(repo) {
+export async function mergeKorePackage(repo, { required = process.env.KE_REQUIRE_PACKAGE === '1' } = {}) {
   const pointerPath = path.join(repo, 'generated/ke/current.json');
-  try { await lstat(pointerPath); } catch (error) { if (error.code === 'ENOENT') return null; throw error; }
+  try { await lstat(pointerPath); } catch (error) {
+    if (error.code === 'ENOENT' && !required) return null;
+    throw error;
+  }
   try {
     if (!(await lstat(pointerPath)).isFile()) throw Error('invalid-pointer-file');
     const pointer = validateKorePointer(JSON.parse(await readFile(pointerPath, 'utf8')));
@@ -115,15 +120,205 @@ export async function mergeKorePackage(repo) {
     return pointer;
   } catch (error) {
     await withdraw(repo);
+    if (required) throw error;
     process.stderr.write(`[KoreEngine] optional staging rejected: ${String(error)}\n`);
     return null;
   }
 }
+
+const keApi = 'https://api.github.com/repos/parkerjj/KoreEngine';
+const archiveName = 'kore-engine.tar.gz';
+const maxArchiveBytes = 32 * 1024 * 1024;
+const maxExpandedBytes = 128 * 1024 * 1024;
+const maxMetadataBytes = 1024 * 1024;
+
+function requireRelease(manifest, metadata) {
+  if (manifest.mode !== 'release' || manifest.sourceDirty || !/^[a-f0-9]{40}$/.test(manifest.commitSha ?? '')
+    || manifest.files.some(file => file.kind === 'wasm' && file.path !== 'kore_boot_bg.wasm')
+    || (metadata && (manifest.packageId !== metadata.packageId || manifest.commitSha !== metadata.commitSha || manifest.buildId !== metadata.buildId))) {
+    throw Error('invalid-production-kore-package');
+  }
+}
+
+async function responseBytes(response, maximum) {
+  if (!response.ok || !response.body) throw Error(`ke-download-http-${response.status}`);
+  const declared = response.headers.get('content-length');
+  if (declared && (!/^\d+$/.test(declared) || Number(declared) > maximum)) throw Error('ke-download-too-large');
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of response.body) {
+    size += chunk.length;
+    if (size > maximum) throw Error('ke-download-too-large');
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+}
+
+// Accept only the regular-file USTAR format emitted by KoreEngine, before writing any entry.
+export async function extractReleaseArchive(archive, destination) {
+  const tar = gunzipSync(archive, { maxOutputLength: maxExpandedBytes });
+  if (tar.length % 512 || tar.length < 1024) throw Error('ke-invalid-tar');
+  const entries = new Map();
+  const decoder = new TextDecoder('utf-8', { fatal: true });
+  const field = bytes => decoder.decode(bytes.subarray(0, bytes.indexOf(0) < 0 ? bytes.length : bytes.indexOf(0)));
+  const octal = bytes => {
+    const value = field(bytes).trim();
+    if (!/^[0-7]+$/.test(value)) throw Error('ke-invalid-tar-number');
+    return Number.parseInt(value, 8);
+  };
+  let ended = false;
+  for (let offset = 0; offset < tar.length;) {
+    const header = tar.subarray(offset, offset + 512);
+    if (header.every(byte => byte === 0)) {
+      if (offset + 1024 > tar.length || !tar.subarray(offset).every(byte => byte === 0)) throw Error('ke-invalid-tar-end');
+      ended = true; break;
+    }
+    const checksum = octal(header.subarray(148, 156));
+    if (checksum !== header.reduce((sum, byte, index) => sum + (index >= 148 && index < 156 ? 32 : byte), 0)
+      || field(header.subarray(257, 263)) !== 'ustar' || field(header.subarray(157, 257))) throw Error('ke-invalid-tar-header');
+    const size = octal(header.subarray(124, 136));
+    const type = header[156];
+    if (![0, 48, 53].includes(type) || (type === 53 && size !== 0)) throw Error('ke-unsupported-tar-entry');
+    const prefix = field(header.subarray(345, 500));
+    let name = (prefix ? prefix + '/' : '') + field(header.subarray(0, 100));
+    if (name.startsWith('./')) name = name.slice(2);
+    if (type === 53 && name.endsWith('/')) name = name.slice(0, -1);
+    if (!(type === 53 && (name === '' || name === '.'))) {
+      safePackagePath(name);
+      if (entries.has(name) || entries.size >= 1024 || size > 64 * 1024 * 1024) throw Error('ke-invalid-tar-entry');
+      entries.set(name, { directory: type === 53, bytes: tar.subarray(offset + 512, offset + 512 + size) });
+    }
+    offset += 512 + Math.ceil(size / 512) * 512;
+    if (offset > tar.length) throw Error('ke-truncated-tar');
+  }
+  if (!ended || !entries.has('manifest.json')) throw Error('ke-incomplete-tar');
+  if (await lstat(destination).catch(error => { if (error.code !== 'ENOENT') throw error; return null; })) throw Error('ke-extract-destination-exists');
+  await mkdir(destination, { recursive: true });
+  for (const [name, entry] of entries) {
+    const target = path.join(destination, name);
+    if (entry.directory) await mkdir(target, { recursive: true });
+    else { await mkdir(path.dirname(target), { recursive: true }); await writeFile(target, entry.bytes, { flag: 'wx' }); }
+  }
+}
+
+export async function downloadRelease({ out, token, fetchImpl = globalThis.fetch }) {
+  if (!token?.trim()) throw Error('KE_REPOSITORY_READ_TOKEN-required');
+  if (!path.isAbsolute(out ?? '')) throw Error('absolute-release-out-required');
+  const headers = { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
+  const request = (url, requestHeaders) => fetchImpl(url, { headers: requestHeaders, redirect: 'manual', signal: globalThis.AbortSignal.timeout(60_000) });
+  const json = async url => JSON.parse((await responseBytes(await request(url, headers), maxMetadataBytes)).toString('utf8'));
+  const release = await json(keApi + '/releases/latest');
+  const tag = /^ke-([a-f0-9]{40})-\d+-\d+$/.exec(release.tag_name ?? '');
+  if (release.draft !== false || release.prerelease !== false || !tag || !Array.isArray(release.assets)) throw Error('ke-invalid-stable-release');
+  let object = (await json(keApi + '/git/ref/tags/' + encodeURIComponent(release.tag_name))).object;
+  for (let depth = 0; object?.type === 'tag' && depth < 4; depth++) {
+    if (!/^[a-f0-9]{40}$/.test(object.sha ?? '')) throw Error('ke-invalid-release-tag');
+    object = (await json(keApi + '/git/tags/' + object.sha)).object;
+  }
+  if (object?.type !== 'commit' || object.sha !== tag[1]) throw Error('ke-release-tag-commit-mismatch');
+  const asset = async (name, maximum) => {
+    const matches = release.assets.filter(item => item.name === name);
+    const item = matches[0];
+    if (matches.length !== 1 || !Number.isSafeInteger(item.id) || item.id < 1 || item.state !== 'uploaded'
+      || !Number.isSafeInteger(item.size) || item.size < 1 || item.size > maximum || !/^sha256:[a-f0-9]{64}$/.test(item.digest ?? '')) throw Error('ke-invalid-release-asset');
+    let response = await request(keApi + '/releases/assets/' + item.id, { ...headers, Accept: 'application/octet-stream' });
+    if ([301, 302, 303, 307, 308].includes(response.status)) {
+      const location = new URL(response.headers.get('location') ?? '');
+      if (location.protocol !== 'https:' || location.username || location.password || location.port
+        || !['release-assets.githubusercontent.com', 'objects.githubusercontent.com'].includes(location.hostname)) throw Error('ke-invalid-asset-redirect');
+      // Never forward private repository credentials to the signed asset origin.
+      response = await request(location.href, { Accept: 'application/octet-stream' });
+    }
+    const bytes = await responseBytes(response, maximum);
+    if (bytes.length !== item.size || 'sha256:' + await sha256(bytes) !== item.digest) throw Error('ke-release-asset-digest-mismatch');
+    return bytes;
+  };
+  const archive = await asset(archiveName, maxArchiveBytes);
+  const checksum = (await asset(archiveName + '.sha256', maxMetadataBytes)).toString('utf8');
+  const archiveSha256 = await sha256(archive);
+  if (checksum.trim() !== `${archiveSha256}  ${archiveName}`) throw Error('ke-release-checksum-mismatch');
+  const publishedManifest = await validateKoreManifest(JSON.parse((await asset('manifest.json', maxMetadataBytes)).toString('utf8')));
+  const metadata = { tag: release.tag_name, releaseId: release.id, commitSha: tag[1], buildId: publishedManifest.buildId, packageId: publishedManifest.packageId, archiveSha256 };
+  requireRelease(publishedManifest, metadata);
+  const ltsd = JSON.parse((await asset('ltsd-build-manifest.json', maxMetadataBytes)).toString('utf8'));
+  const entry = ltsd[publishedManifest.buildId];
+  if (Object.keys(ltsd).length !== 1 || !entry || Object.keys(entry).length !== 2 || entry.chunk !== 'core'
+    || entry.sha256 !== publishedManifest.chunks.core.sha256) throw Error('ke-ltsd-fingerprint-mismatch');
+  if (await lstat(out).catch(error => { if (error.code !== 'ENOENT') throw error; return null; })) throw Error('ke-release-output-exists');
+  await mkdir(path.dirname(out), { recursive: true });
+  const temporary = await mkdtemp(path.join(path.dirname(out), '.ke-release-'));
+  try {
+    const packageRoot = path.join(temporary, 'package');
+    await extractReleaseArchive(archive, packageRoot);
+    const manifest = await validateLocalPackage(packageRoot);
+    requireRelease(manifest, metadata);
+    await writeFile(path.join(temporary, 'release.json'), JSON.stringify(metadata, null, 2) + '\n');
+    await rename(temporary, out);
+    return metadata;
+  } finally { await rm(temporary, { recursive: true, force: true }); }
+}
+
+export async function importReleasePackage({ repo, packageRoot, metadata }) {
+  if (!metadata || !/^[a-f0-9]{64}$/.test(metadata.packageId ?? '')) throw Error('ke-release-metadata-required');
+  return withKoreLock(repo, async () => {
+    await withdraw(repo);
+    try {
+      const manifest = await validateLocalPackage(packageRoot);
+      requireRelease(manifest, metadata);
+      const staged = path.join(repo, 'generated/ke/packages', manifest.packageId);
+      await mkdir(path.dirname(staged), { recursive: true });
+      await rm(staged, { recursive: true, force: true });
+      await cp(packageRoot, staged, { recursive: true });
+      requireRelease(await validateLocalPackage(staged), metadata);
+      const pointer = { schemaVersion: 1, packageId: manifest.packageId, manifestPath: `ke/${manifest.packageId}/manifest.json` };
+      await atomicJson(path.join(repo, 'generated/ke/current.json'), pointer);
+      return pointer;
+    } catch (error) { await withdraw(repo); throw error; }
+  });
+}
+
+export async function verifyWebHosting({ fetchImpl = globalThis.fetch } = {}) {
+  const response = await fetchImpl('https://game.ltsd.ro/', { method: 'HEAD', redirect: 'error', signal: globalThis.AbortSignal.timeout(30_000) });
+  const coop = response.headers.get('cross-origin-opener-policy')?.trim();
+  const coep = response.headers.get('cross-origin-embedder-policy')?.trim();
+  const permission = /(?:^|,)\s*cross-origin-isolated\s*=\s*([^,]*)/i.exec(response.headers.get('permissions-policy') ?? '')?.[1]?.trim();
+  const allowlist = permission?.replace(/^\(|\)$/g, '').trim().split(/\s+/) ?? [];
+  if (!response.ok || coop !== 'same-origin' || !['require-corp', 'credentialless'].includes(coep)
+    || (permission !== undefined && !allowlist.some(value => ['*', 'self', '"https://game.ltsd.ro"'].includes(value)))) {
+    throw Error('web-hosting-not-isolated: configure COOP same-origin and COEP require-corp/credentialless for game.ltsd.ro before production release');
+  }
+  return { isolatedHeaders: true, coop, coep };
+}
+
+export async function validateDistribution({ dist, expectedPackageId }) {
+  if (!/^[a-f0-9]{64}$/.test(expectedPackageId ?? '')) throw Error('ke-expected-package-required');
+  const manifest = JSON.parse(await readFile(path.join(dist, 'core/executable-assets.json'), 'utf8'));
+  const loaded = await loadKorePackage({ manifest, page: { location: { href: 'https://ke-build.invalid/' }, fetch: async url => {
+    const relative = safePackagePath(decodeURIComponent(url.pathname).slice('/core/'.length));
+    return new globalThis.Response(await readFile(path.join(dist, 'core', relative)));
+  } } });
+  if (!loaded || loaded.manifest.packageId !== expectedPackageId) throw Error('required-kore-package-missing-or-changed');
+  requireRelease(loaded.manifest);
+  return { packageId: loaded.manifest.packageId, buildId: loaded.manifest.buildId, commitSha: loaded.manifest.commitSha };
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   try {
-    const { values } = parseArgs({ options: { source: { type: 'string' }, mode: { type: 'string' }, disable: { type: 'boolean' } } });
+    const { values } = parseArgs({ options: { source: { type: 'string' }, mode: { type: 'string' }, disable: { type: 'boolean' },
+      'download-release': { type: 'boolean' }, out: { type: 'string' }, 'import-package': { type: 'string' },
+      'verify-dist': { type: 'string' }, 'release-metadata': { type: 'string' }, 'verify-web-hosting': { type: 'boolean' } } });
     const repo = fileURLToPath(new URL('../', import.meta.url));
-    if (values.disable) {
+    if (values['verify-web-hosting']) {
+      process.stdout.write(JSON.stringify(await verifyWebHosting()) + '\n');
+    } else if (values['download-release']) {
+      process.stdout.write(JSON.stringify(await downloadRelease({ out: values.out, token: process.env.KE_REPOSITORY_READ_TOKEN })) + '\n');
+    } else if (values['import-package'] || values['verify-dist']) {
+      const metadata = JSON.parse(await readFile(values['release-metadata'], 'utf8'));
+      const result = values['import-package']
+        ? await importReleasePackage({ repo, packageRoot: path.resolve(values['import-package']), metadata })
+        : await validateDistribution({ dist: path.resolve(values['verify-dist']), expectedPackageId: metadata.packageId });
+      process.stdout.write(JSON.stringify(result) + '\n');
+    } else if (values.disable) {
       if (values.source || values.mode) throw Error('disable-does-not-accept-source-or-mode');
       await disableLocal({ repo });
       process.stdout.write('KoreEngine local integration disabled; reload open clients.\n');

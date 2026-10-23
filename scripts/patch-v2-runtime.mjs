@@ -1551,10 +1551,11 @@ globalThis.KoreEngineNativeAction = (action) => {
     packet.count = action.amount;
     return sendKoreEnginePacket(action, packet);
   }
-  if (action.type === "ToggleServerAutoFight") {
-    // LastRO 服务器版“自动战斗”开关是切换：nid 5/6 发 NOTIFY_UPDATEINFO(34, 1)，nid 3 私聊
-    // NPC:setautoattack。编码方式和工具箱的开关一致；状态由服务器 0x0AF6 回报给 KE。
-    const request = buildAutoToggleRequest({ nid: Configs.get("lastroNid", 0), option: "autoAttack", enabled: false });
+  if (action.type === "ToggleServerAutoFight" || action.type === "ToggleServerFollow") {
+    // LastRO 服务器版“自动战斗 / 自动跟随”开关是切换：nid 5/6 发 NOTIFY_UPDATEINFO(34 或 37, 1)，
+    // nid 3 私聊 NPC:setautoattack / NPC:setfollow。编码方式和工具箱的开关一致；状态由服务器 0x0AF6 回报给 KE。
+    const option = action.type === "ToggleServerFollow" ? "autoFollow" : "autoAttack";
+    const request = buildAutoToggleRequest({ nid: Configs.get("lastroNid", 0), option, enabled: false });
     if (request?.kind === "whisper") {
       if (!PACKET?.CZ?.WHISPER) return false;
       const packet = new PACKET.CZ.WHISPER();
@@ -1569,6 +1570,12 @@ globalThis.KoreEngineNativeAction = (action) => {
       return sendKoreEnginePacket(action, packet);
     }
     return false;
+  }
+  if (action.type === "RequestServerSettings") {
+    // 向服务器要整份自动战斗设置：官方工具箱每次换图发的同一个 2 字节包（CZ.NOTIFY_LOADINFO，0x0AFF），
+    // 服务器用 0x0AF5 快照回答。KE 靠它问出自动战斗/跟随开关的真实状态——服务器不会回报每一次切换。
+    if (!PACKET?.CZ?.NOTIFY_LOADINFO) return false;
+    return sendKoreEnginePacket(action, new PACKET.CZ.NOTIFY_LOADINFO());
   }
   if (action.type === "StorageClose") {
     // OpenKore sendStorageClose：服务端仓库没关时，后续的飞空艇请求会被静默忽略。

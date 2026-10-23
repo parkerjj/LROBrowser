@@ -203,4 +203,7 @@ test('settings gear sits next to the battle switches in the main view, not insid
   expect(gear.closest('[hidden]')).toBeNull();
   expect(gear.parentElement?.classList.contains('lastro-quick-toggles')).toBe(true);
   expect(gear.getAttribute('aria-label')).toBe('打开挂机设置');
+  expect(gear.textContent).toBe('⚙');
+  expect(gear.parentElement?.lastElementChild).toBe(gear);
+  expect(gear.previousElementSibling?.querySelector('[data-option]')).toBeTruthy();
 });

@@ -19,7 +19,10 @@ describe('Phase A IWA', () => {
     expect(manifest.protocol_handlers).toEqual([
       { protocol: 'web+lastro', url: '/?protocol=%s' },
     ]);
-    expect(manifest.icons).toEqual([{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' }]);
+    expect(manifest.icons).toEqual([
+      { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+    ]);
     expect(manifest).not.toHaveProperty('update_manifest_url');
   });
 

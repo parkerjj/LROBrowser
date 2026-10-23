@@ -179,7 +179,7 @@ test('storage close actions send PACKET_CZ_CLOSE_STORE', async () => {
   expect(sent[0]).toBeInstanceOf(FakeCloseStore);
 });
 
-test('ToggleServerAutoFight is encoded like the toolbox switch for each nid', async () => {
+test('ToggleServerAutoFight and ToggleServerFollow are encoded like the toolbox switches for each nid', async () => {
   const runtime = await readFile('generated/runtime/Online.js', 'utf8');
   const actionAssignment = extractRuntimeNode(runtime, { kind: 'assignment', name: 'globalThis.KoreEngineNativeAction' });
   const packetHelper = extractRuntimeNode(runtime, { kind: 'function', name: 'sendKoreEnginePacket' });
@@ -187,7 +187,7 @@ test('ToggleServerAutoFight is encoded like the toolbox switch for each nid', as
   const { buildAutoToggleRequest, mapScalarUpdate } = await import('../vendor/v2/lastro-v1-migration.mjs');
   class FakeWhisper { receiver = ''; msg = ''; build() { return new Uint8Array(2); } }
   class FakeUpdateInfo { id = 0; value = 0; build() { return new Uint8Array(7); } }
-  const send = (nid: number, packets: Record<string, unknown> = { WHISPER: FakeWhisper, NOTIFY_UPDATEINFO: FakeUpdateInfo }) => {
+  const send = (nid: number, packets: Record<string, unknown> = { WHISPER: FakeWhisper, NOTIFY_UPDATEINFO: FakeUpdateInfo }, type = 'ToggleServerAutoFight') => {
     const sent: unknown[] = [];
     const createSender = new Function('globalThis', 'sendKoreNativePacket', 'Network',
       'PacketVerManager_default', 'PACKET', 'SessionStorage_default', '_socket',
@@ -196,7 +196,7 @@ test('ToggleServerAutoFight is encoded like the toolbox switch for each nid', as
     const nativeAction = createSender(runtimePage(), (_action: unknown, packet: unknown) => { sent.push(packet); return true; },
       { sendPacket() {} }, { value: 20211103 }, { CZ: packets }, {}, null, () => false, () => false,
       { get: () => nid }, buildAutoToggleRequest, mapScalarUpdate);
-    return { result: nativeAction({ type: 'ToggleServerAutoFight' }), sent };
+    return { result: nativeAction({ type }), sent };
   };
 
   const whisper = send(3);
@@ -213,9 +213,75 @@ test('ToggleServerAutoFight is encoded like the toolbox switch for each nid', as
     expect(update.sent[0]).toMatchObject({ id: 34, value: 1 });
   }
 
+  // 自动跟随是同一组切换开关：nid 3 私聊 NPC:setfollow，nid 5/6 发 id 37。
+  const followWhisper = send(3, undefined, 'ToggleServerFollow');
+  expect(followWhisper.result).toBe(true);
+  expect(followWhisper.sent).toHaveLength(1);
+  expect(followWhisper.sent[0]).toBeInstanceOf(FakeWhisper);
+  expect(followWhisper.sent[0]).toMatchObject({ receiver: 'NPC:setfollow', msg: '0' });
+  for (const nid of [5, 6]) {
+    const update = send(nid, undefined, 'ToggleServerFollow');
+    expect(update.result).toBe(true);
+    expect(update.sent).toHaveLength(1);
+    expect(update.sent[0]).toBeInstanceOf(FakeUpdateInfo);
+    expect(update.sent[0]).toMatchObject({ id: 37, value: 1 });
+  }
+
   // 封包类缺失时不发，Host 如实返回失败。
   expect(send(3, {}).result).toBe(false);
   expect(send(5, {}).result).toBe(false);
+  expect(send(3, {}, 'ToggleServerFollow').result).toBe(false);
+});
+
+test('RequestServerSettings asks the server for the settings snapshot with the 2-byte LOADINFO packet', async () => {
+  const runtime = await readFile('generated/runtime/Online.js', 'utf8');
+  const actionAssignment = extractRuntimeNode(runtime, { kind: 'assignment', name: 'globalThis.KoreEngineNativeAction' });
+  const packetHelper = extractRuntimeNode(runtime, { kind: 'function', name: 'sendKoreEnginePacket' });
+  class FakeLoadInfo { build() { return new Uint8Array([0xff, 0x0a]); } }
+  const send = (packets: Record<string, unknown>) => {
+    const sent: unknown[] = [];
+    const createSender = new Function('globalThis', 'sendKoreNativePacket', 'Network',
+      'PacketVerManager_default', 'PACKET', 'SessionStorage_default', '_socket',
+      'lastroVendingShoppingActive', 'lastroMovementUnavailable',
+      `${packetHelper}\n${actionAssignment}\nreturn globalThis.KoreEngineNativeAction;`);
+    const nativeAction = createSender(runtimePage(), (_action: unknown, packet: unknown) => { sent.push(packet); return true; },
+      { sendPacket() {} }, { value: 20211103 }, { CZ: packets }, {}, null, () => false, () => false);
+    return { result: nativeAction({ type: 'RequestServerSettings' }), sent };
+  };
+
+  const ok = send({ NOTIFY_LOADINFO: FakeLoadInfo });
+  expect(ok.result).toBe(true);
+  expect(ok.sent).toHaveLength(1);
+  expect(ok.sent[0]).toBeInstanceOf(FakeLoadInfo);
+  // 封包类缺失时不发，Host 如实返回失败。
+  expect(send({}).result).toBe(false);
+});
+
+test('UseSkillAt is sent as the ground-skill packet for the packet version', async () => {
+  const runtime = await readFile('generated/runtime/Online.js', 'utf8');
+  const actionAssignment = extractRuntimeNode(runtime, { kind: 'assignment', name: 'globalThis.KoreEngineNativeAction' });
+  const packetHelper = extractRuntimeNode(runtime, { kind: 'function', name: 'sendKoreEnginePacket' });
+  class FakeGround { selectedLevel = 0; SKID = 0; xPos = 0; yPos = 0; build() { return new Uint8Array(10); } }
+  const send = (version: number, packets: Record<string, unknown>) => {
+    const sent: FakeGround[] = [];
+    const createSender = new Function('globalThis', 'sendKoreNativePacket', 'Network',
+      'PacketVerManager_default', 'PACKET', 'SessionStorage_default', '_socket',
+      'lastroVendingShoppingActive', 'lastroMovementUnavailable',
+      `${packetHelper}\n${actionAssignment}\nreturn globalThis.KoreEngineNativeAction;`);
+    const nativeAction = createSender(runtimePage(), (_action: unknown, packet: FakeGround) => { sent.push(packet); return true; },
+      { sendPacket() {} }, { value: version }, { CZ: packets }, {}, null, () => false, () => false);
+    return { result: nativeAction({ type: 'UseSkillAt', skillId: 89, level: 10, x: 31, y: 42 }), sent };
+  };
+
+  // LastRO 20211103：USE_SKILL_TOGROUND3，光之障壁/暴风雪/怒雷强击这类地面技能都走它。
+  const modern = send(20211103, { USE_SKILL_TOGROUND3: FakeGround, USE_SKILL_TOGROUND2: class extends FakeGround {} });
+  expect(modern.result).toBe(true);
+  expect(modern.sent).toHaveLength(1);
+  expect(modern.sent[0]).toBeInstanceOf(FakeGround);
+  expect(modern.sent[0]).toMatchObject({ selectedLevel: 10, SKID: 89, xPos: 31, yPos: 42 });
+
+  // 封包类缺失时不发，Host 如实返回失败。
+  expect(send(20211103, {}).result).toBe(false);
 });
 
 test('SelectWarpPoint is sent as the native 0x011B warp selection', async () => {

@@ -36,6 +36,8 @@ describe('LastRO native login integration', () => {
     expect(decorated).toContain('data-lastro-login-panel');
     expect(decorated).toContain('data-lastro-server-list');
     expect(decorated).toContain('data-lastro-account-password');
+    expect(decorated).toContain('<img src="/icons/icon-64.png"');
+    expect(decorated).toContain('class="lastro-login-brand"');
   });
 
   it('leaves unrelated V2 windows unchanged', () => {
