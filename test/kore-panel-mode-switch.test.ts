@@ -34,7 +34,7 @@ test('the three AI modes sit together in their own switch row, apart from the on
 
 test('the active mode is highlighted from what KE reports, never optimistically', () => {
   for (const [mode, active, label] of [['AUTO', '自动', '● 自动'], ['MANUAL', '半自动', '◊ 半自动'], ['OFF', '关闭', '○ 关闭']]) {
-    const { view, $$ } = mount(mode);
+    const { view, $$ } = mount(mode ?? null);
     expect($$('.kore-mode-button').filter(button => button.getAttribute('aria-pressed') === 'true').map(button => button.textContent)).toEqual([active]);
     expect(view.element.querySelector('.kore-mode')?.textContent).toBe(label);
     view.destroy();

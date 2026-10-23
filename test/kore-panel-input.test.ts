@@ -33,7 +33,7 @@ test('panel sends an opaque command and clears diagnostics', () => {
 
 test('panel renders only read-only Rust status and console output', () => {
   const { view } = viewFor();
-  view.update({ status: 'runtime-ready', packageId: null, mode: null, runtimeGeneration: 1, profile: 'lastro-20211103', gameSessionId: null,
+  view.update({ status: 'runtime-ready', packageId: null, mode: null, runtimeGeneration: 1, profile: 'lastro-20211103', gameSessionId: null, disconnect: null,
     connectionGeneration: null, streamStatus: 'world-ready', worldReady: true, mapResourceState: 'ready', receivedBytes: 10, sentBytes: 4,
     degradedReason: null, logs: [{ level: 'info', text: 'ready', timestamp: 0 }], runtimeStatus: { nextDeadlineMs: 10 }, lastDiagnostic: null, lastCommandResult: null, configIdentity: null,
     lastWorldState: null, lastWorldStateAt: null, heartbeat: null, actions: [], diagnosticLog: [] });

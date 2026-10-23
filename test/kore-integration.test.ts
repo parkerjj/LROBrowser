@@ -542,7 +542,7 @@ test('panel only renders Rust diagnostics and raw command controls', () => {
   expect(view.panel.style.maxWidth).toBe('calc(100vw - 24px)');
   expect(view.infoNode.readOnly).toBe(true);
   expect(view.consoleNode.readOnly).toBe(true);
-  view.update({ status: 'runtime-ready', packageId: null, mode: null, runtimeGeneration: 1, profile: 'lastro-20211103', gameSessionId: null,
+  view.update({ status: 'runtime-ready', packageId: null, mode: null, runtimeGeneration: 1, profile: 'lastro-20211103', gameSessionId: null, disconnect: null,
     connectionGeneration: null, streamStatus: 'awaiting-sync', worldReady: false, mapResourceState: 'idle', receivedBytes: 0, sentBytes: 0,
     degradedReason: null, logs: [{ level: 'info', text: 'ready', timestamp: 0 }], runtimeStatus: null, lastDiagnostic: null, lastCommandResult: null, configIdentity: null,
     lastWorldState: null, lastWorldStateAt: null, heartbeat: null, actions: [], diagnosticLog: [] });
@@ -552,6 +552,7 @@ test('panel only renders Rust diagnostics and raw command controls', () => {
 });
 
 const baseState = {
+  disconnect: null,
   status: 'runtime-ready', packageId: null, mode: null, runtimeGeneration: 1, profile: 'lastro-20211103', gameSessionId: null,
   connectionGeneration: null, streamStatus: 'world-ready', worldReady: true, mapResourceState: 'ready', receivedBytes: 0, sentBytes: 0,
   degradedReason: null, logs: [], runtimeStatus: null, lastDiagnostic: null, lastCommandResult: null, configIdentity: null,
