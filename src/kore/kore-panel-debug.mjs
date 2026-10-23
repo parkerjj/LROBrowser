@@ -50,6 +50,28 @@ export function createKoreDebugView({ page = globalThis, host } = {}) {
     return button;
   };
 
+  // 导出的 JSON = Host 状态 + 当前角色的全部配置文件原文（config / timeouts / mon_control /
+  // pickupitems / items_control）。分析日志时要对照配置，只有状态看不出为什么某只怪没被打。
+  // 配置文本是用户自己的，原样带出；读不到时写明原因，不让导出失败。
+  async function exportJson() {
+    const state = host?.state ?? null;
+    if (!state) return json(null);
+    const owner = state.configIdentity ? { profile: state.profile, ...state.configIdentity } : null;
+    let configDocuments = null;
+    let configDocumentsError = null;
+    if (!owner) configDocumentsError = '还没有角色身份（aid/cid），没有配置可导出';
+    else {
+      try {
+        const documents = await host.getConfigDocuments(owner);
+        configDocuments = Object.fromEntries(KORE_CONFIG_FILES.map(fileName => {
+          const document = documents.find(item => item.fileName === fileName);
+          return [fileName, document ? { revision: document.revision, rawText: document.rawText } : null];
+        }));
+      } catch (error) { configDocumentsError = String(error?.message ?? error); }
+    }
+    return json({ ...state, configDocuments, ...(configDocumentsError ? { configDocumentsError } : {}) });
+  }
+
   // 数据：导出 / 复制 / 清空。
   const dataSection = section('数据');
   const dataButtons = el(document, 'div', 'kore-debug-actions');
@@ -58,16 +80,16 @@ export function createKoreDebugView({ page = globalThis, host } = {}) {
   const clearButton = el(document, 'button', 'kore-button', '清空控制台');
   copyButton.type = downloadButton.type = clearButton.type = 'button';
   copyButton.addEventListener('click', () => {
-    void copyText(page, json(host?.state ?? null)).then(copied => {
+    void exportJson().then(text => copyText(page, text)).then(copied => {
       copyButton.textContent = copied ? '已复制' : '复制失败';
       if (copied) page.setTimeout?.(() => { copyButton.textContent = '复制 JSON'; }, 1200);
     });
   });
-  downloadButton.addEventListener('click', () => {
+  downloadButton.addEventListener('click', async () => {
     const BlobCtor = page.Blob ?? globalThis.Blob;
     const createObjectURL = page.URL?.createObjectURL ?? globalThis.URL?.createObjectURL;
     if (!BlobCtor || !createObjectURL) return;
-    const url = createObjectURL(new BlobCtor([json(host?.state ?? null)], { type: 'application/json' }));
+    const url = createObjectURL(new BlobCtor([await exportJson()], { type: 'application/json' }));
     const link = document.createElement('a');
     link.href = url; link.download = 'kore-state.json';
     document.body.append(link); link.click(); link.remove();
