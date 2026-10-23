@@ -179,6 +179,45 @@ test('storage close actions send PACKET_CZ_CLOSE_STORE', async () => {
   expect(sent[0]).toBeInstanceOf(FakeCloseStore);
 });
 
+test('ToggleServerAutoFight is encoded like the toolbox switch for each nid', async () => {
+  const runtime = await readFile('generated/runtime/Online.js', 'utf8');
+  const actionAssignment = extractRuntimeNode(runtime, { kind: 'assignment', name: 'globalThis.KoreEngineNativeAction' });
+  const packetHelper = extractRuntimeNode(runtime, { kind: 'function', name: 'sendKoreEnginePacket' });
+  // @ts-expect-error The vendored runtime module intentionally has no declaration file.
+  const { buildAutoToggleRequest, mapScalarUpdate } = await import('../vendor/v2/lastro-v1-migration.mjs');
+  class FakeWhisper { receiver = ''; msg = ''; build() { return new Uint8Array(2); } }
+  class FakeUpdateInfo { id = 0; value = 0; build() { return new Uint8Array(7); } }
+  const send = (nid: number, packets: Record<string, unknown> = { WHISPER: FakeWhisper, NOTIFY_UPDATEINFO: FakeUpdateInfo }) => {
+    const sent: unknown[] = [];
+    const createSender = new Function('globalThis', 'sendKoreNativePacket', 'Network',
+      'PacketVerManager_default', 'PACKET', 'SessionStorage_default', '_socket',
+      'lastroVendingShoppingActive', 'lastroMovementUnavailable', 'Configs', 'buildAutoToggleRequest', 'mapScalarUpdate',
+      `${packetHelper}\n${actionAssignment}\nreturn globalThis.KoreEngineNativeAction;`);
+    const nativeAction = createSender(runtimePage(), (_action: unknown, packet: unknown) => { sent.push(packet); return true; },
+      { sendPacket() {} }, { value: 20211103 }, { CZ: packets }, {}, null, () => false, () => false,
+      { get: () => nid }, buildAutoToggleRequest, mapScalarUpdate);
+    return { result: nativeAction({ type: 'ToggleServerAutoFight' }), sent };
+  };
+
+  const whisper = send(3);
+  expect(whisper.result).toBe(true);
+  expect(whisper.sent).toHaveLength(1);
+  expect(whisper.sent[0]).toBeInstanceOf(FakeWhisper);
+  expect(whisper.sent[0]).toMatchObject({ receiver: 'NPC:setautoattack', msg: '0' });
+
+  for (const nid of [5, 6]) {
+    const update = send(nid);
+    expect(update.result).toBe(true);
+    expect(update.sent).toHaveLength(1);
+    expect(update.sent[0]).toBeInstanceOf(FakeUpdateInfo);
+    expect(update.sent[0]).toMatchObject({ id: 34, value: 1 });
+  }
+
+  // 封包类缺失时不发，Host 如实返回失败。
+  expect(send(3, {}).result).toBe(false);
+  expect(send(5, {}).result).toBe(false);
+});
+
 test('SelectWarpPoint is sent as the native 0x011B warp selection', async () => {
   const runtime = await readFile('generated/runtime/Online.js', 'utf8');
   const actionAssignment = extractRuntimeNode(runtime, { kind: 'assignment', name: 'globalThis.KoreEngineNativeAction' });

@@ -1551,6 +1551,25 @@ globalThis.KoreEngineNativeAction = (action) => {
     packet.count = action.amount;
     return sendKoreEnginePacket(action, packet);
   }
+  if (action.type === "ToggleServerAutoFight") {
+    // LastRO 服务器版“自动战斗”开关是切换：nid 5/6 发 NOTIFY_UPDATEINFO(34, 1)，nid 3 私聊
+    // NPC:setautoattack。编码方式和工具箱的开关一致；状态由服务器 0x0AF6 回报给 KE。
+    const request = buildAutoToggleRequest({ nid: Configs.get("lastroNid", 0), option: "autoAttack", enabled: false });
+    if (request?.kind === "whisper") {
+      if (!PACKET?.CZ?.WHISPER) return false;
+      const packet = new PACKET.CZ.WHISPER();
+      packet.receiver = request.receiver;
+      packet.msg = request.msg;
+      return sendKoreEnginePacket(action, packet);
+    }
+    if (request?.kind === "update") {
+      if (!PACKET?.CZ?.NOTIFY_UPDATEINFO) return false;
+      const packet = new PACKET.CZ.NOTIFY_UPDATEINFO();
+      Object.assign(packet, mapScalarUpdate(request));
+      return sendKoreEnginePacket(action, packet);
+    }
+    return false;
+  }
   if (action.type === "StorageClose") {
     // OpenKore sendStorageClose：服务端仓库没关时，后续的飞空艇请求会被静默忽略。
     if (!PACKET?.CZ?.CLOSE_STORE) return false;
