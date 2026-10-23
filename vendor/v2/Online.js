@@ -160011,10 +160011,10 @@ var init_PacketStructure = __esmMin(() => {
     this.AutoUseSit_reSpUpVal = readByte();
     this.AutoUseSit_xw = readByte();
     this.onlynoattack = readByte();
-    // startAutofollow 在 payload@43（OpenKore LastroFollow 靠它在真服上恢复自动跟随），四个 start*
-    // 开关连续排列，所以 startAutoAtk 在 @40。这之前已命名的字段只有 39 字节，缺的这 1 字节位置
-    // 没有抓包可查，先放在开关组前面，让开关组和它后面的字段对齐。
-    this.unknownBeforeStart = readByte();
+    // 官方 Online.js（ROWeb/ro、ROWeb/v1-debug）的 NOTIFY_LOADINFO 在 onlynoattack 后面还有这一个
+    // 字节，之后才是四个 start* 开关；缺了它，开关组和后面的所有字段都会被读早一个字节。
+    // 对照 OpenKore LastroFollow：startAutofollow 在 payload@43。
+    this.AutoUseItem_Protection = readByte();
     this.startAutoAtk = readByte();
     this.startAutoLoot = readByte();
     this.startAutopots = readByte();
