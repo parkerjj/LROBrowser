@@ -163,6 +163,19 @@ test('an authorization error offers a retry alongside re-login and explains boot
   view.destroy();
 });
 
+test('an account without the core module is told how to get it instead of seeing a generic rejection', () => {
+  const { host, view } = mount({ phase: 'error', user: { displayName: 'Parker' }, error: 'KE_NOT_ENTITLED' });
+
+  const text = view.element.textContent ?? '';
+  expect(text).toContain('账号未开通核心功能');
+  expect(text).toContain('确认邮箱已验证');
+  expect(text).toContain('KE_NOT_ENTITLED');
+  expect(text).not.toContain('LTSD 拒绝了请求');
+  Array.from(view.element.querySelectorAll('button')).find(button => button.textContent === '重试')!.click();
+  expect(host.retryAuthorization).toHaveBeenCalledOnce();
+  view.destroy();
+});
+
 test('a stalled character bind can be retried and the license start keeps the console visible', () => {
   const waiting = mount({ phase: 'waiting-bind', user: { displayName: 'Parker' } });
   Array.from(waiting.view.element.querySelectorAll('button')).find(button => button.textContent === '重试')!.click();

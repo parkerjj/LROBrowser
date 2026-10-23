@@ -26,6 +26,11 @@ const GUIDES = {
     cause: '当前账号同时运行的 KoreEngine 实例已达上限。',
     steps: ['在其他窗口或设备上停止自动模式', '或者选择一个正在运行的实例并替换'],
   },
+  KE_NOT_ENTITLED: {
+    title: '账号未开通核心功能',
+    cause: '当前 LTSD 账号没有 KoreEngine 的核心使用权限。通常是邮箱还没有验证，或者权限已经到期。',
+    steps: ['在 LTSD 网站的账号页确认邮箱已验证', '如果权限已到期或你认为不该受限，请联系 LTSD 管理员', RETRY],
+  },
   KE_INSTANCE_KICKED: {
     title: '这个窗口已被其他窗口顶替',
     cause: '此 KoreEngine 实例已在 LTSD 中停止。',
