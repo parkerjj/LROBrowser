@@ -1,0 +1,25 @@
+define("DB/Items/EquipmentLocation", [], function () {
+  return {
+    HEAD_BOTTOM: 1,
+    WEAPON: 2,
+    GARMENT: 4,
+    ACCESSORY1: 8,
+    ARMOR: 16,
+    SHIELD: 32,
+    SHOES: 64,
+    ACCESSORY2: 128,
+    HEAD_TOP: 256,
+    HEAD_MID: 512,
+    AMMO: 32768,
+    HEAD_TOP_F: 1024,
+    HEAD_MID_F: 2048,
+    HEAD_BOTTOM_F: 4096,
+    GARMENT_F: 8192,
+    ARMOR_F: 65536,
+    WEAPON_F: 131072,
+    SHIELD_F: 262144,
+    SHOES_F: 524288,
+    ACC_R_F: 1048576,
+    ACC_L_F: 2097152,
+  };
+});

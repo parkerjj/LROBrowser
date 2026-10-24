@@ -1,0 +1,3 @@
+define("text!UI/Components/StatusIcons/StatusIcons.css", [], function () {
+  return "#StatusIcons {\n\tdisplay:block;\n\tposition: absolute;\n\ttop:180px;\n\tright:10px;\n\tz-index:50;\n}\n\n#StatusIcons .state {\n\tposition:absolute;\n}\n\n#StatusIcons .state .description {\n\tdisplay:none;\n\tz-index:51;\n\tposition:absolute;\n\tright:36px;\n\ttop:0px;\n\tpadding: 5px 6px;\n\tbackground-color:rgba(0,0,0,0.5);\n\tborder-radius:3px;\n\tcolor:white;\n\ttext-shadow:1px 1px black;\n\twhite-space:nowrap;\n\tfont-size:11px;\n\tline-height:16px;\n}\n\n#StatusIcons .state:hover .description {\n\tdisplay:block;\n}\n\n#StatusIcons .state canvas {\n\twidth:32px;\n\theight:32px;\n}\n";
+});

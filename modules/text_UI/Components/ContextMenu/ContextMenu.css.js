@@ -1,0 +1,3 @@
+define("text!UI/Components/ContextMenu/ContextMenu.css", [], function () {
+  return "#ContextMenu {\r\n\tposition:fixed;\r\n\ttop:0px;\r\n\tleft:0px;\r\n\twidth:100%;\r\n\theight:100%;\r\n\tz-index:1000;\r\n}\r\n#ContextMenu .menu {\r\n\tposition:absolute;\r\n\tbackground-color:white;\r\n\tborder-radius:3px;border:solid 1px #777;}\r\n\r\n#ContextMenu .menu hr {\r\n\tbackground-color:#cecece;\r\n\theight:1px;\r\n\tborder:none;\r\n\tmargin: 2px;\r\n}\r\n\r\n#ContextMenu .menu div {\r\n\tfont-size:12px;\r\n\tcolor:black;\r\n\twhite-space:nowrap;\r\n\tpadding:5px;\r\n\theight:14px;border-bottom:solid 1px #ccc;}\r\n\r\n#ContextMenu .menu div:hover {\r\n\tbackground-color:#739cef;color:#fff;}";
+});

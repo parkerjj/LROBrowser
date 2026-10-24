@@ -1,0 +1,3 @@
+define("text!UI/Components/miniQuest/miniQuest.css", [], function () {
+  return "#miniQuest{position: absolute;top: 115px;right: 160px;z-index: inherit;color: white;text-shadow: 1px 1px 0px black;width: 195px;height: 120px;}#miniQuest .container{text-align: left;-webkit-animation: fadeIn .3s ease both;animation: fadeIn .3s ease both;}#miniQuest .container .content{width: 100%;height: inherit;}#miniQuest .container .content .task{margin: 5px 0px;padding: 5px 10px;border-radius: 3px;border: solid 1px transparent;}#miniQuest .container .content .task .title{white-space: nowrap;text-overflow: ellipsis;overflow: hidden;}#miniQuest .container .content .task .desc{}";
+});

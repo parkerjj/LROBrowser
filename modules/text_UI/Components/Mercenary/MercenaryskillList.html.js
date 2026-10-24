@@ -1,0 +1,3 @@
+define("text!UI/Components/Mercenary/MercenaryskillList.html", [], function () {
+  return '\x3cdiv id\x3d"MercenaryskillList" class\x3d"pt-page-fadeIn"\x3e\n\t\x3cdiv class\x3d"border"\x3e\n\n\t\t\x3cdiv class\x3d"titlebar"\x3e\n\t\t\t\x3cdiv class\x3d"left"\x3e\x3cspan class\x3d"text" data-text\x3d"1262"\x3eSkill Tree\x3c/span\x3e\n\t\t\t\x3c/div\x3e\n\t\t\t\x3cdiv class\x3d"right"\x3e\x3cbutton class\x3d"base close"\x3ex\x3c/button\x3e\n\t\t\t\x3c/div\x3e\n\t\t\t\x3cdiv class\x3d"clear"\x3e\x3c/div\x3e\n\t\t\x3c/div\x3e\n\n\t\t\x3cdiv class\x3d"panel"\x3e\n\t\t\t\x3cdiv class\x3d"content"\x3e\n\t\t\t\t\x3ctable\x3e\x3c/table\x3e\n\t\t\t\x3c/div\x3e\n\n\t\t\t\x3c/div\x3e\n\t\x3c/div\x3e\x3c/div\x3e';
+});

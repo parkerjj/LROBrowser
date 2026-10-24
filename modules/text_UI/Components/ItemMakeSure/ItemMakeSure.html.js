@@ -1,0 +1,3 @@
+define("text!UI/Components/ItemMakeSure/ItemMakeSure.html", [], function () {
+  return '\x3cdiv id\x3d"ItemMakeSure" class\x3d"pt-page-fadeIn1"\x3e \n\t\x3cdiv class\x3d"head" \x3e\n\t\t\x3cspan class\x3d"title"\x3e\x3c/span\x3e\n\t\x3c/div\x3e\n\t\x3cdiv class\x3d"content"\x3e\n\t\t\x3cspan class\x3d"text"\x3e\u5c5e\u6027\u9644\u52a0\x3c/span\x3e\x3cdiv class\x3d"list"  data-background\x3d"basic_interface/itemwin_mid.bmp"\x3e\x3c/div\x3e\n\t\x3c/div\x3e\x3cdiv class\x3d"bottom" \x3e\n\t\t\x3cbutton class\x3d"btn cancel"\x3e\u53d6\u6d88\x3c/button\x3e\n\t\t\x3cbutton class\x3d"btn ok"\x3e\u786e\u5b9a\x3c/button\x3e\n\t\x3c/div\x3e\n\t\n\x3c/div\x3e';
+});

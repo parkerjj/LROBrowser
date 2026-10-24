@@ -1,0 +1,22 @@
+define("DB/Jobs/MountTable", ["./JobConst"], function (a) {
+  var b = {};
+  b[a.KNIGHT] = a.KNIGHT2;
+  b[a.CRUSADER] = a.CRUSADER2;
+  b[a.KNIGHT_H] = a.KNIGHT2_H;
+  b[a.CRUSADER_H] = a.CRUSADER2_H;
+  b[a.KNIGHT_B] = a.KNIGHT2_B;
+  b[a.CRUSADER_B] = a.CRUSADER2_B;
+  b[a.RUNE_KNIGHT] = a.RUNE_KNIGHT2;
+  b[a.RUNE_KNIGHT_H] = a.RUNE_KNIGHT2_H;
+  b[a.RUNE_KNIGHT_B] = a.RUNE_KNIGHT2_B;
+  b[a.ROYAL_GUARD] = a.ROYAL_GUARD2;
+  b[a.ROYAL_GUARD_H] = a.ROYAL_GUARD2_H;
+  b[a.ROYAL_GUARD_B] = a.ROYAL_GUARD2_B;
+  b[a.RANGER] = a.RANGER2;
+  b[a.RANGER_H] = a.RANGER2_H;
+  b[a.RANGER_B] = a.RANGER2_B;
+  b[a.MECHANIC] = a.MECHANIC2;
+  b[a.MECHANIC_H] = a.MECHANIC2_H;
+  b[a.MECHANIC_B] = a.MECHANIC2_B;
+  return b;
+});

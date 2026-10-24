@@ -1,0 +1,3 @@
+define("text!UI/Components/NpcBox/NpcBox.css", [], function () {
+  return "#NpcBox { position:absolute; top:100px; left:100px; width:276px; height:176px; border-radius:5px; background:white; padding:2px; line-height:18px; letter-spacing:0px; }\r\n#NpcBox .border { border:1px solid #c1c6c2; width:264px; height:164px; padding:5px; border-radius:5px; }\r\n#NpcBox .content { white-space:pre-wrap; background-color:#eff4f0; width:254px; height:130px; overflow-y:auto; padding:5px; }\r\n#NpcBox .btns { position:absolute; bottom: 6px; right:8px; }\r\n#NpcBox .btn { border:0; width:42px; height:20px; bottom:4px; background-repeat:no-repeat; background-color:transparent; display:none; }";
+});

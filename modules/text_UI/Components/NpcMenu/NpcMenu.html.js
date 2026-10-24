@@ -1,0 +1,3 @@
+define("text!UI/Components/NpcMenu/NpcMenu.html", [], function () {
+  return '\x3cdiv id\x3d"NpcMenu" class\x3d"pt-page-fadeIn" style\x3d"transform-origin: left top;"\x3e\r\n\t\x3cdiv class\x3d"container"\x3e\r\n\t\t\x3cspan class\x3d"title"\x3e\x3c/span\x3e\r\n\t\t\x3cdiv class\x3d"content"\x3e\x3c/div\x3e\r\n\t\t\x3cbutton class\x3d"btn cancel" data-background\x3d"btn_cancel.bmp" data-hover\x3d"btn_cancel_a.bmp" data-down\x3d"btn_cancel_b.bmp"\x3e\x3c/button\x3e\r\n\t\t\x3cbutton class\x3d"btn ok" data-background\x3d"btn_ok.bmp" data-hover\x3d"btn_ok_a.bmp" data-down\x3d"btn_ok_b.bmp"\x3e\x3c/button\x3e\r\n\t\x3c/div\x3e\r\n\x3c/div\x3e';
+});

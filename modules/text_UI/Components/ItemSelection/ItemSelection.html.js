@@ -1,0 +1,3 @@
+define("text!UI/Components/ItemSelection/ItemSelection.html", [], function () {
+  return '\x3cdiv id\x3d"ItemSelection" class\x3d"pt-page-fadeIn"\x3e \n\t\x3cdiv class\x3d"head" data-background\x3d"basic_interface/titlebar_mid.bmp"\x3e\n\t\t\x3cspan class\x3d"text"\x3e\x3c/span\x3e\n\t\x3c/div\x3e\x3cdiv class\x3d"content"\x3e\n\t\t\x3cdiv class\x3d"list"\x3e\x3c/div\x3e\n\t\x3c/div\x3e\n\t\x3cdiv class\x3d"bottom"\x3e\n\t\t\x3cbutton class\x3d"btn cancel" data-background\x3d"btn_cancel.bmp" data-hover\x3d"btn_cancel_a.bmp" data-down\x3d"btn_cancel_b.bmp"\x3e\x3c/button\x3e\n\t\t\x3cbutton class\x3d"btn ok" data-background\x3d"btn_ok.bmp" data-hover\x3d"btn_ok_a.bmp" data-down\x3d"btn_ok_b.bmp"\x3e\x3c/button\x3e\n\t\x3c/div\x3e\n\t\n\x3c/div\x3e';
+});

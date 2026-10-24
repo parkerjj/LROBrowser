@@ -1,0 +1,3 @@
+define("text!UI/Components/NpcBox/NpcBox.html", [], function () {
+  return '\x3cdiv id\x3d"NpcBox" class\x3d"pt-page-fadeIn" style\x3d"transform-origin: left top;"\x3e\r\n\t\x3cdiv class\x3d"border"\x3e\r\n\t\t\x3cdiv class\x3d"content"\x3e\x3c/div\x3e\r\n\t\t\x3cdiv class\x3d"btns"\x3e\r\n\t\t\t\x3cbutton class\x3d"btn close" data-background\x3d"btn_close.bmp" data-hover\x3d"btn_close_a.bmp" data-down\x3d"btn_close_b.bmp"\x3e\x3c/button\x3e\r\n\t\t\t\x3cbutton class\x3d"btn next" data-background\x3d"btn_next.bmp" data-hover\x3d"btn_next_a.bmp" data-down\x3d"btn_next_b.bmp"\x3e\x3c/button\x3e\r\n\t\t\x3c/div\x3e\r\n\t\x3c/div\x3e\r\n\x3c/div\x3e';
+});
