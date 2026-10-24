@@ -1,0 +1,55 @@
+name: Online.js archive
+
+# 每 6 小时抓取官方 Online.js；仅当内容 hash 与 js-archive 分支上最新一份不同时才提交。
+# 分支内容：onlinejs-<yyyymmddHH UTC>-<sha256 前 12 位>.js 原件 + modules/ 美化并按 AMD 模块拆分的版本（便于 git diff）。
+# 注意：schedule 只会读取默认分支（main）上的本文件。
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: online-js-archive
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      ARCHIVE_DIR: ${{ runner.temp }}/js-archive
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 1
+          sparse-checkout: scripts/archive-online-js.mjs
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24
+      - name: Prepare js-archive worktree
+        run: |
+          if git ls-remote --exit-code --heads origin js-archive >/dev/null; then
+            git fetch --depth=1 origin js-archive
+            git worktree add -B js-archive "$ARCHIVE_DIR" FETCH_HEAD
+          else
+            git worktree add --orphan -b js-archive "$ARCHIVE_DIR"
+          fi
+      - name: Download, compare and archive
+        id: archive
+        run: node scripts/archive-online-js.mjs "$ARCHIVE_DIR"
+      # 即使美化失败（上一步报红），也要把已落盘的原件提交，避免丢失这一版。
+      - name: Commit and push
+        if: always() && steps.archive.outputs.changed == 'true'
+        working-directory: ${{ runner.temp }}/js-archive
+        env:
+          ARCHIVE_NAME: ${{ steps.archive.outputs.name }}
+        run: |
+          git add -A
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "archive: ${ARCHIVE_NAME}"
+          git push origin js-archive
