@@ -108,7 +108,7 @@ function fixture(files = resources()) {
   const host = document.createElement('div'), root = host.attachShadow({ mode: 'open' });
   document.body.append(host);
   const content = document.createElement('div'); root.append(content);
-  const packets: unknown[] = [], reads: string[] = [], pending: Array<() => void> = [];
+  const packets: unknown[] = [], reads: string[] = [];
   const popup = vi.fn(), notice = vi.fn(), label = vi.fn((map: string) => map === 'lhz_dun03.gat' ? '生体实验室3层' : map);
   const state = { currentMap: 'izlude.gat', loading: false };
   const menu = { __active: false, _host: document.createElement('div') };
@@ -119,7 +119,6 @@ function fixture(files = resources()) {
     const prompt = prompts.ui.showPromptBox(message, yes, no, onYes, onNo);
     confirmations.push({ prompt, yes: onYes, no: onNo }); return prompt;
   });
-  let manual = false, profile = 5;
   const npc: NpcMapComponent = {
     ownerID: 42, __active: true, _host: host, getRoot: () => root,
     next: vi.fn(), setText: vi.fn(), addNext: vi.fn(), addClose: vi.fn(),
@@ -136,9 +135,8 @@ function fixture(files = resources()) {
     return NpcBox._lastroMapLinks;
   `)(npc, { send: (type: string, input: { filename: string }, callback: (bytes: ArrayBuffer | null, error?: string) => void) => {
     expect(type).toBe('GET_FILE'); reads.push(input.filename);
-    const complete = () => callback(files[input.filename] ?? null, files[input.filename] ? undefined : 'http-404');
-    if (manual) pending.push(complete); else queueMicrotask(complete);
-  } }, { mapalias: {}, getMapName: label }, state, { get: () => profile }, { CZ: { PRIVATE_AIRSHIP_REQUEST: class {} } },
+    queueMicrotask(() => callback(files[input.filename] ?? null, files[input.filename] ? undefined : 'http-404'));
+  } }, { mapalias: {}, getMapName: label }, state, { get: () => 5 }, { CZ: { PRIVATE_AIRSHIP_REQUEST: class {} } },
   { sendPacket: (packet: unknown) => packets.push(packet) }, buildPrivateAirshipRequest, (map: string) => map.replace(/\.gat$/i, ''),
   { showErrorBox: popup, showPromptBox: showPrompt }, { warn: () => {} }, describeLastroMapLoadFailure, setLastROInnerHTML, menu, input, notice, mouse, session, resolveLastroMapResourceName, assistantInput);
   npc.init?.();
@@ -155,9 +153,8 @@ function fixture(files = resources()) {
     const event = new window.KeyboardEvent('keydown', { key, bubbles: true, composed: true, cancelable: true, ...options });
     window.dispatchEvent(event); return event;
   };
-  return { api, npc, host, content, link, packets, reads, popup, notice, label, state, menu, input, pending, mouse, session,
-    showPrompt, confirmations, answer, key, inputValidate: prompts.inputValidate,
-    manual: () => { manual = true; }, setProfile: () => { profile++; } };
+  return { api, npc, host, content, link, packets, reads, popup, notice, label, state, menu, input, mouse, session,
+    showPrompt, confirmations, answer, key, inputValidate: prompts.inputValidate };
 }
 
 beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] }));
@@ -171,7 +168,7 @@ describe('packaged MVP map link teleport adapter', () => {
     expect(f.packets).toEqual([]); expect(f.reads).toEqual([]);
     expect(f.host.isConnected).toBe(true);
   });
-  it('checks scene references and sends one original map-level warp then closes the native dialog', async () => {
+  it('sends one original map-level warp without scene preflight then closes the native dialog', async () => {
     const f = fixture();
     expect(f.label).toHaveBeenCalledWith('lhz_dun03.gat', 'lhz_dun03');
     expect(f.content.textContent).not.toContain('^nMapName^');
@@ -179,7 +176,7 @@ describe('packaged MVP map link teleport adapter', () => {
     expect(f.showPrompt).toHaveBeenCalledWith(expect.stringContaining('生体实验室3层'), 'ok', 'cancel', expect.any(Function), expect.any(Function));
     expect(f.reads).toEqual([]); expect(f.packets).toEqual([]);
     await f.answer(); expect(await result).toBe(true);
-    expect(f.reads).toEqual(['data/lhz_dun03.rsw', 'data/terrain.gnd', 'data/collision.gat']);
+    expect(f.reads).toEqual([]);
     expect(f.packets).toEqual([
       { kind: 'CLOSE_DIALOG', ownerID: 42 },
       expect.objectContaining({ mapname: 'lhz_dun03', type: 0, x: 0, y: 0, itemid: 14527 }),
@@ -188,29 +185,19 @@ describe('packaged MVP map link teleport adapter', () => {
     expect(f.popup).not.toHaveBeenCalled();
   });
 
-  it.each(['scene', 'ground', 'collision', 'corrupt-ground'])('keeps the board visible with no packets for failed %s', async kind => {
-    const files = resources();
-    if (kind === 'scene') files['data/lhz_dun03.rsw'] = null;
-    if (kind === 'ground') files['data/terrain.gnd'] = null;
-    if (kind === 'collision') files['data/collision.gat'] = null;
-    if (kind === 'corrupt-ground') files['data/terrain.gnd'] = new ArrayBuffer(100);
-    const f = fixture(files);
-    const result = f.api.request(f.link); await f.answer(); expect(await result).toBe(false);
-    expect(f.packets).toEqual([]);
-    expect(f.host.isConnected).toBe(true);
-    expect(f.link.textContent).toBe('生体实验室3层');
-    expect(f.link.hasAttribute('aria-busy')).toBe(false);
-    expect(f.popup).toHaveBeenCalledOnce();
+  it('is not blocked by unavailable scene files because they are never fetched', async () => {
+    const f = fixture({ 'data/terrain.gnd': new ArrayBuffer(100) });
+    const result = f.api.request(f.link); await f.answer(); expect(await result).toBe(true);
+    expect(f.reads).toEqual([]); expect(f.popup).not.toHaveBeenCalled();
+    expect(f.packets).toEqual([{ kind: 'CLOSE_DIALOG', ownerID: 42 }, expect.objectContaining({ mapname: 'lhz_dun03', type: 0 })]);
   });
 
-  it('coalesces repeated clicks during preflight', async () => {
-    const f = fixture(); f.manual();
+  it('coalesces repeated clicks while the confirmation is pending', async () => {
+    const f = fixture();
     const first = f.api.request(f.link);
     expect(await f.api.request(f.link)).toBe(false);
     expect(f.showPrompt).toHaveBeenCalledOnce(); expect(f.reads).toEqual([]);
-    await f.answer(); expect(await f.api.request(f.link)).toBe(false);
-    for (let index = 0; index < 4; index++) { await vi.advanceTimersByTimeAsync(0); f.pending[index]?.(); }
-    expect(await first).toBe(true);
+    await f.answer(); expect(await first).toBe(true);
     expect(f.packets).toHaveLength(2);
   });
 
@@ -235,25 +222,15 @@ describe('packaged MVP map link teleport adapter', () => {
     expect(f.inputValidate).not.toHaveBeenCalled();
   });
 
-  it.each(['menu', 'input'] as const)('keeps confirmed mouse authorization when %s appears during preflight', async name => {
-    const f = fixture(); f.manual(); const result = f.api.request(f.link); await f.answer();
-    if (name === 'menu') { f.menu.__active = true; document.body.append(f.menu._host); } else f.input.append();
-    for (let index = 0; index < 4; index++) { f.pending[index]?.(); await vi.advanceTimersByTimeAsync(0); }
-    expect(await result).toBe(true);
-    expect(f.packets).toEqual([{ kind: 'CLOSE_DIALOG', ownerID: 42 }, expect.objectContaining({ mapname: 'lhz_dun03', type: 0 })]);
-  });
-
   it('prioritizes native prompt Enter over an earlier InputBox capture binding and restores NPC freeze and input keys', async () => {
-    const f = fixture(); f.manual(); f.input.append();
+    const f = fixture(); f.input.append();
     f.key('Enter'); expect(f.inputValidate).toHaveBeenCalledTimes(1); f.inputValidate.mockClear();
     const result = f.api.request(f.link), prompt = f.confirmations[0]!.prompt;
     expect(f.key('Enter').defaultPrevented).toBe(true); await vi.advanceTimersByTimeAsync(0);
     expect(prompt._host.isConnected).toBe(false); expect(f.inputValidate).not.toHaveBeenCalled();
-    expect(f.reads).toEqual(['data/lhz_dun03.rsw']); expect(f.packets).toEqual([]);
+    expect(await result).toBe(true); expect(f.reads).toEqual([]); expect(f.packets).toHaveLength(2);
     expect(f.mouse.intersect).toBe(false); expect(f.session.FreezeUI).toBe(true);
     f.key('Enter'); expect(f.inputValidate).toHaveBeenCalledTimes(1);
-    for (let index = 0; index < 4; index++) { f.pending[index]?.(); await vi.advanceTimersByTimeAsync(0); }
-    expect(await result).toBe(true); expect(f.packets).toHaveLength(2);
   });
 
   it('consumes repeat and IME keys before InputBox, cancels with Escape, and restores the original input capture', async () => {
@@ -280,10 +257,9 @@ describe('packaged MVP map link teleport adapter', () => {
     f.key('Enter'); expect(f.inputValidate).toHaveBeenCalledTimes(1);
   });
 
-  it.each(['removed-link', 'removed-host', 'hidden', 'inactive', 'owner', 'tampered-map', 'next', 'map', 'profile'])('rejects a late warp after %s', async change => {
-    const f = fixture(); f.manual();
+  it.each(['removed-link', 'removed-host', 'hidden', 'inactive', 'owner', 'tampered-map', 'next'])('rejects a stale confirmation after %s', async change => {
+    const f = fixture();
     const result = f.api.request(f.link);
-    await f.answer();
     if (change === 'removed-link') f.link.remove();
     if (change === 'removed-host') f.host.remove();
     if (change === 'hidden') f.host.style.display = 'none';
@@ -291,9 +267,7 @@ describe('packaged MVP map link teleport adapter', () => {
     if (change === 'owner') f.npc.ownerID = 43;
     if (change === 'tampered-map') f.link.dataset.map = 'prontera';
     if (change === 'next') f.npc.next();
-    if (change === 'map') f.state.currentMap = 'payon.gat';
-    if (change === 'profile') f.setProfile();
-    for (let index = 0; index < 4; index++) { f.pending[index]?.(); await vi.advanceTimersByTimeAsync(0); }
+    await f.answer();
     expect(await result).toBe(false);
     expect(f.packets).toEqual([]);
   });

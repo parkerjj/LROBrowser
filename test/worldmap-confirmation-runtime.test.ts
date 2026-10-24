@@ -106,7 +106,7 @@ function fixture() {
 afterEach(() => cleanups.splice(0).forEach(cleanup => cleanup()));
 
 describe('native world map confirmation integration', () => {
-  it('starts resource checks only after the real native OK button removes its popup and approves', async () => {
+  it('sends only after the real native OK button removes its popup and approves, without resource checks', async () => {
     const f = fixture(), result = f.api.request('ein_fild04', '艾音布罗克原野');
     expect(f.showPrompt).toHaveBeenCalledWith('是否传送到艾音布罗克原野？\nein_fild04', 'ok', 'cancel', expect.any(Function), expect.any(Function));
     expect(f.prompts[0]?._host.isConnected).toBe(true);
@@ -117,7 +117,7 @@ describe('native world map confirmation integration', () => {
     expect(f.events).toEqual(['remove', 'yes']);
     expect(f.prompts[0]?._host.isConnected).toBe(false);
     expect(await result).toBe(true);
-    expect(f.reads).toEqual(['data/ein_fild04.rsw', 'data/terrain.gnd', 'data/collision.gat']);
+    expect(f.reads).toEqual([]);
     expect(f.packets).toEqual([expect.objectContaining({ mapname: 'ein_fild04', type: 0, x: 0, y: 0, itemid: 14527 })]);
     expect(f.removed).toHaveBeenCalledOnce(); expect(f.session.FreezeUI).toBe(false);
     f.button('ok').click(); await Promise.resolve(); expect(f.packets).toHaveLength(1);
