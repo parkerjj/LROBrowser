@@ -20,8 +20,6 @@ jobs:
   archive:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    env:
-      ARCHIVE_DIR: ${{ runner.temp }}/js-archive
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -33,6 +31,8 @@ jobs:
           node-version: 24
       - name: Prepare js-archive worktree
         run: |
+          echo "ARCHIVE_DIR=$RUNNER_TEMP/js-archive" >> "$GITHUB_ENV"
+          ARCHIVE_DIR="$RUNNER_TEMP/js-archive"
           if git ls-remote --exit-code --heads origin js-archive >/dev/null; then
             git fetch --depth=1 origin js-archive
             git worktree add -B js-archive "$ARCHIVE_DIR" FETCH_HEAD
