@@ -215,7 +215,7 @@ export function patchRuntimeQuests(source) {
       const requests = LastROTools?._lastroQuestRoute;
       if (!requests) throw new Error("传送功能尚未就绪");
       const direct = route.path?.length === 1 && route.outset?.every((value, index) => value === route.path[0][index]);
-      return requests.request({...route, direct});
+      return requests.request({...route, direct}, { skipPreflight: true });
     },
     cancelPendingRoute: () => LastROTools?._lastroQuestRoute?.cancelPending(),
     cancelRoute: () => LastROTools?._lastroQuestRoute?.cancel(),

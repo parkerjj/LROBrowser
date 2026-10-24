@@ -7,6 +7,8 @@ export interface WorldMapTeleportOptions {
   onSameMap?(mapid: string): void;
   onError?(error: unknown): void;
   shouldConfirmTeleport?(): boolean;
+  /** Send the warp without validating the target map's resources first. */
+  skipPreflight?: boolean;
   showPrompt?(message: string, onYes: () => void, onNo: () => void): {
     onRemove?: (...args: unknown[]) => unknown;
     remove?: () => void;
