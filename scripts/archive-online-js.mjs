@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import console from 'node:console';
 import { appendFileSync } from 'node:fs';
-import { mkdir, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -13,20 +13,12 @@ export const ONLINE_JS_URL = 'https://game.lastro.cn/ro/Online.js';
 export const PRETTIER_VERSION = '3.9.10';
 const MIN_BYTES = 1_000_000;
 const MAX_BYTES = 50_000_000;
-const ARCHIVE_NAME = /^onlinejs-(\d{10})-([0-9a-f]{12})\.js$/;
 
 export const shortHash = (bytes) => createHash('sha256').update(bytes).digest('hex').slice(0, 12);
 
 export function buildArchiveName(date, hash) {
   const stamp = date.toISOString().slice(0, 13).replace(/\D/g, '');
   return `onlinejs-${stamp}-${hash}.js`;
-}
-
-/** 返回文件名时间戳最新的归档 hash；与「最新一份」比较，回滚到旧版本同样会被记录。 */
-export function latestArchivedHash(fileNames) {
-  const matches = fileNames.map((name) => ARCHIVE_NAME.exec(name)).filter(Boolean);
-  matches.sort((a, b) => a[1].localeCompare(b[1]));
-  return matches.at(-1)?.[2] ?? null;
 }
 
 export async function downloadOnlineJs(url = ONLINE_JS_URL, { fetchImpl = globalThis.fetch } = {}) {
@@ -78,12 +70,24 @@ export function splitModules(prettyText) {
   return chunks.map(({ file, text }) => ({ file, text }));
 }
 
+/** latest.json 记录 hash（最近一次写入的原件）与 modulesHash（modules/ 对应的版本），不依赖文件名排序，也让美化失败的版本可以重试。 */
+async function readState(statePath) {
+  try { return JSON.parse(await readFile(statePath, 'utf8')); } catch { return {}; }
+}
+
 export async function archiveOnlineJs({ archiveDir, url = ONLINE_JS_URL, now = new Date(), download = downloadOnlineJs, format = formatWithPrettier }) {
   const bytes = await download(url);
   const hash = shortHash(bytes);
-  if (latestArchivedHash(await readdir(archiveDir)) === hash) return { changed: false, hash };
-  const name = buildArchiveName(now, hash);
-  await writeFile(path.join(archiveDir, name), bytes);
+  const statePath = path.join(archiveDir, 'latest.json');
+  const state = await readState(statePath);
+  if (state.hash === hash && state.modulesHash === hash) return { changed: false, hash };
+  // hash 已归档但 modules/ 没跟上（上次美化失败）：只重试美化，不重复存原件。
+  let name;
+  if (state.hash !== hash) {
+    name = buildArchiveName(now, hash);
+    await writeFile(path.join(archiveDir, name), bytes);
+    await writeFile(statePath, `${JSON.stringify({ hash, modulesHash: state.modulesHash })}\n`);
+  }
   // 原件已落盘；美化失败只影响 diff 视图，由调用方报错，不应丢掉这一份归档。
   try {
     const modules = splitModules(await format(bytes));
@@ -93,6 +97,7 @@ export async function archiveOnlineJs({ archiveDir, url = ONLINE_JS_URL, now = n
       await mkdir(path.dirname(path.join(root, file)), { recursive: true });
       await writeFile(path.join(root, file), text);
     }
+    await writeFile(statePath, `${JSON.stringify({ hash, modulesHash: hash })}\n`);
     return { changed: true, hash, name, modules: modules.length };
   } catch (formatError) {
     return { changed: true, hash, name, formatError };
@@ -104,7 +109,7 @@ if (process.argv[1]?.endsWith('archive-online-js.mjs')) {
   if (!archiveDir) throw new Error('usage: archive-online-js.mjs <archive-dir>');
   const result = await archiveOnlineJs({ archiveDir });
   console.log(JSON.stringify({ ...result, formatError: result.formatError?.message }));
-  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `changed=${result.changed}\nname=${result.name ?? ''}\n`);
+  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `changed=${result.changed}\nname=${result.name ?? `retry-modules-${result.hash}`}\n`);
   if (result.formatError) {
     console.error(`::error::Online.js 已归档但美化失败：${result.formatError.message}`);
     process.exitCode = 1;

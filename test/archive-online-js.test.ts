@@ -4,7 +4,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
 import {
-  archiveOnlineJs, buildArchiveName, downloadOnlineJs, latestArchivedHash, shortHash, splitModules,
+  archiveOnlineJs, buildArchiveName, downloadOnlineJs, shortHash, splitModules,
 } from '../scripts/archive-online-js.mjs';
 
 const PRETTY = [
@@ -34,11 +34,8 @@ const PRETTY = [
 ].join('\n');
 
 describe('Online.js archive', () => {
-  it('names archives with a UTC hour stamp and picks the newest hash', () => {
+  it('names archives with a UTC hour stamp', () => {
     expect(buildArchiveName(new Date('2026-10-24T23:59:59Z'), 'abcdef012345')).toBe('onlinejs-2026102423-abcdef012345.js');
-    expect(latestArchivedHash(['.git', 'modules', 'onlinejs-2026102406-aaaaaaaaaaaa.js', 'onlinejs-2026102412-bbbbbbbbbbbb.js', 'onlinejs-bad.js']))
-      .toBe('bbbbbbbbbbbb');
-    expect(latestArchivedHash(['.git'])).toBeNull();
     expect(shortHash(new Uint8Array([1, 2, 3]))).toMatch(/^[0-9a-f]{12}$/);
   });
 
@@ -93,6 +90,34 @@ describe('Online.js archive', () => {
       expect(result.changed).toBe(true);
       expect(result.formatError?.message).toBe('boom');
       expect((await readdir(dir)).filter((f) => f.startsWith('onlinejs-'))).toHaveLength(1);
+    } finally { await rm(dir, { recursive: true, force: true }); }
+  });
+
+  it('tracks the latest hash in state, not by filename order within one hour', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'online-js-archive-'));
+    try {
+      const run = (body: string) => archiveOnlineJs({
+        archiveDir: dir, now: new Date('2026-10-24T06:10:00Z'),
+        download: () => Promise.resolve(new TextEncoder().encode(body)), format: () => `define("V/${body}", [], function () {});\n`,
+      });
+      expect((await run('v2')).changed).toBe(true);
+      expect((await run('v1')).changed).toBe(true);
+      expect((await run('v2')).changed).toBe(true);
+      expect(await readdir(path.join(dir, 'modules'), { recursive: true })).toEqual(expect.arrayContaining(['V/v2.js']));
+      expect((await run('v2')).changed).toBe(false);
+    } finally { await rm(dir, { recursive: true, force: true }); }
+  });
+
+  it('retries module generation for an already archived hash without duplicating the raw file', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'online-js-archive-'));
+    try {
+      const download = () => Promise.resolve(new TextEncoder().encode('v1'));
+      const failed = await archiveOnlineJs({ archiveDir: dir, now: new Date('2026-10-24T06:00:00Z'), download, format: () => { throw new Error('boom'); } });
+      expect(failed.formatError).toBeDefined();
+      const retried = await archiveOnlineJs({ archiveDir: dir, now: new Date('2026-10-24T12:00:00Z'), download, format: () => PRETTY });
+      expect(retried).toMatchObject({ changed: true, name: undefined, modules: 8 });
+      expect((await readdir(dir)).filter((f) => f.startsWith('onlinejs-'))).toHaveLength(1);
+      expect((await archiveOnlineJs({ archiveDir: dir, download, format: () => PRETTY })).changed).toBe(false);
     } finally { await rm(dir, { recursive: true, force: true }); }
   });
 });
