@@ -37,6 +37,7 @@ function pageHarness() {
   const page: Record<string, unknown> = {
     document: window.document,
     localStorage: window.localStorage,
+    sessionStorage: window.sessionStorage,
     setTimeout: window.setTimeout.bind(window),
     clearTimeout: window.clearTimeout.bind(window),
     setInterval: window.setInterval.bind(window),
@@ -65,6 +66,7 @@ function mount({ search = '' } = {}) {
 
 afterEach(() => {
   window.localStorage.clear();
+  window.sessionStorage.clear();
   window.document.body.replaceChildren();
 });
 
@@ -199,7 +201,7 @@ test('disposing the shell while fullscreen restores 3D', () => {
 });
 
 test('a manual 3D change during fullscreen wins over the automatic restore', () => {
-  window.localStorage.setItem('ke-render-3d', '0');
+  window.sessionStorage.setItem('ke-render-3d', '0');
   const { host, container, shell, canvas, GraphicsSettings, emitState } = mount();
   emitState();
   expect(canvas.style.display).toBe('none');

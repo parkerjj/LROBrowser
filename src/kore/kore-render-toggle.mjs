@@ -16,7 +16,13 @@ export function createRenderToggle({ page = globalThis } = {}) {
   let saved = null;
   let enabled = true;
   let revision = 0;
-  const storage = page.localStorage;
+  // 省电模式是单个客户端窗口自己的显示状态。localStorage 在同源的所有窗口间
+  // 共享：客户端 A 勾选后，新开的客户端 B 一进世界就继承黑屏，而 KE 未配置时
+  // B 的面板停在接入界面、够不到这个开关。用 sessionStorage 按窗口隔离：
+  // 同一窗口刷新后保留，新窗口（多开）从 3D 开启开始。
+  const storage = (() => {
+    try { return page.sessionStorage ?? null; } catch { return null; }
+  })();
 
   const readPreference = () => {
     try { return storage?.getItem(KORE_RENDER_PREFERENCE); } catch { return null; }
