@@ -275,6 +275,18 @@ describe('real native LastRO item packet layout and network compatibility', () =
     });
   });
 
+  it('consumes the special item obtain broadcast (0x07FD) by its declared length', () => {
+    // ZC_BROADCASTING_SPECIAL_ITEM_OBTAIN：变长广播包，体布局随服务器版本变化。
+    // 客户端不消费内容，但必须按 [2] 处的长度字段跳过，否则整块接收数据会被丢弃。
+    const h = runtime();
+    const body = new Uint8Array(35).fill(0x5a);
+    const packet = join(new Uint8Array([0xfd, 0x07, 39, 0]), body);
+    h.send(join(packet, frame(0x0073, 11)));
+    expect(h.decoded.map(entry => entry.id)).toEqual([0x07fd, 0x0073]);
+    expect(h.errors).not.toHaveBeenCalled();
+    expect(h.state.saveBuffer).toBeNull();
+  });
+
   it('discards a malformed variable frame without permanently disabling later TCP reads', () => {
     // NOTIFY_PLAYERCHAT is registered and variable-length; a declared length below four is invalid.
     const bad = frame(0x008e, 4);

@@ -154117,6 +154117,15 @@ var init_PacketStructure = __esmMin(() => {
     this.NewMasterAID = fp.readULong();
   };
   PACKET.ZC.CHANGE_GROUP_MASTER.size = 10;
+  // 0x07FD = ZC_BROADCASTING_SPECIAL_ITEM_OBTAIN（特殊物品获得广播）。
+  // 长度由 [2] 处的长度字段声明；包体布局在不同服务器版本间是 2 或 4 字节物品 ID
+  // 加变长持有人字符串。客户端不消费这条广播，只按声明长度安全跳过，
+  // 避免未注册 opcode 让整个接收块剩余内容被丢弃。
+  PACKET.ZC.BROADCASTING_SPECIAL_ITEM_OBTAIN =
+    function PACKET_ZC_BROADCASTING_SPECIAL_ITEM_OBTAIN(fp, end) {
+      this.type = end - fp.tell() >= 1 ? fp.readUChar() : 0;
+    };
+  PACKET.ZC.BROADCASTING_SPECIAL_ITEM_OBTAIN.size = -1;
   PACKET.ZC.PLAY_NPC_BGM = function PACKET_ZC_PLAY_NPC_BGM(fp, end) {
     this.Bgm = fp.readBinaryString(NAME_LENGTH);
   };
@@ -165880,6 +165889,7 @@ var init_PacketRegister = __esmMin(() => {
     2042: PACKET.ZC.DELETE_ITEM_FROM_BODY,
     2043: PACKET.ZC.USESKILL_ACK2,
     2044: PACKET.ZC.CHANGE_GROUP_MASTER,
+    2045: PACKET.ZC.BROADCASTING_SPECIAL_ITEM_OBTAIN,
     2046: PACKET.ZC.PLAY_NPC_BGM,
     2047: PACKET.ZC.DEFINE_CHECK,
     2048: PACKET.ZC.PC_PURCHASE_ITEMLIST_FROMMC2,

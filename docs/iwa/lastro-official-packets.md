@@ -140,6 +140,12 @@
 | `0x0A4A` | `ZC.PRIVATE_AIRSHIP_RESPONSE`（6 字节：`[2]response i32`） | `scripts/lastro-teleport-feedback.mjs` |
 | `0x0BF2` `0x0BF4` `0x0BF6` | `ZC.RS_CREATE_INSTANCE` `RS_DEL_INSTANCE` `RS_ENTER_INSTANCE`（各 3 字节：`[2]rs u8`） | `scripts/patch-v2-runtime.mjs` 的 `patchLastROInstancePackets` |
 
+### 3.4 `0x07FD ZC.BROADCASTING_SPECIAL_ITEM_OBTAIN`
+
+RoBrowser 与 1.js 都没有注册这个老包，但服务器会在特殊物品（如卡片/稀有掉落）广播时下发。长度为 `-1`：偏移 2 处有 2 字节帧长（含包 ID），包体布局随服务器版本是 `type u8 · nameID u16|u32 · holder(u8 长度前缀字符串) · …`。
+
+未注册时它落在“未注册 opcode”分支：后面的字节（长度字段）不是合法帧，于是**整个接收块的剩余内容被当作失步丢弃**。现已在 `vendor/v2/Online.js` 注册为 `PACKET.ZC.BROADCASTING_SPECIAL_ITEM_OBTAIN`，只读取 `type` 并按声明长度跳过正文，不解析未确认的 `nameID` 宽度与持有人字符串。客户端目前不显示这条广播（仅保证不再丢包）；要显示需先按服务器版本确认物品 ID 宽度。
+
 ## 4. 补齐长度的接收封包
 
 这些封包仓库**已经注册**，但长度表里没有它们。LastRO 模式下，已注册而无长度的包一到就会触发“已注册包长度未知”，**整个接收块的剩余内容被当作失步丢弃**。长度取自 1.js 的声明，写在 `vendor/v2/lastro-packet-framing.mjs` 的 `LASTRO_PACKET_LENGTH_OVERRIDES`：

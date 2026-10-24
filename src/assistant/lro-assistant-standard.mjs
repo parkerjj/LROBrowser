@@ -9303,37 +9303,33 @@ function showQuickTransferHelp(assistant) {
 
             const inventory = resolveUiComponent(this.getAmdModule('UI/Components/Inventory/Inventory'));
             if (inventory && typeof inventory.setItems === 'function') {
-                const originalSetItems = inventory.setItems;
-                if (!originalSetItems.__roAssistantEquipmentWrapped) {
-                    const assistant = this;
-                    function capturedInventorySetItems(items) {
-                        const result = originalSetItems.apply(this, arguments);
-                        let changed = false;
-                        for (const item of Array.isArray(items) ? items : []) {
-                            const rawWearState = item?.WearState ?? item?.wearState;
-                            if (rawWearState === undefined || rawWearState === null) {
-                                continue;
-                            }
-                            const wearState = Number(rawWearState);
-                            if (wearState > 0) {
-                                assistant.rememberEquippedItem(item, wearState, true);
+                // 必须和 ensureHooks 共用 installFeatureHook 的同一层包装：
+                // 各自包一层时，每次点击与轮询都会互相替换对方的包装，
+                // 调用链随会话无限增长，最终在收到物品列表包时爆栈。
+                this.inventoryEquipmentListener ??= ([items]) => {
+                    let changed = false;
+                    for (const item of Array.isArray(items) ? items : []) {
+                        const rawWearState = item?.WearState ?? item?.wearState;
+                        if (rawWearState === undefined || rawWearState === null) {
+                            continue;
+                        }
+                        const wearState = Number(rawWearState);
+                        if (wearState > 0) {
+                            this.rememberEquippedItem(item, wearState, true);
+                            changed = true;
+                        } else if (wearState === 0) {
+                            const index = normalizeText(item?.index ?? item?.Index ?? item?.inventoryIndex ?? '');
+                            if (index && this.equippedItems.delete(index)) {
                                 changed = true;
-                            } else if (wearState === 0) {
-                                const index = normalizeText(item?.index ?? item?.Index ?? item?.inventoryIndex ?? '');
-                                if (index && assistant.equippedItems.delete(index)) {
-                                    changed = true;
-                                }
                             }
                         }
-                        if (changed) {
-                            assistant.equipmentComparisonDirty = true;
-                            assistant.syncEquipmentComparison();
-                        }
-                        return result;
                     }
-                    Object.defineProperty(capturedInventorySetItems, '__roAssistantEquipmentWrapped', { value: true });
-                    inventory.setItems = capturedInventorySetItems;
-                }
+                    if (changed) {
+                        this.equipmentComparisonDirty = true;
+                        this.syncEquipmentComparison();
+                    }
+                };
+                installFeatureHook(inventory, 'setItems', this.inventoryEquipmentListener);
                 this.inventoryEquipmentHookInstalled = true;
             }
             return this.equipmentHookInstalled || this.inventoryEquipmentHookInstalled;

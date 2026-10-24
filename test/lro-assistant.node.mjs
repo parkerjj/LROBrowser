@@ -935,3 +935,21 @@ for(const source of ['ltsd','manual'])test('detail encyclopedia opens the displa
     await new Promise(resolve=>f.page.setTimeout(resolve,0));
   }finally{f.cleanup();}
 });
+
+test('repeated click and poll hook installation never stacks setItems wrappers',()=>{
+  const f=fixture();
+  try{
+    const inventory=f.members.get('UI/Components/Inventory/Inventory');
+    let calls=0;inventory.setItems=function(){calls++;};
+    const app=createStandardAssistant({page:f.page,modules:f.members,storage:f.storage,subscribePackets:f.bus.subscribe});
+    app.gameplayVisible=true;
+    const installed=inventory.setItems;
+    // 点击触发 ensureHooks、250ms 轮询触发 installEquipmentCapture；
+    // 两者交替执行时必须复用同一层包装，否则调用链会随会话无限增长并在收包时爆栈。
+    for(let i=0;i<20000;i++){app.installEquipmentCapture();app.itemOverview.ensureHooks();}
+    assert.equal(inventory.setItems,installed);
+    inventory.setItems([{index:3,ITID:1701,WearState:2}]);
+    assert.equal(calls,1);
+    assert.equal(app.equippedItems.get('3')?.item.ITID,1701);
+  }finally{f.cleanup();}
+});
