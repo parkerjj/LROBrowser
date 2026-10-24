@@ -83,32 +83,6 @@ function nativeNavigation(state: { currentMap: string; position: number[] }) {
   return { navigation, move };
 }
 
-const rendererFile = region('src/Renderer/MapRenderer.js');
-let nativeSetMap = '', nativeStripExtension = '';
-function findRenderer(node: ts.Node) {
-  if (ts.isFunctionDeclaration(node) && node.name?.text === 'stripMapExtension') nativeStripExtension = node.getText(rendererFile);
-  if (ts.isMethodDeclaration(node) && node.name.getText(rendererFile) === 'setMap') nativeSetMap = node.getText(rendererFile).replace(/^static /, '');
-  ts.forEachChild(node, findRenderer);
-}
-findRenderer(rendererFile);
-if (!nativeSetMap || !nativeStripExtension) throw new Error('Missing native scene map normalization');
-
-function nativeSceneFilename(mapname: string): string {
-  return new Function('mapname', `
-    ${nativeStripExtension}
-    let filename;
-    const MapRenderer = { loading: false, currentMap: '', free() {} };
-    const SoundManager = { stop() {} }, Renderer = { stop() {}, remove() {} };
-    const UIManager = { removeComponents() {} }, Cursor = { ACTION: { DEFAULT: 0 }, setType() {} };
-    const BGM = { stop() {} }, Background = { setLoading(callback) { callback(); } };
-    const Thread = { hook() {}, send(type, file) { filename = file; } };
-    function onProgressUpdate() {} function onWorldComplete() {} function onGroundComplete() {}
-    function onAltitudeComplete() {} function onModelsComplete() {} function onAnimatedModelComplete() {} function onMapComplete() {}
-    ({ ${nativeSetMap} }).setMap.call(MapRenderer, mapname);
-    return filename;
-  `)(mapname);
-}
-
 function resources() {
   const rsw = mapBinaryFixture('rsw');
   new Uint8Array(rsw).set(new TextEncoder().encode('terrain.gnd'), 51);
@@ -207,31 +181,27 @@ describe('native navigation and resource route lifecycle', () => {
     f.route.api.cancel();
   });
 
-  it.each(['world', 'tools'])('a newer %s request cancels the other pending resource check', async newest => {
+  it('a world map teleport cancels a pending tools resource check without waiting for any resource', async () => {
     const f = fixture(); f.manual(true);
-    const old = newest === 'world' ? f.route.api.request({ outset: ['payon', 3, 3] }) : f.actions.teleport('izlude_in');
-    if (newest === 'tools') { expect(f.prompts).toHaveLength(1); f.prompts[0]!.yes(); }
+    const old = f.route.api.request({ outset: ['payon', 3, 3] });
     await vi.advanceTimersByTimeAsync(0); expect(f.pending).toHaveLength(1);
-    const replacement = newest === 'world' ? f.actions.teleport('izlude_in') : f.route.api.request({ outset: ['payon', 3, 3] });
-    if (newest === 'world') { expect(f.prompts).toHaveLength(1); f.prompts[0]!.yes(); }
-    expect(await old).toBe(newest === 'world' ? null : false);
-    await vi.advanceTimersByTimeAsync(0); expect(f.pending).toHaveLength(2);
-    f.manual(false); await f.pending[1]!();
-    expect(await replacement).toBe(newest === 'world' ? true : 'teleport');
-    await f.pending[0]!();
-    expect(f.packets).toEqual([expect.objectContaining({ mapname: newest === 'world' ? 'izlude_in' : 'payon', type: newest === 'world' ? 0 : 1 })]);
+    const replacement = f.actions.teleport('izlude_in');
+    expect(f.prompts).toHaveLength(1); f.prompts[0]!.yes();
+    expect(await old).toBe(null);
+    expect(await replacement).toBe(true);
+    expect(f.pending).toHaveLength(1);
+    f.manual(false); await f.pending[0]!();
+    expect(f.packets).toEqual([expect.objectContaining({ mapname: 'izlude_in', type: 0 })]);
     f.route.api.cancel();
   });
 
-  it.each(['123#1@abc-test', '1231@abc-test'])('loads the native scene resource through the real resolver while retaining server instance ID %s', async serverMap => {
+  it.each(['123#1@abc-test', '1231@abc-test'])('sends the server instance ID %s unchanged without reading any scene resource', async serverMap => {
     const f = fixture();
-    const scene = nativeSceneFilename(serverMap + '.gat');
     const request = f.actions.teleport(serverMap);
     expect(f.prompts).toHaveLength(1); expect(f.reads).toEqual([]); expect(f.packets).toEqual([]);
     f.prompts[0]!.yes();
     expect(await request).toBe(true);
-    expect(f.reads[0]).toBe('data/' + scene);
-    expect(f.urls.some(url => url.includes('#') || url.includes(serverMap))).toBe(false);
+    expect(f.reads).toEqual([]);
     expect(f.packets).toEqual([expect.objectContaining({ mapname: serverMap, type: 0 })]);
     const forbiddenFetch = vi.fn();
     await expect(resolvePassiveResource('data/' + serverMap.replace(/^1231@/, '123#1@') + '.rsw', { fetch: forbiddenFetch })).rejects.toThrow('forbidden-resource');

@@ -3,7 +3,7 @@ import { createLastroWorldMapTeleport } from '../scripts/lastro-worldmap-telepor
 
 const { buildPrivateAirshipRequest } = await import(new URL('../vendor/v2/lastro-v1-migration.mjs', import.meta.url).href);
 
-function fixture(withPrompt = false, shouldConfirmTeleport?: () => boolean) {
+function fixture(withPrompt = false, shouldConfirmTeleport?: () => boolean, skipPreflight = false) {
   let map = 'prontera.gat', profile = '6:5';
   const pending: Array<{ resolve(value: { approved: boolean }): void; reject(error: Error): void }> = [];
   const preflight = {
@@ -18,7 +18,7 @@ function fixture(withPrompt = false, shouldConfirmTeleport?: () => boolean) {
     prompts.push({ message, yes, no, popup }); return popup;
   });
   const api = createLastroWorldMapTeleport({ preflight, getMap: () => map, getProfile: () => profile, send, onSameMap, onError,
-    ...(withPrompt ? { showPrompt } : {}), ...(shouldConfirmTeleport ? { shouldConfirmTeleport } : {}) });
+    ...(withPrompt ? { showPrompt } : {}), ...(shouldConfirmTeleport ? { shouldConfirmTeleport } : {}), ...(skipPreflight ? { skipPreflight } : {}) });
   return { api, pending, preflight, send, onSameMap, onError, prompts, showPrompt,
     setMap: (value: string) => { map = value; }, setProfile: (value: string) => { profile = value; } };
 }
@@ -41,6 +41,21 @@ describe('verified world map teleports', () => {
     expect(await result).toBe(true);
     expect(f.send).toHaveBeenCalledExactlyOnceWith('ein_fild04');
     expect(f.onError).not.toHaveBeenCalled();
+  });
+
+  it('sends the map-level warp immediately without touching preflight when skipPreflight is set', async () => {
+    const f = fixture(false, undefined, true);
+    expect(await f.api.request(' EIN_FILD04.GAT ')).toBe(true);
+    expect(f.preflight.check).not.toHaveBeenCalled();
+    expect(f.send).toHaveBeenCalledExactlyOnceWith('ein_fild04'); expect(f.onError).not.toHaveBeenCalled();
+  });
+
+  it('still asks for confirmation before sending when skipPreflight is set', async () => {
+    const f = fixture(true, undefined, true), result = f.api.request('ein_fild04', '艾音布罗克原野');
+    expect(f.showPrompt).toHaveBeenCalledOnce(); expect(f.send).not.toHaveBeenCalled();
+    f.prompts[0]!.yes();
+    expect(await result).toBe(true);
+    expect(f.preflight.check).not.toHaveBeenCalled(); expect(f.send).toHaveBeenCalledExactlyOnceWith('ein_fild04');
   });
 
   it('normalizes a known map resource suffix without substituting a different map or NPC position', async () => {

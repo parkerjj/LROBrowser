@@ -371,6 +371,7 @@ export function patchRuntimeWorldMapProductActions(source) {
   });
   const lastroWorldMapTeleport = (${createLastroWorldMapTeleport.toString()})({
     preflight: lastroWorldMapPreflight,
+    skipPreflight: true,
     getMap: () => MapRenderer.loading ? "" : normalizeLastROTeleportMap(MapRenderer.currentMap),
     getProfile: () => String(Configs.get("lastroNid", 0)) + ":" + String(Configs.get("clientVer", 0)),
     onSameMap: () => showLastroTeleportNotice("已在目标地图。"),
