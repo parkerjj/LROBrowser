@@ -17,7 +17,7 @@ class FakeWebSocket {
   send(buffer: ArrayBuffer) { this.sent.push(buffer); }
 }
 
-function harness(mode = 'relay', serverId = 'lastro-2x', relayEndpoint?: string) {
+function harness(mode = 'relay', serverId = 'lastro-2x', relayEndpoint?: string, relay?: (url: string) => unknown) {
   FakeWebSocket.instances = [];
   const source = readFileSync('generated/runtime/Online.js', 'utf8');
   const start = source.indexOf('function Socket$1(');
@@ -29,6 +29,7 @@ function harness(mode = 'relay', serverId = 'lastro-2x', relayEndpoint?: string)
     __esmMin: (init: () => void) => init, WebSocket: FakeWebSocket, URL,
     Configs: { get: (key: string, fallback: unknown) => ({ connectionMode: mode, id: serverId, relayEndpoint }[key] ?? fallback) },
     LastRODirectSocketFactory: direct,
+    LastRORelaySocketFactory: relay,
   });
   vm.runInContext(`${socket}\nif (typeof init_WebSocket === 'function') init_WebSocket();\n${factory}`, context);
   const create: (host: string, port: number) => LegacyClientSocket = vm.runInContext('defaultSocketFactory', context);
@@ -56,6 +57,15 @@ describe('explicit WSS relay transport', () => {
     expect(ws.sent).toEqual([bytes]);
     ws.onmessage?.({ data: bytes });
     expect(receive).toHaveBeenCalledExactlyOnceWith(bytes);
+  });
+
+  it('hands relay URLs to the IWA Direct TCP relay factory instead of a native WebSocket', () => {
+    const relay = vi.fn(() => ({ relay: true }));
+    const { create, direct } = harness('relay', 'lastro-2x', undefined, relay);
+    expect(create('103.8.222.164', 26569)).toEqual({ relay: true });
+    expect(relay).toHaveBeenCalledExactlyOnceWith('wss://port.lastro.cn/103.8.222.164:26569');
+    expect(FakeWebSocket.instances).toEqual([]);
+    expect(direct).not.toHaveBeenCalled();
   });
 
   it('keeps direct mode on TCP without creating a WebSocket', () => {

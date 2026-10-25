@@ -24,6 +24,7 @@ interface ExecutableAssetManifest {
 declare global {
   var ROConfig: V2ClientConfig | undefined;
   var LastRODirectSocketFactory: ((host: string, port: number) => LegacyClientSocket) | undefined;
+  var LastRORelaySocketFactory: ((url: string) => LegacyClientSocket) | undefined;
   var LastROLoginRegistration: ((phase: LastROLoginPhase, nid: number, username: string, password: string) => void) | undefined;
   var LastROPartyHttpRequest: ((nid: number, action: 'list' | 'get' | 'info' | 'search' | 'add' | 'del', form: FormData) => Promise<Record<string, unknown>>) | undefined;
   var LastRODirectSocketsSupported: boolean | undefined;
@@ -65,6 +66,7 @@ export async function bootstrapV2Client(options: BootstrapOptions): Promise<void
   let prepareLastROLoginSession: (() => Promise<void>) | undefined;
   globalThis.LastRODirectSocketsSupported = IS_WEB_BUILD ? false : undefined;
   globalThis.LastRODirectSocketFactory = undefined;
+  globalThis.LastRORelaySocketFactory = undefined;
   globalThis.LastROPartyHttpRequest = undefined;
   installDebugAccessGuard(window);
   globalThis.LastROResolveServerConnection = (candidate) => {
@@ -89,8 +91,11 @@ export async function bootstrapV2Client(options: BootstrapOptions): Promise<void
   if (!IS_WEB_BUILD) {
     const socketFactory = await import('../network/socket-factory');
     const loginHttp = await import('../network/lastro-login-http');
+    const relaySocket = await import('../network/relay-websocket');
     globalThis.LastRODirectSocketsSupported = socketFactory.isDirectSocketsSupported();
     globalThis.LastRODirectSocketFactory = options.socketFactory ?? socketFactory.createDirectSocket;
+    // The official relay rejects the isolated-app:// Origin of native WebSockets.
+    if (globalThis.LastRODirectSocketsSupported) globalThis.LastRORelaySocketFactory = url => relaySocket.createRelaySocket(url);
     sendLastROLoginPost = loginHttp.sendLastROLoginPost;
     globalThis.LastROPartyHttpRequest = (nid, action, form) => loginHttp.requestLastROPartyOverTLS(nid, action, form);
     prepareLastROLoginSession = loginHttp.prepareLastROLoginSession;

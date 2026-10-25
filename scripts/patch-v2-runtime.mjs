@@ -1734,7 +1734,10 @@ ${normalizedSource}`;
         }
       } catch { /* keep the built-in proxy */ }
     }
-    return new Socket$1(relayBase + targetHost + ":" + port);
+    const relayUrl = relayBase + targetHost + ":" + port;
+    // 官方中转只放行官网 Origin；IWA 原生 WebSocket 的 Origin 是 isolated-app://，改走 Direct TCP + TLS 握手。
+    if (typeof globalThis.LastRORelaySocketFactory === "function") return globalThis.LastRORelaySocketFactory(relayUrl);
+    return new Socket$1(relayUrl);
   }
   if (Configs.get("id") !== "lastro-app") throw new Error("直连暂时仅App服可用");
   if (typeof globalThis.LastRODirectSocketFactory !== "function") throw new Error("Direct TCP factory unavailable");

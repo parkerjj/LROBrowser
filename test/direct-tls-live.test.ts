@@ -2,6 +2,7 @@ import { connect, type Socket } from 'node:net';
 import { describe, expect, it } from 'vitest';
 import { createDirectHttpFetch } from '../src/resources/direct-http-resource';
 import { prepareLastROLoginSession } from '../src/network/lastro-login-http';
+import { createRelaySocket } from '../src/network/relay-websocket';
 
 // This is a network integration test, separate from the hermetic CI suite.
 // It uses Node's TCP socket ONLY as a transport test double; the TLS handshake
@@ -77,6 +78,17 @@ describe('official HTTPS via raw TCP and JavaScript TLS', () => {
     expect(parallel.every(buffer => buffer.byteLength > 4)).toBe(true);
     expect(connections).toBeLessThanOrEqual(2);
   }, 60_000);
+
+  it.skipIf(!live)('upgrades the official WSS relay with a verified certificate and the official Origin', async () => {
+    const socket = createRelaySocket('wss://port.lastro.cn/103.8.222.164:26569', {
+      TCPSocket: LiveSocketShim as unknown as DirectTcpConstructor,
+      openTimeoutMs: 12_000,
+      userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+    });
+    const completed = new Promise<boolean>(resolve => { socket.onComplete = resolve; });
+    expect(await completed).toBe(true);
+    socket.close();
+  }, 30_000);
 
   it.skipIf(!live)('authenticates the official HTTPS certificate before bootstrap', async () => {
     await prepareLastROLoginSession({

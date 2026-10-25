@@ -11,6 +11,13 @@ const REQUEST_HEADERS = [
   ['Accept-Encoding', 'identity'],
 ];
 
+// 官方中转按网页客户端身份放行（Origin 必须是官网且 UA 像浏览器），直连请求统一以官网页面身份发出。
+export const OFFICIAL_WEB_ORIGIN = 'https://game.lastro.cn';
+
+export function officialWebHeaders(userAgent = globalThis.navigator?.userAgent): string[] {
+  return [`Origin: ${OFFICIAL_WEB_ORIGIN}`, ...(userAgent ? [`User-Agent: ${userAgent}`] : [])];
+}
+
 const DEFAULT_OPEN_TIMEOUT_MS = 8_000;
 const DEFAULT_READ_TIMEOUT_MS = 8_000;
 const DEFAULT_MAX_HEADER_BYTES = 64 * 1024;
@@ -335,6 +342,13 @@ export async function openEncryptedHttpStreams(
     resolveHandshake = resolve;
     rejectHandshake = reject;
   });
+  // TCPSocket.close() rejects while its streams are locked by the TLS loop;
+  // cancelling the native reader and aborting the writer releases the socket.
+  const releaseNative = () => {
+    void networkReader.cancel().catch(() => undefined);
+    void networkWriter.abort().catch(() => undefined);
+    return closeNative(native);
+  };
   // A closed/cancelled plaintext stream also closes the underlying native
   // socket. readResponse's existing finally block handles all other cleanup.
   const readable = new ReadableStream<Uint8Array>({
@@ -342,7 +356,7 @@ export async function openEncryptedHttpStreams(
     cancel() {
       streamCancelled = true;
       terminated = true;
-      void closeNative(native);
+      void releaseNative();
     },
   });
   const fail = (error: Error) => {
@@ -403,12 +417,12 @@ export async function openEncryptedHttpStreams(
   try {
     await waitFor(client.startHandshake().then(() => handshake), options.timeoutMs, options.signal, 'open');
   } catch (error) {
-    await closeNative(native);
+    await releaseNative();
     throw error;
   }
   const writable = new WritableStream<Uint8Array>({
     async write(bytes) { await client.write(bytes); },
-    abort() { void closeNative(native); },
+    abort() { void releaseNative(); },
   });
   return { readable, writable };
 }
@@ -625,6 +639,8 @@ export function createDirectHttpFetch(options: DirectHttpOptions = {}): typeof g
     `GET ${pathname} HTTP/1.1`,
     `Host: ${host}`,
     ...REQUEST_HEADERS.map(([name, value]) => `${name}: ${value}`),
+    ...officialWebHeaders(),
+    `Referer: ${OFFICIAL_WEB_ORIGIN}/ro/api.html`,
     ...(connection ? [`Connection: ${connection}`] : []),
     '',
     '',
