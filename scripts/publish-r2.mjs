@@ -12,6 +12,13 @@ export function buildReleaseObjectKeys({ version, commitSha }) {
   const prefix = `releases/${version}`;
   return { bundle: `${prefix}/lastro-v2-${commitSha}.swbn`, checksum: `${prefix}/lastro-v2-${commitSha}.swbn.sha256`, releaseManifest: `${prefix}/release-manifest.json`, auditReport: `${prefix}/audit-report.json` };
 }
+export function bundleSourceUrl({ proxyBaseUrl, repository, runNumber, bundleName }) {
+  if (!proxyBaseUrl) return undefined;
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repository ?? '') || !/^\d+$/.test(String(runNumber))) throw new Error('GITHUB_REPOSITORY and GITHUB_RUN_NUMBER are required with IWA_DOWNLOAD_PROXY_URL');
+  const proxy = new globalThis.URL(proxyBaseUrl);
+  if (proxy.protocol !== 'https:' || !proxyBaseUrl.endsWith('/')) throw new Error('IWA_DOWNLOAD_PROXY_URL must be an HTTPS URL ending with /');
+  return `${proxy.href}https://github.com/${repository}/releases/download/iwa-${runNumber}/${bundleName}`;
+}
 async function put(client, bucket, key, body, contentType, { mutable = false } = {}) {
   const bytes = body instanceof Uint8Array ? body : Buffer.from(body);
   try {
@@ -59,7 +66,9 @@ if (process.argv[1]?.endsWith('publish-r2.mjs')) {
   const updateManifestUrl = process.env.IWA_UPDATE_MANIFEST_URL ?? 'https://client.ltsd.ro/updates.json';
   const bundleBaseUrl = process.env.IWA_BUNDLE_BASE_URL ?? 'https://client.ltsd.ro/';
   if (!commitSha) throw new Error('GITHUB_SHA is required');
-  const metadata = { version, commitSha, channel: process.env.IWA_CHANNEL ?? 'default', updateManifestUrl, bundleBaseUrl, bundleUrl: new globalThis.URL(`releases/${version}/${bundleName}`, bundleBaseUrl).href };
+  // The R2 copy stays as a manual-download backup; Chrome downloads from the accelerated GitHub Release URL when configured.
+  const bundleUrl = bundleSourceUrl({ proxyBaseUrl: process.env.IWA_DOWNLOAD_PROXY_URL, repository: process.env.GITHUB_REPOSITORY, runNumber: process.env.GITHUB_RUN_NUMBER, bundleName }) ?? new globalThis.URL(`releases/${version}/${bundleName}`, bundleBaseUrl).href;
+  const metadata = { version, commitSha, channel: process.env.IWA_CHANNEL ?? 'default', updateManifestUrl, bundleBaseUrl, bundleUrl };
   const client = createR2Client({ accountId: process.env.R2_ACCOUNT_ID, accessKeyId: process.env.R2_ACCESS_KEY_ID, secretAccessKey: process.env.R2_SECRET_ACCESS_KEY, endpoint: process.env.R2_ENDPOINT });
   const signed = await readFile(`${releaseDir}/${bundleName}`);
   const checksum = await readFile(`${releaseDir}/${bundleName}.sha256`);
