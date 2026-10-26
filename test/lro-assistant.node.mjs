@@ -953,3 +953,81 @@ test('repeated click and poll hook installation never stacks setItems wrappers',
     assert.equal(app.equippedItems.get('3')?.item.ITID,1701);
   }finally{f.cleanup();}
 });
+
+test('native window sync reapplies the skin only when gameplay becomes visible',async()=>{
+  const dom=new JSDOM('<body></body>');const page=dom.window;
+  try{
+    let loads=0;
+    const modules=new Map([['DB/DBManager',{INTERFACE_PATH:'skin/'}],
+      ['Core/Client',{loadFile(_path,ready){loads++;ready('data:image/png;base64,AA==');}}]]);
+    const windows=createAssistantWindows(page,modules);
+    const host=page.document.createElement('div');windows.mark(host).attachShadow({mode:'open'});page.document.body.append(host);
+    await Promise.resolve();
+    let writes=0;const setProperty=host.style.setProperty.bind(host.style);
+    host.style.setProperty=(...args)=>{writes++;return setProperty(...args);};
+    windows.sync(true);
+    const entered=writes;assert.ok(entered>0);assert.equal(loads,8);
+    assert.match(host.style.getPropertyValue('--ro-close-image'),/^url/);
+    // The visibility check runs every 250ms while in game; it must not rewrite every window.
+    for(let i=0;i<20;i++) windows.sync(true);
+    assert.equal(writes,entered);
+    windows.sync(false);windows.sync(true);
+    assert.ok(writes>entered);assert.equal(loads,8);
+  }finally{page.close();}
+});
+
+test('gameplay visibility reuses the located minimap between full scans',()=>{
+  const f=fixture();
+  try {
+    const host=f.page.document.createElement('div');host.id='MiniMapV2';
+    const shadow=host.attachShadow({mode:'open'});const minimap=f.page.document.createElement('div');
+    minimap.id='MiniMapV2';minimap.className='MiniMapUI';minimap.style.opacity='1';
+    let rect={x:880,y:10,left:880,top:10,right:1008,bottom:158,width:128,height:148};
+    minimap.getBoundingClientRect=()=>rect;
+    shadow.append(minimap);f.page.document.body.append(host);
+    const app=createStandardAssistant({page:f.page,modules:f.members,storage:f.storage,subscribePackets:f.bus.subscribe});
+    let scans=0;const query=shadow.querySelectorAll.bind(shadow);
+    shadow.querySelectorAll=selector=>{if(selector.includes('mini-map'))scans++;return query(selector);};
+    app.minimapElement=null;
+    assert.equal(app.findVisibleMinimapRect().left,880);
+    const located=scans;assert.ok(located>0);
+    for(let i=0;i<10;i++) assert.equal(app.findVisibleMinimapRect().left,880);
+    assert.equal(scans,located);
+    rect={...rect,left:870,right:998};
+    assert.equal(app.findVisibleMinimapRect().left,870,'reused element still reports its live position');
+    assert.equal(scans,located);
+    app.minimapFoundAt-=3000;app.findVisibleMinimapRect();
+    assert.equal(scans,located+1,'ranking is refreshed at the original 2.5s cadence');
+    rect={...rect,width:0};
+    assert.equal(app.findVisibleMinimapRect(),null);
+    assert.equal(scans,located+2,'an unusable minimap falls back to a full scan immediately');
+  }finally{f.cleanup();}
+});
+
+test('target and DPS windows leave the DOM untouched while nothing changes',async()=>{
+  const f=fixture();
+  const wait=ms=>new Promise(resolve=>globalThis.setTimeout(resolve,ms));
+  try {
+    const entity={GID:300,job:1796,objecttype:5,display:{name:'阿乌奴艾'},life:{hp:65,hp_max:100},position:[50,50]};
+    f.members.set('Renderer/EntityManager',{get:id=>id===300?entity:null,getFocusEntity:()=>entity,forEach(){}});
+    const app=createStandardAssistant({page:f.page,modules:f.members,storage:f.storage,subscribePackets:f.bus.subscribe});
+    app.updateGameplayVisibility=()=>{};app.gameplayVisible=true;app.settings.targetWindowEnabled=true;app.dps.setVisible(true);
+    await wait(250);
+    const targetHost=f.page.document.getElementById('ro-target-window');const dpsHost=f.page.document.getElementById('ro-dps-meter');
+    assert.equal(targetHost.hidden,false);assert.match(targetHost.shadowRoot.querySelector('.hp-text').textContent,/65%/);
+    const records=[];const observer=new f.page.MutationObserver(list=>records.push(...list));
+    for(const host of [targetHost,dpsHost]){
+      observer.observe(host.shadowRoot,{subtree:true,childList:true,characterData:true});
+      observer.observe(host,{attributes:true,attributeFilter:['hidden']});
+    }
+    // At least three target refreshes (150ms) and two DPS refreshes (250ms).
+    await wait(600);records.push(...observer.takeRecords());
+    assert.deepEqual(records.map(record=>record.type),[]);
+    entity.life={hp:30,hp_max:100};await wait(200);
+    assert.match(targetHost.shadowRoot.querySelector('.hp-text').textContent,/30%/);
+    entity.life={hp:0,hp_max:100};await wait(600);records.push(...observer.takeRecords());
+    assert.equal(targetHost.hidden,true);
+    assert.equal(records.filter(record=>record.attributeName==='hidden').length,1,'hiding is written once, not on every refresh');
+    observer.disconnect();
+  }finally{f.cleanup();}
+});

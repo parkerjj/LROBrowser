@@ -215,6 +215,8 @@ function nativePacketFixture(currentMap = 'prontera.gat') {
   });
   Object.assign(f.context.Camera, { setTarget: vi.fn(), init: vi.fn() });
   Object.assign(f.context.Cursor, { render: vi.fn() });
+  // Frame dispatch is asserted for the foreground window; background windows are capped separately.
+  vi.spyOn(document, 'hasFocus').mockReturnValue(true);
   // MapRenderer uses the real render scheduling/dispatch methods; only WebGL
   // primitives and unrelated windows are offline stubs.
   vm.runInContext(`class NativeRenderer { ${['_render', 'render', 'stop'].map(name => nativeRenderer.method(name)).join('\n')} }

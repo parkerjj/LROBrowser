@@ -2383,6 +2383,19 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
             } catch (_) { /* Polling remains available before the player enters the map. */ }
         }
         const format = value => Math.round(value).toLocaleString('zh-CN');
+        // 目标窗每 150ms、伤害统计每 250ms 刷新：值不变就不写。textContent 即使同值也会
+        // 重建子节点，触发原生滚动条与助手的 MutationObserver 扫描整个窗口；重复写
+        // hidden 会让原生窗口观察器每次派发 x_remove。
+        const setText = (node, text) => { if (node.textContent !== text) node.textContent = text; };
+        const setHidden = (node, hidden) => { if (node.hidden !== hidden) node.hidden = hidden; };
+        // 主题写到助手宿主上的原生皮肤变量不会撤销；读到后缓存，不再每次刷新都 getComputedStyle。
+        let skinHost = null;
+        const nativeSkins = new Set();
+        function hasNativeSkin(property) {
+            if (skinHost !== assistant.host) { skinHost = assistant.host; nativeSkins.clear(); }
+            if (!nativeSkins.has(property) && page.getComputedStyle(assistant.host).getPropertyValue(property).trim()) nativeSkins.add(property);
+            return nativeSkins.has(property);
+        }
         function abilityName(ability) {
             if (ability.skillID === null) return '普攻';
             return clean(amd('DB/Skills/SkillInfo')?.[ability.skillID]?.SkillName)
@@ -2465,10 +2478,9 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
             }
             if (map) targetMap = map;
             if (!assistant.settings.targetWindowEnabled || !assistant.gameplayVisible || targetWindowHiddenByUser) {
-                targetHost.hidden = true; return;
+                setHidden(targetHost, true); return;
             }
-            const nativeStyle = page.getComputedStyle(assistant.host);
-            targetRoot.querySelector('.close').classList.toggle('native-close', Boolean(nativeStyle.getPropertyValue('--ro-close-image').trim()));
+            targetRoot.querySelector('.close').classList.toggle('native-close', hasNativeSkin('--ro-close-image'));
             const manager = amd('Renderer/EntityManager');
             const focus = manager?.getFocusEntity?.();
             const focusedMonster = isMonster(focus) && manager?.get?.(Number(focus.GID)) === focus ? focus : null;
@@ -2480,27 +2492,27 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
             const entity = targetGID ? manager?.get?.(Number(targetGID)) : null;
             const cast = isMonster(entity) ? readMonsterCast(entity, castStarts.get(targetGID), Date.now()) : null;
             if (!isMonster(entity) || (focusGID !== targetGID && !cast && Date.now() - targetTouchedAt > 10000)) {
-                targetGID = ''; targetHost.hidden = true; shownMonsterID = ''; targetInfoRequestedFor = ''; return;
+                targetGID = ''; setHidden(targetHost, true); shownMonsterID = ''; targetInfoRequestedFor = ''; return;
             }
             const cachedLife = manager?.getLife?.(Number(targetGID));
             const packetLife = monsterLifePackets.get(String(targetGID)) || monsterLifePackets.get(targetGID);
             const vitals = readMonsterVitals(entity, cachedLife, packetLife);
             const percent = readMonsterPercent(entity, cachedLife, packetLife);
             if (vitals.known && vitals.hp <= 0) {
-                targetGID = ''; targetHost.hidden = true; shownMonsterID = ''; targetInfoRequestedFor = ''; return;
+                targetGID = ''; setHidden(targetHost, true); shownMonsterID = ''; targetInfoRequestedFor = ''; return;
             }
             const monsterID = positive(Number(entity.job ?? entity._job));
             const reference = monsterReference(monsterID);
             const level = readMonsterLevel(entity, reference);
             if (!monsterID && !clean(entity.display?.name)) {
                 // 既没有怪物编号也没有名字的实体（猎鹰、陷阱、召唤物等）不显示目标窗。
-                targetGID = ''; targetHost.hidden = true; shownMonsterID = ''; targetInfoRequestedFor = ''; return;
+                targetGID = ''; setHidden(targetHost, true); shownMonsterID = ''; targetInfoRequestedFor = ''; return;
             }
             const name = clean(entity.display?.name) || `怪物 #${monsterID}`;
-            targetRoot.querySelector('.name').textContent = name;
+            setText(targetRoot.querySelector('.name'), name);
             targetRoot.querySelector('.name').title = name;
-            targetRoot.querySelector('.level').textContent = level ? `Lv.${level}` : 'Lv.?';
-            targetRoot.querySelector('.traits').textContent = monsterTraitText(entity, reference);
+            setText(targetRoot.querySelector('.level'), level ? `Lv.${level}` : 'Lv.?');
+            setText(targetRoot.querySelector('.traits'), monsterTraitText(entity, reference));
             targetRoot.querySelector('.traits').title = '* 为通用怪物资料，服务器自定义数值可能不同；实时数据优先';
             if (monsterID && !reference && typeof assistant.encyclopedia?.ensureMonsterInfo === 'function'
                 && targetInfoRequestedFor !== String(monsterID)) {
@@ -2512,9 +2524,9 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
                     if (refreshedLevel) targetRoot.querySelector('.level').textContent = `Lv.${refreshedLevel}`;
                 });
             }
-            targetRoot.querySelector('.hp-text').textContent = vitals.known
+            setText(targetRoot.querySelector('.hp-text'), vitals.known
                 ? `HP ${format(vitals.hp)} / ${format(vitals.max)} (${Math.round(vitals.percent)}%)`
-                : percent === null ? '血量未提供' : `${Math.round(percent)}%`;
+                : percent === null ? '血量未提供' : `${Math.round(percent)}%`);
             const hpBar = targetRoot.querySelector('.bar');
             hpBar.classList.toggle('unknown', percent === null);
             hpBar.querySelector('i').style.width = `${percent ?? 0}%`;
@@ -2538,7 +2550,7 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
             const victimName = clean(victim?.display?.name);
             victimNode.hidden = !victim || !victimName;
             if (!victimNode.hidden) {
-                victimNode.querySelector('.victim-name').textContent = victimName;
+                setText(victimNode.querySelector('.victim-name'), victimName);
                 victimNode.title = victimName;
                 const parts = headAssetPaths(victim);
                 const appearance = [victim.GID,
@@ -2555,14 +2567,14 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
             const casting = targetRoot.querySelector('.casting');
             casting.hidden = !cast;
             if (cast) {
-                casting.querySelector('.cast-name').textContent = cast.skillID ? abilityName({ skillID: cast.skillID }) : '正在施法';
-                casting.querySelector('.cast-time').textContent = `${(cast.remaining / 1000).toFixed(1)} 秒`;
+                setText(casting.querySelector('.cast-name'), cast.skillID ? abilityName({ skillID: cast.skillID }) : '正在施法');
+                setText(casting.querySelector('.cast-time'), `${(cast.remaining / 1000).toFixed(1)} 秒`);
                 casting.querySelector('.cast-bar i').style.width = `${cast.percent}%`;
             }
             if (targetHost.hidden) {
                 if (!placeWindow(targetHost, readSavedWindowPosition('targetPosition'), TARGET_WINDOW_WIDTH)) placeDefaultTargetWindow();
             }
-            targetHost.hidden = false;
+            setHidden(targetHost, false);
         }
         let rowsHtml = '';
         // Replacing identical rows every tick drops keyboard focus and turns a click whose press and
@@ -2575,26 +2587,25 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
         function render() {
             if (!root || host.hidden) return;
             syncSession();
-            const nativeStyle = page.getComputedStyle(assistant.host);
-            root.querySelector('#collapse').classList.toggle('native-mini', Boolean(nativeStyle.getPropertyValue('--ro-mini-image').trim()));
-            root.querySelector('#close').classList.toggle('native-close', Boolean(nativeStyle.getPropertyValue('--ro-close-image').trim()));
+            root.querySelector('#collapse').classList.toggle('native-mini', hasNativeSkin('--ro-mini-image'));
+            root.querySelector('#close').classList.toggle('native-close', hasNativeSkin('--ro-close-image'));
             const data = meter.snapshot(scope, now(), selfOnly, selfID);
             const ready = [...registered].some(type => DAMAGE_TYPES.test(type));
-            status.textContent = errors ? `采集异常 ${errors} 次，请导出后反馈`
+            setText(status, errors ? `采集异常 ${errors} 次，请导出后反馈`
                 : !attached ? '等待游戏客户端加载…'
                 : !ready ? '等待进入地图；若已在游戏中，请刷新页面重新进入'
-                : paused ? '已暂停记录' : data.active ? '战斗中' : '等待战斗 · 10 秒无伤害结束本场';
+                : paused ? '已暂停记录' : data.active ? '战斗中' : '等待战斗 · 10 秒无伤害结束本场');
             const player = selectedPlayer && data.rows.find(row => row.id === selectedPlayer);
             if (!player) { selectedPlayer = null; selectedAbility = null; }
             const ability = player && selectedAbility && player.abilities.find(item => item.id === selectedAbility);
             if (!ability) selectedAbility = null;
             root.querySelector('.detail-nav').hidden = !player;
-            root.querySelector('#back').textContent = ability ? '返回技能' : '返回排行';
-            root.querySelector('.detail-player').textContent = ability ? `${player.name} · ${abilityName(ability)}` : player ? player.name : '';
-            root.querySelector('.labels').firstElementChild.textContent = ability ? '结果' : player ? '普攻 / 技能' : '伤害排行';
-            root.querySelector('.labels').lastElementChild.textContent = ability ? '次数 / 占比' : player ? '伤害 / 占比 ↓' : '伤害 / DPS ↓';
+            setText(root.querySelector('#back'), ability ? '返回技能' : '返回排行');
+            setText(root.querySelector('.detail-player'), ability ? `${player.name} · ${abilityName(ability)}` : player ? player.name : '');
+            setText(root.querySelector('.labels').firstElementChild, ability ? '结果' : player ? '普攻 / 技能' : '伤害排行');
+            setText(root.querySelector('.labels').lastElementChild, ability ? '次数 / 占比' : player ? '伤害 / 占比 ↓' : '伤害 / DPS ↓');
             const shownDamage = ability ? ability.damage : player ? player.damage : data.damage;
-            summary.textContent = `${(data.duration / 1000).toFixed(1)} 秒  ·  总伤害 ${format(shownDamage)}  ·  DPS ${format(shownDamage / Math.max(1, data.duration / 1000))}`;
+            setText(summary, `${(data.duration / 1000).toFixed(1)} 秒  ·  总伤害 ${format(shownDamage)}  ·  DPS ${format(shownDamage / Math.max(1, data.duration / 1000))}`);
             const rows = page.document.createElement('div');
             if (ability) {
                 const skillCriticalUnknown = ability.skillID !== null;
@@ -3904,7 +3915,9 @@ export function createStandardAssistant({ page, modules, storage, subscribePacke
         }
 
         syncVisibility(visible = this.assistant.gameplayVisible) {
-            if (this.window) this.window.host.hidden = !this.opened || !visible || !this.assistant.settings.bountyEnabled;
+            // 每 250ms 调用；只在变化时写，重复写 hidden 会触发原生窗口观察器和 x_remove。
+            const hidden = !this.opened || !visible || !this.assistant.settings.bountyEnabled;
+            if (this.window && this.window.host.hidden !== hidden) this.window.host.hidden = hidden;
         }
     }
 
@@ -8270,24 +8283,42 @@ function showQuickTransferHelp(assistant) {
         }
 
         findVisibleMinimapRect() {
+            const usableRect = (element) => {
+                if (!this.isVisible(element)) {
+                    return null;
+                }
+                const rect = element.getBoundingClientRect();
+                if (rect.width < 100 || rect.width > 430 || rect.height < 100 || rect.height > 430
+                    || rect.right < globalScope.innerWidth * 0.55 || rect.top > globalScope.innerHeight * 0.5) {
+                    return null;
+                }
+                return rect;
+            };
+            // 可见性检测每 250ms 调一次；上次选中的小地图仍可用时，2.5 秒内直接复用，
+            // 避免每次对所有 shadow root 跑属性子串选择器的全量遍历。小地图消失会立即重新查找。
+            const now = Date.now();
+            const cachedRect = this.minimapElement?.isConnected && now - this.minimapFoundAt < 2500
+                ? usableRect(this.minimapElement) : null;
+            if (cachedRect) {
+                return cachedRect;
+            }
             const selectors = '#MiniMap, .MiniMap, #minimap, .minimap, .MiniMapUI, [id*="mini-map" i], [class*="mini-map" i]';
             const candidates = [];
             for (const root of this.collectRoots()) {
                 for (const element of root.querySelectorAll(selectors)) {
-                    if (!this.isVisible(element)) {
-                        continue;
-                    }
-                    const rect = element.getBoundingClientRect();
-                    if (rect.width < 100 || rect.width > 430 || rect.height < 100 || rect.height > 430
-                        || rect.right < globalScope.innerWidth * 0.55 || rect.top > globalScope.innerHeight * 0.5) {
+                    const rect = usableRect(element);
+                    if (!rect) {
                         continue;
                     }
                     const exact = /^(?:MiniMap|minimap)$/.test(element.id || '')
                         || [...element.classList].some((name) => /^(?:MiniMap|minimap)$/.test(name));
-                    candidates.push({ rect, score: (exact ? 100000 : 0) + rect.right - rect.top });
+                    candidates.push({ element, rect, score: (exact ? 100000 : 0) + rect.right - rect.top });
                 }
             }
-            return candidates.sort((left, right) => right.score - left.score)[0]?.rect || null;
+            const best = candidates.sort((left, right) => right.score - left.score)[0];
+            this.minimapElement = best?.element || null;
+            this.minimapFoundAt = now;
+            return best?.rect || null;
         }
 
         updateGameplayVisibility(force = false) {
