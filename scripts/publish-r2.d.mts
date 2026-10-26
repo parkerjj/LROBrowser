@@ -3,3 +3,4 @@ export function createR2Client(config: { accountId: string; accessKeyId: string;
 export function buildReleaseObjectKeys(metadata: { version: string; commitSha: string }): { bundle: string; checksum: string; releaseManifest: string; auditReport: string };
 export interface PublishResult { version: string; keys: Record<string, string>; retainedVersions: string[] }
 export function publishRelease(input: { client: unknown; bucket: string; artifacts: Record<string, Uint8Array | Buffer>; metadata: Record<string, unknown>; existingVersions?: string[]; retentionCount?: number }): Promise<PublishResult>;
+export function bundleSourceUrl(input: { proxyBaseUrl?: string; repository?: string; runNumber?: string | number; bundleName: string }): string | undefined;

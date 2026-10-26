@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { buildReleaseObjectKeys, publishRelease } from '../scripts/publish-r2.mjs';
+import { buildReleaseObjectKeys, bundleSourceUrl, publishRelease } from '../scripts/publish-r2.mjs';
 
 describe('R2 publisher', () => {
+  it('builds the accelerated GitHub Release URL only when a proxy is configured', () => {
+    const base = { repository: 'parkerjj/LROBrowser', runNumber: '157', bundleName: 'app.swbn' };
+    expect(bundleSourceUrl({ ...base, proxyBaseUrl: 'https://gh-proxy.org/' })).toBe('https://gh-proxy.org/https://github.com/parkerjj/LROBrowser/releases/download/iwa-157/app.swbn');
+    expect(bundleSourceUrl({ ...base, proxyBaseUrl: undefined })).toBeUndefined();
+    expect(() => bundleSourceUrl({ ...base, proxyBaseUrl: 'http://gh-proxy.org/' })).toThrow('HTTPS');
+    expect(() => bundleSourceUrl({ ...base, proxyBaseUrl: 'https://gh-proxy.org' })).toThrow('ending with /');
+    expect(() => bundleSourceUrl({ ...base, repository: undefined, proxyBaseUrl: 'https://gh-proxy.org/' })).toThrow('GITHUB_REPOSITORY');
+  });
   it('creates immutable versioned keys', () => expect(buildReleaseObjectKeys({ version: '0.1.3', commitSha: 'a'.repeat(40) })).toEqual(expect.objectContaining({ bundle: `releases/0.1.3/lastro-v2-${'a'.repeat(40)}.swbn` })));
   it('uploads release objects before updates.json and retains three versions', async () => {
     const calls: string[] = []; const store = new Map<string, Uint8Array>();
