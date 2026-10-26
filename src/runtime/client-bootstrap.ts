@@ -2,7 +2,6 @@ import type { LegacyClientSocket } from '../network/client-socket';
 import type { LastROLoginPhase } from '../network/lastro-login-http';
 import type { AvailableServerProfile } from '../servers/server-profile';
 import { buildClientConfig, type ClientCredentials, type V2ClientConfig } from './client-config';
-import { loadClientFonts } from './client-fonts';
 import { installDebugAccessGuard } from './debug-access';
 import { IS_WEB_BUILD } from './build-target';
 import { getAvailableServerProfile } from '../servers/server-profiles';
@@ -87,7 +86,7 @@ export async function bootstrapV2Client(options: BootstrapOptions): Promise<void
   // Do not block the UI or load downloaded scripts as executable code.
   if (!IS_WEB_BUILD) void refreshOfficialOnlineProfiles().catch(() => undefined);
   const mount = options.mount;
-  const [manifest] = await Promise.all([loadExecutableManifest(), loadClientFonts()]);
+  const manifest = await loadExecutableManifest();
   if (!IS_WEB_BUILD) {
     const socketFactory = await import('../network/socket-factory');
     const loginHttp = await import('../network/lastro-login-http');

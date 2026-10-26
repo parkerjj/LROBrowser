@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { transform } from 'esbuild';
+import { packagedAssetPath } from './iwa-security.mjs';
 
 async function walk(root) {
   const files = [];
@@ -19,7 +20,7 @@ export async function minifyReleaseJavaScript(dist = 'dist') {
   const files = await walk(root);
   const manifestPath = path.join(root, 'core/executable-assets.json');
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
-  const entries = new Map(manifest.files.map(entry => ['core/' + entry.path, entry]));
+  const entries = new Map(manifest.files.map(entry => [packagedAssetPath(entry), entry]));
   const originals = new Map();
   // Validate before rewriting: minification must not bless pre-existing corruption.
   for (const file of files) {

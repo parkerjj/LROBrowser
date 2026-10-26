@@ -6,6 +6,7 @@ import { Bundle } from 'wbn';
 import { SignedWebBundle } from 'wbn-sign';
 import { describe, expect, it } from 'vitest';
 import { LASTRO_SERVER_PROFILES } from '../src/servers/server-profiles';
+import { packagedAssetPath } from '../scripts/iwa-security.mjs';
 
 const release = path.resolve('release');
 
@@ -20,7 +21,7 @@ describe('Phase A release smoke', () => {
     const signed = SignedWebBundle.fromBytes(signedBytes);
     const bundle = new Bundle(unsignedBytes);
     const urls = new Set(bundle.urls);
-    const coreManifest = JSON.parse(await readFile('dist/core/executable-assets.json', 'utf8')) as { files: Array<{ path: string }> };
+    const coreManifest = JSON.parse(await readFile('dist/core/executable-assets.json', 'utf8')) as { files: Array<{ path: string; encoding?: string }> };
     const inventory = JSON.parse(await readFile('config/lastro-module-inventory.json', 'utf8')) as { entries: Array<{ module: string }> };
     const bundleId = signed.getWebBundleId();
 
@@ -34,12 +35,15 @@ describe('Phase A release smoke', () => {
     expect(audit.coreManifestSummary.fileCount).toBe(coreManifest.files.length);
     expect(urls).toContain('');
     expect([...urls].every((url) => !url.includes('://'))).toBe(true);
-    for (const entry of coreManifest.files) expect(urls).toContain(`core/${entry.path}`);
+    for (const entry of coreManifest.files) expect(urls).toContain(packagedAssetPath(entry));
     for (const entry of inventory.entries) {
       if (entry.module === 'lastro-navigation-debug.mjs') {
         expect(urls).not.toContain(`core/runtime/${entry.module}`);
         expect(urls).not.toContain(`runtime/${entry.module}`);
-      } else expect(urls).toContain(`core/runtime/${entry.module}`);
+      } else {
+        expect(urls).toContain(`runtime/${entry.module}`);
+        expect(urls).not.toContain(`core/runtime/${entry.module}`);
+      }
     }
     expect(LASTRO_SERVER_PROFILES.find((profile) => profile.id === 'lastro-app')).toMatchObject({ availability: 'available', loginAddress: 'port.lastro.cn', loginPort: 27569, lastroNid: 6 });
     expect(execFileSync('git', ['ls-files', '--', 'release', 'generated'], { encoding: 'utf8' })).toBe('');

@@ -112,6 +112,27 @@ describe('core executable asset importer', () => {
     await expect(importCoreAssets({ coreRoot: f.core, moduleRoot: f.modules, output: f.output })).rejects.toThrow(/unsupported-executable/);
   });
 
+  it('packages only the default damage-number sprites as passive sprite assets', async () => {
+    const f = await fixture();
+    await mkdir(path.join(f.core, 'data/sprite/이팩트'), { recursive: true });
+    for (const name of ['숫자.spr', '숫자.act']) await writeFile(path.join(f.core, 'data/sprite/이팩트', name), name);
+    const manifest = await importCoreAssets({ coreRoot: f.core, moduleRoot: f.modules, output: f.output });
+    expect(manifest.files).toEqual(expect.arrayContaining([
+      expect.objectContaining({ path: 'data/sprite/이팩트/숫자.spr', kind: 'passive' }),
+      expect.objectContaining({ path: 'data/sprite/이팩트/숫자.act', kind: 'passive' }),
+    ]));
+    await mkdir(path.join(f.core, 'data/sprite/npc'), { recursive: true });
+    await writeFile(path.join(f.core, 'data/sprite/npc/other.spr'), 'unlisted');
+    await expect(importCoreAssets({ coreRoot: f.core, moduleRoot: f.modules, output: f.output })).rejects.toThrow(/unsupported-executable/);
+  });
+
+  it('ships the actual default damage-number sprites in the vendor core', async () => {
+    const directory = path.resolve('vendor/core/data/sprite/이팩트');
+    for (const [name, magic] of [['숫자.spr', 'SP'], ['msg.spr', 'SP'], ['bluemsg.spr', 'SP'], ['숫자.act', 'AC']] as const) {
+      expect((await readFile(path.join(directory, name))).subarray(0, 2).toString('latin1')).toBe(magic);
+    }
+  });
+
   it('fails when a required patched worker is missing instead of emitting an incomplete manifest', async () => {
     const f = await fixture();
     const runtime = path.join(f.root, 'runtime');
@@ -155,6 +176,6 @@ describe('core executable asset importer', () => {
     const lua = await walk(luaRoot);
     const system = await walk(systemRoot);
     expect(lua).toHaveLength(473);
-    expect(system).toHaveLength(4);
+    expect(system).toHaveLength(3);
   });
 });

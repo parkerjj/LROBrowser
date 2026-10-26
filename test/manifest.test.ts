@@ -35,25 +35,24 @@ describe('Phase A IWA', () => {
     expect(shell).toContain("title.textContent = 'LRO进阶客户端(Powered by LTSD.Ro)';");
   });
 
-  it('ships compact local Chinese fonts and both upstream licenses', async () => {
-    const [variable, medium, bold, license, miSansLicense, notice] = await Promise.all([
-      readFile('public/fonts/MiSans-VF.woff2'),
+  it('ships only the compact OFL glyph fallback and relies on system fonts for Chinese text', async () => {
+    const [medium, bold, license, notice, css] = await Promise.all([
       readFile('public/fonts/LastROGlyphFallback-Medium.woff2'),
       readFile('public/fonts/LastROGlyphFallback-Bold.woff2'),
       readFile('public/fonts/OFL.txt', 'utf8'),
-      readFile('public/fonts/MiSans-LICENSE.pdf'),
       readFile('public/fonts/NOTICE.txt', 'utf8'),
+      readFile('public/fonts/misans.css', 'utf8'),
     ]);
-    for (const font of [variable, medium, bold]) expect(font.toString('ascii', 0, 4)).toBe('wOF2');
-    expect(variable.byteLength + medium.byteLength + bold.byteLength).toBeLessThan(12 * 1024 * 1024);
-    expect((await readdir('public/fonts')).filter(name => /\.(?:woff2?|otf|ttf)$/i.test(name)).sort()).toEqual([
-      'LastROGlyphFallback-Bold.woff2', 'LastROGlyphFallback-Medium.woff2', 'MiSans-VF.woff2',
+    for (const font of [medium, bold]) expect(font.toString('ascii', 0, 4)).toBe('wOF2');
+    expect(medium.byteLength + bold.byteLength).toBeLessThan(1024 * 1024);
+    expect((await readdir('public/fonts')).filter(name => /\.(?:woff2?|otf|ttf|pdf)$/i.test(name)).sort()).toEqual([
+      'LastROGlyphFallback-Bold.woff2', 'LastROGlyphFallback-Medium.woff2',
     ]);
     expect(license).toContain('SIL OPEN FONT LICENSE');
     expect(license).toContain('Version 1.1');
-    expect(miSansLicense.toString('ascii', 0, 5)).toBe('%PDF-');
-    expect(notice).toContain('MiSans');
+    expect(notice).not.toContain('MiSans');
     expect(notice).toContain('LastRO Glyph Fallback');
+    expect(css).not.toContain('MiSans');
   });
 
 });

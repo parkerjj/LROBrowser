@@ -22,7 +22,7 @@ const checkRuntime = checkDist || process.argv.includes('--check-runtime');
 const checkedFiles = [];
 if (checkRuntime) {
   const paths = ['generated/runtime/Online.js', 'generated/core/runtime/Online.js'];
-  if (checkDist) paths.push('dist/runtime/Online.js', 'dist/core/runtime/Online.js');
+  if (checkDist) paths.push('dist/runtime/Online.js');
   for (const filename of paths) {
     assertRuntimeLocalizationMount(readFileSync(new URL('../' + filename, import.meta.url), 'utf8'), runtime);
     checkedFiles.push(filename);

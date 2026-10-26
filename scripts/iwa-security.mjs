@@ -21,3 +21,11 @@ export const REQUIRED_HEADERS = Object.freeze({
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'no-referrer',
 });
+
+// Runtime modules load from /runtime/ (Online.js, its imports and workers), so
+// their manifest entries ship only there instead of a second core/ copy.
+// Gzip entries ship as `<path>.gz` and are inflated by the worker resource loader.
+export function packagedAssetPath(entry) {
+  if (entry.path.startsWith('runtime/')) return entry.path;
+  return `core/${entry.path}${entry.encoding === 'gzip' ? '.gz' : ''}`;
+}

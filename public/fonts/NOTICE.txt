@@ -1,5 +1,2 @@
-The client uses MiSans fonts, Copyright Xiaomi Inc.
-License: MiSans-LICENSE.pdf
-
 LastRO Glyph Fallback: Copyright Adobe.
 License: OFL.txt
