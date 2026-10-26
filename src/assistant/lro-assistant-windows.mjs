@@ -25,8 +25,10 @@ export function createAssistantWindows(page, modules) {
     record.visible=component.__active;
   }
   function sync(visible) {
+    // 可见性检测每 250ms 调一次；纹理到达时已推给所有窗口，只在进入游戏画面时
+    // 补载失败的纹理，不再每次重写全部窗口的 CSS 变量。
+    if (visible && !gameplay) theme.refresh();
     gameplay = Boolean(visible);
-    if (gameplay) theme.refresh();
     for (const record of windows) {
       if (gameplay) attach(record);
       else { if (record.host.isConnected) record.component.remove(); record.visible=false; }

@@ -85279,7 +85279,9 @@ function getContext(canvas, parameters) {
       alpha: false,
       depth: true,
       stencil: false,
-      antialias: true,
+      // LastRO：关闭 MSAA。多开时每个窗口的多重采样缓冲按 DPR² 吃显存和带宽，
+      // 而人物/怪物是带透明通道的精灵，MSAA 几乎不起作用；需要平滑可开 FXAA。
+      antialias: false,
       premultipliedAlpha: false,
       preserveDrawingBuffer: true,
     };
@@ -228374,8 +228376,13 @@ var init_Renderer = __esmMin(() => {
         this.frameLimit !== GraphicsSettings.fpslimit
       )
         this.frameLimit = GraphicsSettings.fpslimit;
-      if (this.frameLimit > 0) {
-        const interval = 1e3 / this.frameLimit;
+      // LastRO 多开：不在前台的窗口最多 20fps，把 GPU 让给前台窗口；省电模式等
+      // 更低的上限照常生效。只影响本帧节流，不改写 frameLimit 本身。
+      let frameLimit = this.frameLimit;
+      if (!document.hasFocus() && (frameLimit <= 0 || frameLimit > 20))
+        frameLimit = 20;
+      if (frameLimit > 0) {
+        const interval = 1e3 / frameLimit;
         const elapsed = now - this._lastFrameTime;
         if (elapsed < interval) {
           this.updateId = _requestAnimationFrame(this._renderBound);
@@ -284467,6 +284474,24 @@ var init_Scrollbar = __esmMin(() => {
      */
     static skins = {};
     /**
+     * LastRO：所有自定义滚动条共用一个 300ms 轮询。原先每个元素各有一个
+     * setInterval、各自强制一次布局，所在窗口隐藏后也不停；现在集中到同一个
+     * 任务里读布局，页面不可见时整体跳过。
+     */
+    static _pollers = new Set();
+    static _pollTimer = null;
+    static _watch(poll) {
+      ScrollBar._pollers.add(poll);
+      if (ScrollBar._pollTimer === null)
+        ScrollBar._pollTimer = setInterval(ScrollBar._poll, 300);
+    }
+    static _poll() {
+      if (!document.hidden) for (const poll of ScrollBar._pollers) poll();
+      if (ScrollBar._pollers.size) return;
+      clearInterval(ScrollBar._pollTimer);
+      ScrollBar._pollTimer = null;
+    }
+    /**
      * Initialize scrollbar
      */
     static init() {
@@ -284725,12 +284750,24 @@ var init_Scrollbar = __esmMin(() => {
        * wrapper and paddingRight styles — it never writes element.scrollTop,
        * so a 'scroll' listener calling this cannot trigger a re-entrant scroll.
        */
+      let lastGeometry = "";
+      // 本函数写出的 inline 样式快照；外部代码（如商店拖动滚动测量时把滚动条移回
+      // top:0）改过它们时不能跳过，要像原先每次重写那样恢复。读 inline 样式不触发布局。
+      const writtenStyles = () =>
+        `${scrollbar.style.cssText}|${thumb.style.cssText}|${element.style.paddingRight}`;
+      const remember = (geometry) => {
+        lastGeometry = `${geometry}|${writtenStyles()}`;
+      };
       const updateThumb = () => {
         const h = element.clientHeight;
         const sh = element.scrollHeight;
+        // 尺寸、滚动位置和已写样式都没变时滑块已是最新：跳过写样式，也不再读 track 布局。
+        const geometry = `${h}:${sh}:${element.scrollTop}`;
+        if (`${geometry}|${writtenStyles()}` === lastGeometry) return;
         if (sh <= h) {
           scrollbar.style.display = "none";
           element.style.paddingRight = `${element._roOriginalPaddingRight}px`;
+          remember(geometry);
           return;
         }
         scrollbar.style.display = "";
@@ -284750,19 +284787,20 @@ var init_Scrollbar = __esmMin(() => {
         const maxThumbTop = trackHeight - thumbHeight;
         const thumbTop = (st / maxScrollTop) * maxThumbTop;
         thumb.style.top = `${thumbTop}px`;
+        remember(geometry);
       };
-      let poller = null;
+      const poll = () => {
+        if (!element.isConnected) {
+          ScrollBar._pollers.delete(poll);
+          return;
+        }
+        // 所在原生窗口 hide() 时不读布局；重新显示后下一轮即恢复。
+        if (element.getRootNode().host?.style.display === "none") return;
+        updateThumb();
+      };
       element._roScrollbarRestart = () => {
         updateThumb();
-        if (poller) clearInterval(poller);
-        poller = setInterval(() => {
-          if (!element.isConnected) {
-            clearInterval(poller);
-            poller = null;
-            return;
-          }
-          updateThumb();
-        }, 300);
+        ScrollBar._watch(poll);
       };
       element._roScrollbarRestart();
       if (element._roScrollHandler)
@@ -285777,21 +285815,51 @@ var init_GUIComponent = __esmMin(() => {
         setTimeout(() => checkScrollbars(root), 50);
         setTimeout(() => checkScrollbars(root), 150);
         setTimeout(() => checkScrollbars(root), 500);
+        // LastRO：只检查新增节点和样式/类名变化的子树，并刷新沿途已挂滚动条的
+        // 祖先。原先任何变化（聊天新消息、状态文字）都要对整个窗口逐个
+        // getComputedStyle；尺寸的间接变化仍由 ScrollBar 的共享轮询兜底。
+        const refreshApplied = (node, refreshed) => {
+          for (let n = node; n && !refreshed.has(n); n = n === root ? null : n.parentNode) {
+            refreshed.add(n);
+            if (n._roScrollbarApplied) _ScrollBar?.applyDOMScrollbar(n);
+          }
+        };
         const observer = new MutationObserver((mutations) => {
-          let needsCheck = false;
+          const scan = new Set();
+          const contentChanged = new Set();
           for (const mutation of mutations)
-            if (mutation.type === "childList") needsCheck = true;
-            else if (mutation.type === "attributes") {
+            if (mutation.type === "childList") {
+              contentChanged.add(mutation.target);
+              for (const node of mutation.addedNodes)
+                if (node.nodeType === 1) scan.add(node);
+            } else if (mutation.type === "attributes") {
               if (mutation.attributeName === "style") {
                 const oldVal = mutation.oldValue || "";
                 const wasHidden =
                   oldVal.includes("display: none") ||
                   oldVal.includes("display:none");
                 const isHidden = mutation.target.style.display === "none";
-                if (wasHidden && !isHidden) needsCheck = true;
-              } else if (mutation.attributeName === "class") needsCheck = true;
+                if (wasHidden && !isHidden) scan.add(mutation.target);
+              } else if (mutation.attributeName === "class") scan.add(mutation.target);
             }
-          if (needsCheck) checkScrollbars(root);
+          // 祖先变化或新样式表会影响整个窗口的 overflow，仍整窗检查。
+          for (const node of scan)
+            if (
+              node.localName === "style" ||
+              node.localName === "link" ||
+              (node !== root && node.contains(root))
+            ) {
+              checkScrollbars(root);
+              return;
+            }
+          const refreshed = new Set();
+          for (const node of scan)
+            if (root.contains(node)) {
+              checkScrollbars(node);
+              if (node !== root) refreshApplied(node.parentNode, refreshed);
+            }
+          for (const node of contentChanged)
+            if (root.contains(node)) refreshApplied(node, refreshed);
         });
         observer.observe(observeTarget, {
           childList: true,
