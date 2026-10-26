@@ -5,7 +5,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { auditRuntimeSource } from './audit-runtime-code.mjs';
-import { REQUIRED_HEADERS } from './iwa-security.mjs';
+import { packagedAssetPath, REQUIRED_HEADERS } from './iwa-security.mjs';
 /* eslint-disable no-control-regex -- Reject control characters in untrusted package paths. */
 
 const ALLOWED_ORIGINS = new Set(['https://game.lastro.cn', 'https://rodata.ltsd.ro']);
@@ -107,7 +107,8 @@ export async function auditDist(distDirectory, reportPath = path.resolve('releas
   for (const entry of coreManifest.files) {
     if (!entry || typeof entry.path !== 'string' || /[\\%:#?\x00-\x1f\x7f]/.test(entry.path)
       || entry.path.split('/').some(part => !part || part === '.' || part === '..')
-      || !relativeFiles.includes(`core/${entry.path}`)) {
+      || (entry.encoding !== undefined && entry.encoding !== 'gzip')
+      || !relativeFiles.includes(packagedAssetPath(entry))) {
       throw new Error(`missing executable asset: ${entry?.path ?? '<invalid>'}`);
     }
     if (manifestEntries.has(entry.path)) throw new Error('duplicate executable asset');
@@ -178,22 +179,16 @@ export async function auditDist(distDirectory, reportPath = path.resolve('releas
   }
   if (prohibitedResults.length) throw new Error(`prohibited bundle content: ${prohibitedResults.map((item) => `${item.name}@${item.file}`).join(', ')}`);
 
-  const runtimeAliases = new Map();
+  const packagedFiles = new Set();
   for (const [file, expected] of manifestEntries) {
-    const actual = contentHashes.get('core/' + file);
+    const packaged = packagedAssetPath(expected);
+    packagedFiles.add(packaged);
+    const actual = contentHashes.get(packaged);
     if (actual.bytes !== expected.bytes || actual.sha256 !== expected.sha256) throw new Error('executable asset integrity mismatch: ' + file);
-    if (expected.kind === 'runtime') {
-      const aliasPath = 'runtime/' + path.posix.basename(file);
-      const previous = runtimeAliases.get(aliasPath);
-      if (previous && previous !== expected.sha256) throw new Error('ambiguous runtime alias: ' + aliasPath);
-      runtimeAliases.set(aliasPath, expected.sha256);
-      const alias = contentHashes.get(aliasPath);
-      if ((!alias && file.startsWith('runtime/')) || (alias && alias.sha256 !== expected.sha256)) throw new Error('runtime alias integrity mismatch: ' + file);
-    }
   }
   for (const file of relativeFiles) {
-    if (file.startsWith('core/') && /\.(?:[cm]?js|lua|lub|wasm|wasm\.enc)$/i.test(file) && !manifestEntries.has(file.slice(5))) throw new Error('unlisted executable asset: ' + file);
-    if (file.startsWith('runtime/') && !runtimeAliases.has(file)) throw new Error('unlisted runtime asset: ' + file);
+    if (file.startsWith('core/') && /\.(?:[cm]?js|lua|lub|wasm|wasm\.enc)(?:\.gz)?$/i.test(file) && !packagedFiles.has(file)) throw new Error('unlisted executable asset: ' + file);
+    if (file.startsWith('runtime/') && !packagedFiles.has(file)) throw new Error('unlisted runtime asset: ' + file);
   }
 
   await mkdir(path.dirname(reportPath), { recursive: true });

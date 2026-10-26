@@ -1,10 +1,12 @@
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { copyFile, readFile, rm as rmAsync, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { gzipSync } from 'node:zlib';
 import { type Plugin, type ViteDevServer } from 'vite';
 import { defineConfig } from 'vitest/config';
-import { REQUIRED_HEADERS } from './scripts/iwa-security.mjs';
+import { packagedAssetPath, REQUIRED_HEADERS } from './scripts/iwa-security.mjs';
 import { isLocalRequest, resolveStagedResource } from './scripts/dev-resource-security.mjs';
 
 export function stripViteClientInjection(html: string): string {
@@ -57,16 +59,23 @@ export function packageRuntime(target: 'iwa' | 'web', root = process.cwd()): Plu
       if (existsSync(runtime)) this.emitFile({ type: 'asset', fileName: 'runtime/Online.js', source: readFileSync(runtime) });
       const manifestPath = path.resolve(root, 'generated/core/executable-assets.json');
       if (!existsSync(manifestPath)) return;
-      const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { files: Array<{ path: string; kind: string }> };
+      const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+        files: Array<{ path: string; kind: string; bytes?: number; sha256?: string; encoding?: 'gzip' }>;
+      };
       for (const file of manifest.files) {
         const source = path.resolve(root, 'generated/core', file.path);
         if (!existsSync(source)) throw new Error(`Missing core asset: ${file.path}`);
-        this.emitFile({ type: 'asset', fileName: `core/${file.path}`, source: readFileSync(source) });
-        if (file.kind === 'runtime' && file.path.startsWith('runtime/') && file.path !== 'runtime/Online.js') {
-          this.emitFile({ type: 'asset', fileName: `runtime/${path.basename(file.path)}`, source: readFileSync(source) });
+        if (file.path === 'runtime/Online.js') continue;
+        let bytes: Uint8Array = readFileSync(source);
+        // Web Bundles store bodies uncompressed. Lua/LUB tables shrink ~85% and are
+        // inflated by the worker resource loader; KE keeps its own content hashes.
+        if (target === 'iwa' && (file.kind === 'lua' || file.kind === 'lub') && !file.path.startsWith('ke/')) {
+          bytes = gzipSync(bytes, { level: 9 });
+          Object.assign(file, { bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'), encoding: 'gzip' });
         }
+        this.emitFile({ type: 'asset', fileName: packagedAssetPath(file), source: bytes });
       }
-      this.emitFile({ type: 'asset', fileName: 'core/executable-assets.json', source: readFileSync(manifestPath) });
+      this.emitFile({ type: 'asset', fileName: 'core/executable-assets.json', source: JSON.stringify(manifest, null, 2) + '\n' });
     },
     async writeBundle(options) {
       if (target !== 'web') return;

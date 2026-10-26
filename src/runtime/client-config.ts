@@ -124,7 +124,8 @@ export function buildClientConfig(profile: AvailableServerProfile, credentials: 
     remoteClient: IS_WEB_BUILD ? 'https://rodata.ltsd.ro/ro/client_re/' : 'https://game.lastro.cn/ro/client_re/',
     resourcePathCharset: 'gbk', lastroDataCharset: 'gbk', statusDescriptionCharset: 'gbk', networkCharset: 'gbk',
     loadLua: true, skipIntro: true, skipServerList: true, enableCashShop: true, enableRefineUI: true, enableMapName: true, enableAchievements: true,
-    customItemInfo: Object.freeze(['System/itemInfo_re_59.lua', 'System/itemInfo_re_61.lua']),
+    // _61 is a superset revision of _59; the loader rebuilds whole entries, so _59 had no effect.
+    customItemInfo: Object.freeze(['System/itemInfo_re_61.lua']),
     development: false,
     enableConsole: false,
     debug: false, debugAI: false, packetDump: false,

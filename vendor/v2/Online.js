@@ -223574,9 +223574,10 @@ var init_Damage = __esmMin(() => {
   _skin = 0;
   _damageSkins = {
     0: {
-      BaseNumber: "data/sprite/ÀÌÆÑÆ®/¼ýÀÚ.spr",
-      BaseMsg: "data/sprite/ÀÌÆÑÆ®/msg.spr",
-      BaseBlue: "data/sprite/ÀÌÆÑÆ®/bluemsg.spr",
+      // Packaged in the IWA (core/data/sprite/이팩트/); remote fallback resolves to the same URLs.
+      BaseNumber: "data/sprite/이팩트/숫자.spr",
+      BaseMsg: "data/sprite/이팩트/msg.spr",
+      BaseBlue: "data/sprite/이팩트/bluemsg.spr",
     },
     1: {
       BaseNumber: "data/sprite/ÀÌÆÑÆ®/NewNumber.spr",
@@ -223649,14 +223650,25 @@ var init_Damage = __esmMin(() => {
           msgBlue: {},
         };
         const skinData = _loadedSkinsData[skinId];
-        Client.getFiles(
+        // Client.getFiles has no error path: one failed download used to leave this
+        // empty skin marked as loaded, hiding damage numbers for the whole session.
+        // Forget the skin on failure so the next map load retries it.
+        const forgetSkin = () => {
+          if (_loadedSkinsData[skinId] === skinData) delete _loadedSkinsData[skinId];
+        };
+        Promise.all(
           [
             currentSkin.BaseNumber,
             currentSkin.BaseMsg,
             currentSkin.BaseBlue,
             currentSkin.BaseNumber.replace(".spr", ".act"),
-          ],
-          (numbers, msg, bluemsg, numbersAct) => {
+          ].map((file) => new Promise((resolve, reject) => {
+            // A failed entry stays in memory and would never re-request; drop it first.
+            MemoryManager.discardFailedMusic(file);
+            Client.getFile(file, resolve, reject);
+          })),
+        ).then(
+          ([numbers, msg, bluemsg, numbersAct]) => {
             let sprNumbers, sprMsg, sprBlue, actNumbers;
             const enableMipmap = Configs.get("enableMipmap");
             MemoryManager.remove(gl, msg);
@@ -223667,6 +223679,7 @@ var init_Damage = __esmMin(() => {
               actNumbers = new ACT(numbersAct);
             } catch (e) {
               console.error("Damage::init() - " + e.message);
+              forgetSkin();
               return;
             }
             skinData.Scale = [];
@@ -223765,6 +223778,10 @@ var init_Damage = __esmMin(() => {
               );
               if (enableMipmap) gl.generateMipmap(gl.TEXTURE_2D);
             }
+          },
+          (error) => {
+            console.warn("Damage::init() - damage sprites unavailable, retrying on next map load", error);
+            forgetSkin();
           },
         );
       });

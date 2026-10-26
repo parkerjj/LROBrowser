@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRuntimeResourceLoader, snapshotPackageManifest } from '../src/resources/runtime-resource-loader';
+import { gzipSync } from 'node:zlib';
 import { resolvePassiveResource } from '../src/resources/resource-resolver';
 
 vi.mock('../src/resources/resource-resolver', async (importOriginal) => ({ ...await importOriginal<typeof import('../src/resources/resource-resolver')>(), resolvePassiveResource: vi.fn() }));
@@ -106,6 +107,21 @@ describe('worker runtime resource in-flight sharing', () => {
     expect(String(fetch.mock.calls[0]?.[0])).toBe('https://iwa.invalid/core/data/ui/my%20module.mjs');
     expect(first).not.toBe(second);
     expect(Array.from(new Uint8Array(first))).toEqual([1, 2, 3]);
+  });
+
+  it('reads gzip-packaged Lua from its .gz file and returns the inflated bytes', async () => {
+    const actual = await vi.importActual<typeof import('../src/resources/resource-resolver')>('../src/resources/resource-resolver');
+    resolver.mockImplementation(actual.resolvePassiveResource);
+    const lua = new TextEncoder().encode('obj = { [500] = { slotCount = 0 } }\n');
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => new Response(gzipSync(lua), { headers: { 'content-type': 'application/octet-stream' } }));
+    vi.stubGlobal('fetch', fetch);
+    const load = createRuntimeResourceLoader({
+      packageBaseUrl: 'https://iwa.invalid/core/', getCharset: () => 'gbk',
+      getManifest: () => [{ path: 'System/itemInfo_re_61.lua', encoding: 'gzip' }, { path: 'System/bad.lua', encoding: 'br' }],
+    });
+    expect(new Uint8Array(await load('System/itemInfo_re_61.lua'))).toEqual(lua);
+    expect(String(fetch.mock.calls[0]?.[0])).toBe('https://iwa.invalid/core/System/itemInfo_re_61.lua.gz');
+    await expect(load('System/bad.lua')).rejects.toThrow('Invalid package resource encoding');
   });
 
   it('matches manifest entries case-insensitively and follows a replaced manifest', async () => {

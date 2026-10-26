@@ -4,7 +4,7 @@ import { createDirectHttpFetch } from './direct-http-resource';
 import { normalizeResourcePath } from './resource-policy';
 import { resolvePassiveResource, ResourceSourceHealth, RESOURCE_HEDGE_DELAY_MS } from './resource-resolver';
 
-export interface PackageResourceEntry { readonly path: string; }
+export interface PackageResourceEntry { readonly path: string; readonly encoding?: string; }
 
 export function snapshotPackageManifest(files: unknown): readonly PackageResourceEntry[] {
   if (!Array.isArray(files)) throw new Error('Invalid package resource manifest');
@@ -18,7 +18,7 @@ export function snapshotPackageManifest(files: unknown): readonly PackageResourc
 
 interface RuntimeResourceOptions {
   packageBaseUrl: string;
-  getManifest: () => readonly { path: string }[] | undefined;
+  getManifest: () => readonly PackageResourceEntry[] | undefined;
   getCharset: () => string | undefined;
 }
 
@@ -31,8 +31,8 @@ export function createRuntimeResourceLoader(options: RuntimeResourceOptions): (p
   const sourceHealth = new ResourceSourceHealth();
   const notFoundUntil = new Map<string, number>();
   // Every resource request consults the manifest: index it once per manifest instead of scanning it.
-  let indexedManifest: readonly { path: string }[] | undefined;
-  let manifestIndex = new Map<string, { path: string }>();
+  let indexedManifest: readonly PackageResourceEntry[] | undefined;
+  let manifestIndex = new Map<string, PackageResourceEntry>();
   const findPackaged = (lowerPath: string) => {
     const manifest = options.getManifest();
     if (!manifest) return undefined;
@@ -65,10 +65,16 @@ export function createRuntimeResourceLoader(options: RuntimeResourceOptions): (p
           const entry = findPackaged(normalizedPath.toLowerCase());
           if (!entry) return null;
           if (normalizeResourcePath(entry.path) !== entry.path) throw new Error('Invalid package resource path');
-          const encodedPath = entry.path.split('/').map(encodeURIComponent).join('/');
+          if (entry.encoding !== undefined && entry.encoding !== 'gzip') throw new Error('Invalid package resource encoding');
+          const gzip = entry.encoding === 'gzip';
+          const encodedPath = entry.path.split('/').map(encodeURIComponent).join('/') + (gzip ? '.gz' : '');
           const response = await fetch(new URL(encodedPath, options.packageBaseUrl), { redirect: 'error', credentials: 'omit' });
           if (!response.ok) throw new Error(`Package resource failed (${response.status}): ${entry.path}`);
-          const bytes = await response.arrayBuffer();
+          // IWA builds store Lua/LUB gzip-compressed; Web Bundles carry no transfer encoding.
+          const raw = await response.arrayBuffer();
+          const bytes = gzip
+            ? await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()
+            : raw;
           if (!bytes.byteLength || (response.headers.get('content-type') ?? '').includes('text/html')) {
             throw new Error(`Invalid package resource: ${entry.path}`);
           }

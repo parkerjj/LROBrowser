@@ -55,7 +55,7 @@ describe('native enchant name suffixes', () => {
     const f = fixture(undefined, true);
     expect(f.db.getItemName(f.item())).toBe('Double  天龙之翼');
   });
-  it.each(['59', '61'])('uses actual packaged itemInfo_%s enchant names and preserves repeated slots', version => {
+  it.each(['61'])('uses actual packaged itemInfo_%s enchant names and preserves repeated slots', version => {
     const f = fixture('vendor/core/System/itemInfo_re_' + version + '.lua');
     expect(f.db.getItemName(f.item())).toBe('天龙之翼 [名弓2] [名弓2]');
     expect(f.db.getItemName(f.item([0, 0, 4833, 4834]))).toBe('天龙之翼 [名弓2] [名弓3]');
