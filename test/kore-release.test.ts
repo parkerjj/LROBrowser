@@ -45,6 +45,8 @@ async function fixture() {
       return Response.json(release);
     if (url.includes('/git/ref/tags/'))
       return Response.json({ object: { type: 'commit', sha } });
+    if (url.includes('/commits?'))
+      return Response.json([{ sha }], { headers: { link: `<https://api.github.com/repos/parkerjj/KoreEngine/commits?per_page=1&sha=${sha}&page=264>; rel="next", <https://api.github.com/repos/parkerjj/KoreEngine/commits?per_page=1&sha=${sha}&page=264>; rel="last"` } });
     const id = Number(url.split('/').at(-1));
     return new Response(new Uint8Array(payloads.get(id)!), { status: 200 });
   };
@@ -56,6 +58,7 @@ test('one authenticated stable Release is validated, imported and required in th
     const out = path.join(f.root, 'download');
     const meta = await downloadRelease({ out, token: 'test-read-token', fetchImpl: f.fetchImpl });
     expect(meta.packageId).toBe(f.manifest.packageId);
+    expect(meta.commitCount).toBe(264);
     expect(f.requests.filter(r => r.url.endsWith('/releases/latest'))).toHaveLength(1);
     const host = path.join(f.root, 'host');
     await importReleasePackage({ repo: host, packageRoot: path.join(out, 'package'), metadata: meta });

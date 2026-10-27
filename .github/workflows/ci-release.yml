@@ -121,9 +121,9 @@ jobs:
         run: node scripts/kore-local.mjs --import-package "$RUNNER_TEMP/ke-release/package" --release-metadata "$RUNNER_TEMP/ke-release/release.json"
       - run: pnpm build
       - run: pnpm minify:release
-      - name: Compute IWA version (1.<commit count>.<commit date yyMMdd, Asia/Shanghai>)
+      - name: Compute IWA version (1.<本仓库提交数 + KE 提交数>.<commit date yyMMdd, Asia/Shanghai>)
         id: version
-        run: echo "value=1.$(git rev-list --count "$GITHUB_SHA").$(TZ=Asia/Shanghai git show -s --format=%cd --date=format-local:%y%m%d "$GITHUB_SHA")" >> "$GITHUB_OUTPUT"
+        run: echo "value=1.$(( $(git rev-list --count "$GITHUB_SHA") + $(node -p "require('$RUNNER_TEMP/ke-release/release.json').commitCount") )).$(TZ=Asia/Shanghai git show -s --format=%cd --date=format-local:%y%m%d "$GITHUB_SHA")" >> "$GITHUB_OUTPUT"
       - name: Inject production manifest metadata
         env:
           IWA_VERSION: ${{ steps.version.outputs.value }}

@@ -4,7 +4,7 @@ export function validateLocalPackage(root: string): Promise<KoreManifest>;
 export function disableLocal(options: { repo: string }): Promise<void>;
 export function enableLocal(options: { repo: string; source: string; mode: 'debug' | 'release' }): Promise<KorePointer>;
 export function mergeKorePackage(repo: string, options?: { required?: boolean }): Promise<KorePointer | null>;
-export interface KoreReleaseMetadata { tag: string; releaseId: number; commitSha: string; buildId: string; packageId: string; archiveSha256: string }
+export interface KoreReleaseMetadata { tag: string; releaseId: number; commitSha: string; commitCount: number; buildId: string; packageId: string; archiveSha256: string }
 export function downloadRelease(options: { out: string; token?: string; fetchImpl?: typeof fetch }): Promise<KoreReleaseMetadata>;
 export function extractReleaseArchive(archive: Uint8Array, destination: string): Promise<void>;
 export function importReleasePackage(options: { repo: string; packageRoot: string; metadata: KoreReleaseMetadata }): Promise<KorePointer>;
