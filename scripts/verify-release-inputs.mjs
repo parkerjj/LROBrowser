@@ -7,8 +7,9 @@ export async function verifyReleaseInputs(input) {
   if (!/^[a-z2-7]{40,60}$/.test(input.expectedBundleId)) throw new Error('expectedBundleId must be a base32 Web Bundle ID');
   validateIwaVersion(input.version);
   if (!/^[0-9a-f]{40}$/i.test(input.commitSha)) throw new Error('commitSha must be a full SHA');
-  const metadata = getReleaseMetadata({ runNumber: input.version.split('.')[2], commitSha: input.commitSha, channel: input.channel ?? 'default', updateManifestUrl: input.updateManifestUrl, bundleBaseUrl: input.bundleBaseUrl });
-  if (metadata.version !== input.version) throw new Error('version does not match run number');
+  const [, commitCount, commitDate] = input.version.split('.');
+  const metadata = getReleaseMetadata({ commitCount, commitDate, commitSha: input.commitSha, channel: input.channel ?? 'default', updateManifestUrl: input.updateManifestUrl, bundleBaseUrl: input.bundleBaseUrl });
+  if (metadata.version !== input.version) throw new Error('version does not match commit count and commit date');
   return { ...input, ...metadata };
 }
 

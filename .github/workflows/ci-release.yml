@@ -103,6 +103,8 @@ jobs:
     needs: [lint, test, fetch-ke]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    outputs:
+      version: ${{ steps.version.outputs.value }}
     env:
       KE_REQUIRE_PACKAGE: '1'
       IWA_ALLOW_UPDATE_MANIFEST: '1'
@@ -119,9 +121,12 @@ jobs:
         run: node scripts/kore-local.mjs --import-package "$RUNNER_TEMP/ke-release/package" --release-metadata "$RUNNER_TEMP/ke-release/release.json"
       - run: pnpm build
       - run: pnpm minify:release
+      - name: Compute IWA version (1.<commit count>.<commit date yyMMdd, Asia/Shanghai>)
+        id: version
+        run: echo "value=1.$(git rev-list --count "$GITHUB_SHA").$(TZ=Asia/Shanghai git show -s --format=%cd --date=format-local:%y%m%d "$GITHUB_SHA")" >> "$GITHUB_OUTPUT"
       - name: Inject production manifest metadata
         env:
-          IWA_VERSION: 0.1.${{ github.run_number }}
+          IWA_VERSION: ${{ steps.version.outputs.value }}
         run: node scripts/apply-release-manifest.mjs
       - name: Require intact KE in final IWA distribution
         run: node scripts/kore-local.mjs --verify-dist dist --release-metadata "$RUNNER_TEMP/ke-release/release.json"
@@ -185,7 +190,7 @@ jobs:
       - name: Verify production release inputs
         env:
           IWA_WEB_BUNDLE_ID: ${{ vars.IWA_WEB_BUNDLE_ID || secrets.IWA_WEB_BUNDLE_ID }}
-        run: node scripts/verify-release-inputs.mjs --key "${{ steps.key.outputs.path }}" --bundle-id "$IWA_WEB_BUNDLE_ID" --version "0.1.${{ github.run_number }}" --commit-sha "${{ github.sha }}"
+        run: node scripts/verify-release-inputs.mjs --key "${{ steps.key.outputs.path }}" --bundle-id "$IWA_WEB_BUNDLE_ID" --version "${{ needs.build-production-iwa.outputs.version }}" --commit-sha "${{ github.sha }}"
       - name: Sign production bundle
         env:
           WEB_BUNDLE_SIGNING_PASSPHRASE: ${{ secrets.WEB_BUNDLE_SIGNING_PASSPHRASE }}
@@ -205,19 +210,19 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           GITHUB_SHA: ${{ github.sha }}
-          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          IWA_VERSION: ${{ needs.build-production-iwa.outputs.version }}
         run: node scripts/publish-r2.mjs --release-dir release --bundle "lastro-v2-${{ github.sha }}.swbn"
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "iwa-${{ github.run_number }}" \
+          gh release create "iwa-${{ needs.build-production-iwa.outputs.version }}" \
             "release/lastro-v2-${{ github.sha }}.swbn" \
             "release/lastro-v2-${{ github.sha }}.swbn.sha256" \
             "release/release-manifest.json" \
             "release/audit-report.json" \
             --target "$GITHUB_SHA" \
-            --title "IWA ${{ github.run_number }}" \
+            --title "IWA ${{ needs.build-production-iwa.outputs.version }}" \
             --generate-notes
       - name: Remove temporary signing material
         if: always()
