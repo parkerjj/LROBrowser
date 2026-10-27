@@ -8,7 +8,7 @@ async function setup(restartPolicy: Record<string, unknown> = {}) {
   const page = Object.assign(new EventTarget(), { location: { href: 'http://localhost/' }, fetch: fixture.fetch,
     performance: { now: () => 1 }, crypto: globalThis.crypto, setInterval, clearInterval });
   const host = createKoreIntegration({ page, manifest: fixture.executable, createWorker: () => worker, restartPolicy }); await host.start();
-  const init = worker.messages[0]!; worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false });
+  const init = worker.messages[0]!; worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false, capabilities: { mapStream: true } });
   return { fixture, worker, page, host, runtimeSessionId: init.runtimeSessionId };
 }
 

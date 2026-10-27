@@ -58,13 +58,35 @@ Actions summary 的 `release.json` 记录 KE tag、commitSha、buildId、package
 
 配置完成后运行 `node scripts/kore-local.mjs --verify-web-hosting` 确认。响应头检查是托管层预检，不代替真实浏览器中的资源加载与授权验收。
 
-### 上线顺序
+### 地图模块格式迁移与上线顺序
 
-1. 先完成 KE main 的生产 Release，确认附件齐全。
-2. 新版 KE workflow 在创建 Release 前自动向 LTSD 登记并确认指纹；确认对应 Actions summary 有登记成功回执，无需手工维护 `KE_BUILD_MANIFEST` 或为每次 KE 更新部署 LTSD。
-3. 配置本仓库只读 PAT 和 Web 隔离响应头，提交发布流程变更，再 push/手动运行 RoBrowser main。
-4. 查看 fetch-ke summary，确认 IWA/Web 使用同一 packageId。
+本次 schema 3 迁移必须按以下顺序交付；本地准备和测试不等于已上线：
 
-KE Release 不会自动触发本仓库的新构建。RoBrowser main 开始获取 KE 时选择当时最新的**已发布**稳定版本；两仓同时 push 时，正在构建的 KE 不会被当成已发布版本。先等 KE Release 成功，再发布 RoBrowser。
+1. 先交付 LROBrowser 兼容版：支持 Web schema 2 / 3，保留 Git 中全部 1,311 个 legacy fieldpack 文件，旧 KE 仍可离线读取包内地图。
+2. 再发布新 KE 与独立 `ke-legacy-fieldpack-2.0.5.tar.gz` 及其 `.sha256`。确认真实 Release 可获取，LTSD 构建登记成功。新 standalone 仅更新 `ke/standalone/v2/` 渠道，旧 stable 保留。
+3. 用可获取的新、旧 KE 分别验证真实 Web 和已安装 IWA，包括 Worker 授权、进图、换图、预载与重建。新包只从同包加载 map WASM，不发旧地图 RPC；旧包断外网且清空缓存仍能加载 bundled 地图。
+4. 上述门槛通过后才交付独立清理 patch，删除 tracked fieldpack。兼容分支不得提前应用删除。清理后选择旧包时显式准备可信固定来源的 legacy 资源。
+
+新格式的 `map-data.wasm`、`map-linker.mjs`、`map-package.mjs` 全部来自同一个已校验 KE 包并进入 executable-assets。Host 只校验清单完整性并协商能力；core 解密后的 map 认证绑定、ABI 校验与链接由 KE Worker 完成。manifest/packageId 自洽不是认证。新格式构建会从 `dist`、`dist-web` 去掉 `ke/map`，但不修改 tracked 兼容源。新格式拒绝旧资源 RPC 和 ready 回写；`currentMapView` 仅是按 Worker/账号/连接隔离的 Rust 只读展示副本，不能反向驱动 Runtime。
+
+KE 包选择和 legacy 资源选择是两组独立输入：
+
+```sh
+# 省略 tag 仍取 latest；指定历史 tag 时失败不会回退 latest。
+node scripts/kore-local.mjs --download-release --release-tag ke-<40位commit>-<run>-<attempt> --out /absolute/old-release
+node scripts/kore-local.mjs --import-package /absolute/old-release/package --release-metadata /absolute/old-release/release.json
+# 历史 release 不必含新 legacy 附件，资源另从明确固定的新 release 取得。
+node scripts/kore-local.mjs --legacy-release-tag ke-<40位commit>-<run>-<attempt>
+# 或显式使用 KE 自有源；不编译、不读取任何生产密钥。
+node scripts/kore-local.mjs --legacy-source /absolute/KoreEngine
+# 显式已有 debug 包可导入开发环境；release 导入仍强制 metadata 和干净源码。
+node scripts/kore-local.mjs --import-local-package /absolute/debug-package
+```
+
+远端下载使用 `KE_REPOSITORY_READ_TOKEN`，固定 tag→commit、asset ID、GitHub digest 与 `.sha256` 均检查；跳转不会转发 token。legacy 只接受 KE 固定 manifest 摘要与精确 1,310 图集合，先在有界 USTAR 中验证路径/类型/去重/大小/逐文件 hash，再原子安装到 `generated/ke/legacy/`。失败移除旧 staging，不留下可继续发布的部分资源；现有兼容版可继续使用未修改的 tracked 来源。
+
+非生产本地/PR 构建无需 PAT、生产 core key 或生产签名。测试签名 smoke 只证明产物和签名完整，不能代替真实浏览器 Worker/IWA 安装验收。本变更没有 push、部署或修改线上响应头。
+
+KE Release 不会自动触发本仓库的新构建。RoBrowser main 开始获取 KE 时选择当时最新的**已发布**稳定版本；两仓同时 push 时，正在构建的 KE 不会被当成已发布版本。格式迁移期间以本节三阶段交付门槛为准。
 
 两端共同门控保证所有 KE 集成检查在任何生产写入前完成；R2 和 Surge 是独立发布系统，发布阶段本身没有跨系统原子事务。

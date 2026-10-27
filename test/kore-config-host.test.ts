@@ -9,7 +9,7 @@ async function harness() {
   const page = Object.assign(new EventTarget(), { location: { href: 'http://localhost/' }, fetch: fixture.fetch,
     indexedDB: new IDBFactory(), performance: { now: () => 1 }, crypto: globalThis.crypto });
   const host = createKoreIntegration({ page, manifest: fixture.executable, createWorker: () => worker }); await host.start();
-  const init = worker.messages[0]!; worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false });
+  const init = worker.messages[0]!; worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false, capabilities: { mapStream: true } });
   host.beginGameSession(7, 'prontera.gat', { aid: 11, cid: 22, nid: 33 }); host.beginMapConnection();
   return { host, worker, page, fixture };
 }
@@ -112,7 +112,7 @@ async function ltsdHarness(responses: Array<{ status: number; body?: unknown }>)
   const host = createKoreIntegration({ page, manifest: fixture.executable, createWorker: () => worker });
   await host.start();
   const init = worker.messages[0]!;
-  worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false });
+  worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false, capabilities: { mapStream: true } });
   host.beginGameSession(7, 'prontera.gat', { aid: 11, cid: 22, nid: 33 });
   return { host, worker, fetch, localStorage, token };
 }

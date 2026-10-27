@@ -17,7 +17,7 @@ async function setup(restartPolicy: Record<string, unknown> = FAST) {
   });
   await host.start();
   const sessionOf = (worker: WorkerStub) => worker.messages[0]!.runtimeSessionId as string;
-  const ready = (worker: WorkerStub) => worker.reply({ runtimeSessionId: sessionOf(worker), type: 'ready', packageId: fixture.manifest.packageId, worldReady: false });
+  const ready = (worker: WorkerStub) => worker.reply({ runtimeSessionId: sessionOf(worker), type: 'ready', packageId: fixture.manifest.packageId, worldReady: false, capabilities: { mapStream: true } });
   ready(workers[0]!);
   return { fixture, workers, page, host, sessionOf, ready };
 }

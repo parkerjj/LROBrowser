@@ -17,7 +17,7 @@ async function readyHost() {
   const host = createKoreIntegration({ page, manifest: fixture.executable, createWorker: () => worker });
   await host.start();
   const init = worker.messages[0]!;
-  worker.reply({ runtimeSessionId: init.runtimeSessionId, requestId: init.requestId, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false });
+  worker.reply({ runtimeSessionId: init.runtimeSessionId, requestId: init.requestId, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false, capabilities: { mapStream: true } });
   return { fixture, worker, page, host };
 }
 
@@ -99,7 +99,7 @@ test('character identity reaches boot without the Host making a bind API decisio
   });
   expect(ltsdClient.request).not.toHaveBeenCalled();
 
-  worker.reply({ runtimeSessionId, requestId: worker.messages[0]!.requestId, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false });
+  worker.reply({ runtimeSessionId, requestId: worker.messages[0]!.requestId, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false, capabilities: { mapStream: true } });
   expect(worker.messages.some(message => message.type === 'queue' && bridgeRecord(message).kind === 'gameSessionStarted'
     && bridgeRecord(message).gameSessionId === gameSessionId)).toBe(true);
   expect(worker.messages.find(message => message.type === 'queue' && bridgeRecord(message).kind === 'gameSessionStarted'))
@@ -281,7 +281,7 @@ test('boot profile status refreshes LTSD configuration through the existing Host
   const runtimeSessionId = worker.messages[0]!.runtimeSessionId;
   host.beginGameSession(77, 'prontera.gat', { aid: 11, cid: 22, nid: 33, name: 'Test Character' });
   await vi.waitFor(() => expect(ltsdClient.getMe).toHaveBeenCalledOnce());
-  worker.reply({ runtimeSessionId, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false });
+  worker.reply({ runtimeSessionId, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false, capabilities: { mapStream: true } });
   worker.reply({ runtimeSessionId, type: 'authorizationStatus', phase: 'loading-profile' });
   await vi.waitFor(() => expect(ltsdClient.request).toHaveBeenCalledWith('GET', expect.stringContaining('/profiles/active?')));
   await vi.waitFor(() => expect(worker.messages.some(message => message.type === 'queue' && bridgeRecord(message).kind === 'command'
@@ -870,7 +870,7 @@ test('a browser Worker delivers each message to the host exactly once', async ()
   const host = createKoreIntegration({ page, manifest: fixture.executable, createWorker: () => worker });
   await host.start();
   const runtimeSessionId = worker.messages[0]!.runtimeSessionId;
-  worker.reply({ runtimeSessionId, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false });
+  worker.reply({ runtimeSessionId, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false, capabilities: { mapStream: true } });
   const gameId = host.beginGameSession(77, 'prontera.gat');
   const generation = host.beginMapConnection();
   worker.reply({ runtimeSessionId, type: 'outputs', outputs: [

@@ -7,6 +7,8 @@ export const KORE_PROTOCOL_PROFILE = 'lastro-20211103';
 const compatibleProfiles = new Set([KORE_PROTOCOL_PROFILE, 'lastro-2x']);
 const idPattern = /^[a-f0-9]{64}$/;
 const metadataFields = ['schemaVersion', 'engineVersion', 'bridgeApiVersion', 'schedulerCapabilities', 'packetver', 'profile', 'commitSha', 'sourceDirty', 'mode', 'toolVersions', 'buildId', 'chunks', 'files'];
+const mapDataCapabilities = { abiVersion: 1, dataFormatVersion: 1, fieldpackVersion: '2.0.5' };
+const exactObject = (value, expected) => value && JSON.stringify(canonical(value)) === JSON.stringify(canonical(expected));
 const schedulerCapabilities = ['fourQueues', 'oneShotDeadline', 'residentExecutor'];
 const MAX_PENDING_GAME_CHUNKS = 512;
 const MAX_PENDING_GAME_BYTES = 2 * 1024 * 1024;
@@ -51,7 +53,7 @@ export function packageKind(file) {
   throw Error('unsupported-package-file');
 }
 export async function validateKoreManifest(manifest) {
-  if (!manifest || manifest.schemaVersion !== 2 || manifest.bridgeApiVersion !== 2 || manifest.packetver !== 20211103
+  if (!manifest || ![2, 3].includes(manifest.schemaVersion) || manifest.bridgeApiVersion !== 2 || manifest.packetver !== 20211103
     || !compatibleProfiles.has(manifest.profile) || !/^\d+\.\d+\.\d+$/.test(manifest.engineVersion)
     || !['debug', 'release'].includes(manifest.mode) || typeof manifest.sourceDirty !== 'boolean'
     || !(manifest.commitSha === null || /^[a-f0-9]{40}$/.test(manifest.commitSha))
@@ -80,8 +82,20 @@ export async function validateKoreManifest(manifest) {
     || filesByPath.get(boot.file)?.kind !== 'wasm' || filesByPath.get(boot.file)?.sha256 !== boot.sha256
     || filesByPath.get(core.file)?.kind !== 'wasm-encrypted' || filesByPath.get(core.file)?.sha256 !== core.sha256
     || paths.has('kore_wasm_bg.wasm')) throw Error('invalid-wasm-chunks');
+  const embedded = manifest.schemaVersion === 3;
+  const map = manifest.chunks?.map;
+  const mapFile = filesByPath.get('map-data.wasm');
+  if (!exactObject(Object.keys(manifest.chunks ?? {}).sort(), embedded ? ['boot', 'core', 'map'] : ['boot', 'core'])
+    || (embedded ? (!exactObject(manifest.mapData, mapDataCapabilities)
+      || !map || !exactObject(Object.keys(map).sort(), ['bytes', 'encrypted', 'file', 'sha256'])
+      || map.file !== 'map-data.wasm' || map.encrypted !== false || !Number.isSafeInteger(map.bytes) || map.bytes < 1 || map.bytes > 8 * 1024 * 1024
+      || !idPattern.test(map.sha256 ?? '') || mapFile?.bytes !== map.bytes || mapFile?.sha256 !== map.sha256
+      || !paths.has('map-linker.mjs') || !paths.has('map-package.mjs') || Object.hasOwn(manifest, 'maps')
+      || [...paths].some(name => /\.fld2(?:\.gz)?$/.test(name) || ['data/maps/aliases.json', 'data/maps/checksums.json', 'data/maps/fieldpack.json'].includes(name)))
+      : (Object.hasOwn(manifest, 'mapData') || paths.has('map-data.wasm') || paths.has('map-linker.mjs') || paths.has('map-package.mjs')))
+    || manifest.files.some(file => file.kind === 'wasm' && file.path !== 'kore_boot_bg.wasm' && !(embedded && file.path === 'map-data.wasm'))) throw Error('invalid-map-package');
   if (manifest.files.map(file => file.path).join('\n') !== [...paths].sort().join('\n')) throw Error('unsorted-package-files');
-  const metadata = Object.fromEntries(metadataFields.map(key => [key, manifest[key]]));
+  const metadata = Object.fromEntries([...metadataFields, ...(embedded ? ['mapData'] : [])].map(key => [key, manifest[key]]));
   if (await sha256(new globalThis.TextEncoder().encode(JSON.stringify(canonical(metadata)))) !== manifest.packageId) throw Error('package-id-mismatch');
   return manifest;
 }
@@ -90,7 +104,7 @@ export function validateKorePointer(pointer) {
     || pointer.manifestPath !== `ke/${pointer.packageId}/manifest.json`) throw Error('invalid-package-pointer');
   return pointer;
 }
-export async function loadKorePackage({ page = globalThis, manifest, signal }) {
+export async function loadKorePackage({ page = globalThis, manifest, signal, verifyEmbeddedMap = false }) {
   const entries = manifest?.files ?? [];
   if (!entries.some(file => file.path === 'ke/active.json')) return null;
   const listed = new Map();
@@ -122,8 +136,13 @@ export async function loadKorePackage({ page = globalThis, manifest, signal }) {
   const packageData = {};
   const configDefaults = {};
   for (const file of packageManifest.files) {
+    if (packageManifest.schemaVersion === 3 && file.path === 'map-data.wasm' && !verifyEmbeddedMap) {
+      const entry = listed.get(prefix + file.path);
+      if (entry?.kind !== 'wasm' || entry.bytes !== file.bytes || entry.sha256 !== file.sha256) throw Error('executable-manifest-mismatch');
+      continue;
+    }
     const bytes = await read(prefix + file.path, file);
-    if (file.path === 'data/maps/aliases.json' || file.path === 'data/maps/checksums.json') {
+    if (packageManifest.schemaVersion === 2 && (file.path === 'data/maps/aliases.json' || file.path === 'data/maps/checksums.json')) {
       packageData[file.path] = json(bytes);
     }
     if (file.path.startsWith('data/control/') && M4_CONFIG_FILES.has(file.path.slice('data/control/'.length))) {
@@ -133,7 +152,7 @@ export async function loadKorePackage({ page = globalThis, manifest, signal }) {
   return {
     manifest: packageManifest,
     workerUrl: new globalThis.URL('/core/' + prefix + 'kore-worker.mjs', page.location.href).href,
-    mapResourceConfig: { aliases: packageData['data/maps/aliases.json'] ?? {}, expectedSha256: packageData['data/maps/checksums.json'] ?? {} },
+    ...(packageManifest.schemaVersion === 2 ? { mapResourceConfig: { aliases: packageData['data/maps/aliases.json'] ?? {}, expectedSha256: packageData['data/maps/checksums.json'] ?? {} } } : {}),
     configDefaults,
   };
 }
@@ -142,7 +161,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   const state = {
     status: 'absent', packageId: null, mode: null, runtimeGeneration: 0,
     profile: KORE_PROTOCOL_PROFILE, gameSessionId: null, connectionGeneration: null,
-    streamStatus: 'idle', worldReady: false, mapResourceState: 'idle',
+    streamStatus: 'idle', worldReady: false, mapResourceState: 'idle', currentMapView: null,
     receivedBytes: 0, sentBytes: 0, degradedReason: null, logs: [], errorLog: [],
     runtimeStatus: null, lastDiagnostic: null, lastCommandResult: null,
     configIdentity: null,
@@ -213,12 +232,8 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   let outputsPendingAtHeartbeat = false;
   let lastBusyLogAt = 0;
   let removeWorkerListener = () => {};
-  const resources = mapResourceProvider ?? createMapResourceProvider({
-    page,
-    fetchImpl: page.fetch?.bind(page),
-    indexedDBFactory: page.indexedDB,
-    databaseName: 'kore-map-resources',
-  });
+  let resources = null;
+  const embeddedMaps = () => packageInfo?.manifest?.schemaVersion === 3;
   const configStore = createKoreConfigStore({ page, indexedDBFactory: page.indexedDB });
   const ltsd = ltsdClient ?? createKoreLtsdClient({ page, fetchImpl: page.fetch?.bind(page), storage: page.localStorage });
   let devicePollTimer = null;
@@ -294,7 +309,8 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     if (state.status === 'disposed' || state.status === 'failed' || state.status === 'restarting') return;
     if (retryable && scheduleRestart(String(reason || 'worker-transport-failed'))) return;
     state.status = 'failed';
-    state.worldReady = false;
+    state.worldReady = false; state.currentMapView = null;
+    if (embeddedMaps()) state.mapResourceState = 'degraded';
     state.streamStatus = 'degraded';
     state.degradedReason = String(reason || 'worker-transport-failed');
     pendingCommands.clear();
@@ -874,7 +890,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     ingressPending = []; ingressInFlight.clear(); residentIngressGameChunks = 0; residentIngressGameBytes = 0;
     pendingCommands.clear(); activeResourceRequestId = null;
     outputsSinceHeartbeat = false; outputsPendingAtHeartbeat = false;
-    state.bootSession = null; state.heartbeat = null; state.worldReady = false; state.runtimeStatus = null;
+    state.bootSession = null; state.heartbeat = null; state.worldReady = false; state.currentMapView = null; state.runtimeStatus = null;
     state.mapResourceState = 'idle';
     try { onWorkerReleased(); } catch { /* best effort */ }
   };
@@ -924,8 +940,8 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     if (!connection || connection.degraded) { finishRecovery('地图连接已关闭，等待重新登录'); return; }
     // 原生 socket 仍是同一个连接：保持 generation 不变（Online.js 持有的就是这个值），只重置字节序号。
     connection.awaitingAlignment = true;
-    state.streamStatus = 'awaiting-sync'; state.worldReady = false; resourceCycle += 1; state.mapResourceState = 'loading';
-    postEvent('mapConnectionStarted', { mapName: gameSession.mapName, serverFieldsFolder, resourceCycle }, 'control',
+    state.streamStatus = 'awaiting-sync'; state.worldReady = false; state.currentMapView = null; resourceCycle += 1; state.mapResourceState = 'loading';
+    postEvent('mapConnectionStarted', { mapName: gameSession.mapName, ...(embeddedMaps() ? {} : { serverFieldsFolder, resourceCycle }) }, 'control',
       { gameSessionId: id, connectionGeneration: connection.generation });
     recovery.stage = 'awaiting-alignment';
     setRecoveryStage('awaiting-alignment');
@@ -963,6 +979,15 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
   const handleWorkerMessage = message => {
     if (!message || message.runtimeSessionId !== session) return;
     if (message.type === 'ready') {
+      const capabilities = message.capabilities;
+      const compatible = embeddedMaps()
+        ? capabilities?.mapStream === false && exactObject(capabilities.embeddedMapData, packageInfo.manifest.mapData)
+          && capabilities.currentMapView === 1 && capabilities.residentExecutor === true && capabilities.oneShotDeadline === true
+          && exactObject(capabilities.queues, ['game', 'control', 'action', 'status']) && typeof capabilities.sharedArrayBuffer === 'boolean'
+        : capabilities?.mapStream === true && !Object.hasOwn(capabilities, 'embeddedMapData') && !Object.hasOwn(capabilities, 'currentMapView');
+      if (!compatible || (message.packageId !== undefined && message.packageId !== packageInfo.manifest.packageId)) {
+        teardownWorker(); failWorker('incompatible-map-capabilities', { retryable: false }); return;
+      }
       coreReady = true;
       state.status = 'runtime-ready';
       state.packageId = message.packageId ?? packageInfo?.manifest?.packageId ?? null;
@@ -1021,6 +1046,18 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     if (message.type === 'actionRequest') { forwardAction(message.action, { requireTaskIntentGeneration: message.action?.routeId == null }); return; }
     if (message.type === 'log') { log(message.level ?? 'info', message.text ?? '', message.domain ?? 'info'); return; }
     if (message.type === 'disconnect') { requestDisconnect(message.reason); return; }
+    if (embeddedMaps() && ['resourceRequest', 'resourceValidation', 'preloadRequest', 'preloadCommit', 'mapResourceReady'].includes(message.type)) {
+      teardownWorker(); failWorker(`embedded-map-legacy-message:${message.type}`, { retryable: false }); return;
+    }
+    if (message.type === 'currentMapView') {
+      if (!embeddedMaps() || !coreReady) return;
+      const view = message.view;
+      if (view !== null && (!gameSession || !connection || connection.degraded || view?.runtimeSessionId !== session
+        || view.gameSessionId !== gameSession.id || view.connectionGeneration !== connection.generation)) return;
+      state.currentMapView = view;
+      state.mapResourceState = view === null ? 'idle' : 'ready';
+      changed(); return;
+    }
     if (message.type === 'resourceRequest') { void handleResourceRequest(message); return; }
     if (message.type === 'resourceValidation') { void handleResourceValidation(message); return; }
     if (message.type === 'preloadRequest') { void handlePreloadRequest(message); return; }
@@ -1110,7 +1147,11 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     try {
       packageInfo = await loadKorePackage({ page, manifest });
       if (!packageInfo) { state.status = 'absent'; changed(); return; }
-      if (packageInfo.mapResourceConfig) resources.configure?.(packageInfo.mapResourceConfig);
+      if (packageInfo.mapResourceConfig) {
+        resources ??= mapResourceProvider ?? createMapResourceProvider({ page, fetchImpl: page.fetch?.bind(page),
+          indexedDBFactory: page.indexedDB, databaseName: 'kore-map-resources' });
+        resources.configure?.(packageInfo.mapResourceConfig);
+      }
       session = typeof page.crypto?.randomUUID === 'function' ? page.crypto.randomUUID() : `ke-${Date.now()}-${Math.random()}`;
       runtimeGeneration += 1; state.runtimeGeneration = runtimeGeneration;
       if (page.crossOriginIsolated === false
@@ -1152,8 +1193,8 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       pendingCommands.clear();
       gameSession = null; connection = null; activeResourceRequestId = null;
       state.bootSession = null;
-      void resources.close?.(); void configStore.close?.();
-      state.gameSessionId = null; state.connectionGeneration = null; state.worldReady = false; state.streamStatus = 'idle'; state.mapResourceState = 'idle';
+      void resources?.close?.(); void configStore.close?.();
+      state.gameSessionId = null; state.connectionGeneration = null; state.worldReady = false; state.currentMapView = null; state.streamStatus = 'idle'; state.mapResourceState = 'idle';
       try { onWorkerReleased(); } catch { /* best effort */ }
       state.status = 'disposed'; changed();
     },
@@ -1166,7 +1207,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       state.gameSessionId = id; state.connectionGeneration = null;
       state.configIdentity = identity.aid > 0 && identity.cid > 0 && identity.nid > 0
         ? { aid: identity.aid, cid: identity.cid, nid: identity.nid } : null;
-      state.streamStatus = 'awaiting-connection'; state.worldReady = false;
+      state.streamStatus = 'awaiting-connection'; state.worldReady = false; state.currentMapView = null; state.mapResourceState = 'idle';
       const fields = {
         characterGid, mapName, aid: gameSession.aid, cid: gameSession.cid, nid: gameSession.nid,
         name: identity.name ?? null, baseLevel: identity.baseLevel ?? null,
@@ -1182,9 +1223,9 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       const generation = (connection?.generation ?? 0) + 1;
       connection = { generation, degraded: false }; gameSequence = 0; gameByteOffset = 0;
       traffic.sends.length = 0; traffic.lastReceiveAt = null; traffic.connectedAt = trafficNow(); state.disconnect = null;
-      state.connectionGeneration = generation; state.streamStatus = 'awaiting-sync'; state.worldReady = false;
+      state.connectionGeneration = generation; state.streamStatus = 'awaiting-sync'; state.worldReady = false; state.currentMapView = null; state.mapResourceState = 'loading';
       resourceCycle += 1; state.mapResourceState = 'loading';
-      postEvent('mapConnectionStarted', { mapName: gameSession.mapName, serverFieldsFolder, resourceCycle }, 'control', { gameSessionId: gameSession.id, connectionGeneration: generation });
+      postEvent('mapConnectionStarted', { mapName: gameSession.mapName, ...(embeddedMaps() ? {} : { serverFieldsFolder, resourceCycle }) }, 'control', { gameSessionId: gameSession.id, connectionGeneration: generation });
       changed(); return generation;
     },
     mirrorMapData(connectionGeneration, data, options = {}) {
@@ -1222,7 +1263,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
         const d = state.disconnect;
         log('warn', `连接断开 ${d.reason} code=${d.closeCode ?? '?'} clean=${d.wasClean ?? '?'} 连接时长=${d.socketAgeMs ?? '?'}ms 距上次发包=${d.lastSendAgoMs ?? '?'}ms 距上次收包=${d.lastReceiveAgoMs ?? '?'}ms 近1s/10s/60s发包=${d.sendsLast1s}/${d.sendsLast10s}/${d.sendsLast60s} 峰值=${d.peakSendsPerSecond}/s`);
       }
-      connection.degraded = true; state.worldReady = false; state.streamStatus = 'degraded'; state.mapResourceState = 'degraded'; state.degradedReason = String(reason);
+      connection.degraded = true; state.worldReady = false; state.currentMapView = null; state.streamStatus = 'degraded'; state.mapResourceState = 'degraded'; state.degradedReason = String(reason);
       const queued = postEvent('connectionDegraded', { reason: String(reason) }, 'control', { gameSessionId: gameSession.id, connectionGeneration: connection.generation }) !== null;
       changed(); return queued;
     },
@@ -1231,7 +1272,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       const ended = gameSession.id;
       postEvent('gameSessionEnded', {}, 'control', { gameSessionId: ended, connectionGeneration: connection?.generation ?? 0 });
       pendingCommands.clear();
-      gameSession = null; connection = null; state.gameSessionId = null; state.connectionGeneration = null; state.worldReady = false; state.streamStatus = 'idle';
+      gameSession = null; connection = null; state.gameSessionId = null; state.connectionGeneration = null; state.worldReady = false; state.currentMapView = null; state.mapResourceState = 'idle'; state.streamStatus = 'idle';
       // 退出到选角/登录页后，上一个角色的就绪或错误状态不再适用；新角色进入时会重新绑定。
       if (state.authorization.user && GAME_BOUND_PHASES.has(state.authorization.phase)) {
         updateAuthorization({ phase: 'waiting-character', error: null, detail: null, configCached: false });
@@ -1239,7 +1280,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       return true;
     },
     clearConsole() { state.logs.length = 0; changed(); },
-    debugMapRetry() { if (!gameSession || !connection) return false; resourceCycle += 1; state.mapResourceState = 'loading'; postWorker({ type: 'debugMapRetry', mapName: gameSession.mapName, resourceCycle, connectionGeneration: connection.generation }); changed(); return true; },
+    debugMapRetry() { if (embeddedMaps() || !gameSession || !connection) return false; resourceCycle += 1; state.mapResourceState = 'loading'; postWorker({ type: 'debugMapRetry', mapName: gameSession.mapName, resourceCycle, connectionGeneration: connection.generation }); changed(); return true; },
     saveConfigDocument(document) { return configStore.saveDocument(document); },
     getConfigDefault(fileName) { return packageInfo?.configDefaults?.[fileName] ?? null; },
     async getConfigDocuments(identity) {

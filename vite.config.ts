@@ -1,12 +1,14 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
-import { copyFile, readFile, rm as rmAsync, writeFile } from 'node:fs/promises';
+import { copyFile, cp, readFile, rm as rmAsync, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { type Plugin, type ViteDevServer } from 'vite';
 import { defineConfig } from 'vitest/config';
 import { packagedAssetPath, REQUIRED_HEADERS } from './scripts/iwa-security.mjs';
+import { safePackagePath, validateKoreManifest, validateKorePointer } from './src/kore/kore-integration.mjs';
+import { validateLegacyFieldpack } from './scripts/kore-local.mjs';
 import { isLocalRequest, resolveStagedResource } from './scripts/dev-resource-security.mjs';
 
 export function stripViteClientInjection(html: string): string {
@@ -14,11 +16,33 @@ export function stripViteClientInjection(html: string): string {
 }
 
 export function packageRuntime(target: 'iwa' | 'web', root = process.cwd()): Plugin {
+  async function selectedKoreManifest() {
+    const active = path.resolve(root, 'generated/core/ke/active.json');
+    if (!existsSync(active)) return null;
+    const pointer = validateKorePointer(JSON.parse(await readFile(active, 'utf8')));
+    const manifest = await validateKoreManifest(JSON.parse(await readFile(path.resolve(root, 'generated/core', pointer.manifestPath), 'utf8')));
+    if (manifest.packageId !== pointer.packageId) throw Error('staging-pointer-mismatch');
+    return manifest;
+  }
   function serveStagedRuntime(server: ViteDevServer) {
-    server.middlewares.use((request, response, next) => {
+    server.middlewares.use(async (request, response, next) => {
       for (const [name, value] of Object.entries(REQUIRED_HEADERS)) response.setHeader(name, value);
       if (!isLocalRequest(request.headers.host, request.headers.origin)) {
         response.statusCode = 403; response.end('Forbidden request origin'); return;
+      }
+      if (request.url?.startsWith('/ke/map/')) {
+        try {
+          const selected = await selectedKoreManifest();
+          if (selected?.schemaVersion === 3) { response.statusCode = 404; response.end('Embedded maps have no Host resource endpoint'); return; }
+          const staged = path.resolve(root, 'generated/ke/legacy/fieldpack-2.0.5');
+          if (selected?.schemaVersion === 2 && existsSync(staged)) {
+            const relative = safePackagePath(request.url.slice('/ke/map/fieldpack-2.0.5/'.length));
+            if (!request.url.startsWith('/ke/map/fieldpack-2.0.5/')) throw Error('invalid-legacy-map-path');
+            // This explicit source was completely verified before installation, and remains immutable during dev.
+            response.statusCode = 200; response.setHeader('Content-Type', 'application/octet-stream');
+            response.end(await readFile(path.join(staged, relative))); return;
+          }
+        } catch { response.statusCode = 404; response.end('Map resource not found'); return; }
       }
       let resource;
       try { resource = resolveStagedResource(server.config.root, request.url); }
@@ -78,8 +102,19 @@ export function packageRuntime(target: 'iwa' | 'web', root = process.cwd()): Plu
       this.emitFile({ type: 'asset', fileName: 'core/executable-assets.json', source: JSON.stringify(manifest, null, 2) + '\n' });
     },
     async writeBundle(options) {
+      const outputDirectory = path.resolve(options.dir ?? (target === 'web' ? 'dist-web' : 'dist'));
+      const selected = await selectedKoreManifest();
+      if (selected?.schemaVersion === 3) {
+        // Vite copies public first. Keep tracked compatibility sources, omit them from new packages.
+        await rmAsync(path.join(outputDirectory, 'ke/map'), { recursive: true, force: true });
+      } else if (selected?.schemaVersion === 2) {
+        const staged = path.resolve(root, 'generated/ke/legacy/fieldpack-2.0.5');
+        const source = existsSync(staged) ? staged : path.resolve(root, 'public/ke/map/fieldpack-2.0.5');
+        await validateLegacyFieldpack(source);
+        await rmAsync(path.join(outputDirectory, 'ke/map'), { recursive: true, force: true });
+        await cp(source, path.join(outputDirectory, 'ke/map/fieldpack-2.0.5'), { recursive: true });
+      }
       if (target !== 'web') return;
-      const outputDirectory = path.resolve(options.dir ?? 'dist-web');
       await rmAsync(path.join(outputDirectory, '.well-known'), { recursive: true, force: true });
       await copyFile(path.join(outputDirectory, 'index.html'), path.join(outputDirectory, '200.html'));
       const worldMapSources = path.join(outputDirectory, 'worldmap/sources.json');
