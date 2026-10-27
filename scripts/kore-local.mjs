@@ -265,6 +265,15 @@ async function releaseClient({ token, releaseTag, fetchImpl = globalThis.fetch }
     object = (await json(keApi + '/git/tags/' + object.sha)).object;
   }
   if (object?.type !== 'commit' || object.sha !== tag[1]) throw Error('ke-release-tag-commit-mismatch');
+  // KE 没有显式版本号；其提交数单调递增，用于 IWA 版本的 x 分量，使仅 KE 更新的构建也能得到新版本。
+  const countCommits = async () => {
+    const commitsResponse = await request(keApi + '/commits?per_page=1&sha=' + tag[1], headers);
+    const commitsPage = await responseBytes(commitsResponse, maxMetadataBytes);
+    const lastPage = /[?&]page=(\d+)>;\s*rel="last"/.exec(commitsResponse.headers.get('link') ?? '');
+    const commitCount = lastPage ? Number(lastPage[1]) : JSON.parse(commitsPage.toString('utf8')).length;
+    if (!Number.isSafeInteger(commitCount) || commitCount < 1) throw Error('ke-invalid-commit-count');
+    return commitCount;
+  };
   const asset = async (name, maximum) => {
     const matches = release.assets.filter(item => item.name === name);
     const item = matches[0];
@@ -282,17 +291,18 @@ async function releaseClient({ token, releaseTag, fetchImpl = globalThis.fetch }
     if (bytes.length !== item.size || 'sha256:' + await sha256(bytes) !== item.digest) throw Error('ke-release-asset-digest-mismatch');
     return bytes;
   };
-  return { release, commitSha: tag[1], asset };
+  return { release, commitSha: tag[1], countCommits, asset };
 }
 export async function downloadRelease({ out, token, releaseTag, fetchImpl = globalThis.fetch }) {
   if (!path.isAbsolute(out ?? '')) throw Error('absolute-release-out-required');
-  const { release, commitSha, asset } = await releaseClient({ token, releaseTag, fetchImpl });
+  const { release, commitSha, countCommits, asset } = await releaseClient({ token, releaseTag, fetchImpl });
+  const commitCount = await countCommits();
   const archive = await asset(archiveName, maxArchiveBytes);
   const checksum = (await asset(archiveName + '.sha256', maxMetadataBytes)).toString('utf8');
   const archiveSha256 = await sha256(archive);
   if (checksum.trim() !== `${archiveSha256}  ${archiveName}`) throw Error('ke-release-checksum-mismatch');
   const publishedManifest = await validateKoreManifest(JSON.parse((await asset('manifest.json', maxMetadataBytes)).toString('utf8')));
-  const metadata = { tag: release.tag_name, releaseId: release.id, commitSha, buildId: publishedManifest.buildId, packageId: publishedManifest.packageId, archiveSha256 };
+  const metadata = { tag: release.tag_name, releaseId: release.id, commitSha, commitCount, buildId: publishedManifest.buildId, packageId: publishedManifest.packageId, archiveSha256 };
   requireRelease(publishedManifest, metadata);
   const ltsd = JSON.parse((await asset('ltsd-build-manifest.json', maxMetadataBytes)).toString('utf8'));
   const entry = ltsd[publishedManifest.buildId];
