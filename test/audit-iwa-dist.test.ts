@@ -103,7 +103,7 @@ test('IWA packaging gzips Lua tables into an auditable .gz while Web keeps them 
   }
 });
 
-test.each(['valid', 'unlisted-map', 'missing-map', 'corrupt-map', 'wrong-prefix', 'missing-linker', 'legacy-fieldpack'])('IWA embedded map contract audits %s', async kind => {
+test.each(['valid', 'unlisted-map', 'missing-map', 'corrupt-map', 'wrong-prefix', 'missing-linker', 'legacy-fieldpack', 'legacy-fieldpack-uppercase'])('IWA embedded map contract audits %s', async kind => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'iwa-embedded-map-'));
   try {
     const f = packageFixture('lastro-20211103', {}, 2, 3);
@@ -120,6 +120,7 @@ test.each(['valid', 'unlisted-map', 'missing-map', 'corrupt-map', 'wrong-prefix'
     if (kind === 'wrong-prefix') f.executable.files.find(file => file.path === map)!.path = `ke/${'0'.repeat(64)}/map-data.wasm`;
     if (kind === 'missing-linker') f.executable.files = f.executable.files.filter(file => !file.path.endsWith('/map-linker.mjs'));
     if (kind === 'legacy-fieldpack') { await mkdir(path.join(root, 'ke/map'), { recursive: true }); await writeFile(path.join(root, 'ke/map/test.fld2.gz'), 'legacy'); }
+    if (kind === 'legacy-fieldpack-uppercase') { await mkdir(path.join(root, 'assets/fieldpacks'), { recursive: true }); await writeFile(path.join(root, 'assets/fieldpacks/test.FLD2.GZ'), 'legacy'); }
     await writeFile(path.join(root, 'core/executable-assets.json'), JSON.stringify(f.executable));
     const audit = auditDist(root, path.join(root, 'report.json'));
     if (kind === 'valid') await expect(audit).resolves.toMatchObject({ prohibitedPatternResults: [] });

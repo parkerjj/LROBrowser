@@ -122,7 +122,7 @@ export async function auditDist(distDirectory, reportPath = path.resolve('releas
     if (!relativeFiles.includes(relative)) return new globalThis.Response(null, { status: 404 });
     return new globalThis.Response(await readFile(path.join(dist, relative)));
   } } });
-  if (kore?.manifest.schemaVersion === 3 && relativeFiles.some(file => file.startsWith('ke/map/') || /\.fld2(?:\.gz)?$/.test(file))) throw new Error('embedded-map-package-carries-legacy-fieldpack');
+  if (kore?.manifest.schemaVersion === 3 && relativeFiles.some(file => file.startsWith('ke/map/') || /\.fld2(?:\.gz)?$/i.test(file))) throw new Error('embedded-map-package-carries-legacy-fieldpack');
   if (relativeFiles.some((file) => file.endsWith('.map'))) throw new Error('source maps are not allowed in the IWA bundle');
 
   const originSet = new Set();

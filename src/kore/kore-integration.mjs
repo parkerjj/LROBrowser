@@ -91,7 +91,7 @@ export async function validateKoreManifest(manifest) {
       || map.file !== 'map-data.wasm' || map.encrypted !== false || !Number.isSafeInteger(map.bytes) || map.bytes < 1 || map.bytes > 8 * 1024 * 1024
       || !idPattern.test(map.sha256 ?? '') || mapFile?.bytes !== map.bytes || mapFile?.sha256 !== map.sha256
       || !paths.has('map-linker.mjs') || !paths.has('map-package.mjs') || Object.hasOwn(manifest, 'maps')
-      || [...paths].some(name => /\.fld2(?:\.gz)?$/.test(name) || ['data/maps/aliases.json', 'data/maps/checksums.json', 'data/maps/fieldpack.json'].includes(name)))
+      || [...paths].some(name => /\.fld2(?:\.gz)?$/i.test(name) || ['data/maps/aliases.json', 'data/maps/checksums.json', 'data/maps/fieldpack.json'].includes(name)))
       : (Object.hasOwn(manifest, 'mapData') || paths.has('map-data.wasm') || paths.has('map-linker.mjs') || paths.has('map-package.mjs')))
     || manifest.files.some(file => file.kind === 'wasm' && file.path !== 'kore_boot_bg.wasm' && !(embedded && file.path === 'map-data.wasm'))) throw Error('invalid-map-package');
   if (manifest.files.map(file => file.path).join('\n') !== [...paths].sort().join('\n')) throw Error('unsorted-package-files');
