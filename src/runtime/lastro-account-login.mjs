@@ -6,10 +6,6 @@ const UNAVAILABLE_REASON = 'App服协议参数尚未完成验证';
 // is only the in-app notice for installs that Chrome did not update.
 const UPDATE_MANIFEST_URL = 'https://client.ltsd.ro/updates.json';
 const UPDATE_PACKAGE_HOST = 'client.ltsd.ro';
-// Release packages may be served through the GitHub download accelerator, restricted to this repository's releases.
-const UPDATE_PROXY_HOST = 'gh-proxy.org';
-const UPDATE_RELEASE_HOST = 'github.com';
-const UPDATE_RELEASE_PATH_PREFIX = '/parkerjj/LROBrowser/releases/download/';
 const UPDATE_CHANNEL = 'default';
 // Web content cannot navigate to chrome:// pages, so the address is only copied for the user.
 const IWA_INSTALL_PAGE = 'chrome://iwa-dev';
@@ -26,14 +22,6 @@ export function compareLastROVersions(left, right) {
   }
   return 0;
 }
-/** The accelerator path embeds the upstream URL after the first slash. */
-function isReleaseViaProxy(src) {
-  if (src.hostname !== UPDATE_PROXY_HOST) return false;
-  let upstream;
-  try { upstream = new globalThis.URL(src.pathname.slice(1)); } catch { return false; }
-  return upstream.protocol === 'https:' && upstream.hostname === UPDATE_RELEASE_HOST
-    && !upstream.username && !upstream.password && upstream.pathname.startsWith(UPDATE_RELEASE_PATH_PREFIX);
-}
 /** Highest version published on the channel, or null when the manifest has no usable entry. */
 export function selectLastROUpdate(manifest, channel = UPDATE_CHANNEL) {
   let best = null;
@@ -42,8 +30,7 @@ export function selectLastROUpdate(manifest, channel = UPDATE_CHANNEL) {
       || !Array.isArray(entry.channels) || !entry.channels.includes(channel)) continue;
     let src;
     try { src = new globalThis.URL(entry.src); } catch { continue; }
-    if (src.protocol !== 'https:' || src.username || src.password) continue;
-    if (src.hostname !== UPDATE_PACKAGE_HOST && !isReleaseViaProxy(src)) continue;
+    if (src.protocol !== 'https:' || src.hostname !== UPDATE_PACKAGE_HOST || src.username || src.password) continue;
     if (!best || compareLastROVersions(entry.version, best.version) > 0) best = { version: entry.version, src: src.href };
   }
   return best;
