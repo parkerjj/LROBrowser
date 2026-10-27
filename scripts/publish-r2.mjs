@@ -54,7 +54,8 @@ if (process.argv[1]?.endsWith('publish-r2.mjs')) {
   const releaseDir = value('--release-dir') ?? 'release';
   const bundleName = value('--bundle');
   if (!bundleName) throw new Error('--bundle is required');
-  const version = process.env.IWA_VERSION ?? `0.1.${process.env.GITHUB_RUN_NUMBER}`;
+  const version = process.env.IWA_VERSION;
+  if (!version) throw new Error('IWA_VERSION is required');
   const commitSha = process.env.GITHUB_SHA;
   const updateManifestUrl = process.env.IWA_UPDATE_MANIFEST_URL ?? 'https://client.ltsd.ro/updates.json';
   const bundleBaseUrl = process.env.IWA_BUNDLE_BASE_URL ?? 'https://client.ltsd.ro/';
