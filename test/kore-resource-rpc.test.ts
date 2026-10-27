@@ -177,3 +177,60 @@ test('field preload for route planning does not disturb the active map resource 
   expect(host.state.mapResourceState).toBe(stateBefore);
   host.dispose();
 });
+
+const embeddedCapabilities = { mapStream: false, embeddedMapData: { abiVersion: 1, dataFormatVersion: 1, fieldpackVersion: '2.0.5' }, currentMapView: 1,
+  residentExecutor: true, queues: ['game', 'control', 'action', 'status'], oneShotDeadline: true, sharedArrayBuffer: true };
+async function embeddedHost(schema: 2 | 3 = 3) {
+  const fixture = packageFixture('lastro-20211103', {}, 2, schema);
+  const calls: string[] = [];
+  const provider = new Proxy({}, { get: (_target, key) => { calls.push(String(key)); throw Error('provider-must-not-be-used'); } });
+  const page = Object.assign(new EventTarget(), { location: { href: 'http://localhost/' }, fetch: fixture.fetch,
+    performance: { now: () => 42 }, crypto: globalThis.crypto });
+  const worker = new (class extends EventTarget {
+    messages: any[] = []; terminated = false;
+    postMessage(m: any) { this.messages.push(m); }
+    terminate() { this.terminated = true; }
+    reply(m: any) { this.dispatchEvent(new MessageEvent('message', { data: m })); }
+  })();
+  const host = createKoreIntegration({ page, manifest: fixture.executable, createWorker: () => worker, ...(schema === 3 ? { mapResourceProvider: provider as any } : {}) });
+  await host.start();
+  return { fixture, calls, worker, host, init: worker.messages[0] };
+}
+test.each(['resourceRequest', 'resourceValidation', 'preloadRequest', 'preloadCommit', 'mapResourceReady'])('embedded package rejects legacy %s without opening provider', async type => {
+  const f = await embeddedHost();
+  expect(f.host.state.status).toBe('loading');
+  f.worker.reply({ ...f.init, type: 'ready', capabilities: embeddedCapabilities });
+  expect(f.host.state.status).toBe('runtime-ready');
+  f.worker.reply({ ...f.init, type });
+  expect(f.host.state.status).toBe('failed');
+  expect(f.worker.terminated).toBe(true);
+  f.host.dispose();
+  expect(f.calls).toEqual([]);
+});
+test.each([undefined, { mapStream: true }, { ...embeddedCapabilities, currentMapView: 2 }])('embedded ready capability mismatch fails closed: %j', async capabilities => {
+  const f = await embeddedHost();
+  f.worker.reply({ ...f.init, type: 'ready', capabilities });
+  expect(f.host.state.status).toBe('failed');
+  f.host.dispose();
+  expect(f.calls).toEqual([]);
+});
+test('legacy package rejects embedded ready and new currentMapView is isolated read-only display', async () => {
+  const old = await embeddedHost(2);
+  old.worker.reply({ ...old.init, type: 'ready', capabilities: embeddedCapabilities });
+  expect(old.host.state.status).toBe('failed'); old.host.dispose();
+  const f = await embeddedHost();
+  f.worker.reply({ ...f.init, type: 'ready', capabilities: embeddedCapabilities });
+  const game = f.host.beginGameSession(7, 'prontera'); const generation = f.host.beginMapConnection();
+  const view = { runtimeSessionId: f.init.runtimeSessionId, gameSessionId: game, connectionGeneration: generation, mapRevision: 1, mapName: 'prontera', width: 1, height: 1, cells: [1] };
+  const before = f.worker.messages.length;
+  f.worker.reply({ ...f.init, type: 'currentMapView', view });
+  expect(f.host.state.currentMapView).toEqual(view);
+  expect(f.worker.messages).toHaveLength(before);
+  f.worker.reply({ ...f.init, runtimeSessionId: 'stale', type: 'currentMapView', view: null });
+  expect(f.host.state.currentMapView).toEqual(view);
+  expect(f.host.debugMapRetry()).toBe(false);
+  f.host.beginMapConnection(); expect(f.host.state.currentMapView).toBeNull();
+  f.worker.reply({ ...f.init, type: 'currentMapView', view: null }); expect(f.host.state.currentMapView).toBeNull();
+  expect(f.host.state.mapResourceState).toBe('idle');
+  f.host.dispose(); expect(f.calls).toEqual([]);
+});

@@ -4,6 +4,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
+import { loadKorePackage } from '../src/kore/kore-integration.mjs';
 import { auditRuntimeSource } from './audit-runtime-code.mjs';
 import { packagedAssetPath, REQUIRED_HEADERS } from './iwa-security.mjs';
 /* eslint-disable no-control-regex -- Reject control characters in untrusted package paths. */
@@ -116,6 +117,12 @@ export async function auditDist(distDirectory, reportPath = path.resolve('releas
       || !['runtime', 'lua', 'lub', 'wasm', 'wasm-encrypted', 'data-json', 'passive'].includes(entry.kind)) throw new Error('invalid executable asset integrity');
     manifestEntries.set(entry.path, entry);
   }
+  const kore = await loadKorePackage({ manifest: coreManifest, page: { location: { href: 'https://iwa-audit.invalid/' }, fetch: async url => {
+    const relative = url.pathname.slice(1);
+    if (!relativeFiles.includes(relative)) return new globalThis.Response(null, { status: 404 });
+    return new globalThis.Response(await readFile(path.join(dist, relative)));
+  } } });
+  if (kore?.manifest.schemaVersion === 3 && relativeFiles.some(file => file.startsWith('ke/map/') || /\.fld2(?:\.gz)?$/i.test(file))) throw new Error('embedded-map-package-carries-legacy-fieldpack');
   if (relativeFiles.some((file) => file.endsWith('.map'))) throw new Error('source maps are not allowed in the IWA bundle');
 
   const originSet = new Set();

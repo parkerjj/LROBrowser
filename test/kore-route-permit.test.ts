@@ -15,7 +15,7 @@ test('route-like user text remains an opaque command for Rust', async () => {
   const host = createKoreIntegration({ page, manifest: fixture.executable, createWorker: () => worker });
   await host.start();
   const init = worker.messages[0]!;
-  worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false });
+  worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false, capabilities: { mapStream: true } });
   host.beginGameSession(7, 'prontera.gat');
   host.beginMapConnection();
   expect(host.debugCommand('move geffen')).toBe(true);

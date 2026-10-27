@@ -2,7 +2,7 @@
 
 正式安装包的 `manifest.webmanifest` 包含稳定的 `update_manifest_url`。Chrome 从该 URL 读取 `updates.json`，根据数字版本选择高于当前版本的 `default` channel 包。
 
-版本使用 `1.<提交数>.<yyMMdd>`，提交数是 `git rev-list --count <提交>`（需要完整历史，不能强推缩减），`yyMMdd` 是该提交的提交日期（Asia/Shanghai），由 CI 的 `Compute IWA version` 步骤计算并传给后续作业；GitHub Release 的 tag 为 `iwa-<版本号>`。旧的 `0.1.<run>` 版本号低于新方案，会被正常升级。commit SHA 只用于对象路径和审计追踪。不能把 commit hash 直接写入 IWA `version`。
+版本使用 `1.<提交数>.<yyMMdd>`，提交数 = 本仓库 `git rev-list --count <提交>`（需要完整历史，不能强推缩减）+ KoreEngine 所用提交的提交数（`fetch-ke` 通过 GitHub API 取得并写入 `release.json` 的 `commitCount`），这样仅 KE 更新触发的重新构建也会得到新版本号；`yyMMdd` 是该提交的提交日期（Asia/Shanghai），由 CI 的 `Compute IWA version` 步骤计算并传给后续作业；GitHub Release 的 tag 为 `iwa-<版本号>`。旧的 `0.1.<run>` 版本号低于新方案，会被正常升级。commit SHA 只用于对象路径和审计追踪。不能把 commit hash 直接写入 IWA `version`。
 
 Chrome IWA 自动更新能力取决于浏览器版本和安装方式。无法自动更新时，用户可以从 GitHub Release 或 R2 下载最新 `.swbn` 手动安装。
 

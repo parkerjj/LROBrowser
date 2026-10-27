@@ -2,14 +2,16 @@ export const KORE_CONFIG_FILES: readonly string[];
 export interface ExecutableFile { path: string; bytes: number; sha256: string; kind: string }
 export interface ExecutableManifest { files: ExecutableFile[] }
 export interface KoreManifest {
-  schemaVersion: 2; engineVersion: string; bridgeApiVersion: 2;
+  schemaVersion: 2 | 3; engineVersion: string; bridgeApiVersion: 2;
   schedulerCapabilities?: ('fourQueues' | 'oneShotDeadline' | 'residentExecutor')[];
   packetver: 20211103; profile: 'lastro-20211103' | 'lastro-2x'; commitSha: string | null;
   sourceDirty: boolean; mode: 'debug' | 'release';
   toolVersions: { rust: string; wasmBindgen: string; binaryen: string | null };
   buildId: string;
   chunks: { boot: { file: string; sha256: string; encrypted: false };
-    core: { file: string; sha256: string; encrypted: true; keyVersion: number } };
+    core: { file: string; sha256: string; encrypted: true; keyVersion: number };
+    map?: { file: 'map-data.wasm'; sha256: string; encrypted: false; bytes: number } };
+  mapData?: { abiVersion: 1; dataFormatVersion: 1; fieldpackVersion: '2.0.5' };
   files: ExecutableFile[]; packageId: string;
 }
 export interface KorePointer { schemaVersion: 1; packageId: string; manifestPath: string }
@@ -38,6 +40,7 @@ export interface KoreState {
   packageId: string | null; mode: 'debug' | 'release' | null; runtimeGeneration: number;
   profile: 'lastro-20211103' | 'lastro-2x'; gameSessionId: string | null; connectionGeneration: number | null;
   streamStatus: 'idle' | 'awaiting-connection' | 'awaiting-sync' | 'world-ready' | 'degraded';
+  currentMapView?: { runtimeSessionId: string; gameSessionId: string; connectionGeneration: number; mapRevision: number; mapName: string; width: number; height: number; cells: number[] } | null;
   worldReady: boolean; mapResourceState: 'idle' | 'loading' | 'retrying' | 'ready' | 'degraded';
   receivedBytes: number; sentBytes: number; degradedReason: string | null; logs: KoreLog[];
   /** error 级别与封包层（domain=protocol）的日志另存一份：不受控制台条数上限和「清空控制台」影响，最多 200 条。 */
@@ -101,9 +104,9 @@ export function safePackagePath(value: string): string;
 export function packageKind(file: string): string;
 export function validateKoreManifest(manifest: unknown): Promise<KoreManifest>;
 export function validateKorePointer(pointer: unknown): KorePointer;
-export function loadKorePackage(options: { page?: KorePage; manifest: ExecutableManifest; signal?: AbortSignal }): Promise<{
+export function loadKorePackage(options: { page?: KorePage; manifest: ExecutableManifest; signal?: AbortSignal; verifyEmbeddedMap?: boolean }): Promise<{
   manifest: KoreManifest; workerUrl: string;
-  mapResourceConfig: { aliases: Record<string, string>; expectedSha256: Record<string, string> };
+  mapResourceConfig?: { aliases: Record<string, string>; expectedSha256: Record<string, string> };
   configDefaults: Record<string, string>;
 } | null>;
 export function createKoreIntegration(options: KoreOptions): KoreIntegration;

@@ -6,7 +6,7 @@ function canonical(value: unknown): unknown {
   if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : 1).map(([key, item]) => [key, canonical(item)]));
   return value;
 }
-export function packageFixture(profile = 'lastro-20211103', extraFiles: Record<string, string> = {}, bridgeApiVersion: 1 | 2 = 2, schemaVersion: 1 | 2 = 2) {
+export function packageFixture(profile = 'lastro-20211103', extraFiles: Record<string, string> = {}, bridgeApiVersion: 1 | 2 = 2, schemaVersion: 1 | 2 | 3 = 2) {
   const payload = schemaVersion === 1 ? new Map<string, Uint8Array>([
     ['kore-worker.mjs', new TextEncoder().encode('export {};')],
     ['kore_wasm.js', new TextEncoder().encode('export default function init() {}')],
@@ -19,6 +19,11 @@ export function packageFixture(profile = 'lastro-20211103', extraFiles: Record<s
     ['core.wasm.enc', new TextEncoder().encode('nonce+ciphertext+tag')],
     ['shared-queue.mjs', new TextEncoder().encode('export {};')],
   ]);
+  if (schemaVersion === 3) {
+    payload.set('map-data.wasm', new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0]));
+    payload.set('map-linker.mjs', new TextEncoder().encode('export {};'));
+    payload.set('map-package.mjs', new TextEncoder().encode('export {};'));
+  }
   for (const [name, text] of Object.entries(extraFiles)) payload.set(name, new TextEncoder().encode(text));
   const kind = (name: string) => name.endsWith('.json') ? 'data-json' : name.endsWith('.txt') ? 'passive'
     : name.endsWith('.wasm.enc') ? 'wasm-encrypted' : name.endsWith('.wasm') ? 'wasm' : 'runtime';
@@ -30,10 +35,12 @@ export function packageFixture(profile = 'lastro-20211103', extraFiles: Record<s
     packetver: 20211103,
     profile, commitSha: null, sourceDirty: true, mode: 'debug',
     toolVersions: { rust: '1.99.0', wasmBindgen: '0.2.129', binaryen: null },
-    ...(schemaVersion === 2 ? { buildId: 'm8-test-build', chunks: {
+    ...(schemaVersion >= 2 ? { buildId: 'm8-test-build', chunks: {
       boot: { file: 'kore_boot_bg.wasm', sha256: digest(bootBytes!), encrypted: false },
       core: { file: 'core.wasm.enc', sha256: digest(coreBytes!), encrypted: true, keyVersion: 1 },
+      ...(schemaVersion === 3 ? { map: { file: 'map-data.wasm', encrypted: false, bytes: 8, sha256: digest(payload.get('map-data.wasm')!) } } : {}),
     } } : {}),
+    ...(schemaVersion === 3 ? { mapData: { abiVersion: 1, dataFormatVersion: 1, fieldpackVersion: '2.0.5' } } : {}),
     files: [...payload].map(([name, bytes]) => ({ path: name, bytes: bytes.length, sha256: digest(bytes), kind: kind(name) })).sort((a, b) => a.path < b.path ? -1 : 1),
   };
   const manifest = { ...metadata, packageId: digest(JSON.stringify(canonical(metadata))) };

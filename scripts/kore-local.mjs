@@ -134,7 +134,7 @@ const maxMetadataBytes = 1024 * 1024;
 
 function requireRelease(manifest, metadata) {
   if (manifest.mode !== 'release' || manifest.sourceDirty || !/^[a-f0-9]{40}$/.test(manifest.commitSha ?? '')
-    || manifest.files.some(file => file.kind === 'wasm' && file.path !== 'kore_boot_bg.wasm')
+    || manifest.files.some(file => file.kind === 'wasm' && file.path !== 'kore_boot_bg.wasm' && !(manifest.schemaVersion === 3 && file.path === 'map-data.wasm'))
     || (metadata && (manifest.packageId !== metadata.packageId || manifest.commitSha !== metadata.commitSha || manifest.buildId !== metadata.buildId))) {
     throw Error('invalid-production-kore-package');
   }
@@ -155,8 +155,9 @@ async function responseBytes(response, maximum) {
 }
 
 // Accept only the regular-file USTAR format emitted by KoreEngine, before writing any entry.
-export async function extractReleaseArchive(archive, destination) {
-  const tar = gunzipSync(archive, { maxOutputLength: maxExpandedBytes });
+function parseArchive(archive, { legacy = false } = {}) {
+  if (archive.length > maxArchiveBytes) throw Error('ke-download-too-large');
+  const tar = gunzipSync(archive, { maxOutputLength: legacy ? 8 * 1024 * 1024 : maxExpandedBytes });
   if (tar.length % 512 || tar.length < 1024) throw Error('ke-invalid-tar');
   const entries = new Map();
   const decoder = new TextDecoder('utf-8', { fatal: true });
@@ -185,13 +186,23 @@ export async function extractReleaseArchive(archive, destination) {
     if (type === 53 && name.endsWith('/')) name = name.slice(0, -1);
     if (!(type === 53 && (name === '' || name === '.'))) {
       safePackagePath(name);
-      if (entries.has(name) || entries.size >= 1024 || size > 64 * 1024 * 1024) throw Error('ke-invalid-tar-entry');
+      if (entries.has(name) || entries.size >= (legacy ? 1311 : 1024) || size > (legacy ? 1024 * 1024 : 64 * 1024 * 1024) || (legacy && type === 53)) throw Error('ke-invalid-tar-entry');
       entries.set(name, { directory: type === 53, bytes: tar.subarray(offset + 512, offset + 512 + size) });
     }
     offset += 512 + Math.ceil(size / 512) * 512;
     if (offset > tar.length) throw Error('ke-truncated-tar');
   }
-  if (!ended || !entries.has('manifest.json')) throw Error('ke-incomplete-tar');
+  if (!ended || !entries.has(legacy ? 'fieldpack-2.0.5/manifest.json' : 'manifest.json')) throw Error('ke-incomplete-tar');
+  for (const name of entries.keys()) {
+    const parts = name.split('/');
+    for (let i = 1; i < parts.length; i++) {
+      const parent = entries.get(parts.slice(0, i).join('/'));
+      if (parent && !parent.directory) throw Error('ke-tar-parent-conflict');
+    }
+  }
+  return entries;
+}
+async function writeArchiveEntries(entries, destination) {
   if (await lstat(destination).catch(error => { if (error.code !== 'ENOENT') throw error; return null; })) throw Error('ke-extract-destination-exists');
   await mkdir(destination, { recursive: true });
   for (const [name, entry] of entries) {
@@ -201,13 +212,51 @@ export async function extractReleaseArchive(archive, destination) {
   }
 }
 
-export async function downloadRelease({ out, token, fetchImpl = globalThis.fetch }) {
+export async function extractReleaseArchive(archive, destination) {
+  await writeArchiveEntries(parseArchive(archive), destination);
+}
+
+const legacyManifestSha256 = 'd9dc87391ba459c181f704cb2db7262321c315be9a33060201ad8f1964273177';
+const legacyArchiveName = 'ke-legacy-fieldpack-2.0.5.tar.gz';
+async function validateLegacyEntries(entries) {
+  const root = 'fieldpack-2.0.5/';
+  const bytes = entries.get(root + 'manifest.json')?.bytes;
+  if (!bytes || await sha256(bytes) !== legacyManifestSha256) throw Error('ke-legacy-manifest-mismatch');
+  const manifest = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+  if (manifest.schemaVersion !== 1 || manifest.fieldpackVersion !== '2.0.5'
+    || manifest.source?.fileCount !== 1310 || manifest.source?.totalBytes !== 3306440
+    || !manifest.files || Object.keys(manifest.files).length !== 1310) throw Error('ke-legacy-version-mismatch');
+  const expected = ['manifest.json', ...Object.keys(manifest.files)].map(name => root + safePackagePath(name)).sort();
+  if ([...entries.keys()].sort().join('\n') !== expected.join('\n')) throw Error('ke-legacy-file-set-mismatch');
+  let total = 0;
+  for (const [name, info] of Object.entries(manifest.files)) {
+    const entry = entries.get(root + name);
+    if (entry.directory || entry.bytes.length !== info.bytes || await sha256(entry.bytes) !== info.sha256) throw Error(`ke-legacy-hash-mismatch:${name}`);
+    total += entry.bytes.length;
+  }
+  if (total !== manifest.source.totalBytes) throw Error('ke-legacy-total-mismatch');
+  return manifest;
+}
+export async function validateLegacyFieldpack(root) {
+  const entries = new Map();
+  for (const name of await filesUnder(root)) entries.set('fieldpack-2.0.5/' + name, { directory: false, bytes: await readFile(path.join(root, name)) });
+  return validateLegacyEntries(entries);
+}
+export async function extractLegacyArchive(archive, destination) {
+  const entries = parseArchive(archive, { legacy: true });
+  await validateLegacyEntries(entries);
+  await writeArchiveEntries(entries, destination);
+}
+
+async function releaseClient({ token, releaseTag, fetchImpl = globalThis.fetch }) {
   if (!token?.trim()) throw Error('KE_REPOSITORY_READ_TOKEN-required');
-  if (!path.isAbsolute(out ?? '')) throw Error('absolute-release-out-required');
+
   const headers = { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
   const request = (url, requestHeaders) => fetchImpl(url, { headers: requestHeaders, redirect: 'manual', signal: globalThis.AbortSignal.timeout(60_000) });
   const json = async url => JSON.parse((await responseBytes(await request(url, headers), maxMetadataBytes)).toString('utf8'));
-  const release = await json(keApi + '/releases/latest');
+  if (releaseTag !== undefined && !/^ke-[a-f0-9]{40}-\d+-\d+$/.test(releaseTag)) throw Error('ke-invalid-release-tag');
+  const release = await json(keApi + (releaseTag ? '/releases/tags/' + encodeURIComponent(releaseTag) : '/releases/latest'));
+  if (releaseTag && release.tag_name !== releaseTag) throw Error('ke-release-tag-mismatch');
   const tag = /^ke-([a-f0-9]{40})-\d+-\d+$/.exec(release.tag_name ?? '');
   if (release.draft !== false || release.prerelease !== false || !tag || !Array.isArray(release.assets)) throw Error('ke-invalid-stable-release');
   let object = (await json(keApi + '/git/ref/tags/' + encodeURIComponent(release.tag_name))).object;
@@ -216,6 +265,15 @@ export async function downloadRelease({ out, token, fetchImpl = globalThis.fetch
     object = (await json(keApi + '/git/tags/' + object.sha)).object;
   }
   if (object?.type !== 'commit' || object.sha !== tag[1]) throw Error('ke-release-tag-commit-mismatch');
+  // KE 没有显式版本号；其提交数单调递增，用于 IWA 版本的 x 分量，使仅 KE 更新的构建也能得到新版本。
+  const countCommits = async () => {
+    const commitsResponse = await request(keApi + '/commits?per_page=1&sha=' + tag[1], headers);
+    const commitsPage = await responseBytes(commitsResponse, maxMetadataBytes);
+    const lastPage = /[?&]page=(\d+)>;\s*rel="last"/.exec(commitsResponse.headers.get('link') ?? '');
+    const commitCount = lastPage ? Number(lastPage[1]) : JSON.parse(commitsPage.toString('utf8')).length;
+    if (!Number.isSafeInteger(commitCount) || commitCount < 1) throw Error('ke-invalid-commit-count');
+    return commitCount;
+  };
   const asset = async (name, maximum) => {
     const matches = release.assets.filter(item => item.name === name);
     const item = matches[0];
@@ -233,12 +291,18 @@ export async function downloadRelease({ out, token, fetchImpl = globalThis.fetch
     if (bytes.length !== item.size || 'sha256:' + await sha256(bytes) !== item.digest) throw Error('ke-release-asset-digest-mismatch');
     return bytes;
   };
+  return { release, commitSha: tag[1], countCommits, asset };
+}
+export async function downloadRelease({ out, token, releaseTag, fetchImpl = globalThis.fetch }) {
+  if (!path.isAbsolute(out ?? '')) throw Error('absolute-release-out-required');
+  const { release, commitSha, countCommits, asset } = await releaseClient({ token, releaseTag, fetchImpl });
+  const commitCount = await countCommits();
   const archive = await asset(archiveName, maxArchiveBytes);
   const checksum = (await asset(archiveName + '.sha256', maxMetadataBytes)).toString('utf8');
   const archiveSha256 = await sha256(archive);
   if (checksum.trim() !== `${archiveSha256}  ${archiveName}`) throw Error('ke-release-checksum-mismatch');
   const publishedManifest = await validateKoreManifest(JSON.parse((await asset('manifest.json', maxMetadataBytes)).toString('utf8')));
-  const metadata = { tag: release.tag_name, releaseId: release.id, commitSha: tag[1], buildId: publishedManifest.buildId, packageId: publishedManifest.packageId, archiveSha256 };
+  const metadata = { tag: release.tag_name, releaseId: release.id, commitSha, commitCount, buildId: publishedManifest.buildId, packageId: publishedManifest.packageId, archiveSha256 };
   requireRelease(publishedManifest, metadata);
   const ltsd = JSON.parse((await asset('ltsd-build-manifest.json', maxMetadataBytes)).toString('utf8'));
   const entry = ltsd[publishedManifest.buildId];
@@ -256,6 +320,55 @@ export async function downloadRelease({ out, token, fetchImpl = globalThis.fetch
     await rename(temporary, out);
     return metadata;
   } finally { await rm(temporary, { recursive: true, force: true }); }
+}
+
+// Explicit independent legacy source; never inferred from the selected old KE release.
+export async function prepareLegacyFieldpack({ repo, source, releaseTag, token, fetchImpl = globalThis.fetch }) {
+  if (Boolean(source) === Boolean(releaseTag) || (source && !path.isAbsolute(source))) throw Error('ke-explicit-legacy-source-required');
+  return withKoreLock(repo, async () => {
+    const destination = path.join(repo, 'generated/ke/legacy');
+    await rm(destination, { recursive: true, force: true });
+    const temporary = await mkdtemp(path.join(repo, 'generated/ke/.legacy-'));
+    try {
+      let provenance;
+      if (source) {
+        const root = path.join(source, 'data/maps/fieldpack-2.0.5');
+        await validateLegacyFieldpack(root);
+        await cp(root, path.join(temporary, 'fieldpack-2.0.5'), { recursive: true, dereference: false });
+        provenance = { source: 'local', manifestSha256: legacyManifestSha256 };
+      } else {
+        const { release, commitSha, asset } = await releaseClient({ token, releaseTag, fetchImpl });
+        const archive = await asset(legacyArchiveName, maxArchiveBytes);
+        const archiveSha256 = await sha256(archive);
+        if ((await asset(legacyArchiveName + '.sha256', maxMetadataBytes)).toString('utf8').trim() !== `${archiveSha256}  ${legacyArchiveName}`) throw Error('ke-release-checksum-mismatch');
+        await extractLegacyArchive(archive, path.join(temporary, 'archive'));
+        await rename(path.join(temporary, 'archive/fieldpack-2.0.5'), path.join(temporary, 'fieldpack-2.0.5'));
+        await rm(path.join(temporary, 'archive'), { recursive: true });
+        provenance = { source: 'release', tag: release.tag_name, releaseId: release.id, commitSha, archiveSha256, manifestSha256: legacyManifestSha256 };
+      }
+      await validateLegacyFieldpack(path.join(temporary, 'fieldpack-2.0.5'));
+      await atomicJson(path.join(temporary, 'provenance.json'), provenance);
+      await rename(temporary, destination);
+      return provenance;
+    } finally { await rm(temporary, { recursive: true, force: true }); }
+  });
+}
+export async function importLocalPackage({ repo, packageRoot }) {
+  return withKoreLock(repo, async () => {
+    await withdraw(repo);
+    try {
+      const manifest = await validateLocalPackage(packageRoot);
+      if (manifest.mode !== 'debug') throw Error('ke-local-import-requires-debug');
+      const staged = path.join(repo, 'generated/ke/packages', manifest.packageId);
+      await mkdir(path.dirname(staged), { recursive: true });
+      await rm(staged, { recursive: true, force: true });
+      await cp(packageRoot, staged, { recursive: true });
+      await validateLocalPackage(staged);
+      const pointer = { schemaVersion: 1, packageId: manifest.packageId, manifestPath: `ke/${manifest.packageId}/manifest.json` };
+      await atomicJson(path.join(repo, 'generated/ke/current.json'), pointer);
+      return pointer;
+    } catch (error) { await withdraw(repo); throw error; }
+  });
 }
 
 export async function importReleasePackage({ repo, packageRoot, metadata }) {
@@ -293,25 +406,31 @@ export async function verifyWebHosting({ fetchImpl = globalThis.fetch } = {}) {
 export async function validateDistribution({ dist, expectedPackageId }) {
   if (!/^[a-f0-9]{64}$/.test(expectedPackageId ?? '')) throw Error('ke-expected-package-required');
   const manifest = JSON.parse(await readFile(path.join(dist, 'core/executable-assets.json'), 'utf8'));
-  const loaded = await loadKorePackage({ manifest, page: { location: { href: 'https://ke-build.invalid/' }, fetch: async url => {
+  const loaded = await loadKorePackage({ manifest, verifyEmbeddedMap: true, page: { location: { href: 'https://ke-build.invalid/' }, fetch: async url => {
     const relative = safePackagePath(decodeURIComponent(url.pathname).slice('/core/'.length));
     return new globalThis.Response(await readFile(path.join(dist, 'core', relative)));
   } } });
   if (!loaded || loaded.manifest.packageId !== expectedPackageId) throw Error('required-kore-package-missing-or-changed');
   requireRelease(loaded.manifest);
+  if (loaded.manifest.schemaVersion === 3 && await lstat(path.join(dist, 'ke/map')).catch(error => { if (error.code !== 'ENOENT') throw error; return null; })) throw Error('embedded-map-package-carries-legacy-fieldpack');
   return { packageId: loaded.manifest.packageId, buildId: loaded.manifest.buildId, commitSha: loaded.manifest.commitSha };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   try {
     const { values } = parseArgs({ options: { source: { type: 'string' }, mode: { type: 'string' }, disable: { type: 'boolean' },
-      'download-release': { type: 'boolean' }, out: { type: 'string' }, 'import-package': { type: 'string' },
+      'download-release': { type: 'boolean' }, 'release-tag': { type: 'string' }, 'import-local-package': { type: 'string' },
+      'legacy-source': { type: 'string' }, 'legacy-release-tag': { type: 'string' }, out: { type: 'string' }, 'import-package': { type: 'string' },
       'verify-dist': { type: 'string' }, 'release-metadata': { type: 'string' }, 'verify-web-hosting': { type: 'boolean' } } });
     const repo = fileURLToPath(new URL('../', import.meta.url));
-    if (values['verify-web-hosting']) {
+    if (values['legacy-source'] || values['legacy-release-tag']) {
+      process.stdout.write(JSON.stringify(await prepareLegacyFieldpack({ repo, source: values['legacy-source'], releaseTag: values['legacy-release-tag'], token: process.env.KE_REPOSITORY_READ_TOKEN })) + '\n');
+    } else if (values['import-local-package']) {
+      process.stdout.write(JSON.stringify(await importLocalPackage({ repo, packageRoot: path.resolve(values['import-local-package']) })) + '\n');
+    } else if (values['verify-web-hosting']) {
       process.stdout.write(JSON.stringify(await verifyWebHosting()) + '\n');
     } else if (values['download-release']) {
-      process.stdout.write(JSON.stringify(await downloadRelease({ out: values.out, token: process.env.KE_REPOSITORY_READ_TOKEN })) + '\n');
+      process.stdout.write(JSON.stringify(await downloadRelease({ out: values.out, releaseTag: values['release-tag'], token: process.env.KE_REPOSITORY_READ_TOKEN })) + '\n');
     } else if (values['import-package'] || values['verify-dist']) {
       const metadata = JSON.parse(await readFile(values['release-metadata'], 'utf8'));
       const result = values['import-package']

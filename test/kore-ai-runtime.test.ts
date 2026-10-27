@@ -7,7 +7,7 @@ async function setup(native: (action: unknown) => boolean = () => true) {
   const page = Object.assign(new EventTarget(), { location: { href: 'http://localhost/' }, fetch: fixture.fetch,
     performance: { now: () => 1 }, crypto: globalThis.crypto, KoreEngineNativeAction: vi.fn(native) });
   const host = createKoreIntegration({ page, manifest: fixture.executable, createWorker: () => worker }); await host.start();
-  const init = worker.messages[0]!; worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false });
+  const init = worker.messages[0]!; worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false, capabilities: { mapStream: true } });
   const gameSessionId = host.beginGameSession(7, 'prontera.gat'); const connectionGeneration = host.beginMapConnection();
   return { host, worker, page, gameSessionId, connectionGeneration };
 }
