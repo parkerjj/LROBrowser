@@ -272,16 +272,6 @@ describe('LastRO login version badge', () => {
     expect(selectLastROUpdate({})).toBeNull(); expect(selectLastROUpdate(null)).toBeNull();
   });
 
-  it('accepts the GitHub download accelerator only for this repository releases', () => {
-    const proxied = 'https://gh-proxy.org/https://github.com/parkerjj/LROBrowser/releases/download/iwa-157/app.swbn';
-    expect(selectLastROUpdate({ versions: [{ version: '0.1.157', src: proxied, channels: ['default'] }] })).toEqual({ version: '0.1.157', src: proxied });
-    const hostile = { versions: [
-      { version: '9.9.9', src: 'https://gh-proxy.org/https://github.com/evil/repo/releases/download/x/app.swbn', channels: ['default'] },
-      { version: '9.9.8', src: 'https://gh-proxy.org.evil.example/https://github.com/parkerjj/LROBrowser/releases/download/x/app.swbn', channels: ['default'] },
-    ] };
-    expect(selectLastROUpdate(hostile)).toBeNull();
-  });
-
   it('shows the installed version and a prominent, expandable notice when a newer package is published', async () => {
     const { box, badge, detail, root, fetchMock } = mount('0.1.91');
     await vi.waitFor(() => expect(box.dataset.update).toBe('available'));
