@@ -69,6 +69,7 @@ describe('native graphics shortcut entry preference', () => {
     const setDisabled = vi.fn((value: boolean) => { disabled = value; return true; });
     globalThis.LastROHalloweenEffects = {
       seasonal: true, get disabled() { return disabled; }, setDisabled, destroy() {},
+      previewAvailable: false, previewEnabled: false, setPreview: vi.fn(() => false),
     };
     try {
       const f = fixture();
@@ -87,6 +88,40 @@ describe('native graphics shortcut entry preference', () => {
       f.component.onAppend();
       expect(checkbox.checked).toBe(false);
       expect(f.root.querySelectorAll('.lastro-halloween-disabled')).toHaveLength(1);
+    } finally {
+      globalThis.LastROHalloweenEffects = old;
+    }
+  });
+
+  it('adds an IWA holiday preview control that persists through the effects controller', () => {
+    let previewEnabled = false;
+    const old = globalThis.LastROHalloweenEffects;
+    const setPreview = vi.fn((value: boolean) => { previewEnabled = value; return true; });
+    globalThis.LastROHalloweenEffects = {
+      seasonal: false,
+      disabled: false,
+      previewAvailable: true,
+      get previewEnabled() { return previewEnabled; },
+      setDisabled: vi.fn(() => true),
+      setPreview,
+      destroy() {},
+    };
+    try {
+      const f = fixture();
+      const checkbox = f.root.querySelector<HTMLInputElement>('.lastro-halloween-preview')!;
+      expect(checkbox).not.toBeNull();
+      expect(checkbox.checked).toBe(false);
+      expect(checkbox.closest('label')?.textContent).toBe('预览万圣节特效');
+      checkbox.checked = true;
+      checkbox.dispatchEvent(new Event('change'));
+      expect(setPreview).toHaveBeenLastCalledWith(true);
+      expect(checkbox.checked).toBe(true);
+      f.component.onAppend();
+      expect(checkbox.checked).toBe(true);
+      checkbox.checked = false;
+      checkbox.dispatchEvent(new Event('change'));
+      expect(setPreview).toHaveBeenLastCalledWith(false);
+      expect(checkbox.checked).toBe(false);
     } finally {
       globalThis.LastROHalloweenEffects = old;
     }

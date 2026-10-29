@@ -1,5 +1,8 @@
 // A client-only 2026 Halloween skin. Dates are checked once on startup; no midnight scheduler.
 export const HALLOWEEN_STORAGE_KEY = 'lastro-halloween-effects-disabled';
+export const HALLOWEEN_PREVIEW_STORAGE_KEY = 'lastro-halloween-effects-preview-2026';
+const HALLOWEEN_GHOST_IDS = [1179, 1120] as const;
+const HALLOWEEN_WISP_ID = 1129;
 
 export function isHalloweenDate(date: Date = new Date()): boolean {
   if (date.getFullYear() !== 2026) return false;
@@ -11,7 +14,12 @@ export function isHalloweenDate(date: Date = new Date()): boolean {
 export interface HalloweenEffectsController {
   readonly seasonal: boolean;
   readonly disabled: boolean;
+  readonly previewAvailable: boolean;
+  readonly previewEnabled: boolean;
   setDisabled(value: boolean): boolean;
+  setPreview(value: boolean): boolean;
+  setMonsterPortraitLoader(loader: (id: number) => Promise<string>): boolean;
+  setStatusIconLoader(loader: () => Promise<string>): boolean;
   destroy(): void;
 }
 
@@ -25,22 +33,65 @@ type RendererPage = Window & {
 
 export function installHalloweenEffects(page: Window = window): HalloweenEffectsController {
   const doc = page.document;
-  // Preview is available only on the Vite development server, never in Web/IWA releases.
-  const preview = import.meta.env.DEV && new URL(page.location.href).searchParams.get('halloween-preview') === '1';
-  const seasonal = isHalloweenDate(new Date()) || preview;
+  const now = new Date();
+  // URL preview is Vite-only; the persisted preview is controlled in graphics settings.
+  const development = import.meta.env.DEV;
+  const devPreview = development && new URL(page.location.href).searchParams.get('halloween-preview') === '1';
+  const previewAvailable = now.getFullYear() === 2026;
+  const dateSeasonal = isHalloweenDate(now);
+  let previewEnabled = previewAvailable && development;
   let disabled = false;
-  try { disabled = page.localStorage.getItem(HALLOWEEN_STORAGE_KEY) === '1'; } catch { /* No storage: use default. */ }
+  try {
+    disabled = page.localStorage.getItem(HALLOWEEN_STORAGE_KEY) === '1';
+    const savedPreview = page.localStorage.getItem(HALLOWEEN_PREVIEW_STORAGE_KEY);
+    previewEnabled = previewAvailable && (savedPreview === '1' || (savedPreview === null && development));
+  } catch { /* No storage: use default. */ }
 
   let layer: HTMLDivElement | null = null;
   let ghost: HTMLImageElement | null = null;
+  let wisps: HTMLImageElement[] = [];
+  let statusIcon: HTMLImageElement | null = null;
+  let statusBadge: HTMLDivElement | null = null;
+  let monsterPortraitLoader: ((id: number) => Promise<string>) | undefined;
+  let statusIconLoader: (() => Promise<string>) | undefined;
+  const ghostSources = new Map<number, string>();
+  let wispSource: string | undefined;
   let canvas: HTMLCanvasElement | null = null;
   let canvasTimer: number | undefined;
   let ghostTimer: number | undefined;
   let ghostHideTimer: number | undefined;
   let destroyed = false;
 
-  const active = () => seasonal && !disabled && !destroyed;
-  const reducedMotion = () => page.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+  const seasonal = () => dateSeasonal || devPreview || previewEnabled;
+  const active = () => seasonal() && !disabled && !destroyed;
+  const loadSprites = () => {
+    if (!active() || !monsterPortraitLoader) return;
+    for (const id of HALLOWEEN_GHOST_IDS) {
+      if (ghostSources.has(id)) continue;
+      void monsterPortraitLoader(id).then(source => {
+        ghostSources.set(id, source);
+        if (active() && ghost && !ghost.hasAttribute('src')) {
+          ghost.src = source;
+          scheduleGhost(true);
+        }
+      }).catch(() => undefined);
+    }
+    if (!wispSource) {
+      void monsterPortraitLoader(HALLOWEEN_WISP_ID).then(source => {
+        wispSource = source;
+        if (active()) for (const wisp of wisps) wisp.src = source;
+      }).catch(() => undefined);
+    }
+  };
+  const loadStatusIcon = () => {
+    if (!active() || !statusIcon || !statusIconLoader) return;
+    void statusIconLoader().then(source => {
+      if (active() && statusIcon && statusBadge) {
+        statusIcon.src = source;
+        statusBadge.hidden = false;
+      }
+    }).catch(() => undefined);
+  };
   const clearGhostTimers = () => {
     if (ghostTimer !== undefined) page.clearTimeout(ghostTimer);
     if (ghostHideTimer !== undefined) page.clearTimeout(ghostHideTimer);
@@ -52,11 +103,15 @@ export function installHalloweenEffects(page: Window = window): HalloweenEffects
     ghost.hidden = true;
   };
   const scheduleGhost = (first = false) => {
-    if (!active() || doc.hidden || reducedMotion() || ghostTimer !== undefined) return;
-    const delay = (first ? 20_000 : 90_000) + Math.floor(Math.random() * (first ? 25_000 : 90_000));
+    if (!active() || doc.hidden || ghostTimer !== undefined || ghostHideTimer !== undefined || !ghostSources.size) return;
+    const delay = (first ? 350 : 12_000) + Math.floor(Math.random() * (first ? 300 : 12_000));
     ghostTimer = page.setTimeout(() => {
       ghostTimer = undefined;
       if (!active() || doc.hidden || !ghost || !layer?.isConnected) return;
+      const sources = [...ghostSources.values()];
+      const source = sources[Math.floor(Math.random() * sources.length)];
+      if (!source) return;
+      ghost.src = source;
       const fromRight = Math.random() > 0.5;
       ghost.hidden = false;
       ghost.style.top = (12 + Math.floor(Math.random() * 56)) + '%';
@@ -69,7 +124,7 @@ export function installHalloweenEffects(page: Window = window): HalloweenEffects
         ghostHideTimer = undefined;
         hideGhost();
         scheduleGhost();
-      }, 5500);
+      }, 8_000);
     }, delay);
   };
   const ensureLayer = () => {
@@ -80,30 +135,44 @@ export function installHalloweenEffects(page: Window = window): HalloweenEffects
     const vignette = doc.createElement('div');
     vignette.className = 'lastro-halloween-vignette';
     container.append(vignette);
-    for (const [x, y, delay] of [['13%', '22%', '0s'], ['86%', '31%', '-4s'], ['8%', '68%', '-9s']] as const) {
-      const flame = doc.createElement('span');
-      flame.className = 'lastro-halloween-flame';
-      flame.style.left = x;
-      flame.style.top = y;
-      flame.style.animationDelay = delay;
-      container.append(flame);
+    wisps = [];
+    for (const [left, top, delay] of [['14%', '24%', '0s'], ['48%', '57%', '-2s'], ['82%', '38%', '-4s']] as const) {
+      const wisp = doc.createElement('img');
+      wisp.className = 'lastro-halloween-wisp';
+      wisp.alt = '';
+      wisp.draggable = false;
+      wisp.style.left = left;
+      wisp.style.top = top;
+      wisp.style.animationDelay = delay;
+      wisps.push(wisp);
+      container.append(wisp);
     }
-    const pumpkin = doc.createElement('img');
-    pumpkin.className = 'lastro-halloween-pumpkin';
-    pumpkin.src = '/halloween/pumpkin.svg';
-    pumpkin.alt = '';
-    pumpkin.draggable = false;
-    container.append(pumpkin);
     ghost = doc.createElement('img');
     ghost.className = 'lastro-halloween-ghost';
-    ghost.src = '/halloween/ghost.svg';
     ghost.alt = '';
     ghost.draggable = false;
     ghost.hidden = true;
+    ghost.addEventListener('load', () => scheduleGhost(true));
     container.append(ghost);
+    const curse = doc.createElement('div');
+    curse.className = 'lastro-halloween-status';
+    curse.hidden = true;
+    curse.title = '本地万圣节效果：南瓜诅咒（仅画面显示）';
+    curse.setAttribute('role', 'img');
+    curse.setAttribute('aria-label', curse.title);
+    statusBadge = curse;
+    statusIcon = doc.createElement('img');
+    statusIcon.className = 'lastro-halloween-status-icon';
+    statusIcon.alt = '';
+    curse.append(statusIcon);
+    container.append(curse);
     doc.body.append(container);
     layer = container;
-    scheduleGhost(true);
+    if (wispSource) for (const wisp of wisps) wisp.src = wispSource;
+    const firstGhost = ghostSources.values().next().value;
+    if (firstGhost) ghost.src = firstGhost;
+    loadSprites();
+    loadStatusIcon();
   };
   const attachCanvas = () => {
     canvasTimer = undefined;
@@ -127,6 +196,7 @@ export function installHalloweenEffects(page: Window = window): HalloweenEffects
     canvas = null;
   };
   const apply = () => {
+    page.dispatchEvent(new Event('lastro-halloween-change'));
     doc.body.classList.toggle('lastro-halloween-active', active());
     if (!active()) {
       clearGhostTimers();
@@ -134,22 +204,26 @@ export function installHalloweenEffects(page: Window = window): HalloweenEffects
       layer?.remove();
       layer = null;
       ghost = null;
+      wisps = [];
+      statusIcon = null;
+      statusBadge = null;
       clearCanvas();
       return;
     }
     ensureLayer();
     if (!canvas && canvasTimer === undefined) attachCanvas();
-    if (ghostTimer === undefined && ghostHideTimer === undefined) scheduleGhost(true);
   };
   const onVisibility = () => {
     if (doc.hidden) {
       clearGhostTimers();
       hideGhost();
-    } else if (active()) scheduleGhost(true);
+    } else if (active() && ghostSources.size) scheduleGhost(true);
   };
   const onStorage = (event: StorageEvent) => {
-    if (event.key !== HALLOWEEN_STORAGE_KEY) return;
-    disabled = event.newValue === '1';
+    if (event.key === HALLOWEEN_STORAGE_KEY) disabled = event.newValue === '1';
+    else if (event.key === HALLOWEEN_PREVIEW_STORAGE_KEY)
+      previewEnabled = previewAvailable && (event.newValue === '1' || (event.newValue === null && development));
+    else return;
     apply();
   };
 
@@ -158,8 +232,10 @@ export function installHalloweenEffects(page: Window = window): HalloweenEffects
   apply();
 
   return {
-    get seasonal() { return seasonal; },
+    get seasonal() { return seasonal(); },
     get disabled() { return disabled; },
+    get previewAvailable() { return previewAvailable; },
+    get previewEnabled() { return previewEnabled; },
     setDisabled(value) {
       if (destroyed) return false;
       const next = value === true;
@@ -167,6 +243,27 @@ export function installHalloweenEffects(page: Window = window): HalloweenEffects
       catch { return false; }
       disabled = next;
       apply();
+      return true;
+    },
+    setPreview(value) {
+      if (destroyed || !previewAvailable) return false;
+      const next = value === true;
+      try { page.localStorage.setItem(HALLOWEEN_PREVIEW_STORAGE_KEY, next ? '1' : '0'); }
+      catch { return false; }
+      previewEnabled = next;
+      apply();
+      return true;
+    },
+    setMonsterPortraitLoader(loader) {
+      if (destroyed) return false;
+      monsterPortraitLoader = loader;
+      loadSprites();
+      return true;
+    },
+    setStatusIconLoader(loader) {
+      if (destroyed) return false;
+      statusIconLoader = loader;
+      loadStatusIcon();
       return true;
     },
     destroy() {

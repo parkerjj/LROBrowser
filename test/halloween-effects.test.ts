@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HALLOWEEN_STORAGE_KEY, installHalloweenEffects, isHalloweenDate } from '../src/halloween/halloween-effects';
+import { HALLOWEEN_PREVIEW_STORAGE_KEY, HALLOWEEN_STORAGE_KEY, installHalloweenEffects, isHalloweenDate } from '../src/halloween/halloween-effects';
 
 const initialHidden = Object.getOwnPropertyDescriptor(document, 'hidden');
 let controller: ReturnType<typeof installHalloweenEffects> | undefined;
@@ -22,6 +22,7 @@ afterEach(() => {
   vi.clearAllTimers();
   vi.useRealTimers();
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
   window.localStorage.clear();
   document.body.replaceChildren();
   delete page.__LastRORenderer;
@@ -44,6 +45,7 @@ describe('Halloween local time and visual effects', () => {
     const original = window.location.pathname + window.location.search + window.location.hash;
     try {
       vi.setSystemTime(new Date(2026, 9, 29, 12, 0));
+      window.localStorage.setItem(HALLOWEEN_PREVIEW_STORAGE_KEY, '0');
       window.history.replaceState({}, '', '?halloween-preview=1');
       controller = installHalloweenEffects(window);
       expect(controller.seasonal).toBe(true);
@@ -53,6 +55,46 @@ describe('Halloween local time and visual effects', () => {
     }
   });
 
+  it('lets the IWA settings preview effects outside the seasonal dates', () => {
+    vi.stubEnv('DEV', false);
+    vi.setSystemTime(new Date(2026, 9, 29, 12, 0));
+    window.history.replaceState({}, '', '/');
+    controller = installHalloweenEffects(window);
+    expect(controller.seasonal).toBe(false);
+    expect(controller.previewEnabled).toBe(false);
+    expect(root()).toBeNull();
+    expect(controller.setPreview(true)).toBe(true);
+    expect(window.localStorage.getItem(HALLOWEEN_PREVIEW_STORAGE_KEY)).toBe('1');
+    expect(controller.seasonal).toBe(true);
+    expect(root()).not.toBeNull();
+    expect(controller.setPreview(false)).toBe(true);
+    expect(window.localStorage.getItem(HALLOWEEN_PREVIEW_STORAGE_KEY)).toBe('0');
+    expect(controller.seasonal).toBe(false);
+    expect(root()).toBeNull();
+  });
+
+  it('defaults the Vite development preview on without a URL parameter', () => {
+    vi.setSystemTime(new Date(2026, 9, 29, 12, 0));
+    window.history.replaceState({}, '', '/');
+    controller = installHalloweenEffects(window);
+    expect(controller.previewEnabled).toBe(true);
+    expect(controller.seasonal).toBe(true);
+    expect(root()).not.toBeNull();
+    expect(controller.setPreview(false)).toBe(true);
+    expect(controller.seasonal).toBe(false);
+    expect(root()).toBeNull();
+  });
+
+  it('ignores the saved preview flag outside the 2026 feature year', () => {
+    vi.setSystemTime(new Date(2027, 9, 29, 12, 0));
+    window.localStorage.setItem(HALLOWEEN_PREVIEW_STORAGE_KEY, '1');
+    controller = installHalloweenEffects(window);
+    expect(controller.previewAvailable).toBe(false);
+    expect(controller.previewEnabled).toBe(false);
+    expect(controller.seasonal).toBe(false);
+    expect(root()).toBeNull();
+  });
+
   it('creates only passive decorations, and attaches the filter to the native canvas when ready', () => {
     controller = installHalloweenEffects(window);
     expect(controller.seasonal).toBe(true);
@@ -60,14 +102,12 @@ describe('Halloween local time and visual effects', () => {
     expect(document.body.classList.contains('lastro-halloween-active')).toBe(true);
     expect(root()?.style.pointerEvents).toBe(''); // CSS owns click-through.
     expect(root()?.getAttribute('aria-hidden')).toBe('true');
-    expect(root()?.querySelectorAll('.lastro-halloween-flame')).toHaveLength(3);
-    expect(root()?.querySelector('.lastro-halloween-pumpkin')?.getAttribute('src')).toBe('/halloween/pumpkin.svg');
     const canvas = document.createElement('canvas');
     document.body.append(canvas);
     page.__LastRORenderer = { Renderer: { canvas } };
     vi.advanceTimersByTime(1000);
     expect(canvas.classList.contains('lastro-halloween-canvas')).toBe(true);
-    expect(root()?.querySelector('.lastro-halloween-ghost')?.getAttribute('src')).toBe('/halloween/ghost.svg');
+    expect(root()?.querySelector('.lastro-halloween-ghost')?.hasAttribute('src')).toBe(false);
   });
 
   it('disables every effect immediately, persists the choice, and restores it on uncheck', () => {
@@ -80,6 +120,7 @@ describe('Halloween local time and visual effects', () => {
     expect(document.body.classList.contains('lastro-halloween-active')).toBe(false);
     expect(canvas.classList.contains('lastro-halloween-canvas')).toBe(false);
     expect(root()).toBeNull();
+    vi.advanceTimersByTime(0);
     expect(vi.getTimerCount()).toBe(0);
     expect(controller.setDisabled(false)).toBe(true);
     expect(window.localStorage.getItem(HALLOWEEN_STORAGE_KEY)).toBe('0');
@@ -88,6 +129,7 @@ describe('Halloween local time and visual effects', () => {
   });
 
   it('honors a saved opt-out and does not mount decorations outside the dates', () => {
+    vi.stubEnv('DEV', false);
     window.localStorage.setItem(HALLOWEEN_STORAGE_KEY, '1');
     controller = installHalloweenEffects(window);
     expect(controller.disabled).toBe(true);
@@ -98,22 +140,27 @@ describe('Halloween local time and visual effects', () => {
     expect(controller.seasonal).toBe(false);
     expect(controller.setDisabled(false)).toBe(true);
     expect(root()).toBeNull();
+    vi.advanceTimersByTime(0);
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('spawns at most one ghost periodically, then releases all animation timers', () => {
+  it('shows a game ghost after its sprite loads, then releases all animation timers', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
     const canvas = document.createElement('canvas');
     page.__LastRORenderer = { Renderer: { canvas } };
     controller = installHalloweenEffects(window);
+    controller.setMonsterPortraitLoader(async () => 'data:image/png;base64,AA==');
+    await Promise.resolve();
+    await Promise.resolve();
     const ghost = document.querySelector<HTMLImageElement>('.lastro-halloween-ghost')!;
     expect(ghost.hidden).toBe(true);
-    vi.advanceTimersByTime(19_999);
+    ghost.dispatchEvent(new Event('load'));
+    vi.advanceTimersByTime(349);
     expect(ghost.hidden).toBe(true);
     vi.advanceTimersByTime(1);
     expect(ghost.hidden).toBe(false);
     expect(ghost.classList.contains('is-visible')).toBe(true);
-    vi.advanceTimersByTime(5500);
+    vi.advanceTimersByTime(8_000);
     expect(ghost.hidden).toBe(true);
     expect(vi.getTimerCount()).toBe(1);
     controller.destroy();
@@ -121,10 +168,14 @@ describe('Halloween local time and visual effects', () => {
     expect(root()).toBeNull();
   });
 
-  it('pauses the wandering ghost when hidden without affecting the date guard', () => {
+  it('pauses the wandering ghost when hidden without affecting the date guard', async () => {
     const canvas = document.createElement('canvas');
     page.__LastRORenderer = { Renderer: { canvas } };
     controller = installHalloweenEffects(window);
+    controller.setMonsterPortraitLoader(async () => 'data:image/png;base64,AA==');
+    await Promise.resolve();
+    await Promise.resolve();
+    document.querySelector('.lastro-halloween-ghost')?.dispatchEvent(new Event('load'));
     Object.defineProperty(document, 'hidden', { configurable: true, value: true });
     document.dispatchEvent(new Event('visibilitychange'));
     expect(vi.getTimerCount()).toBe(0);

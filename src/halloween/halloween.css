@@ -1,6 +1,6 @@
 /* Temporary 2026 Halloween skin; scoped to the native game canvas and passive decor. */
 body.lastro-halloween-active canvas.lastro-halloween-canvas {
-  filter: brightness(.78) saturate(.80) contrast(1.07) sepia(.04) hue-rotate(3deg);
+  filter: brightness(.82) saturate(.74) contrast(1.06) hue-rotate(-4deg);
 }
 .lastro-halloween-layer {
   position: fixed;
@@ -14,71 +14,73 @@ body.lastro-halloween-active canvas.lastro-halloween-canvas {
 .lastro-halloween-vignette {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse 78% 76% at 50% 47%,
-    transparent 37%, rgba(25, 12, 43, .07) 65%, rgba(18, 8, 32, .22) 100%);
+  background: radial-gradient(ellipse 82% 78% at 50% 47%,
+    transparent 40%, rgba(8, 12, 18, .12) 68%, rgba(3, 6, 10, .38) 100%);
 }
-.lastro-halloween-pumpkin {
+.lastro-halloween-wisp {
   position: absolute;
-  top: 18px;
-  right: 23px;
-  width: clamp(40px, 5vw, 64px);
+  width: clamp(48px, 4.5vw, 76px);
   height: auto;
-  opacity: .9;
-  filter: drop-shadow(0 0 9px rgba(253, 139, 45, .25));
-  animation: lastro-halloween-pumpkin-glow 6s ease-in-out infinite;
-}
-.lastro-halloween-flame {
-  position: absolute;
-  width: 34px;
-  height: 54px;
-  border-radius: 50% 50% 40% 45%;
-  opacity: .22;
-  background: radial-gradient(ellipse at 50% 65%, #e2c5ff 0%, #9d7ce8 24%, #5b53c9 46%, transparent 74%);
-  filter: blur(5px);
-  animation: lastro-halloween-wisp 11s ease-in-out infinite alternate;
+  opacity: .88;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 9px rgba(255, 146, 54, .8)) drop-shadow(0 0 16px rgba(144, 91, 225, .45));
+  animation: lastro-halloween-wisp-float 5.5s ease-in-out infinite alternate;
 }
 .lastro-halloween-ghost {
   position: absolute;
   top: 35%;
   left: 2%;
-  width: clamp(42px, 6vw, 76px);
+  width: clamp(80px, 7vw, 128px);
   height: auto;
   opacity: 0;
   display: block;
-  filter: drop-shadow(0 0 10px rgba(194, 162, 255, .45));
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 8px rgba(184, 157, 255, .8)) drop-shadow(0 0 2px rgba(255, 255, 255, .8));
 }
 .lastro-halloween-ghost[hidden] { display: none !important; }
 .lastro-halloween-ghost.from-right { left: auto; right: 2%; }
+.lastro-halloween-status {
+  position: absolute;
+  top: 166px;
+  right: 65px;
+  display: block;
+  width: 32px;
+  height: 32px;
+}
+.lastro-halloween-status[hidden] { display: none !important; }
+.lastro-halloween-status-icon {
+  display: block;
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 4px rgba(255, 151, 54, .7));
+}
 .lastro-halloween-ghost.is-visible {
-  animation: lastro-halloween-ghost-left 5.5s ease-in-out forwards;
+  animation: lastro-halloween-ghost-left 8s ease-in-out forwards;
 }
 .lastro-halloween-ghost.is-visible.from-right {
   animation-name: lastro-halloween-ghost-right;
 }
 @keyframes lastro-halloween-ghost-left {
-  0% { opacity: 0; transform: translate3d(-45px, 12px, 0) rotate(-9deg); }
-  20% { opacity: .7; }
-  55% { opacity: .78; transform: translate3d(35px, -14px, 0) rotate(6deg); }
-  80% { opacity: .55; }
-  100% { opacity: 0; transform: translate3d(100px, -32px, 0) rotate(-5deg); }
+  0% { opacity: 0; transform: translate3d(-120%, 8px, 0) rotate(-4deg); }
+  18% { opacity: .72; }
+  55% { opacity: .78; transform: translate3d(48vw, -12px, 0) rotate(3deg); }
+  82% { opacity: .62; }
+  100% { opacity: 0; transform: translate3d(100vw, -24px, 0) rotate(-3deg); }
 }
 @keyframes lastro-halloween-ghost-right {
-  0% { opacity: 0; transform: translate3d(45px, 12px, 0) rotate(9deg); }
-  20% { opacity: .7; }
-  55% { opacity: .78; transform: translate3d(-35px, -14px, 0) rotate(-6deg); }
-  80% { opacity: .55; }
-  100% { opacity: 0; transform: translate3d(-100px, -32px, 0) rotate(5deg); }
+  0% { opacity: 0; transform: translate3d(120%, 8px, 0) rotate(4deg); }
+  18% { opacity: .72; }
+  55% { opacity: .78; transform: translate3d(-48vw, -12px, 0) rotate(-3deg); }
+  82% { opacity: .62; }
+  100% { opacity: 0; transform: translate3d(-100vw, -24px, 0) rotate(3deg); }
 }
-@keyframes lastro-halloween-wisp {
-  0% { transform: translate3d(-8px, 18px, 0) scale(.8); opacity: .10; }
-  50% { transform: translate3d(13px, -15px, 0) scale(1.2); opacity: .25; }
-  100% { transform: translate3d(-4px, -38px, 0) scale(.85); opacity: .12; }
-}
-@keyframes lastro-halloween-pumpkin-glow {
-  0%, 100% { opacity: .80; }
-  50% { opacity: 1; filter: drop-shadow(0 0 12px rgba(253, 139, 45, .45)); }
+@keyframes lastro-halloween-wisp-float {
+  from { transform: translate3d(0, 8px, 0) scale(.94); }
+  to { transform: translate3d(8px, -12px, 0) scale(1.04); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .lastro-halloween-pumpkin, .lastro-halloween-flame { animation: none; }
-  .lastro-halloween-ghost { display: none !important; }
+  .lastro-halloween-wisp { animation: none; }
+  .lastro-halloween-ghost.is-visible { animation: none; opacity: .78; transform: none; }
 }

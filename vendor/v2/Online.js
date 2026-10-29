@@ -187606,6 +187606,7 @@ var init_WorldMap = __esmMin(() => {
   WorldMap.render = () => "<div id=\"WorldMap\"><div class=\"wm-canvas\" aria-label=\"世界地图\"><div class=\"wm-grid\"></div></div><nav class=\"wm-toolbar\" aria-label=\"世界地图工具\"><select aria-label=\"大陆\" class=\"wm-region\"></select><div><button type=\"button\" class=\"wm-search\">搜索</button></div></nav><button type=\"button\" class=\"wm-close\" aria-label=\"关闭世界地图\" title=\"关闭世界地图\">关闭</button><div class=\"wm-message\" role=\"status\" hidden></div><section class=\"wm-panel\" role=\"dialog\" aria-label=\"地图资料查询\" hidden><header><button type=\"button\" class=\"wm-back\">返回</button><h2 class=\"wm-title\"></h2></header><div class=\"wm-body\"></div></section></div>";
   (function installLastroWorldMap(component, deps, regions, makeIndex) {
   const { DB, Client } = deps;
+  globalThis.LastROHalloweenEffects?.setMonsterPortraitLoader?.(deps.monsterPortrait);
   let root, grid, canvas, panel, body, title, regionSelect, message;
   let index, loading, alive = false, generation = 0, currentRegion = 0;
   let route = null, fromSearch = false, selectedMap = '', searchTerm = '', searchType = 'all';
@@ -187697,6 +187698,9 @@ var init_WorldMap = __esmMin(() => {
     if (imageCache.size > 256) imageCache.delete(imageCache.keys().next().value);
     entry.promise.then(done, failed);
   }
+  globalThis.LastROHalloweenEffects?.setStatusIconLoader?.(() => new Promise((resolve, reject) => {
+    loadImageFile(`${DB.INTERFACE_PATH}item/Gothic_Pumpkin_Head.bmp`, resolve, reject);
+  }));
   const node = (tag, text, className) => {
     const el = document.createElement(tag);
     if (text !== undefined) el.textContent = text;
