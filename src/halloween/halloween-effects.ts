@@ -107,7 +107,7 @@ export function installHalloweenEffects(page: Window = window): HalloweenEffects
     canvasTimer = undefined;
     if (!active()) return;
     const next = (page as RendererPage).__LastRORenderer?.Renderer?.canvas;
-    if (next instanceof page.HTMLCanvasElement) {
+    if (next?.tagName === 'CANVAS') {
       if (canvas !== next) {
         canvas?.classList.remove('lastro-halloween-canvas');
         canvas = next;
