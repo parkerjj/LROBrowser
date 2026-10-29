@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { installHalloweenWorldRuntime } from '../src/halloween/halloween-world-runtime.mjs';
-import { patchRuntimeHalloweenWorld } from '../scripts/patch-v2-runtime.mjs';
 import type { HalloweenWorldEntity } from '../src/halloween/halloween-world-runtime.mjs';
 
 describe('Halloween game-world effects', () => {
