@@ -31,6 +31,48 @@ function harness() {
 }
 
 describe('early standalone startup diagnostic', () => {
+  it('gives actionable graphics guidance for an asynchronous WebGL failure', () => {
+    const h = harness();
+    h.page.dispatchEvent(new h.page.ErrorEvent('error', {
+      error: new Error('WebGL::getContext() - WebGL2 is required but not available.'),
+    }));
+    expect(h.get('lastro-startup-help').hidden).toBe(false);
+    expect(h.get('lastro-startup-help').textContent).toMatch(/图形加速|硬件加速/);
+    expect(h.get('lastro-startup-help').textContent).toContain('显卡驱动');
+    expect(h.get('lastro-startup-help').textContent).toContain('重启');
+    h.dom.window.close();
+  });
+
+  it.each(['资源工作线程启动失败', '本地光标加载失败', '启动脚本加载失败'])('offers package recovery for %s', reason => {
+    const h = harness();
+    h.api.fail(reason, new Error('local package unavailable'));
+    expect(h.get('lastro-startup-help').textContent).toContain('重新安装');
+    expect(h.get('lastro-startup-help').textContent).toContain('诊断信息');
+    h.dom.window.close();
+  });
+
+  it('keeps network advice when the background error stack mentions Online.js', () => {
+    const h = harness();
+    h.api.phase('加载启动背景与基础资料');
+    const error = new Error('Failed to fetch');
+    error.stack = 'TypeError: Failed to fetch\n    at load (https://iwa.invalid/runtime/Online.js:1:1)';
+    h.api.fail('未处理的异步异常', error);
+    expect(h.get('lastro-startup-help').textContent).toContain('检查网络');
+    expect(h.get('lastro-startup-help').textContent).not.toContain('重新安装');
+    h.dom.window.close();
+  });
+
+  it('explains how to handle a stalled Worker stage and ignores later errors after login', () => {
+    const h = harness();
+    h.api.phase('等待资源工作线程');
+    [...h.timers.values()].find(timer => timer.delay === 60000)!.run();
+    expect(h.get('lastro-startup-help').textContent).toContain('重新安装');
+    h.api.ready();
+    h.page.dispatchEvent(new h.page.ErrorEvent('error', { error: new Error('late error') }));
+    expect(h.get('lastro-startup-screen').hidden).toBe(true);
+    h.dom.window.close();
+  });
+
   it('renders before app module startup and survives #app replacement', () => {
     const h = harness();
     expect(h.get('lastro-startup-screen').hidden).toBe(false);

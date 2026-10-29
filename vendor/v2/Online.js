@@ -284293,23 +284293,33 @@ var init_CursorManager = __esmMin(() => {
         fn();
         return;
       }
-      Client.getFiles(
-        ["data/sprite/cursors.spr", "data/sprite/cursors.act"],
-        (spr, act) => {
+      const failed = (error) => {
+        console.error("Cursor::init() - local cursor unavailable", error);
+        globalThis.LastROStartupDiagnostics?.fail("本地光标加载失败", error);
+      };
+      Promise.all(
+        ["data/sprite/cursors.spr", "data/sprite/cursors.act"].map(
+          (file) => new Promise((resolve, reject) => Client.getFile(file, resolve, reject)),
+        ),
+      ).then(
+        ([spr, act]) => {
           try {
             _sprite$2 = new SPR(spr);
             _action$2 = new ACT(act);
+            MemoryManager.remove(null, "data/sprite/cursors.spr");
+            MemoryManager.remove(null, "data/sprite/cursors.act");
+            bindMouseEvents();
+            preCompiledAnimations();
+            createSpriteSheet();
           } catch (e) {
-            console.error("Cursor::init() - " + e.message);
+            _sprite$2 = null;
+            _action$2 = null;
+            failed(e);
             return;
           }
-          MemoryManager.remove(null, "data/sprite/cursors.spr");
-          MemoryManager.remove(null, "data/sprite/cursors.act");
-          bindMouseEvents();
-          preCompiledAnimations();
-          createSpriteSheet();
           fn();
         },
+        failed,
       );
     }
     /**
@@ -327080,6 +327090,7 @@ var GameEngine_exports = /* @__PURE__ */ __exportAll({
 function loadFiles(callback) {
   const q = new Queue();
   q.add(() => {
+    globalThis.LastROStartupDiagnostics?.phase("初始化包内资源");
     Client.onFilesLoaded = (count) => {
       if (
         !Configs.get("remoteClient") &&
@@ -327102,6 +327113,7 @@ function loadFiles(callback) {
   });
   q.add(() => {
     roInitSpinner.remove();
+    globalThis.LastROStartupDiagnostics?.phase("加载启动背景与基础资料");
     DB.onReady = () => {
       q._next();
     };
@@ -327120,6 +327132,7 @@ function loadFiles(callback) {
     loadClientInfo(q.next);
   });
   q.add(() => {
+    globalThis.LastROStartupDiagnostics?.phase("加载本地光标");
     ScrollBar.init();
     Cursor.init(q.next);
   });
@@ -327289,6 +327302,7 @@ var init_GameEngine = __esmMin(() => {
       const q = new Queue();
       q.add(() => {
         if (!_thread_ready) {
+          globalThis.LastROStartupDiagnostics?.phase("等待资源工作线程");
           Thread.hook("THREAD_ERROR", onThreadError);
           Thread.hook("THREAD_LOG", onThreadLog);
           Thread.hook("THREAD_READY", () => {
@@ -327299,7 +327313,14 @@ var init_GameEngine = __esmMin(() => {
         } else q._next();
       });
       q.add(() => {
-        Renderer.init();
+        globalThis.LastROStartupDiagnostics?.phase("初始化 WebGL 图形");
+        try {
+          Renderer.init();
+        } catch (error) {
+          console.error("GameEngine::init() - graphics initialization failed", error);
+          globalThis.LastROStartupDiagnostics?.fail("图形初始化失败", error);
+          return;
+        }
         q._next();
       });
       q.add(() => {

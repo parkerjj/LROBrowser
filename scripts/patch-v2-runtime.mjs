@@ -1737,9 +1737,9 @@ ${normalizedSource}`;
   ]);
   output = replaceOnceAny(output, [
     ['if (_source instanceof Worker) _source.addEventListener("message", Thread.receive, false);',
-      'if (_source instanceof Worker) {\n\t\t\t\tconsole.info("[LastRO IWA] waiting for resource worker");\n\t\t\t\t_source.addEventListener("error", (event) => console.error("[LastRO IWA] resource worker failed", event.message));\n\t\t\t\t_source.addEventListener("message", Thread.receive, false);\n\t\t\t}'],
+      'if (_source instanceof Worker) {\n\t\t\t\tconsole.info("[LastRO IWA] waiting for resource worker");\n\t\t\t\tconst failed = (event) => { console.error("[LastRO IWA] resource worker failed", event.message); globalThis.LastROStartupDiagnostics?.fail("资源工作线程启动失败", event.message || "Worker message error"); };\n\t\t\t\t_source.addEventListener("error", failed);\n\t\t\t\t_source.addEventListener("messageerror", failed);\n\t\t\t\t_source.addEventListener("message", Thread.receive, false);\n\t\t\t}'],
     ['      if (_source instanceof Worker)\n        _source.addEventListener("message", Thread.receive, false);',
-      '      if (_source instanceof Worker) {\n        console.info("[LastRO IWA] waiting for resource worker");\n        _source.addEventListener("error", (event) => console.error("[LastRO IWA] resource worker failed", event.message));\n        _source.addEventListener("message", Thread.receive, false);\n      }'],
+      '      if (_source instanceof Worker) {\n        console.info("[LastRO IWA] waiting for resource worker");\n        const failed = (event) => { console.error("[LastRO IWA] resource worker failed", event.message); globalThis.LastROStartupDiagnostics?.fail("资源工作线程启动失败", event.message || "Worker message error"); };\n        _source.addEventListener("error", failed);\n        _source.addEventListener("messageerror", failed);\n        _source.addEventListener("message", Thread.receive, false);\n      }'],
   ]);
   output = replaceOnce(output, '_thread_ready = true;', '_thread_ready = true;\n\t\t\t\t\t\tconsole.info("[LastRO IWA] resource worker ready; initializing renderer");');
   output = replaceOnce(output, 'savingFiles(files);', 'console.info("[LastRO IWA] initializing remote client resources");\n\t\t\tThread.send("CLIENT_INIT", { files: [], save: false }, (...args) => Client.onFilesLoaded(...args));');

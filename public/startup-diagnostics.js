@@ -24,6 +24,20 @@
       : String(error == null ? '未知错误' : error);
     return String(raw).replace(/\b(password|token|authorization|cookie|secret)\s*[:=]\s*[^\s,;]+/gi, '$1=[已隐藏]').slice(0, 3000);
   }
+  function guidance() {
+    var context = phaseName + ' ' + message + ' ' + detail;
+    if (/WebGL|shader|GLSL|图形初始化|显卡/i.test(context)) {
+      return '请在 Chrome「设置 → 系统」中开启图形加速（硬件加速），然后完全退出并重启 Chrome。\n若仍失败，请更新 Chrome 和显卡驱动，并关闭其他游戏窗口以释放显存；随后重新打开客户端。仍无法启动时，请复制诊断信息发送给开发者。';
+    }
+    if (/工作线程|Worker|脚本|运行时|Online\.js|包内|本地光标|核心资源清单/i.test(phaseName + ' ' + message)
+      || /Package resource|packaged cursor/i.test(detail)) {
+      return '请关闭客户端窗口后重新打开；若仍失败，请从原安装来源重新安装最新版客户端。不要清除浏览器或客户端的站点数据，以免丢失已保存账号。\n请复制诊断信息发送给开发者，以便确认失败的本地资源或启动阶段。';
+    }
+    if (/基础资料|背景|网络|fetch|network|timeout|连接/i.test(context)) {
+      return '请检查网络是否可访问游戏资源服务器，关闭客户端窗口后重新打开。若仍停在此阶段，请复制诊断信息发送给开发者。无需清除已保存账号。';
+    }
+    return '请关闭客户端窗口后重新打开，并确认 Chrome 与客户端均为最新版本。若仍无法启动，请复制诊断信息发送给开发者。不要清除已保存账号或站点数据。';
+  }
   function show() {
     if (finished) return;
     var screen = element('lastro-startup-screen');
@@ -35,6 +49,11 @@
     var technical = element('lastro-startup-detail');
     technical.hidden = !detail;
     technical.textContent = detail;
+    var help = element('lastro-startup-help');
+    if (help) {
+      help.hidden = !failed && !delayed;
+      help.textContent = failed || delayed ? guidance() : '';
+    }
     element('lastro-startup-copy').hidden = !failed && !delayed;
     screen.dataset.state = failed ? 'error' : delayed ? 'slow' : 'loading';
   }
@@ -70,7 +89,7 @@
     watch();
   }
   function fail(reason, error) {
-    if (finished) return;
+    if (finished || failed) return;
     failed = true;
     stopTimers();
     message = String(reason).slice(0, 180);
@@ -90,7 +109,7 @@
   function report() {
     return [
       'LRO 启动诊断', '阶段：' + phaseName, '状态：' + (failed ? '异常' : delayed ? '超时/缓慢' : '加载中'),
-      '说明：' + message, '错误：' + (detail || '无明确异常'), '经过（相对时间）：',
+      '说明：' + message, '建议：' + guidance(), '错误：' + (detail || '无明确异常'), '经过（相对时间）：',
       timeline.join('\n'), '浏览器：' + navigator.userAgent
     ].join('\n');
   }

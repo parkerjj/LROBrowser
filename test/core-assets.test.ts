@@ -31,6 +31,19 @@ async function fixture() {
 }
 
 describe('core executable asset importer', () => {
+  it('packages the startup cursor SPR/ACT as passive assets with their exact bytes', async () => {
+    const f = await fixture();
+    await mkdir(path.join(f.core, 'data/sprite'), { recursive: true });
+    for (const [name, magic] of [['cursors.spr', 'SP'], ['cursors.act', 'AC']] as const) {
+      await writeFile(path.join(f.core, 'data/sprite', name), magic);
+    }
+    const manifest = await importCoreAssets({ coreRoot: f.core, moduleRoot: f.modules, output: f.output });
+    for (const [name, magic] of [['cursors.spr', 'SP'], ['cursors.act', 'AC']] as const) {
+      expect(manifest.files).toContainEqual(expect.objectContaining({ path: `data/sprite/${name}`, kind: 'passive' }));
+      expect(await readFile(path.join(f.output, 'data/sprite', name), 'utf8')).toBe(magic);
+    }
+  });
+
   it('packages the Kore runtime entry and its module dependencies', async () => {
     const f = await fixture();
     const manifest = await importCoreAssets({ coreRoot: f.core, moduleRoot: f.modules, output: f.output });

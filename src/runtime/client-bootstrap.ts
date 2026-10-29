@@ -127,5 +127,4 @@ export async function bootstrapV2Client(options: BootstrapOptions): Promise<void
   globalThis.LastROExecutableManifest = manifest;
   globalThis.LastROStartupDiagnostics?.phase('加载游戏运行时 Online.js');
   await import(/* @vite-ignore */ '/runtime/Online.js');
-  globalThis.LastROStartupDiagnostics?.phase('等待游戏登录窗口');
 }

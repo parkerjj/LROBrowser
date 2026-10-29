@@ -10,6 +10,14 @@ const ALLOWED_ORIGIN = 'https://rodata.ltsd.ro';
 
 export const PASSIVE_ASSETS = Object.freeze([
   Object.freeze({
+    path: 'data/sprite/cursors.spr',
+    url: 'https://rodata.ltsd.ro/ro/client_re/data/sprite/cursors.spr',
+  }),
+  Object.freeze({
+    path: 'data/sprite/cursors.act',
+    url: 'https://rodata.ltsd.ro/ro/client_re/data/sprite/cursors.act',
+  }),
+  Object.freeze({
     path: 'data/mp3nametable.txt',
     url: 'https://rodata.ltsd.ro/ro/client_re/data/mp3nametable.txt',
   }),
