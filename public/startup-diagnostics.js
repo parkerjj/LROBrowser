@@ -1,3 +1,4 @@
+/* global window, document, navigator, console */
 (function () {
   'use strict';
   // Loaded before the module graph: even a failed main.ts import leaves a visible diagnosis.
