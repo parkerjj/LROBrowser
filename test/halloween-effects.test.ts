@@ -40,6 +40,19 @@ describe('Halloween local time and visual effects', () => {
     expect(isHalloweenDate(new Date(2027, 9, 31, 12, 0))).toBe(false);
   });
 
+  it('supports a development-only preview URL without changing the system clock', () => {
+    const original = window.location.pathname + window.location.search + window.location.hash;
+    try {
+      vi.setSystemTime(new Date(2026, 9, 29, 12, 0));
+      window.history.replaceState({}, '', '?halloween-preview=1');
+      controller = installHalloweenEffects(window);
+      expect(controller.seasonal).toBe(true);
+      expect(root()).not.toBeNull();
+    } finally {
+      window.history.replaceState({}, '', original);
+    }
+  });
+
   it('creates only passive decorations, and attaches the filter to the native canvas when ready', () => {
     controller = installHalloweenEffects(window);
     expect(controller.seasonal).toBe(true);
