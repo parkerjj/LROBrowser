@@ -631,6 +631,8 @@ export function installLastROLogin({ root, component, configs, onAssistantProfil
     visible = true;
     activeLogin = { before, after };
     const result = originalAppend?.apply(this, args);
+    // The native login component is now mounted; remove the independent startup overlay.
+    globalThis.LastROStartupDiagnostics?.ready();
     void refreshAccounts();
     return result;
   };
