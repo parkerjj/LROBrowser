@@ -20,7 +20,14 @@ interface ExecutableAssetManifest {
   files: readonly { path: string; kind: string; bytes: number; sha256: string }[];
 }
 
+interface StartupDiagnostics {
+  phase(name: string): void;
+  fail(reason: string, error?: unknown): void;
+  ready(): void;
+}
+
 declare global {
+  var LastROStartupDiagnostics: StartupDiagnostics | undefined;
   var ROConfig: V2ClientConfig | undefined;
   var LastRODirectSocketFactory: ((host: string, port: number) => LegacyClientSocket) | undefined;
   var LastRORelaySocketFactory: ((url: string) => LegacyClientSocket) | undefined;
@@ -86,8 +93,10 @@ export async function bootstrapV2Client(options: BootstrapOptions): Promise<void
   // Do not block the UI or load downloaded scripts as executable code.
   if (!IS_WEB_BUILD) void refreshOfficialOnlineProfiles().catch(() => undefined);
   const mount = options.mount;
+  globalThis.LastROStartupDiagnostics?.phase('读取核心资源清单');
   const manifest = await loadExecutableManifest();
   if (!IS_WEB_BUILD) {
+    globalThis.LastROStartupDiagnostics?.phase('加载网络模块');
     const socketFactory = await import('../network/socket-factory');
     const loginHttp = await import('../network/lastro-login-http');
     const relaySocket = await import('../network/relay-websocket');
@@ -116,5 +125,6 @@ export async function bootstrapV2Client(options: BootstrapOptions): Promise<void
   }
   globalThis.LastROResourceRoots = IS_WEB_BUILD ? WEB_RESOURCE_ROOTS : IWA_RESOURCE_ROOTS;
   globalThis.LastROExecutableManifest = manifest;
+  globalThis.LastROStartupDiagnostics?.phase('加载游戏运行时 Online.js');
   await import(/* @vite-ignore */ '/runtime/Online.js');
 }

@@ -51,8 +51,9 @@ function kindFor(file) {
   if (extension === '.wasm') return 'wasm';
   if (extension === '.json') return 'data-json';
   if (extension === '.png' && file.startsWith('data/texture/유저인터페이스/display_mapname/')) return 'passive';
-  // Default damage-number skin: tiny, and needed on every hit even when downloads fail.
-  if ((extension === '.spr' || extension === '.act') && file.startsWith('data/sprite/이팩트/')) return 'passive';
+  // Startup cursors and default damage-number skins must work without remote downloads.
+  if ((extension === '.spr' || extension === '.act')
+    && (file.startsWith('data/sprite/이팩트/') || /^data\/sprite\/cursors\.(spr|act)$/.test(file))) return 'passive';
   if (extension === '.csv' || extension === '.otf' || extension === '.ttf' || extension === '.txt') return 'passive';
   if (extension === '.js' || extension === '.mjs' || extension === '.cjs') return 'runtime';
   fail('unsupported-executable', file);

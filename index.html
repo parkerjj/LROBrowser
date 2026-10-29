@@ -8,9 +8,40 @@
     <link rel="icon" href="/icons/icon-64.png" type="image/png" sizes="64x64" />
     <link rel="stylesheet" href="/src/styles.css" />
     <title>LRO进阶客户端(Powered by LTSD.Ro)</title>
+    <style>
+      #lastro-startup-screen { position: fixed; inset: 0; z-index: 2147483647; display: grid;
+        place-items: center; padding: 24px; box-sizing: border-box;
+        background: #15231d; color: #f6f8f6; font: 15px/1.6 Arial, "Microsoft YaHei", sans-serif; }
+      #lastro-startup-screen[hidden], #lastro-startup-detail[hidden],
+      #lastro-startup-copy[hidden], #lastro-startup-help[hidden] { display: none !important; }
+      #lastro-startup-card { width: min(100%, 560px); padding: 28px;
+        box-sizing: border-box; background: #1d3028; border: 1px solid #3c594a; border-radius: 12px; }
+      #lastro-startup-heading { font-size: 22px; margin: 0 0 16px; }
+      #lastro-startup-phase { font-weight: 600; margin: 0 0 8px; }
+      #lastro-startup-message { margin: 0 0 12px; }
+      #lastro-startup-help { white-space: pre-line; margin: 12px 0; color: #ffe6a7; }
+      #lastro-startup-detail { overflow-wrap: anywhere; white-space: pre-wrap; max-height: 32vh;
+        overflow: auto; padding: 12px; border-radius: 6px; background: #0f1d18;
+        font: 12px/1.5 Consolas, monospace; }
+      #lastro-startup-copy { margin-top: 12px; padding: 8px 12px; border-radius: 6px;
+        border: 1px solid #b7d6c6; background: #edf7f0; color: #12281d; cursor: pointer; }
+      #lastro-startup-screen[data-state="error"] #lastro-startup-heading { color: #ffd0c8; }
+      #lastro-startup-screen[data-state="slow"] #lastro-startup-heading { color: #ffe6a7; }
+    </style>
+    <script src="/startup-diagnostics.js"></script>
   </head>
   <body>
     <div id="app"></div>
+    <section id="lastro-startup-screen" role="status" aria-live="polite" data-state="loading">
+      <div id="lastro-startup-card">
+        <h1 id="lastro-startup-heading">正在启动客户端</h1>
+        <p id="lastro-startup-phase">当前阶段：等待启动脚本</p>
+        <p id="lastro-startup-message">正在准备游戏客户端…</p>
+        <p id="lastro-startup-help" hidden></p>
+        <pre id="lastro-startup-detail" hidden></pre>
+        <button id="lastro-startup-copy" type="button" hidden>复制诊断信息</button>
+      </div>
+    </section>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

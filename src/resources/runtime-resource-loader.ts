@@ -63,6 +63,9 @@ export function createRuntimeResourceLoader(options: RuntimeResourceOptions): (p
         primaryCharset: charset,
         packageLookup: async (normalizedPath) => {
           const entry = findPackaged(normalizedPath.toLowerCase());
+          if (!entry && /^data\/sprite\/cursors\.(spr|act)$/i.test(normalizedPath)) {
+            throw new Error(`Missing packaged cursor resource: ${normalizedPath}`);
+          }
           if (!entry) return null;
           if (normalizeResourcePath(entry.path) !== entry.path) throw new Error('Invalid package resource path');
           if (entry.encoding !== undefined && entry.encoding !== 'gzip') throw new Error('Invalid package resource encoding');

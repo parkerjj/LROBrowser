@@ -1,8 +1,11 @@
 // Adds the entry preference to the existing native GraphicsOption window.
 export function installLastroShortcutSettings(component, { document: doc, getEnabled, setEnabled, onError }) {
   if (component._lastroShortcutSettings) return component._lastroShortcutSettings;
-  let checkbox, saving = false;
-  const sync = () => { if (checkbox && !saving) checkbox.checked = getEnabled() !== false; };
+  let checkbox, holidayCheckbox, saving = false;
+  const sync = () => {
+    if (checkbox && !saving) checkbox.checked = getEnabled() !== false;
+    if (holidayCheckbox) holidayCheckbox.checked = globalThis.LastROHalloweenEffects?.disabled === true;
+  };
   const originalInit = component.init, originalAppend = component.onAppend;
   component.init = function (...args) {
     originalInit?.apply(this, args);
@@ -16,6 +19,27 @@ export function installLastroShortcutSettings(component, { document: doc, getEna
     label.append(checkbox, doc.createTextNode('启用新版快捷入口'));
     label.title = '启用快捷工具面板；关闭后显示传送和挂机两个入口。';
     value.append(label); row.append(title, value); table.append(row);
+    // The native graphics window already owns this table. Add the holiday
+    // preference here instead of installing an observer or another ESC window.
+    const holidayRow = doc.createElement('tr');
+    const holidayTitle = doc.createElement('td');
+    const holidayValue = doc.createElement('td');
+    const holidayLabel = doc.createElement('label');
+    holidayTitle.textContent = '节日特效';
+    holidayCheckbox = doc.createElement('input');
+    holidayCheckbox.type = 'checkbox';
+    holidayCheckbox.className = 'lastro-halloween-disabled';
+    holidayLabel.append(holidayCheckbox, doc.createTextNode('关闭节日特效'));
+    holidayValue.append(holidayLabel);
+    holidayRow.append(holidayTitle, holidayValue);
+    table.append(holidayRow);
+    const activeHolidayCheckbox = holidayCheckbox;
+    activeHolidayCheckbox.addEventListener('change', () => {
+      if (holidayCheckbox !== activeHolidayCheckbox) return;
+      const controller = globalThis.LastROHalloweenEffects;
+      if (!controller || controller.setDisabled(activeHolidayCheckbox.checked) === false)
+        activeHolidayCheckbox.checked = controller?.disabled === true;
+    });
     checkbox.addEventListener('change', async () => {
       if (saving) return;
       const enabled = checkbox.checked;

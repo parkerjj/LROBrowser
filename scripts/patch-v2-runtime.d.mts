@@ -16,3 +16,4 @@ export function patchRuntimeWindowBounds(source: string): string;
 export function patchRuntimeStorageOpening(source: string): string;
 
 export function patchRuntimeStorageItemFlow(source: string): string;
+export function patchRuntimeHalloweenWorld(source: string): string;
