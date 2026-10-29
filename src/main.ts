@@ -2,8 +2,11 @@ import { bootstrapV2Client } from './runtime/client-bootstrap';
 import { getAvailableServerProfile } from './servers/server-profiles';
 import { installDebugAccessGuard } from './runtime/debug-access';
 import { readLoginPreferences } from './runtime/login-preferences.mjs';
+import { installHalloweenEffects } from './halloween/halloween-effects';
+import './halloween/halloween.css';
 
 installDebugAccessGuard(window);
+globalThis.LastROHalloweenEffects = installHalloweenEffects(window);
 
 const root = document.getElementById('app');
 if (!root) throw new Error('Missing app mount point');
