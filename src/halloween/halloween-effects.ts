@@ -25,7 +25,9 @@ type RendererPage = Window & {
 
 export function installHalloweenEffects(page: Window = window): HalloweenEffectsController {
   const doc = page.document;
-  const seasonal = isHalloweenDate(new Date());
+  // Preview is available only on the Vite development server, never in Web/IWA releases.
+  const preview = import.meta.env.DEV && new URL(page.location.href).searchParams.get('halloween-preview') === '1';
+  const seasonal = isHalloweenDate(new Date()) || preview;
   let disabled = false;
   try { disabled = page.localStorage.getItem(HALLOWEEN_STORAGE_KEY) === '1'; } catch { /* No storage: use default. */ }
 
