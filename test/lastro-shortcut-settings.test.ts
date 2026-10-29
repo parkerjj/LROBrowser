@@ -63,6 +63,59 @@ describe('native graphics shortcut entry preference', () => {
     expect(f.onError).toHaveBeenCalledOnce();
   });
 
+  it('adds an unchecked disable-holiday-effects control to ESC graphics and applies it immediately', () => {
+    let disabled = false;
+    const old = globalThis.LastROHalloweenEffects;
+    const setDisabled = vi.fn((value: boolean) => { disabled = value; return true; });
+    globalThis.LastROHalloweenEffects = {
+      seasonal: true, get disabled() { return disabled; }, setDisabled, destroy() {},
+      setMonsterPortraitLoader: vi.fn(() => true), setStatusIconLoader: vi.fn(() => true),
+    };
+    try {
+      const f = fixture();
+      const checkbox = f.root.querySelector<HTMLInputElement>('.lastro-halloween-disabled')!;
+      expect(checkbox).not.toBeNull();
+      expect(checkbox.checked).toBe(false);
+      expect(checkbox.closest('label')?.textContent).toBe('关闭节日特效');
+      expect(checkbox.closest('tr')?.querySelector('td')?.textContent).toBe('节日特效');
+      checkbox.checked = true;
+      checkbox.dispatchEvent(new Event('change'));
+      expect(setDisabled).toHaveBeenLastCalledWith(true);
+      expect(checkbox.checked).toBe(true);
+      checkbox.checked = false;
+      checkbox.dispatchEvent(new Event('change'));
+      expect(setDisabled).toHaveBeenLastCalledWith(false);
+      f.component.onAppend();
+      expect(checkbox.checked).toBe(false);
+      expect(f.root.querySelectorAll('.lastro-halloween-disabled')).toHaveLength(1);
+    } finally {
+      globalThis.LastROHalloweenEffects = old;
+    }
+  });
+
+  it('omits the tested IWA preview control while keeping the holiday opt-out', () => {
+    const old = globalThis.LastROHalloweenEffects;
+    const setPreview = vi.fn(() => true);
+    globalThis.LastROHalloweenEffects = Object.assign({
+      seasonal: false,
+      disabled: false,
+      setDisabled: vi.fn(() => true),
+      setMonsterPortraitLoader: vi.fn(() => true),
+      setStatusIconLoader: vi.fn(() => true),
+      destroy() {},
+    }, { previewAvailable: true, previewEnabled: false, setPreview });
+    try {
+      const f = fixture();
+      expect(f.root.querySelector('.lastro-halloween-preview')).toBeNull();
+      const checkbox = f.root.querySelector<HTMLInputElement>('.lastro-halloween-disabled')!;
+      expect(checkbox).not.toBeNull();
+      expect(checkbox.closest('label')?.textContent).toBe('关闭节日特效');
+      expect(setPreview).not.toHaveBeenCalled();
+    } finally {
+      globalThis.LastROHalloweenEffects = old;
+    }
+  });
+
   it('does not install a duplicate preference row or wrapper', () => {
     const f = fixture();
     expect(installLastroShortcutSettings(f.component, f.options)).toBe(f.controller);

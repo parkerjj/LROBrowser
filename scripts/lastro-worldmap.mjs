@@ -110,6 +110,7 @@ export const WORLD_MAP_CSS = `
 // All dependencies are explicit; the same installer is exercised by the preview and tests.
 export function installLastroWorldMap(component, deps, regions, makeIndex) {
   const { DB, Client } = deps;
+  globalThis.LastROHalloweenEffects?.setMonsterPortraitLoader?.(deps.monsterPortrait);
   let root, grid, canvas, panel, body, title, regionSelect, message;
   let index, loading, alive = false, generation = 0, currentRegion = 0;
   let route = null, fromSearch = false, selectedMap = '', searchTerm = '', searchType = 'all';
@@ -201,6 +202,9 @@ export function installLastroWorldMap(component, deps, regions, makeIndex) {
     if (imageCache.size > 256) imageCache.delete(imageCache.keys().next().value);
     entry.promise.then(done, failed);
   }
+  globalThis.LastROHalloweenEffects?.setStatusIconLoader?.(() => new Promise((resolve, reject) => {
+    loadImageFile(`${DB.INTERFACE_PATH}item/Gothic_Pumpkin_Head.bmp`, resolve, reject);
+  }));
   const node = (tag, text, className) => {
     const el = document.createElement(tag);
     if (text !== undefined) el.textContent = text;

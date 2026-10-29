@@ -5330,6 +5330,7 @@ function showQuickTransferHelp(assistant) {
             this.assistant = assistant; this.enabled = false; this.entity = null; this.settingsWindow = null;
             this.originalRenderEntity = null; this.renderWrapper = null;
             this.normalAppearance = { upper: null, middle: null, lower: null };
+            this.halloweenAppearance = null;
             this.slots = [
                 { key: 'upper', label: '头上', property: '_accessory2', file: 'accessory2', location: 'HEAD_TOP' },
                 { key: 'middle', label: '头中', property: '_accessory3', file: 'accessory3', location: 'HEAD_MID' },
@@ -5341,8 +5342,13 @@ function showQuickTransferHelp(assistant) {
             this.enabled = Boolean(enabled);
             const input = this.settingsWindow?.body.querySelector('.enabled');
             if (input) input.checked = this.enabled;
-            if (this.enabled) this.sync();
+            if (this.enabled || this.halloweenActive()) this.sync();
             else this.restoreEntity();
+        }
+
+        halloweenActive() {
+            const effects = globalThis.LastROHalloweenEffects;
+            return effects?.seasonal === true && effects.disabled !== true;
         }
 
         currentEntity() {
@@ -5388,6 +5394,19 @@ function showQuickTransferHelp(assistant) {
             return result;
         }
 
+        resolveHalloweenHeadgear(entity) {
+            const viewId = 1685;
+            const database = this.assistant.getAmdModule('DB/DBManager');
+            const client = this.assistant.getAmdModule('Core/Client');
+            const sex = entity?._sex ?? entity?.sex ?? 0;
+            const path = database?.getHatPath?.(viewId, sex);
+            if (!path) return null;
+            const files = { spr: `${path}.spr`, act: `${path}.act`, pal: null, size: 1 };
+            client?.loadFile?.(files.act);
+            client?.loadFile?.(files.spr, null, null, { to_rgba: true });
+            return { viewId, files };
+        }
+
         patchEntity(entity) {
             if (!entity || entity === this.entity) return;
             this.restoreEntity();
@@ -5396,16 +5415,27 @@ function showQuickTransferHelp(assistant) {
             const module = this;
             const wrapper = function lroCostumeVisibilityRender(...args) {
                 const saved = [];
+                const save = slot => {
+                    if (saved.some(state => state.property === slot.property)) return;
+                    saved.push({ property: slot.property, value: this[slot.property], file: slot.file,
+                        hadFiles: Boolean(this.files), fileValue: this.files?.[slot.file] });
+                };
                 if (module.enabled) {
                     for (const slot of module.slots) {
                         if (!module.assistant.settings.hiddenCostumeSlots?.[slot.key]) continue;
                         const normal = module.normalAppearance[slot.key];
-                        saved.push({ property: slot.property, value: this[slot.property], file: slot.file,
-                            hadFiles: Boolean(this.files), fileValue: this.files?.[slot.file] });
+                        save(slot);
                         this[slot.property] = normal?.viewId || 0;
                         if (this.files) this.files[slot.file] = normal?.files
                             || { spr: null, act: null, pal: null, size: 1 };
                     }
+                }
+                const halloween = module.halloweenAppearance;
+                if (module.halloweenActive() && halloween) {
+                    const slot = module.slots[0];
+                    save(slot);
+                    this[slot.property] = halloween.viewId;
+                    if (this.files) this.files[slot.file] = halloween.files;
                 }
                 try {
                     return Reflect.apply(original, this, args);
@@ -5436,14 +5466,21 @@ function showQuickTransferHelp(assistant) {
             this.originalRenderEntity = null;
             this.renderWrapper = null;
             this.normalAppearance = { upper: null, middle: null, lower: null };
+            this.halloweenAppearance = null;
         }
 
         sync() {
-            if (!this.enabled) return;
+            if (!this.enabled && !this.halloweenActive()) {
+                this.restoreEntity();
+                return;
+            }
             const entity = this.currentEntity();
             if (!entity) return;
             if (entity !== this.entity) this.patchEntity(entity);
-            this.normalAppearance = this.resolveNormalHeadgear(entity);
+            this.normalAppearance = this.enabled
+                ? this.resolveNormalHeadgear(entity)
+                : { upper: null, middle: null, lower: null };
+            this.halloweenAppearance = this.halloweenActive() ? this.resolveHalloweenHeadgear(entity) : null;
         }
 
         openSettings() {
@@ -7045,6 +7082,7 @@ function showQuickTransferHelp(assistant) {
             this.bossAlert = new BossAlertModule(this);
             this.quickTransfer = new QuickTransferModule(this);
             this.costumeVisibility = new CostumeVisibilityModule(this);
+            globalScope.addEventListener('lastro-halloween-change', () => this.costumeVisibility.sync());
             this.cardDeck = new CardDeckModule(this);
             this.equipmentOutfit = new EquipmentOutfitModule(this);
             this.assistantView = 'icon';
