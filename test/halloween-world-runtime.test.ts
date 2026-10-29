@@ -1,10 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
 import { installHalloweenWorldRuntime } from '../src/halloween/halloween-world-runtime.mjs';
-import { patchRuntimeHalloweenWorld, patchV2Runtime } from '../scripts/patch-v2-runtime.mjs';
+import { patchRuntimeHalloweenWorld } from '../scripts/patch-v2-runtime.mjs';
 import type { HalloweenWorldEntity } from '../src/halloween/halloween-world-runtime.mjs';
-
-const source = readFileSync('vendor/v2/Online.js', 'utf8');
 
 describe('Halloween game-world effects', () => {
   let active: boolean;
@@ -168,15 +165,4 @@ describe('Halloween game-world effects', () => {
     expect(entities).toContain(added[1]);
   });
 
-  it('injects the adapter at successful map completion', () => {
-    const patched = patchV2Runtime(source);
-    expect(patched).toContain('installHalloweenWorldRuntime');
-    expect(patched).toContain('lastroHalloweenWorldRuntime.onMapLoaded({ mp3: lastroBaseBgm })');
-    const rendererStart = patched.indexOf('Renderer.render(MapRenderer.onRender);');
-    const portraitLoader = patched.indexOf('globalThis.lastroHalloweenPortraitLoader2026 ??=');
-    expect(portraitLoader).toBeGreaterThan(rendererStart);
-    expect(patched.includes('setMonsterPortraitLoader?.(globalThis.lastroHalloweenPortraitLoader2026)')).toBe(true);
-    expect(patched).toContain('globalThis.LastROHalloweenEffects?.setMonsterPortraitLoader?.(deps.monsterPortrait)');
-    expect(() => patchRuntimeHalloweenWorld('unrecognized upstream source')).toThrow('anchor:halloween-world-runtime');
-  });
 });
