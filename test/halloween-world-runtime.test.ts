@@ -14,6 +14,7 @@ describe('Halloween game-world effects', () => {
   let played: string[];
   let listeners: Record<string, Array<() => void>>;
   let animationCallbacks: Array<(tick: number) => boolean | void>;
+  let addEntity: ((entity: HalloweenWorldEntity) => HalloweenWorldEntity) | undefined;
   let runtime: ReturnType<typeof installHalloweenWorldRuntime>;
 
   class FakeEntity {
@@ -53,6 +54,7 @@ describe('Halloween game-world effects', () => {
       remove(gid: number | string) { entities = entities.filter(entity => entity.GID !== gid); },
       forEach(callback: (entity: HalloweenWorldEntity) => void) { entities.forEach(callback); },
     };
+    addEntity = entity => manager.add(entity);
     runtime = installHalloweenWorldRuntime({
       window: {
         addEventListener: (name: string, listener: () => void) => { (listeners[name] ??= []).push(listener); },
@@ -107,18 +109,21 @@ describe('Halloween game-world effects', () => {
     expect(played).toEqual(['84.mp3', '08.mp3', '13.mp3']);
   });
 
-  it('adds the local ghost sprite to selected live mobs and clears it when disabled', () => {
+  it('adds the local Halloween Demon sprite to all live and newly added mobs and clears it when disabled', () => {
     install();
     runtime.onMapLoaded({ mp3: '08.mp3' });
 
-    expect(entities[0]!.attachments.list[0]).toMatchObject({ completeFile: 'data/sprite/mob/1120' });
-    expect(entities[1]!.attachments.list[0]).toMatchObject({ completeFile: 'data/sprite/mob/1120' });
-    expect(entities[2]!.attachments.list).toHaveLength(0);
+    for (const entity of entities) {
+      expect(entity.attachments!.list[0]).toMatchObject({ completeFile: 'data/sprite/mob/1508' });
+    }
+
+    const lateMob = makeMob(2000);
+    addEntity!(lateMob);
+    expect(lateMob.attachments!.list[0]).toMatchObject({ completeFile: 'data/sprite/mob/1508' });
 
     active = false;
     change();
-    expect(entities[0]!.attachments.list).toHaveLength(0);
-    expect(entities[1]!.attachments.list).toHaveLength(0);
+    for (const entity of entities) expect(entity.attachments!.list).toHaveLength(0);
   });
 
   it('flies one non-targetable RO bat across Prontera and removes it when disabled', () => {

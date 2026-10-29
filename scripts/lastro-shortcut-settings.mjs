@@ -1,11 +1,10 @@
 // Adds the entry preference to the existing native GraphicsOption window.
 export function installLastroShortcutSettings(component, { document: doc, getEnabled, setEnabled, onError }) {
   if (component._lastroShortcutSettings) return component._lastroShortcutSettings;
-  let checkbox, holidayCheckbox, previewCheckbox, saving = false;
+  let checkbox, holidayCheckbox, saving = false;
   const sync = () => {
     if (checkbox && !saving) checkbox.checked = getEnabled() !== false;
     if (holidayCheckbox) holidayCheckbox.checked = globalThis.LastROHalloweenEffects?.disabled === true;
-    if (previewCheckbox) previewCheckbox.checked = globalThis.LastROHalloweenEffects?.previewEnabled === true;
   };
   const originalInit = component.init, originalAppend = component.onAppend;
   component.init = function (...args) {
@@ -20,27 +19,6 @@ export function installLastroShortcutSettings(component, { document: doc, getEna
     label.append(checkbox, doc.createTextNode('启用新版快捷入口'));
     label.title = '启用快捷工具面板；关闭后显示传送和挂机两个入口。';
     value.append(label); row.append(title, value); table.append(row);
-    const effectsController = globalThis.LastROHalloweenEffects;
-    if (effectsController?.previewAvailable && effectsController.setPreview) {
-      const previewRow = doc.createElement('tr');
-      const previewTitle = doc.createElement('td');
-      const previewValue = doc.createElement('td');
-      const previewLabel = doc.createElement('label');
-      previewTitle.textContent = '节日预览';
-      previewCheckbox = doc.createElement('input');
-      previewCheckbox.type = 'checkbox';
-      previewCheckbox.className = 'lastro-halloween-preview';
-      previewLabel.append(previewCheckbox, doc.createTextNode('预览万圣节特效'));
-      previewValue.append(previewLabel);
-      previewRow.append(previewTitle, previewValue);
-      table.append(previewRow);
-      const activePreviewCheckbox = previewCheckbox;
-      activePreviewCheckbox.addEventListener('change', () => {
-        const controller = globalThis.LastROHalloweenEffects;
-        if (!controller || controller.setPreview(activePreviewCheckbox.checked) === false)
-          activePreviewCheckbox.checked = controller?.previewEnabled === true;
-      });
-    }
     // The native graphics window already owns this table. Add the holiday
     // preference here instead of installing an observer or another ESC window.
     const holidayRow = doc.createElement('tr');

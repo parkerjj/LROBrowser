@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HALLOWEEN_PREVIEW_STORAGE_KEY, HALLOWEEN_STORAGE_KEY, installHalloweenEffects, isHalloweenDate } from '../src/halloween/halloween-effects';
+import { HALLOWEEN_STORAGE_KEY, installHalloweenEffects, isHalloweenDate } from '../src/halloween/halloween-effects';
 
 const initialHidden = Object.getOwnPropertyDescriptor(document, 'hidden');
 let controller: ReturnType<typeof installHalloweenEffects> | undefined;
@@ -45,7 +45,6 @@ describe('Halloween local time and visual effects', () => {
     const original = window.location.pathname + window.location.search + window.location.hash;
     try {
       vi.setSystemTime(new Date(2026, 9, 29, 12, 0));
-      window.localStorage.setItem(HALLOWEEN_PREVIEW_STORAGE_KEY, '0');
       window.history.replaceState({}, '', '?halloween-preview=1');
       controller = installHalloweenEffects(window);
       expect(controller.seasonal).toBe(true);
@@ -55,42 +54,28 @@ describe('Halloween local time and visual effects', () => {
     }
   });
 
-  it('lets the IWA settings preview effects outside the seasonal dates', () => {
+  it('ignores a saved IWA preview flag outside the seasonal dates', () => {
     vi.stubEnv('DEV', false);
     vi.setSystemTime(new Date(2026, 9, 29, 12, 0));
     window.history.replaceState({}, '', '/');
+    window.localStorage.setItem('lastro-halloween-effects-preview-2026', '1');
     controller = installHalloweenEffects(window);
-    expect(controller.seasonal).toBe(false);
-    expect(controller.previewEnabled).toBe(false);
-    expect(root()).toBeNull();
-    expect(controller.setPreview(true)).toBe(true);
-    expect(window.localStorage.getItem(HALLOWEEN_PREVIEW_STORAGE_KEY)).toBe('1');
-    expect(controller.seasonal).toBe(true);
-    expect(root()).not.toBeNull();
-    expect(controller.setPreview(false)).toBe(true);
-    expect(window.localStorage.getItem(HALLOWEEN_PREVIEW_STORAGE_KEY)).toBe('0');
     expect(controller.seasonal).toBe(false);
     expect(root()).toBeNull();
   });
 
-  it('defaults the Vite development preview on without a URL parameter', () => {
+  it('does not preview in Vite development without the URL parameter', () => {
     vi.setSystemTime(new Date(2026, 9, 29, 12, 0));
     window.history.replaceState({}, '', '/');
     controller = installHalloweenEffects(window);
-    expect(controller.previewEnabled).toBe(true);
-    expect(controller.seasonal).toBe(true);
-    expect(root()).not.toBeNull();
-    expect(controller.setPreview(false)).toBe(true);
     expect(controller.seasonal).toBe(false);
     expect(root()).toBeNull();
   });
 
-  it('ignores the saved preview flag outside the 2026 feature year', () => {
+  it('ignores a saved preview flag outside the 2026 feature year', () => {
     vi.setSystemTime(new Date(2027, 9, 29, 12, 0));
-    window.localStorage.setItem(HALLOWEEN_PREVIEW_STORAGE_KEY, '1');
+    window.localStorage.setItem('lastro-halloween-effects-preview-2026', '1');
     controller = installHalloweenEffects(window);
-    expect(controller.previewAvailable).toBe(false);
-    expect(controller.previewEnabled).toBe(false);
     expect(controller.seasonal).toBe(false);
     expect(root()).toBeNull();
   });

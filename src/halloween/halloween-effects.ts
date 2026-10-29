@@ -1,6 +1,5 @@
 // A client-only 2026 Halloween skin. Dates are checked once on startup; no midnight scheduler.
 export const HALLOWEEN_STORAGE_KEY = 'lastro-halloween-effects-disabled';
-export const HALLOWEEN_PREVIEW_STORAGE_KEY = 'lastro-halloween-effects-preview-2026';
 const HALLOWEEN_GHOST_IDS = [1179, 1120] as const;
 const HALLOWEEN_WISP_ID = 1129;
 
@@ -14,10 +13,7 @@ export function isHalloweenDate(date: Date = new Date()): boolean {
 export interface HalloweenEffectsController {
   readonly seasonal: boolean;
   readonly disabled: boolean;
-  readonly previewAvailable: boolean;
-  readonly previewEnabled: boolean;
   setDisabled(value: boolean): boolean;
-  setPreview(value: boolean): boolean;
   setMonsterPortraitLoader(loader: (id: number) => Promise<string>): boolean;
   setStatusIconLoader(loader: () => Promise<string>): boolean;
   destroy(): void;
@@ -34,17 +30,13 @@ type RendererPage = Window & {
 export function installHalloweenEffects(page: Window = window): HalloweenEffectsController {
   const doc = page.document;
   const now = new Date();
-  // URL preview is Vite-only; the persisted preview is controlled in graphics settings.
+  // URL preview is available only in Vite development mode.
   const development = import.meta.env.DEV;
   const devPreview = development && new URL(page.location.href).searchParams.get('halloween-preview') === '1';
-  const previewAvailable = now.getFullYear() === 2026;
   const dateSeasonal = isHalloweenDate(now);
-  let previewEnabled = previewAvailable && development;
   let disabled = false;
   try {
     disabled = page.localStorage.getItem(HALLOWEEN_STORAGE_KEY) === '1';
-    const savedPreview = page.localStorage.getItem(HALLOWEEN_PREVIEW_STORAGE_KEY);
-    previewEnabled = previewAvailable && (savedPreview === '1' || (savedPreview === null && development));
   } catch { /* No storage: use default. */ }
 
   let layer: HTMLDivElement | null = null;
@@ -62,7 +54,7 @@ export function installHalloweenEffects(page: Window = window): HalloweenEffects
   let ghostHideTimer: number | undefined;
   let destroyed = false;
 
-  const seasonal = () => dateSeasonal || devPreview || previewEnabled;
+  const seasonal = () => dateSeasonal || devPreview;
   const active = () => seasonal() && !disabled && !destroyed;
   const loadSprites = () => {
     if (!active() || !monsterPortraitLoader) return;
@@ -230,8 +222,6 @@ export function installHalloweenEffects(page: Window = window): HalloweenEffects
   };
   const onStorage = (event: StorageEvent) => {
     if (event.key === HALLOWEEN_STORAGE_KEY) disabled = event.newValue === '1';
-    else if (event.key === HALLOWEEN_PREVIEW_STORAGE_KEY)
-      previewEnabled = previewAvailable && (event.newValue === '1' || (event.newValue === null && development));
     else return;
     apply();
   };
@@ -243,23 +233,12 @@ export function installHalloweenEffects(page: Window = window): HalloweenEffects
   return {
     get seasonal() { return seasonal(); },
     get disabled() { return disabled; },
-    get previewAvailable() { return previewAvailable; },
-    get previewEnabled() { return previewEnabled; },
     setDisabled(value) {
       if (destroyed) return false;
       const next = value === true;
       try { page.localStorage.setItem(HALLOWEEN_STORAGE_KEY, next ? '1' : '0'); }
       catch { return false; }
       disabled = next;
-      apply();
-      return true;
-    },
-    setPreview(value) {
-      if (destroyed || !previewAvailable) return false;
-      const next = value === true;
-      try { page.localStorage.setItem(HALLOWEEN_PREVIEW_STORAGE_KEY, next ? '1' : '0'); }
-      catch { return false; }
-      previewEnabled = next;
       apply();
       return true;
     },

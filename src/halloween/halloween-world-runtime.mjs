@@ -1,6 +1,5 @@
 export function installHalloweenWorldRuntime(deps) {
-  const hauntedMobIds = new Set([1061, 1102, 1117, 1120, 1179, 1192, 1291, 1379]);
-  const ghostMobId = 1120;
+  const halloweenMobId = 1508;
   const batMobId = 1111;
   const ghostAttachmentId = 'lastro-halloween-ghost';
   const batAttachmentId = 'lastro-halloween-bat';
@@ -25,9 +24,8 @@ export function installHalloweenWorldRuntime(deps) {
       attachments.remove(ghostAttachmentId);
       return;
     }
-    if (!hauntedMobIds.has(Number(entity.job ?? entity._job))
-        || attachments.list?.some(item => item.uid === ghostAttachmentId)) return;
-    const completeFile = spritePath(ghostMobId);
+    if (attachments.list?.some(item => item.uid === ghostAttachmentId)) return;
+    const completeFile = spritePath(halloweenMobId);
     if (!completeFile) return;
     attachments.add({
       uid: ghostAttachmentId,

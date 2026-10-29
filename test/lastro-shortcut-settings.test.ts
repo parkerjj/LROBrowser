@@ -69,7 +69,6 @@ describe('native graphics shortcut entry preference', () => {
     const setDisabled = vi.fn((value: boolean) => { disabled = value; return true; });
     globalThis.LastROHalloweenEffects = {
       seasonal: true, get disabled() { return disabled; }, setDisabled, destroy() {},
-      previewAvailable: false, previewEnabled: false, setPreview: vi.fn(() => false),
       setMonsterPortraitLoader: vi.fn(() => true), setStatusIconLoader: vi.fn(() => true),
     };
     try {
@@ -94,37 +93,24 @@ describe('native graphics shortcut entry preference', () => {
     }
   });
 
-  it('adds an IWA holiday preview control that persists through the effects controller', () => {
-    let previewEnabled = false;
+  it('omits the tested IWA preview control while keeping the holiday opt-out', () => {
     const old = globalThis.LastROHalloweenEffects;
-    const setPreview = vi.fn((value: boolean) => { previewEnabled = value; return true; });
-    globalThis.LastROHalloweenEffects = {
+    const setPreview = vi.fn(() => true);
+    globalThis.LastROHalloweenEffects = Object.assign({
       seasonal: false,
       disabled: false,
-      previewAvailable: true,
-      get previewEnabled() { return previewEnabled; },
       setDisabled: vi.fn(() => true),
-      setPreview,
       setMonsterPortraitLoader: vi.fn(() => true),
       setStatusIconLoader: vi.fn(() => true),
       destroy() {},
-    };
+    }, { previewAvailable: true, previewEnabled: false, setPreview });
     try {
       const f = fixture();
-      const checkbox = f.root.querySelector<HTMLInputElement>('.lastro-halloween-preview')!;
+      expect(f.root.querySelector('.lastro-halloween-preview')).toBeNull();
+      const checkbox = f.root.querySelector<HTMLInputElement>('.lastro-halloween-disabled')!;
       expect(checkbox).not.toBeNull();
-      expect(checkbox.checked).toBe(false);
-      expect(checkbox.closest('label')?.textContent).toBe('预览万圣节特效');
-      checkbox.checked = true;
-      checkbox.dispatchEvent(new Event('change'));
-      expect(setPreview).toHaveBeenLastCalledWith(true);
-      expect(checkbox.checked).toBe(true);
-      f.component.onAppend();
-      expect(checkbox.checked).toBe(true);
-      checkbox.checked = false;
-      checkbox.dispatchEvent(new Event('change'));
-      expect(setPreview).toHaveBeenLastCalledWith(false);
-      expect(checkbox.checked).toBe(false);
+      expect(checkbox.closest('label')?.textContent).toBe('关闭节日特效');
+      expect(setPreview).not.toHaveBeenCalled();
     } finally {
       globalThis.LastROHalloweenEffects = old;
     }
