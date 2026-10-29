@@ -110,6 +110,21 @@ describe('Halloween local time and visual effects', () => {
     expect(root()?.querySelector('.lastro-halloween-ghost')?.hasAttribute('src')).toBe(false);
   });
 
+  it('randomizes each wisp path again after completing a drift cycle', () => {
+    controller = installHalloweenEffects(window);
+    const wisps = [...document.querySelectorAll<HTMLImageElement>('.lastro-halloween-wisp')];
+    expect(wisps).toHaveLength(3);
+    expect(wisps[0]!.style.getPropertyValue('--wisp-exit-x')).not.toBe('');
+
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    wisps[0]!.dispatchEvent(new Event('animationiteration'));
+
+    expect(wisps[0]!.style.getPropertyValue('--wisp-exit-x')).toBe('-110vw');
+    const duration = Number.parseInt(wisps[0]!.style.getPropertyValue('--wisp-duration'), 10);
+    expect(duration).toBeGreaterThanOrEqual(22);
+    expect(duration).toBeLessThanOrEqual(40);
+  });
+
   it('disables every effect immediately, persists the choice, and restores it on uncheck', () => {
     const canvas = document.createElement('canvas');
     page.__LastRORenderer = { Renderer: { canvas } };

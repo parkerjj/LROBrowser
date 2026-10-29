@@ -70,6 +70,7 @@ describe('native graphics shortcut entry preference', () => {
     globalThis.LastROHalloweenEffects = {
       seasonal: true, get disabled() { return disabled; }, setDisabled, destroy() {},
       previewAvailable: false, previewEnabled: false, setPreview: vi.fn(() => false),
+      setMonsterPortraitLoader: vi.fn(() => true), setStatusIconLoader: vi.fn(() => true),
     };
     try {
       const f = fixture();
@@ -104,6 +105,8 @@ describe('native graphics shortcut entry preference', () => {
       get previewEnabled() { return previewEnabled; },
       setDisabled: vi.fn(() => true),
       setPreview,
+      setMonsterPortraitLoader: vi.fn(() => true),
+      setStatusIconLoader: vi.fn(() => true),
       destroy() {},
     };
     try {

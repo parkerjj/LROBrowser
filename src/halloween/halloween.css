@@ -24,7 +24,7 @@ body.lastro-halloween-active canvas.lastro-halloween-canvas {
   opacity: .88;
   image-rendering: pixelated;
   filter: drop-shadow(0 0 9px rgba(255, 146, 54, .8)) drop-shadow(0 0 16px rgba(144, 91, 225, .45));
-  animation: lastro-halloween-wisp-float 5.5s ease-in-out infinite alternate;
+  animation: lastro-halloween-wisp-drift var(--wisp-duration, 30s) ease-in-out infinite;
 }
 .lastro-halloween-ghost {
   position: absolute;
@@ -76,9 +76,16 @@ body.lastro-halloween-active canvas.lastro-halloween-canvas {
   82% { opacity: .62; }
   100% { opacity: 0; transform: translate3d(-100vw, -24px, 0) rotate(3deg); }
 }
-@keyframes lastro-halloween-wisp-float {
-  from { transform: translate3d(0, 8px, 0) scale(.94); }
-  to { transform: translate3d(8px, -12px, 0) scale(1.04); }
+@keyframes lastro-halloween-wisp-drift {
+  0% { opacity: .88; transform: translate3d(0, 8px, 0) scale(.94); }
+  16% { opacity: .82; transform: translate3d(var(--wisp-drift-x), -16px, 0) scale(1.04); }
+  30% { opacity: .74; transform: translate3d(0, var(--wisp-drift-y), 0) scale(.92); }
+  43% { opacity: .88; transform: translate3d(var(--wisp-drift-x), -8px, 0) scale(1.02); }
+  56% { opacity: .66; transform: translate3d(var(--wisp-exit-x), -22px, 0) scale(.84); }
+  64%, 72% { opacity: 0; transform: translate3d(var(--wisp-exit-x), -22px, 0) scale(.8); }
+  84% { opacity: .12; transform: translate3d(0, 12px, 0) scale(.9); }
+  93% { opacity: .78; transform: translate3d(var(--wisp-drift-x), -10px, 0) scale(1.02); }
+  100% { opacity: .88; transform: translate3d(0, 8px, 0) scale(.94); }
 }
 @media (prefers-reduced-motion: reduce) {
   .lastro-halloween-wisp { animation: none; }

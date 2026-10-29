@@ -127,6 +127,12 @@ export function installHalloweenEffects(page: Window = window): HalloweenEffects
       }, 8_000);
     }, delay);
   };
+  const randomizeWisp = (wisp: HTMLImageElement) => {
+    const direction = Math.random() < 0.5 ? -1 : 1;
+    wisp.style.setProperty('--wisp-drift-x', `${(Math.random() * 12 - 6).toFixed(1)}vw`);
+    wisp.style.setProperty('--wisp-drift-y', `${Math.floor(Math.random() * 37) - 18}px`);
+    wisp.style.setProperty('--wisp-exit-x', `${direction * (110 + Math.floor(Math.random() * 31))}vw`);
+  };
   const ensureLayer = () => {
     if (layer?.isConnected) return;
     const container = doc.createElement('div');
@@ -144,6 +150,9 @@ export function installHalloweenEffects(page: Window = window): HalloweenEffects
       wisp.style.left = left;
       wisp.style.top = top;
       wisp.style.animationDelay = delay;
+      wisp.style.setProperty('--wisp-duration', `${22 + Math.floor(Math.random() * 19)}s`);
+      randomizeWisp(wisp);
+      wisp.addEventListener('animationiteration', () => randomizeWisp(wisp));
       wisps.push(wisp);
       container.append(wisp);
     }

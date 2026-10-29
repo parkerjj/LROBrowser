@@ -19,6 +19,8 @@ import { patchRuntimeNetworkDiagnostics } from './lastro-network-diagnostics.mjs
 import { patchRuntimeLastROBatteryPower } from './lastro-battery-power.mjs';
 import { patchRuntimeLuaStartup } from './lastro-lua-startup.mjs';
 import { patchRuntimeDebugAccess } from './lastro-debug-access.mjs';
+import { installHalloweenWorldRuntime } from '../src/halloween/halloween-world-runtime.mjs';
+import { createMonsterPortraitLoader } from './lastro-monster-portrait.mjs';
 
 
 
@@ -64,6 +66,31 @@ function count(source, needle) {
 function replaceOnce(source, needle, replacement) {
   if (count(source, needle) !== 1) fail(`anchor:${needle}`);
   return source.replace(needle, replacement);
+}
+
+export function patchRuntimeHalloweenWorld(source) {
+  const anchor = '  BGM.play((mapInfo && mapInfo.mp3) || "01.mp3");';
+  if (count(source, anchor) !== 1) fail('anchor:halloween-world-runtime');
+  const installer = installHalloweenWorldRuntime.toString();
+  const output = source.replace(anchor, `  const lastroBaseBgm = (mapInfo && mapInfo.mp3) || "01.mp3";
+  globalThis.lastroHalloweenWorldRuntime ??= (${installer})({
+    window,
+    isActive: () => {
+      const effects = globalThis.LastROHalloweenEffects;
+      return !!effects?.seasonal && !effects.disabled;
+    },
+    getMap: () => MapRenderer.currentMap,
+    playBgm: filename => BGM.play(filename),
+    Entity,
+    EntityManager,
+    getPlayer: () => SessionStorage_default.Entity,
+    getBodyPath: id => DB.getBodyPath(id, 0),
+    getGroundHeight: (x, y) => Altitude.getCellHeight(x, y),
+  });
+  globalThis.lastroHalloweenWorldRuntime.onMapLoaded({ mp3: lastroBaseBgm });`);
+  const readyAnchor = '    Renderer.render(MapRenderer.onRender);\n    Mouse.intersect = true;';
+  if (count(output, readyAnchor) !== 1) fail('anchor:halloween-world-ready');
+  return output.replace(readyAnchor, `${readyAnchor}\n    globalThis.lastroHalloweenPortraitLoader2026 ??= (${createMonsterPortraitLoader.toString()})(Client, id => DB.getBodyPath(id, 0), document);\n    globalThis.LastROHalloweenEffects?.setMonsterPortraitLoader?.(globalThis.lastroHalloweenPortraitLoader2026);`);
 }
 
 /**
@@ -1408,7 +1435,7 @@ export function patchRuntimeStorageItemFlow(source) {
 
 export function patchV2Runtime(source, { assistant = false } = {}) {
   if (!source.startsWith('import ')) fail('anchor:runtime-imports');
-  const normalizedSource = source.replace(/\r\n/g, '\n');
+  const normalizedSource = patchRuntimeHalloweenWorld(source.replace(/\r\n/g, '\n'));
   let output = `import { decorateLastROLoginTemplate, decorateLastROLoginStyles, installLastROLogin, beforeLastROLoginConnect, afterLastROLoginPassword } from "./lastro-account-login.mjs";
 import { sendKoreNativePacket, startOptionalKore } from "./kore-integration.mjs";
 import { createKoreShell } from "./kore-panel-shell.mjs";
