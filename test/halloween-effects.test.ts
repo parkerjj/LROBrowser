@@ -106,7 +106,7 @@ describe('Halloween local time and visual effects', () => {
     const canvas = document.createElement('canvas');
     page.__LastRORenderer = { Renderer: { canvas } };
     controller = installHalloweenEffects(window);
-    const ghost = root()?.querySelector<HTMLImageElement>('.lastro-halloween-ghost')!;
+    const ghost = document.querySelector<HTMLImageElement>('.lastro-halloween-ghost')!;
     expect(ghost.hidden).toBe(true);
     vi.advanceTimersByTime(19_999);
     expect(ghost.hidden).toBe(true);
