@@ -27,12 +27,22 @@ describe('Phase A IWA', () => {
   });
 
   it('keeps the full app title consistent across the HTML and shell sources', async () => {
-    const [html, shell] = await Promise.all([
+    const [html, play, shell] = await Promise.all([
       readFile('index.html', 'utf8'),
+      readFile('play.html', 'utf8'),
       readFile('src/app-shell.ts', 'utf8'),
     ]);
     expect(html).toContain('<title>LRO进阶客户端(Powered by LTSD.Ro)</title>');
+    expect(play).toContain('<title>LRO进阶客户端(Powered by LTSD.Ro)</title>');
     expect(shell).toContain("title.textContent = 'LRO进阶客户端(Powered by LTSD.Ro)';");
+  });
+
+  it('starts with a dependency-free page that redirects to the game after two seconds', async () => {
+    const document = new DOMParser().parseFromString(await readFile('index.html', 'utf8'), 'text/html');
+    expect(document.querySelector('meta[http-equiv="refresh"]')?.getAttribute('content')).toBe('2; url=/play.html');
+    expect(document.querySelector('a[href="/play.html"]')?.textContent).toBeTruthy();
+    expect(document.body.textContent).toContain('启动入口已加载');
+    expect(document.querySelectorAll('script, style, link, img, iframe').length).toBe(0);
   });
 
   it('ships only the compact OFL glyph fallback and relies on system fonts for Chinese text', async () => {

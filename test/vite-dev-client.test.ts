@@ -22,7 +22,7 @@ describe('IWA development entry', () => {
   });
 
   it('loads the stylesheet without a CSS-module HMR client import', async () => {
-    const html = await readFile('index.html', 'utf8');
+    const html = await readFile('play.html', 'utf8');
     const main = await readFile('src/main.ts', 'utf8');
 
     expect(html).toContain('href="/src/styles.css"');
