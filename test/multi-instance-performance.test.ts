@@ -66,14 +66,14 @@ describe('background windows yield the GPU', () => {
 });
 
 describe('main WebGL context', () => {
-  it('is created without MSAA while keeping the screenshot buffer', () => {
+  it('is created without MSAA and without the preserved drawing buffer', () => {
     // Renderer.init() passes no parameters, so these defaults apply to every player.
     const getContext = vm.runInNewContext('(' + extractRuntimeNode(vendor, {
       region: 'src/Utils/WebGL.js', kind: 'function', name: 'getContext',
     }) + ')', { console }) as (canvas: object) => object;
     let options: Record<string, unknown> = {};
     getContext({ getContext: (_name: string, parameters: Record<string, unknown>) => { options = parameters; return {}; } });
-    expect(options).toMatchObject({ antialias: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+    expect(options).toMatchObject({ antialias: false, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
   });
 });
 

@@ -12,6 +12,16 @@
   var warningTimer = 0;
   var timeoutTimer = 0;
   var timeline = [];
+  // Chrome can leave a window without frames (no requestAnimationFrame, white content) until
+  // it re-evaluates visibility; the startup animation waits on rAF, so login never appears.
+  var FRAME_STALL_MS = 3000;
+  var FRAME_NUDGE_MAX = 5;
+  var frameTimer = 0;
+  var lastFrameAt = 0;
+  var lastTickAt = 0;
+  var nudges = 0;
+  var stalled = false;
+  var baseTitle = '';
 
   function element(id) { return document.getElementById(id); }
   function remember(kind, value) {
@@ -61,6 +71,54 @@
     window.clearTimeout(warningTimer);
     window.clearTimeout(timeoutTimer);
   }
+  function restoreTitle() {
+    if (!stalled) return;
+    stalled = false;
+    document.title = baseTitle;
+  }
+  function beat() {
+    lastFrameAt = Date.now();
+    if (stalled) {
+      remember('frame', '画面已恢复刷新');
+      restoreTitle();
+    }
+    if (!finished) window.requestAnimationFrame(beat);
+  }
+  function nudge() {
+    nudges += 1;
+    stalled = true;
+    // The title bar is browser UI, so it stays visible while the page itself is blank.
+    document.title = baseTitle + ' · 画面未刷新，正在重试(' + nudges + ')';
+    remember('stall', 'requestAnimationFrame 超过 ' + Math.round((Date.now() - lastFrameAt) / 1000) + 's 未触发 visibility='
+      + document.visibilityState + ' focus=' + document.hasFocus() + ' 第 ' + nudges + ' 次唤醒');
+    try { window.focus(); } catch { /* best effort */ }
+    try {
+      // Shrink first so a maximized window can follow, then restore.
+      window.resizeBy(-1, 0);
+      window.setTimeout(function () { try { window.resizeBy(1, 0); } catch { /* best effort */ } }, 120);
+    } catch { /* best effort */ }
+  }
+  function watchFrames() {
+    frameTimer = window.setTimeout(function () {
+      var now = Date.now();
+      // A long main-thread task delays this timer and the next frame alike; that is not a stall.
+      if (now - lastTickAt > 2 * FRAME_STALL_MS / 3) lastFrameAt = now;
+      lastTickAt = now;
+      if (finished) return;
+      if (now - lastFrameAt >= FRAME_STALL_MS && nudges < FRAME_NUDGE_MAX) {
+        nudge();
+        lastFrameAt = now;
+      }
+      watchFrames();
+    }, 1000);
+  }
+  function startFrameWatch() {
+    if (typeof window.requestAnimationFrame !== 'function' || frameTimer) return;
+    baseTitle = document.title;
+    lastFrameAt = lastTickAt = Date.now();
+    window.requestAnimationFrame(beat);
+    watchFrames();
+  }
   function watch() {
     stopTimers();
     delayed = false;
@@ -103,6 +161,8 @@
     remember('ready', '登录窗口已呈现');
     finished = true;
     stopTimers();
+    window.clearTimeout(frameTimer);
+    restoreTitle();
     var screen = element('lastro-startup-screen');
     if (screen) screen.hidden = true;
   }
@@ -127,6 +187,7 @@
       }, function () { copy.textContent = '复制失败，请截图发送'; });
     });
     if (!failed && !finished) watch();
+    if (!finished) startFrameWatch();
   }
 
   // Capture errors before the app's own module code has had a chance to run.

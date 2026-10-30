@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
 
 const html = readFileSync('index.html', 'utf8');
@@ -12,9 +12,19 @@ type StartupApi = {
   ready(): void;
 };
 
-function harness() {
+function harness(options: { frames?: boolean } = {}) {
   const dom = new JSDOM(html, { url: 'https://iwa.invalid/', runScripts: 'outside-only' });
   const page = dom.window;
+  const frameCallbacks: FrameRequestCallback[] = [];
+  const focus = vi.fn();
+  const resizeBy = vi.fn();
+  let clock = 1_000_000;
+  if (options.frames) {
+    page.requestAnimationFrame = ((callback: FrameRequestCallback) => frameCallbacks.push(callback)) as typeof page.requestAnimationFrame;
+    page.focus = focus;
+    page.resizeBy = resizeBy;
+    vi.spyOn(page.Date, 'now').mockImplementation(() => clock);
+  }
   const timers = new Map<number, { delay: number; run: () => void }>();
   let next = 0;
   page.setTimeout = ((handler: () => void, delay: number) => {
@@ -27,7 +37,13 @@ function harness() {
   page.document.dispatchEvent(new page.Event('DOMContentLoaded'));
   const api = (page as unknown as { LastROStartupDiagnostics: StartupApi }).LastROStartupDiagnostics;
   const get = (id: string) => page.document.getElementById(id)!;
-  return { dom, page, api, get, timers };
+  // Advance the page clock and run its 1s frame watchdog; `paint` lets rAF callbacks fire like a visible window.
+  const advance = (ms: number, paint: boolean) => {
+    clock += ms;
+    if (paint) frameCallbacks.splice(0).forEach(callback => callback(clock));
+    [...timers.entries()].filter(([, timer]) => timer.delay === 1000).forEach(([id, timer]) => { timers.delete(id); timer.run(); });
+  };
+  return { dom, page, api, get, timers, focus, resizeBy, advance, frameCallbacks };
 }
 
 describe('early standalone startup diagnostic', () => {
@@ -123,6 +139,56 @@ describe('early standalone startup diagnostic', () => {
     const h = harness();
     h.api.fail('启动失败', 'Authorization: SECRET_VALUE');
     expect(h.get('lastro-startup-detail').textContent).not.toContain('SECRET_VALUE');
+    h.dom.window.close();
+  });
+
+  it('nudges a window whose frames never start, then restores the title when frames resume', () => {
+    const h = harness({ frames: true });
+    const title = h.page.document.title;
+    for (let i = 0; i < 2; i += 1) h.advance(1000, false);
+    expect(h.focus).not.toHaveBeenCalled();
+    h.advance(1000, false);
+    expect(h.focus).toHaveBeenCalledTimes(1);
+    expect(h.resizeBy).toHaveBeenCalledWith(-1, 0);
+    expect(h.page.document.title).toContain('画面未刷新');
+    [...h.timers.values()].find(timer => timer.delay === 120)!.run();
+    expect(h.resizeBy).toHaveBeenLastCalledWith(1, 0);
+    h.advance(1000, true);
+    expect(h.page.document.title).toBe(title);
+    h.advance(10_000, true);
+    expect(h.focus).toHaveBeenCalledTimes(1);
+    h.api.ready();
+    expect([...h.timers.values()].some(timer => timer.delay === 1000)).toBe(false);
+    h.dom.window.close();
+  });
+
+  it('does not nudge while frames are being produced', () => {
+    const h = harness({ frames: true });
+    for (let i = 0; i < 20; i += 1) h.advance(1000, true);
+    expect(h.focus).not.toHaveBeenCalled();
+    expect(h.resizeBy).not.toHaveBeenCalled();
+    expect(h.page.document.title).not.toContain('画面未刷新');
+    h.dom.window.close();
+  });
+
+  it('treats a long main-thread task as busy rather than stalled', () => {
+    const h = harness({ frames: true });
+    h.advance(9000, false);
+    expect(h.focus).not.toHaveBeenCalled();
+    h.dom.window.close();
+  });
+
+  it('gives up after a bounded number of nudges and restores the title on login', () => {
+    const h = harness({ frames: true });
+    for (let i = 0; i < 60; i += 1) h.advance(1000, false);
+    expect(h.focus).toHaveBeenCalledTimes(5);
+    expect(h.page.document.title).toContain('画面未刷新');
+    h.api.ready();
+    expect(h.page.document.title).not.toContain('画面未刷新');
+    // Only the pending 1px window restores remain; they must still run after login.
+    expect([...h.timers.values()].every(timer => timer.delay === 120)).toBe(true);
+    [...h.timers.values()].forEach(timer => timer.run());
+    expect(h.resizeBy).toHaveBeenLastCalledWith(1, 0);
     h.dom.window.close();
   });
 });

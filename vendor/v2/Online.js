@@ -85283,7 +85283,9 @@ function getContext(canvas, parameters) {
       // 而人物/怪物是带透明通道的精灵，MSAA 几乎不起作用；需要平滑可开 FXAA。
       antialias: false,
       premultipliedAlpha: false,
-      preserveDrawingBuffer: true,
+      // LastRO：不保留绘制缓冲，省下每个窗口多出的一份显存；代价是游戏内截图（html2canvas）
+      // 抓不到场景，玩家使用 QQ/微信等外部截图，不受影响。
+      preserveDrawingBuffer: false,
     };
   if (parameters.powerPreference === void 0)
     parameters.powerPreference = "high-performance";
