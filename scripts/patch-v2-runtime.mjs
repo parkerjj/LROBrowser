@@ -125,6 +125,54 @@ export function patchRuntimeHalloweenWorld(source) {
   return output.replace(readyAnchor, `${readyAnchor}\n    globalThis.lastroHalloweenPortraitLoader2026 ??= (${createMonsterPortraitLoader.toString()})(Client, id => DB.getBodyPath(id, 0), document);\n    globalThis.LastROHalloweenEffects?.setMonsterPortraitLoader?.(globalThis.lastroHalloweenPortraitLoader2026);`);
 }
 
+export function patchRuntimeWebGLLifecycle(source) {
+  source = insertStaticClassMethod(source, 'PostProcess', 'validateBuffers', `static releaseBuffers(gl) {
+      if (_readFbo) {
+        if (gl.isTexture(_readFbo.texture)) gl.deleteTexture(_readFbo.texture);
+        if (gl.isRenderbuffer(_readFbo.rbo)) gl.deleteRenderbuffer(_readFbo.rbo);
+        if (gl.isFramebuffer(_readFbo.framebuffer)) gl.deleteFramebuffer(_readFbo.framebuffer);
+      }
+      if (_writeFbo) {
+        if (gl.isTexture(_writeFbo.texture)) gl.deleteTexture(_writeFbo.texture);
+        if (gl.isRenderbuffer(_writeFbo.rbo)) gl.deleteRenderbuffer(_writeFbo.rbo);
+        if (gl.isFramebuffer(_writeFbo.framebuffer)) gl.deleteFramebuffer(_writeFbo.framebuffer);
+      }
+      _readFbo = null;
+      _writeFbo = null;
+    }`);
+  source = replaceStaticClassMethodBody(source, 'PostProcess', 'prepare', `{\n      _activeEffects = _effects.filter((e) => e.isActive());\n      if (_activeEffects.length > 0) this.validateBuffers(gl);\n      else this.releaseBuffers(gl);\n      _effects.forEach((module) => {\n        if (!_activeEffects.includes(module) && module.releaseFbo) module.releaseFbo(gl);\n      });\n      if (_activeEffects.length > 0)\n        PostProcess.beforeRenderPass(gl, _writeFbo);\n      else PostProcess.beforeRenderPass(gl, null);\n    }`);
+  source = replaceStaticClassMethodBody(source, 'PostProcess', 'validateBuffers', `{\n      if (_activeEffects.length === 0) {\n        this.releaseBuffers(gl);\n        return;\n      }\n      const scale = GraphicsSettings.performanceMode ? 0.75 : 1;\n      const scaledWidth = Math.floor(gl.canvas.width * scale);\n      const scaledHeight = Math.floor(gl.canvas.height * scale);\n      if (\n        !_readFbo ||\n        _readFbo.width !== scaledWidth ||\n        _readFbo.height !== scaledHeight\n      ) {\n        _readFbo = this.createFbo(gl, scaledWidth, scaledHeight, _readFbo);\n        _writeFbo = this.createFbo(gl, scaledWidth, scaledHeight, _writeFbo);\n      }\n    }`);
+  source = replaceStaticClassMethodBody(source, 'PostProcess', 'recreateFbo', `{\n      const activeEffects = _effects.filter((module) => module.isActive());\n      _activeEffects = activeEffects;\n      if (activeEffects.length === 0) {\n        this.releaseBuffers(gl);\n        _effects.forEach((module) => module.releaseFbo?.(gl));\n        return;\n      }\n      const scale = GraphicsSettings.performanceMode ? 0.75 : 1;\n      const scaledWidth = Math.floor(width * scale);\n      const scaledHeight = Math.floor(height * scale);\n      _readFbo = this.createFbo(gl, scaledWidth, scaledHeight, _readFbo);\n      _writeFbo = this.createFbo(gl, scaledWidth, scaledHeight, _writeFbo);\n      activeEffects.forEach((module) => {\n        if (module.recreateFbo) module.recreateFbo(gl, scaledWidth, scaledHeight);\n      });\n      _effects.filter((module) => !activeEffects.includes(module)).forEach((module) => module.releaseFbo?.(gl));\n    }`);
+  source = insertStaticClassMethod(source, 'Bloom', 'recreateFbo', `static releaseFbo(gl) {
+      if (!_internalFbo) return;
+      if (gl.isTexture(_internalFbo.texture)) gl.deleteTexture(_internalFbo.texture);
+      if (gl.isRenderbuffer(_internalFbo.rbo)) gl.deleteRenderbuffer(_internalFbo.rbo);
+      if (gl.isFramebuffer(_internalFbo.framebuffer)) gl.deleteFramebuffer(_internalFbo.framebuffer);
+      _internalFbo = null;
+    }`);
+  source = replaceOnce(source, '      this.recreateFbo(gl, gl.canvas.width, gl.canvas.height);', '');
+  source = replaceStaticClassMethodBody(source, 'Renderer', 'onContextLost', `{\n      event.preventDefault();\n      this.contextLost = true;\n      console.warn("[Renderer] WebGL Context Lost! Pausing rendering.");\n      MemoryManager.forceClean(null, /\\.(bmp|jpg|png|spr|pal|str)$/i);\n      this.rendering = false;\n      try {\n        clearInterval(this.updateId);\n        _cancelAnimationFrame(this.updateId);\n      } catch (e) {\n        console.error(e);\n      }\n      if (!this.errorOverlay) {\n        this.errorOverlay = document.createElement("div");\n        this.errorOverlay.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); color:white; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:10000; text-align:center;";\n        const title = document.createElement("h2");\n        title.textContent = "Graphics context lost";\n        title.style.cssText = "color:#ff6b6b; margin-bottom:10px;";\n        this.errorOverlay.appendChild(title);\n        const message = document.createElement("p");\n        message.dataset.lastroWebglStatus = "true";\n        message.textContent = "The browser lost connection to the GPU. Waiting for recovery...";\n        message.style.cssText = "font-size:0.9em; opacity:0.8;";\n        this.errorOverlay.appendChild(message);\n        const reloadButton = document.createElement("button");\n        reloadButton.type = "button";\n        reloadButton.textContent = "Reload game";\n        reloadButton.style.cssText = "margin-top:16px; padding:10px 18px; color:#111; background:#fff; border:0; cursor:pointer;";\n        reloadButton.addEventListener("click", () => window.location.reload());\n        this.errorOverlay.appendChild(reloadButton);\n        document.body.appendChild(this.errorOverlay);\n      } else {\n        this.errorOverlay.style.display = "flex";\n      }\n    }`);
+  source = replaceStaticClassMethodBody(source, 'Renderer', 'onContextRestored', `{\n      console.info("[Renderer] WebGL Context Restored! Reloading to rebuild GPU resources...");\n      const status = this.errorOverlay?.querySelector("[data-lastro-webgl-status]");\n      let shouldReload = false;\n      try {\n        const recoveryKey = "lastro-webgl-context-recovery";\n        const lastReload = Number(window.sessionStorage.getItem(recoveryKey) || 0);\n        if (!lastReload || Date.now() - lastReload >= 30000) {\n          window.sessionStorage.setItem(recoveryKey, String(Date.now()));\n          shouldReload = true;\n        }\n      } catch {}\n      if (shouldReload) {\n        if (status) status.textContent = "Graphics restored. Reloading the game to rebuild GPU resources...";\n        window.location.reload();\n        return;\n      }\n      this.contextLost = true;\n      if (this.errorOverlay) this.errorOverlay.style.display = "flex";\n      if (status) status.textContent = "Graphics restored, but the game needs a reload to rebuild GPU resources.";\n      console.warn("[Renderer] Automatic WebGL recovery reload was recently attempted; use Reload game to retry.");\n    }`);
+  const rendererInitAnchor = '    static init(param) {\n      if (!this.gl) {';
+  source = replaceOnce(source, rendererInitAnchor, `${rendererInitAnchor}
+        if (!this._lastRORecoveryGuardScheduled) {
+          this._lastRORecoveryGuardScheduled = true;
+          window.setTimeout(() => {
+            try {
+              const recoveryKey = "lastro-webgl-context-recovery";
+              const lastReload = Number(window.sessionStorage.getItem(recoveryKey) || 0);
+              if (lastReload && Date.now() - lastReload >= 30000) window.sessionStorage.removeItem(recoveryKey);
+            } catch {}
+          }, 30000);
+        }`);
+  source = replaceOnce(source, '"Graphics context lost"', '"图形上下文已丢失"');
+  source = replaceOnce(source, '"The browser lost connection to the GPU. Waiting for recovery..."', '"浏览器与 GPU 的连接已断开，正在等待恢复……"');
+  source = replaceOnce(source, '"Reload game"', '"重新加载游戏"');
+  source = replaceOnce(source, '"Graphics restored. Reloading the game to rebuild GPU resources..."', '"图形上下文已恢复，正在重新加载客户端以重建图形资源……"');
+  source = replaceOnce(source, '"Graphics restored, but the game needs a reload to rebuild GPU resources."', '"图形已恢复，但客户端需要重新加载以重建图形资源。"');
+  return source;
+}
+
 /**
  * Try candidate anchor/replacement pairs, longest anchor first, and apply the
  * first pair whose anchor matches exactly once.  This lets the patcher support
@@ -177,6 +225,69 @@ function replaceFunctionBody(source, name, body) {
   const node = matches[0];
   const start = node.body.getStart(file);
   return source.slice(0, start) + body + source.slice(node.body.end);
+}
+
+function findStaticClassMethod(source, className, methodName) {
+  const file = ts.createSourceFile('Online.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const classes = [];
+  function visit(node) {
+    if (ts.isClassDeclaration(node) || ts.isClassExpression(node)) {
+      const assignedName = ts.isBinaryExpression(node.parent)
+        && node.parent.operatorToken.kind === ts.SyntaxKind.EqualsToken
+        && ts.isIdentifier(node.parent.left)
+        ? node.parent.left.text
+        : null;
+      if (node.name?.text === className || assignedName === className) classes.push(node);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  if (classes.length !== 1) fail(`class:${className}`);
+  const methods = classes[0].members.filter((member) => {
+    if (!ts.isMethodDeclaration(member) || !member.body || !ts.canHaveModifiers(member)) return false;
+    const modifiers = ts.getModifiers(member) || [];
+    const name = ts.isIdentifier(member.name) ? member.name.text : member.name.getText(file);
+    return name === methodName && modifiers.some((modifier) => modifier.kind === ts.SyntaxKind.StaticKeyword);
+  });
+  if (methods.length !== 1) fail(`method:${className}.${methodName}`);
+  return { file, classNode: classes[0], method: methods[0] };
+}
+
+function replaceStaticClassMethodBody(source, className, methodName, body) {
+  const { file, method } = findStaticClassMethod(source, className, methodName);
+  const start = method.body.getStart(file);
+  return source.slice(0, start) + body + source.slice(method.body.end);
+}
+
+function insertStaticClassMethod(source, className, beforeMethodName, methodSource) {
+  const file = ts.createSourceFile('Online.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const classes = [];
+  function visit(node) {
+    if (ts.isClassDeclaration(node) || ts.isClassExpression(node)) {
+      const assignedName = ts.isBinaryExpression(node.parent)
+        && node.parent.operatorToken.kind === ts.SyntaxKind.EqualsToken
+        && ts.isIdentifier(node.parent.left)
+        ? node.parent.left.text
+        : null;
+      if (node.name?.text === className || assignedName === className) classes.push(node);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  if (classes.length !== 1) fail(`class:${className}`);
+  const nameOf = (member) => ts.isMethodDeclaration(member) && member.name
+    ? ts.isIdentifier(member.name) ? member.name.text : member.name.getText(file)
+    : null;
+  const existing = classes[0].members.filter((member) => nameOf(member) === methodSource.match(/static\s+(\w+)/)?.[1]);
+  if (existing.length > 1) fail(`method:${className}.releaseFbo`);
+  if (existing.length === 1) return source;
+  const targets = classes[0].members.filter((member) => nameOf(member) === beforeMethodName);
+  if (targets.length !== 1) fail(`method:${className}.${beforeMethodName}`);
+  const start = targets[0].getStart(file);
+  const lineStart = source.lastIndexOf('\n', start - 1) + 1;
+  const indent = source.slice(lineStart, start);
+  if (!/^[\t ]*$/.test(indent)) fail(`method-indent:${className}.${beforeMethodName}`);
+  return source.slice(0, start) + methodSource + `\n${indent}` + source.slice(start);
 }
 
 function patchLoginRegistrationHook(source) {
@@ -1467,7 +1578,7 @@ export function patchRuntimeStorageItemFlow(source) {
 
 export function patchV2Runtime(source, { assistant = false } = {}) {
   if (!source.startsWith('import ')) fail('anchor:runtime-imports');
-  const normalizedSource = patchRuntimeHalloweenWorld(source.replace(/\r\n/g, '\n'));
+  const normalizedSource = patchRuntimeWebGLLifecycle(patchRuntimeHalloweenWorld(source.replace(/\r\n/g, '\n')));
   let output = `import { decorateLastROLoginTemplate, decorateLastROLoginStyles, installLastROLogin, beforeLastROLoginConnect, afterLastROLoginPassword } from "./lastro-account-login.mjs";
 import { sendKoreNativePacket, startOptionalKore } from "./kore-integration.mjs";
 import { createKoreShell } from "./kore-panel-shell.mjs";

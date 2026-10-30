@@ -18,3 +18,4 @@ export function patchRuntimeStorageOpening(source: string): string;
 export function patchRuntimeStorageItemFlow(source: string): string;
 export function patchRuntimeHalloweenGround(source: string): string;
 export function patchRuntimeHalloweenWorld(source: string): string;
+export function patchRuntimeWebGLLifecycle(source: string): string;
