@@ -1,7 +1,4 @@
-/* Temporary 2026 Halloween skin; scoped to the native game canvas and passive decor. */
-body.lastro-halloween-active canvas.lastro-halloween-canvas {
-  filter: brightness(.82) saturate(.74) contrast(1.06) hue-rotate(-4deg);
-}
+/* Temporary 2026 Halloween passive decorations. */
 .lastro-halloween-layer {
   position: fixed;
   inset: 0;
@@ -10,12 +7,6 @@ body.lastro-halloween-active canvas.lastro-halloween-canvas {
   pointer-events: none !important;
   user-select: none;
   contain: layout paint;
-}
-.lastro-halloween-vignette {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse 82% 78% at 50% 47%,
-    transparent 40%, rgba(8, 12, 18, .12) 68%, rgba(3, 6, 10, .38) 100%);
 }
 .lastro-halloween-wisp {
   position: absolute;

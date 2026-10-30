@@ -23,10 +23,6 @@ declare global {
   var LastROHalloweenEffects: HalloweenEffectsController | undefined;
 }
 
-type RendererPage = Window & {
-  __LastRORenderer?: { Renderer?: { canvas?: HTMLCanvasElement } };
-};
-
 export function installHalloweenEffects(page: Window = window): HalloweenEffectsController {
   const doc = page.document;
   const now = new Date();
@@ -48,8 +44,6 @@ export function installHalloweenEffects(page: Window = window): HalloweenEffects
   let statusIconLoader: (() => Promise<string>) | undefined;
   const ghostSources = new Map<number, string>();
   let wispSource: string | undefined;
-  let canvas: HTMLCanvasElement | null = null;
-  let canvasTimer: number | undefined;
   let ghostTimer: number | undefined;
   let ghostHideTimer: number | undefined;
   let destroyed = false;
@@ -130,9 +124,6 @@ export function installHalloweenEffects(page: Window = window): HalloweenEffects
     const container = doc.createElement('div');
     container.className = 'lastro-halloween-layer';
     container.setAttribute('aria-hidden', 'true');
-    const vignette = doc.createElement('div');
-    vignette.className = 'lastro-halloween-vignette';
-    container.append(vignette);
     wisps = [];
     for (const [left, top, delay] of [['14%', '24%', '0s'], ['48%', '57%', '-2s'], ['82%', '38%', '-4s']] as const) {
       const wisp = doc.createElement('img');
@@ -175,30 +166,8 @@ export function installHalloweenEffects(page: Window = window): HalloweenEffects
     loadSprites();
     loadStatusIcon();
   };
-  const attachCanvas = () => {
-    canvasTimer = undefined;
-    if (!active()) return;
-    const next = (page as RendererPage).__LastRORenderer?.Renderer?.canvas;
-    if (next?.tagName === 'CANVAS') {
-      if (canvas !== next) {
-        canvas?.classList.remove('lastro-halloween-canvas');
-        canvas = next;
-      }
-      canvas.classList.add('lastro-halloween-canvas');
-      return;
-    }
-    // Renderer.init may happen long after login; this polls only until it is available.
-    canvasTimer = page.setTimeout(attachCanvas, 1000);
-  };
-  const clearCanvas = () => {
-    if (canvasTimer !== undefined) page.clearTimeout(canvasTimer);
-    canvasTimer = undefined;
-    canvas?.classList.remove('lastro-halloween-canvas');
-    canvas = null;
-  };
   const apply = () => {
     page.dispatchEvent(new Event('lastro-halloween-change'));
-    doc.body.classList.toggle('lastro-halloween-active', active());
     if (!active()) {
       clearGhostTimers();
       hideGhost();
@@ -208,11 +177,9 @@ export function installHalloweenEffects(page: Window = window): HalloweenEffects
       wisps = [];
       statusIcon = null;
       statusBadge = null;
-      clearCanvas();
       return;
     }
     ensureLayer();
-    if (!canvas && canvasTimer === undefined) attachCanvas();
   };
   const onVisibility = () => {
     if (doc.hidden) {

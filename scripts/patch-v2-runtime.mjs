@@ -68,7 +68,39 @@ function replaceOnce(source, needle, replacement) {
   return source.replace(needle, replacement);
 }
 
+export function patchRuntimeHalloweenGround(source) {
+  const shaderAnchor = '\n  Ground_default$1 =';
+  if (count(source, shaderAnchor) !== 1) fail('anchor:halloween-ground-shader');
+  const shaderMatch = /(?:^|\n)[\x20]{2}Ground_default\$1\s*=\s*("(?:\\.|[^"\\])*")/.exec(source);
+  if (!shaderMatch?.[1]) fail('anchor:halloween-ground-shader');
+
+  let shader = decodeDoubleQuotedString(shaderMatch[1]);
+  shader = replaceOnce(
+    shader,
+    'uniform bool uGammaCorrection;',
+    'uniform bool uGammaCorrection;\r\nuniform bool uLastroHalloweenActive;',
+  );
+  shader = replaceOnce(shader, '    }\r\n\r\n}', `    }\r\n\r\n    if (uLastroHalloweenActive) {\r\n        vec3 color = fragColor.rgb;\r\n        fragColor.rgb = vec3(\r\n            dot(vec3(0.698518, 0.194785, -0.025253), color) - 0.03,\r\n            dot(vec3(0.131761, 0.798064, 0.029082), color) - 0.03,\r\n            dot(vec3(0.167723, 0.130624, 0.654795), color) - 0.03\r\n        );\r\n    }\r\n\r\n}`);
+
+  const literalStart = shaderMatch.index + shaderMatch[0].lastIndexOf(shaderMatch[1]);
+  let output = source.slice(0, literalStart) + JSON.stringify(shader)
+    + source.slice(literalStart + shaderMatch[1].length);
+  const renderAnchor = 'function render$12(gl, modelView, projection, normalMat, fog, light) {';
+  if (count(output, renderAnchor) !== 1) fail('anchor:halloween-ground-render');
+  const renderStart = output.indexOf(renderAnchor);
+  const renderEnd = output.indexOf('\n}', renderStart);
+  if (renderEnd < 0) fail('anchor:halloween-ground-render');
+  let render = output.slice(renderStart, renderEnd + 2);
+  render = replaceOnce(render, '  gl.useProgram(_program$25);\n',
+    '  gl.useProgram(_program$25);\n'
+      + '  const effects = globalThis.LastROHalloweenEffects;\n'
+      + '  gl.uniform1i(uniform.uLastroHalloweenActive, Boolean(effects?.seasonal && !effects.disabled));\n');
+  output = output.slice(0, renderStart) + render + output.slice(renderEnd + 2);
+  return output;
+}
+
 export function patchRuntimeHalloweenWorld(source) {
+  source = patchRuntimeHalloweenGround(source);
   const anchor = '  BGM.play((mapInfo && mapInfo.mp3) || "01.mp3");';
   if (count(source, anchor) !== 1) fail('anchor:halloween-world-runtime');
   const installer = installHalloweenWorldRuntime.toString();
