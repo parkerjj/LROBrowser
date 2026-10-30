@@ -181,8 +181,14 @@ export default defineConfig({
   base: './',
   define: { __LASTRO_BUILD_TARGET__: JSON.stringify(buildTarget) },
   plugins: [browserTlsCrypto(), browserReflectMetadataLite(), packageRuntime(buildTarget)],
-  optimizeDeps: { entries: ['index.html'], exclude: ['/runtime/Online.js'] },
-  build: { target: 'es2022', sourcemap: false, rollupOptions: { external: ['/runtime/Online.js'] } },
+  optimizeDeps: { entries: ['play.html'], exclude: ['/runtime/Online.js'] },
+  build: {
+    target: 'es2022', sourcemap: false,
+    rollupOptions: {
+      input: { index: path.resolve('index.html'), play: path.resolve('play.html') },
+      external: ['/runtime/Online.js'],
+    },
+  },
   server: {
     host: '127.0.0.1',
     hmr: false,

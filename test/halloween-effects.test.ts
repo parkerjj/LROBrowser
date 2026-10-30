@@ -1,18 +1,18 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HALLOWEEN_STORAGE_KEY, installHalloweenEffects, isHalloweenDate } from '../src/halloween/halloween-effects';
 
 const initialHidden = Object.getOwnPropertyDescriptor(document, 'hidden');
 let controller: ReturnType<typeof installHalloweenEffects> | undefined;
-const page = window as Window & { __LastRORenderer?: { Renderer: { canvas: HTMLCanvasElement } } };
 const root = () => document.querySelector<HTMLElement>('.lastro-halloween-layer');
+const halloweenCss = readFileSync('src/halloween/halloween.css', 'utf8');
 
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date(2026, 9, 30, 12, 0));
   window.localStorage.clear();
   document.body.replaceChildren();
-  delete page.__LastRORenderer;
   delete globalThis.LastROHalloweenEffects;
   Object.defineProperty(document, 'hidden', { configurable: true, value: false });
 });
@@ -25,7 +25,6 @@ afterEach(() => {
   vi.unstubAllEnvs();
   window.localStorage.clear();
   document.body.replaceChildren();
-  delete page.__LastRORenderer;
   delete globalThis.LastROHalloweenEffects;
   if (initialHidden) Object.defineProperty(document, 'hidden', initialHidden);
   else Reflect.deleteProperty(document, 'hidden');
@@ -80,19 +79,24 @@ describe('Halloween local time and visual effects', () => {
     expect(root()).toBeNull();
   });
 
-  it('creates only passive decorations, and attaches the filter to the native canvas when ready', () => {
+  it('keeps the ghost and three wisps without creating a full-screen vignette', () => {
     controller = installHalloweenEffects(window);
     expect(controller.seasonal).toBe(true);
     expect(controller.disabled).toBe(false);
-    expect(document.body.classList.contains('lastro-halloween-active')).toBe(true);
+    expect(document.body.classList.contains('lastro-halloween-active')).toBe(false);
     expect(root()?.style.pointerEvents).toBe(''); // CSS owns click-through.
     expect(root()?.getAttribute('aria-hidden')).toBe('true');
-    const canvas = document.createElement('canvas');
-    document.body.append(canvas);
-    page.__LastRORenderer = { Renderer: { canvas } };
-    vi.advanceTimersByTime(1000);
-    expect(canvas.classList.contains('lastro-halloween-canvas')).toBe(true);
+    expect(root()?.querySelectorAll('.lastro-halloween-wisp')).toHaveLength(3);
+    expect(root()?.querySelector('.lastro-halloween-ghost')).not.toBeNull();
+    expect(root()?.querySelector('.lastro-halloween-vignette')).toBeNull();
     expect(root()?.querySelector('.lastro-halloween-ghost')?.hasAttribute('src')).toBe(false);
+  });
+
+  it('keeps ghost and wisp styles while removing the canvas filter and vignette CSS', () => {
+    expect(halloweenCss).not.toContain('lastro-halloween-canvas');
+    expect(halloweenCss).not.toContain('lastro-halloween-vignette');
+    expect(halloweenCss).toContain('.lastro-halloween-wisp');
+    expect(halloweenCss).toContain('.lastro-halloween-ghost');
   });
 
   it('randomizes each wisp path again after completing a drift cycle', () => {
@@ -111,21 +115,15 @@ describe('Halloween local time and visual effects', () => {
   });
 
   it('disables every effect immediately, persists the choice, and restores it on uncheck', () => {
-    const canvas = document.createElement('canvas');
-    page.__LastRORenderer = { Renderer: { canvas } };
     controller = installHalloweenEffects(window);
-    expect(canvas.classList.contains('lastro-halloween-canvas')).toBe(true);
     expect(controller.setDisabled(true)).toBe(true);
     expect(window.localStorage.getItem(HALLOWEEN_STORAGE_KEY)).toBe('1');
-    expect(document.body.classList.contains('lastro-halloween-active')).toBe(false);
-    expect(canvas.classList.contains('lastro-halloween-canvas')).toBe(false);
     expect(root()).toBeNull();
     vi.advanceTimersByTime(0);
     expect(vi.getTimerCount()).toBe(0);
     expect(controller.setDisabled(false)).toBe(true);
     expect(window.localStorage.getItem(HALLOWEEN_STORAGE_KEY)).toBe('0');
     expect(root()).not.toBeNull();
-    expect(canvas.classList.contains('lastro-halloween-canvas')).toBe(true);
   });
 
   it('honors a saved opt-out and does not mount decorations outside the dates', () => {
@@ -146,8 +144,6 @@ describe('Halloween local time and visual effects', () => {
 
   it('shows a game ghost after its sprite loads, then releases all animation timers', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
-    const canvas = document.createElement('canvas');
-    page.__LastRORenderer = { Renderer: { canvas } };
     controller = installHalloweenEffects(window);
     controller.setMonsterPortraitLoader(async () => 'data:image/png;base64,AA==');
     await Promise.resolve();
@@ -169,8 +165,6 @@ describe('Halloween local time and visual effects', () => {
   });
 
   it('pauses the wandering ghost when hidden without affecting the date guard', async () => {
-    const canvas = document.createElement('canvas');
-    page.__LastRORenderer = { Renderer: { canvas } };
     controller = installHalloweenEffects(window);
     controller.setMonsterPortraitLoader(async () => 'data:image/png;base64,AA==');
     await Promise.resolve();

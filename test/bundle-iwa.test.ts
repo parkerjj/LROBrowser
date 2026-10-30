@@ -15,6 +15,7 @@ describe('IWA Web Bundle', () => {
       await mkdir(path.join(root, '.well-known'), { recursive: true });
       await writeFile(path.join(root, '.well-known/manifest.webmanifest'), '{}');
       await writeFile(path.join(root, 'index.html'), '<!doctype html>');
+      await writeFile(path.join(root, 'play.html'), '<!doctype html><div id="app"></div>');
       const bytes = await createBundle(root);
       const bundle = new Bundle(bytes);
       expect(bundle.version).toMatch(/^b/);
@@ -27,6 +28,10 @@ describe('IWA Web Bundle', () => {
       expect(response.headers['cross-origin-opener-policy']).toBe('same-origin');
       expect(response.headers['cross-origin-embedder-policy']).toBe('require-corp');
       expect(response.headers['cross-origin-resource-policy']).toBe('same-origin');
+      const play = bundle.getResponse('play.html');
+      expect(play.status).toBe(200);
+      expect(new TextDecoder().decode(play.body)).toContain('<div id="app"></div>');
+      expect(play.headers['content-security-policy']).toBe(REQUIRED_HEADERS['Content-Security-Policy']);
     } finally { await rm(root, { recursive: true, force: true }); }
   });
 

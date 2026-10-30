@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
 
-const html = readFileSync('index.html', 'utf8');
+const html = readFileSync('play.html', 'utf8');
 const script = readFileSync('public/startup-diagnostics.js', 'utf8');
 
 type StartupApi = {
@@ -13,7 +13,7 @@ type StartupApi = {
 };
 
 function harness(options: { frames?: boolean } = {}) {
-  const dom = new JSDOM(html, { url: 'https://iwa.invalid/', runScripts: 'outside-only', pretendToBeVisual: options.frames });
+  const dom = new JSDOM(html, { url: 'https://iwa.invalid/play.html', runScripts: 'outside-only', pretendToBeVisual: options.frames });
   const page = dom.window;
   const frameCallbacks: FrameRequestCallback[] = [];
   const focus = vi.fn();

@@ -24,7 +24,7 @@
 
 完整 Console 附件已读取（6958 个逻辑行，含重复异步调用栈）。两张 `/tmp/codex-clipboard-*.png` 附件在本次环境中不存在；没有声称已查看截图。没有使用真实账号登录。
 
-入口是 `public/.well-known/manifest.webmanifest` 的 `start_url: /` → `index.html` → `src/main.ts` → `bootstrapV2Client()` → `/runtime/Online.js`。bootstrap 在动态导入前注入 ROConfig、Direct TCP factory 和包内清单。原版运行时继续执行 `GameEngine.init → Thread.init → Renderer.init → loadFiles → Client.init([])`。参考页面同样加载 Online.js，但先加载自己的配置；只读取了参考配置的非敏感启动字段。
+入口是 `public/.well-known/manifest.webmanifest` 的 `start_url: /` → 极简 `index.html`（不加载 CSS/JS，2 秒后跳转）→ `play.html` → `src/main.ts` → `bootstrapV2Client()` → `/runtime/Online.js`。入口显示“启动入口已加载”并提供手动进入链接，用于区分入口文档前的白屏和游戏初始化阶段；分阶段启动尚待受影响机器验证。bootstrap 在动态导入前注入 ROConfig、Direct TCP factory 和包内清单。原版运行时继续执行 `GameEngine.init → Thread.init → Renderer.init → loadFiles → Client.init([])`。参考页面同样加载 Online.js，但先加载自己的配置；只读取了参考配置的非敏感启动字段。
 
 日志第 19 行证明 WebGL2 renderer 成功，第 1068 行已进入 `LoginEngine.init`，第 1319 行选择 `WinLoginV2`。没有证据表明初始化被某个未捕获异常中止。最早直接影响画面的失败是第 24 行 `bgi_temp.bmp` 解析失败；第 2134/2405 行是 `bg_login.tga` 加载失败；第 4043 行之后是全部 12 块登录背景失败。
 

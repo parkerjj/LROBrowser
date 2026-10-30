@@ -28,14 +28,23 @@ describe('independent local client server', () => {
   });
   afterAll(async () => { await server?.close(); });
 
-  it('serves the original app with IWA headers and without an HMR client', async () => {
+  it('serves the minimal entry and game page with IWA headers and without an HMR client', async () => {
     const response = await globalThis.fetch(url);
     expect(response.status).toBe(200);
     expect(response.headers.get('content-security-policy')).toBe(REQUIRED_HEADERS['Content-Security-Policy']);
     expect(response.headers.get('cross-origin-opener-policy')).toBe('same-origin');
     expect(response.headers.get('cross-origin-embedder-policy')).toBe('require-corp');
     expect(response.headers.get('cross-origin-resource-policy')).toBe('same-origin');
-    expect(await response.text()).not.toContain('/@vite/client');
+    const html = await response.text();
+    expect(html).toContain('2; url=/play.html');
+    expect(html).not.toContain('<script');
+    const play = await globalThis.fetch(url + '/play.html');
+    expect(play.status).toBe(200);
+    expect(play.headers.get('content-security-policy')).toBe(REQUIRED_HEADERS['Content-Security-Policy']);
+    const gameHtml = await play.text();
+    expect(gameHtml).toContain('/src/main.ts');
+    expect(gameHtml).toContain('/startup-diagnostics.js');
+    expect(gameHtml).not.toContain('/@vite/client');
   }, 15000); // Allow cold Vite startup while the full suite parses native bundles.
   it('transforms the actual startup module without losing its staged runtime import', async () => {
     // A direct runtime download can succeed even while this import-analysis
