@@ -251,6 +251,7 @@ function useNativeLoadingOverlay(f: ReturnType<typeof nativePacketFixture>) {
   vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => window.setTimeout(() => callback(Date.now()), 16));
   vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(id => window.clearTimeout(id));
   Object.assign(f.context, {
+    setTimeout, clearTimeout,
     _overlay: cover, _overlayAnim: null, _pixelProps: new Set(),
     performance: { now: () => Date.now() }, requestAnimationFrame: window.requestAnimationFrame.bind(window),
     Configs: { get: (name: string) => name === 'transitionDuration' ? 500 : false },

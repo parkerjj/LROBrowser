@@ -13,7 +13,7 @@ type StartupApi = {
 };
 
 function harness(options: { frames?: boolean } = {}) {
-  const dom = new JSDOM(html, { url: 'https://iwa.invalid/', runScripts: 'outside-only' });
+  const dom = new JSDOM(html, { url: 'https://iwa.invalid/', runScripts: 'outside-only', pretendToBeVisual: options.frames });
   const page = dom.window;
   const frameCallbacks: FrameRequestCallback[] = [];
   const focus = vi.fn();
@@ -158,6 +158,7 @@ describe('early standalone startup diagnostic', () => {
     h.advance(10_000, true);
     expect(h.focus).toHaveBeenCalledTimes(1);
     h.api.ready();
+    h.advance(16, true);
     expect([...h.timers.values()].some(timer => timer.delay === 1000)).toBe(false);
     h.dom.window.close();
   });
@@ -178,12 +179,46 @@ describe('early standalone startup diagnostic', () => {
     h.dom.window.close();
   });
 
+  it('keeps waking a blank window after login is created until frames actually resume', () => {
+    const h = harness({ frames: true });
+    h.api.ready();
+    expect(h.get('lastro-startup-screen').hidden).toBe(true);
+    for (let i = 0; i < 3; i += 1) h.advance(1000, false);
+    expect(h.page.document.title).toContain('画面未刷新');
+    expect(h.focus).toHaveBeenCalledTimes(1);
+    h.advance(1000, true);
+    expect(h.page.document.title).not.toContain('画面未刷新');
+    expect([...h.timers.values()].some(timer => timer.delay === 1000)).toBe(false);
+    h.dom.window.close();
+  });
+
+  it('pauses wake attempts for a hidden login and observes it afresh when visible', () => {
+    const h = harness({ frames: true });
+    let hidden = true;
+    Object.defineProperty(h.page.document, 'hidden', { get: () => hidden });
+    h.api.ready();
+    h.page.document.dispatchEvent(new h.page.Event('visibilitychange'));
+    for (let i = 0; i < 10; i += 1) h.advance(1000, false);
+    expect(h.focus).not.toHaveBeenCalled();
+    expect(h.resizeBy).not.toHaveBeenCalled();
+    hidden = false;
+    h.page.document.dispatchEvent(new h.page.Event('visibilitychange'));
+    h.advance(1000, false); h.advance(1000, false);
+    expect(h.focus).not.toHaveBeenCalled();
+    h.advance(1000, false);
+    expect(h.page.document.title).toContain('画面未刷新');
+    h.advance(1000, true);
+    expect([...h.timers.values()].some(timer => timer.delay === 1000)).toBe(false);
+    h.dom.window.close();
+  });
+
   it('gives up after a bounded number of nudges and restores the title on login', () => {
     const h = harness({ frames: true });
     for (let i = 0; i < 60; i += 1) h.advance(1000, false);
     expect(h.focus).toHaveBeenCalledTimes(5);
     expect(h.page.document.title).toContain('画面未刷新');
     h.api.ready();
+    h.advance(16, true);
     expect(h.page.document.title).not.toContain('画面未刷新');
     // Only the pending 1px window restores remain; they must still run after login.
     expect([...h.timers.values()].every(timer => timer.delay === 120)).toBe(true);

@@ -22,6 +22,7 @@
   var nudges = 0;
   var stalled = false;
   var baseTitle = '';
+  var awaitingReadyFrame = false;
 
   function element(id) { return document.getElementById(id); }
   function remember(kind, value) {
@@ -76,13 +77,21 @@
     stalled = false;
     document.title = baseTitle;
   }
+  function resetFrameClock() {
+    lastFrameAt = lastTickAt = Date.now();
+  }
   function beat() {
     lastFrameAt = Date.now();
     if (stalled) {
       remember('frame', '画面已恢复刷新');
       restoreTitle();
     }
-    if (!finished) window.requestAnimationFrame(beat);
+    if (finished) {
+      awaitingReadyFrame = false;
+      window.clearTimeout(frameTimer);
+      frameTimer = 0;
+      document.removeEventListener('visibilitychange', resetFrameClock);
+    } else window.requestAnimationFrame(beat);
   }
   function nudge() {
     nudges += 1;
@@ -104,8 +113,11 @@
       // A long main-thread task delays this timer and the next frame alike; that is not a stall.
       if (now - lastTickAt > 2 * FRAME_STALL_MS / 3) lastFrameAt = now;
       lastTickAt = now;
-      if (finished) return;
-      if (now - lastFrameAt >= FRAME_STALL_MS && nudges < FRAME_NUDGE_MAX) {
+      if (finished && !awaitingReadyFrame) return;
+      // Hidden/minimized windows legitimately have no frames. Never pull them
+      // into the foreground; give them a fresh observation period on return.
+      if (document.hidden) lastFrameAt = now;
+      else if (now - lastFrameAt >= FRAME_STALL_MS && nudges < FRAME_NUDGE_MAX) {
         nudge();
         lastFrameAt = now;
       }
@@ -115,7 +127,8 @@
   function startFrameWatch() {
     if (typeof window.requestAnimationFrame !== 'function' || frameTimer) return;
     baseTitle = document.title;
-    lastFrameAt = lastTickAt = Date.now();
+    resetFrameClock();
+    document.addEventListener('visibilitychange', resetFrameClock);
     window.requestAnimationFrame(beat);
     watchFrames();
   }
@@ -161,8 +174,10 @@
     remember('ready', '登录窗口已呈现');
     finished = true;
     stopTimers();
-    window.clearTimeout(frameTimer);
-    restoreTitle();
+    // A login DOM is not a displayed login window. Keep the watchdog until a
+    // frame arrives after ready(), including when the background used its timer.
+    awaitingReadyFrame = Boolean(frameTimer);
+    if (!awaitingReadyFrame) restoreTitle();
     var screen = element('lastro-startup-screen');
     if (screen) screen.hidden = true;
   }

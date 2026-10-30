@@ -167963,22 +167963,36 @@ function transition(callback) {
   if (_overlayAnim) _overlayAnim.stop();
   _overlay.style.opacity = "0.01";
   document.body.appendChild(_overlay);
-  _overlayAnim = animateElement(
-    _overlay,
-    { opacity: 1 },
-    transitionDuration,
-    () => {
-      callback();
-      _overlayAnim = animateElement(
-        _overlay,
-        { opacity: 0.01 },
-        transitionDuration,
-        () => {
-          if (_overlay.parentNode) _overlay.parentNode.removeChild(_overlay);
-        },
-      );
+  let animation, timer, stopped = false;
+  _overlayAnim = {
+    stop() {
+      stopped = true;
+      clearTimeout(timer);
+      animation?.stop();
     },
-  );
+  };
+  function fadeTo(opacity, complete) {
+    let finished = false;
+    function finish() {
+      if (finished || stopped) return;
+      finished = true;
+      clearTimeout(timer);
+      animation.stop();
+      _overlay.style.opacity = String(opacity);
+      complete();
+    }
+    animation = animateElement(_overlay, { opacity }, transitionDuration, finish);
+    // Startup continues through this callback (DB.init). Chrome may withhold
+    // animation frames from the first IWA window; neither fade may block it.
+    timer = setTimeout(finish, transitionDuration + 100);
+  }
+  fadeTo(1, () => {
+    callback();
+    if (stopped) return;
+    fadeTo(0.01, () => {
+      if (_overlay.parentNode) _overlay.parentNode.removeChild(_overlay);
+    });
+  });
 }
 var _overlay,
   _container,
