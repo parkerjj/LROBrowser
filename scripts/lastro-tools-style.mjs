@@ -129,6 +129,7 @@ export const KORE_SHELL_CSS = `
 .kore-window input { cursor:text !important; }
 .kore-window [hidden] { display:none !important; }
 .kore-onboarding { display:flex; flex:1 1 auto; min-height:0; flex-direction:column; gap:9px; overflow:auto; }
+.kore-onboarding-quota .kore-onboarding-steps, .kore-onboarding-quota .kore-onboarding-lead { display:none; }
 .kore-onboarding-title { margin:0; color:#ffffff; font:600 18px/1.2 Arial,'Microsoft YaHei','MiSans',sans-serif; }
 .kore-onboarding-lead { margin:0; color:#b4b4b4; font-size:12px; overflow-wrap:anywhere; }
 .kore-onboarding-steps { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:2px 0 0; padding:8px 0 0; border-top:1px solid #29292d; list-style:none; }
@@ -149,6 +150,8 @@ export const KORE_SHELL_CSS = `
 .kore-onboarding-actions { display:flex; flex:none; flex-wrap:wrap; align-items:center; gap:6px; padding-top:4px; }
 .kore-auth-primary, .kore-auth-secondary { min-height:32px; max-width:100%; padding:5px 11px; border:1px solid #ffffff; border-radius:4px; background:#ffffff; color:#111111; font:500 12px/1.25 Arial,'Microsoft YaHei','MiSans',sans-serif; overflow-wrap:anywhere; }
 .kore-auth-primary:hover { background:#e6e6ea; }
+.kore-auth-primary.kore-quota-buy { width:100%; min-height:42px; border-color:#168a4a; background:#168a4a; color:#ffffff; font-size:14px; font-weight:700; }
+.kore-auth-primary.kore-quota-buy:hover { border-color:#11753e; background:#11753e; }
 .kore-auth-secondary { border-color:#3a3a3e; background:transparent; color:#ffffff; }
 .kore-auth-secondary:hover { border-color:#6a6a70; }
 .kore-auth-link { min-height:28px; padding:4px 7px; border:0; border-radius:3px; background:transparent; color:#b4b4b4; font:12px/1.2 Arial,'Microsoft YaHei','MiSans',sans-serif; }
@@ -164,6 +167,7 @@ export const KORE_SHELL_CSS = `
 .kore-button:focus-visible { outline:1px solid #6fb3c9; outline-offset:2px; }
 .kore-device-expiry { color:#b4b4b4; font-size:11px; font-variant-numeric:tabular-nums; }
 .kore-quota-list { display:flex; flex-direction:column; gap:4px; min-height:0; max-height:120px; overflow:auto; border-top:1px solid #29292d; border-bottom:1px solid #29292d; }
+.kore-onboarding-quota .kore-quota-list { margin-top:2px; }
 .kore-quota-instance { display:flex; align-items:center; gap:8px; min-height:32px; padding:3px 0; color:#ffffff; font-size:12px; cursor:pointer !important; }
 /* 站点全局样式给 input 设了 width:100%，不覆盖的话单选框撑满整行，实例名被挤成 0 宽。 */
 .kore-quota-instance input { flex:none; width:14px; height:14px; min-width:0; min-height:0; margin:0; padding:0; accent-color:#6fb3c9; }
