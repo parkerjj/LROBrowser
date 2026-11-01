@@ -114,4 +114,35 @@ describe('native startup background without animation frames', () => {
     expect(f.cover.isConnected).toBe(false);
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  it('finishes a fade at once on a hidden page, where frames stop and timers are throttled', () => {
+    const f = fixture();
+    let visibility = 'hidden';
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => visibility });
+    try {
+      let continued = 0, next = 0;
+      f.transition(() => { continued++; f.transition(() => { next++; }); });
+      expect(continued).toBe(1);
+      expect(next).toBe(1);
+      expect(f.cover.isConnected).toBe(false);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally { visibility = 'visible'; delete (document as { visibilityState?: unknown }).visibilityState; }
+  });
+
+  it('finishes a running fade the moment the page becomes hidden', () => {
+    const f = fixture();
+    let visibility = 'visible';
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => visibility });
+    try {
+      let continued = 0;
+      f.transition(() => { continued++; });
+      vi.advanceTimersByTime(100); f.paint();
+      expect(continued).toBe(0);
+      visibility = 'hidden';
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(continued).toBe(1);
+      expect(f.cover.isConnected).toBe(false);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally { delete (document as { visibilityState?: unknown }).visibilityState; }
+  });
 });
