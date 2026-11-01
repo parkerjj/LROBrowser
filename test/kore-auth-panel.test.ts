@@ -121,11 +121,19 @@ test('quota state lists active instances and retries start through Rust command 
   const { host, view } = mount({ phase: 'quota-exceeded', user: { displayName: 'Parker' }, error: 'KE_QUOTA_EXCEEDED',
     detail: { active_instances: [{ instance_id: 'instance-a', char_name: '旧角色', map_name: 'prontera' }, { instance_id: 'instance-b', char_name: '另一个', map_name: 'payon' }] } });
 
-  expect(view.element.textContent).toContain('同时运行的实例已达上限：2 个');
-  expect(view.element.textContent?.match(/同时运行的实例已达上限/g)).toHaveLength(1);
+  expect(view.element.textContent).toContain('已使用 2 个实例额度');
+  expect(view.element.textContent).not.toContain('同时运行的实例已达上限');
   expect(view.element.textContent).not.toContain('额度已用完');
   expect(view.element.textContent).toContain('旧角色');
   expect(view.element.textContent).toContain('prontera');
+  expect(view.element.querySelector('.kore-onboarding')?.classList.contains('kore-onboarding-quota')).toBe(true);
+  expect(view.element.querySelector('.kore-onboarding-steps')).not.toBeNull();
+  expect(view.element.querySelector('.kore-onboarding-title')?.textContent).toBe('实例额度');
+  expect(view.element.textContent).toContain('已使用 2 个实例额度');
+  const open = vi.fn();
+  (view.element.ownerDocument.defaultView as Window & { open: unknown }).open = open;
+  (view.element.querySelector('.kore-quota-buy') as HTMLButtonElement).click();
+  expect(open).toHaveBeenCalledWith('https://ltsd.ro/ke/buy', '_blank', 'noopener,noreferrer');
   const replace = view.element.querySelector('.kore-quota-replace') as HTMLButtonElement;
   expect(replace.disabled).toBe(true);
   (view.element.querySelector('input[name="kore-quota-instance"]') as HTMLInputElement).click();
@@ -147,7 +155,7 @@ test('quota instances with an empty name fall back to a readable label', () => {
 test('quota state without a replaceable list says so once instead of repeating the instruction', () => {
   const { view } = mount({ phase: 'quota-exceeded', user: { displayName: 'Parker' }, error: 'KE_QUOTA_EXCEEDED', detail: null });
 
-  expect(view.element.textContent).toContain('LTSD 没有返回可替换的实例');
+  expect(view.element.textContent).toContain('没有可替换的实例');
   expect(view.element.textContent).not.toContain('选择一个仍在运行的实例并替换');
   view.destroy();
 });

@@ -1,6 +1,6 @@
 # LastRO V2 IWA 客户端
 
-KoreEngine M0 为可选本机接入。默认安装、测试、dev 和 Web/IWA 构建无需 KE 源码或 Rust，也不下载 KE 包。显式运行 `pnpm ke:local --source <absolute-path> --mode debug|release` 构建并暂存完整包，再执行普通 dev/build；运行 `pnpm ke:local --disable` 撤销接入。切换后重新加载已打开的客户端。私有路径、源码和生成物只留在被忽略的 `generated/` 中，不进入公开源码。
+KoreEngine M0 为可选本机接入。默认安装、测试和 Web/IWA 构建无需 KE 源码或 Rust，也不下载 KE 包；`pnpm dev` 会先用 `KE_REPOSITORY_READ_TOKEN`（缺省取 `gh auth token`）拉取 KoreEngine 最新 release 包并暂存（同一 release 不重复下载，失败仅警告），因为服务器只接受 release 版 KE。显式运行 `pnpm ke:local --source <absolute-path> --mode debug|release` 构建并暂存完整包，再执行 `vite`/build（`pnpm dev` 会用 release 包覆盖本地暂存，调试本地构建请直接运行 `pnpm prepare:runtime && pnpm exec vite --host 127.0.0.1`）；运行 `pnpm ke:local --disable` 撤销接入。切换后重新加载已打开的客户端。私有路径、源码和生成物只留在被忽略的 `generated/` 中，不进入公开源码。
 
 接入与 prepare 共用 `generated/ke/.staging.lock`。重叠调用会报告未开始，不改变另一调用的结果；进程崩溃留下锁时，查看锁中的 PID，确认进程已停止后才删除该锁并重试。构建失败、坏包或版本不兼容会撤销 KE，后续普通构建仍可继续。宿主只校验并加载当前包的同源 module Worker，初始化和运行故障只关闭 KE，不等待它完成原客户端启动。M0 仅显示运行状态和有界日志，没有 AI、游戏数据或配置功能。
 

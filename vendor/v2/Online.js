@@ -167963,11 +167963,12 @@ function transition(callback) {
   if (_overlayAnim) _overlayAnim.stop();
   _overlay.style.opacity = "0.01";
   document.body.appendChild(_overlay);
-  let animation, timer, stopped = false;
+  let animation, timer, stopped = false, detachHidden = () => {};
   _overlayAnim = {
     stop() {
       stopped = true;
       clearTimeout(timer);
+      detachHidden();
       animation?.stop();
     },
   };
@@ -167977,6 +167978,7 @@ function transition(callback) {
       if (finished || stopped) return;
       finished = true;
       clearTimeout(timer);
+      detachHidden();
       animation.stop();
       _overlay.style.opacity = String(opacity);
       complete();
@@ -167985,6 +167987,17 @@ function transition(callback) {
     // Startup continues through this callback (DB.init). Chrome may withhold
     // animation frames from the first IWA window; neither fade may block it.
     timer = setTimeout(finish, transitionDuration + 100);
+    // A hidden page (minimised, covered, another tab) gets no animation frames and its timers are
+    // throttled to once a second or even once a minute. Map loading finishes in this callback
+    // (it sends CZ_NOTIFY_ACTORINIT), so a throttled fade stalls the whole map entry and with it
+    // the server-side NPC/monster spawn. Nobody is watching: finish at once, also when the page
+    // is hidden while the fade is already running.
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") finish();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    detachHidden = () => document.removeEventListener("visibilitychange", onVisibility);
+    onVisibility();
   }
   fadeTo(1, () => {
     callback();

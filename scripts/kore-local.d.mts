@@ -15,3 +15,4 @@ export function importLocalPackage(options: { repo: string; packageRoot: string 
 export function validateLegacyFieldpack(root: string): Promise<unknown>;
 export function extractLegacyArchive(archive: Uint8Array, destination: string): Promise<void>;
 export function prepareLegacyFieldpack(options: { repo: string; source?: string; releaseTag?: string; token?: string; fetchImpl?: typeof fetch }): Promise<Record<string, unknown>>;
+export function syncDevRelease(options: { repo: string; token?: string; fetchImpl?: typeof fetch }): Promise<{ tag: string; cached: boolean }>;

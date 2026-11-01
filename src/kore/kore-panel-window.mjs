@@ -271,6 +271,7 @@ export function createKoreWindow({
       return;
     }
     const phase = String(auth.phase ?? 'signed-out');
+    const quotaExceeded = phase === 'quota-exceeded';
     // 运行中手动“同步并重载”会经过 loading-profile/loading-runtime；此时保留控制台，不退回首次接入界面。
     const syncing = ['loading-profile', 'loading-runtime'].includes(phase);
     const showRuntime = phase === 'ready' || phase === 'starting-license' || (syncing && runtimeShown);
@@ -294,6 +295,7 @@ export function createKoreWindow({
     onboardingContent.replaceChildren();
     onboardingActions.replaceChildren();
     onboardingContent.removeAttribute('data-tone');
+    onboarding.dataset.phase = phase;
     const user = auth.user && typeof auth.user === 'object' ? auth.user : null;
     const hasAccount = Boolean(user);
     const beforeCore = host?.state?.status !== 'runtime-ready';
@@ -311,7 +313,7 @@ export function createKoreWindow({
     const quotaCount = Array.isArray(auth.detail?.active_instances) ? auth.detail.active_instances.length : 0;
     const guide = baseGuide && errorCode === 'KE_QUOTA_EXCEEDED' && quotaCount > 0
       ? { ...baseGuide, title: `同时运行的实例已达上限：${quotaCount} 个`, cause: '' } : baseGuide;
-    if (guide) onboardingContent.append(errorCard(guide));
+    if (guide && !quotaExceeded) onboardingContent.append(errorCard(guide));
     const phaseTitle = {
       'signed-out': '连接 KoreEngine',
       'requesting-device': '正在连接 LTSD',
@@ -330,8 +332,9 @@ export function createKoreWindow({
       'device-denied': '设备授权未批准',
       error: '连接未完成',
     };
-    onboardingTitle.textContent = phaseTitle[phase] ?? '连接 KoreEngine';
-    onboardingLead.textContent = hasAccount ? `LTSD 账号：${accountName}` : '通过 LTSD.ro 登录，然后同步当前角色配置。';
+    onboardingTitle.textContent = quotaExceeded ? '实例额度' : phaseTitle[phase] ?? '连接 KoreEngine';
+    onboardingLead.textContent = quotaExceeded ? '' : hasAccount ? `LTSD 账号：${accountName}` : '通过 LTSD.ro 登录，然后同步当前角色配置。';
+    onboarding.classList.toggle('kore-onboarding-quota', quotaExceeded);
 
     if (phase === 'signed-out' || phase === 'device-expired' || phase === 'device-denied' || phase === 'error') {
       if (!auth.error) status(phase === 'device-expired' ? '请重新申请设备验证码。'
@@ -384,6 +387,11 @@ export function createKoreWindow({
       // 半自动也占额度：额度已满时用用户当初请求的模式（Rust 放在 detail.requested_mode）重新启动。
       const startCommand = auth.detail?.requested_mode === 'manual' ? 'manual' : 'auto';
       const modeLabel = startCommand === 'manual' ? '半自动' : '自动';
+      status(`已使用 ${quotaCount} 个实例额度`);
+      const buyButton = authButton('＋ 购买更多实例额度', 'kore-auth-primary kore-quota-buy', () => {
+        page.open?.('https://ltsd.ro/ke/buy', '_blank', 'noopener,noreferrer');
+      });
+      buyButton.title = '在 LTSD 购买更多实例额度';
       const instances = Array.isArray(auth.detail?.active_instances)
         ? auth.detail.active_instances.map(quotaInstanceLabel).filter(Boolean).slice(0, 32) : [];
       if (!instances.some(instance => instance.id === selectedQuotaInstanceId)) selectedQuotaInstanceId = null;
@@ -409,16 +417,16 @@ export function createKoreWindow({
           list.append(label);
         }
         onboardingContent.append(list);
-        replaceButton = authButton('替换所选实例并启动', 'kore-auth-primary kore-quota-replace', () => {
+        replaceButton = authButton(`替换所选实例并启动${modeLabel}模式`, 'kore-auth-secondary kore-quota-replace', () => {
           if (selectedQuotaInstanceId) host.sendCommandText?.(`ai ${startCommand} kick ${selectedQuotaInstanceId}`);
         });
         replaceButton.disabled = selectedQuotaInstanceId === null;
       } else {
-        status('LTSD 没有返回可替换的实例；请在其他已登录设备停止自动模式后重试。');
+        status('没有可替换的实例');
         authButton(`重试${modeLabel}模式`, 'kore-auth-secondary', () => host.sendCommandText?.(`ai ${startCommand}`));
       }
     }
-    if (guide) {
+    if (guide && !quotaExceeded) {
       authButton('复制错误信息', 'kore-auth-secondary kore-auth-copy-error', event => copyDiagnostics(event, errorCode));
       if (workerFailed) authButton('刷新页面', 'kore-auth-primary kore-auth-reload', () => page.location?.reload?.());
     }
