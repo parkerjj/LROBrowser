@@ -390,6 +390,24 @@ export async function importReleasePackage({ repo, packageRoot, metadata }) {
   });
 }
 
+// pnpm dev：把已发布的 release 版 KE 暂存为当前包（服务器拒绝本地构建）。同一 release 已暂存时不再下载。
+export async function syncDevRelease({ repo, token, fetchImpl = globalThis.fetch }) {
+  const recordPath = path.join(repo, 'generated/ke/release.json');
+  const { release } = await releaseClient({ token, fetchImpl });
+  const read = async file => JSON.parse(await readFile(file, 'utf8')).packageId;
+  const staged = await read(recordPath).catch(() => null);
+  if (staged && staged === await read(path.join(repo, 'generated/ke/current.json')).catch(() => null)
+    && JSON.parse(await readFile(recordPath, 'utf8')).tag === release.tag_name) return { tag: release.tag_name, cached: true };
+  await mkdir(path.join(repo, 'generated/ke'), { recursive: true });
+  const work = await mkdtemp(path.join(repo, 'generated/ke/.dev-release-'));
+  try {
+    const metadata = await downloadRelease({ out: path.join(work, 'release'), token, releaseTag: release.tag_name, fetchImpl });
+    await importReleasePackage({ repo, packageRoot: path.join(work, 'release/package'), metadata });
+    await atomicJson(recordPath, { tag: metadata.tag, packageId: metadata.packageId });
+    return { tag: metadata.tag, cached: false };
+  } finally { await rm(work, { recursive: true, force: true }); }
+}
+
 export async function verifyWebHosting({ fetchImpl = globalThis.fetch } = {}) {
   const response = await fetchImpl('https://game.ltsd.ro/', { method: 'HEAD', redirect: 'error', signal: globalThis.AbortSignal.timeout(30_000) });
   const coop = response.headers.get('cross-origin-opener-policy')?.trim();
@@ -421,12 +439,17 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const { values } = parseArgs({ options: { source: { type: 'string' }, mode: { type: 'string' }, disable: { type: 'boolean' },
       'download-release': { type: 'boolean' }, 'release-tag': { type: 'string' }, 'import-local-package': { type: 'string' },
       'legacy-source': { type: 'string' }, 'legacy-release-tag': { type: 'string' }, out: { type: 'string' }, 'import-package': { type: 'string' },
-      'verify-dist': { type: 'string' }, 'release-metadata': { type: 'string' }, 'verify-web-hosting': { type: 'boolean' } } });
+      'verify-dist': { type: 'string' }, 'release-metadata': { type: 'string' }, 'verify-web-hosting': { type: 'boolean' }, 'sync-release': { type: 'boolean' } } });
     const repo = fileURLToPath(new URL('../', import.meta.url));
     if (values['legacy-source'] || values['legacy-release-tag']) {
       process.stdout.write(JSON.stringify(await prepareLegacyFieldpack({ repo, source: values['legacy-source'], releaseTag: values['legacy-release-tag'], token: process.env.KE_REPOSITORY_READ_TOKEN })) + '\n');
     } else if (values['import-local-package']) {
       process.stdout.write(JSON.stringify(await importLocalPackage({ repo, packageRoot: path.resolve(values['import-local-package']) })) + '\n');
+    } else if (values['sync-release']) {
+      let token = process.env.KE_REPOSITORY_READ_TOKEN;
+      if (!token) token = (await run('gh', ['auth', 'token'])).stdout.trim();
+      try { process.stdout.write(JSON.stringify(await syncDevRelease({ repo, token })) + '\n'); }
+      catch (error) { process.stderr.write(`[KoreEngine] release 同步失败，沿用现有暂存包（服务器可能拒绝）：${String(error)}\n`); }
     } else if (values['verify-web-hosting']) {
       process.stdout.write(JSON.stringify(await verifyWebHosting()) + '\n');
     } else if (values['download-release']) {

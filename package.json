@@ -8,7 +8,7 @@
   },
   "packageManager": "pnpm@12.4.2",
   "scripts": {
-    "dev": "pnpm prepare:runtime && vite --host 127.0.0.1",
+    "dev": "node scripts/kore-local.mjs --sync-release && pnpm prepare:runtime && vite --host 127.0.0.1",
     "prepare:runtime": "node scripts/prepare-runtime.mjs",
     "build": "pnpm prepare:runtime && vite build",
     "build:web": "LASTRO_BUILD_TARGET=web pnpm prepare:runtime && LASTRO_BUILD_TARGET=web vite build --outDir dist-web",
