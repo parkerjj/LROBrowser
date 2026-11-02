@@ -40,7 +40,7 @@ define(
         ? d.length && d.remove()
         : d.length
           ? d.find(".amount").text(isFinite(b.count) ? b.count : "")
-          : ((d = n("#PlayerStore .OutputWindow .item").eq(G)),
+          : ((d = n("#PlayerStore .OutputWindow .item").eq(y)),
             d.attr("data-index", b.index),
             d.find(".amount").html(isFinite(b.count) ? b.count : "1"),
             d.find(".name").html(n.escape(p.getItemName(b))),
@@ -58,7 +58,7 @@ define(
                 );
               },
             ),
-            G++);
+            y++);
     }
     function d(a, b) {
       b = Math.min(Math.max(b, 2), 9);
@@ -70,7 +70,7 @@ define(
         e = 0,
         f;
       f = setInterval(function () {
-        var a = Math.floor((A.screen.y - b - 20) / 32),
+        var a = Math.floor((z.screen.y - b - 20) / 32),
           a = Math.min(Math.max(a, 2), 9);
         a !== e && (d(c, a), (e = a));
       }, 30);
@@ -80,22 +80,22 @@ define(
     }
     function m(a, b, c, d) {
       var e;
-      e = d ? (isFinite(M[a].count) ? M[a].count : 1) : E[a].count;
+      e = d ? (isFinite(I[a].count) ? I[a].count : 1) : D[a].count;
       1 < e
-        ? (y.append(),
-          y.setType("number", !1, e),
-          (y.onSubmitRequest = function (e) {
-            y.remove();
-            0 < e && H(b, c, d, a, e);
+        ? (B.append(),
+          B.setType("number", !1, e),
+          (B.onSubmitRequest = function (e) {
+            B.remove();
+            0 < e && G(b, c, d, a, e);
           }))
-        : H(b, c, d, a, e);
+        : G(b, c, d, a, e);
     }
     function h(a) {
       var b;
       a.stopImmediatePropagation();
       try {
         b = JSON.parse(a.originalEvent.dataTransfer.getData("Text"));
-      } catch (N) {
+      } catch (Q) {
         return !1;
       }
       if (
@@ -112,25 +112,25 @@ define(
       );
       return !1;
     }
-    function r(a) {
+    function q(a) {
       var b = parseInt(this.parentNode.getAttribute("data-index"), 10),
-        b = M[b];
+        b = I[b];
       a.stopImmediatePropagation();
       if (!b) return !1;
-      if (C.uid === b.ITID) return (C.remove(), !1);
-      C.append();
-      C.uid = b.ITID;
-      C.setItem(b);
+      if (A.uid === b.ITID) return (A.remove(), !1);
+      A.append();
+      A.uid = b.ITID;
+      A.setItem(b);
       return !1;
     }
-    function q() {
+    function r() {
       var a, b, c;
-      F !== L.Type.BUY &&
-        F !== L.Type.VENDING_STORE &&
-        ((a = L.ui.find(".InputWindow:first")),
+      L !== H.Type.BUY &&
+        L !== H.Type.VENDING_STORE &&
+        ((a = H.ui.find(".InputWindow:first")),
         n.contains(a.get(0), this)
-          ? ((b = a), (c = L.ui.find(".OutputWindow:first")))
-          : ((b = L.ui.find(".OutputWindow:first")), (c = a)),
+          ? ((b = a), (c = H.ui.find(".OutputWindow:first")))
+          : ((b = H.ui.find(".OutputWindow:first")), (c = a)),
         m(
           parseInt(this.getAttribute("data-index"), 10),
           b.find(".content:first"),
@@ -140,7 +140,7 @@ define(
     }
     function k() {
       var a = parseInt(this.getAttribute("data-index"), 10);
-      if ((a = J.getItemByIndex(a))) {
+      if ((a = O.getItemByIndex(a))) {
         var b = n(this).position(),
           c = n(this).parent().parent().parent().find(".overlay");
         c.show();
@@ -150,9 +150,9 @@ define(
       }
     }
     function g() {
-      L.ui.find(".overlay").hide();
+      H.ui.find(".overlay").hide();
     }
-    function t(a) {
+    function u(a) {
       var b;
       a.originalEvent.wheelDelta
         ? ((b = a.originalEvent.wheelDelta / 120), window.opera && (b = -b))
@@ -162,8 +162,8 @@ define(
     }
     function l(a) {
       var b, c, d;
-      b = L.ui.find(".InputWindow:first").get(0);
-      c = L.ui.find(".OutputWindow:first").get(0);
+      b = H.ui.find(".InputWindow:first").get(0);
+      c = H.ui.find(".OutputWindow:first").get(0);
       b = (n.contains(b, this) ? b : c).className;
       c = new Image();
       d = this.firstChild.style.backgroundImage
@@ -196,23 +196,23 @@ define(
       p = a("DB/DBManager");
     a("DB/Items/ItemType");
     var v = a("Core/Client"),
-      u = a("Core/Preferences");
+      t = a("Core/Preferences");
     a("Engine/SessionStorage");
-    var A = a("Controls/MouseEventHandler");
+    var z = a("Controls/MouseEventHandler");
     a("Controls/KeyEventHandler");
-    var D = a("Preferences/Controls"),
-      B = a("UI/UIManager"),
-      O = a("UI/UIComponent"),
-      C = a("UI/Components/ItemInfo/ItemInfo"),
-      y = a("UI/Components/InputBox/InputBox"),
-      z = a("UI/Components/ChatBox/ChatBox");
+    var E = a("Preferences/Controls"),
+      C = a("UI/UIManager"),
+      J = a("UI/UIComponent"),
+      A = a("UI/Components/ItemInfo/ItemInfo"),
+      B = a("UI/Components/InputBox/InputBox"),
+      F = a("UI/Components/ChatBox/ChatBox");
     a("UI/Components/Inventory/Inventory");
-    var J = a("UI/Components/OnPushCart/OnPushCart"),
-      I = a("text!./PlayerStore.html");
+    var O = a("UI/Components/OnPushCart/OnPushCart"),
+      M = a("text!./PlayerStore.html");
     a = a("text!./PlayerStore.css");
-    var L = new O("PlayerStore", I, a);
-    L.mouseMode = O.MouseMode.FREEZE;
-    var x = u.get(
+    var H = new J("PlayerStore", M, a);
+    H.mouseMode = J.MouseMode.FREEZE;
+    var x = t.get(
         "PlayerStore",
         {
           inputWindow: { x: 50, y: 210, height: 2 },
@@ -222,11 +222,11 @@ define(
         },
         1,
       ),
-      M = [],
-      E = [],
-      F,
-      G = 0;
-    L.init = function () {
+      I = [],
+      D = [],
+      L,
+      y = 0;
+    H.init = function () {
       var a = this.ui,
         b = a.find(".InputWindow"),
         c = a.find(".OutputWindow"),
@@ -248,9 +248,9 @@ define(
         .on("mouseover", ".item", k)
         .on("mouseout", ".item", g);
       a.find(".content")
-        .on("mousewheel DOMMouseScroll", t)
-        .on("contextmenu", ".icon", r)
-        .on("dblclick", ".item", q)
+        .on("mousewheel DOMMouseScroll", u)
+        .on("contextmenu", ".icon", q)
+        .on("dblclick", ".item", r)
         .on("dragstart", ".item", l)
         .on("dragend", ".item", function () {
           delete window._OBJ_DRAG_;
@@ -262,14 +262,14 @@ define(
           return !1;
         })
         .on("mousedown", function () {
-          L.focus();
+          H.focus();
         });
       this.draggable.call({ ui: b }, b.find(".titlebar"));
       this.draggable.call({ ui: c }, c.find(".titlebar"));
       this.draggable.call({ ui: d }, d.find(".titlebar"));
     };
-    L.onAppend = function () {
-      D.talk = !0;
+    H.onAppend = function () {
+      E.talk = !0;
       var a = this.ui.find(".InputWindow"),
         b = this.ui.find(".OutputWindow"),
         c = this.ui.find(".SaleWindow");
@@ -286,16 +286,16 @@ define(
       d(c.find(".content"), x.saleWindow.height);
       a = n._data(window, "events").keydown;
       a.unshift(a.pop());
-      L.setList(J.list);
+      H.setList(O.list);
     };
-    L.onRemove = function () {
-      D.talk = !1;
+    H.onRemove = function () {
+      E.talk = !1;
       var a = this.ui.find(".InputWindow"),
         b = this.ui.find(".OutputWindow"),
         c = this.ui.find(".SaleWindow");
-      G = 0;
-      M.length = 0;
-      E.length = 0;
+      y = 0;
+      I.length = 0;
+      D.length = 0;
       a.css({ top: "", left: "" });
       b.css({ top: "", left: "" });
       c.css({ top: "", left: "" });
@@ -303,9 +303,9 @@ define(
       a.show();
       b.show();
       c.hide();
-      L.onRemove2();
+      H.onRemove2();
     };
-    L.initList = function (a) {
+    H.initList = function (a) {
       var b, c;
       this.ui.find(".OutputWindow .content").empty();
       c = this.ui.find(".OutputWindow .content");
@@ -315,7 +315,7 @@ define(
           '\x3cdiv class\x3d"item" draggable\x3d"true" data-index\x3d""\x3e\x3cdiv class\x3d"icon"\x3e\x3c/div\x3e\x3cdiv class\x3d"amount"\x3e\x3c/div\x3e\x3cdiv class\x3d"name"\x3e\x3c/div\x3e\x3cdiv class\x3d"sale"\x3e\x3cspan\x3e\u552e\u4ef7:\x3c/span\x3e\x3cinput type\x3d"text" placeholder\x3d"0,000"/\x3e\x3c/div\x3e\x3c/div\x3e',
         );
     };
-    L.setList = function (a) {
+    H.setList = function (a) {
       var c, d, e, f;
       this.ui.find(".InputWindow .content").empty();
       f = this.ui.find(".InputWindow .content");
@@ -327,15 +327,15 @@ define(
           (e = n.extend({}, a[c])),
           (e.count = 0),
           b(f, a[c]),
-          (M[a[c].index] = a[c]),
-          (E[a[c].index] = e));
+          (I[a[c].index] = a[c]),
+          (D[a[c].index] = e));
     };
-    L.initSuss = function (a) {
+    H.initSuss = function (a) {
       var c,
         d,
         e,
         f = "";
-      L.ui || L.append();
+      H.ui || H.append();
       this.ui.find(".SaleWindow .content").empty();
       e = this.ui.find(".SaleWindow .content");
       n("#PlayerStore .SaleWindow .titlebar .text span").text(
@@ -357,61 +357,61 @@ define(
       this.ui.find(".InputWindow").hide();
       this.ui.find(".OutputWindow").hide();
       this.ui.find(".SaleWindow").show();
-      z.addText(
+      F.addText(
         "\x3d\x3d\x3d\x3d\x3d\x3d\x3d\x3d\x3d\x3d \u51fa\u552e\u5217\u8868 \x3d\x3d\x3d\x3d\x3d\x3d\x3d\x3d\x3d\x3d" +
           f,
-        z.TYPE.PRIVATE,
+        F.TYPE.PRIVATE,
       );
     };
-    L.submit = function () {
+    H.submit = function () {
       var a, b, c, d;
       d = n("#PlayerStore .OutputWindow .shopname input").val();
       a = [];
-      c = E.length;
+      c = D.length;
       for (b = 0; b < c; ++b)
-        E[b] &&
-          E[b].count &&
-          ((E[b].Price =
+        D[b] &&
+          D[b].count &&
+          ((D[b].Price =
             parseInt(
               n(
                 "#PlayerStore .OutputWindow .item[data-index\x3d" +
-                  E[b].index +
+                  D[b].index +
                   "]",
               )
                 .find(".sale input")
                 .val(),
             ) || 1e7),
-          a.push(E[b]));
-      L.onSubmit(a, d);
+          a.push(D[b]));
+      H.onSubmit(a, d);
     };
-    L.delitem2 = function (a) {
+    H.delitem2 = function (a) {
       var b = this.ui.find(
         ".SaleWindow .content .item[data-index\x3d" + a.index + "]:first",
       );
       a = b.find(".amount").text() - a.count;
       0 === a ? b.length && b.remove() : b.length && b.find(".amount").text(a);
     };
-    var H = (function () {
+    var G = (function () {
       var a = { ITID: 0, count: 0, Price: 0, index: 0 };
       return function (d, e, f, g, h) {
         if (f)
-          G > n("#PlayerStore .OutputWindow .item").length - 1 ||
-            ((E[g].count = Math.min(E[g].count + h, M[g].count)),
-            (a.ITID = M[g].ITID),
-            (a.count = M[g].count - E[g].count),
-            (a.IsIdentified = M[g].IsIdentified),
-            (a.index = M[g].index),
+          y > n("#PlayerStore .OutputWindow .item").length - 1 ||
+            ((D[g].count = Math.min(D[g].count + h, I[g].count)),
+            (a.ITID = I[g].ITID),
+            (a.count = I[g].count - D[g].count),
+            (a.IsIdentified = I[g].IsIdentified),
+            (a.index = I[g].index),
             c(d, a),
-            c(e, E[g]));
-        else if ((h = Math.min(h, E[g].count)))
-          ((E[g].count -= h),
-            (a.ITID = M[g].ITID),
-            (a.count = M[g].count - E[g].count),
-            (a.index = M[g].index),
-            (a.IsIdentified = M[g].IsIdentified),
-            (f = E[g]),
+            c(e, D[g]));
+        else if ((h = Math.min(h, D[g].count)))
+          ((D[g].count -= h),
+            (a.ITID = I[g].ITID),
+            (a.count = I[g].count - D[g].count),
+            (a.index = I[g].index),
+            (a.IsIdentified = I[g].IsIdentified),
+            (f = D[g]),
             (g = d.find(".item[data-index\x3d" + f.index + "]:first")),
-            G--,
+            y--,
             0 === f.count
               ? g.length &&
                 (g.remove(),
@@ -423,7 +423,7 @@ define(
             b(e, a));
       };
     })();
-    L.onSubmit = function () {};
-    return B.addComponent(L);
+    H.onSubmit = function () {};
+    return C.addComponent(H);
   },
 );

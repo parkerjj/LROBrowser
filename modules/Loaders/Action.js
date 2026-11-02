@@ -48,10 +48,10 @@ define("Loaders/Action", ["Utils/BinaryReader"], function (a) {
       b = Array(d),
       m,
       h = this.version,
-      r,
-      q;
-    for (r = 0; r < d; ++r)
-      ((m = b[r] =
+      q,
+      r;
+    for (q = 0; q < d; ++q)
+      ((m = b[q] =
         {
           pos: [a.readLong(), a.readLong()],
           index: a.readLong(),
@@ -74,13 +74,13 @@ define("Loaders/Action", ["Utils/BinaryReader"], function (a) {
           (m.spr_type = a.readLong()),
           2.5 <= h && ((m.width = a.readLong()), (m.height = a.readLong()))));
     m = 2 <= h ? a.readLong() : -1;
-    q = [];
+    r = [];
     if (2.3 <= h)
-      for (d = a.readLong(), q.length = d, r = 0; r < d; ++r)
+      for (d = a.readLong(), r.length = d, q = 0; q < d; ++q)
         (a.seek(4, SEEK_CUR),
-          (q[r] = { x: a.readLong(), y: a.readLong() }),
+          (r[q] = { x: a.readLong(), y: a.readLong() }),
           a.seek(4, SEEK_CUR));
-    return { layers: b, sound: m, pos: q };
+    return { layers: b, sound: m, pos: r };
   };
   b.prototype.compile = function () {
     return { actions: this.actions, sounds: this.sounds };

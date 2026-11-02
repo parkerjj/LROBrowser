@@ -9,7 +9,7 @@ define("Core/Thread", ["require", "Core/Configs"], function (a, b) {
     e = {},
     m = 0,
     h = [],
-    r = null;
+    q = null;
   return {
     send: (function () {
       var a = { type: "", data: null, uid: 0 };
@@ -19,7 +19,7 @@ define("Core/Thread", ["require", "Core/Configs"], function (a, b) {
         a.type = b;
         a.data = c;
         a.uid = g;
-        r.postMessage(a, h);
+        q.postMessage(a, h);
       };
     })(),
     hook: function (a, d) {
@@ -31,18 +31,18 @@ define("Core/Thread", ["require", "Core/Configs"], function (a, b) {
       "game" == d[0] &&
         "lastro" == d[1] &&
         "cn" == d[2] &&
-        (r ||
+        (q ||
           ((d = b.get("development")
             ? "./ThreadEventHandler.js"
             : "/ro/ThreadEventHandler.js"),
-          (r = new Worker(a.toUrl(d) + "?" + b.get("version", "")))),
-        r instanceof Worker
-          ? r.addEventListener("message", c, !1)
+          (q = new Worker(a.toUrl(d) + "?" + b.get("version", "")))),
+        q instanceof Worker
+          ? q.addEventListener("message", c, !1)
           : (window.addEventListener("message", c, !1),
-            r.postMessage({ type: "SYNC" }, h)));
+            q.postMessage({ type: "SYNC" }, h)));
     },
     delegate: function (a, d) {
-      r = a;
+      q = a;
       h = d;
     },
   };

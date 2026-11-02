@@ -9,7 +9,7 @@ define(
       return !1;
     }
     function c() {
-      q.ui.hide();
+      r.ui.hide();
     }
     var d = a("UI/UIManager"),
       e = a("UI/UIComponent"),
@@ -17,63 +17,63 @@ define(
     a("Renderer/Renderer");
     var h = a("text!./WinStats.html");
     a = a("text!./WinStats.css");
-    var r = m.get("WinStats", { x: 50, y: 200, show: !1, reduce: !1 }, 1),
-      q = new e("WinStats", h, a);
-    q.init = function () {
+    var q = m.get("WinStats", { x: 50, y: 200, show: !1, reduce: !1 }, 1),
+      r = new e("WinStats", h, a);
+    r.init = function () {
       this.statuspoint = 0;
       this.ui.find(".titlebar .base").mousedown(b);
       this.ui.find(".titlebar .mini").click(function () {
-        q.ui.find(".panel").toggle();
+        r.ui.find(".panel").toggle();
       });
       this.ui.find(".titlebar .close").click(c);
       this.ui.find(".up button").mousedown(function () {
         switch (this.className) {
           case "str":
-            q.onRequestUpdate(13, 1);
+            r.onRequestUpdate(13, 1);
             break;
           case "agi":
-            q.onRequestUpdate(14, 1);
+            r.onRequestUpdate(14, 1);
             break;
           case "vit":
-            q.onRequestUpdate(15, 1);
+            r.onRequestUpdate(15, 1);
             break;
           case "int":
-            q.onRequestUpdate(16, 1);
+            r.onRequestUpdate(16, 1);
             break;
           case "dex":
-            q.onRequestUpdate(17, 1);
+            r.onRequestUpdate(17, 1);
             break;
           case "luk":
-            q.onRequestUpdate(18, 1);
+            r.onRequestUpdate(18, 1);
         }
       });
       this.draggable(this.ui.find(".titlebar"));
     };
-    q.stack = [];
-    q.onAppend = function () {
+    r.stack = [];
+    r.onAppend = function () {
       var a, b;
-      r.show || this.ui.hide();
-      r.reduce && this.ui.find(".panel").hide();
+      q.show || this.ui.hide();
+      q.reduce && this.ui.find(".panel").hide();
       a = 0;
       for (b = this.stack.length; a < b; ++a)
         this.update.apply(this, this.stack[a]);
       this.stack.length = 0;
     };
-    q.onRemove = function () {
-      r.show = this.ui.is(":visible");
-      r.reduce = "none" === this.ui.find(".panel").css("display");
-      r.y = parseInt(this.ui.css("top"), 10);
-      r.x = parseInt(this.ui.css("left"), 10);
-      r.save();
+    r.onRemove = function () {
+      q.show = this.ui.is(":visible");
+      q.reduce = "none" === this.ui.find(".panel").css("display");
+      q.y = parseInt(this.ui.css("top"), 10);
+      q.x = parseInt(this.ui.css("left"), 10);
+      q.save();
     };
-    q.update = function (a, b) {
+    r.update = function (a, b) {
       var c;
       if (this.__loaded)
         switch (a) {
           case "statuspoint":
             this.statuspoint = b;
             this.ui.find(".requirements div").each(function () {
-              q.ui
+              r.ui
                 .find(".up ." + this.className)
                 .css("opacity", parseInt(this.textContent, 10) <= b ? 1 : 0);
             });
@@ -133,13 +133,13 @@ define(
         }
       else this.stack.push(arguments);
     };
-    q.onShortCut = function (a) {
+    r.onShortCut = function (a) {
       switch (a.cmd) {
         case "TOGGLE":
-          (q.ui.toggle(), q.focus());
+          (r.ui.toggle(), r.focus());
       }
     };
-    q.onRequestUpdate = function () {};
-    return d.addComponent(q);
+    r.onRequestUpdate = function () {};
+    return d.addComponent(r);
   },
 );

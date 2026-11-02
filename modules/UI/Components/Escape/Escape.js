@@ -11,20 +11,20 @@ define(
       g.ui && g.ui[0].parentNode ? g.remove() : g.append();
     }
     function d() {
-      t.ui && t.ui[0].parentNode ? t.remove() : t.append();
+      u.ui && u.ui[0].parentNode ? u.remove() : u.append();
     }
     var e = a("Core/Configs");
     a("Engine/SessionStorage");
     var m = a("Controls/KeyEventHandler"),
       h = a("Renderer/Renderer"),
-      r = a("UI/UIManager"),
-      q = a("UI/UIComponent"),
+      q = a("UI/UIManager"),
+      r = a("UI/UIComponent"),
       k = a("UI/Components/SoundOption/SoundOption"),
       g = a("UI/Components/GraphicsOption/GraphicsOption"),
-      t = a("UI/Components/ShortCutOption/ShortCutOption"),
+      u = a("UI/Components/ShortCutOption/ShortCutOption"),
       l = a("text!./Escape.html");
     a = a("text!./Escape.css");
-    var f = new q("Escape", l, a),
+    var f = new r("Escape", l, a),
       n = e.get("ClientVer");
     f.init = function () {
       this.draggable(this.ui.find(".top"));
@@ -90,6 +90,6 @@ define(
     f.onCharSelectionRequest = function () {};
     f.onBackhomeRequest = function () {};
     f.onSetofflineRequest = function () {};
-    return r.addComponent(f);
+    return q.addComponent(f);
   },
 );

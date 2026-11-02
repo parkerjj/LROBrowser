@@ -43,7 +43,7 @@ define("Utils/html2canvas", [], function () {
       };
     }
     var h = {},
-      r;
+      q;
     h.Util = {};
     h.Util.backgroundImage = function (a) {
       if (
@@ -88,8 +88,8 @@ define("Utils/html2canvas", [], function () {
       }
       var k;
       if (b.getComputedStyle)
-        (void 0 !== a && (r = c.defaultView.getComputedStyle(a, null)),
-          (k = r[e]),
+        (void 0 !== a && (q = c.defaultView.getComputedStyle(a, null)),
+          (k = q[e]),
           "backgroundPosition" === e
             ? ((k = (k.split(",")[0] || "0 0").split(" ")),
               (k[0] = -1 === k[0].indexOf("%") ? g(e + "X", k[0]) : k[0]),
@@ -146,14 +146,14 @@ define("Utils/html2canvas", [], function () {
         if (a.nodeName && "IFRAME" === a.nodeName.toUpperCase())
           c = a.contentDocument || a.contentWindow.document;
         else {
-          var t = a.childNodes;
+          var u = a.childNodes;
           a = [];
-          if (null !== t) {
+          if (null !== u) {
             var l = a.length,
               f = 0;
-            if ("number" === typeof t.length)
-              for (var n = t.length; f < n; f++) a[l++] = t[f];
-            else for (; t[f] !== d;) a[l++] = t[f++];
+            if ("number" === typeof u.length)
+              for (var n = u.length; f < n; f++) a[l++] = u[f];
+            else for (; u[f] !== d;) a[l++] = u[f++];
             a.length = l;
           }
           c = a;
@@ -181,8 +181,8 @@ define("Utils/html2canvas", [], function () {
           e,
           f = a.length,
           g,
-          k,
-          h;
+          p,
+          k;
         for (e = 0; e < f && !(g = b.match(a[e])); e += 1);
         if (g)
           switch (g[1]) {
@@ -222,18 +222,18 @@ define("Utils/html2canvas", [], function () {
                 ))
               )
                 for (
-                  f = b.length, k = 1 / Math.max(f - 1, 1), e = 0;
+                  f = b.length, p = 1 / Math.max(f - 1, 1), e = 0;
                   e < f;
                   e += 1
                 )
-                  ((h = b[e].match(
+                  ((k = b[e].match(
                     /((?:rgb|rgba)\(\d{1,3},\s\d{1,3},\s\d{1,3}(?:,\s[0-9\.]+)?\))\s*(\d{1,3})?(%|px)?/,
                   )),
-                    h[2]
-                      ? ((g = parseFloat(h[2])),
-                        (g = "%" === h[3] ? g / 100 : g / c.width))
-                      : (g = e * k),
-                    d.colorStops.push({ color: h[1], stop: g }));
+                    k[2]
+                      ? ((g = parseFloat(k[2])),
+                        (g = "%" === k[3] ? g / 100 : g / c.width))
+                      : (g = e * p),
+                    d.colorStops.push({ color: k[1], stop: g }));
               break;
             case "-webkit-gradient":
               d = {
@@ -259,13 +259,13 @@ define("Utils/html2canvas", [], function () {
                 ))
               )
                 for (f = b.length, e = 0; e < f; e += 1)
-                  ((h = b[e].match(
+                  ((k = b[e].match(
                     /(from|to|color-stop)\(([0-9\.]+)?(?:,\s)?((?:rgb|rgba)\(\d{1,3},\s\d{1,3},\s\d{1,3}(?:,\s[0-9\.]+)?\))\)/,
                   )),
-                    (g = parseFloat(h[2])),
-                    "from" === h[1] && (g = 0),
-                    "to" === h[1] && (g = 1),
-                    d.colorStops.push({ color: h[3], stop: g }));
+                    (g = parseFloat(k[2])),
+                    "from" === k[1] && (g = 0),
+                    "to" === k[1] && (g = 1),
+                    d.colorStops.push({ color: k[3], stop: g }));
               break;
             case "-moz-linear-gradient":
               d = {
@@ -287,17 +287,17 @@ define("Utils/html2canvas", [], function () {
                 ))
               )
                 for (
-                  f = b.length, k = 1 / Math.max(f - 1, 1), e = 0;
+                  f = b.length, p = 1 / Math.max(f - 1, 1), e = 0;
                   e < f;
                   e += 1
                 )
-                  ((h = b[e].match(
+                  ((k = b[e].match(
                     /((?:rgb|rgba)\(\d{1,3},\s\d{1,3},\s\d{1,3}(?:,\s[0-9\.]+)?\))\s*(\d{1,3})?(%)?/,
                   )),
-                    h[2]
-                      ? ((g = parseFloat(h[2])), h[3] && (g /= 100))
-                      : (g = e * k),
-                    d.colorStops.push({ color: h[1], stop: g }));
+                    k[2]
+                      ? ((g = parseFloat(k[2])), k[3] && (g /= 100))
+                      : (g = e * p),
+                    d.colorStops.push({ color: k[1], stop: g }));
               break;
             case "-webkit-radial-gradient":
             case "-moz-radial-gradient":
@@ -318,9 +318,9 @@ define("Utils/html2canvas", [], function () {
                 ((d.cx = (b[1] * c.width) / 100),
                   (d.cy = (b[2] * c.height) / 100));
               b = g[3].match(/\w+/);
-              h = g[4].match(/[a-z-]*/);
-              if (b && h)
-                switch (h[0]) {
+              k = g[4].match(/[a-z-]*/);
+              if (b && k)
+                switch (k[0]) {
                   case "farthest-corner":
                   case "cover":
                   case "":
@@ -329,8 +329,8 @@ define("Utils/html2canvas", [], function () {
                     f = Math.sqrt(
                       Math.pow(d.x1 - d.cx, 2) + Math.pow(d.y1 - d.cy, 2),
                     );
-                    h = Math.sqrt(Math.pow(d.x1 - d.cx, 2) + Math.pow(d.cy, 2));
-                    d.rx = d.ry = Math.max(e, b, f, h);
+                    k = Math.sqrt(Math.pow(d.x1 - d.cx, 2) + Math.pow(d.cy, 2));
+                    d.rx = d.ry = Math.max(e, b, f, k);
                     break;
                   case "closest-corner":
                     e = Math.sqrt(Math.pow(d.cx, 2) + Math.pow(d.cy, 2));
@@ -338,8 +338,8 @@ define("Utils/html2canvas", [], function () {
                     f = Math.sqrt(
                       Math.pow(d.x1 - d.cx, 2) + Math.pow(d.y1 - d.cy, 2),
                     );
-                    h = Math.sqrt(Math.pow(d.x1 - d.cx, 2) + Math.pow(d.cy, 2));
-                    d.rx = d.ry = Math.min(e, b, f, h);
+                    k = Math.sqrt(Math.pow(d.x1 - d.cx, 2) + Math.pow(d.cy, 2));
+                    d.rx = d.ry = Math.min(e, b, f, k);
                     break;
                   case "farthest-side":
                     "circle" === b[0]
@@ -364,18 +364,18 @@ define("Utils/html2canvas", [], function () {
                 ))
               )
                 for (
-                  f = b.length, k = 1 / Math.max(f - 1, 1), e = 0;
+                  f = b.length, p = 1 / Math.max(f - 1, 1), e = 0;
                   e < f;
                   e += 1
                 )
-                  ((h = b[e].match(
+                  ((k = b[e].match(
                     /((?:rgb|rgba)\(\d{1,3},\s\d{1,3},\s\d{1,3}(?:,\s[0-9\.]+)?\))\s*(\d{1,3})?(%|px)?/,
                   )),
-                    h[2]
-                      ? ((g = parseFloat(h[2])),
-                        (g = "%" === h[3] ? g / 100 : g / c.width))
-                      : (g = e * k),
-                    d.colorStops.push({ color: h[1], stop: g }));
+                    k[2]
+                      ? ((g = parseFloat(k[2])),
+                        (g = "%" === k[3] ? g / 100 : g / c.width))
+                      : (g = e * p),
+                    d.colorStops.push({ color: k[1], stop: g }));
           }
         return d;
       };
@@ -386,11 +386,11 @@ define("Utils/html2canvas", [], function () {
           n,
           k,
           m,
-          u;
+          t;
         d.width = b.width;
         d.height = b.height;
         f = h.Generate.parseGradient(a, b);
-        u = new Image();
+        t = new Image();
         if (f)
           if ("linear" === f.type) {
             n = g.createLinearGradient(f.x0, f.y0, f.x1, f.y1);
@@ -398,10 +398,10 @@ define("Utils/html2canvas", [], function () {
             for (m = f.colorStops.length; k < m; k += 1)
               try {
                 n.addColorStop(f.colorStops[k].stop, f.colorStops[k].color);
-              } catch (O) {
+              } catch (J) {
                 e([
                   "failed to add color stop: ",
-                  O,
+                  J,
                   "; tried to add: ",
                   f.colorStops[k],
                   "; stop: ",
@@ -412,17 +412,17 @@ define("Utils/html2canvas", [], function () {
               }
             g.fillStyle = n;
             g.fillRect(0, 0, b.width, b.height);
-            u.src = d.toDataURL();
+            t.src = d.toDataURL();
           } else if ("circle" === f.type) {
             n = g.createRadialGradient(f.cx, f.cy, 0, f.cx, f.cy, f.rx);
             k = 0;
             for (m = f.colorStops.length; k < m; k += 1)
               try {
                 n.addColorStop(f.colorStops[k].stop, f.colorStops[k].color);
-              } catch (O) {
+              } catch (J) {
                 e([
                   "failed to add color stop: ",
-                  O,
+                  J,
                   "; tried to add: ",
                   f.colorStops[k],
                   "; stop: ",
@@ -433,23 +433,23 @@ define("Utils/html2canvas", [], function () {
               }
             g.fillStyle = n;
             g.fillRect(0, 0, b.width, b.height);
-            u.src = d.toDataURL();
+            t.src = d.toDataURL();
           } else if ("ellipse" === f.type) {
             b = c.createElement("canvas");
-            var q = b.getContext("2d");
+            var r = b.getContext("2d");
             n = Math.max(f.rx, f.ry);
-            var r = 2 * n,
-              B;
-            b.width = b.height = r;
-            n = q.createRadialGradient(f.rx, f.ry, 0, f.rx, f.ry, n);
+            var q = 2 * n,
+              C;
+            b.width = b.height = q;
+            n = r.createRadialGradient(f.rx, f.ry, 0, f.rx, f.ry, n);
             k = 0;
             for (m = f.colorStops.length; k < m; k += 1)
               try {
                 n.addColorStop(f.colorStops[k].stop, f.colorStops[k].color);
-              } catch (O) {
+              } catch (J) {
                 e([
                   "failed to add color stop: ",
-                  O,
+                  J,
                   "; tried to add: ",
                   f.colorStops[k],
                   "; stop: ",
@@ -458,18 +458,18 @@ define("Utils/html2canvas", [], function () {
                   a,
                 ]);
               }
-            q.fillStyle = n;
-            q.fillRect(0, 0, r, r);
+            r.fillStyle = n;
+            r.fillRect(0, 0, q, q);
             g.fillStyle = f.colorStops[k - 1].color;
             g.fillRect(0, 0, d.width, d.height);
-            B = new Image();
-            B.onload = function () {
-              g.drawImage(B, f.cx - f.rx, f.cy - f.ry, 2 * f.rx, 2 * f.ry);
-              u.src = d.toDataURL();
+            C = new Image();
+            C.onload = function () {
+              g.drawImage(C, f.cx - f.rx, f.cy - f.ry, 2 * f.rx, 2 * f.ry);
+              t.src = d.toDataURL();
             };
-            B.src = b.toDataURL();
+            C.src = b.toDataURL();
           }
-        return u;
+        return t;
       };
       h.Generate.ListAlpha = function (a) {
         var b = "",
@@ -494,19 +494,19 @@ define("Utils/html2canvas", [], function () {
       function g() {
         return {
           width: Math.max(
-            Math.max(L.body.scrollWidth, L.documentElement.scrollWidth),
-            Math.max(L.body.offsetWidth, L.documentElement.offsetWidth),
-            Math.max(L.body.clientWidth, L.documentElement.clientWidth),
+            Math.max(H.body.scrollWidth, H.documentElement.scrollWidth),
+            Math.max(H.body.offsetWidth, H.documentElement.offsetWidth),
+            Math.max(H.body.clientWidth, H.documentElement.clientWidth),
           ),
           height: Math.max(
-            Math.max(L.body.scrollHeight, L.documentElement.scrollHeight),
-            Math.max(L.body.offsetHeight, L.documentElement.offsetHeight),
-            Math.max(L.body.clientHeight, L.documentElement.clientHeight),
+            Math.max(H.body.scrollHeight, H.documentElement.scrollHeight),
+            Math.max(H.body.offsetHeight, H.documentElement.offsetHeight),
+            Math.max(H.body.clientHeight, H.documentElement.clientHeight),
           ),
         };
       }
-      function t(a, b) {
-        a = parseInt(P(a, b), 10);
+      function u(a, b) {
+        a = parseInt(N(a, b), 10);
         return isNaN(a) ? 0 : a;
       }
       function l(a, b, c, d, f, e) {
@@ -532,34 +532,34 @@ define("Utils/html2canvas", [], function () {
       }
       function p(a, b, c) {
         c = c.ctx;
-        var e = P(a, "fontFamily"),
-          g = P(a, "fontSize"),
-          p = P(a, "color"),
-          t = P(a, "textDecoration"),
-          m = P(a, "textAlign"),
-          u = P(a, "letterSpacing"),
+        var e = N(a, "fontFamily"),
+          g = N(a, "fontSize"),
+          p = N(a, "color"),
+          u = N(a, "textDecoration"),
+          t = N(a, "textAlign"),
+          m = N(a, "letterSpacing"),
           v,
-          R,
-          q = P(a, "fontWeight"),
-          r = P(a, "fontStyle"),
-          B = P(a, "fontVariant"),
-          D = 0,
-          A;
-        b.nodeValue = f(b.nodeValue, P(a, "textTransform"));
+          r,
+          C = N(a, "fontWeight"),
+          q = N(a, "fontStyle"),
+          z = N(a, "fontVariant"),
+          E = 0,
+          V;
+        b.nodeValue = f(b.nodeValue, N(a, "textTransform"));
         if (0 < n(b.nodeValue).length) {
-          if ("none" !== t)
-            if (I[e + "-" + g] !== d) R = I[e + "-" + g];
+          if ("none" !== u)
+            if (M[e + "-" + g] !== d) r = M[e + "-" + g];
             else {
-              R = L.createElement("div");
-              a = L.createElement("img");
-              A = L.createElement("span");
+              r = H.createElement("div");
+              a = H.createElement("img");
+              V = H.createElement("span");
               var x;
-              R.style.visibility = "hidden";
-              R.style.fontFamily = e;
-              R.style.fontSize = g;
-              R.style.margin = 0;
-              R.style.padding = 0;
-              M.appendChild(R);
+              r.style.visibility = "hidden";
+              r.style.fontFamily = e;
+              r.style.fontSize = g;
+              r.style.margin = 0;
+              r.style.padding = 0;
+              I.appendChild(r);
               a.src =
                 "data:image/gif;base64,R0lGODlhAQABAIABAP///wAAACwAAAAAAQABAAACAkQBADs\x3d";
               a.width = 1;
@@ -567,83 +567,83 @@ define("Utils/html2canvas", [], function () {
               a.style.margin = 0;
               a.style.padding = 0;
               a.style.verticalAlign = "baseline";
-              A.style.fontFamily = e;
-              A.style.fontSize = g;
-              A.style.margin = 0;
-              A.style.padding = 0;
-              A.appendChild(L.createTextNode("Hidden Text"));
-              R.appendChild(A);
-              R.appendChild(a);
-              x = a.offsetTop - A.offsetTop + 1;
-              R.removeChild(A);
-              R.appendChild(L.createTextNode("Hidden Text"));
-              R.style.lineHeight = "normal";
+              V.style.fontFamily = e;
+              V.style.fontSize = g;
+              V.style.margin = 0;
+              V.style.padding = 0;
+              V.appendChild(H.createTextNode("Hidden Text"));
+              r.appendChild(V);
+              r.appendChild(a);
+              x = a.offsetTop - V.offsetTop + 1;
+              r.removeChild(V);
+              r.appendChild(H.createTextNode("Hidden Text"));
+              r.style.lineHeight = "normal";
               a.style.verticalAlign = "super";
               a = {
                 baseline: x,
                 lineWidth: 1,
-                middle: a.offsetTop - R.offsetTop + 1,
+                middle: a.offsetTop - r.offsetTop + 1,
               };
-              I[e + "-" + g] = a;
-              M.removeChild(R);
-              R = a;
+              M[e + "-" + g] = a;
+              I.removeChild(r);
+              r = a;
             }
-          m = m.replace(["-webkit-auto"], ["auto"]);
-          m =
+          t = t.replace(["-webkit-auto"], ["auto"]);
+          t =
             !1 === k.letterRendering &&
-            /^(left|right|justify|auto)$/.test(m) &&
-            /^(normal|none)$/.test(u)
+            /^(left|right|justify|auto)$/.test(t) &&
+            /^(normal|none)$/.test(m)
               ? b.nodeValue.split(/(\b| )/)
               : b.nodeValue.split("");
-          switch (parseInt(q, 10)) {
+          switch (parseInt(C, 10)) {
             case 401:
-              q = "bold";
+              C = "bold";
               break;
             case 400:
-              q = "normal";
+              C = "normal";
           }
           c.setVariable("fillStyle", p);
-          c.setVariable("font", r + " " + B + " " + q + " " + g + " " + e);
+          c.setVariable("font", q + " " + z + " " + C + " " + g + " " + e);
           c.setVariable("textAlign", "left");
           g = b;
-          q = 0;
-          for (e = m.length; q < e; q += 1) {
-            r = null;
-            if (z.rangeBounds) {
-              if ("none" !== t || 0 !== n(m[q]).length)
-                ((r = m[q]),
-                  L.createRange
-                    ? ((v = L.createRange()),
-                      v.setStart(b, D),
-                      v.setEnd(b, D + r.length))
-                    : (v = M.createTextRange()),
+          C = 0;
+          for (e = t.length; C < e; C += 1) {
+            q = null;
+            if (F.rangeBounds) {
+              if ("none" !== u || 0 !== n(t[C]).length)
+                ((q = t[C]),
+                  H.createRange
+                    ? ((v = H.createRange()),
+                      v.setStart(b, E),
+                      v.setEnd(b, E + q.length))
+                    : (v = I.createTextRange()),
                   (v = v.getBoundingClientRect()
                     ? v.getBoundingClientRect()
                     : {}));
             } else {
               if ("string" !== typeof g.nodeValue) continue;
-              B = g.splitText(m[q].length);
-              u = g.parentNode;
-              a = L.createElement("wrapper");
-              A = g.cloneNode(!0);
+              z = g.splitText(t[C].length);
+              m = g.parentNode;
+              a = H.createElement("wrapper");
+              V = g.cloneNode(!0);
               a.appendChild(g.cloneNode(!0));
-              u.replaceChild(a, g);
+              m.replaceChild(a, g);
               v = h.Util.Bounds(a);
-              r = g.nodeValue;
-              g = B;
-              u.replaceChild(A, a);
+              q = g.nodeValue;
+              g = z;
+              m.replaceChild(V, a);
             }
-            null !== r &&
-              ((B = v.left),
-              (u = v.bottom),
+            null !== q &&
+              ((z = v.left),
+              (m = v.bottom),
               (a = c),
-              0 < n(r).length && a.fillText(r, B, u));
-            switch (t) {
+              0 < n(q).length && a.fillText(q, z, m));
+            switch (u) {
               case "underline":
                 l(
                   c,
                   v.left,
-                  Math.round(v.top + R.baseline + R.lineWidth),
+                  Math.round(v.top + r.baseline + r.lineWidth),
                   v.width,
                   1,
                   p,
@@ -656,20 +656,20 @@ define("Utils/html2canvas", [], function () {
                 l(
                   c,
                   v.left,
-                  Math.ceil(v.top + R.middle + R.lineWidth),
+                  Math.ceil(v.top + r.middle + r.lineWidth),
                   v.width,
                   1,
                   p,
                 );
             }
-            D += m[q].length;
+            E += t[C].length;
           }
         }
       }
       function v(b) {
         return (b = a[b]) && !0 === b.succeeded ? b.img : !1;
       }
-      function u(a, b) {
+      function t(a, b) {
         var c = Math.max(a.left, b.left),
           d = Math.max(a.top, b.top);
         return {
@@ -679,7 +679,7 @@ define("Utils/html2canvas", [], function () {
           height: Math.min(a.top + a.height, b.top + b.height) - d,
         };
       }
-      function q(a, b, c, d) {
+      function r(a, b, c, d) {
         var f = c.left,
           e = c.top,
           g = c.width;
@@ -691,14 +691,14 @@ define("Utils/html2canvas", [], function () {
           h,
           m,
           v,
-          R = (function (a) {
+          r = (function (a) {
             var b = [],
               c = ["Top", "Right", "Bottom", "Left"],
               d;
             for (d = 0; 4 > d; d += 1)
               b.push({
-                width: t(a, "border" + c[d] + "Width"),
-                color: P(a, "border" + c[d] + "Color"),
+                width: u(a, "border" + c[d] + "Width"),
+                color: N(a, "border" + c[d] + "Color"),
               });
             return b;
           })(a);
@@ -706,52 +706,52 @@ define("Utils/html2canvas", [], function () {
           var b = [],
             c = ["TopLeft", "TopRight", "BottomRight", "BottomLeft"],
             d;
-          for (d = 0; 4 > d; d += 1) b.push(P(a, "border" + c[d] + "Radius"));
+          for (d = 0; 4 > d; d += 1) b.push(N(a, "border" + c[d] + "Radius"));
           return b;
         })(a);
         for (a = 0; 4 > a; a += 1)
-          if (((l = R[a]), (v = []), 0 < l.width)) {
+          if (((l = r[a]), (v = []), 0 < l.width)) {
             n = f;
             k = e;
             p = g;
-            h = c - R[2].width;
+            h = c - r[2].width;
             switch (a) {
               case 0:
-                h = R[0].width;
+                h = r[0].width;
                 m = 0;
                 v[m++] = ["line", n, k];
                 v[m++] = ["line", n + p, k];
-                v[m++] = ["line", n + p - R[1].width, k + h];
-                v[m++] = ["line", n + R[3].width, k + h];
+                v[m++] = ["line", n + p - r[1].width, k + h];
+                v[m++] = ["line", n + r[3].width, k + h];
                 break;
               case 1:
-                n = f + g - R[1].width;
-                p = R[1].width;
+                n = f + g - r[1].width;
+                p = r[1].width;
                 m = 0;
-                v[m++] = ["line", n, k + R[0].width];
+                v[m++] = ["line", n, k + r[0].width];
                 v[m++] = ["line", n + p, k];
-                v[m++] = ["line", n + p, k + h + R[2].width];
+                v[m++] = ["line", n + p, k + h + r[2].width];
                 v[m++] = ["line", n, k + h];
                 break;
               case 2:
-                k = k + c - R[2].width;
-                h = R[2].width;
+                k = k + c - r[2].width;
+                h = r[2].width;
                 m = 0;
-                v[m++] = ["line", n + R[3].width, k];
-                v[m++] = ["line", n + p - R[2].width, k];
+                v[m++] = ["line", n + r[3].width, k];
+                v[m++] = ["line", n + p - r[2].width, k];
                 v[m++] = ["line", n + p, k + h];
                 v[m++] = ["line", n, k + h];
                 break;
               case 3:
-                ((p = R[3].width),
+                ((p = r[3].width),
                   (m = 0),
                   (v[m++] = ["line", n, k]),
-                  (v[m++] = ["line", n + p, k + R[0].width]),
+                  (v[m++] = ["line", n + p, k + r[0].width]),
                   (v[m++] = ["line", n + p, k + h]),
-                  (v[m++] = ["line", n, k + h + R[2].width]));
+                  (v[m++] = ["line", n, k + h + r[2].width]));
             }
             m = { left: n, top: k, width: p, height: h };
-            d && (m = u(m, d));
+            d && (m = t(m, d));
             if (0 < m.width && 0 < m.height && "transparent" !== l.color)
               for (
                 b.setVariable("fillStyle", l.color),
@@ -766,10 +766,10 @@ define("Utils/html2canvas", [], function () {
                   v[m].slice(1),
                 );
           }
-        return R;
+        return r;
       }
-      function r(a, b, c) {
-        var d = L.createElement("valuewrap"),
+      function q(a, b, c) {
+        var d = H.createElement("valuewrap"),
           f =
             "lineHeight textAlign fontFamily color fontSize paddingLeft paddingTop width height border borderLeftWidth borderTopWidth".split(
               " ",
@@ -781,7 +781,7 @@ define("Utils/html2canvas", [], function () {
         for (l = f.length; g < l; g += 1) {
           n = f[g];
           try {
-            d.style[n] = P(a, n);
+            d.style[n] = N(a, n);
           } catch (fa) {
             e(
               "html2canvas: Parse: Exception caught in renderFormValue: " +
@@ -797,229 +797,229 @@ define("Utils/html2canvas", [], function () {
           /^(submit|reset|button|text|password)$/.test(a.type) ||
           "SELECT" === a.nodeName
         )
-          d.style.lineHeight = P(a, "height");
+          d.style.lineHeight = N(a, "height");
         d.style.top = b.top + "px";
         d.style.left = b.left + "px";
-        b = L.createTextNode(
+        b = H.createTextNode(
           "SELECT" === a.nodeName ? a.options[a.selectedIndex].text : a.value,
         );
         d.appendChild(b);
-        M.appendChild(d);
+        I.appendChild(d);
         p(a, b, c);
-        M.removeChild(d);
+        I.removeChild(d);
       }
-      function B(a, b, c, d, f, e, g, l) {
+      function C(a, b, c, d, f, e, g, l) {
         var n = 0,
           k = 0;
         0 < g - c && (n = g - c);
         0 < l - d && (k = l - d);
         a.drawImage(b, n, k, f - n, e - k, c + n, d + k, f - n, e - k);
       }
-      function O(a, b, c, d, f, e, g) {
+      function J(a, b, c, d, f, e, g) {
         g = Math.min(b.height, g);
         var l, n;
         c.left -= Math.ceil(c.left / b.width) * b.width;
         for (n = d + c.left; n < e + d;)
           ((l = Math.floor(n + b.width) > e + d ? e + d - n : b.width),
-            B(a, b, n, f + c.top, l, g, d, f),
+            C(a, b, n, f + c.top, l, g, d, f),
             (n = Math.floor(n + b.width)));
       }
-      function C(a, b) {
+      function A(a, b) {
         var c = h.Util.Bounds(a),
           d = c.left,
           f = c.top,
           p = c.width,
-          D = c.height,
-          A,
-          z = P(a, "backgroundColor"),
-          I = P(a, "position"),
-          y,
-          C = P(a, "opacity"),
-          E;
+          z = c.height,
+          E,
+          M = N(a, "backgroundColor"),
+          A = N(a, "position"),
+          B,
+          F = N(a, "opacity"),
+          y;
         b ? (K = {}) : ((K = g()), (b = { opacity: 1 }));
-        E = P(a, "zIndex");
-        (y = b.zIndex)
-          ? "auto" !== E &&
-            ((E = { zindex: E, children: [] }), y.children.push(E), (y = E))
-          : (y = E = { zindex: 0, children: [] });
-        E = {
-          ctx: m(K.width || p, K.height || D),
-          zIndex: y,
-          opacity: C * b.opacity,
-          cssPosition: I,
+        y = N(a, "zIndex");
+        (B = b.zIndex)
+          ? "auto" !== y &&
+            ((y = { zindex: y, children: [] }), B.children.push(y), (B = y))
+          : (B = y = { zindex: 0, children: [] });
+        y = {
+          ctx: m(K.width || p, K.height || z),
+          zIndex: B,
+          opacity: F * b.opacity,
+          cssPosition: A,
         };
-        b.clip && (E.clip = h.Util.Extend({}, b.clip));
+        b.clip && (y.clip = h.Util.Extend({}, b.clip));
         !0 === k.useOverflow &&
-          !0 === /(hidden|scroll|auto)/.test(P(a, "overflow")) &&
+          !0 === /(hidden|scroll|auto)/.test(N(a, "overflow")) &&
           !1 === /(BODY)/i.test(a.nodeName) &&
-          (E.clip = E.clip ? u(E.clip, c) : c);
-        b = y.children.push(E);
-        C = y.children[b - 1].ctx;
-        C.setVariable("globalAlpha", E.opacity);
-        I = q(a, C, c, !1);
-        E.borders = I;
+          (y.clip = y.clip ? t(y.clip, c) : c);
+        b = B.children.push(y);
+        F = B.children[b - 1].ctx;
+        F.setVariable("globalAlpha", y.opacity);
+        A = r(a, F, c, !1);
+        y.borders = A;
         x.test(a.nodeName) &&
           "transparent" !== k.iframeDefault &&
-          (z = "default" === k.iframeDefault ? "#efefef" : k.iframeDefault);
+          (M = "default" === k.iframeDefault ? "#efefef" : k.iframeDefault);
         p = {
-          left: d + I[3].width,
-          top: f + I[0].width,
-          width: p - (I[1].width + I[3].width),
-          height: D - (I[0].width + I[2].width),
+          left: d + A[3].width,
+          top: f + A[0].width,
+          width: p - (A[1].width + A[3].width),
+          height: z - (A[0].width + A[2].width),
         };
-        E.clip && (p = u(p, E.clip));
+        y.clip && (p = t(p, y.clip));
         if (0 < p.height && 0 < p.width) {
-          l(C, p.left, p.top, p.width, p.height, z);
-          var F = p,
-            S = P(a, "backgroundImage"),
-            J = P(a, "backgroundRepeat").split(",")[0],
-            M,
-            N,
-            G;
-          /data:image\/.*;base64,/i.test(S) ||
-            /^(-webkit|-moz|linear-gradient|-o-)/.test(S) ||
-            (S = S.split(",")[0]);
-          if ("undefined" !== typeof S && !1 === /^(1|none)$/.test(S))
+          l(F, p.left, p.top, p.width, p.height, M);
+          var D = p,
+            I = N(a, "backgroundImage"),
+            Q = N(a, "backgroundRepeat").split(",")[0],
+            O,
+            L,
+            W;
+          /data:image\/.*;base64,/i.test(I) ||
+            /^(-webkit|-moz|linear-gradient|-o-)/.test(I) ||
+            (I = I.split(",")[0]);
+          if ("undefined" !== typeof I && !1 === /^(1|none)$/.test(I))
             if (
-              ((S = h.Util.backgroundImage(S)),
-              (z = v(S)),
-              (D = h.Util.BackgroundPosition(a, F, z)),
-              z)
+              ((I = h.Util.backgroundImage(I)),
+              (M = v(I)),
+              (z = h.Util.BackgroundPosition(a, D, M)),
+              M)
             )
-              switch (J) {
+              switch (Q) {
                 case "repeat-x":
-                  O(C, z, D, F.left, F.top, F.width, F.height);
+                  J(F, M, z, D.left, D.top, D.width, D.height);
                   break;
                 case "repeat-y":
-                  S = F.left;
-                  J = F.top;
-                  M = F.height;
-                  N = Math.min(z.width, F.width);
-                  D.top -= Math.ceil(D.top / z.height) * z.height;
-                  for (G = J + D.top; G < M + J;)
-                    ((F =
-                      Math.floor(G + z.height) > M + J ? M + J - G : z.height),
-                      B(C, z, S + D.left, G, N, F, S, J),
-                      (G = Math.floor(G + z.height)));
+                  I = D.left;
+                  Q = D.top;
+                  O = D.height;
+                  L = Math.min(M.width, D.width);
+                  z.top -= Math.ceil(z.top / M.height) * M.height;
+                  for (W = Q + z.top; W < O + Q;)
+                    ((D =
+                      Math.floor(W + M.height) > O + Q ? O + Q - W : M.height),
+                      C(F, M, I + z.left, W, L, D, I, Q),
+                      (W = Math.floor(W + M.height)));
                   break;
                 case "no-repeat":
-                  S = F.width - D.left;
-                  G = F.height - D.top;
-                  J = D.left;
-                  M = D.top;
-                  N = D.left + F.left;
-                  D = D.top + F.top;
-                  0 > J
-                    ? ((J = Math.abs(J)),
-                      (N += J),
-                      (S = Math.min(F.width, z.width - J)))
-                    : ((S = Math.min(S, z.width)), (J = 0));
-                  0 > M
-                    ? ((M = Math.abs(M)),
-                      (D += M),
-                      (G = Math.min(F.height, z.height - M)))
-                    : ((G = Math.min(G, z.height)), (M = 0));
-                  0 < G && 0 < S && C.drawImage(z, J, M, S, G, N, D, S, G);
+                  I = D.width - z.left;
+                  W = D.height - z.top;
+                  Q = z.left;
+                  O = z.top;
+                  L = z.left + D.left;
+                  z = z.top + D.top;
+                  0 > Q
+                    ? ((Q = Math.abs(Q)),
+                      (L += Q),
+                      (I = Math.min(D.width, M.width - Q)))
+                    : ((I = Math.min(I, M.width)), (Q = 0));
+                  0 > O
+                    ? ((O = Math.abs(O)),
+                      (z += O),
+                      (W = Math.min(D.height, M.height - O)))
+                    : ((W = Math.min(W, M.height)), (O = 0));
+                  0 < W && 0 < I && F.drawImage(M, Q, O, I, W, L, z, I, W);
                   break;
                 default:
                   for (
-                    D.top -= Math.ceil(D.top / z.height) * z.height,
-                      S = F.top + D.top;
-                    S < F.height + F.top;
+                    z.top -= Math.ceil(z.top / M.height) * M.height,
+                      I = D.top + z.top;
+                    I < D.height + D.top;
                   )
-                    ((J = Math.min(z.height, F.height + F.top - S)),
-                      (J =
-                        Math.floor(S + z.height) > J + S
-                          ? J + S - S
-                          : z.height),
-                      S < F.top ? ((M = F.top - S), (S = F.top)) : (M = 0),
-                      O(C, z, D, F.left, S, F.width, J),
-                      0 < M && (D.top += M),
-                      (S = Math.floor(S + z.height) - M));
+                    ((Q = Math.min(M.height, D.height + D.top - I)),
+                      (Q =
+                        Math.floor(I + M.height) > Q + I
+                          ? Q + I - I
+                          : M.height),
+                      I < D.top ? ((O = D.top - I), (I = D.top)) : (O = 0),
+                      J(F, M, z, D.left, I, D.width, Q),
+                      0 < O && (z.top += O),
+                      (I = Math.floor(I + M.height) - O));
               }
-            else e("html2canvas: Error loading background:" + S);
+            else e("html2canvas: Error loading background:" + I);
         }
         switch (a.nodeName) {
           case "IMG":
-            E = a.getAttribute("src");
-            (A = v(E))
-              ? ((E = t(a, "paddingLeft")),
-                (p = t(a, "paddingTop")),
-                (z = t(a, "paddingRight")),
-                (D = t(a, "paddingBottom")),
-                C.drawImage(
-                  A,
+            y = a.getAttribute("src");
+            (E = v(y))
+              ? ((y = u(a, "paddingLeft")),
+                (p = u(a, "paddingTop")),
+                (M = u(a, "paddingRight")),
+                (z = u(a, "paddingBottom")),
+                F.drawImage(
+                  E,
                   0,
                   0,
-                  A.width,
-                  A.height,
-                  d + E + I[3].width,
-                  f + p + I[0].width,
-                  c.width - (I[1].width + I[3].width + E + z),
-                  c.height - (I[0].width + I[2].width + p + D),
+                  E.width,
+                  E.height,
+                  d + y + A[3].width,
+                  f + p + A[0].width,
+                  c.width - (A[1].width + A[3].width + y + M),
+                  c.height - (A[0].width + A[2].width + p + z),
                 ))
-              : e("html2canvas: Error loading \x3cimg\x3e:" + E);
+              : e("html2canvas: Error loading \x3cimg\x3e:" + y);
             break;
           case "INPUT":
             /^(text|url|email|submit|button|reset)$/.test(a.type) &&
               0 < a.value.length &&
-              r(a, c, E);
+              q(a, c, y);
             break;
           case "TEXTAREA":
-            0 < a.value.length && r(a, c, E);
+            0 < a.value.length && q(a, c, y);
             break;
           case "SELECT":
-            0 < a.options.length && r(a, c, E);
+            0 < a.options.length && q(a, c, y);
             break;
           case "LI":
             c = p;
-            d = P(a, "listStylePosition");
-            I = P(a, "listStyleType");
-            f = P(a, "fontWeight");
+            d = N(a, "listStylePosition");
+            A = N(a, "listStyleType");
+            f = N(a, "fontWeight");
             if (
               /^(decimal|decimal-leading-zero|upper-alpha|upper-latin|upper-roman|lower-alpha|lower-greek|lower-latin|lower-roman)$/i.test(
-                I,
+                A,
               )
             ) {
-              C = -1;
-              E = 1;
+              F = -1;
+              y = 1;
               p = a.parentNode.childNodes;
               if (a.parentNode) {
-                for (; p[++C] !== a;) 1 === p[C].nodeType && E++;
-                C = E;
-              } else C = -1;
-              switch (I) {
+                for (; p[++F] !== a;) 1 === p[F].nodeType && y++;
+                F = y;
+              } else F = -1;
+              switch (A) {
                 case "decimal":
-                  A = C;
+                  E = F;
                   break;
                 case "decimal-leading-zero":
-                  A =
-                    1 === C.toString().length
-                      ? "0" + C.toString()
-                      : C.toString();
+                  E =
+                    1 === F.toString().length
+                      ? "0" + F.toString()
+                      : F.toString();
                   break;
                 case "upper-roman":
-                  A = h.Generate.ListRoman(C);
+                  E = h.Generate.ListRoman(F);
                   break;
                 case "lower-roman":
-                  A = h.Generate.ListRoman(C).toLowerCase();
+                  E = h.Generate.ListRoman(F).toLowerCase();
                   break;
                 case "lower-alpha":
-                  A = h.Generate.ListAlpha(C).toLowerCase();
+                  E = h.Generate.ListAlpha(F).toLowerCase();
                   break;
                 case "upper-alpha":
-                  A = h.Generate.ListAlpha(C);
+                  E = h.Generate.ListAlpha(F);
               }
-              E = A += ". ";
-              I = L.createElement("boundelement");
-              I.style.display = "inline";
-              C = a.style.listStyleType;
+              y = E += ". ";
+              A = H.createElement("boundelement");
+              A.style.display = "inline";
+              F = a.style.listStyleType;
               a.style.listStyleType = "none";
-              I.appendChild(L.createTextNode(E));
-              a.insertBefore(I, a.firstChild);
-              E = h.Util.Bounds(I);
-              a.removeChild(I);
-              a.style.listStyleType = C;
+              A.appendChild(H.createTextNode(y));
+              a.insertBefore(A, a.firstChild);
+              y = h.Util.Bounds(A);
+              a.removeChild(A);
+              a.style.listStyleType = F;
               switch (f) {
                 case 401:
                   f = "bold";
@@ -1027,52 +1027,52 @@ define("Utils/html2canvas", [], function () {
                 case 400:
                   f = "normal";
               }
-              H.setVariable("fillStyle", P(a, "color"));
-              H.setVariable(
+              G.setVariable("fillStyle", N(a, "color"));
+              G.setVariable(
                 "font",
-                P(a, "fontVariant") +
+                N(a, "fontVariant") +
                   " " +
                   f +
                   " " +
-                  P(a, "fontStyle") +
+                  N(a, "fontStyle") +
                   " " +
-                  P(a, "fontSize") +
+                  N(a, "fontSize") +
                   " " +
-                  P(a, "fontFamily"),
+                  N(a, "fontFamily"),
               );
               "inside" === d &&
-                (H.setVariable("textAlign", "left"),
+                (G.setVariable("textAlign", "left"),
                 (a = c.left),
-                (c = E.bottom),
-                (d = H),
-                0 < n(A).length && d.fillText(A, a, c));
+                (c = y.bottom),
+                (d = G),
+                0 < n(E).length && d.fillText(E, a, c));
             }
             break;
           case "CANVAS":
-            ((E = t(a, "paddingLeft")),
-              (p = t(a, "paddingTop")),
-              (z = t(a, "paddingRight")),
-              (D = t(a, "paddingBottom")),
-              C.drawImage(
+            ((y = u(a, "paddingLeft")),
+              (p = u(a, "paddingTop")),
+              (M = u(a, "paddingRight")),
+              (z = u(a, "paddingBottom")),
+              F.drawImage(
                 a,
                 0,
                 0,
                 a.width,
                 a.height,
-                d + E + I[3].width,
-                f + p + I[0].width,
-                c.width - (I[1].width + I[3].width + E + z),
-                c.height - (I[0].width + I[2].width + p + D),
+                d + y + A[3].width,
+                f + p + A[0].width,
+                c.width - (A[1].width + A[3].width + y + M),
+                c.height - (A[0].width + A[2].width + p + z),
               ));
         }
-        return y.children[b - 1];
+        return B.children[b - 1];
       }
-      function y(a, b) {
+      function B(a, b) {
         if (
-          "none" !== P(a, "display") &&
-          "hidden" !== P(a, "visibility") &&
+          "none" !== N(a, "display") &&
+          "hidden" !== N(a, "visibility") &&
           !a.hasAttribute("data-html2canvas-ignore") &&
-          ((b = C(a, b) || b), (H = b.ctx), !x.test(a.nodeName))
+          ((b = A(a, b) || b), (G = b.ctx), !x.test(a.nodeName))
         ) {
           var c = h.Util.Children(a),
             d,
@@ -1081,11 +1081,11 @@ define("Utils/html2canvas", [], function () {
           d = 0;
           for (e = c.length; d < e; d += 1)
             ((f = c[d]),
-              1 === f.nodeType ? y(f, b) : 3 === f.nodeType && p(a, f, b));
+              1 === f.nodeType ? B(f, b) : 3 === f.nodeType && p(a, f, b));
         }
       }
       b.scroll(0, 0);
-      var z = {
+      var F = {
           rangeBounds: !1,
           svgRendering:
             k.svgRendering &&
@@ -1099,39 +1099,39 @@ define("Utils/html2canvas", [], function () {
                 "data:image/svg+xml,\x3csvg xmlns\x3d'http://www.w3.org/2000/svg' width\x3d'10' height\x3d'10'\x3e\x3cforeignObject width\x3d'10' height\x3d'10'\x3e\x3cdiv xmlns\x3d'http://www.w3.org/1999/xhtml' style\x3d'width:10;height:10;'\x3esup\x3c/div\x3e\x3c/foreignObject\x3e\x3c/svg\x3e";
               try {
                 (f.drawImage(a, 0, 0), b.toDataURL());
-              } catch (ea) {
+              } catch (ba) {
                 return !1;
               }
               e("html2canvas: Parse: SVG powered rendering available");
               return !0;
             })(),
         },
-        J = k.elements === d ? c.body : k.elements[0],
-        I = {},
-        L = J.ownerDocument,
+        O = k.elements === d ? c.body : k.elements[0],
+        M = {},
+        H = O.ownerDocument,
         x = new RegExp("(" + k.ignoreElements + ")"),
-        M = L.body,
-        E,
-        F,
+        I = H.body,
+        D,
+        L,
+        y,
         G,
-        H,
         K;
       a = a || {};
-      L.createRange &&
-        ((E = L.createRange()),
-        E.getBoundingClientRect &&
-          ((F = L.createElement("boundtest")),
-          (F.style.height = "123px"),
-          (F.style.display = "block"),
-          M.appendChild(F),
-          E.selectNode(F),
-          (E = E.getBoundingClientRect()),
-          (E = E.height),
-          123 === E && (z.rangeBounds = !0),
-          M.removeChild(F)));
-      var P = h.Util.getCSS;
-      G = C(J, null);
-      z.svgRendering &&
+      H.createRange &&
+        ((D = H.createRange()),
+        D.getBoundingClientRect &&
+          ((L = H.createElement("boundtest")),
+          (L.style.height = "123px"),
+          (L.style.display = "block"),
+          I.appendChild(L),
+          D.selectNode(L),
+          (D = D.getBoundingClientRect()),
+          (D = D.height),
+          123 === D && (F.rangeBounds = !0),
+          I.removeChild(L)));
+      var N = h.Util.getCSS;
+      y = A(O, null);
+      F.svgRendering &&
         (function (a) {
           function b(a) {
             a = h.Util.Children(a);
@@ -1180,14 +1180,14 @@ define("Utils/html2canvas", [], function () {
             "\x3c/html\x3e\x3c/foreignObject\x3e\x3c/svg\x3e",
           ].join("");
           c.onload = function () {
-            G.svgRender = c;
+            y.svgRender = c;
           };
         })(c.documentElement);
-      F = 0;
-      J = J.children;
-      for (E = J.length; F < E; F += 1) y(J[F], G);
-      G.backgroundColor = P(c.documentElement, "backgroundColor");
-      return G;
+      L = 0;
+      O = O.children;
+      for (D = O.length; L < D; L += 1) B(O[L], y);
+      y.backgroundColor = N(c.documentElement, "backgroundColor");
+      return y;
     };
     h.Preload = function (a) {
       function k() {
@@ -1215,13 +1215,13 @@ define("Utils/html2canvas", [], function () {
         var n,
           p = a.proxy,
           h;
-        O.href = c;
-        c = O.href;
-        n = "html2canvas_" + u++;
+        J.href = c;
+        c = J.href;
+        n = "html2canvas_" + t++;
         g.callbackname = n;
         p = -1 < p.indexOf("?") ? p + "\x26" : p + "?";
         p += "url\x3d" + encodeURIComponent(c) + "\x26callback\x3d" + n;
-        h = q.createElement("script");
+        h = r.createElement("script");
         b[n] = function (a) {
           "error:" === a.substring(0, 6)
             ? ((g.succeeded = !1), f.numLoaded++, f.numFailed++, k())
@@ -1229,7 +1229,7 @@ define("Utils/html2canvas", [], function () {
           b[n] = d;
           try {
             delete b[n];
-          } catch (F) {}
+          } catch (L) {}
           h.parentNode.removeChild(h);
           h = null;
           delete g.script;
@@ -1240,31 +1240,31 @@ define("Utils/html2canvas", [], function () {
         g.script = h;
         b.document.body.appendChild(h);
       }
-      function t(a) {
+      function u(a) {
         var b = h.Util.Children(a),
           c,
           g,
           l = !1;
         try {
           var n = b.length;
-          for (c = 0; c < n; c += 1) t(b[c]);
-        } catch (E) {}
+          for (c = 0; c < n; c += 1) u(b[c]);
+        } catch (D) {}
         try {
           l = a.nodeType;
-        } catch (E) {
+        } catch (D) {
           ((l = !1),
             e(
               "html2canvas: failed to access some element's nodeType - Exception: " +
-                E.message,
+                D.message,
             ));
         }
         if (1 === l || l === d) {
           try {
             g = h.Util.getCSS(a, "backgroundImage");
-          } catch (E) {
+          } catch (D) {
             e(
               "html2canvas: failed to get background-image - Exception: " +
-                E.message,
+                D.message,
             );
           }
           g &&
@@ -1314,16 +1314,16 @@ define("Utils/html2canvas", [], function () {
         n,
         p,
         m,
-        u = 0;
+        t = 0;
       m = a.elements[0] || c.body;
-      var q = m.ownerDocument,
-        r = q.images,
-        B = r.length,
-        O = q.createElement("a"),
-        C = new Image().crossOrigin !== d,
-        y;
-      O.href = b.location.href;
-      n = O.protocol + O.host;
+      var r = m.ownerDocument,
+        q = r.images,
+        C = q.length,
+        J = r.createElement("a"),
+        A = new Image().crossOrigin !== d,
+        B;
+      J.href = b.location.href;
+      n = J.protocol + J.host;
       p = {
         loadImage: function (c) {
           var e, k;
@@ -1335,14 +1335,14 @@ define("Utils/html2canvas", [], function () {
                 (k = f[c] = { img: e }),
                 f.numTotal++,
                 l(e, k))
-              : ((O.href = c),
-                (O.href = O.href),
-                O.protocol + O.host === n || !0 === a.allowTaint
+              : ((J.href = c),
+                (J.href = J.href),
+                J.protocol + J.host === n || !0 === a.allowTaint
                   ? ((k = f[c] = { img: e }),
                     f.numTotal++,
                     l(e, k),
                     (e.src = c))
-                  : C && !a.allowTaint && a.useCORS
+                  : A && !a.allowTaint && a.useCORS
                     ? ((e.crossOrigin = "anonymous"),
                       (k = f[c] = { img: e }),
                       f.numTotal++,
@@ -1375,7 +1375,7 @@ define("Utils/html2canvas", [], function () {
                 b[l.callbackname] = d;
                 try {
                   delete b[l.callbackname];
-                } catch (L) {}
+                } catch (H) {}
                 l.script &&
                   l.script.parentNode &&
                   (l.script.setAttribute("src", "about:blank"),
@@ -1400,15 +1400,15 @@ define("Utils/html2canvas", [], function () {
           }
         },
         renderingDone: function () {
-          y && b.clearTimeout(y);
+          B && b.clearTimeout(B);
         },
       };
-      0 < a.timeout && (y = b.setTimeout(p.cleanupDOM, a.timeout));
+      0 < a.timeout && (B = b.setTimeout(p.cleanupDOM, a.timeout));
       e("html2canvas: Preload starts: finding background-images");
       f.firstRun = !0;
-      t(m);
+      u(m);
       e("html2canvas: Preload: Finding images");
-      for (m = 0; m < B; m += 1) p.loadImage(r[m].getAttribute("src"));
+      for (m = 0; m < C; m += 1) p.loadImage(q[m].getAttribute("src"));
       f.firstRun = !1;
       e("html2canvas: Preload: Done.");
       f.numTotal === f.numLoaded && k();
@@ -1536,92 +1536,92 @@ define("Utils/html2canvas", [], function () {
         c.body.appendChild(n);
       }
       return (f = {
-        _create: function (a, b, f, n, t) {
+        _create: function (a, b, f, n, u) {
           if (!l) return ((h = arguments), k);
           var p = k.getContext("2d"),
+            t,
             m,
-            u,
             v,
-            q,
             r,
-            D,
-            A = c.createElement("canvas");
-          r = A.getContext !== d;
+            q,
+            z,
+            E = c.createElement("canvas");
+          q = E.getContext !== d;
           var x,
-            M,
-            A = r ? A.getContext("2d") : {};
-          D = [];
+            I,
+            E = q ? E.getContext("2d") : {};
+          z = [];
           k.width = k.style.width = g
             ? Math.min(2880, b.width || a.ctx.width)
             : b.width || a.ctx.width;
           k.height = k.style.height = g
             ? Math.min(2880, b.height || a.ctx.height)
             : b.height || a.ctx.height;
-          m = p.fillStyle;
+          t = p.fillStyle;
           p.fillStyle = a.backgroundColor;
           p.fillRect(0, 0, k.width, k.height);
-          p.fillStyle = m;
+          p.fillStyle = t;
           if (b.svgRendering && a.svgRender !== d)
             p.drawImage(a.svgRender, 0, 0);
           else
-            for (u = 0, v = n.length; u < v; u += 1) {
-              m = n.splice(0, 1)[0];
-              m.canvasPosition = m.canvasPosition || {};
+            for (m = 0, v = n.length; m < v; m += 1) {
+              t = n.splice(0, 1)[0];
+              t.canvasPosition = t.canvasPosition || {};
               p.textBaseline = "bottom";
-              m.clip &&
+              t.clip &&
                 (p.save(),
                 p.beginPath(),
-                p.rect(m.clip.left, m.clip.top, m.clip.width, m.clip.height),
+                p.rect(t.clip.left, t.clip.top, t.clip.width, t.clip.height),
                 p.clip());
-              if (m.ctx.storage)
-                for (q = 0, x = m.ctx.storage.length; q < x; q += 1)
-                  switch (((M = m.ctx.storage[q]), M.type)) {
+              if (t.ctx.storage)
+                for (r = 0, x = t.ctx.storage.length; r < x; r += 1)
+                  switch (((I = t.ctx.storage[r]), I.type)) {
                     case "variable":
-                      p[M.name] = M.arguments;
+                      p[I.name] = I.arguments;
                       break;
                     case "function":
-                      if ("fillRect" === M.name)
+                      if ("fillRect" === I.name)
                         (!g ||
-                          (2880 > M.arguments[0] + M.arguments[2] &&
-                            2880 > M.arguments[1] + M.arguments[3])) &&
-                          p.fillRect.apply(p, M.arguments);
-                      else if ("drawShape" === M.name) {
-                        M = M.arguments;
-                        var E,
-                          F = M.length;
+                          (2880 > I.arguments[0] + I.arguments[2] &&
+                            2880 > I.arguments[1] + I.arguments[3])) &&
+                          p.fillRect.apply(p, I.arguments);
+                      else if ("drawShape" === I.name) {
+                        I = I.arguments;
+                        var D,
+                          L = I.length;
                         p.beginPath();
-                        for (E = 0; E < F; E++)
-                          p[M[E].name].apply(p, M[E].arguments);
+                        for (D = 0; D < L; D++)
+                          p[I[D].name].apply(p, I[D].arguments);
                         p.closePath();
                         p.fill();
-                      } else if ("fillText" === M.name)
+                      } else if ("fillText" === I.name)
                         (!g ||
-                          (2880 > M.arguments[1] && 2880 > M.arguments[2])) &&
-                          p.fillText.apply(p, M.arguments);
+                          (2880 > I.arguments[1] && 2880 > I.arguments[2])) &&
+                          p.fillText.apply(p, I.arguments);
                       else if (
-                        "drawImage" === M.name &&
-                        0 < M.arguments[8] &&
-                        M.arguments[7]
+                        "drawImage" === I.name &&
+                        0 < I.arguments[8] &&
+                        I.arguments[7]
                       ) {
                         if (
-                          r &&
+                          q &&
                           b.taintTest &&
-                          -1 === D.indexOf(M.arguments[0].src)
+                          -1 === z.indexOf(I.arguments[0].src)
                         ) {
-                          A.drawImage(M.arguments[0], 0, 0);
+                          E.drawImage(I.arguments[0], 0, 0);
                           try {
-                            A.getImageData(0, 0, 1, 1);
-                          } catch (G) {
-                            A = f.createElement("canvas");
-                            A = A.getContext("2d");
+                            E.getImageData(0, 0, 1, 1);
+                          } catch (y) {
+                            E = f.createElement("canvas");
+                            E = E.getContext("2d");
                             continue;
                           }
-                          D.push(M.arguments[0].src);
+                          z.push(I.arguments[0].src);
                         }
-                        p.drawImage.apply(p, M.arguments);
+                        p.drawImage.apply(p, I.arguments);
                       }
                   }
-              m.clip && p.restore();
+              t.clip && p.restore();
             }
           e(
             "html2canvas: Renderer: Canvas renderer done - returning canvas obj",
@@ -1631,24 +1631,24 @@ define("Utils/html2canvas", [], function () {
             "object" === typeof b.elements[0] &&
             "BODY" !== b.elements[0].nodeName &&
             !1 === g
-            ? ((D = t.Util.Bounds(b.elements[0])),
-              (r = f.createElement("canvas")),
-              (r.width = D.width),
-              (r.height = D.height),
-              (p = r.getContext("2d")),
+            ? ((z = u.Util.Bounds(b.elements[0])),
+              (q = f.createElement("canvas")),
+              (q.width = z.width),
+              (q.height = z.height),
+              (p = q.getContext("2d")),
               p.drawImage(
                 k,
-                D.left,
-                D.top,
-                D.width,
-                D.height,
+                z.left,
+                z.top,
+                z.width,
+                z.height,
                 0,
                 0,
-                D.width,
-                D.height,
+                z.width,
+                z.height,
               ),
               (k = null),
-              r)
+              q)
             : k;
         },
       });
@@ -1662,13 +1662,13 @@ define("Utils/html2canvas", [], function () {
         n,
         p,
         m,
-        u,
-        q = {},
-        r,
-        B,
-        O = 0;
+        t,
+        r = {},
+        q,
+        C,
+        J = 0;
       return {
-        _create: function (a, c, g, k, t) {
+        _create: function (a, c, g, k, u) {
           b.setAttribute("version", "1.1");
           b.setAttribute("baseProfile", "full");
           b.setAttribute(
@@ -1692,77 +1692,77 @@ define("Utils/html2canvas", [], function () {
               for (l = 0, n = p.ctx.storage.length; l < n; l += 1)
                 switch (((m = p.ctx.storage[l]), m.type)) {
                   case "variable":
-                    q[m.name] = m.arguments;
+                    r[m.name] = m.arguments;
                     break;
                   case "function":
                     "fillRect" === m.name
-                      ? ((u = g.createElementNS(
+                      ? ((t = g.createElementNS(
                           "http://www.w3.org/2000/svg",
                           "rect",
                         )),
-                        u.setAttribute("x", m.arguments[0]),
-                        u.setAttribute("y", m.arguments[1]),
-                        u.setAttribute("width", m.arguments[2]),
-                        u.setAttribute("height", m.arguments[3]),
-                        u.setAttribute("fill", q.fillStyle),
-                        b.appendChild(u))
+                        t.setAttribute("x", m.arguments[0]),
+                        t.setAttribute("y", m.arguments[1]),
+                        t.setAttribute("width", m.arguments[2]),
+                        t.setAttribute("height", m.arguments[3]),
+                        t.setAttribute("fill", r.fillStyle),
+                        b.appendChild(t))
                       : "fillText" === m.name
-                        ? ((u = g.createElementNS(
+                        ? ((t = g.createElementNS(
                             "http://www.w3.org/2000/svg",
                             "text",
                           )),
-                          (B = q.font.split(" ")),
-                          (u.style.fontVariant = B.splice(0, 1)[0]),
-                          (u.style.fontWeight = B.splice(0, 1)[0]),
-                          (u.style.fontStyle = B.splice(0, 1)[0]),
-                          (u.style.fontSize = B.splice(0, 1)[0]),
-                          u.setAttribute("x", m.arguments[1]),
-                          u.setAttribute(
+                          (C = r.font.split(" ")),
+                          (t.style.fontVariant = C.splice(0, 1)[0]),
+                          (t.style.fontWeight = C.splice(0, 1)[0]),
+                          (t.style.fontStyle = C.splice(0, 1)[0]),
+                          (t.style.fontSize = C.splice(0, 1)[0]),
+                          t.setAttribute("x", m.arguments[1]),
+                          t.setAttribute(
                             "y",
                             m.arguments[2] -
-                              (parseInt(u.style.fontSize, 10) + 3),
+                              (parseInt(t.style.fontSize, 10) + 3),
                           ),
-                          u.setAttribute("fill", q.fillStyle),
-                          (u.style.dominantBaseline = "text-before-edge"),
-                          (u.style.fontFamily = B.join(" ")),
-                          (r = g.createTextNode(m.arguments[0])),
-                          u.appendChild(r),
-                          b.appendChild(u))
+                          t.setAttribute("fill", r.fillStyle),
+                          (t.style.dominantBaseline = "text-before-edge"),
+                          (t.style.fontFamily = C.join(" ")),
+                          (q = g.createTextNode(m.arguments[0])),
+                          t.appendChild(q),
+                          b.appendChild(t))
                         : "drawImage" === m.name &&
                           0 < m.arguments[8] &&
                           m.arguments[7] &&
-                          ((u = g.createElementNS(
+                          ((t = g.createElementNS(
                             "http://www.w3.org/2000/svg",
                             "clipPath",
                           )),
-                          u.setAttribute("id", "clipId" + O),
-                          (r = g.createElementNS(
+                          t.setAttribute("id", "clipId" + J),
+                          (q = g.createElementNS(
                             "http://www.w3.org/2000/svg",
                             "rect",
                           )),
-                          r.setAttribute("x", m.arguments[5]),
-                          r.setAttribute("y", m.arguments[6]),
-                          r.setAttribute("width", m.arguments[3]),
-                          r.setAttribute("height", m.arguments[4]),
-                          u.appendChild(r),
-                          d.appendChild(u),
-                          (u = g.createElementNS(
+                          q.setAttribute("x", m.arguments[5]),
+                          q.setAttribute("y", m.arguments[6]),
+                          q.setAttribute("width", m.arguments[3]),
+                          q.setAttribute("height", m.arguments[4]),
+                          t.appendChild(q),
+                          d.appendChild(t),
+                          (t = g.createElementNS(
                             "http://www.w3.org/2000/svg",
                             "image",
                           )),
-                          u.setAttributeNS(
+                          t.setAttributeNS(
                             "http://www.w3.org/1999/xlink",
                             "xlink:href",
                             m.arguments[0].src,
                           ),
-                          u.setAttribute("width", m.arguments[7]),
-                          u.setAttribute("height", m.arguments[8]),
-                          u.setAttribute("x", m.arguments[5]),
-                          u.setAttribute("y", m.arguments[6]),
-                          u.setAttribute("clip-path", "url(#clipId" + O + ")"),
-                          u.setAttribute("preserveAspectRatio", "none"),
-                          b.appendChild(u),
-                          (O += 1));
+                          t.setAttribute("width", m.arguments[7]),
+                          t.setAttribute("height", m.arguments[8]),
+                          t.setAttribute("x", m.arguments[5]),
+                          t.setAttribute("y", m.arguments[6]),
+                          t.setAttribute("clip-path", "url(#clipId" + J + ")"),
+                          t.setAttribute("preserveAspectRatio", "none"),
+                          b.appendChild(t),
+                          (J += 1));
                 }
           e("html2canvas: Renderer: SVG Renderer done - returning SVG DOM obj");
           return b;

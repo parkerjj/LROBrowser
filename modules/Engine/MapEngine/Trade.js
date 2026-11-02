@@ -17,7 +17,7 @@ define(
         return function () {
           var b = new l.CZ.ACK_EXCHANGE_ITEM();
           b.result = a;
-          t.sendPacket(b);
+          u.sendPacket(b);
         };
       }
       var d = "(" + a.name + ") " + g.getMessage(93);
@@ -81,11 +81,11 @@ define(
       b.options = a.options;
       f.addItem(b);
     }
-    function r(a) {
+    function q(a) {
       n.addText(g.getMessage(74), n.TYPE.ERROR);
       f.remove();
     }
-    function q(a) {
+    function r(a) {
       f.conclude(a.who ? "recv" : "send");
     }
     function k(a) {
@@ -95,7 +95,7 @@ define(
       f.remove();
     }
     var g = a("DB/DBManager"),
-      t = a("Network/NetworkManager"),
+      u = a("Network/NetworkManager"),
       l = a("Network/PacketStructure"),
       f = a("UI/Components/Trade/Trade"),
       n = a("UI/Components/ChatBox/ChatBox"),
@@ -104,39 +104,39 @@ define(
       var c = new l.CZ.ADD_EXCHANGE_ITEM();
       c.index = a;
       c.count = b;
-      t.sendPacket(c);
+      u.sendPacket(c);
     };
     f.onCancel = function () {
       var a = new l.CZ.CANCEL_EXCHANGE_ITEM();
-      t.sendPacket(a);
+      u.sendPacket(a);
     };
     f.onConclude = function () {
       var a = new l.CZ.CONCLUDE_EXCHANGE_ITEM();
-      t.sendPacket(a);
+      u.sendPacket(a);
     };
     f.onTradeSubmit = function () {
       var a = new l.CZ.EXEC_EXCHANGE_ITEM();
-      t.sendPacket(a);
+      u.sendPacket(a);
     };
     f.reqExchange = function (a, b) {
       var c = new l.CZ.REQ_EXCHANGE_ITEM();
       c.AID = a;
-      t.sendPacket(c);
+      u.sendPacket(c);
       f.title = b;
     };
     return function () {
-      t.hookPacket(l.ZC.REQ_EXCHANGE_ITEM, c);
-      t.hookPacket(l.ZC.REQ_EXCHANGE_ITEM2, c);
-      t.hookPacket(l.ZC.ACK_EXCHANGE_ITEM, d);
-      t.hookPacket(l.ZC.ACK_EXCHANGE_ITEM2, d);
-      t.hookPacket(l.ZC.ACK_ADD_EXCHANGE_ITEM, e);
-      t.hookPacket(l.ZC.ADD_EXCHANGE_ITEM, h);
-      t.hookPacket(l.ZC.ADD_EXCHANGE_ITEM2, h);
-      t.hookPacket(l.ZC.ADD_EXCHANGE_ITEM3, h);
-      t.hookPacket(l.ZC.ADD_EXCHANGE_ITEM4, h);
-      t.hookPacket(l.ZC.CANCEL_EXCHANGE_ITEM, r);
-      t.hookPacket(l.ZC.CONCLUDE_EXCHANGE_ITEM, q);
-      t.hookPacket(l.ZC.EXEC_EXCHANGE_ITEM, k);
+      u.hookPacket(l.ZC.REQ_EXCHANGE_ITEM, c);
+      u.hookPacket(l.ZC.REQ_EXCHANGE_ITEM2, c);
+      u.hookPacket(l.ZC.ACK_EXCHANGE_ITEM, d);
+      u.hookPacket(l.ZC.ACK_EXCHANGE_ITEM2, d);
+      u.hookPacket(l.ZC.ACK_ADD_EXCHANGE_ITEM, e);
+      u.hookPacket(l.ZC.ADD_EXCHANGE_ITEM, h);
+      u.hookPacket(l.ZC.ADD_EXCHANGE_ITEM2, h);
+      u.hookPacket(l.ZC.ADD_EXCHANGE_ITEM3, h);
+      u.hookPacket(l.ZC.ADD_EXCHANGE_ITEM4, h);
+      u.hookPacket(l.ZC.CANCEL_EXCHANGE_ITEM, q);
+      u.hookPacket(l.ZC.CONCLUDE_EXCHANGE_ITEM, r);
+      u.hookPacket(l.ZC.EXEC_EXCHANGE_ITEM, k);
     };
   },
 );

@@ -14,13 +14,13 @@ define(
           f.members = [p.Entity.display.name];
           f.owner = p.Entity.display.name;
           f.append();
-          n.addText(q.getMessage(64), n.TYPE.BLUE);
+          n.addText(r.getMessage(64), n.TYPE.BLUE);
           break;
         case 1:
-          n.addText(q.getMessage(65), n.TYPE.ERROR);
+          n.addText(r.getMessage(65), n.TYPE.ERROR);
           break;
         case 2:
-          n.addText(q.getMessage(66), n.TYPE.ERROR);
+          n.addText(r.getMessage(66), n.TYPE.ERROR);
       }
     }
     function c(a) {
@@ -49,13 +49,13 @@ define(
         case 7:
           b = 434;
       }
-      n.addText(q.getMessage(b), n.TYPE.ERROR);
+      n.addText(r.getMessage(b), n.TYPE.ERROR);
     }
     function d(a) {
       f.count = a.curcount;
       f.members.push(a.name);
       f.updateChat();
-      f.message(q.getMessage(179).replace("%s", a.name), "join");
+      f.message(r.getMessage(179).replace("%s", a.name), "join");
     }
     function e(a) {
       1 === a.role && ((f.owner = a.name), f.updateChat());
@@ -66,8 +66,8 @@ define(
         f.removeMember(a.name),
         f.updateChat(),
         0 === a.type
-          ? f.message(q.getMessage(180).replace("%s", a.name), "leave")
-          : f.message(q.getMessage(181).replace("%s", a.name), "leave"));
+          ? f.message(r.getMessage(180).replace("%s", a.name), "leave")
+          : f.message(r.getMessage(181).replace("%s", a.name), "leave"));
     }
     function h(a) {
       f.limit = a.maxcount;
@@ -76,23 +76,23 @@ define(
       f.title = a.title;
       f.updateChat();
     }
-    function r(a) {
+    function q(a) {
       var b,
         c = a.memberList.length;
       f.members = Array(c);
       for (b = 0; b < c; ++b)
         (0 === a.memberList[b].role && (f.owner = a.memberList[b].name),
           (f.members[b] = a.memberList[b].name));
-      t.forEach(function (b) {
+      u.forEach(function (b) {
         return b.room.id === a.roomID ? (b.room.remove(), !1) : !0;
       });
       f.count = c;
       f.append();
     }
-    var q = a("DB/DBManager"),
+    var r = a("DB/DBManager"),
       k = a("Network/NetworkManager"),
       g = a("Network/PacketStructure"),
-      t = a("Renderer/EntityManager"),
+      u = a("Renderer/EntityManager"),
       l = a("UI/Components/ChatRoomCreate/ChatRoomCreate"),
       f = a("UI/Components/ChatRoom/ChatRoom"),
       n = a("UI/Components/ChatBox/ChatBox"),
@@ -124,7 +124,7 @@ define(
     return function () {
       k.hookPacket(g.ZC.ACK_CREATE_CHATROOM, b);
       k.hookPacket(g.ZC.CHANGE_CHATROOM, h);
-      k.hookPacket(g.ZC.ENTER_ROOM, r);
+      k.hookPacket(g.ZC.ENTER_ROOM, q);
       k.hookPacket(g.ZC.MEMBER_NEWENTRY, d);
       k.hookPacket(g.ZC.ROLE_CHANGE, e);
       k.hookPacket(g.ZC.MEMBER_EXIT, m);

@@ -17,12 +17,12 @@ define(
       e = a("Utils/gl-matrix"),
       m = a("Core/Client"),
       h = a("Renderer/Map/Altitude"),
-      r = a("Engine/SessionStorage"),
-      q,
+      q = a("Engine/SessionStorage"),
+      r,
       k,
       g,
-      t = e.mat4,
-      l = t.create();
+      u = e.mat4,
+      l = u.create();
     b.prototype.init = function (a) {
       this.ready = !0;
     };
@@ -48,8 +48,8 @@ define(
         b[1] = this.src[1] + this.target[1];
         b[2] = h.getCellHeight(b[0], b[1]);
         var d = this.range + 1,
-          e = r.Entity.position[0] - b[0],
-          f = r.Entity.position[1] - b[1];
+          e = q.Entity.position[0] - b[0],
+          f = q.Entity.position[1] - b[1];
         d * d <= e * e + f * f && (c = 0.2);
         a.uniform3fv(k.uniform.uPosition, b);
         a.uniform1f(k.uniform.uSize, 3);
@@ -83,8 +83,8 @@ define(
           c.translate(-this.width / 2, -this.height / 2);
           c.drawImage(this, 0, 0);
           c.restore();
-          q = a.createTexture();
-          a.bindTexture(a.TEXTURE_2D, q);
+          r = a.createTexture();
+          a.bindTexture(a.TEXTURE_2D, r);
           a.texImage2D(a.TEXTURE_2D, 0, a.RGBA, a.RGBA, a.UNSIGNED_BYTE, this);
           a.texParameteri(a.TEXTURE_2D, a.TEXTURE_MAG_FILTER, a.LINEAR);
           a.texParameteri(a.TEXTURE_2D, a.TEXTURE_MIN_FILTER, a.LINEAR);
@@ -94,7 +94,7 @@ define(
     };
     b.renderBeforeEntities = !0;
     b.free = function (a) {
-      q && (a.deleteTexture(q), (q = null));
+      r && (a.deleteTexture(r), (r = null));
       k && (a.deleteProgram(k), (k = null));
       g && a.deleteBuffer(g);
       this.ready = !1;
@@ -102,8 +102,8 @@ define(
     b.beforeRender = function (a, b, c, d, e) {
       var f = k.uniform,
         h = k.attribute;
-      t.identity(l);
-      t.rotateY(l, l, (e / 4 / 180) * Math.PI);
+      u.identity(l);
+      u.rotateY(l, l, (e / 4 / 180) * Math.PI);
       a.useProgram(k);
       a.uniformMatrix4fv(f.uModelViewMat, !1, b);
       a.uniformMatrix4fv(f.uProjectionMat, !1, c);
@@ -113,7 +113,7 @@ define(
       a.uniform1f(f.uFogFar, d.far);
       a.uniform3fv(f.uFogColor, d.color);
       a.activeTexture(a.TEXTURE0);
-      a.bindTexture(a.TEXTURE_2D, q);
+      a.bindTexture(a.TEXTURE_2D, r);
       a.uniform1i(f.uDiffuse, 0);
       a.enableVertexAttribArray(h.aPosition);
       a.enableVertexAttribArray(h.aTextureCoord);

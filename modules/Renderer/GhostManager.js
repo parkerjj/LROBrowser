@@ -25,11 +25,11 @@ define(
     var e = a("Engine/SessionStorage"),
       m = a("./Entity/Entity"),
       h = a("./SpriteRenderer"),
-      r = a("Controls/MouseEventHandler"),
-      q = a("Controls/KeyEventHandler"),
+      q = a("Controls/MouseEventHandler"),
+      r = a("Controls/KeyEventHandler"),
       k = a("Preferences/Map"),
       g = [],
-      t = null,
+      u = null,
       l = !1,
       f = null;
     a = {
@@ -59,14 +59,14 @@ define(
         for (b = 0; b < c && !1 !== a(g[b]); ++b);
       },
       getOverEntity: function () {
-        return t;
+        return u;
       },
       setOverEntity: function (a) {
-        var b = t;
-        if (a !== b || l !== q.SHIFT) {
-          l = q.SHIFT;
+        var b = u;
+        if (a !== b || l !== r.SHIFT) {
+          l = r.SHIFT;
           if (b) b.onMouseOut();
-          a ? ((t = a), a.onMouseOver()) : (t = null);
+          a ? ((u = a), a.onMouseOver()) : (u = null);
         }
       },
       getFocusEntity: function () {
@@ -93,8 +93,8 @@ define(
         var a, b, c;
         if (g.length) {
           g.sort(d);
-          var e = r.screen.x,
-            f = r.screen.y;
+          var e = q.screen.x,
+            f = q.screen.y;
           a = 0;
           for (b = g.length; a < b; ++a)
             if (

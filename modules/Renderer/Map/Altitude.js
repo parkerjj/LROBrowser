@@ -44,7 +44,7 @@ define("Renderer/Map/Altitude", [
       c,
       d,
       e,
-      t,
+      u,
       l,
       f,
       n;
@@ -56,13 +56,13 @@ define("Renderer/Map/Altitude", [
     n = this.height;
     for (l = e = 0; e < n; ++e)
       for (d = 0; d < f; ++d)
-        ((t = 4 * (d + (n - e - 1) * f)),
+        ((u = 4 * (d + (n - e - 1) * f)),
           10 == m[l]
-            ? ((c.data[t + 0] = 25), (c.data[t + 1] = 25), (c.data[t + 2] = 25))
-            : ((c.data[t + 0] = 153),
-              (c.data[t + 1] = 153),
-              (c.data[t + 2] = 153)),
-          (c.data[t + 3] = 255),
+            ? ((c.data[u + 0] = 25), (c.data[u + 1] = 25), (c.data[u + 2] = 25))
+            : ((c.data[u + 0] = 153),
+              (c.data[u + 1] = 153),
+              (c.data[u + 2] = 153)),
+          (c.data[u + 3] = 255),
           l++);
     b.putImageData(c, 0, 0);
     return a;
@@ -89,7 +89,7 @@ define("Renderer/Map/Altitude", [
       m = a.vec4,
       k = e.create(),
       g = m.create(),
-      t = e.create(),
+      u = e.create(),
       l = b.create();
     return function (a, n, p) {
       var f = d.MAX_INTERSECT_COUNT;
@@ -107,13 +107,13 @@ define("Renderer/Map/Altitude", [
       g[0] /= g[3];
       g[1] /= g[3];
       g[2] /= g[3];
-      e.sub(t, g, k);
-      e.normalize(t, t);
+      e.sub(u, g, k);
+      e.normalize(u, u);
       for (a = 0; a < f; ++a)
         if (
-          ((k[0] += t[0]),
-          (k[1] += t[1]),
-          (k[2] += t[2]),
+          ((k[0] += u[0]),
+          (k[1] += u[1]),
+          (k[2] += u[2]),
           0.5 > Math.abs(d.getCellHeight(k[0], k[2]) + k[1]))
         )
           return ((p[0] = k[0]), (p[1] = k[2]), !0);
@@ -130,62 +130,62 @@ define("Renderer/Map/Altitude", [
       var f,
         n,
         p,
+        u,
         t,
-        m,
-        q = Math.floor(l / 2);
+        m = Math.floor(l / 2);
       g = Math.floor(g);
       h = Math.floor(h);
-      t = 0;
+      u = 0;
       switch (l) {
         case 1:
-          m = a;
+          t = a;
           break;
         case 5:
-          m = b;
+          t = b;
           break;
         case 7:
-          m = c;
+          t = c;
           break;
         case 13:
-          m = k;
+          t = k;
           break;
         default:
-          m = new Float32Array(l * l * 30);
+          t = new Float32Array(l * l * 30);
       }
-      for (f = -q; f <= q; ++f)
-        for (n = -q; n <= q; ++n, t += 30)
+      for (f = -m; f <= m; ++f)
+        for (n = -m; n <= m; ++n, u += 30)
           ((p = 5 * (g + f + (h + n) * d.width)),
-            (m[t + 0] = g + f + 0),
-            (m[t + 1] = e[p + 0]),
-            (m[t + 2] = h + n + 0),
-            (m[t + 3] = (f + 0 + q) / l),
-            (m[t + 4] = (n + 0 + q) / l),
-            (m[t + 5] = g + f + 1),
-            (m[t + 6] = e[p + 1]),
-            (m[t + 7] = h + n + 0),
-            (m[t + 8] = (f + 1 + q) / l),
-            (m[t + 9] = (n + 0 + q) / l),
-            (m[t + 10] = g + f + 1),
-            (m[t + 11] = e[p + 3]),
-            (m[t + 12] = h + n + 1),
-            (m[t + 13] = (f + 1 + q) / l),
-            (m[t + 14] = (n + 1 + q) / l),
-            (m[t + 15] = g + f + 1),
-            (m[t + 16] = e[p + 3]),
-            (m[t + 17] = h + n + 1),
-            (m[t + 18] = (f + 1 + q) / l),
-            (m[t + 19] = (n + 1 + q) / l),
-            (m[t + 20] = g + f + 0),
-            (m[t + 21] = e[p + 2]),
-            (m[t + 22] = h + n + 1),
-            (m[t + 23] = (f + 0 + q) / l),
-            (m[t + 24] = (n + 1 + q) / l),
-            (m[t + 25] = g + f + 0),
-            (m[t + 26] = e[p + 0]),
-            (m[t + 27] = h + n + 0),
-            (m[t + 28] = (f + 0 + q) / l),
-            (m[t + 29] = (n + 0 + q) / l));
-      return m;
+            (t[u + 0] = g + f + 0),
+            (t[u + 1] = e[p + 0]),
+            (t[u + 2] = h + n + 0),
+            (t[u + 3] = (f + 0 + m) / l),
+            (t[u + 4] = (n + 0 + m) / l),
+            (t[u + 5] = g + f + 1),
+            (t[u + 6] = e[p + 1]),
+            (t[u + 7] = h + n + 0),
+            (t[u + 8] = (f + 1 + m) / l),
+            (t[u + 9] = (n + 0 + m) / l),
+            (t[u + 10] = g + f + 1),
+            (t[u + 11] = e[p + 3]),
+            (t[u + 12] = h + n + 1),
+            (t[u + 13] = (f + 1 + m) / l),
+            (t[u + 14] = (n + 1 + m) / l),
+            (t[u + 15] = g + f + 1),
+            (t[u + 16] = e[p + 3]),
+            (t[u + 17] = h + n + 1),
+            (t[u + 18] = (f + 1 + m) / l),
+            (t[u + 19] = (n + 1 + m) / l),
+            (t[u + 20] = g + f + 0),
+            (t[u + 21] = e[p + 2]),
+            (t[u + 22] = h + n + 1),
+            (t[u + 23] = (f + 0 + m) / l),
+            (t[u + 24] = (n + 1 + m) / l),
+            (t[u + 25] = g + f + 0),
+            (t[u + 26] = e[p + 0]),
+            (t[u + 27] = h + n + 0),
+            (t[u + 28] = (f + 0 + m) / l),
+            (t[u + 29] = (n + 0 + m) / l));
+      return t;
     };
   })();
   return d;

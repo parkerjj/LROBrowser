@@ -84,7 +84,7 @@ define("Renderer/Entity/EntityAttachments", [
         var h,
           k,
           g,
-          t,
+          u,
           l = !1;
         k = a.loadFile(e.spr);
         g = a.loadFile(e.act);
@@ -93,12 +93,12 @@ define("Renderer/Entity/EntityAttachments", [
         e.position
           ? e.position && (b = e.position)
           : (b[1] = e.head ? -100 : 0);
-        t = e.direction
+        u = e.direction
           ? (d.direction + this.entity.direction + 8) % 8
           : e.frame;
-        t %= g.actions.length;
-        h = g.actions[t].animations;
-        g = e.delay || g.actions[t].delay;
+        u %= g.actions.length;
+        h = g.actions[u].animations;
+        g = e.delay || g.actions[u].delay;
         c.depth = e.depth;
         "animationId" in e
           ? (m = h[e.animationId].layers)

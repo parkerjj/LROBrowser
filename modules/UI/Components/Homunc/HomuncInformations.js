@@ -27,13 +27,13 @@ define(
     var e = a("DB/DBManager"),
       m = a("Core/Preferences"),
       h = a("Engine/SessionStorage"),
-      r = a("Renderer/EntityManager"),
-      q = a("UI/UIManager"),
+      q = a("Renderer/EntityManager"),
+      r = a("UI/UIManager"),
       k = a("UI/UIComponent"),
       g = a("UI/Components/Homunc/HomuncskillList"),
-      t = a("text!./HomuncInformations.html");
+      u = a("text!./HomuncInformations.html");
     a = a("text!./HomuncInformations.css");
-    var l = new k("HomuncInformations", t, a);
+    var l = new k("HomuncInformations", u, a);
     m.get("HomuncInformations", { x: 100, y: 200, show: !1 }, 1);
     l.init = function () {
       this.draggable(this.ui.find(".titlebar"));
@@ -72,7 +72,7 @@ define(
         }
     };
     l.initData = function (a) {
-      var b = r.get(a.GID);
+      var b = q.get(a.GID);
       if (b)
         switch (a.state) {
           case 0:
@@ -106,7 +106,7 @@ define(
         }
     };
     l.setInformations = function (a) {
-      var b = r.get(h.homGID);
+      var b = q.get(h.homGID);
       b &&
         (a &&
           ((l.info = a),
@@ -169,7 +169,7 @@ define(
         l.WalkEnd());
     };
     l.resetHom = function () {
-      var a = r.get(h.homGID),
+      var a = q.get(h.homGID),
         b = l.info;
       a &&
         ((a.attack_range = b.ATKRange),
@@ -186,6 +186,6 @@ define(
     l.reqFired = function () {};
     l.reqPetFeed = function () {};
     l.WalkEnd = function () {};
-    return q.addComponent(l);
+    return r.addComponent(l);
   },
 );

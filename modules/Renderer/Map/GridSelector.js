@@ -7,8 +7,8 @@ define("Renderer/Map/GridSelector", [
   var e = null,
     m = null,
     h = null,
-    r = null,
-    q = new Float32Array([
+    q = null,
+    r = new Float32Array([
       0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1,
     ]);
   return {
@@ -64,18 +64,18 @@ define("Renderer/Map/GridSelector", [
         b.vertexAttribPointer(k.aTextCoord, 2, b.FLOAT, !1, 20, 12);
         b.activeTexture(b.TEXTURE0);
         b.uniform1i(g.uDiffuse, 0);
-        r !== f + "" + n &&
-          ((r = f + "" + n),
+        q !== f + "" + n &&
+          ((q = f + "" + n),
           (c = a.getCell(f, n)),
-          (q[0] = q[10] = f + 0),
-          (q[2] = q[7] = n + 0),
-          (q[5] = q[15] = f + 1),
-          (q[12] = q[17] = n + 1),
-          (q[1] = c[0]),
-          (q[6] = c[1]),
-          (q[11] = c[2]),
-          (q[16] = c[3]),
-          b.bufferData(b.ARRAY_BUFFER, q, b.STREAM_DRAW));
+          (r[0] = r[10] = f + 0),
+          (r[2] = r[7] = n + 0),
+          (r[5] = r[15] = f + 1),
+          (r[12] = r[17] = n + 1),
+          (r[1] = c[0]),
+          (r[6] = c[1]),
+          (r[11] = c[2]),
+          (r[16] = c[3]),
+          b.bufferData(b.ARRAY_BUFFER, r, b.STREAM_DRAW));
         b.bindTexture(b.TEXTURE_2D, h);
         b.drawArrays(b.TRIANGLE_STRIP, 0, 4);
         b.disableVertexAttribArray(k.aPosition);

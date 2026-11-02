@@ -19,18 +19,18 @@ define(
         m.ui && d([document.body], { onrendered: this.process });
       },
       process: function (a) {
-        var c, d, e, t, l;
+        var c, d, e, u, l;
         d = new Date();
         e = d.getTimezoneOffset() / 60;
         d = d.toLocaleString() + " (GMT " + (0 < e ? "-" : "+") + e + ")";
         c = a.getContext("2d");
         c.fillStyle = "white";
         c.strokeStyle = "black";
-        t = 20;
+        u = 20;
         l = a.height - 5;
         c.font = "bold 16px serif";
-        c.fillText(d, t, l);
-        c.strokeText(d, t, l);
+        c.fillText(d, u, l);
+        c.strokeText(d, u, l);
         c.fill();
         c.stroke();
         b.loadFile(
@@ -38,9 +38,9 @@ define(
           function (b) {
             var e = new Image();
             e.src = b;
-            t = a.width - e.width - 20;
+            u = a.width - e.width - 20;
             l = a.height - e.height - 5;
-            c.drawImage(e, t, l);
+            c.drawImage(e, u, l);
             h.display(a, d);
           },
           function () {

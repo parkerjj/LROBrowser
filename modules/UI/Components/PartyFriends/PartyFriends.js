@@ -5,102 +5,102 @@ define(
   ),
   function (a) {
     function b() {
-      var a = E.ui,
+      var a = D.ui,
         b = a.position().top,
         c = a.position().left,
         d = 0,
         e = 0,
         f;
       f = setInterval(function () {
-        var a = Math.floor((O.screen.x - c - -20) / 20),
-          f = Math.floor((O.screen.y - b - 46) / 20),
+        var a = Math.floor((J.screen.x - c - -20) / 20),
+          f = Math.floor((J.screen.y - b - 46) / 20),
           a = Math.min(Math.max(a, 12), 13),
           f = Math.min(Math.max(f, 6), 12);
-        if (a !== d || f !== e) (E.resize(a, f), (d = a), (e = f));
+        if (a !== d || f !== e) (D.resize(a, f), (d = a), (e = f));
       }, 30);
       v(window).on("mouseup.resize", function (a) {
         1 === a.which && (clearInterval(f), v(window).off("mouseup.resize"));
       });
     }
     function c() {
-      E.ui.hide();
+      D.ui.hide();
     }
     function d() {
-      P.lock = !P.lock;
-      P.save();
-      P.lock
-        ? (E.ui.find(".lock.on").show(), E.ui.find(".lock.off").hide())
-        : (E.ui.find(".lock.on").hide(), E.ui.find(".lock.off").show());
+      N.lock = !N.lock;
+      N.save();
+      N.lock
+        ? (D.ui.find(".lock.on").show(), D.ui.find(".lock.off").hide())
+        : (D.ui.find(".lock.on").hide(), D.ui.find(".lock.off").show());
     }
     function e() {
-      var a = E.ui;
-      P.friend = !P.friend;
-      P.save();
-      P.friend
+      var a = D.ui;
+      N.friend = !N.friend;
+      N.save();
+      N.friend
         ? (a.find(".friend").show(), a.find(".party").hide())
         : (a.find(".friend").hide(),
           a.find(".party").show(),
-          B.hasParty
+          C.hasParty
             ? (a.find(".party.create").hide(),
-              B.isPartyLeader || a.find(".party.add").hide())
+              C.isPartyLeader || a.find(".party.add").hide())
             : a.find(".party.add, .party.leave").hide());
       a.find(".node").removeClass(".selection");
-      F = -1;
+      L = -1;
     }
     function m() {
-      if (!(0 > F || P.lock)) {
-        var a = P.friend ? p.getMessage(356) : p.getMessage(363);
-        C.showPromptBox(a, "ok", "cancel", function () {
-          if (P.friend) E.onRemoveFriend(F);
-          else E.onExpelMember(H[F].AID, H[F].characterName);
+      if (!(0 > L || N.lock)) {
+        var a = N.friend ? p.getMessage(356) : p.getMessage(363);
+        A.showPromptBox(a, "ok", "cancel", function () {
+          if (N.friend) D.onRemoveFriend(L);
+          else D.onExpelMember(G[L].AID, G[L].characterName);
         });
       }
     }
     function h() {
-      0 > F ||
-        P.lock ||
-        (P.friend
-          ? I.ui.find(".username").val(G[F].Name)
-          : I.ui.find(".username").val(H[F].characterName),
-        I.ui.find(".message").select());
-    }
-    function r() {
-      P.lock ||
-        (J.remove(),
-        J.append(),
-        P.friend
-          ? (J.addElement(p.getMessage(360), h),
-            G[F].GID !== B.GID && J.addElement(p.getMessage(351), m))
-          : (J.addElement(p.getMessage(129), q),
-            H[F].GID === B.GID
-              ? J.addElement(p.getMessage(2055), k)
-              : (J.addElement(p.getMessage(360), h),
-                B.isPartyLeader &&
-                  (J.addElement(p.getMessage(97), m),
-                  J.addElement(p.getMessage(1532), g)))));
+      0 > L ||
+        N.lock ||
+        (N.friend
+          ? M.ui.find(".username").val(y[L].Name)
+          : M.ui.find(".username").val(G[L].characterName),
+        M.ui.find(".message").select());
     }
     function q() {
-      P.lock || C.showMessageBox(p.getMessage(191), "ok");
+      N.lock ||
+        (O.remove(),
+        O.append(),
+        N.friend
+          ? (O.addElement(p.getMessage(360), h),
+            y[L].GID !== C.GID && O.addElement(p.getMessage(351), m))
+          : (O.addElement(p.getMessage(129), r),
+            G[L].GID === C.GID
+              ? O.addElement(p.getMessage(2055), k)
+              : (O.addElement(p.getMessage(360), h),
+                C.isPartyLeader &&
+                  (O.addElement(p.getMessage(97), m),
+                  O.addElement(p.getMessage(1532), g)))));
+    }
+    function r() {
+      N.lock || A.showMessageBox(p.getMessage(191), "ok");
     }
     function k() {
-      P.lock ||
-        C.showPromptBox(p.getMessage(357), "ok", "cancel", function () {
-          E.onRequestLeave();
+      N.lock ||
+        A.showPromptBox(p.getMessage(357), "ok", "cancel", function () {
+          D.onRequestLeave();
         });
     }
     function g() {
-      P.lock ||
-        C.showPromptBox(p.getMessage(1532), "ok", "cancel", function () {
-          E.onRequestChangeLeader(H[F].AID);
+      N.lock ||
+        A.showPromptBox(p.getMessage(1532), "ok", "cancel", function () {
+          D.onRequestChangeLeader(G[L].AID);
         });
     }
-    function t(a) {
-      E.ui.find(".content .name").removeClass("selection");
+    function u(a) {
+      D.ui.find(".content .name").removeClass("selection");
       this.classList.add("selection");
-      F = E.ui.find(this.parentNode.parentNode).find(".name").index(this);
-      var b = M("UI/Components/SkillTargetSelection/SkillTargetSelection");
-      if (b.__active && !P.friend) {
-        var c = H[F];
+      L = D.ui.find(this.parentNode.parentNode).find(".name").index(this);
+      var b = I("UI/Components/SkillTargetSelection/SkillTargetSelection");
+      if (b.__active && !N.friend) {
+        var c = G[L];
         0 === c.state && b.intersectEntityId(c.AID);
         b.remove();
         a.stopImmediatePropagation();
@@ -108,44 +108,44 @@ define(
       }
     }
     function l() {
-      z.__active && z.getType() === z.Type.CREATE
-        ? z.remove()
-        : (z.append(), z.setType(z.Type.CREATE));
+      F.__active && F.getType() === F.Type.CREATE
+        ? F.remove()
+        : (F.append(), F.setType(F.Type.CREATE));
     }
     function f() {
-      z.__active && z.getType() === z.Type.INVITE
-        ? z.remove()
-        : (z.append(), z.setType(z.Type.INVITE));
+      F.__active && F.getType() === F.Type.INVITE
+        ? F.remove()
+        : (F.append(), F.setType(F.Type.INVITE));
     }
     function n() {
-      P.friend ||
-        (z.__active && z.getType() === z.Type.SETUP
-          ? z.remove()
-          : (z.append(),
-            z.setType(z.Type.SETUP),
-            z.setOptions(K, B.isPartyLeader)));
+      N.friend ||
+        (F.__active && F.getType() === F.Type.SETUP
+          ? F.remove()
+          : (F.append(),
+            F.setType(F.Type.SETUP),
+            F.setOptions(K, C.isPartyLeader)));
     }
     var p = a("DB/DBManager"),
       v = a("Utils/jquery"),
-      u = a("Core/Preferences"),
-      A = a("Core/Client"),
-      D = a("Renderer/Renderer"),
-      B = a("Engine/SessionStorage"),
-      O = a("Controls/MouseEventHandler"),
-      C = a("UI/UIManager"),
-      y = a("UI/UIComponent"),
-      z = a("UI/Components/PartyFriends/PartyHelper"),
-      J = a("UI/Components/ContextMenu/ContextMenu"),
-      I = a("UI/Components/ChatBox/ChatBox"),
-      L = a("text!./PartyFriends.html"),
+      t = a("Core/Preferences"),
+      z = a("Core/Client"),
+      E = a("Renderer/Renderer"),
+      C = a("Engine/SessionStorage"),
+      J = a("Controls/MouseEventHandler"),
+      A = a("UI/UIManager"),
+      B = a("UI/UIComponent"),
+      F = a("UI/Components/PartyFriends/PartyHelper"),
+      O = a("UI/Components/ContextMenu/ContextMenu"),
+      M = a("UI/Components/ChatBox/ChatBox"),
+      H = a("text!./PartyFriends.html"),
       x = a("text!./PartyFriends.css"),
-      M = a,
-      E = new y("PartyFriends", L, x),
-      F = -1,
+      I = a,
+      D = new B("PartyFriends", H, x),
+      L = -1,
+      y = [],
       G = [],
-      H = [],
       K = { exp_share: 0, item_share: 0, item_sharing_type: 0 },
-      P = u.get(
+      N = t.get(
         "PartyFriends",
         {
           x: 200,
@@ -158,8 +158,8 @@ define(
         },
         1.2,
       );
-    E.init = function () {
-      z.prepare();
+    D.init = function () {
+      F.prepare();
       this.ui.find(".base").mousedown(function (a) {
         a.stopImmediatePropagation();
         return !1;
@@ -176,65 +176,65 @@ define(
       this.ui.find(".info").mousedown(n);
       this.ui
         .find(".content")
-        .on("contextmenu", ".name", r)
-        .on("mousedown", ".name", t);
+        .on("contextmenu", ".name", q)
+        .on("mousedown", ".name", u);
       this.draggable(this.ui.find(".titlebar"));
     };
-    E.onAppend = function () {
-      P.friend = !P.friend;
+    D.onAppend = function () {
+      N.friend = !N.friend;
       e();
-      P.lock
+      N.lock
         ? (this.ui.find(".lock.on").show(), this.ui.find(".lock.off").hide())
         : (this.ui.find(".lock.on").hide(), this.ui.find(".lock.off").show());
-      this.resize(P.width, P.height);
+      this.resize(N.width, N.height);
       this.ui.css({
-        top: Math.min(Math.max(0, P.y), D.height - this.ui.height()),
-        left: Math.min(Math.max(0, P.x), D.width - this.ui.width()),
+        top: Math.min(Math.max(0, N.y), E.height - this.ui.height()),
+        left: Math.min(Math.max(0, N.x), E.width - this.ui.width()),
       });
       this.ui.hide();
     };
-    E.clean = function () {
-      H.length = 0;
+    D.clean = function () {
       G.length = 0;
-      F = -1;
+      y.length = 0;
+      L = -1;
       K.exp_share = 0;
       K.item_share = 0;
       K.item_sharing_type = 0;
       this.ui.find(".partyname").text("");
       this.ui.find(".friendcount").text("0");
       this.ui.find(".content .party, .content .friend").empty();
-      P.friend = !P.friend;
+      N.friend = !N.friend;
       e();
     };
-    E.onRemove = function () {
-      P.show = this.ui.is(":visible");
-      P.y = parseInt(this.ui.css("top"), 10);
-      P.x = parseInt(this.ui.css("left"), 10);
-      P.save();
+    D.onRemove = function () {
+      N.show = this.ui.is(":visible");
+      N.y = parseInt(this.ui.css("top"), 10);
+      N.x = parseInt(this.ui.css("left"), 10);
+      N.save();
     };
-    E.onShortCut = function (a) {
+    D.onShortCut = function (a) {
       switch (a.cmd) {
         case "FRIEND":
-          P.friend ? this.ui.toggle() : ((P.friend = !1), e(), this.ui.show());
+          N.friend ? this.ui.toggle() : ((N.friend = !1), e(), this.ui.show());
           this.ui.is(":visible") && this.focus();
           break;
         case "PARTY":
-          (P.friend ? ((P.friend = !0), e(), this.ui.show()) : this.ui.toggle(),
+          (N.friend ? ((N.friend = !0), e(), this.ui.show()) : this.ui.toggle(),
             this.ui.is(":visible") && this.focus());
       }
     };
-    E.toggle = function () {
+    D.toggle = function () {
       this.ui.toggle();
       this.ui.is(":visible") && this.focus();
     };
-    E.setFriends = function (a) {
+    D.setFriends = function (a) {
       var b,
         c = a.length,
         d = this.ui.find(".content .friend");
-      G.length = a.length;
+      y.length = a.length;
       d.empty();
       for (b = 0; b < c; b++)
-        ((G[b] = a[b]),
+        ((y[b] = a[b]),
           d.append(
             '\x3cdiv class\x3d"node' +
               (0 === a[b].State ? " online" : "") +
@@ -243,73 +243,73 @@ define(
               "\x3c/span\x3e\x3c/div\x3e",
           ));
       this.ui.find(".friendcount").text(c);
-      F = -1;
+      L = -1;
     };
-    E.updateFriendState = function (a, b) {
+    D.updateFriendState = function (a, b) {
       var c = this.ui.find(".content .friend .node:eq(" + a + ")");
-      (G[a].State = b)
+      (y[a].State = b)
         ? (c.css("backgroundImage", ""),
-          I.addText(p.getMessage(1042).replace("%s", G[a].Name), I.TYPE.BLUE))
-        : (I.addText(p.getMessage(1041).replace("%s", G[a].Name), I.TYPE.BLUE),
-          A.loadFile(
+          M.addText(p.getMessage(1042).replace("%s", y[a].Name), M.TYPE.BLUE))
+        : (M.addText(p.getMessage(1041).replace("%s", y[a].Name), M.TYPE.BLUE),
+          z.loadFile(
             p.INTERFACE_PATH + "basic_interface/grp_online.bmp",
             function (a) {
               c.css("backgroundImage", "url(" + a + ")");
             },
           ));
     };
-    E.updateFriend = function (a, b) {
-      G[a] ||
-        ((G[a] = {}),
+    D.updateFriend = function (a, b) {
+      y[a] ||
+        ((y[a] = {}),
         this.ui
           .find(".content .friend")
           .append(
             '\x3cdiv class\x3d"node"\x3e\x3cspan class\x3d"name"\x3e\x3c/span\x3e\x3c/div\x3e',
           ),
-        this.ui.find(".friendcount").text(G.length));
-      G[a].Name = b.Name;
-      G[a].GID = b.GID;
-      G[a].AID = b.AID;
-      G[a].State = b.State || 0;
+        this.ui.find(".friendcount").text(y.length));
+      y[a].Name = b.Name;
+      y[a].GID = b.GID;
+      y[a].AID = b.AID;
+      y[a].State = b.State || 0;
       var c = this.ui.find(".content .friend .node:eq(" + a + ")");
       c.find(".name").text(b.Name);
-      A.loadFile(
+      z.loadFile(
         p.INTERFACE_PATH + "basic_interface/grp_online.bmp",
         function (a) {
           c.css("backgroundImage", "url(" + a + ")");
         },
       );
     };
-    E.removeFriend = function (a) {
-      G.splice(a, 1);
+    D.removeFriend = function (a) {
+      y.splice(a, 1);
       this.ui.find(".content .friend .node:eq(" + a + ")").remove();
-      this.ui.find(".friendcount").text(G.length);
-      F === a && (F = -1);
+      this.ui.find(".friendcount").text(y.length);
+      L === a && (L = -1);
     };
-    E.setParty = function (a, b) {
+    D.setParty = function (a, b) {
       this.ui.find(".curnum").text(b.length);
       a && this.ui.find(".partyname").text("(" + a + ")");
       this.ui.find(".content .party").empty();
-      B.isPartyLeader = !1;
+      C.isPartyLeader = !1;
       this.ui.find(".party.create").hide();
       this.ui.find(".party.leave").show();
       var c = b.length;
-      for (a = H.length = 0; a < c; a++) E.addPartyMember(b[a]);
-      F = -1;
+      for (a = G.length = 0; a < c; a++) D.addPartyMember(b[a]);
+      L = -1;
     };
-    E.addPartyMember = function (a) {
+    D.addPartyMember = function (a) {
       var b = a.role || a.Role || 0,
         c,
-        d = H.length,
+        d = G.length,
         e;
-      a.AID === B.AID &&
-        ((B.isPartyLeader = 0 === b),
-        B.isPartyLeader
+      a.AID === C.AID &&
+        ((C.isPartyLeader = 0 === b),
+        C.isPartyLeader
           ? this.ui.find(".party.add").show()
           : this.ui.find(".party.add").hide());
       for (
         c = 0;
-        c < d && (H[c].AID !== a.AID || H[c].characterName !== a.characterName);
+        c < d && (G[c].AID !== a.AID || G[c].characterName !== a.characterName);
         ++c
       );
       c < d
@@ -321,7 +321,7 @@ define(
           e.find(".name").text(a.characterName),
           e.find(".map").text("(" + p.getMapName(a.mapName) + ")"))
         : ((a = v.extend({}, a)),
-          H.push(a),
+          G.push(a),
           this.ui
             .find(".content .party")
             .append(
@@ -348,44 +348,44 @@ define(
           : 0 === a.state
             ? "grp_online.bmp"
             : "") &&
-        A.loadFile(p.INTERFACE_PATH + "basic_interface/" + a, function (a) {
+        z.loadFile(p.INTERFACE_PATH + "basic_interface/" + a, function (a) {
           e.css("backgroundImage", "url(" + a + ")");
         });
     };
-    E.removePartyMember = function (a, b) {
-      if (a === B.AID)
-        ((H.length = 0),
+    D.removePartyMember = function (a, b) {
+      if (a === C.AID)
+        ((G.length = 0),
           this.ui.find(".curnum").text(0),
           this.ui.find(".content .party").empty(),
           this.ui.find(".partyname").text(""),
           this.ui.find(".party.create").show(),
           this.ui.find(".party.leave, .party.add").hide(),
-          I.addText(p.getMessage(84), I.TYPE.BLUE));
+          M.addText(p.getMessage(84), M.TYPE.BLUE));
       else {
         var c,
-          d = H.length;
+          d = G.length;
         for (c = 0; c < d; ++c)
-          if (H[c].AID === a && H[c].characterName === b) {
-            H.splice(c, 1);
+          if (G[c].AID === a && G[c].characterName === b) {
+            G.splice(c, 1);
             this.ui.find(".content .party .node:eq(" + c + ")").remove();
             break;
           }
-        this.ui.find(".curnum").text(H.length);
+        this.ui.find(".curnum").text(G.length);
       }
     };
-    E.resize = function (a, b) {
+    D.resize = function (a, b) {
       a = Math.min(Math.max(a, 12), 13);
       b = Math.min(Math.max(b, 6), 12);
-      P.width = a;
-      P.height = b;
-      P.save();
+      N.width = a;
+      N.height = b;
+      N.save();
       this.ui.find(".content").css({ width: 20 * a, height: 20 * b });
     };
-    E.updateMemberLife = function (a, b, c, d) {
+    D.updateMemberLife = function (a, b, c, d) {
       var e,
-        f = H.length;
+        f = G.length;
       for (e = 0; e < f; ++e)
-        if (H[e].AID === a && 0 === H[e].state) {
+        if (G[e].AID === a && 0 === G[e].state) {
           a = this.ui.find(".content .party .node:eq(" + e + ")");
           e = a.find("canvas").get(0).getContext("2d");
           e.drawImage(b, 0, 0, 60, 5, 0, 0, 60, 5);
@@ -393,18 +393,18 @@ define(
           break;
         }
     };
-    E.setOptions = function (a, b, c) {
+    D.setOptions = function (a, b, c) {
       K.exp_share = a;
       K.item_share = b;
       K.item_sharing_type = c;
     };
-    E.onRemoveFriend = function () {};
-    E.onRequestLeave = function () {};
-    E.onExpelMember = function () {};
-    E.onRequestChangeLeader = function () {};
-    E.onRequestAddingMember = function () {};
-    E.onRequestPartyCreation = function () {};
-    E.onRequestSettingUpdate = function () {};
-    return C.addComponent(E);
+    D.onRemoveFriend = function () {};
+    D.onRequestLeave = function () {};
+    D.onExpelMember = function () {};
+    D.onRequestChangeLeader = function () {};
+    D.onRequestAddingMember = function () {};
+    D.onRequestPartyCreation = function () {};
+    D.onRequestSettingUpdate = function () {};
+    return A.addComponent(D);
   },
 );

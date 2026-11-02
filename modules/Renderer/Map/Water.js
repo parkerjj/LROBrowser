@@ -5,21 +5,21 @@ define("Renderer/Map/Water", ["Utils/WebGL"], function (a) {
     e = Array(32),
     m = 0,
     h = 0,
-    r = 0,
     q = 0,
+    r = 0,
     k = 0.6;
   return {
-    init: function (g, t) {
+    init: function (g, u) {
       function l(a, b) {
         e[b] = a;
       }
       var f;
-      d = t.vertCount;
-      h = t.waveHeight;
-      m = t.waveSpeed;
-      q = t.animSpeed;
-      r = t.wavePitch;
-      k = 4 !== t.type && 6 !== t.type ? 0.6 : 1;
+      d = u.vertCount;
+      h = u.waveHeight;
+      m = u.waveSpeed;
+      r = u.animSpeed;
+      q = u.wavePitch;
+      k = 4 !== u.type && 6 !== u.type ? 0.6 : 1;
       if (d)
         for (
           b ||
@@ -30,12 +30,12 @@ define("Renderer/Map/Water", ["Utils/WebGL"], function (a) {
             )),
             c = g.createBuffer(),
             g.bindBuffer(g.ARRAY_BUFFER, c),
-            g.bufferData(g.ARRAY_BUFFER, t.mesh, g.STATIC_DRAW),
+            g.bufferData(g.ARRAY_BUFFER, u.mesh, g.STATIC_DRAW),
             f = 0;
           32 > f;
           ++f
         )
-          a.texture(g, t.images[f], l, f);
+          a.texture(g, u.images[f], l, f);
     },
     free: function (a) {
       var d;
@@ -43,13 +43,13 @@ define("Renderer/Map/Water", ["Utils/WebGL"], function (a) {
       b && (a.deleteProgram(b), (b = null));
       for (d = 0; 32 > d; ++d) e[d] && (a.deleteTexture(e[d]), (e[d] = null));
     },
-    render: function (a, t, l, f, n, p) {
+    render: function (a, u, l, f, n, p) {
       if (d) {
         n = b.uniform;
         var g = b.attribute;
         p /= 1e3 / 60;
         a.useProgram(b);
-        a.uniformMatrix4fv(n.uModelViewMat, !1, t);
+        a.uniformMatrix4fv(n.uModelViewMat, !1, u);
         a.uniformMatrix4fv(n.uProjectionMat, !1, l);
         a.uniform1i(n.uFogUse, f.use && f.exist);
         a.uniform1f(n.uFogNear, f.near);
@@ -64,9 +64,9 @@ define("Renderer/Map/Water", ["Utils/WebGL"], function (a) {
         a.uniform1i(n.uDiffuse, 0);
         a.uniform1f(n.uWaveHeight, h);
         a.uniform1f(n.uOpacity, k);
-        a.uniform1f(n.uWavePitch, r);
+        a.uniform1f(n.uWavePitch, q);
         a.uniform1f(n.uWaterOffset, ((p * m) % 360) - 180);
-        a.bindTexture(a.TEXTURE_2D, e[((p / q) % 32) | 0]);
+        a.bindTexture(a.TEXTURE_2D, e[((p / r) % 32) | 0]);
         a.blendFunc(a.SRC_ALPHA, a.ONE_MINUS_SRC_ALPHA);
         a.drawArrays(a.TRIANGLES, 0, d);
         a.disableVertexAttribArray(g.aPosition);

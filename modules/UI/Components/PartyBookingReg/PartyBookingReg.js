@@ -5,8 +5,8 @@ define(
   ),
   function (a) {
     function b() {
-      var a = u.ui.find(".container .itype option:selected").data("index"),
-        b = u.ui.find(".container .iid"),
+      var a = t.ui.find(".container .itype option:selected").data("index"),
+        b = t.ui.find(".container .iid"),
         c = Object.keys(m[e.nid][a].nav);
       b.empty();
       for (var d = 0; d < c.length; d++)
@@ -25,7 +25,7 @@ define(
       return !1;
     }
     function d() {
-      if ("" == u.ui.find(".container .memo").val())
+      if ("" == t.ui.find(".container .memo").val())
         return (f.setMsg("\u5907\u6ce8\u5185\u5bb9\u4e0d\u4e3a\u7a7a"), !1);
       if (0 == this.type) {
         var a = new FormData();
@@ -35,11 +35,11 @@ define(
         a.append("GID", k.GID);
         a.append(
           "WorldName",
-          UrlTools.encode(u.ui.find(".container .mapname").text()),
+          UrlTools.encode(t.ui.find(".container .mapname").text()),
         );
         a.append(
           "CharName",
-          UrlTools.encode(u.ui.find(".container .name").text()),
+          UrlTools.encode(t.ui.find(".container .name").text()),
         );
         a.append("IID", 0);
         a.append("Type", 0);
@@ -47,9 +47,9 @@ define(
         a.append("Dealer", 1);
         a.append("Healer", 1);
         a.append("Tanker", 1);
-        a.append("MinLV", u.ui.find(".container .minlvl").val());
-        a.append("MaxLV", u.ui.find(".container .maxlvl").val());
-        a.append("Memo", UrlTools.encode(u.ui.find(".container .memo").val()));
+        a.append("MinLV", t.ui.find(".container .minlvl").val());
+        a.append("MaxLV", t.ui.find(".container .maxlvl").val());
+        a.append("Memo", UrlTools.encode(t.ui.find(".container .memo").val()));
         a.append("ISTATE", 0);
         $.ajax({
           url: "https://game.lastro.cn/" + e.webpath + "/party/add",
@@ -66,14 +66,14 @@ define(
               : f.setMsg("\u62db\u52df\u4fe1\u606f\u6dfb\u52a0\u5931\u8d25");
           })
           .fail(function (a) {
-            t.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
+            u.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
           });
         this.remove();
       } else {
-        var a = u.ui.find(".container .iid").val(),
+        var a = t.ui.find(".container .iid").val(),
           b = new h.CZ.REQ_CREATE_INSTANCE();
         b.instanceName = a;
-        r.sendPacket(b);
+        q.sendPacket(b);
         return !1;
       }
     }
@@ -81,38 +81,38 @@ define(
     var e = a("DB/DBManager"),
       m = a("DB/AgencyTable"),
       h = a("Network/PacketStructure"),
-      r = a("Network/NetworkManager"),
-      q = a("Renderer/MapRenderer"),
+      q = a("Network/NetworkManager"),
+      r = a("Renderer/MapRenderer"),
       k = a("Engine/SessionStorage");
     a("Controls/KeyEventHandler");
     a("Renderer/Renderer");
     var g = a("Core/Preferences"),
-      t = a("UI/UIManager"),
+      u = a("UI/UIManager"),
       l = a("UI/UIComponent"),
       f = a("UI/Components/ItemObtain/ItemObtain"),
       n = a("text!./PartyBookingReg.html"),
       p = a("text!./PartyBookingReg.css"),
       v = a,
-      u = new l("PartyBookingReg", n, p);
-    u.title = "";
-    u.limit = 20;
-    u.type = 0;
-    u.password = "";
-    var A = g.get("PartyBookingReg", { x: 480, y: 260, show: !1 }, 1);
-    u.init = function () {
+      t = new l("PartyBookingReg", n, p);
+    t.title = "";
+    t.limit = 20;
+    t.type = 0;
+    t.password = "";
+    var z = g.get("PartyBookingReg", { x: 480, y: 260, show: !1 }, 1);
+    t.init = function () {
       this.ui
         .find(".close, .cancel")
         .mousedown(c)
         .click(this.remove.bind(this));
       this.ui.find(".ok").on("click", d.bind(this));
       this.ui.find(".update").on("click", function () {
-        u.onUpdateBookingLog();
+        t.onUpdateBookingLog();
       });
       this.ui.find(".container .itype").change(b);
       this.draggable(this.ui.find(".titlebar"));
       this.ui.find(".del").on("click", function () {
-        0 == u.type
-          ? t.showPromptBox(
+        0 == t.type
+          ? u.showPromptBox(
               "\u786e\u5b9a\u5220\u9664\u62db\u52df\u4fe1\u606f\u5417?",
               "ok",
               "cancel",
@@ -131,14 +131,14 @@ define(
                   contentType: !1,
                 })
                   .done(function (a) {
-                    u.remove();
+                    t.remove();
                     f.setMsg(
                       "\u62db\u52df\u4fe1\u606f\u5220\u9664\u6210\u529f",
                     );
                     v("UI/Components/PartyBooking/PartyBooking").reload();
                   })
                   .fail(function (a) {
-                    t.showMessageBox(
+                    u.showMessageBox(
                       "\u6570\u636e\u52a0\u8f7d\u5931\u8d25",
                       "ok",
                     );
@@ -146,33 +146,33 @@ define(
               },
               null,
             )
-          : t.showPromptBox(
+          : u.showPromptBox(
               "\u786e\u5b9a\u5173\u95ed\u526f\u672c\u5417?",
               "ok",
               "cancel",
               function () {
                 var a = new h.CZ.REQ_DEL_INSTANCE();
-                r.sendPacket(a);
+                q.sendPacket(a);
               },
               null,
             );
       });
     };
-    u.setType = function (a) {
+    t.setType = function (a) {
       this.type = a;
     };
-    u.onAppend = function () {
+    t.onAppend = function () {
       var a = k.Entity;
-      u.ui.find(".container .name").text(a.display.name);
+      t.ui.find(".container .name").text(a.display.name);
       a = "";
-      u.ui.find(".container .memo").val(a);
+      t.ui.find(".container .memo").val(a);
       if (0 == this.type)
         (this.ui
           .find(".titlebar p")
           .text("\u521b\u5efa\u5192\u9669\u5bb6\u52df\u96c6"),
-          u.ui.find(".container .mapinfo").show(),
-          u.ui.find(".container .instance").hide(),
-          (a = q.currentMap),
+          t.ui.find(".container .mapinfo").show(),
+          t.ui.find(".container .instance").hide(),
+          (a = r.currentMap),
           this.ui.find(".mapinfo .mapname").text(a),
           (a = "[ " + e.getMapName(a) + " ] "),
           this.ui.find(".container .memo").val(a));
@@ -180,11 +180,11 @@ define(
         this.ui
           .find(".titlebar p")
           .text("\u521b\u5efa\u6e38\u620f\u526f\u672c");
-        u.ui.find(".container .mapinfo").hide();
-        u.ui.find(".container .instance").show();
+        t.ui.find(".container .mapinfo").hide();
+        t.ui.find(".container .instance").show();
         var b = Object.keys(m[e.nid]),
-          c = u.ui.find(".container .itype"),
-          a = u.ui.find(".container .iid");
+          c = t.ui.find(".container .itype"),
+          a = t.ui.find(".container .iid");
         c.empty();
         for (var d = 0; d < b.length; d++)
           c.append(
@@ -214,7 +214,7 @@ define(
       this.ui.find(".btns .upbtn").hide();
       this.ui.find(".btns .delbtn").removeClass("alive");
     };
-    u.onRemove = function () {
+    t.onRemove = function () {
       this.ui.find(".titlebar p").text("\u521b\u5efa\u6e38\u620f\u526f\u672c");
       this.ui.find(".btns .delbtn").removeClass("alive");
       this.ui.find(".container .name").text("");
@@ -223,31 +223,31 @@ define(
       this.ui.find(".container .mapname").text("");
       this.ui.find(".container .memo").text("");
     };
-    u.show = function () {
+    t.show = function () {
       this.ui.show();
       this.ui.find(".title").focus();
-      A.show = !0;
+      z.show = !0;
     };
-    u.hide = function () {
+    t.hide = function () {
       this.ui.hide();
-      A.show = !1;
+      z.show = !1;
     };
-    u.toggle = function () {
+    t.toggle = function () {
       this.ui.is(":visible")
-        ? (this.remove(), (A.show = !1))
-        : (this.append(), this.focus(), (A.show = !0));
+        ? (this.remove(), (z.show = !1))
+        : (this.append(), this.focus(), (z.show = !0));
     };
-    u.resetpos = function () {
+    t.resetpos = function () {
       this.ui.css("top", "");
       this.ui.css("left", "");
     };
-    u.onShortCut = function (a) {
+    t.onShortCut = function (a) {
       switch (a.cmd) {
         case "TOGGLE":
           this.toggle();
       }
     };
-    u.onUpdate = function (a) {
+    t.onUpdate = function (a) {
       if (0 == a.Type)
         (this.ui.find(".btns .okbtn").hide(),
           this.ui.find(".btns .upbtn").show(),
@@ -276,7 +276,7 @@ define(
           .find(".container .itype option[data-index\x3d" + b + "]")
           .prop("selected", "selected");
         g = Object.keys(m[e.nid][b].nav);
-        d = u.ui.find(".container .iid");
+        d = t.ui.find(".container .iid");
         d.empty();
         for (f = 0; f < g.length; f++)
           d.append(
@@ -308,7 +308,7 @@ define(
         .find(".container .memo")
         .val(UrlTools.decode(a.Memo.replaceAll("%20", " ")));
     };
-    u.onCreateBookingLog = function (a) {
+    t.onCreateBookingLog = function (a) {
       1 == a.rs &&
         ((a = new FormData()),
         a.append("AuthToken", k.AuthToken),
@@ -318,20 +318,20 @@ define(
         a.append("WorldName", "lastro"),
         a.append(
           "CharName",
-          UrlTools.encode(u.ui.find(".container .name").text()),
+          UrlTools.encode(t.ui.find(".container .name").text()),
         ),
         a.append(
           "IID",
-          u.ui.find(".container .iid option:selected").data("id"),
+          t.ui.find(".container .iid option:selected").data("id"),
         ),
         a.append("Type", 1),
         a.append("Assist", 1),
         a.append("Dealer", 1),
         a.append("Healer", 1),
         a.append("Tanker", 1),
-        a.append("MinLV", u.ui.find(".container .minlvl").val()),
-        a.append("MaxLV", u.ui.find(".container .maxlvl").val()),
-        a.append("Memo", UrlTools.encode(u.ui.find(".container .memo").val())),
+        a.append("MinLV", t.ui.find(".container .minlvl").val()),
+        a.append("MaxLV", t.ui.find(".container .maxlvl").val()),
+        a.append("Memo", UrlTools.encode(t.ui.find(".container .memo").val())),
         a.append("ISTATE", 0),
         $.ajax({
           url: "https://game.lastro.cn/" + e.webpath + "/party/add",
@@ -348,11 +348,11 @@ define(
               : f.setMsg("\u526f\u672c\u6570\u636e\u6dfb\u52a0\u5931\u8d25");
           })
           .fail(function (a) {
-            t.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
+            u.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
           }),
         this.remove());
     };
-    u.onDelBookingLog = function (a) {
+    t.onDelBookingLog = function (a) {
       1 == a.rs
         ? ((a = new FormData()),
           a.append("AuthToken", k.AuthToken),
@@ -369,20 +369,20 @@ define(
           })
             .done(function (a) {
               1 == a.Type &&
-                (u.remove(),
+                (t.remove(),
                 f.setMsg("\u526f\u672c\u6570\u636e\u5220\u9664\u6210\u529f"),
                 v("UI/Components/PartyBooking/PartyBooking").reload());
             })
             .fail(function (a) {
-              t.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
+              u.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
             }))
         : 2 == a.rs &&
-          (u.remove(),
+          (t.remove(),
           f.setMsg("\u526f\u672c\u6570\u636e\u5220\u9664\u6210\u529f"),
           v("UI/Components/PartyBooking/PartyBooking").reload());
     };
-    u.onUpdateBookingLog = function () {
-      if ("" == u.ui.find(".container .memo").val())
+    t.onUpdateBookingLog = function () {
+      if ("" == t.ui.find(".container .memo").val())
         return (f.setMsg("\u5907\u6ce8\u5185\u5bb9\u4e0d\u4e3a\u7a7a"), !1);
       if (0 == this.type) {
         var a = new FormData();
@@ -392,11 +392,11 @@ define(
         a.append("GID", k.GID);
         a.append(
           "WorldName",
-          UrlTools.encode(u.ui.find(".container .mapname").text()),
+          UrlTools.encode(t.ui.find(".container .mapname").text()),
         );
         a.append(
           "CharName",
-          UrlTools.encode(u.ui.find(".container .name").text()),
+          UrlTools.encode(t.ui.find(".container .name").text()),
         );
         a.append("IID", 0);
         a.append("Type", 0);
@@ -404,9 +404,9 @@ define(
         a.append("Dealer", 1);
         a.append("Healer", 1);
         a.append("Tanker", 1);
-        a.append("MinLV", u.ui.find(".container .minlvl").val());
-        a.append("MaxLV", u.ui.find(".container .maxlvl").val());
-        a.append("Memo", UrlTools.encode(u.ui.find(".container .memo").val()));
+        a.append("MinLV", t.ui.find(".container .minlvl").val());
+        a.append("MaxLV", t.ui.find(".container .maxlvl").val());
+        a.append("Memo", UrlTools.encode(t.ui.find(".container .memo").val()));
         a.append("ISTATE", 0);
         $.ajax({
           url: "https://game.lastro.cn/" + e.webpath + "/party/add",
@@ -423,7 +423,7 @@ define(
               : f.setMsg("\u62db\u52df\u4fe1\u606f\u4fee\u6539\u5931\u8d25");
           })
           .fail(function (a) {
-            t.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
+            u.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
           });
       } else
         ((a = new FormData()),
@@ -434,24 +434,24 @@ define(
           a.append("WorldName", "lastro"),
           a.append(
             "CharName",
-            UrlTools.encode(u.ui.find(".container .name").text()),
+            UrlTools.encode(t.ui.find(".container .name").text()),
           ),
           a.append(
             "IID",
-            u.ui.find(".container .iid option:selected").data("id"),
+            t.ui.find(".container .iid option:selected").data("id"),
           ),
           a.append("Type", 1),
           a.append("Assist", 1),
           a.append("Dealer", 1),
           a.append("Healer", 1),
           a.append("Tanker", 1),
-          a.append("MinLV", u.ui.find(".container .minlvl").val()),
-          a.append("MaxLV", u.ui.find(".container .maxlvl").val()),
+          a.append("MinLV", t.ui.find(".container .minlvl").val()),
+          a.append("MaxLV", t.ui.find(".container .maxlvl").val()),
           a.append(
             "Memo",
-            UrlTools.encode(u.ui.find(".container .memo").val()),
+            UrlTools.encode(t.ui.find(".container .memo").val()),
           ),
-          a.append("ISTATE", u.ui.find(".container .istate").val()),
+          a.append("ISTATE", t.ui.find(".container .istate").val()),
           $.ajax({
             url: "https://game.lastro.cn/" + e.webpath + "/party/add",
             type: "POST",
@@ -467,10 +467,10 @@ define(
                 : f.setMsg("\u526f\u672c\u6570\u636e\u4fee\u6539\u5931\u8d25");
             })
             .fail(function (a) {
-              t.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
+              u.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
             }));
       this.remove();
     };
-    return t.addComponent(u);
+    return u.addComponent(t);
   },
 );

@@ -44,17 +44,17 @@ define(
       );
     }
     var h = a("Utils/jquery"),
-      r = a("DB/DBManager"),
-      q = a("Core/Client"),
+      q = a("DB/DBManager"),
+      r = a("Core/Client"),
       k = a("Core/Preferences");
     a("Renderer/Renderer");
     var g = a("UI/UIManager"),
-      t = a("UI/UIComponent"),
+      u = a("UI/UIComponent"),
       l = a("UI/Components/SkillTargetSelection/SkillTargetSelection"),
       f = a("UI/Components/SkillDescription/SkillDescription"),
       n = a("text!./MercenaryskillList.html");
     a = a("text!./MercenaryskillList.css");
-    var p = new t("MercenaryskillList", n, a);
+    var p = new u("MercenaryskillList", n, a);
     k.get("MercenaryskillList", { x: 100, y: 200, show: !1 }, 1);
     var v = [];
     p.init = function () {
@@ -86,11 +86,11 @@ define(
       for (c = a.length; b < c; ++b) this.addSkill(a[b]);
     };
     p.addSkill = function (a) {
-      if (a.SKID in r.getAllSkillInfo())
+      if (a.SKID in q.getAllSkillInfo())
         if (this.ui.find(".skill.id" + a.SKID + ":first").length)
           this.updateSkill(a);
         else {
-          var b = r.getSkillInfo(a.SKID),
+          var b = q.getSkillInfo(a.SKID),
             c = h(
               '\x3ctr class\x3d"skill id' +
                 a.SKID +
@@ -120,8 +120,8 @@ define(
                   : "\u88ab\u52a8") +
                 "\x3c/td\x3e\x3c/tr\x3e",
             );
-          q.loadFile(
-            r.INTERFACE_PATH + "basic_interface/arw_left.bmp",
+          r.loadFile(
+            q.INTERFACE_PATH + "basic_interface/arw_left.bmp",
             function (a) {
               c.find(".arw_left").attr(
                 "style",
@@ -131,8 +131,8 @@ define(
               );
             },
           );
-          q.loadFile(
-            r.INTERFACE_PATH + "basic_interface/arw_right.bmp",
+          r.loadFile(
+            q.INTERFACE_PATH + "basic_interface/arw_right.bmp",
             function (a) {
               c.find(".arw_right").attr(
                 "style",
@@ -143,8 +143,8 @@ define(
             },
           );
           this.ui.find(".content table").append(c);
-          q.loadFile(
-            r.INTERFACE_PATH + "item/" + b.Name + ".bmp",
+          r.loadFile(
+            q.INTERFACE_PATH + "item/" + b.Name + ".bmp",
             function (a) {
               c.find(".icon img").attr("src", a);
             },

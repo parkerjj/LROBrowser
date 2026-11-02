@@ -5,9 +5,9 @@ define(
   ),
   function (a) {
     function b(a) {
-      for (var b = Object.keys(r[h.nid]), c = 0; c < b.length; c++)
-        for (var d = Object.keys(r[h.nid][c].nav), e = 0; e < d.length; e++)
-          if (a == r[h.nid][c].nav[e].id) return r[h.nid][c].nav[e].name;
+      for (var b = Object.keys(q[h.nid]), c = 0; c < b.length; c++)
+        for (var d = Object.keys(q[h.nid][c].nav), e = 0; e < d.length; e++)
+          if (a == q[h.nid][c].nav[e].id) return q[h.nid][c].nav[e].name;
     }
     var c = a("Utils/jquery");
     a("Core/Client");
@@ -16,16 +16,16 @@ define(
       m = a("Network/PacketStructure");
     a("DB/Status/StatusInfo");
     var h = a("DB/DBManager"),
-      r = a("DB/AgencyTable");
+      q = a("DB/AgencyTable");
     a("Renderer/Renderer");
-    var q = a("UI/UIManager"),
+    var r = a("UI/UIManager"),
       k = a("UI/UIComponent");
     a("UI/Components/WorldMap/WorldMap");
     a("UI/Components/ItemInfo/ItemInfo");
     var g = a("UI/Components/ItemObtain/ItemObtain"),
-      t = a("text!./BookingDescription.html");
+      u = a("text!./BookingDescription.html");
     a = a("text!./BookingDescription.css");
-    var l = new k("BookingDescription", t, a);
+    var l = new k("BookingDescription", u, a);
     l.type = 0;
     l.uid = -1;
     l.aid = -1;
@@ -151,6 +151,6 @@ define(
               .show()
               .text("\u8fdb\u5165\u526f\u672c"));
     };
-    return q.addComponent(l);
+    return r.addComponent(l);
   },
 );

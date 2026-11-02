@@ -17,8 +17,8 @@ define("UI/Scrollbar", [
             c.INTERFACE_PATH + "scroll0bar_mid.bmp",
             c.INTERFACE_PATH + "scroll0bar_up.bmp",
           ],
-          function (c, d, r, q, k, g) {
-            b.load(q, function () {
+          function (c, d, q, r, k, g) {
+            b.load(r, function () {
               var h = this;
               b.load(k, function () {
                 var l = this;
@@ -37,7 +37,7 @@ define("UI/Scrollbar", [
                         c +
                         ");}",
                       "::-webkit-scrollbar-button:vertical:decrement { background-image: url(" +
-                        r +
+                        q +
                         ");}",
                       "::-webkit-scrollbar-track-piece:vertical { background-image: url(" +
                         d +

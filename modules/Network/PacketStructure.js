@@ -3702,10 +3702,10 @@ define("Network/PacketStructure", [
       c[d].location = a.readULong();
       c[d].currency_count = a.readULong();
       var e = c[d],
-        q = c[d].currency_count,
+        r = c[d].currency_count,
         k,
-        g = Array(q);
-      for (k = 0; k < q; ++k)
+        g = Array(r);
+      for (k = 0; k < r; ++k)
         ((g[k] = {}),
           (g[k].ITID = a.readULong()),
           (g[k].refine_level = a.readUShort()),
@@ -7499,8 +7499,8 @@ define("Network/PacketStructure", [
       c[d] = {};
       c[d].AID = a.readULong();
       c[d].Completed = a.readChar();
-      for (var e = c[d], q = Array(10), k = 0; 10 > k; ++k) q[k] = a.readLong();
-      e.Objectives = q;
+      for (var e = c[d], r = Array(10), k = 0; 10 > k; ++k) r[k] = a.readLong();
+      e.Objectives = r;
       c[d].endtime = a.readULong();
       c[d].rewarded = a.readChar();
     }
@@ -7518,8 +7518,8 @@ define("Network/PacketStructure", [
       c[b] = {};
       c[b].AID = a.readULong();
       c[b].Completed = a.readChar();
-      for (var e = c[b], q = Array(10), k = 0; 10 > k; ++k) q[k] = a.readLong();
-      e.Objectives = q;
+      for (var e = c[b], r = Array(10), k = 0; 10 > k; ++k) r[k] = a.readLong();
+      e.Objectives = r;
       c[b].endtime = a.readULong();
       c[b].rewarded = a.readChar();
     }
@@ -8211,13 +8211,13 @@ define("Network/PacketStructure", [
       c[b].quest_endTime = a.readLong();
       c[b].count = a.readShort();
       var e = c[b],
-        q,
+        r,
         k = Array(3);
-      for (q = 0; 3 > q; ++q)
-        ((k[q] = {}),
-          (k[q].mobGID = a.readULong()),
-          (k[q].huntCount = a.readShort()),
-          (k[q].mobName = a.readString(24)));
+      for (r = 0; 3 > r; ++r)
+        ((k[r] = {}),
+          (k[r].mobGID = a.readULong()),
+          (k[r].huntCount = a.readShort()),
+          (k[r].mobName = a.readString(24)));
       e.hunt = k;
     }
     this.QuestMissionList = c;
@@ -9359,9 +9359,9 @@ define("Network/PacketStructure", [
       c[b].Detail = {};
       c[b].Detail.Level = a.readShort();
       c[b].Detail.MapID = a.readShort();
-      for (var e = c[b].Detail, q = Array(6), k = 0; 6 > k; ++k)
-        q[k] = a.readShort();
-      e.Job = q;
+      for (var e = c[b].Detail, r = Array(6), k = 0; 6 > k; ++k)
+        r[k] = a.readShort();
+      e.Job = r;
     }
     this.Info = c;
   };
@@ -10085,10 +10085,10 @@ define("Network/PacketStructure", [
       d[c].quest_endTime = a.readLong();
       d[c].count = a.readShort();
       var e = d[c],
-        q = d[c].count,
+        r = d[c].count,
         k,
-        g = Array(q);
-      for (k = 0; k < q; ++k)
+        g = Array(r);
+      for (k = 0; k < r; ++k)
         ((g[k] = {}),
           (g[k].QID = a.readULong()),
           (g[k].mobType = a.readULong()),

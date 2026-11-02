@@ -21,8 +21,8 @@ define(
       a("./EntityAnimations").call(this);
       this.boundingRect = { x1: 0, y1: 0, x2: 0, y2: 0 };
       this.matrix = k.create();
-      this.position = q.create();
-      this._position = q.create();
+      this.position = r.create();
+      this._position = r.create();
       b && (this.clean(), this.set(b));
     }
     var c = a("Renderer/Renderer"),
@@ -30,9 +30,9 @@ define(
       e = a("Engine/SessionStorage"),
       m = a("Core/Configs"),
       h = a("Core/Client"),
-      r = a("Utils/gl-matrix"),
-      q = r.vec3,
-      k = r.mat4;
+      q = a("Utils/gl-matrix"),
+      r = q.vec3,
+      k = q.mat4;
     m.get("ClientVer");
     b.TYPE_EFFECT = -3;
     b.TYPE_UNKNOWN = -2;

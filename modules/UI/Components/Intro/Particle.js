@@ -88,7 +88,7 @@ define("UI/Components/Intro/Particle", ["require"], function (a) {
     a.fillStyle = c;
     a.fill();
   };
-  b.prototype.update = function (a, b, c, h, r) {
+  b.prototype.update = function (a, b, c, h, q) {
     a = (a / 60) * 2;
     this.x += Math.cos((this.ratio / this.life) * this.dx * 2) * a;
     this.y += Math.sin((this.ratio / this.life) * this.dy * 2) * a;
@@ -97,9 +97,9 @@ define("UI/Components/Intro/Particle", ["require"], function (a) {
     if (0 >= this.ratio || this.ratio >= this.life) this.t *= -1;
     (this.x - this.r > h ||
       0 > this.x + this.r ||
-      this.y - this.r > r ||
+      this.y - this.r > q ||
       0 > this.y + this.r) &&
-      this.reset(h, r);
+      this.reset(h, q);
     255 <= this.c ? (this.dc = -1) : 0 >= this.c && (this.dc = 1);
   };
   return b;

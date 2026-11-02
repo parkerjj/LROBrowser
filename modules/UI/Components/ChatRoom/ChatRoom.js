@@ -15,7 +15,7 @@ define(
           !0
         );
       if (isRestricted)
-        t.showMessageBox(
+        u.showMessageBox(
           "You are temporarily restricted from sending data.",
           "ok",
         );
@@ -28,13 +28,13 @@ define(
         sendCount > sendLimit)
       )
         ((isRestricted = !0),
-          t.showMessageBox(
+          u.showMessageBox(
             "Send limit exceeded. You are restricted for 10s.",
             "ok",
           ),
           setTimeout(function () {
             isRestricted = !1;
-            t.showMessageBox(
+            u.showMessageBox(
               "Restriction lifted. You can send data again.",
               "ok",
             );
@@ -54,8 +54,8 @@ define(
         f = 0,
         g;
       g = setInterval(function () {
-        var a = Math.floor((q.screen.x - c - 25) / 32),
-          g = Math.floor((q.screen.y - b - 20) / 32),
+        var a = Math.floor((r.screen.x - c - 25) / 32),
+          g = Math.floor((r.screen.y - b - 20) / 32),
           a = Math.min(Math.max(a, 7), 14),
           g = Math.min(Math.max(g, 3), 8);
         if (a !== e || g !== f) (d(a, g), (e = a), (f = g));
@@ -73,11 +73,11 @@ define(
     var e = a("Core/Preferences"),
       m = a("Utils/jquery"),
       h = a("Renderer/Renderer"),
-      r = a("Engine/SessionStorage"),
-      q = a("Controls/MouseEventHandler"),
+      q = a("Engine/SessionStorage"),
+      r = a("Controls/MouseEventHandler"),
       k = a("Controls/KeyEventHandler"),
       g = a("UI/Components/ChatBox/ChatBox"),
-      t = a("UI/UIManager"),
+      u = a("UI/UIManager"),
       l = a("UI/UIComponent"),
       f = a("text!./ChatRoom.html"),
       n = a("text!./ChatRoom.css"),
@@ -90,7 +90,7 @@ define(
     v.members = [];
     v.owner = "";
     v.isOpen = !1;
-    var u = e.get("ChatRoom", { x: 480, y: 200, width: 7, height: 4 }, 1);
+    var t = e.get("ChatRoom", { x: 480, y: 200, width: 7, height: 4 }, 1);
     v.init = function () {
       this.ui.find(".extend").mousedown(c);
       this.ui
@@ -107,10 +107,10 @@ define(
     };
     v.onAppend = function () {
       this.isOpen = !0;
-      d(u.width, u.height);
+      d(t.width, t.height);
       this.ui.css({
-        top: Math.min(Math.max(0, u.y), h.height - this.ui.height()),
-        left: Math.min(Math.max(0, u.x), h.width - this.ui.width()),
+        top: Math.min(Math.max(0, t.y), h.height - this.ui.height()),
+        left: Math.min(Math.max(0, t.x), h.width - this.ui.width()),
       });
       this.ui.find(".sendmsg").focus();
       this.updateChat();
@@ -123,11 +123,11 @@ define(
       this.owner = "";
       this.isOpen = !1;
       this.ui.find(".messages").empty();
-      u.y = parseInt(this.ui.css("top"), 10);
-      u.x = parseInt(this.ui.css("left"), 10);
-      u.width = Math.floor((this.ui.width() - 25) / 32);
-      u.height = Math.floor((this.ui.height() - -30) / 32);
-      u.save();
+      t.y = parseInt(this.ui.css("top"), 10);
+      t.x = parseInt(this.ui.css("left"), 10);
+      t.width = Math.floor((this.ui.width() - 25) / 32);
+      t.height = Math.floor((this.ui.height() - -30) / 32);
+      t.save();
       this.exitRoom();
     };
     v.updateChat = function () {
@@ -151,7 +151,7 @@ define(
       c.text(a);
       b
         ? c.addClass(b)
-        : 0 === a.indexOf(r.Entity.display.name + " : ") && c.addClass("self");
+        : 0 === a.indexOf(q.Entity.display.name + " : ") && c.addClass("self");
       a = this.ui.find(".messages");
       a.append(c);
       a[0].scrollTop = a[0].scrollHeight;
@@ -165,6 +165,6 @@ define(
       return a.which === k.ENTER ? (b(), a.stopImmediatePropagation(), !1) : !0;
     };
     v.exitRoom = function () {};
-    return t.addComponent(v);
+    return u.addComponent(v);
   },
 );

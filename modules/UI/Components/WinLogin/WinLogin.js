@@ -9,11 +9,11 @@ define(
       return !1;
     }
     function c() {
-      if (B) return !1;
-      B = !0;
+      if (C) return !1;
+      C = !0;
       var a = n.val(),
         b = p.val();
-      if (!a || !b) return (B = !1);
+      if (!a || !b) return (C = !1);
       f.saveID
         ? ((f.saveID = !0), (f.ID = a), (f.PD = b))
         : ((f.saveID = !1), (f.ID = ""), (f.PD = ""));
@@ -25,7 +25,7 @@ define(
         e("#body-cover").removeClass("input");
       d.Character = null;
       var c = e("#_csrf").val(),
-        g = r.get("ClientVer"),
+        g = q.get("ClientVer"),
         h;
       switch (g) {
         case 3:
@@ -57,7 +57,7 @@ define(
               null,
             );
           else l.onConnectionRequest(a, b);
-          B = !1;
+          C = !1;
         },
       });
       return !1;
@@ -67,20 +67,20 @@ define(
       m = a("DB/DBManager");
     a("Core/Client");
     var h = a("Core/Preferences"),
-      r = a("Core/Configs");
+      q = a("Core/Configs");
     a("Renderer/Renderer");
-    var q = a("Controls/KeyEventHandler"),
+    var r = a("Controls/KeyEventHandler"),
       k = a("UI/UIManager"),
       g = a("UI/UIComponent"),
-      t = a("text!./WinLogin.html");
+      u = a("text!./WinLogin.html");
     a = a("text!./WinLogin.css");
-    var l = new g("WinLogin", t, a),
+    var l = new g("WinLogin", u, a),
       f = h.get("WinLogin", { saveID: !0, ID: "", PD: "" }, 1),
       n,
       p,
-      v = r.get("ClientVer"),
-      u = !1,
-      A = {
+      v = q.get("ClientVer"),
+      t = !1,
+      z = {
         0: "\u521d\u5b66\u8005",
         1: "\u5251\u58eb",
         2: "\u9b54\u6cd5\u5e08",
@@ -258,7 +258,7 @@ define(
         });
       });
       a.find(".ck .close").on("click", function () {
-        u = !1;
+        t = !1;
         var b = a.find(".overlay.ck");
         b.animate({ opacity: 0 }, 200, function () {
           b.hide();
@@ -276,8 +276,8 @@ define(
       });
       a.find(".reg .submit").on("click", function () {
         var b = $("#_csrf").val();
-        if (!u) {
-          u = !0;
+        if (!t) {
+          t = !0;
           a.find(".reg .submit").addClass("processing").attr("disabled", !0);
           var c;
           switch (v) {
@@ -324,7 +324,7 @@ define(
                     });
                     a.find(".user").val(f.ID);
                     a.find(".pass").val(f.PD);
-                    u = !1;
+                    t = !1;
                   }, 500),
                   setTimeout(function () {
                     a.find(".reg .name input").empty();
@@ -344,7 +344,7 @@ define(
                   (b = a.find("#captchaimg").attr("src")),
                   a.find("#captchaimg").attr("src", ""),
                   a.find("#captchaimg").attr("src", b + "?" + Math.random()));
-              u = !1;
+              t = !1;
             },
           });
         }
@@ -353,8 +353,8 @@ define(
         var b = $("#_csrf").val();
         if ("" == a.find(".user").val()) a.find(".user").focus();
         else if ("" == a.find(".pass").val()) a.find(".pass").focus();
-        else if (!u) {
-          u = !0;
+        else if (!t) {
+          t = !0;
           var c;
           switch (v) {
             case 3:
@@ -393,7 +393,7 @@ define(
                 a.find(".updatetime").text(b.updatetime);
                 a.find(".ssres_inminute").text(b.inminute);
                 a.find(".ssres_name").text(b.name);
-                a.find(".ssres_job").text(A[b.class]);
+                a.find(".ssres_job").text(z[b.class]);
                 a.find(".ssres_base_level").text(b.base_level);
                 a.find(".ssres_job_level").text(b.job_level);
                 a.find(".ssres_map").text(m.getMapName(b.last_map + ".gat"));
@@ -560,14 +560,14 @@ define(
                 a.find(".overlay.ck").show().animate({ opacity: 1 }, 200);
               } else
                 1 == b
-                  ? ((u = !1),
+                  ? ((t = !1),
                     k.showMessageBox(
                       "\u7528\u6237\u540d\u6216\u5bc6\u7801\u9519\u8bef",
                       "ok",
                       null,
                     ))
                   : 2 == b &&
-                    ((u = !1),
+                    ((t = !1),
                     k.showMessageBox(
                       "\u8be5\u8d26\u53f7\u6ca1\u6709\u89d2\u8272\u5728\u7ebf",
                       "ok",
@@ -612,7 +612,7 @@ define(
           }));
     };
     l.onAppend = function () {
-      B = !1;
+      C = !1;
       n.val(f.saveID ? f.ID : "");
       p.val(f.saveID ? f.PD : "");
       n.val() && n.parent().parent().addClass("field--non-empty");
@@ -621,24 +621,24 @@ define(
     l.onRemove = function () {
       this.ui.find(".btn button").removeClass("processing");
     };
-    var D = !1;
+    var E = !1;
     l.onKeyDown = function (a) {
       switch (a.which) {
-        case q.ENTER:
-          if (!D)
+        case r.ENTER:
+          if (!E)
             return (
-              (D = !0),
+              (E = !0),
               c(),
               a.stopImmediatePropagation(),
               setTimeout(function () {
-                D = !1;
+                E = !1;
               }, 1e3),
               !1
             );
           break;
-        case q.ESCAPE:
+        case r.ESCAPE:
           return (b(), a.stopImmediatePropagation(), !1);
-        case q.TAB:
+        case r.TAB:
           return (
             (document.activeElement === n[0] ? p : n).focus().select(),
             a.stopImmediatePropagation(),
@@ -647,7 +647,7 @@ define(
       }
       return !0;
     };
-    var B = !1;
+    var C = !1;
     l.onConnectionRequest = function () {};
     l.onExitRequest = function () {};
     return k.addComponent(l);

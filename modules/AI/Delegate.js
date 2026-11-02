@@ -10,8 +10,8 @@ define(
       e = a("Network/PacketStructure"),
       m = a("Network/NetworkManager"),
       h = a("Engine/SessionStorage"),
-      r = a("UI/UIManager"),
-      q = a("UI/Components/MiniMap/MiniMap");
+      q = a("UI/UIManager"),
+      r = a("UI/Components/MiniMap/MiniMap");
     a("UI/Components/ChatBox/ChatBox");
     var k = a("UI/Components/WorldMap/WorldMap"),
       g = a("UI/Components/Inventory/Inventory");
@@ -61,15 +61,15 @@ define(
         var c = d.currentMap.replace(/\.gat$/i, "");
         a.ename
           ? c == a.ename && 0 < a.x && 0 < a.y
-            ? r.showPromptBox(
+            ? q.showPromptBox(
                 "\u524d\u5f80\u5750\u6807(" + a.x + "," + a.y + ")\u5417?",
                 "ok",
                 "cancel",
                 function () {
-                  q.moving(1, c, a.x, a.y);
+                  r.moving(1, c, a.x, a.y);
                 },
               )
-            : r.showPromptBox(
+            : q.showPromptBox(
                 "\u5feb\u901f\u524d\u5f80" +
                   b.getMapName(a.ename + ".gat") +
                   "\u5730\u56fe\u5417?",
@@ -88,12 +88,12 @@ define(
               )
           : 0 < a.x &&
             0 < a.y &&
-            r.showPromptBox(
+            q.showPromptBox(
               "\u524d\u5f80\u5750\u6807(" + a.x + "," + a.y + ")\u5417?",
               "ok",
               "cancel",
               function () {
-                q.moving(1, c, a.x, a.y);
+                r.moving(1, c, a.x, a.y);
               },
             );
       },

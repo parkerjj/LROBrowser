@@ -28,17 +28,17 @@ define(
       e = a("DB/Effects/WeatherEffect"),
       m = a("Core/Client"),
       h = a("Engine/SessionStorage"),
-      r = a("Renderer/SpriteRenderer"),
-      q = a("Utils/gl-matrix").vec3,
+      q = a("Renderer/SpriteRenderer"),
+      r = a("Utils/gl-matrix").vec3,
       k = Array(150),
       g = [],
-      t = null,
+      u = null,
       l = !0;
     return {
       init: function (a, c) {
         if (e.sky[c]) {
           if (
-            ((t = e.sky[c].cloudColor),
+            ((u = e.sky[c].cloudColor),
             (c = e.sky[c].skyColor),
             (l = !0),
             a.clearColor(c[0], c[1], c[2], c[3]),
@@ -52,8 +52,8 @@ define(
         for (a = 0; 150 > a; a++)
           (k[a] ||
             (k[a] = {
-              position: q.create(),
-              direction: q.create(),
+              position: r.create(),
+              direction: r.create(),
               born_tick: 0,
               death_tick: 0,
             }),
@@ -67,17 +67,17 @@ define(
       },
       render: function (a, b, d, e, h) {
         if (l) {
-          r.bind3DContext(a, b, d, e);
-          r.color.set(t);
-          r.shadow = 1;
-          r.angle = 0;
-          r.size[0] = 500;
-          r.size[1] = 500;
-          r.offset[0] = 0;
-          r.offset[1] = 0;
-          r.image.palette = null;
-          r.depth = 0;
-          r.blendMode = 3;
+          q.bind3DContext(a, b, d, e);
+          q.color.set(u);
+          q.shadow = 1;
+          q.angle = 0;
+          q.size[0] = 500;
+          q.size[1] = 500;
+          q.offset[0] = 0;
+          q.offset[1] = 0;
+          q.image.palette = null;
+          q.depth = 0;
+          q.blendMode = 3;
           a.depthMask(!1);
           for (b = 0; 150 > b; b++)
             ((d = k[b]),
@@ -86,13 +86,13 @@ define(
                 : d.death_tick + 2e3 < h
                   ? (c(d), (e = 0))
                   : (e = d.death_tick < h ? 1 - (h - d.death_tick) / 2e3 : 1),
-              (r.zIndex = 0),
-              (r.color[3] = e),
-              (r.image.texture = g[d.sprite]),
-              q.add(d.position, d.position, d.direction),
-              r.position.set(d.position),
-              r.render());
-          r.unbind(a);
+              (q.zIndex = 0),
+              (q.color[3] = e),
+              (q.image.texture = g[d.sprite]),
+              r.add(d.position, d.position, d.direction),
+              q.position.set(d.position),
+              q.render());
+          q.unbind(a);
           a.depthMask(!0);
         }
       },

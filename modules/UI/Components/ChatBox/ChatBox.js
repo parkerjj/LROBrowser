@@ -6,15 +6,15 @@ define(
   function (a) {
     function b() {
       var a = x.ui.find(".content");
-      G[0].content =
+      y[0].content =
         "\u6211\u4eec\u5728\u73a9\u4e00\u6b3e\u8001\u6e38\u620f\u53eb\u4ed9\u5883\u4f20\u8bf4Online\uff0c\u6211\u7684\u540d\u5b57\u53eb" +
-        D.Entity.display.name +
+        E.Entity.display.name +
         "\uff0c\u6211\u7684\u8eab\u4efd\u662f\u626e\u6f14\u4e00\u4e2a\u5bcc\u6709\u751f\u547d\u529b\uff0c\u79ef\u6781\u9633\u5149\uff0c\u5e7d\u9ed8\uff0c\u5177\u6709\u521b\u9020\u529b\u7684\u6e38\u620f\u89d2\u8272\uff0c\u89d2\u8272\u7b49\u7ea7\u4e3a" +
-        D.Entity.clevel +
+        E.Entity.clevel +
         "\u7ea7\uff0c\u6211\u7684\u4efb\u52a1\u5c31\u662f\u4e3a\u73a9\u5bb6\uff0c\u5c31\u662f\u4f60\u89e3\u7b54\u95ee\u9898\u548c\u51b3\u7b56\u65b9\u6848\u3002";
-      var c = y("AI/Delegate"),
-        d = D.Entity.display.name + " : ",
-        e = { _csrf: h("#_csrf").val(), msg: G };
+      var c = B("AI/Delegate"),
+        d = E.Entity.display.name + " : ",
+        e = { _csrf: h("#_csrf").val(), msg: y };
       $.ajax({
         url: "/?r\x3dmn/gpt",
         type: "post",
@@ -22,13 +22,13 @@ define(
         data: e,
         success: function (e) {
           if (e.error)
-            ((H = !1),
+            ((G = !1),
               $(".entering").html(d + "\u55ef\uff01\uff1f"),
               $(".entering").removeClass("entering"),
               console.log(e.error));
           else if (
-            (3 < G.length && G.splice(1, 1),
-            G.push(e.choices[0].message),
+            (3 < y.length && y.splice(1, 1),
+            y.push(e.choices[0].message),
             e.choices[0].message.function_call)
           ) {
             var f = e.choices[0].message.function_call.name;
@@ -36,25 +36,25 @@ define(
             e = c[f](e);
             if (!e)
               return (
-                (H = !1),
+                (G = !1),
                 $(".entering").html(d + "\u55ef\uff01\uff1f"),
                 $(".entering").removeClass("entering"),
                 !1
               );
             f = { role: "function", name: f, content: e };
-            3 < G.length && G.splice(1, 1);
-            G.push(f);
+            3 < y.length && y.splice(1, 1);
+            y.push(f);
             b();
           } else {
             var g = function () {
-                h < k.length
-                  ? ($(".entering").append(k[h++]),
+                h < l.length
+                  ? ($(".entering").append(l[h++]),
                     setTimeout(g, Math.floor(11 * Math.random()) + 50))
-                  : ((H = !1), $(".entering").removeClass("entering"));
+                  : ((G = !1), $(".entering").removeClass("entering"));
                 a[0].scrollTop = a[0].scrollHeight;
               },
               h = 0,
-              k = e.choices[0].message.content;
+              l = e.choices[0].message.content;
             $(".entering").html(d);
             g();
           }
@@ -90,7 +90,7 @@ define(
               : a & x.TYPE.GPTA
                 ? (x.ui.find(".filter button").text("GPT"),
                   x.addText(
-                    D.Entity.display.name +
+                    E.Entity.display.name +
                       " : \u6709\u4ec0\u4e48\u53ef\u4ee5\u5e2e\u4f60\u7684\u5417\uff1f",
                     x.TYPE.GPTA,
                   ),
@@ -127,34 +127,34 @@ define(
                     "\u516c\u5f00\u53d1\u8a00\u9891\u9053",
                     x.TYPE.SELF,
                   );
-        M = a;
+        I = a;
       };
     }
     var m = a("DB/DBManager"),
       h = a("Utils/jquery"),
-      r = a("Network/PacketStructure"),
-      q = a("Network/NetworkManager");
+      q = a("Network/PacketStructure"),
+      r = a("Network/NetworkManager");
     a("Renderer/Renderer");
     var k = a("Core/Client"),
       g = a("Core/Events"),
-      t = a("Core/Preferences"),
+      u = a("Core/Preferences"),
       l = a("Controls/KeyEventHandler"),
       f = a("Controls/BattleMode"),
       n = a("Preferences/Controls"),
       p = a("./History"),
       v = a("UI/UIManager"),
-      u = a("UI/UIComponent"),
-      A = a("UI/Components/ContextMenu/ContextMenu"),
-      D = a("Engine/SessionStorage"),
-      B = a("text!./ChatBox.html"),
-      O = a("text!./ChatBox.css"),
-      C = a("Controls/ProcessCommand"),
-      y = a,
-      z = new p(),
-      J = new p(!0),
-      I = 2,
-      L = t.get("ChatBox", { x: 5, y: Infinity, height: 3 }, 1.2),
-      x = new u("ChatBox", B, O);
+      t = a("UI/UIComponent"),
+      z = a("UI/Components/ContextMenu/ContextMenu"),
+      E = a("Engine/SessionStorage"),
+      C = a("text!./ChatBox.html"),
+      J = a("text!./ChatBox.css"),
+      A = a("Controls/ProcessCommand"),
+      B = a,
+      F = new p(),
+      O = new p(!0),
+      M = 2,
+      H = u.get("ChatBox", { x: 5, y: Infinity, height: 3 }, 1.2),
+      x = new t("ChatBox", C, J);
     x.TYPE = {
       SELF: 1,
       PUBLIC: 2,
@@ -170,19 +170,19 @@ define(
       GPTU: 2048,
       GPTA: 4096,
     };
-    var M = x.TYPE.PUBLIC;
+    var I = x.TYPE.PUBLIC;
     x.PrivateMessageStorage = { nick: "", msg: "" };
-    var E = 0,
-      F = 0,
-      G = [],
-      H = !1,
+    var D = 0,
+      L = 0,
+      y = [],
+      G = !1,
       K = { role: "system", content: "" };
-    G.push(K);
-    var P = 0,
-      N = 0,
-      S = !1;
+    y.push(K);
+    var N = 0,
+      Q = 0,
+      W = !1;
     x.init = function () {
-      I = L.height - 1;
+      M = H.height - 1;
       x.updateHeight();
       this.ui.css({ bottom: 0, left: 0 });
       this.__mouseStopBlock = [];
@@ -236,16 +236,16 @@ define(
       this.ui
         .find(".input .list")
         .click(function () {
-          var a = J.list,
+          var a = O.list,
             b,
             c = a.length,
             e = h(this).offset(),
-            f = A.ui.find(".menu");
+            f = z.ui.find(".menu");
           if (c) {
-            A.remove();
-            A.append();
-            for (b = 0; b < c; ++b) A.addElement(a[b], d(a[b]));
-            A.addElement("", d(""));
+            z.remove();
+            z.append();
+            for (b = 0; b < c; ++b) z.addElement(a[b], d(a[b]));
+            z.addElement("", d(""));
             f.css({
               top: e.top - f.height() - 5,
               left: e.left - f.width() - 5,
@@ -260,14 +260,14 @@ define(
         .find(".input .filter")
         .click(function () {
           var a = h(this).offset(),
-            b = A.ui.find(".menu");
-          A.remove();
-          A.append();
-          A.addElement(m.getMessage(85), e(x.TYPE.PUBLIC));
-          A.addElement("\u4e16\u754c\u53d1\u8a00\u9891\u9053", e(x.TYPE.WORLD));
-          A.addElement(m.getMessage(86), e(x.TYPE.PARTY));
-          A.addElement(m.getMessage(437), e(x.TYPE.GUILD));
-          A.addElement("GPT", e(x.TYPE.GPTA));
+            b = z.ui.find(".menu");
+          z.remove();
+          z.append();
+          z.addElement(m.getMessage(85), e(x.TYPE.PUBLIC));
+          z.addElement("\u4e16\u754c\u53d1\u8a00\u9891\u9053", e(x.TYPE.WORLD));
+          z.addElement(m.getMessage(86), e(x.TYPE.PARTY));
+          z.addElement(m.getMessage(437), e(x.TYPE.GUILD));
+          z.addElement("GPT", e(x.TYPE.GPTA));
           b.css({ top: a.top - b.height() - 5, left: a.left - b.width() + 25 });
         })
         .mousedown(function (a) {
@@ -281,13 +281,13 @@ define(
       });
       this.ui.find(".body .content").on("click", ".join", function () {
         var a = $(this).data("info").split("#");
-        if (D.hasParty && D.partyLeaderAID != a[2])
+        if (E.hasParty && E.partyLeaderAID != a[2])
           return (ItemObtain.setMsg("\u8bf7\u9000\u51fa\u961f\u4f0d"), !1);
-        var b = new r.CZ.REQ_ENTER_INSTANCE();
+        var b = new q.CZ.REQ_ENTER_INSTANCE();
         b.CID = a[1];
         b.AID = a[2];
         b.instanceName = a[0];
-        q.sendPacket(b);
+        r.sendPacket(b);
         event.stopImmediatePropagation();
         return !1;
       });
@@ -305,11 +305,11 @@ define(
       this.ui.find(".content").empty();
       this.ui.find(".input .message").val("");
       this.ui.find(".input .username").val("");
-      G = [];
-      G.push(K);
-      H = !1;
-      z.clear();
-      J.clear();
+      y = [];
+      y.push(K);
+      G = !1;
+      F.clear();
+      O.clear();
     };
     x.onAppend = function () {
       this.ui.find(".input .message").focus();
@@ -318,10 +318,10 @@ define(
     };
     x.onRemove = function () {
       this.ui.find(".content").off("scroll");
-      L.y = parseInt(this.ui.css("bottom"), 5);
-      L.x = parseInt(this.ui.css("left"), 5);
-      L.height = I;
-      L.save();
+      H.y = parseInt(this.ui.css("bottom"), 5);
+      H.x = parseInt(this.ui.css("left"), 5);
+      H.height = M;
+      H.save();
     };
     x.processBattleMode = function (a) {
       if (
@@ -363,11 +363,11 @@ define(
         case l.UP:
           if (!h("#NpcMenu").length) {
             if (document.activeElement === b[0]) {
-              b.val(z.previous()).select();
+              b.val(F.previous()).select();
               break;
             }
             if (document.activeElement === c[0]) {
-              c.val(J.previous()).select();
+              c.val(O.previous()).select();
               break;
             }
           }
@@ -375,11 +375,11 @@ define(
         case l.DOWN:
           if (!h("#NpcMenu").length) {
             if (document.activeElement === b[0]) {
-              b.val(z.next()).select();
+              b.val(F.next()).select();
               break;
             }
             if (document.activeElement === c[0]) {
-              c.val(J.next()).select();
+              c.val(O.next()).select();
               break;
             }
           }
@@ -403,10 +403,10 @@ define(
         d = a.find(".message"),
         e = c.val(),
         c = d.val();
-      if (M & x.TYPE.GPTA && H)
+      if (I & x.TYPE.GPTA && G)
         ItemObtain.setMsg("\u8bf4\u8bdd\u592a\u5feb\u4e86");
       else {
-        if (!D.Entity.isAdmin) {
+        if (!E.Entity.isAdmin) {
           var f = e.split(":");
           if (1 < f.length && "npc" == f[0].toLowerCase()) {
             d.val("");
@@ -419,62 +419,62 @@ define(
               "/" !== c[0] &&
               ((this.PrivateMessageStorage.nick = e),
               (this.PrivateMessageStorage.msg = c),
-              J.push(e),
-              J.previous()),
-            z.push(c),
+              O.push(e),
+              O.previous()),
+            F.push(c),
             d.val(""),
             "/" === c[0])
           )
-            C.call(this, c.substr(1));
-          else if (M & x.TYPE.GPTA) {
-            Date.now() >= E && ((F = 0), (E = Date.now() + 6e4));
-            if (30 <= F)
+            A.call(this, c.substr(1));
+          else if (I & x.TYPE.GPTA) {
+            Date.now() >= D && ((L = 0), (D = Date.now() + 6e4));
+            if (30 <= L)
               return (
                 ItemObtain.setMsg(
                   "\u64cd\u4f5c\u592a\u9891\u7e41\u8bf7\u7a0d\u540e\u518d\u8bd5",
                 ),
                 !1
               );
-            F++;
-            H = !0;
+            L++;
+            G = !0;
             a = { role: "user", content: c };
-            3 < G.length && G.splice(1, 1);
-            G.push(a);
+            3 < y.length && y.splice(1, 1);
+            y.push(a);
             x.addText("\u6211 : " + c, x.TYPE.GPTU);
             x.addText(
-              D.Entity.display.name + " : \u6211\u60f3\u60f3...",
+              E.Entity.display.name + " : \u6211\u60f3\u60f3...",
               x.TYPE.GPTA,
               0,
               0,
               !0,
             );
             b();
-          } else if (S)
+          } else if (W)
             v.showMessageBox(
               "You are temporarily restricted from sending data.",
               "ok",
             );
           else if (
-            (N++,
-            1 === N &&
+            (Q++,
+            1 === Q &&
               setTimeout(function () {
-                N = 0;
+                Q = 0;
               }, 5e3),
-            10 < N)
+            10 < Q)
           )
-            ((S = !0),
+            ((W = !0),
               v.showMessageBox(
                 "Send limit exceeded. You are restricted for 10s.",
                 "ok",
               ),
               setTimeout(function () {
-                S = !1;
+                W = !1;
                 v.showMessageBox(
                   "Restriction lifted. You can send data again.",
                   "ok",
                 );
               }, 1e4));
-          else this.onRequestTalk(e, c, M);
+          else this.onRequestTalk(e, c, I);
         else
           (a.toggle(),
             this.ui.find(".battlemode").toggle(),
@@ -567,13 +567,13 @@ define(
               "ok",
               "cancel",
               function () {
-                var a = new r.CZ.PRIVATE_AIRSHIP_REQUEST();
+                var a = new q.CZ.PRIVATE_AIRSHIP_REQUEST();
                 a.mapname = b[0];
                 a.x = b[1];
                 a.y = b[2];
                 a.type = 1;
                 a.itemid = 14527;
-                q.sendPacket(a);
+                r.sendPacket(a);
               },
               null,
             );
@@ -594,14 +594,14 @@ define(
     };
     x.updateHeight = function (a) {
       var b = [0, 0, 42, 84, 126, 168, 210];
-      I = (I + 1) % b.length;
+      M = (M + 1) % b.length;
       var c = this.ui.find(".content"),
-        b = b[I],
+        b = b[M],
         d = parseInt(this.ui.css("bottom"), 10);
       this.ui.css("bottom", d);
       c.height(b);
-      0 === I && a && I++;
-      switch (I) {
+      0 === M && a && M++;
+      switch (M) {
         case 0:
           this.ui.hide();
           break;
@@ -617,7 +617,7 @@ define(
       c[0].scrollTop = c[0].scrollHeight;
     };
     x.saveNickName = function (a) {
-      J.push(a);
+      O.push(a);
     };
     x.onShortCut = function (a) {
       switch (a.cmd) {
@@ -646,144 +646,144 @@ define(
           break;
         case "autoattack":
           if (n.talk) return !1;
-          if (S) {
+          if (W) {
             v.showMessageBox(
               "You are temporarily restricted from clicking.",
               "ok",
             );
             break;
           }
-          P++;
-          1 === P &&
+          N++;
+          1 === N &&
             setTimeout(function () {
-              P = 0;
+              N = 0;
             }, 5e3);
-          30 < P
-            ? ((S = !0),
+          30 < N
+            ? ((W = !0),
               v.showMessageBox(
                 "Click limit exceeded. You are restricted for 10s.",
                 "ok",
               ),
               setTimeout(function () {
-                S = !1;
+                W = !1;
                 v.showMessageBox(
                   "Restriction lifted. You can click again.",
                   "ok",
                 );
               }, 1e4))
             : (3 == m.nid
-                ? ((a = new r.CZ.WHISPER()),
+                ? ((a = new q.CZ.WHISPER()),
                   (a.receiver = "NPC:setautoattack"),
                   (a.msg = "0"))
-                : ((a = new r.CZ.NOTIFY_UPDATEINFO()),
+                : ((a = new q.CZ.NOTIFY_UPDATEINFO()),
                   (a.id = 34),
                   (a.value = 1)),
-              q.sendPacket(a),
-              y("UI/Components/MiniMap/MiniMap").removeDestination());
+              r.sendPacket(a),
+              B("UI/Components/MiniMap/MiniMap").removeDestination());
           break;
         case "autoloot":
-          if (S) {
+          if (W) {
             v.showMessageBox(
               "You are temporarily restricted from clicking.",
               "ok",
             );
             break;
           }
-          P++;
-          1 === P &&
+          N++;
+          1 === N &&
             setTimeout(function () {
-              P = 0;
+              N = 0;
             }, 5e3);
-          30 < P
-            ? ((S = !0),
+          30 < N
+            ? ((W = !0),
               v.showMessageBox(
                 "Click limit exceeded. You are restricted for 10s.",
                 "ok",
               ),
               setTimeout(function () {
-                S = !1;
+                W = !1;
                 v.showMessageBox(
                   "Restriction lifted. You can click again.",
                   "ok",
                 );
               }, 1e4))
             : (3 == m.nid
-                ? ((a = new r.CZ.WHISPER()),
+                ? ((a = new q.CZ.WHISPER()),
                   (a.receiver = "NPC:setautopick"),
                   (a.msg = "0"))
-                : ((a = new r.CZ.NOTIFY_UPDATEINFO()),
+                : ((a = new q.CZ.NOTIFY_UPDATEINFO()),
                   (a.id = 35),
                   (a.value = 1)),
-              q.sendPacket(a));
+              r.sendPacket(a));
           break;
         case "autopots":
-          if (S) {
+          if (W) {
             v.showMessageBox(
               "You are temporarily restricted from clicking.",
               "ok",
             );
             break;
           }
-          P++;
-          1 === P &&
+          N++;
+          1 === N &&
             setTimeout(function () {
-              P = 0;
+              N = 0;
             }, 5e3);
-          30 < P
-            ? ((S = !0),
+          30 < N
+            ? ((W = !0),
               v.showMessageBox(
                 "Click limit exceeded. You are restricted for 10s.",
                 "ok",
               ),
               setTimeout(function () {
-                S = !1;
+                W = !1;
                 v.showMessageBox(
                   "Restriction lifted. You can click again.",
                   "ok",
                 );
               }, 1e4))
             : (3 == m.nid
-                ? ((a = new r.CZ.WHISPER()),
+                ? ((a = new q.CZ.WHISPER()),
                   (a.receiver = "NPC:setautoeat"),
                   (a.msg = "0"))
-                : ((a = new r.CZ.NOTIFY_UPDATEINFO()),
+                : ((a = new q.CZ.NOTIFY_UPDATEINFO()),
                   (a.id = 36),
                   (a.value = 1)),
-              q.sendPacket(a));
+              r.sendPacket(a));
           break;
         case "autofollow":
           if (n.talk) return !1;
-          S
+          W
             ? v.showMessageBox(
                 "You are temporarily restricted from clicking.",
                 "ok",
               )
-            : (P++,
-              1 === P &&
+            : (N++,
+              1 === N &&
                 setTimeout(function () {
-                  P = 0;
+                  N = 0;
                 }, 5e3),
-              30 < P
-                ? ((S = !0),
+              30 < N
+                ? ((W = !0),
                   v.showMessageBox(
                     "Click limit exceeded. You are restricted for 10s.",
                     "ok",
                   ),
                   setTimeout(function () {
-                    S = !1;
+                    W = !1;
                     v.showMessageBox(
                       "Restriction lifted. You can click again.",
                       "ok",
                     );
                   }, 1e4))
                 : (3 == m.nid
-                    ? ((a = new r.CZ.WHISPER()),
+                    ? ((a = new q.CZ.WHISPER()),
                       (a.receiver = "NPC:setfollow"),
                       (a.msg = "0"))
-                    : ((a = new r.CZ.NOTIFY_UPDATEINFO()),
+                    : ((a = new q.CZ.NOTIFY_UPDATEINFO()),
                       (a.id = 37),
                       (a.value = 1)),
-                  q.sendPacket(a)));
+                  r.sendPacket(a)));
       }
     };
     return v.addComponent(x);

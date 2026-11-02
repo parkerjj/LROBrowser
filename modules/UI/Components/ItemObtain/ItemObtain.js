@@ -11,31 +11,31 @@ define(
     a("Renderer/Renderer");
     var m = a("UI/UIManager"),
       h = a("UI/UIComponent"),
-      r = a("text!./ItemObtain.html");
+      q = a("text!./ItemObtain.html");
     a = a("text!./ItemObtain.css");
-    var q = new h("ItemObtain", r, a);
-    q.mouseMode = h.MouseMode.CROSS;
-    q.needFocus = !1;
+    var r = new h("ItemObtain", q, a);
+    r.mouseMode = h.MouseMode.CROSS;
+    r.needFocus = !1;
     var k = 0,
       g = 0;
-    q.ready = 0;
-    q.parReady = 0;
-    q.init = function () {
+    r.ready = 0;
+    r.parReady = 0;
+    r.init = function () {
       this.ui.css("zIndex", 38);
     };
-    q.onAppend = function () {};
-    q.onRemove = function () {
+    r.onAppend = function () {};
+    r.onRemove = function () {
       k && (e.clearTimeout(k), (k = 0));
     };
-    q.clean = function () {
-      q.ready = 0;
-      q.parReady = 0;
+    r.clean = function () {
+      r.ready = 0;
+      r.parReady = 0;
     };
-    q.timeEnd = function () {
+    r.timeEnd = function () {
       this.remove();
     };
-    q.set = function (a) {
-      if (q.ready) {
+    r.set = function (a) {
+      if (r.ready) {
         this.ui.is(":visible") || this.append();
         this.ui.css("zIndex", 99);
         g += 1;
@@ -70,14 +70,14 @@ define(
           function () {
             k.remove();
             --g;
-            0 == g && (q.ui.css("zIndex", 40), q.remove());
+            0 == g && (r.ui.css("zIndex", 40), r.remove());
           },
           2500 + 300 * g,
         );
       }
     };
-    q.setZeny = function (a) {
-      if (q.ready) {
+    r.setZeny = function (a) {
+      if (r.ready) {
         this.ui.is(":visible") || this.append();
         this.ui.css("zIndex", 99);
         var b;
@@ -105,14 +105,14 @@ define(
           function () {
             b.remove();
             --g;
-            0 == g && (q.ui.css("zIndex", 40), q.remove());
+            0 == g && (r.ui.css("zIndex", 40), r.remove());
           },
           2500 + 300 * g,
         );
       }
     };
-    q.setExp = function (a, b, d, h) {
-      if (q.ready) {
+    r.setExp = function (a, b, d, h) {
+      if (r.ready) {
         this.ui.is(":visible") || this.append();
         var f;
         b = ((100 * a) / b).toFixed(2);
@@ -165,14 +165,14 @@ define(
           function () {
             f.remove();
             --g;
-            0 == g && q.remove();
+            0 == g && r.remove();
           },
           2500 + 300 * g,
         );
       }
     };
-    q.setMsg = function (a) {
-      if (q.ready) {
+    r.setMsg = function (a) {
+      if (r.ready) {
         this.ui.is(":visible") || this.append();
         this.ui.css("zIndex", 99);
         g += 1;
@@ -190,14 +190,14 @@ define(
           function () {
             b.remove();
             --g;
-            0 == g && (q.ui.css("zIndex", 40), q.remove());
+            0 == g && (r.ui.css("zIndex", 40), r.remove());
           },
           2500 + 300 * g,
         );
       }
     };
-    q.setMapname = function (a) {
-      if (q.ready) {
+    r.setMapname = function (a) {
+      if (r.ready) {
         this.ui.is(":visible") || this.append();
         this.ui.css("zIndex", 99);
         g += 1;
@@ -217,14 +217,14 @@ define(
           function () {
             b.remove();
             --g;
-            0 == g && q.remove();
+            0 == g && r.remove();
           },
           3500 + 300 * g,
         );
       }
     };
-    q.setParMsg = function (a, b) {
-      if (q.parReady) {
+    r.setParMsg = function (a, b) {
+      if (r.parReady) {
         this.ui.is(":visible") || this.append();
         this.ui.css("zIndex", 99);
         g += 1;
@@ -326,14 +326,14 @@ define(
           function () {
             h.remove();
             --g;
-            0 == g && (q.ui.css("zIndex", 40), q.remove());
+            0 == g && (r.ui.css("zIndex", 40), r.remove());
           },
           2500 + 300 * g,
         );
       }
     };
-    q.setNavigate = function (a) {
-      if (q.ready) {
+    r.setNavigate = function (a) {
+      if (r.ready) {
         this.ui.is(":visible") || this.append();
         this.ui.css("zIndex", 99);
         g += 1;
@@ -351,14 +351,14 @@ define(
           function () {
             b.remove();
             --g;
-            0 == g && (q.ui.css("zIndex", 40), q.remove());
+            0 == g && (r.ui.css("zIndex", 40), r.remove());
           },
           2500 + 300 * g,
         );
       }
     };
-    q.setOfflineMsg = function (a) {
-      if (q.ready) {
+    r.setOfflineMsg = function (a) {
+      if (r.ready) {
         this.ui.is(":visible") || this.append();
         this.ui.css("zIndex", 99);
         g += 1;
@@ -376,12 +376,12 @@ define(
           function () {
             b.remove();
             --g;
-            0 == g && q.remove();
+            0 == g && r.remove();
           },
           3500 + 300 * g,
         );
       }
     };
-    return m.addComponent(q);
+    return m.addComponent(r);
   },
 );

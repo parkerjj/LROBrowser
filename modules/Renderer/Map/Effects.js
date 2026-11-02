@@ -26,10 +26,10 @@ define("Renderer/Map/Effects", [
     },
     spam: function (a, h) {
       var m,
-        q,
+        r,
         k = e.length;
-      for (q = 0; q < k; ++q)
-        ((m = e[q]),
+      for (r = 0; r < k; ++r)
+        ((m = e[r]),
           !m.isVisible && 25 > d.dist(m.pos, a)
             ? (b.spam({
                 effectId: m.id,

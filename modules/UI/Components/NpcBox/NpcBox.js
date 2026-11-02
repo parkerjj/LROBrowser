@@ -10,12 +10,12 @@ define(
       e = a("UI/UIManager"),
       m = a("UI/UIComponent"),
       h = a("Preferences/Controls"),
-      r = a("UI/Components/WorldMap/WorldMap"),
-      q = a("text!./NpcBox.html");
+      q = a("UI/Components/WorldMap/WorldMap"),
+      r = a("text!./NpcBox.html");
     a = a("text!./NpcBox.css");
-    var k = new m("NpcBox", q, a),
+    var k = new m("NpcBox", r, a),
       g = !1,
-      t = 0;
+      u = 0;
     k.needFocus = !1;
     k.init = function () {
       this.ui.css({
@@ -29,8 +29,8 @@ define(
         a.stopImmediatePropagation();
       });
       this.ui.on("click", ".smap", function (a) {
-        r.select();
-        r.selectMap(b(this).text());
+        q.select();
+        q.selectMap(b(this).text());
         k.close();
         a.stopImmediatePropagation();
         return !1;
@@ -45,7 +45,7 @@ define(
       this.ui.find(".close").hide();
       this.ui.find(".content").text("");
       g = h.talk = !1;
-      t = 0;
+      u = 0;
       var a = document.getElementById("cutin");
       a && document.body.removeChild(a);
     };
@@ -74,28 +74,28 @@ define(
     };
     k.setText = function (a, c) {
       var d = this.ui.find(".content");
-      t = c;
+      u = c;
       g && ((g = !1), d.text(""));
       d.append(b("\x3cdiv/\x3e").text(a));
     };
     k.addNext = function (a) {
-      t = a;
+      u = a;
       this.ui.find(".next").show();
     };
     k.addClose = function (a) {
-      t = a;
+      u = a;
       this.ui.find(".close").show();
     };
     k.next = function () {
       g = !0;
       this.ui.find(".next").hide();
-      this.onNextPressed(t);
+      this.onNextPressed(u);
     };
     k.close = function () {
       g = !0;
       h.talk = !1;
       this.ui.find(".close").hide();
-      this.onClosePressed(t);
+      this.onClosePressed(u);
     };
     k.onClosePressed = function () {};
     k.onNextPressed = function () {};

@@ -10,7 +10,7 @@ define(
       f.setFriends(p);
     }
     function d(a) {
-      var b = r(a.AID, a.GID);
+      var b = q(a.AID, a.GID);
       -1 < b && ((p[b].State = a.State), f.updateFriendState(b, a.State));
     }
     function e(a) {
@@ -19,8 +19,8 @@ define(
           n.answerFriendRequest(a.ReqAID, a.ReqGID, b);
         };
       }
-      t.showPromptBox(
-        q.getMessage(818).replace("%s", a.Name),
+      u.showPromptBox(
+        r.getMessage(818).replace("%s", a.Name),
         "ok",
         "cancel",
         b(1),
@@ -31,8 +31,8 @@ define(
       var b;
       switch (a.Result) {
         case 0:
-          l.addText(q.getMessage(821).replace("%s", a.Name), l.TYPE.BLUE);
-          b = r(a.AID, a.GID);
+          l.addText(r.getMessage(821).replace("%s", a.Name), l.TYPE.BLUE);
+          b = q(a.AID, a.GID);
           0 > b && ((b = p.length), (p[b] = {}));
           p[b].AID = a.AID;
           p[b].GID = a.GID;
@@ -41,30 +41,30 @@ define(
           f.updateFriend(b, p[b]);
           break;
         case 1:
-          l.addText(q.getMessage(822).replace("%s", a.Name), l.TYPE.ERROR);
+          l.addText(r.getMessage(822).replace("%s", a.Name), l.TYPE.ERROR);
           break;
         case 2:
-          l.addText(q.getMessage(819), l.TYPE.ERROR);
+          l.addText(r.getMessage(819), l.TYPE.ERROR);
           break;
         case 3:
-          l.addText(q.getMessage(820).replace("%s", a.Name), l.TYPE.ERROR);
+          l.addText(r.getMessage(820).replace("%s", a.Name), l.TYPE.ERROR);
       }
     }
     function h(a) {
-      a = r(a.AID, a.GID);
+      a = q(a.AID, a.GID);
       -1 < a && (p.splice(a, 1), f.removeFriend(a));
     }
-    function r(a, b) {
+    function q(a, b) {
       var c, d;
       c = 0;
       for (d = p.length; c < d; ++c)
         if (p[c].AID === a && p[c].GID === b) return c;
       return -1;
     }
-    var q = a("DB/DBManager"),
+    var r = a("DB/DBManager"),
       k = a("Network/NetworkManager"),
       g = a("Network/PacketStructure"),
-      t = a("UI/UIManager"),
+      u = a("UI/UIManager"),
       l = a("UI/Components/ChatBox/ChatBox"),
       f = a("UI/Components/PartyFriends/PartyFriends"),
       n = {},

@@ -6,21 +6,21 @@ define("Controls/BattleMode", [
   "UI/UIManager",
 ], function (a) {
   function b(a) {
-    return r[a].Custom_settings ? r[a].Custom_settings : r[a].init;
+    return q[a].Custom_settings ? q[a].Custom_settings : q[a].init;
   }
   function c(a) {
-    return r[a].Custom_settings ? r[a].Custom_alt : r[a].alt;
+    return q[a].Custom_settings ? q[a].Custom_alt : q[a].alt;
   }
   function d(a) {
-    return r[a].Custom_settings ? r[a].Custom_ctrl : r[a].ctrl;
+    return q[a].Custom_settings ? q[a].Custom_ctrl : q[a].ctrl;
   }
   function e(a) {
-    return r[a].Custom_settings ? r[a].Custom_shift : r[a].shift;
+    return q[a].Custom_settings ? q[a].Custom_shift : q[a].shift;
   }
   var m = a("Utils/jquery"),
     h = a("Controls/KeyEventHandler"),
-    r = a("Preferences/ShortCutControls"),
-    q = a("UI/UIManager");
+    q = a("Preferences/ShortCutControls"),
+    r = a("UI/UIManager");
   a = {};
   var k = {};
   a.init = function () {
@@ -493,7 +493,7 @@ define("Controls/BattleMode", [
       !!b.ctrl === h.CTRL
     ) {
       g[a] = !0;
-      a = q.getComponent(b.component);
+      a = r.getComponent(b.component);
       if (a.onShortCut) a.onShortCut(b);
       return !0;
     }

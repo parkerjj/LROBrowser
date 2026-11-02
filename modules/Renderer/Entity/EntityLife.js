@@ -30,7 +30,7 @@ define("Renderer/Entity/EntityLife", [
       var c = this.ctx,
         d = this.hp / this.hp_max,
         e = -1 < this.sp && -1 < this.sp_max,
-        t = this.sp / this.sp_max,
+        u = this.sp / this.sp_max,
         l = -1 < this.nFullness,
         f = this.nFullness / 100;
       e && (a += 4);
@@ -58,7 +58,7 @@ define("Renderer/Entity/EntityLife", [
         ((c.fillStyle = "#43301D"),
         c.fillRect(0, 4, 60, 1),
         (c.fillStyle = "#369AD9"),
-        c.fillRect(1, 5, Math.round(58 * t), 3));
+        c.fillRect(1, 5, Math.round(58 * u), 3));
       l &&
         ((c.fillStyle = "#43301D"),
         c.fillRect(0, 8, 60, 1),

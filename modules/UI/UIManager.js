@@ -28,8 +28,8 @@ define(
     a("Network/NetworkManager");
     a("Network/PacketStructure");
     var h = a("Controls/KeyEventHandler"),
-      r = a("Renderer/Renderer"),
-      q = {
+      q = a("Renderer/Renderer"),
+      r = {
         components: {},
         addComponent: function (a) {
           if (!(a instanceof e))
@@ -59,16 +59,16 @@ define(
             g,
             k,
             h,
-            t,
+            u,
             m;
           for (d = 0; d < e; ++d)
             if ((g = this.components[c[d]].ui))
               ((k = parseInt(g.css("left"), 10)),
                 (h = parseInt(g.css("top"), 10)),
-                (t = parseInt(g.css("width"), 10)),
+                (u = parseInt(g.css("width"), 10)),
                 (m = parseInt(g.css("height"), 10)),
                 h + m > b && b > m && g.css("top", b - m),
-                k + t > a && a > t && g.css("left", a - t));
+                k + u > a && a > u && g.css("left", a - u));
         },
         showEventBox: function (a) {
           var b, e, f, g;
@@ -78,8 +78,8 @@ define(
           b.init = function () {
             this.ui.find(".text").text(a);
             this.ui.css({
-              top: (r.height - this.ui.height()) / 2,
-              left: (r.width - this.ui.width()) / 2,
+              top: (q.height - this.ui.height()) / 2,
+              left: (q.width - this.ui.width()) / 2,
               marginTop: "-60px",
               zIndex: 100,
             });
@@ -130,8 +130,8 @@ define(
           e.init = function () {
             this.ui.find(".text").text(b);
             this.ui.css({
-              top: (r.height - 120) / 1.5 - 120,
-              left: (r.width - 280) / 2,
+              top: (q.height - 120) / 1.5 - 120,
+              left: (q.width - 280) / 2,
               zIndex: 100,
             });
             this.draggable();
@@ -176,8 +176,8 @@ define(
             this.draggable();
             this.ui.find(".text").text(a);
             this.ui.css({
-              top: (r.height - 120) / 1.5 - 125,
-              left: (r.width - 280) / 2,
+              top: (q.height - 120) / 1.5 - 125,
+              left: (q.width - 280) / 2,
               zIndex: 100,
             });
             b &&
@@ -212,15 +212,15 @@ define(
         },
       },
       k;
-    q.showPromptBox = function (a, b, c, e, n) {
+    r.showPromptBox = function (a, b, c, e, n) {
       k && k.remove();
       k = this.getComponent("WinPopup").clone("WinPrompt");
       k.init = function () {
         this.draggable();
         this.ui.find(".text").text(a);
         this.ui.css({
-          top: (r.height - 120) / 1.5 - 120,
-          left: (r.width - 280) / 2,
+          top: (q.height - 120) / 1.5 - 120,
+          left: (q.width - 280) / 2,
           zIndex: 100,
         });
         this.ui.find(".btns").append(
@@ -249,7 +249,7 @@ define(
       k.append();
       return k;
     };
-    q.showOfflineMsgBox = function (a) {
+    r.showOfflineMsgBox = function (a) {
       var c,
         e = "";
       c = this.getComponent("WinPopup").clone("WinOfflineMsg");
@@ -375,6 +375,6 @@ define(
       c.append();
       return c;
     };
-    return q;
+    return r;
   },
 );

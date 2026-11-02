@@ -36,19 +36,19 @@ define(
       e = a("DB/Items/Randomoption"),
       m = a("DB/Items/ItemType"),
       h = a("Core/Client"),
-      r = a("Core/Configs"),
-      q = a("Controls/KeyEventHandler"),
+      q = a("Core/Configs"),
+      r = a("Controls/KeyEventHandler"),
       k = a("UI/Components/CardIllustration/CardIllustration"),
       g = a("UI/UIManager"),
-      t = a("UI/UIComponent"),
+      u = a("UI/UIComponent"),
       l = a("text!./ItemInfo.html");
     a = a("text!./ItemInfo.css");
-    var f = new t("ItemInfo", l, a);
+    var f = new u("ItemInfo", l, a);
     f.uid = -1;
     f.index = -1;
-    var n = r.get("ClientVer");
+    var n = q.get("ClientVer");
     f.onKeyDown = function (a) {
-      return a.which === q.ESCAPE
+      return a.which === r.ESCAPE
         ? (f.remove(), a.stopImmediatePropagation(), !1)
         : !0;
     };
@@ -136,22 +136,22 @@ define(
               "\x3c/span\x3e\x3cbr\x3e",
           );
       if (a.HireExpireDate) {
-        var l, p, q, t;
+        var l, p, r, q;
         l = new Date(1e3 * a.HireExpireDate);
         l.getFullYear();
         p =
           (10 > l.getMonth() + 1
             ? "0" + (l.getMonth() + 1)
             : l.getMonth() + 1) + "\u6708 ";
-        q = l.getDate() + "\u65e5 ";
-        t = l.getHours() + "\u65f6";
+        r = l.getDate() + "\u65e5 ";
+        q = l.getHours() + "\u65f6";
         l.getMinutes();
         l.getSeconds();
         f.find(".description").prepend(
           '\x3cp style\x3d"color:red;margin:0;"\x3e\u6d88\u5931\u65f6\u95f4\uff1a' +
             p +
+            r +
             q +
-            t +
             "\x3c/p\x3e",
         );
       }

@@ -15,11 +15,11 @@ define(
       e = a("Utils/gl-matrix"),
       m = a("Core/Client"),
       h = a("Renderer/Camera"),
-      r,
       q,
+      r,
       k,
       g = e.mat4,
-      t = (function () {
+      u = (function () {
         for (var a = [], b = 0; 5 > b; b++)
           a.push({ posMat: g.create(), texMat: g.create() });
         return a;
@@ -40,8 +40,8 @@ define(
           c.translate(-this.width / 2, -this.height / 2);
           c.drawImage(this, 0, 0);
           c.restore();
-          r = a.createTexture();
-          a.bindTexture(a.TEXTURE_2D, r);
+          q = a.createTexture();
+          a.bindTexture(a.TEXTURE_2D, q);
           a.texImage2D(a.TEXTURE_2D, 0, a.RGBA, a.RGBA, a.UNSIGNED_BYTE, this);
           a.texParameteri(a.TEXTURE_2D, a.TEXTURE_MAG_FILTER, a.LINEAR);
           a.texParameteri(a.TEXTURE_2D, a.TEXTURE_MIN_FILTER, a.LINEAR);
@@ -55,7 +55,7 @@ define(
     };
     b.renderBeforeEntities = !1;
     b.init = function (a) {
-      q = c.createShaderProgram(
+      r = c.createShaderProgram(
         a,
         "\n        #version 100\n        #pragma vscode_glsllint_stage : vert\n        precision highp float;\n\n        attribute vec2 aPosition;\n        attribute vec2 aTextureCoord;\n\n        varying vec2 vTextureCoord;\n\n        uniform mat4 uModelViewMat;\n        uniform mat4 uProjectionMat;\n        uniform mat4 uTextureRotMat;\n        uniform mat4 uRotationMat;\n\n        uniform float uCameraZoom;\n\n        uniform vec3 uPosition;\n        uniform float uSize;\n        uniform float uZIndex;\n\n        void main(void) {\n\n            vec4 position  \x3d vec4(uPosition.x + 0.5, -uPosition.z - 2.0, uPosition.y + 0.5, 1.0);\n            \n            vec4 pos2      \x3d vec4(aPosition.x * uSize, 0.0, aPosition.y * uSize, 0.0) * uTextureRotMat;\n            pos2.x        +\x3d 1.0;\n            position      +\x3d pos2 * uRotationMat;\n\n            gl_Position    \x3d uProjectionMat * uModelViewMat * position;\n            gl_Position.z -\x3d uZIndex / max(uCameraZoom, 1.0);\n\n            vTextureCoord  \x3d aTextureCoord;\n        }",
         "\n        #version 100\n        #pragma vscode_glsllint_stage : frag\n        precision highp float;\n\n        varying vec2 vTextureCoord;\n\n        uniform vec4 uColor;\n        uniform sampler2D uDiffuse;\n        float tmp;\n\n        void main(void) {\n            vec4 texture \x3d texture2D( uDiffuse,  vTextureCoord.st );\n            \n            texture *\x3d uColor;\n            \n            /*if (texture.r \x3c 0.1 \x26\x26 texture.g \x3c 0.1 \x26\x26 texture.b \x3c 0.1) {\n               discard;\n            }*/\n            \n            gl_FragColor \x3d texture;\n\n        }",
@@ -78,8 +78,8 @@ define(
           c.translate(-this.width / 2, -this.height / 2);
           c.drawImage(this, 0, 0);
           c.restore();
-          r = a.createTexture();
-          a.bindTexture(a.TEXTURE_2D, r);
+          q = a.createTexture();
+          a.bindTexture(a.TEXTURE_2D, q);
           a.texImage2D(a.TEXTURE_2D, 0, a.RGBA, a.RGBA, a.UNSIGNED_BYTE, this);
           a.texParameteri(a.TEXTURE_2D, a.TEXTURE_MAG_FILTER, a.LINEAR);
           a.texParameteri(a.TEXTURE_2D, a.TEXTURE_MIN_FILTER, a.LINEAR);
@@ -88,31 +88,31 @@ define(
       });
     };
     b.free = function (a) {
-      r && (a.deleteTexture(r), (r = null));
-      q && (a.deleteProgram(q), (q = null));
+      q && (a.deleteTexture(q), (q = null));
+      r && (a.deleteProgram(r), (r = null));
       k && a.deleteBuffer(k);
       this.ready = !1;
     };
     b.beforeRender = function (a, b, c, d, e) {
-      d = q.uniform;
-      var f = q.attribute;
-      a.useProgram(q);
-      for (var l, n, m = 0, p = t.length; m < p; m++) {
+      d = r.uniform;
+      var f = r.attribute;
+      a.useProgram(r);
+      for (var l, n, m = 0, p = u.length; m < p; m++) {
         l = ((h.angle[0] - 90) * Math.PI) / 180;
-        var v = (h.angle[1] * Math.PI) / 180;
-        n = (2 * m * Math.PI) / t.length;
+        var t = (h.angle[1] * Math.PI) / 180;
+        n = (2 * m * Math.PI) / u.length;
         n -= (e / 64 / 180) * Math.PI;
-        var u = g.create();
-        g.rotateX(t[m].texMat, u, l);
-        g.rotateY(t[m].texMat, t[m].texMat, v - n);
-        l = t[m].posMat;
+        var v = g.create();
+        g.rotateX(u[m].texMat, v, l);
+        g.rotateY(u[m].texMat, u[m].texMat, t - n);
+        l = u[m].posMat;
         g.identity(l);
         g.rotateY(l, l, n);
       }
       a.uniformMatrix4fv(d.uModelViewMat, !1, b);
       a.uniformMatrix4fv(d.uProjectionMat, !1, c);
       a.activeTexture(a.TEXTURE0);
-      a.bindTexture(a.TEXTURE_2D, r);
+      a.bindTexture(a.TEXTURE_2D, q);
       a.uniform1i(d.uDiffuse, 0);
       a.enableVertexAttribArray(f.aPosition);
       a.enableVertexAttribArray(f.aTextureCoord);
@@ -122,13 +122,13 @@ define(
       a.depthMask(!0);
     };
     b.prototype.render = function (a, b) {
-      b = q.uniform;
+      b = r.uniform;
       a.uniform3fv(b.uPosition, this.position);
       a.bindBuffer(a.ARRAY_BUFFER, k);
       a.blendFunc(a.SRC_ALPHA, a.ONE);
       a.uniform1f(b.uCameraZoom, h.zoom);
       for (var c, d = this.spheres.length; 0 < d; d--)
-        ((c = t[d % t.length]),
+        ((c = u[d % u.length]),
           a.uniformMatrix4fv(b.uTextureRotMat, !1, c.texMat),
           a.uniformMatrix4fv(b.uRotationMat, !1, c.posMat),
           10 < d
@@ -184,8 +184,8 @@ define(
     };
     b.afterRender = function (a) {
       a.blendFunc(a.SRC_ALPHA, a.ONE_MINUS_SRC_ALPHA);
-      a.disableVertexAttribArray(q.attribute.aPosition);
-      a.disableVertexAttribArray(q.attribute.aTextureCoord);
+      a.disableVertexAttribArray(r.attribute.aPosition);
+      a.disableVertexAttribArray(r.attribute.aTextureCoord);
     };
     return b;
   },

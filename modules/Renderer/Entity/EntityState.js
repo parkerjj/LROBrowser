@@ -217,7 +217,7 @@ define(
         (this._healthState = a),
         b.call(this));
     }
-    function r(a) {
+    function q(a) {
       var c = 0;
       this._allRidingState && (c = this.costume);
       this._effectStateColor[0] = 1;
@@ -233,8 +233,8 @@ define(
           g.EffectState.DRAGON5 |
           g.EffectState.WUGRIDER |
           g.EffectState.MADOGEAR) &&
-        this._job in t &&
-        (c = t[this._job]);
+        this._job in u &&
+        (c = u[this._job]);
       a & g.EffectState.WEDDING && (c = 22);
       a & g.EffectState.XMAS && (c = 26);
       a & g.EffectState.SUMMER && (c = 27);
@@ -317,7 +317,7 @@ define(
       this._effectState = a;
       b.call(this);
     }
-    function q(a) {
+    function r(a) {
       var c = 0,
         d =
           g.EffectState.RIDING |
@@ -338,7 +338,7 @@ define(
     }
     var k = a("Audio/SoundManager"),
       g = a("DB/Status/StatusState"),
-      t = a("DB/Jobs/MountTable"),
+      u = a("DB/Jobs/MountTable"),
       l = a("DB/Jobs/MountTable2"),
       f = a("Engine/SessionStorage"),
       n = a("DB/Emotions"),
@@ -395,13 +395,13 @@ define(
         get: function () {
           return this._effectState;
         },
-        set: r,
+        set: q,
       });
       Object.defineProperty(this, "allRidingState", {
         get: function () {
           return this._allRidingState;
         },
-        set: q,
+        set: r,
       });
       Object.defineProperty(this, "virtue", {
         get: function () {

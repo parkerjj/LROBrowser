@@ -5,12 +5,12 @@ define(
   ),
   function (a) {
     function b() {
-      r.remove();
-      r.append();
-      r.setType("text", !1, "");
-      r.ui.find(".text").text("\u8bf7\u8f93\u5165\u53e3\u4ee4");
-      r.onSubmitRequest = function (a) {
-        r.remove();
+      q.remove();
+      q.append();
+      q.setType("text", !1, "");
+      q.ui.find(".text").text("\u8bf7\u8f93\u5165\u53e3\u4ee4");
+      q.onSubmitRequest = function (a) {
+        q.remove();
         if ("avv6" == a) k.onInterCode(a);
         else m.showMessageBox("\u65e0\u6548\u53e3\u4ee4", "ok");
       };
@@ -20,10 +20,10 @@ define(
       e = a("Controls/KeyEventHandler"),
       m = a("UI/UIManager"),
       h = a("UI/UIComponent"),
-      r = a("UI/Components/InputBox/InputBox"),
-      q = a("text!./WinList.html");
+      q = a("UI/Components/InputBox/InputBox"),
+      r = a("text!./WinList.html");
     a = a("text!./WinList.css");
-    var k = new h("WinList", q, a);
+    var k = new h("WinList", r, a);
     k.init = function () {
       this.ui.css({ top: (d.height - 280) / 1.5, left: (d.width - 280) / 2 });
       this.draggable();

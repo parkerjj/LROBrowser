@@ -10,11 +10,11 @@ define(
       e = a("Audio/SoundManager"),
       m = a("Engine/SessionStorage"),
       h = a("Network/PacketStructure"),
-      r = a("Network/NetworkManager"),
-      q = a("Preferences/Controls"),
+      q = a("Network/NetworkManager"),
+      r = a("Preferences/Controls"),
       k = a("Preferences/Audio"),
       g = a("Preferences/Map"),
-      t = a("Preferences/Camera");
+      u = a("Preferences/Camera");
     return function (l) {
       var f,
         n = l.split(" ")[0];
@@ -47,9 +47,9 @@ define(
           g.save();
           return;
         case "camera":
-          this.addText(b.getMessage(319 + t.smooth), this.TYPE.INFO);
-          t.smooth = !t.smooth;
-          t.save();
+          this.addText(b.getMessage(319 + u.smooth), this.TYPE.INFO);
+          u.smooth = !u.smooth;
+          u.save();
           return;
         case "fog":
           g.fog = !g.fog;
@@ -62,42 +62,42 @@ define(
           return;
         case "noctrl":
         case "nc":
-          this.addText(b.getMessage(717 + q.noctrl), this.TYPE.INFO);
-          q.noctrl = !q.noctrl;
-          q.save();
+          this.addText(b.getMessage(717 + r.noctrl), this.TYPE.INFO);
+          r.noctrl = !r.noctrl;
+          r.save();
           return;
         case "noshift":
         case "ns":
-          this.addText(b.getMessage(701 + q.noshift), this.TYPE.INFO);
-          q.noshift = !q.noshift;
-          q.save();
+          this.addText(b.getMessage(701 + r.noshift), this.TYPE.INFO);
+          r.noshift = !r.noshift;
+          r.save();
           return;
         case "sit":
         case "stand":
           l = new h.CZ.REQUEST_ACT();
           l.action = m.Entity.action === m.Entity.ACTION.SIT ? 3 : 2;
-          r.sendPacket(l);
+          q.sendPacket(l);
           return;
         case "doridori":
           m.Entity.headDir = 1 === m.Entity.headDir ? 2 : 1;
           l = new h.CZ.CHANGE_DIRECTION();
           l.headDir = m.Entity.headDir;
           l.dir = m.Entity.direction;
-          r.sendPacket(l);
+          q.sendPacket(l);
           return;
         case "bangbang":
           m.Entity.direction = (m.Entity.direction + 1) % 8;
           l = new h.CZ.CHANGE_DIRECTION();
           l.headDir = m.Entity.headDir;
           l.dir = m.Entity.direction;
-          r.sendPacket(l);
+          q.sendPacket(l);
           return;
         case "bingbing":
           m.Entity.direction = (m.Entity.direction + 7) % 8;
           l = new h.CZ.CHANGE_DIRECTION();
           l.headDir = m.Entity.headDir;
           l.dir = m.Entity.direction;
-          r.sendPacket(l);
+          q.sendPacket(l);
           return;
         case "where":
           f = a("Renderer/MapRenderer").currentMap;
@@ -115,41 +115,41 @@ define(
         case "exall":
           l = new h.CZ.SETTING_WHISPER_STATE();
           l.type = 0;
-          r.sendPacket(l);
+          q.sendPacket(l);
           return;
         case "inall":
           l = new h.CZ.SETTING_WHISPER_STATE();
           l.type = 1;
-          r.sendPacket(l);
+          q.sendPacket(l);
           return;
         case "who":
         case "w":
           l = new h.CZ.REQ_USER_COUNT();
-          r.sendPacket(l);
+          q.sendPacket(l);
           return;
         case "blacksmith":
           l = new h.CZ.REQ_RANKING();
           l.Type = 0;
-          r.sendPacket(l);
+          q.sendPacket(l);
           return;
         case "alchemist":
           l = new h.CZ.REQ_RANKING();
           l.Type = 1;
-          r.sendPacket(l);
+          q.sendPacket(l);
           return;
         case "taekwon":
           l = new h.CZ.REQ_RANKING();
           l.Type = 2;
-          r.sendPacket(l);
+          q.sendPacket(l);
           return;
         case "pk":
           l = new h.CZ.REQ_RANKING();
           l.Type = 3;
-          r.sendPacket(l);
+          q.sendPacket(l);
           return;
         case "memo":
           l = new h.CZ.REMEMBER_WARPPOINT();
-          r.sendPacket(l);
+          q.sendPacket(l);
           return;
         case "chat":
           a("UI/Components/ChatRoomCreate/ChatRoomCreate").show();
@@ -193,14 +193,14 @@ define(
           l = new h.CZ.STATUS_CHANGE();
           l.statusID = p + 13;
           l.changeAmount = parseInt(f[2], 10);
-          r.sendPacket(l);
+          q.sendPacket(l);
           return;
         }
       }
       n in c.commands
         ? ((l = new h.CZ.REQ_EMOTION()),
           (l.type = c.commands[n]),
-          r.sendPacket(l))
+          q.sendPacket(l))
         : this.addText(b.getMessage(95), this.TYPE.INFO);
     };
   },

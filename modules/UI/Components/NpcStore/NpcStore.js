@@ -23,14 +23,14 @@ define(
       return e;
     }
     function c(a, c, d) {
-      var e = A.getItemInfo(c.ITID),
+      var e = z.getItemInfo(c.ITID),
         f = a.find(".item[data-index\x3d" + c.index + "]:first");
       0 === c.count
         ? f.length && f.remove()
         : f.length
           ? f.find(".amount").text(isFinite(c.count) ? c.count : "")
-          : ((f = b(c.price, S === H.Type.VENDING_STORE)),
-            0 == R &&
+          : ((f = b(c.price, W === G.Type.VENDING_STORE)),
+            0 == V &&
               ("discountprice" in c && c.price !== c.discountprice
                 ? (f += " -\x3e " + b(c.discountprice))
                 : "overchargeprice" in c &&
@@ -45,11 +45,11 @@ define(
                     '" \x3e\x3cdiv class\x3d"icon"\x3e\x3cdiv class\x3d"amount"\x3e' +
                     (isFinite(c.count) ? c.count : "") +
                     ' \u4e2a\x3c/div\x3e\x3c/div\x3e\x3cdiv class\x3d"name"\x3e' +
-                    u.escape(A.getItemName(c)) +
+                    t.escape(z.getItemName(c)) +
                     '\x3c/div\x3e\x3cdiv class\x3d"price"\x3e' +
                     f +
                     '\x3c/div\x3e\x3cdiv class\x3d"unity"\x3e' +
-                    (0 === R ? "Z" : 1 === R ? "J" : 2 === R ? "C" : "Z") +
+                    (0 === V ? "Z" : 1 === V ? "J" : 2 === V ? "C" : "Z") +
                     "\x3c/div\x3e\x3c/div\x3e",
                 )
               : a.append(
@@ -60,15 +60,15 @@ define(
                     '" \x3e\x3cdiv class\x3d"icon"\x3e\x3cdiv class\x3d"amount"\x3e' +
                     (isFinite(c.count) ? c.count : "") +
                     '\x3c/div\x3e\x3c/div\x3e\x3cdiv class\x3d"name"\x3e' +
-                    u.escape(A.getItemName(c)) +
+                    t.escape(z.getItemName(c)) +
                     '\x3c/div\x3e\x3cdiv class\x3d"price"\x3e' +
                     f +
                     '\x3c/div\x3e\x3cdiv class\x3d"unity"\x3e' +
-                    (0 === R ? "Z" : 1 === R ? "J" : 2 === R ? "C" : "Z") +
+                    (0 === V ? "Z" : 1 === V ? "J" : 2 === V ? "C" : "Z") +
                     "\x3c/div\x3e\x3c/div\x3e",
                 ),
-            B.loadFile(
-              A.INTERFACE_PATH +
+            C.loadFile(
+              z.INTERFACE_PATH +
                 "item/" +
                 (c.IsIdentified
                   ? e.identifiedResourceName
@@ -83,7 +83,7 @@ define(
             ));
     }
     function d(a, b) {
-      var c = A.getItemInfo(b.ITID),
+      var c = z.getItemInfo(b.ITID),
         d = a.find(".item[data-index\x3d" + b.index + "]:first");
       0 === b.count
         ? d.length && d.remove()
@@ -98,8 +98,8 @@ define(
                 (b.count || 1) +
                 "\x3c/span\x3e\x3c/div\x3e\x3c/div\x3e",
             ),
-            B.loadFile(
-              A.INTERFACE_PATH +
+            C.loadFile(
+              z.INTERFACE_PATH +
                 "item/" +
                 (b.IsIdentified
                   ? c.identifiedResourceName
@@ -114,12 +114,12 @@ define(
             ));
     }
     function e(a, b, c) {
-      c = A.getItemInfo(b.ITID);
-      F.getItemById(b.ITID);
+      c = z.getItemInfo(b.ITID);
+      L.getItemById(b.ITID);
       var d = a.find(".item[data-index\x3d" + b.index + "]:first");
       if (0 === b.count) d.length && d.remove();
       else if (!d.length) {
-        var e = A.getItemInfo(b.currencyNameid),
+        var e = z.getItemInfo(b.currencyNameid),
           d = b.currencyAmount;
         a.append(
           '\x3cdiv class\x3d"item" draggable\x3d"true" data-index\x3d"' +
@@ -129,15 +129,15 @@ define(
             '" \x3e\x3cdiv class\x3d"icon"\x3e\x3c/div\x3e\x3cdiv class\x3d"amount"\x3e' +
             (isFinite(b.count) ? b.count : "") +
             '\x3c/div\x3e\x3cdiv class\x3d"name"\x3e' +
-            u.escape(A.getItemName(b)) +
+            t.escape(z.getItemName(b)) +
             '\x3c/div\x3e\x3cdiv class\x3d"nicon" data-itid\x3d"' +
             b.currencyNameid +
             '"\x3e\x3c/div\x3e\x3cdiv class\x3d"price"\x3e' +
             d +
             "\x3c/div\x3e\x3c/div\x3e",
         );
-        B.loadFile(
-          A.INTERFACE_PATH +
+        C.loadFile(
+          z.INTERFACE_PATH +
             "item/" +
             (b.IsIdentified
               ? c.identifiedResourceName
@@ -150,8 +150,8 @@ define(
             );
           },
         );
-        B.loadFile(
-          A.INTERFACE_PATH + "item/" + e.identifiedResourceName + ".bmp",
+        C.loadFile(
+          z.INTERFACE_PATH + "item/" + e.identifiedResourceName + ".bmp",
           function (c) {
             a.find('.item[data-index\x3d"' + b.index + '"] .nicon').css(
               "backgroundImage",
@@ -162,13 +162,13 @@ define(
       }
     }
     function m(a, b, c) {
-      c = A.getItemInfo(b.ITID);
-      F.getItemById(b.ITID);
+      c = z.getItemInfo(b.ITID);
+      L.getItemById(b.ITID);
       var d = a.find(".item[data-index\x3d" + b.index + "]:first");
       if (0 === b.count) d.length && d.remove();
       else if (!d.length) {
         var d = b.price,
-          e = u(
+          e = t(
             '\x3cdiv class\x3d"item market" draggable\x3d"true" data-index\x3d"' +
               b.index +
               '" data-itid\x3d"' +
@@ -176,15 +176,15 @@ define(
               '" \x3e\x3cdiv class\x3d"icon"\x3e\x3c/div\x3e\x3cdiv class\x3d"amount"\x3e' +
               (isFinite(b.count) ? b.count : "") +
               '\x3c/div\x3e\x3cdiv class\x3d"name"\x3e' +
-              u.escape(A.getItemName(b)) +
+              t.escape(z.getItemName(b)) +
               '\x3cdiv class\x3d"nitem"\x3e\x3c/div\x3e\x3c/div\x3e\x3cdiv class\x3d"price"\x3e' +
               d +
               '\x3c/div\x3e\x3cdiv class\x3d"unity"\x3e' +
-              (0 === R ? "Z" : 1 === R ? "J" : 2 === R ? "C" : "Z") +
+              (0 === V ? "Z" : 1 === V ? "J" : 2 === V ? "C" : "Z") +
               "\x3c/div\x3e\x3c/div\x3e",
           );
-        B.loadFile(
-          A.INTERFACE_PATH +
+        C.loadFile(
+          z.INTERFACE_PATH +
             "item/" +
             (b.IsIdentified
               ? c.identifiedResourceName
@@ -196,7 +196,7 @@ define(
         );
         for (c = 0; c < b.currency_count; c++) {
           var d = b.currency_itemList[c],
-            f = A.getItemInfo(d.ITID);
+            f = z.getItemInfo(d.ITID);
           e.find(".nitem").append(
             '\x3cdiv class\x3d"item" data-itid\x3d"' +
               d.ITID +
@@ -210,8 +210,8 @@ define(
       }
     }
     function h(a, b, c) {
-      B.loadFile(
-        A.INTERFACE_PATH + "item/" + c.identifiedResourceName + ".bmp",
+      C.loadFile(
+        z.INTERFACE_PATH + "item/" + c.identifiedResourceName + ".bmp",
         function (c) {
           a.find('.item[data-itid\x3d"' + b.ITID + '"] .icon').css(
             "backgroundImage",
@@ -220,35 +220,35 @@ define(
         },
       );
     }
-    function r(a, b) {
+    function q(a, b) {
       b = Math.min(Math.max(b, 2), 9);
       a.css("height", 32 * b);
     }
-    function q(a) {
+    function r(a) {
       var b = a.position().top,
         c = a.find(".content:first"),
         d = 0,
         e;
       e = setInterval(function () {
-        var a = Math.floor((y.screen.y - b - 20) / 32),
+        var a = Math.floor((B.screen.y - b - 20) / 32),
           a = Math.min(Math.max(a, 2), 9);
-        a !== d && (r(c, a), (d = a));
+        a !== d && (q(c, a), (d = a));
       }, 30);
-      u(window).on("mouseup.resize", function (a) {
-        1 === a.which && (clearInterval(e), u(window).off("mouseup.resize"));
+      t(window).on("mouseup.resize", function (a) {
+        1 === a.which && (clearInterval(e), t(window).off("mouseup.resize"));
       });
     }
     function k(a, b, c, d) {
       var e, f, g;
-      e = d ? P[a] : N[a];
+      e = d ? N[a] : Q[a];
       g =
-        e.type !== D.WEAPON &&
-        e.type !== D.EQUIP &&
-        e.type !== D.PETEGG &&
-        e.type !== D.PETEQUIP;
-      f = d ? (isFinite(P[a].count) ? P[a].count : 1) : N[a].count;
+        e.type !== E.WEAPON &&
+        e.type !== E.EQUIP &&
+        e.type !== E.PETEGG &&
+        e.type !== E.PETEQUIP;
+      f = d ? (isFinite(N[a].count) ? N[a].count : 1) : Q[a].count;
       if (
-        (S === H.Type.BUY || S === H.Type.VENDING_STORE) &&
+        (W === G.Type.BUY || W === G.Type.VENDING_STORE) &&
         !g &&
         d &&
         c.find('.item[data-index\x3d"' + e.index + '"]:first').length
@@ -256,16 +256,16 @@ define(
         return !1;
       if (
         1 === e.count ||
-        (S === H.Type.SELL && K.select_all) ||
-        (S === H.Type.BUYING_STORE && K.select_all) ||
+        (W === G.Type.SELL && K.select_all) ||
+        (W === G.Type.BUYING_STORE && K.select_all) ||
         !g
       )
-        return (ea(b, c, d, a, isFinite(e.count) ? e.count : 1), !1);
-      M.append();
-      M.setType("number", !1, f);
-      M.onSubmitRequest = function (e) {
-        M.remove();
-        0 < e && ea(b, c, d, a, e);
+        return (ba(b, c, d, a, isFinite(e.count) ? e.count : 1), !1);
+      I.append();
+      I.setType("number", !1, f);
+      I.onSubmitRequest = function (e) {
+        I.remove();
+        0 < e && ba(b, c, d, a, e);
       };
     }
     function g(a) {
@@ -273,7 +273,7 @@ define(
       a.stopImmediatePropagation();
       try {
         b = JSON.parse(a.originalEvent.dataTransfer.getData("Text"));
-      } catch (ca) {
+      } catch (da) {
         return !1;
       }
       if (
@@ -282,25 +282,25 @@ define(
         b.container === this.className
       )
         return !1;
-      3 == S
+      3 == W
         ? k(
             b.index,
-            u("." + b.container + " .content"),
-            u(this).find(".content"),
+            t("." + b.container + " .content"),
+            t(this).find(".content"),
             "OutputWindow2" === this.className,
           )
         : k(
             b.index,
-            u("." + b.container + " .content"),
-            u(this).find(".content"),
+            t("." + b.container + " .content"),
+            t(this).find(".content"),
             "OutputWindow" === this.className,
           );
       return !1;
     }
-    function t(a) {
+    function u(a) {
       var b = parseInt(this.getAttribute("data-index"), 10),
         c = parseInt(this.getAttribute("data-ITID"), 10);
-      (b = P[b]) || (b = { ITID: c, IsIdentified: !0 });
+      (b = N[b]) || (b = { ITID: c, IsIdentified: !0 });
       a.stopImmediatePropagation();
       if (!b) return !1;
       if (x.uid === b.ITID) return (x.remove(), !1);
@@ -311,12 +311,12 @@ define(
     }
     function l() {
       var a, b, c;
-      S !== H.Type.BUY &&
-        S !== H.Type.VENDING_STORE &&
-        ((a = H.ui.find(".InputWindow:first")),
-        u.contains(a.get(0), this)
-          ? ((b = a), (c = H.ui.find(".OutputWindow:first")))
-          : ((b = H.ui.find(".OutputWindow:first")), (c = a)),
+      W !== G.Type.BUY &&
+        W !== G.Type.VENDING_STORE &&
+        ((a = G.ui.find(".InputWindow:first")),
+        t.contains(a.get(0), this)
+          ? ((b = a), (c = G.ui.find(".OutputWindow:first")))
+          : ((b = G.ui.find(".OutputWindow:first")), (c = a)),
         k(
           parseInt(this.getAttribute("data-index"), 10),
           b.find(".content:first"),
@@ -325,8 +325,8 @@ define(
         ));
     }
     function f() {
-      H.ui.find(".item.selected").removeClass("selected");
-      u(this).addClass("selected");
+      G.ui.find(".item.selected").removeClass("selected");
+      t(this).addClass("selected");
     }
     function n(a) {
       var b;
@@ -338,14 +338,14 @@ define(
     }
     function p(a) {
       var b, c, d, e;
-      b = H.ui.find(".InputWindow:first").get(0);
-      c = H.ui.find(".OutputWindow:first").get(0);
-      d = H.ui.find(".InputWindow2:first").get(0);
-      e = H.ui.find(".OutputWindow2:first").get(0);
+      b = G.ui.find(".InputWindow:first").get(0);
+      c = G.ui.find(".OutputWindow:first").get(0);
+      d = G.ui.find(".InputWindow2:first").get(0);
+      e = G.ui.find(".OutputWindow2:first").get(0);
       b =
-        3 == S
-          ? (u.contains(d, this) ? d : e).className
-          : (u.contains(b, this) ? b : c).className;
+        3 == W
+          ? (t.contains(d, this) ? d : e).className
+          : (t.contains(b, this) ? b : c).className;
       c = new Image();
       d = this.firstChild.style.backgroundImage
         .match(/\(([^\)]+)/)[1]
@@ -367,32 +367,32 @@ define(
     function v() {
       K.select_all = !K.select_all;
       K.save();
-      B.loadFile(
-        A.INTERFACE_PATH + "checkbox_" + (K.select_all ? 1 : 0) + ".bmp",
+      C.loadFile(
+        z.INTERFACE_PATH + "checkbox_" + (K.select_all ? 1 : 0) + ".bmp",
         function (a) {
           this.style.backgroundImage = "url(" + a + ")";
         }.bind(this),
       );
     }
-    var u = a("Utils/jquery"),
-      A = a("DB/DBManager"),
-      D = a("DB/Items/ItemType"),
-      B = a("Core/Client"),
-      O = a("Core/Preferences"),
-      C = a("Engine/SessionStorage"),
-      y = a("Controls/MouseEventHandler"),
-      z = a("Controls/KeyEventHandler"),
-      J = a("Preferences/Controls"),
-      I = a("UI/UIManager"),
-      L = a("UI/UIComponent"),
+    var t = a("Utils/jquery"),
+      z = a("DB/DBManager"),
+      E = a("DB/Items/ItemType"),
+      C = a("Core/Client"),
+      J = a("Core/Preferences"),
+      A = a("Engine/SessionStorage"),
+      B = a("Controls/MouseEventHandler"),
+      F = a("Controls/KeyEventHandler"),
+      O = a("Preferences/Controls"),
+      M = a("UI/UIManager"),
+      H = a("UI/UIComponent"),
       x = a("UI/Components/ItemInfo/ItemInfo"),
-      M = a("UI/Components/InputBox/InputBox"),
-      E = a("UI/Components/ChatBox/ChatBox"),
-      F = a("UI/Components/Inventory/Inventory"),
-      G = a("text!./NpcStore.html");
+      I = a("UI/Components/InputBox/InputBox"),
+      D = a("UI/Components/ChatBox/ChatBox"),
+      L = a("UI/Components/Inventory/Inventory"),
+      y = a("text!./NpcStore.html");
     a = a("text!./NpcStore.css");
-    var H = new L("NpcStore", G, a);
-    H.Type = {
+    var G = new H("NpcStore", y, a);
+    G.Type = {
       BUY: 0,
       SELL: 1,
       VENDING_STORE: 2,
@@ -400,8 +400,8 @@ define(
       BARTER_BUY: 4,
       BARTER_MARKET_BUY: 5,
     };
-    H.mouseMode = L.MouseMode.FREEZE;
-    var K = O.get(
+    G.mouseMode = H.MouseMode.FREEZE;
+    var K = J.get(
         "NpcStore",
         {
           inputWindow: { x: 40, y: 100, height: 7 },
@@ -413,10 +413,10 @@ define(
         },
         1.12,
       ),
-      P = [],
       N = [],
-      S;
-    H.init = function () {
+      Q = [],
+      W;
+    G.init = function () {
       var a = this.ui,
         b = a.find(".InputWindow"),
         c = a.find(".InputWindow2"),
@@ -424,8 +424,8 @@ define(
         e = a.find(".OutputWindow2"),
         h = this.ui.find(".ViewWindow");
       a.find(".btn.cancel").click(function () {
-        H.onSubmit([]);
-        H.remove();
+        G.onSubmit([]);
+        G.remove();
       });
       a.find(".btn.buy, .btn.sell").click(this.submit.bind(this));
       a.find(".selectall").mousedown(v);
@@ -433,17 +433,17 @@ define(
         event.stopImmediatePropagation();
       });
       b.find(".resize").mousedown(function () {
-        q(b);
+        r(b);
       });
       d.find(".resize").mousedown(function () {
-        q(d);
+        r(d);
       });
       a.find(".content")
         .on("mousewheel DOMMouseScroll", n)
-        .on("contextmenu", ".item", t)
+        .on("contextmenu", ".item", u)
         .on("dblclick", ".item", l)
         .on("mousedown", ".item", f)
-        .on("contextmenu", ".item .nicon", t)
+        .on("contextmenu", ".item .nicon", u)
         .on("dragstart", ".item", p)
         .on("dragend", ".item", function () {
           delete window._OBJ_DRAG_;
@@ -455,7 +455,7 @@ define(
           return !1;
         })
         .on("mousedown", function () {
-          H.focus();
+          G.focus();
         });
       this.draggable.call({ ui: h }, h.find(".titlebar"));
       this.draggable.call({ ui: b }, b.find(".titlebar"));
@@ -463,38 +463,38 @@ define(
       this.draggable.call({ ui: e }, e.find(".titlebar"));
       this.draggable.call({ ui: d }, d.find(".titlebar"));
     };
-    H.onAppend = function () {
-      J.talk = !0;
+    G.onAppend = function () {
+      O.talk = !0;
       var a = this.ui.find(".ViewWindow"),
         b = this.ui.find(".InputWindow"),
         c = this.ui.find(".OutputWindow"),
         d = this.ui.find(".InputWindow2"),
         e = this.ui.find(".OutputWindow2");
-      B.loadFile(
-        A.INTERFACE_PATH + "checkbox_" + (K.select_all ? 1 : 0) + ".bmp",
+      C.loadFile(
+        z.INTERFACE_PATH + "checkbox_" + (K.select_all ? 1 : 0) + ".bmp",
         function (a) {
           this.ui
             .find(".selectall:first")
             .css("backgroundImage", "url(" + a + ")");
         }.bind(this),
       );
-      r(a.find(".content"), K.ViewWindow.height);
-      r(b.find(".content"), K.inputWindow.height);
-      r(c.find(".content"), K.outputWindow.height);
-      r(d.find(".content"), K.inputWindow2.height);
-      r(e.find(".content"), K.outputWindow2.height);
-      a = u._data(window, "events").keydown;
+      q(a.find(".content"), K.ViewWindow.height);
+      q(b.find(".content"), K.inputWindow.height);
+      q(c.find(".content"), K.outputWindow.height);
+      q(d.find(".content"), K.inputWindow2.height);
+      q(e.find(".content"), K.outputWindow2.height);
+      a = t._data(window, "events").keydown;
       a.unshift(a.pop());
     };
-    H.onRemove = function () {
-      J.talk = !1;
+    G.onRemove = function () {
+      O.talk = !1;
       var a = this.ui.find(".InputWindow"),
         b = this.ui.find(".OutputWindow"),
         c = this.ui.find(".InputWindow2"),
         d = this.ui.find(".OutputWindow2"),
         e = this.ui.find(".ViewWindow");
-      P.length = 0;
-      R = N.length = 0;
+      N.length = 0;
+      V = Q.length = 0;
       e.css({ top: "", left: "" });
       a.css({ top: "", left: "" });
       b.css({ top: "", left: "" });
@@ -508,152 +508,152 @@ define(
         )
         .hide();
     };
-    H.onKeyDown = function (a) {
-      return a.which === z.ESCAPE
+    G.onKeyDown = function (a) {
+      return a.which === F.ESCAPE
         ? (this.remove(), a.stopImmediatePropagation(), !1)
         : !0;
     };
-    H.setType = function (a) {
+    G.setType = function (a) {
       switch (a) {
-        case H.Type.BUY:
-        case H.Type.BARTER_BUY:
-        case H.Type.BARTER_MARKET_BUY:
+        case G.Type.BUY:
+        case G.Type.BARTER_BUY:
+        case G.Type.BARTER_MARKET_BUY:
           this.ui.find(".WinSell, .WinVendingStore").hide();
           this.ui.find(".WinBuy").show();
           this.ui.find(".InputWindow, .OutputWindow").show();
           break;
-        case H.Type.SELL:
+        case G.Type.SELL:
           this.ui.find(".WinBuy, .WinVendingStore").hide();
           this.ui.find(".WinSell").show();
           this.ui.find(".InputWindow, .OutputWindow").show();
           break;
-        case H.Type.VENDING_STORE:
+        case G.Type.VENDING_STORE:
           this.ui.find(".WinVendingStore, .WinSell").hide();
           this.ui.find(".WinBuy").show();
           this.ui.find(".InputWindow, .OutputWindow").show();
           break;
-        case H.Type.BUYING_STORE:
+        case G.Type.BUYING_STORE:
           (this.ui.find(".WinBuy, .WinSell").hide(),
             this.ui.find(".WinSell").show(),
             this.ui.find(".ViewWindow,.InputWindow2,.OutputWindow2").show());
       }
-      S = a;
+      W = a;
     };
-    var R = 0;
-    H.setType_ = function (a) {
-      R = a;
+    var V = 0;
+    G.setType_ = function (a) {
+      V = a;
     };
-    H.setList = function (a) {
+    G.setList = function (a) {
       var b, f, g, h, k, l, n;
       this.ui.find(".content").empty();
       this.ui.find(".total .result").text(0);
-      P.length = 0;
       N.length = 0;
+      Q.length = 0;
       k = this.ui.find(".InputWindow .content");
       l = this.ui.find(".ViewWindow .content");
       n = this.ui.find(".InputWindow2 .content");
-      switch (S) {
-        case H.Type.BUY:
+      switch (W) {
+        case G.Type.BUY:
           b = 0;
           for (f = a.length; b < f; ++b)
             ("index" in a[b] || (a[b].index = b),
               (a[b].count = a[b].count || Infinity),
               (a[b].IsIdentified = !0),
-              (h = u.extend({}, a[b])),
+              (h = t.extend({}, a[b])),
               (h.count = 0),
               c(k, a[b]),
-              (P[a[b].index] = a[b]),
-              (N[a[b].index] = h));
+              (N[a[b].index] = a[b]),
+              (Q[a[b].index] = h));
           break;
-        case H.Type.VENDING_STORE:
+        case G.Type.VENDING_STORE:
           b = 0;
           for (f = a.length; b < f; ++b)
             ("index" in a[b] || (a[b].index = b),
               (a[b].count = a[b].count || Infinity),
               (a[b].IsIdentified = !0),
-              (h = u.extend({}, a[b])),
+              (h = t.extend({}, a[b])),
               (h.count = 0),
               c(k, a[b]),
-              (P[a[b].index] = a[b]),
-              (N[a[b].index] = h));
+              (N[a[b].index] = a[b]),
+              (Q[a[b].index] = h));
           break;
-        case H.Type.SELL:
+        case G.Type.SELL:
           b = 0;
           for (f = a.length; b < f; ++b)
-            if ((g = F.getItemByIndex(a[b].index)))
-              ((g = u.extend({}, g)),
+            if ((g = L.getItemByIndex(a[b].index)))
+              ((g = t.extend({}, g)),
                 (g.price = a[b].price),
                 (g.overchargeprice = a[b].overchargeprice),
                 (g.count = "count" in g ? g.count : 1),
-                (h = u.extend({}, g)),
+                (h = t.extend({}, g)),
                 (h.count = 0),
                 c(k, g),
-                (P[g.index] = g),
-                (N[g.index] = h));
+                (N[g.index] = g),
+                (Q[g.index] = h));
           break;
-        case H.Type.BUYING_STORE:
+        case G.Type.BUYING_STORE:
           b = 0;
           for (f = a.length; b < f; ++b)
-            ((g = F.getItemById(a[b].ITID)),
+            ((g = L.getItemById(a[b].ITID)),
               "index" in a[b] || (a[b].index = b),
-              c(l, a[b], S),
+              c(l, a[b], W),
               g &&
                 ((a[b].index = g.index),
-                (h = u.extend({}, a[b])),
+                (h = t.extend({}, a[b])),
                 (h.count = 0),
                 d(n, g),
-                (P[a[b].index] = g),
-                (N[a[b].index] = h)));
+                (N[a[b].index] = g),
+                (Q[a[b].index] = h)));
           break;
-        case H.Type.BARTER_BUY:
+        case G.Type.BARTER_BUY:
           b = 0;
           for (f = a.length; b < f; ++b)
             ("index" in a[b] || (a[b].index = b),
               (a[b].count = a[b].count || Infinity),
               (a[b].IsIdentified = !0),
-              (h = F.getItemById(a[b].currencyNameid)),
+              (h = L.getItemById(a[b].currencyNameid)),
               (a[b].invIndex = h ? h.index : -1),
-              (h = u.extend({}, a[b])),
+              (h = t.extend({}, a[b])),
               (h.count = 0),
               e(k, a[b]),
-              (P[a[b].index] = a[b]),
-              (N[a[b].index] = h));
+              (N[a[b].index] = a[b]),
+              (Q[a[b].index] = h));
           break;
-        case H.Type.BARTER_MARKET_BUY:
+        case G.Type.BARTER_MARKET_BUY:
           for (b = 0, f = a.length; b < f; ++b)
             ("index" in a[b] || (a[b].index = b),
               (a[b].count = a[b].count || Infinity),
               (a[b].IsIdentified = !0),
-              (h = u.extend({}, a[b])),
+              (h = t.extend({}, a[b])),
               (h.count = 0),
               m(k, a[b]),
-              (P[a[b].index] = a[b]),
-              (N[a[b].index] = h));
+              (N[a[b].index] = a[b]),
+              (Q[a[b].index] = h));
       }
     };
-    H.submit = function () {
+    G.submit = function () {
       var a, b, c;
       a = [];
-      c = N.length;
-      for (b = 0; b < c; ++b) N[b] && N[b].count && a.push(N[b]);
-      H.onSubmit(a);
+      c = Q.length;
+      for (b = 0; b < c; ++b) Q[b] && Q[b].count && a.push(Q[b]);
+      G.onSubmit(a);
     };
-    H.calculateCost = function () {
+    G.calculateCost = function () {
       var a, b, c;
       c = 0;
-      b = N.length;
+      b = Q.length;
       for (a = 0; a < b; ++a)
-        N[a] &&
+        Q[a] &&
           (c =
-            4 == S
-              ? c + N[a].currencyAmount * N[a].count
+            4 == W
+              ? c + Q[a].currencyAmount * Q[a].count
               : c +
-                (N[a].discountprice || N[a].overchargeprice || N[a].price) *
-                  N[a].count);
+                (Q[a].discountprice || Q[a].overchargeprice || Q[a].price) *
+                  Q[a].count);
       this.ui.find(".total .result").text(c);
-      switch (R) {
+      switch (V) {
         case 0:
-          4 == S
+          4 == W
             ? this.ui.find(".total .unity").text("")
             : this.ui.find(".total .unity").text("Zeny");
           break;
@@ -665,54 +665,54 @@ define(
       }
       return c;
     };
-    H.calculateCost_ = function () {
+    G.calculateCost_ = function () {
       var a, b, c;
       c = 0;
-      b = N.length;
+      b = Q.length;
       for (a = 0; a < b; ++a)
-        N[a] && (c += (N[a].overchargeprice || N[a].price) * N[a].count);
+        Q[a] && (c += (Q[a].overchargeprice || Q[a].price) * Q[a].count);
       this.ui.find(".total .result").text(c);
       return c;
     };
-    var ea = (function () {
+    var ba = (function () {
       var a = { ITID: 0, count: 0, price: 0, index: 0 };
       return function (b, f, g, h, k) {
         if (g) {
           if (
-            ((0 == R && S === H.Type.BUY) || S === H.Type.VENDING_STORE) &&
-            H.calculateCost() + (P[h].discountprice || P[h].price) * k > C.zeny
+            ((0 == V && W === G.Type.BUY) || W === G.Type.VENDING_STORE) &&
+            G.calculateCost() + (N[h].discountprice || N[h].price) * k > A.zeny
           ) {
-            E.addText(A.getMessage(55), E.TYPE.ERROR);
+            D.addText(z.getMessage(55), D.TYPE.ERROR);
             return;
           }
-          N[h].count = Math.min(N[h].count + k, P[h].count);
-          a.ITID = P[h].ITID;
-          a.count = P[h].count - N[h].count;
-          a.price = P[h].price;
-          a.index = P[h].index;
-          a.IsIdentified = P[h].IsIdentified;
-          4 == S
-            ? (e(b, a), e(f, N[h]))
-            : (5 == S ? m(b, a) : c(b, a), c(f, N[h]));
+          Q[h].count = Math.min(Q[h].count + k, N[h].count);
+          a.ITID = N[h].ITID;
+          a.count = N[h].count - Q[h].count;
+          a.price = N[h].price;
+          a.index = N[h].index;
+          a.IsIdentified = N[h].IsIdentified;
+          4 == W
+            ? (e(b, a), e(f, Q[h]))
+            : (5 == W ? m(b, a) : c(b, a), c(f, Q[h]));
         } else {
-          k = Math.min(k, N[h].count);
+          k = Math.min(k, Q[h].count);
           if (!k) return;
-          N[h].count -= k;
-          a.ITID = P[h].ITID;
-          a.count = P[h].count + N[h].count;
-          a.price = P[h].price;
-          a.index = P[h].index;
-          a.IsIdentified = P[h].IsIdentified;
-          3 == S
-            ? (d(b, N[h]), d(f, a))
-            : 5 == S
-              ? (m(b, N[h]), m(f, a))
-              : (c(b, N[h]), c(f, a));
+          Q[h].count -= k;
+          a.ITID = N[h].ITID;
+          a.count = N[h].count + Q[h].count;
+          a.price = N[h].price;
+          a.index = N[h].index;
+          a.IsIdentified = N[h].IsIdentified;
+          3 == W
+            ? (d(b, Q[h]), d(f, a))
+            : 5 == W
+              ? (m(b, Q[h]), m(f, a))
+              : (c(b, Q[h]), c(f, a));
         }
-        0 == R ? H.calculateCost() : H.calculateCost_();
+        0 == V ? G.calculateCost() : G.calculateCost_();
       };
     })();
-    H.onSubmit = function () {};
-    return I.addComponent(H);
+    G.onSubmit = function () {};
+    return M.addComponent(G);
   },
 );

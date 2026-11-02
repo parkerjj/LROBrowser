@@ -8,9 +8,9 @@ define("Renderer/Map/Models", ["Utils/WebGL"], function (a) {
         d[b].texture = a;
         d[b].complete = !0;
       }
-      var r, q;
-      q = m.infos.length;
-      d.length = q;
+      var q, r;
+      r = m.infos.length;
+      d.length = r;
       c || (c = e.createBuffer());
       b ||
         (b = a.createShaderProgram(
@@ -20,37 +20,37 @@ define("Renderer/Map/Models", ["Utils/WebGL"], function (a) {
         ));
       e.bindBuffer(e.ARRAY_BUFFER, c);
       e.bufferData(e.ARRAY_BUFFER, m.buffer, e.STATIC_DRAW);
-      for (r = 0; r < q; ++r)
-        (d[r] || (d[r] = {}),
-          (d[r].vertCount = m.infos[r].vertCount),
-          (d[r].vertOffset = m.infos[r].vertOffset),
-          (d[r].complete = !1),
-          a.texture(e, m.infos[r].texture, h, r));
+      for (q = 0; q < r; ++q)
+        (d[q] || (d[q] = {}),
+          (d[q].vertCount = m.infos[q].vertCount),
+          (d[q].vertOffset = m.infos[q].vertOffset),
+          (d[q].complete = !1),
+          a.texture(e, m.infos[q].texture, h, q));
     },
-    render: function (a, m, h, r, q, k) {
+    render: function (a, m, h, q, r, k) {
       var e = b.uniform,
-        t = b.attribute;
+        u = b.attribute;
       a.useProgram(b);
       a.uniformMatrix4fv(e.uModelViewMat, !1, m);
       a.uniformMatrix4fv(e.uProjectionMat, !1, h);
-      a.uniformMatrix3fv(e.uNormalMat, !1, r);
+      a.uniformMatrix3fv(e.uNormalMat, !1, q);
       a.uniform3fv(e.uLightDirection, k.direction);
       a.uniform1f(e.uLightOpacity, k.opacity);
       a.uniform3fv(e.uLightAmbient, k.ambient);
       a.uniform3fv(e.uLightDiffuse, k.diffuse);
-      a.uniform1i(e.uFogUse, q.use && q.exist);
-      a.uniform1f(e.uFogNear, q.near);
-      a.uniform1f(e.uFogFar, q.far);
-      a.uniform3fv(e.uFogColor, q.color);
-      a.enableVertexAttribArray(t.aPosition);
-      a.enableVertexAttribArray(t.aVertexNormal);
-      a.enableVertexAttribArray(t.aTextureCoord);
-      a.enableVertexAttribArray(t.aAlpha);
+      a.uniform1i(e.uFogUse, r.use && r.exist);
+      a.uniform1f(e.uFogNear, r.near);
+      a.uniform1f(e.uFogFar, r.far);
+      a.uniform3fv(e.uFogColor, r.color);
+      a.enableVertexAttribArray(u.aPosition);
+      a.enableVertexAttribArray(u.aVertexNormal);
+      a.enableVertexAttribArray(u.aTextureCoord);
+      a.enableVertexAttribArray(u.aAlpha);
       a.bindBuffer(a.ARRAY_BUFFER, c);
-      a.vertexAttribPointer(t.aPosition, 3, a.FLOAT, !1, 36, 0);
-      a.vertexAttribPointer(t.aVertexNormal, 3, a.FLOAT, !1, 36, 12);
-      a.vertexAttribPointer(t.aTextureCoord, 2, a.FLOAT, !1, 36, 24);
-      a.vertexAttribPointer(t.aAlpha, 1, a.FLOAT, !1, 36, 32);
+      a.vertexAttribPointer(u.aPosition, 3, a.FLOAT, !1, 36, 0);
+      a.vertexAttribPointer(u.aVertexNormal, 3, a.FLOAT, !1, 36, 12);
+      a.vertexAttribPointer(u.aTextureCoord, 2, a.FLOAT, !1, 36, 24);
+      a.vertexAttribPointer(u.aAlpha, 1, a.FLOAT, !1, 36, 32);
       a.activeTexture(a.TEXTURE0);
       a.uniform1i(e.uDiffuse, 0);
       m = 0;
@@ -58,10 +58,10 @@ define("Renderer/Map/Models", ["Utils/WebGL"], function (a) {
         d[m].complete &&
           (a.bindTexture(a.TEXTURE_2D, d[m].texture),
           a.drawArrays(a.TRIANGLES, d[m].vertOffset, d[m].vertCount));
-      a.disableVertexAttribArray(t.aPosition);
-      a.disableVertexAttribArray(t.aVertexNormal);
-      a.disableVertexAttribArray(t.aTextureCoord);
-      a.disableVertexAttribArray(t.aAlpha);
+      a.disableVertexAttribArray(u.aPosition);
+      a.disableVertexAttribArray(u.aVertexNormal);
+      a.disableVertexAttribArray(u.aTextureCoord);
+      a.disableVertexAttribArray(u.aAlpha);
     },
     free: function (a) {
       var e, h;

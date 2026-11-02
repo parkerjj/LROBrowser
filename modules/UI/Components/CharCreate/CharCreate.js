@@ -13,10 +13,10 @@ define(
         1,
         1,
         1,
-        u.entity.head,
-        u.entity.headpalette,
-        u.entity.sex,
-        u.entity.job,
+        t.entity.head,
+        t.entity.headpalette,
+        t.entity.sex,
+        t.entity.job,
       );
     }
     function c() {
@@ -26,83 +26,83 @@ define(
     function d(a, b) {
       switch (a) {
         case "head":
-          a = u.entity.head + b;
-          b = u.entity.job ? 6 : 29;
+          a = t.entity.head + b;
+          b = t.entity.job ? 6 : 29;
           a = (a + b - 1) % b;
-          u.entity.head = a + 1;
-          B.entity.head = a + 1;
+          t.entity.head = a + 1;
+          C.entity.head = a + 1;
           break;
         case "headpalette":
-          a = u.entity.headpalette += b;
+          a = t.entity.headpalette += b;
           1 > a && (a = 8);
           8 < a && (a = 1);
-          u.entity.headpalette = a;
-          B.entity.headpalette = u.entity.headpalette;
+          t.entity.headpalette = a;
+          C.entity.headpalette = t.entity.headpalette;
           break;
         case "direction":
-          u.entity.direction += b;
+          t.entity.direction += b;
           break;
         case "sex":
-          u.entity.sex = b;
+          t.entity.sex = b;
           break;
         case "class":
-          B.entity.setAction({ action: 0 });
-          B = b ? D : A;
-          u.entity.job = b ? 4218 : 0;
-          u.entity.head = ((u.entity.head - 1) % 6) + 1;
-          B.entity.headpalette = u.entity.headpalette;
-          B.entity.head = u.entity.head;
+          C.entity.setAction({ action: 0 });
+          C = b ? E : z;
+          t.entity.job = b ? 4218 : 0;
+          t.entity.head = ((t.entity.head - 1) % 6) + 1;
+          C.entity.headpalette = t.entity.headpalette;
+          C.entity.head = t.entity.head;
           p.ui
             .find(".box_select")
             .removeClass("slot1 slot2 slot3")
             .addClass("slot" + (b ? 2 : 1));
-          B.entity.setAction({ action: 1, repeat: !0 });
+          C.entity.setAction({ action: 1, repeat: !0 });
           break;
         case "gender":
-          ((u.entity.sex = b),
-            (A.entity.sex = b),
-            (D.entity.sex = b),
+          ((t.entity.sex = b),
+            (z.entity.sex = b),
+            (E.entity.sex = b),
             p.changeBackground(".chargen .male", b ? 1 : 0),
             p.changeBackground(".chargen .female", b ? 0 : 1));
       }
       e();
     }
     function e(a) {
-      u.tick + 500 < a &&
-        (u.entity.direction++, (u.entity.direction %= 8), (u.tick = a));
-      g.bind2DContext(u.ctx, 32, 115);
-      u.ctx.clearRect(0, 0, u.ctx.canvas.width, u.ctx.canvas.height);
-      u.entity.renderEntity();
-      g.bind2DContext(A.ctx, 32, 115);
-      A.ctx.clearRect(0, 0, A.ctx.canvas.width, A.ctx.canvas.height);
-      A.entity.renderEntity();
-      g.bind2DContext(D.ctx, 32, 115);
-      D.ctx.clearRect(0, 0, D.ctx.canvas.width, D.ctx.canvas.height);
-      D.entity.renderEntity();
+      t.tick + 500 < a &&
+        (t.entity.direction++, (t.entity.direction %= 8), (t.tick = a));
+      g.bind2DContext(t.ctx, 32, 115);
+      t.ctx.clearRect(0, 0, t.ctx.canvas.width, t.ctx.canvas.height);
+      t.entity.renderEntity();
+      g.bind2DContext(z.ctx, 32, 115);
+      z.ctx.clearRect(0, 0, z.ctx.canvas.width, z.ctx.canvas.height);
+      z.entity.renderEntity();
+      g.bind2DContext(E.ctx, 32, 115);
+      E.ctx.clearRect(0, 0, E.ctx.canvas.width, E.ctx.canvas.height);
+      E.entity.renderEntity();
     }
     var m = a("DB/DBManager"),
       h = a("Core/Configs"),
-      r = a("Renderer/Renderer"),
-      q = a("Controls/KeyEventHandler"),
+      q = a("Renderer/Renderer"),
+      r = a("Controls/KeyEventHandler"),
       k = a("Renderer/Entity/Entity"),
       g = a("Renderer/SpriteRenderer"),
-      t = a("Renderer/Camera"),
+      u = a("Renderer/Camera"),
       l = a("UI/UIManager"),
       f = a("UI/UIComponent"),
       n = a("text!./CharCreate.html");
     a = a("text!./CharCreate.css");
     var p = new f("CharCreate", n, a),
       v = 0,
-      u = { entity: new k(), ctx: null, render: !1, tick: 0 },
-      A = { entity: new k(), ctx: null, render: !1, tick: 0 },
-      D = { entity: new k(), ctx: null, render: !1, tick: 0 },
-      B = A;
+      t = { entity: new k(), ctx: null, render: !1, tick: 0 },
+      z = { entity: new k(), ctx: null, render: !1, tick: 0 },
+      E = { entity: new k(), ctx: null, render: !1, tick: 0 },
+      C = z;
     h.get("ClientVer");
     p.init = function () {
-      u.ctx = this.ui.find(".chargen canvas")[0].getContext("2d");
-      A.ctx = this.ui.find(".human canvas")[0].getContext("2d");
-      D.ctx = this.ui.find(".doram canvas")[0].getContext("2d");
-      this.ui.css({ top: (r.height - 358) / 2, left: (r.width - 576) / 2 });
+      t.ctx = this.ui.find(".chargen canvas")[0].getContext("2d");
+      z.ctx = this.ui.find(".human canvas")[0].getContext("2d");
+      E.ctx = this.ui.find(".doram canvas")[0].getContext("2d");
+      this.ui.css({ top: (q.height - 358) / 2, left: (q.width - 576) / 2 });
       this.draggable();
       this.ui.find(".chargen .male").on("click", function () {
         d("gender", 1);
@@ -140,10 +140,10 @@ define(
       v = a;
     };
     p.onAppend = function () {
-      u.render = !0;
-      u.entity.set({ sex: v, job: 0, head: 2, action: 0 });
-      A.render = !0;
-      A.entity.set({
+      t.render = !0;
+      t.entity.set({ sex: v, job: 0, head: 2, action: 0 });
+      z.render = !0;
+      z.entity.set({
         sex: v,
         job: 0,
         head: 2,
@@ -151,8 +151,8 @@ define(
         direction: 1,
         action: 0,
       });
-      D.render = !0;
-      D.entity.set({
+      E.render = !0;
+      E.entity.set({
         sex: v,
         job: 4218,
         head: 2,
@@ -160,7 +160,7 @@ define(
         direction: 1,
         action: 0,
       });
-      t.direction = 0;
+      u.direction = 0;
       d("class", 0);
       d("gender", v);
       this.ui.find(".human .name").text(m.getMessage(3016));
@@ -170,15 +170,15 @@ define(
       this.ui.find(".doram .desc").text(m.getMessage(3021));
       this.ui.find(".doram .jobs").text(m.getMessage(3019));
       this.ui.find("input").val("").focus();
-      r.render(e);
+      q.render(e);
     };
     p.onRemove = function () {
-      r.stop(e);
+      q.stop(e);
     };
     p.onKeyDown = function (a) {
-      return a.which === q.ESCAPE
+      return a.which === r.ESCAPE
         ? (a.stopImmediatePropagation(), c(), !1)
-        : a.which === q.ENTER
+        : a.which === r.ENTER
           ? (a.stopImmediatePropagation(), b(), !1)
           : !0;
     };

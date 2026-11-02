@@ -10,15 +10,15 @@ define(
       e = a("Core/Client"),
       m = a("Core/Events"),
       h = a("Renderer/Renderer"),
-      r = a("Renderer/Entity/Entity"),
-      q = a("Renderer/SpriteRenderer"),
+      q = a("Renderer/Entity/Entity"),
+      r = a("Renderer/SpriteRenderer"),
       k = new d("SlotMachine"),
       g,
-      t,
+      u,
       l = 0,
       f = !1,
       n,
-      p = new r(),
+      p = new q(),
       v = 0;
     k.init = function () {
       this.ui = b("\x3ccanvas/\x3e")
@@ -34,10 +34,10 @@ define(
         ["data/sprite/slotmachine.spr", "data/sprite/slotmachine.act"],
         function (a, b) {
           g = a;
-          t = b;
+          u = b;
           l = 0;
           v = h.tick;
-          this.ui[0].parentNode && h.render(u);
+          this.ui[0].parentNode && h.render(t);
         }.bind(this),
       );
       this.ui.mousedown(function (a) {
@@ -47,27 +47,27 @@ define(
     k.onAppend = function () {
       l = 0;
       v = h.tick;
-      g && t && h.render(u);
+      g && u && h.render(t);
     };
     k.onRemove = function () {
-      h.stop(u);
+      h.stop(t);
     };
     k.setResult = function (a) {
       l = 1;
       f = a;
       v = h.tick;
     };
-    var u = (function () {
+    var t = (function () {
       var a = new Uint16Array([0, 0]);
-      return function B() {
+      return function C() {
         var b, c, d;
         switch (l) {
           case 0:
-            c = t.actions[0];
+            c = u.actions[0];
             d = Math.floor(((h.tick - v) / c.delay) * 2);
             break;
           case 1:
-            c = t.actions[1];
+            c = u.actions[1];
             b = c.animations.length + (f ? 7 : 3);
             d = h.tick - v;
             d = Math.floor(d / c.delay);
@@ -76,18 +76,18 @@ define(
             break;
           case 2:
           case 3:
-            ((c = t.actions[l]),
+            ((c = u.actions[l]),
               (b = c.animations.length),
               (d = h.tick - v),
               (d = Math.floor(d / c.delay)),
               d >= b &&
-                (h.stop(B),
+                (h.stop(C),
                 m.setTimeout(function () {
                   k.remove();
                 }, 500)));
         }
         d = c.animations[d % c.animations.length];
-        q.bind2DContext(n, 140, 165);
+        r.bind2DContext(n, 140, 165);
         n.clearRect(0, 0, n.canvas.width, n.canvas.height);
         b = 0;
         for (c = d.layers.length; b < c; ++b)

@@ -32,20 +32,20 @@ define(
     }
     var m = a("Utils/jquery"),
       h = a("Core/Context"),
-      r = a("Core/Events"),
-      q = a("Renderer/Camera"),
+      q = a("Core/Events"),
+      r = a("Renderer/Camera"),
       k = a("Controls/MouseEventHandler"),
       g = a("Controls/KeyEventHandler"),
-      t = {},
+      u = {},
       l = !1,
       f,
       n,
       p,
       v,
-      u,
-      A = -1;
-    t.init = function () {};
-    var D = (function () {
+      t,
+      z = -1;
+    u.init = function () {};
+    var E = (function () {
       var a = !1;
       return function () {
         a ||
@@ -57,23 +57,23 @@ define(
     a = (function () {
       function a() {
         if (!l) {
-          A = -1;
-          if (t.onTouchStart) t.onTouchStart();
-          if (!u && t.onTouchEnd) t.onTouchEnd();
-          k.intersect = u;
+          z = -1;
+          if (u.onTouchStart) u.onTouchStart();
+          if (!t && u.onTouchEnd) u.onTouchEnd();
+          k.intersect = t;
         }
       }
       return function (d) {
-        D();
+        E();
         v = d.originalEvent.touches;
         d.stopImmediatePropagation();
-        -1 < A && (r.clearTimeout(A), (A = -1));
+        -1 < z && (q.clearTimeout(z), (z = -1));
         if (1 < v.length)
-          return ((f = b(v)), (n = c(v)), (p = q.angle[1]), (l = !0), !1);
+          return ((f = b(v)), (n = c(v)), (p = r.angle[1]), (l = !0), !1);
         k.screen.x = v[0].pageX;
         k.screen.y = v[0].pageY;
-        u = k.intersect = !0;
-        A = r.setTimeout(a, 200);
+        t = k.intersect = !0;
+        z = q.setTimeout(a, 200);
         return !1;
       };
     })();
@@ -86,10 +86,10 @@ define(
     m(window)
       .on("touchstart", a)
       .on("touchend", function (a) {
-        if (l) ((l = !1), (g.SHIFT = !1), q.rotate(!1), q.save());
-        else if (-1 < A) u = !1;
+        if (l) ((l = !1), (g.SHIFT = !1), r.rotate(!1), r.save());
+        else if (-1 < z) t = !1;
         else {
-          if (t.onTouchEnd) t.onTouchEnd();
+          if (u.onTouchEnd) u.onTouchEnd();
           k.intersect = !1;
         }
       })
@@ -100,21 +100,21 @@ define(
         k.screen.y = h[0].pageY;
         if (l) {
           a = b(h) - f;
-          var t = c(h) - n + p,
-            m = Math.abs(d(v, h)),
+          var u = c(h) - n + p,
+            t = Math.abs(d(v, h)),
             h = Math.abs(e(v, h));
-          !q.action.active && (10 < m || 10 < h)
-            ? ((g.SHIFT = h > m), q.rotate(!0))
+          !r.action.active && (10 < t || 10 < h)
+            ? ((g.SHIFT = h > t), r.rotate(!0))
             : (10 < Math.abs(a) &&
-                ((q.zoomFinal += 0.1 * a),
-                (q.zoomFinal = Math.min(
-                  q.zoomFinal,
-                  Math.abs(q.altitudeTo - q.altitudeFrom) * q.MAX_ZOOM,
+                ((r.zoomFinal += 0.1 * a),
+                (r.zoomFinal = Math.min(
+                  r.zoomFinal,
+                  Math.abs(r.altitudeTo - r.altitudeFrom) * r.MAX_ZOOM,
                 )),
-                (q.zoomFinal = Math.max(q.zoomFinal, 2))),
-              t && (q.angleFinal[1] = t));
+                (r.zoomFinal = Math.max(r.zoomFinal, 2))),
+              u && (r.angleFinal[1] = u));
         }
       });
-    return t;
+    return u;
   },
 );

@@ -18,30 +18,30 @@ define(
       1 < b && a.text(parseInt(b) - 1);
     }
     function d() {
-      if (0 >= B) return 0;
+      if (0 >= C) return 0;
       var a = this.parentNode.parentNode.getAttribute("data-index");
-      D.onIncreaseSkill(parseInt(a, 10));
+      E.onIncreaseSkill(parseInt(a, 10));
     }
     function e() {
       var a = g(this);
       a.hasClass("skill") || (a = a.parent());
-      D.useSkillID(parseInt(a.data("index"), 10), a.find(".current").text());
+      E.useSkillID(parseInt(a.data("index"), 10), a.find(".current").text());
     }
     function m(a) {
       var b,
-        c = C.length;
-      for (b = 0; b < c; ++b) if (C[b].SKID === a) return C[b];
+        c = A.length;
+      for (b = 0; b < c; ++b) if (A[b].SKID === a) return A[b];
       return null;
     }
     function h() {
       var a = g(this),
         a = m(parseInt(a.data("index"), 10));
-      u.uid != a.SKID ? (u.append(), u.setSkill(a.SKID)) : u.remove();
+      t.uid != a.SKID ? (t.append(), t.setSkill(a.SKID)) : t.remove();
     }
-    function r() {
-      D.ui.hide();
+    function q() {
+      E.ui.hide();
     }
-    function q(a) {
+    function r(a) {
       a.stopImmediatePropagation();
       return !1;
     }
@@ -49,7 +49,7 @@ define(
       var b = parseInt(this.getAttribute("data-index"), 10),
         b = m(b),
         c = g(this).find(".current").text();
-      if (!b || !b.level || !b.type) return q(a);
+      if (!b || !b.level || !b.type) return r(a);
       var d = new Image();
       d.src = this.src;
       a.originalEvent.dataTransfer.setDragImage(d, 12, 12);
@@ -66,25 +66,25 @@ define(
       );
     }
     var g = a("Utils/jquery"),
-      t = a("DB/DBManager"),
+      u = a("DB/DBManager"),
       l = a("Core/Client"),
       f = a("Core/Preferences");
     a("Renderer/Renderer");
     var n = a("UI/UIManager"),
       p = a("UI/UIComponent"),
       v = a("UI/Components/SkillTargetSelection/SkillTargetSelection"),
-      u = a("UI/Components/SkillDescription/SkillDescription"),
-      A = a("text!./HomuncskillList.html");
+      t = a("UI/Components/SkillDescription/SkillDescription"),
+      z = a("text!./HomuncskillList.html");
     a = a("text!./HomuncskillList.css");
-    var D = new p("HomuncskillList", A, a),
-      B = 0,
-      O;
+    var E = new p("HomuncskillList", z, a),
+      C = 0,
+      J;
     f.get("HomuncskillList", { x: 100, y: 200, show: !1 }, 1);
-    var C = [];
-    D.init = function () {
+    var A = [];
+    E.init = function () {
       this.draggable(this.ui.find(".titlebar"));
-      O = this.ui.find(".btn.levelup").detach().mousedown(q).click(d);
-      this.ui.find(".close").click(r);
+      J = this.ui.find(".btn.levelup").detach().mousedown(r).click(d);
+      this.ui.find(".close").click(q);
       this.ui
         .find(".content")
         .on("dblclick", ".skill.active .icon", e)
@@ -97,33 +97,33 @@ define(
         });
       this.ui.hide();
     };
-    D.toggle = function () {
+    E.toggle = function () {
       this.ui.toggle();
       this.ui.is(":visible") && (this.focus(), _btnLevelUp.detach());
     };
-    D.onAppend = function () {};
-    D.onRemove = function () {};
-    D.onShortCut = function (a) {
+    E.onAppend = function () {};
+    E.onRemove = function () {};
+    E.onShortCut = function (a) {
       if (this.ui)
         switch (a.cmd) {
           case "TOGGLE":
             (this.ui.toggle(), this.ui.is(":visible") && this.focus());
         }
     };
-    D.setskill = function (a) {
+    E.setskill = function (a) {
       var b, c;
-      C.length = 0;
+      A.length = 0;
       this.ui.find(".content table").empty();
       b = 0;
       for (c = a.length; b < c; ++b) this.addSkill(a[b]);
     };
-    D.addSkill = function (a) {
-      if (a.SKID in t.getAllSkillInfo())
+    E.addSkill = function (a) {
+      if (a.SKID in u.getAllSkillInfo())
         if (this.ui.find(".skill.id" + a.SKID + ":first").length)
           this.updateSkill(a);
         else {
-          var b = t.getSkillInfo(a.SKID),
-            c = O.clone(!0),
+          var b = u.getSkillInfo(a.SKID),
+            c = J.clone(!0),
             d = g(
               '\x3ctr class\x3d"skill id' +
                 a.SKID +
@@ -155,9 +155,9 @@ define(
                   : "\u88ab\u52a8") +
                 "\x3c/td\x3e\x3c/tr\x3e",
             );
-          (a.upgradable && B) || c.hide();
+          (a.upgradable && C) || c.hide();
           l.loadFile(
-            t.INTERFACE_PATH + "basic_interface/arw_left.bmp",
+            u.INTERFACE_PATH + "basic_interface/arw_left.bmp",
             function (a) {
               d.find(".arw_left").attr(
                 "style",
@@ -168,7 +168,7 @@ define(
             },
           );
           l.loadFile(
-            t.INTERFACE_PATH + "basic_interface/arw_right.bmp",
+            u.INTERFACE_PATH + "basic_interface/arw_right.bmp",
             function (a) {
               d.find(".arw_right").attr(
                 "style",
@@ -180,33 +180,33 @@ define(
           );
           this.ui.find(".content table").append(d);
           l.loadFile(
-            t.INTERFACE_PATH + "item/" + b.Name + ".bmp",
+            u.INTERFACE_PATH + "item/" + b.Name + ".bmp",
             function (a) {
               d.find(".icon img").attr("src", a);
             },
           );
           d.find(".levelupcontainer").append(c);
-          C.push(a);
+          A.push(a);
         }
     };
-    D.setPoints = function (a) {
+    E.setPoints = function (a) {
       var b, c;
       this.ui.find(".skpoints_count").text(a);
-      if (!B === !a) B = a;
+      if (!C === !a) C = a;
       else {
-        B = a;
-        c = C.length;
+        C = a;
+        c = A.length;
         for (b = 0; b < c; ++b)
-          C[b].upgradable && a
-            ? this.ui.find(".skill.id" + C[b].SKID + " .levelup").show()
-            : this.ui.find(".skill.id" + C[b].SKID + " .levelup").hide();
+          A[b].upgradable && a
+            ? this.ui.find(".skill.id" + A[b].SKID + " .levelup").show()
+            : this.ui.find(".skill.id" + A[b].SKID + " .levelup").hide();
         0 < a && this.ui.find(".levelup").css("opacity", 1);
       }
     };
-    D.useSkillID = function (a, b) {
-      (a = m(a)) && b && a.type && D.useSkill(a, b);
+    E.useSkillID = function (a, b) {
+      (a = m(a)) && b && a.type && E.useSkill(a, b);
     };
-    D.useSkill = (function () {
+    E.useSkill = (function () {
       var a = 0;
       return function (b, c) {
         var d = Date.now();
@@ -217,13 +217,13 @@ define(
             (v.append(),
             (b.useLevel = c),
             v.set(b, b.type),
-            (v.onUseSkillToId = D.onUseSkill));
+            (v.onUseSkillToId = E.onUseSkill));
         }
       };
     })();
-    D.onUseSkill = function () {};
-    D.onIncreaseSkill = function () {};
-    D.getSkillById = m;
-    return n.addComponent(D);
+    E.onUseSkill = function () {};
+    E.onIncreaseSkill = function () {};
+    E.getSkillById = m;
+    return n.addComponent(E);
   },
 );

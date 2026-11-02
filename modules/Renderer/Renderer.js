@@ -10,11 +10,11 @@ define(
       e = a("Core/Configs"),
       m = a("Preferences/Graphics"),
       h = a("Core/Events"),
-      r = a("UI/Background"),
-      q = a("UI/CursorManager"),
+      q = a("UI/Background"),
+      r = a("UI/CursorManager"),
       k = a("Controls/MouseEventHandler"),
       g = a("Renderer/Camera"),
-      t = d.mat4,
+      u = d.mat4,
       d = {};
     d.canvas = document.createElement("canvas");
     d.gl = null;
@@ -93,8 +93,8 @@ define(
       this.canvas.style.width = this.width + "px";
       this.canvas.style.height = this.height + "px";
       this.gl.viewport(0, 0, 1.5 * b, 1.5 * c);
-      t.perspective(this.vFov, b / c, 1, 1e3, g.projection);
-      r.resize(this.width, this.height);
+      u.perspective(this.vFov, b / c, 1, 1e3, g.projection);
+      q.resize(this.width, this.height);
       a("UI/UIManager").fixResizeOverflow(this.width, this.height);
     };
     d.rendering = !1;
@@ -115,9 +115,7 @@ define(
       for (b = this.renderCallbacks.length; a < b; ++a)
         if (this.renderCallbacks[a])
           this.renderCallbacks[a](this.tick, this.gl);
-      q.render(this.tick);
-      performance.now();
-      debugger;
+      r.render(this.tick);
     };
     d.render = function (a) {
       a && this.renderCallbacks.push(a);

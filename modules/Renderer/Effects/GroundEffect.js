@@ -65,8 +65,8 @@ define("Renderer/Effects/GroundEffect", [
   function h(a, b) {
     return (180 * Math.atan2(b[1] - a[1], b[0] - a[0])) / Math.PI;
   }
-  var r,
-    q,
+  var q,
+    r,
     k = c.mat4;
   k.create();
   m.prototype.init = function (b) {
@@ -132,8 +132,8 @@ define("Renderer/Effects/GroundEffect", [
             (e = e * d + g))
           : (e = this.sizeStart);
     } else ((e = Math.sin((b / 4 / 180) * Math.PI)), (e /= 20));
-    c = r.attribute;
-    d = r.uniform;
+    c = q.attribute;
+    d = q.uniform;
     this.blendMode && a.blendFunc(a.SRC_ALPHA, a.DST_ALPHA);
     a.activeTexture(a.TEXTURE0);
     a.bindTexture(a.TEXTURE_2D, this.texture);
@@ -143,28 +143,28 @@ define("Renderer/Effects/GroundEffect", [
         k.rotateY(this.matrix, this.matrix, (b / 4 / 180) * Math.PI))
       : (k.identity(this.matrix),
         k.rotateY(this.matrix, this.matrix, (this.angle / 180) * Math.PI));
-    a.uniformMatrix4fv(r.uniform.uRotationMat, !1, this.matrix);
+    a.uniformMatrix4fv(q.uniform.uRotationMat, !1, this.matrix);
     a.enableVertexAttribArray(c.aPosition);
     a.enableVertexAttribArray(c.aTextureCoord);
-    a.bindBuffer(a.ARRAY_BUFFER, q);
+    a.bindBuffer(a.ARRAY_BUFFER, r);
     a.vertexAttribPointer(c.aPosition, 2, a.FLOAT, !1, 16, 0);
     a.vertexAttribPointer(c.aTextureCoord, 2, a.FLOAT, !1, 16, 8);
-    a.uniform3fv(r.uniform.uPosition, this.position);
-    a.uniform1f(r.uniform.uSize, this.size + e);
-    a.uniform4fv(r.uniform.uColor, this.color);
+    a.uniform3fv(q.uniform.uPosition, this.position);
+    a.uniform1f(q.uniform.uSize, this.size + e);
+    a.uniform4fv(q.uniform.uColor, this.color);
     a.drawArrays(a.TRIANGLES, 0, 6);
     this.noLifeTime || (this.needCleanUp = this.endLifeTime < b);
   };
   m.init = function (b) {
-    r = a.createShaderProgram(
+    q = a.createShaderProgram(
       b,
       "\n\t\t#version 100\n\t\t#pragma vscode_glsllint_stage : vert\n\t\tprecision highp float;\n\t\t\n\t\tattribute vec2 aPosition;\n\t\tattribute vec2 aTextureCoord;\n\n\t\tvarying vec2 vTextureCoord;\n\n\t\tuniform mat4 uModelViewMat;\n\t\tuniform mat4 uProjectionMat;\n\t\tuniform mat4 uRotationMat;\n\n\t\tuniform vec3 uPosition;\n\t\tuniform float uSize;\n\n\t\tvoid main(void) {\n\t\t\tvec4 position  \x3d vec4(uPosition.x + 0.5, -uPosition.z, uPosition.y + 0.5, 1.0);\n\t\t\tposition      +\x3d vec4(aPosition.x * uSize, 0.0, aPosition.y * uSize, 0.0) * uRotationMat;\n\n\t\t\tgl_Position    \x3d uProjectionMat * uModelViewMat * position;\n\t\t\tgl_Position.z -\x3d 0.02;\n\n\t\t\tvTextureCoord  \x3d aTextureCoord;\n\t\t}\n\t",
       "\n\t\t#version 100\n\t\t#pragma vscode_glsllint_stage : frag\n\t\tprecision highp float;\n\t\t\n\t\tvarying vec2 vTextureCoord;\n\n\t\tuniform sampler2D uDiffuse;\n\t\tuniform vec4 uColor;\n\n\t\tuniform bool  uFogUse;\n\t\tuniform float uFogNear;\n\t\tuniform float uFogFar;\n\t\tuniform vec3  uFogColor;\n\n\t\tvoid main(void) {\n\t\t\tvec4 texture \x3d texture2D( uDiffuse,  vTextureCoord.st );\n\n\t\t\tif (texture.a \x3d\x3d 0.0) {\n\t\t\t\tdiscard;\n\t\t\t}\n\n\t\t\tgl_FragColor     \x3d texture * uColor;\n\n\t\t\tif (uFogUse) {\n\t\t\t\tfloat depth     \x3d gl_FragCoord.z / gl_FragCoord.w;\n\t\t\t\tfloat fogFactor \x3d smoothstep( uFogNear, uFogFar, depth );\n\t\t\t\tgl_FragColor    \x3d mix( gl_FragColor, vec4( uFogColor, gl_FragColor.w ), fogFactor );\n\t\t\t}\n\t\t}\n\t",
     );
-    q = b.createBuffer();
+    r = b.createBuffer();
     this.ready = !0;
     this.renderBeforeEntities = !1;
-    b.bindBuffer(b.ARRAY_BUFFER, q);
+    b.bindBuffer(b.ARRAY_BUFFER, r);
     b.bufferData(
       b.ARRAY_BUFFER,
       new Float32Array([
@@ -175,14 +175,14 @@ define("Renderer/Effects/GroundEffect", [
     );
   };
   m.free = function (a) {
-    r && (a.deleteProgram(r), (r = null));
-    q && a.deleteBuffer(q);
+    q && (a.deleteProgram(q), (q = null));
+    r && a.deleteBuffer(r);
     this.ready = !1;
   };
   m.beforeRender = function (a, b, c, d, e) {
-    d = r.uniform;
+    d = q.uniform;
     a.depthMask(!1);
-    a.useProgram(r);
+    a.useProgram(q);
     a.uniformMatrix4fv(d.uModelViewMat, !1, b);
     a.uniformMatrix4fv(d.uProjectionMat, !1, c);
     a.activeTexture(a.TEXTURE0);
@@ -190,8 +190,8 @@ define("Renderer/Effects/GroundEffect", [
   };
   m.afterRender = function (a) {
     a.depthMask(!0);
-    a.disableVertexAttribArray(r.attribute.aPosition);
-    a.disableVertexAttribArray(r.attribute.aTextureCoord);
+    a.disableVertexAttribArray(q.attribute.aPosition);
+    a.disableVertexAttribArray(q.attribute.aTextureCoord);
     a.blendFunc(a.SRC_ALPHA, a.ONE_MINUS_SRC_ALPHA);
   };
   return m;

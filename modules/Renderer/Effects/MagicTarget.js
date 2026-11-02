@@ -18,11 +18,11 @@ define(
       e = a("Utils/gl-matrix"),
       m = a("DB/Skills/SkillConst"),
       h = a("Core/Client"),
-      r = a("Renderer/Map/Altitude"),
-      q = a("Engine/SessionStorage"),
+      q = a("Renderer/Map/Altitude"),
+      r = a("Engine/SessionStorage"),
       k,
       g,
-      t,
+      u,
       l = e.mat4,
       f = l.create(),
       n = {};
@@ -119,7 +119,7 @@ define(
         var d = new Float32Array(3);
         d[0] = this.pos[0];
         d[1] = this.pos[1];
-        d[2] = r.getCellHeight(d[0], d[1]);
+        d[2] = q.getCellHeight(d[0], d[1]);
         a.uniform3fv(g.uniform.uPosition, d);
         a.uniform1f(g.uniform.uSize, this.size);
         a.uniform1f(g.uniform.uColor, c);
@@ -129,10 +129,10 @@ define(
         d = new Float32Array(3);
         d[0] = this.pos[0] + this.offset[0];
         d[1] = this.pos[1] + this.offset[1];
-        d[2] = r.getCellHeight(d[0], d[1]);
+        d[2] = q.getCellHeight(d[0], d[1]);
         b = this.range + 1;
-        var e = q.Entity.position[0] - d[0],
-          f = q.Entity.position[1] - d[1];
+        var e = r.Entity.position[0] - d[0],
+          f = r.Entity.position[1] - d[1];
         b * b <= e * e + f * f && (c = 0.2);
         a.uniform3fv(g.uniform.uPosition, d);
         a.uniform1f(g.uniform.uSize, this.size);
@@ -147,8 +147,8 @@ define(
         " \n\t\t#version 100\n\t\t#pragma vscode_glsllint_stage : vert\n\t\tprecision highp float;\n\t\t\n\t\tattribute vec2 aPosition;\n\t\tattribute vec2 aTextureCoord;\n\n\t\tvarying vec2 vTextureCoord;\n\n\t\tuniform mat4 uModelViewMat;\n\t\tuniform mat4 uProjectionMat;\n\t\tuniform mat4 uRotationMat;\n\n\t\tuniform vec3 uPosition;\n\t\tuniform float uSize;\n\n\t\tvoid main(void) {\n\t\t\tvec4 position  \x3d vec4(uPosition.x + 0.5, -uPosition.z, uPosition.y + 0.5, 1.0);\n\t\t\tposition      +\x3d vec4(aPosition.x * uSize, 0.0, aPosition.y * uSize, 0.0) * uRotationMat;\n\n\t\t\tgl_Position    \x3d uProjectionMat * uModelViewMat * position;\n\t\t\tgl_Position.z -\x3d 0.02;\n\n\t\t\tvTextureCoord  \x3d aTextureCoord;\n\t\t}\n\t",
         " \n\t\t#version 100\n\t\t#pragma vscode_glsllint_stage : frag\n\t\tprecision highp float;\n\t\t\n\t\tvarying vec2 vTextureCoord;\n\n\t\tuniform sampler2D uDiffuse;\n\t\tuniform float uColor;\n\n\t\tuniform bool  uFogUse;\n\t\tuniform float uFogNear;\n\t\tuniform float uFogFar;\n\t\tuniform vec3  uFogColor;\n\n\t\tvoid main(void) {\n\t\t\tvec4 texture \x3d texture2D( uDiffuse,  vTextureCoord.st );\n\n\t\t\tif (texture.a \x3d\x3d 0.0) {\n\t\t\t\tdiscard;\n\t\t\t}\n\n\t\t\tgl_FragColor     \x3d texture;\n\t\t\tgl_FragColor.gb *\x3d uColor;\n\n\t\t\tif (uFogUse) {\n\t\t\t\tfloat depth     \x3d gl_FragCoord.z / gl_FragCoord.w;\n\t\t\t\tfloat fogFactor \x3d smoothstep( uFogNear, uFogFar, depth );\n\t\t\t\tgl_FragColor    \x3d mix( gl_FragColor, vec4( uFogColor, gl_FragColor.w ), fogFactor );\n\t\t\t}\n\t\t}\n\t",
       );
-      t = a.createBuffer();
-      a.bindBuffer(a.ARRAY_BUFFER, t);
+      u = a.createBuffer();
+      a.bindBuffer(a.ARRAY_BUFFER, u);
       a.bufferData(
         a.ARRAY_BUFFER,
         new Float32Array([
@@ -179,7 +179,7 @@ define(
     b.free = function (a) {
       k && (a.deleteTexture(k), (k = null));
       g && (a.deleteProgram(g), (g = null));
-      t && a.deleteBuffer(t);
+      u && a.deleteBuffer(u);
       this.ready = !1;
     };
     b.beforeRender = function (a, b, c, d, e) {
@@ -200,7 +200,7 @@ define(
       a.uniform1i(h.uDiffuse, 0);
       a.enableVertexAttribArray(n.aPosition);
       a.enableVertexAttribArray(n.aTextureCoord);
-      a.bindBuffer(a.ARRAY_BUFFER, t);
+      a.bindBuffer(a.ARRAY_BUFFER, u);
       a.vertexAttribPointer(n.aPosition, 2, a.FLOAT, !1, 16, 0);
       a.vertexAttribPointer(n.aTextureCoord, 2, a.FLOAT, !1, 16, 8);
     };

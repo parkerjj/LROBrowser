@@ -46,22 +46,22 @@ define("Renderer/Effects/QuadHorn", [
   }
   var m,
     h,
-    r,
-    q = c.mat4;
-  q.create();
+    q,
+    r = c.mat4;
+  r.create();
   var k = {},
     g = [
       0, 1, 0, -1, -1, 1, 1, -1, 1, 0, 1, 0, 1, -1, 1, 1, -1, -1, 0, 1, 0, 1,
       -1, -1, -1, -1, -1, 0, 1, 0, -1, -1, -1, -1, -1, 1,
     ],
-    t = [
+    u = [
       0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0,
     ],
     l = function (a, b) {
       return parseFloat(Math.min(a + Math.random() * (b - a), b).toFixed(3));
     },
-    f = q.create(),
-    n = q.create();
+    f = r.create(),
+    n = r.create();
   e.prototype.init = function (b) {
     var c = this;
     d.loadFile("data/texture/" + this.textureFile, function (d) {
@@ -118,7 +118,7 @@ define("Renderer/Effects/QuadHorn", [
     a.bindBuffer(a.ARRAY_BUFFER, h);
     a.vertexAttribPointer(d.aPosition, 3, a.FLOAT, !1, 0, 0);
     a.bindBuffer(a.ARRAY_BUFFER, null);
-    a.bindBuffer(a.ARRAY_BUFFER, r);
+    a.bindBuffer(a.ARRAY_BUFFER, q);
     a.vertexAttribPointer(d.aTextureCoord, 2, a.FLOAT, !1, 0, 0);
     a.bindBuffer(a.ARRAY_BUFFER, null);
     a.uniform3fv(c.uPosition, this.position);
@@ -126,11 +126,11 @@ define("Renderer/Effects/QuadHorn", [
     a.uniform1f(c.uOffsetX, this.offsetX);
     a.uniform1f(c.uOffsetY, this.offsetY);
     a.uniform4fv(c.uColor, this.color);
-    q.identity(n);
-    q.rotate(n, n, (this.rotateY * Math.PI) / 180, [0, 1, 0]);
+    r.identity(n);
+    r.rotate(n, n, (this.rotateY * Math.PI) / 180, [0, 1, 0]);
     a.uniformMatrix4fv(c.uYRotationMat, !1, n);
-    q.identity(f);
-    q.rotate(f, f, ((180 + this.rotateZ) * Math.PI) / 180, [0, 0, 1]);
+    r.identity(f);
+    r.rotate(f, f, ((180 + this.rotateZ) * Math.PI) / 180, [0, 0, 1]);
     a.uniformMatrix4fv(c.uZRotationMat, !1, f);
     a.drawArrays(a.TRIANGLES, 0, 12);
     a.flush();
@@ -159,16 +159,16 @@ define("Renderer/Effects/QuadHorn", [
     h = b.createBuffer();
     b.bindBuffer(b.ARRAY_BUFFER, h);
     b.bufferData(b.ARRAY_BUFFER, new Float32Array(g), b.STATIC_DRAW);
-    r = b.createBuffer();
-    b.bindBuffer(b.ARRAY_BUFFER, r);
-    b.bufferData(b.ARRAY_BUFFER, new Float32Array(t), b.STATIC_DRAW);
+    q = b.createBuffer();
+    b.bindBuffer(b.ARRAY_BUFFER, q);
+    b.bufferData(b.ARRAY_BUFFER, new Float32Array(u), b.STATIC_DRAW);
     this.ready = !0;
     this.renderBeforeEntities = !1;
   };
   e.free = function (a) {
     m && (a.deleteProgram(m), (m = null));
     h && a.deleteBuffer(h);
-    r && a.deleteBuffer(r);
+    q && a.deleteBuffer(q);
     this.ready = !1;
   };
   e.beforeRender = function (a, b, c, d, e) {

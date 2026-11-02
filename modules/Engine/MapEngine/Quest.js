@@ -5,10 +5,10 @@ define(
   ),
   function (a) {
     function b(a) {
-      0 >= a.questCount || (r.setList(a), q.updateQList());
+      0 >= a.questCount || (q.setList(a), r.updateQList());
     }
     function c(a) {
-      r.addList({
+      q.addList({
         active: a.active,
         count: a.count,
         hunt: a.hunt,
@@ -16,25 +16,25 @@ define(
         quest_endTime: a.quest_endTime,
         quest_svrTime: a.quest_svrTime,
       });
-      q.updateQList();
+      r.updateQList();
     }
     function d(a) {
-      r.delQuest(a.questID);
-      q.updateQList();
+      q.delQuest(a.questID);
+      r.updateQList();
     }
     function e(a) {
       if (0 == a.count) return !1;
-      for (var b = 0; b < a.count; b++) r.updateQuest(a.MobHuntList[b]);
-      q.updateQList();
+      for (var b = 0; b < a.count; b++) q.updateQuest(a.MobHuntList[b]);
+      r.updateQList();
     }
     a("DB/DBManager");
     a("UI/Components/ChatBox/ChatBox");
     var m = a("Network/NetworkManager"),
       h = a("Network/PacketStructure");
     a("Engine/SessionStorage");
-    var r = a("UI/Components/Quest/Quest"),
-      q = a("UI/Components/miniQuest/miniQuest");
-    r.requestChangeQuestState = function (a, b) {
+    var q = a("UI/Components/Quest/Quest"),
+      r = a("UI/Components/miniQuest/miniQuest");
+    q.requestChangeQuestState = function (a, b) {
       var c = new h.CZ.ACTIVE_QUEST();
       c.questID = a;
       c.active = b;

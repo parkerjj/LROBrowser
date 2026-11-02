@@ -4,14 +4,14 @@ define("Core/Events", [], function () {
     c = 0,
     d = 0;
   a.setTimeout = function (a, m) {
-    var e, r;
+    var e, q;
     m = c + m;
-    r = { callback: a, tick: m, uid: d++ };
+    q = { callback: a, tick: m, uid: d++ };
     a = 0;
     for (e = b.length; a < e; ++a)
-      if (m < b[a].tick) return (b.splice(a, 0, r), r.uid);
-    b.push(r);
-    return r.uid;
+      if (m < b[a].tick) return (b.splice(a, 0, q), q.uid);
+    b.push(q);
+    return q.uid;
   };
   a.clearTimeout = function (a) {
     var d,

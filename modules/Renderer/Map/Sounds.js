@@ -13,10 +13,10 @@ define("Renderer/Map/Sounds", [
     },
     render: function (a, m) {
       var e,
-        r,
-        q = d.length;
-      for (r = 0; r < q; ++r) {
-        e = d[r];
+        q,
+        r = d.length;
+      for (q = 0; q < r; ++q) {
+        e = d[q];
         var k = Math.floor(c.dist(e.pos, a));
         e.tick < m &&
           k <= e.range &&

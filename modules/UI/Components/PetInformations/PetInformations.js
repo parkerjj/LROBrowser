@@ -53,15 +53,15 @@ define(
     }
     var m = a("DB/DBManager"),
       h = a("DB/Pets/PetEvolution"),
-      r = a("Core/Client"),
-      q = a("Core/Preferences"),
+      q = a("Core/Client"),
+      r = a("Core/Preferences"),
       k = a("Renderer/Renderer"),
       g = a("UI/UIManager"),
-      t = a("UI/UIComponent"),
+      u = a("UI/UIComponent"),
       l = a("text!./PetInformations.html");
     a = a("text!./PetInformations.css");
-    var f = new t("PetInformations", l, a),
-      n = q.get("PetInformations", { x: 100, y: 200, show: !1 }, 1),
+    var f = new u("PetInformations", l, a),
+      n = r.get("PetInformations", { x: 100, y: 200, show: !1 }, 1),
       p = {};
     f.init = function () {
       this.draggable(this.ui.find(".titlebar"));
@@ -96,7 +96,7 @@ define(
       this.setHunger(a.nFullness);
       this.setIntimacy(a.nRelationship);
       this.ui.find(".accessory").text(m.getMessage(a.ITID ? 598 : 600));
-      r.loadFile(
+      q.loadFile(
         m.getPetIllustPath(a.job),
         function (a) {
           this.ui.find(".content").css("backgroundImage", "url(" + a + ")");

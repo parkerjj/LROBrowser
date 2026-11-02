@@ -46,14 +46,14 @@ define("Core/MemoryManager", ["Core/MemoryItem"], function (a) {
           m,
           k,
           g,
-          t,
+          u,
           l = [];
         h = Object.keys(d);
         g = h.length;
-        t = b - 12e4;
+        u = b - 12e4;
         for (k = 0; k < g; ++k)
           ((m = d[h[k]]),
-            m.complete && m.lastTimeUsed < t && (c(a, h[k]), l.push(h[k])));
+            m.complete && m.lastTimeUsed < u && (c(a, h[k]), l.push(h[k])));
         e = b;
       }
     },

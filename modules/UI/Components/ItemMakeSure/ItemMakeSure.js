@@ -13,7 +13,7 @@ define(
       }
       a.stopImmediatePropagation();
       a = b.data;
-      t("UI/Components/Inventory/Inventory").removeItem(a.index, 1);
+      u("UI/Components/Inventory/Inventory").removeItem(a.index, 1);
       l.throwItem_ItemMakeSure(a);
       return !1;
     }
@@ -27,12 +27,12 @@ define(
     a("DB/Items/Makablelist_dg");
     var m = a("Core/Client"),
       h = a("Renderer/Renderer"),
-      r = a("UI/UIManager"),
-      q = a("UI/UIComponent"),
+      q = a("UI/UIManager"),
+      r = a("UI/UIComponent"),
       k = a("text!./ItemMakeSure.html"),
       g = a("text!./ItemMakeSure.css"),
-      t = a,
-      l = new q("ItemMakeSure", k, g);
+      u = a,
+      l = new r("ItemMakeSure", k, g);
     l.list = [];
     l.init = function () {
       this.ui.css({
@@ -92,6 +92,6 @@ define(
       );
     };
     l.onIndexSelected = function () {};
-    return r.addComponent(l);
+    return q.addComponent(l);
   },
 );

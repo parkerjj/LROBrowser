@@ -37,7 +37,7 @@ define(
       p[a].element = c;
       p[a].ctx = d.getContext("2d");
       p[a].type = 2e3 == a ? 1 : 0;
-      0 < Object.keys(p).length && t.render(m);
+      0 < Object.keys(p).length && u.render(m);
       if (h[a].length) {
         if (h[a][b].descript) {
           var e, f;
@@ -96,56 +96,56 @@ define(
           f = a,
           g,
           h,
-          k,
-          l;
+          l,
+          k;
         e.img &&
-          ((l = e.ctx),
+          ((k = e.ctx),
           1 == e.type
             ? 1 == e.refresh &&
               ((e.refresh = 0),
               (f = e.val),
-              (k = "rgba(0,255,8,0.5)"),
+              (l = "rgba(0,255,8,0.5)"),
               (g = 1 - f / 100),
-              l.clearRect(0, 0, 32, 32),
-              l.drawImage(e.img, 0, 0),
-              (l.fillStyle = k),
-              l.fillRect(0, 32 * g, 32, 32),
+              k.clearRect(0, 0, 32, 32),
+              k.drawImage(e.img, 0, 0),
+              (k.fillStyle = l),
+              k.fillRect(0, 32 * g, 32, 32),
               e.time && (e.time.textContent = f + "%"))
             : ((g = e.start),
               (h = e.end),
               f > h && (h = f),
               h < f + 6e4
-                ? ((k = "rgba(255,150,50,0.65)"), (g = 1 - (h - f) / 6e4))
-                : ((k = "rgba(255,255,255,0.65)"),
+                ? ((l = "rgba(255,150,50,0.65)"), (g = 1 - (h - f) / 6e4))
+                : ((l = "rgba(255,255,255,0.65)"),
                   (g = (f - g) / (h - 6e4 - g))),
-              l.clearRect(0, 0, 32, 32),
-              l.drawImage(e.img, 0, 0),
-              (l.fillStyle = k),
-              l.beginPath(),
-              l.arc(16, 16, 24, 1.5 * Math.PI, ((1.5 + 2 * g) % 2) * Math.PI),
-              l.lineTo(16, 16),
-              l.fill(),
+              k.clearRect(0, 0, 32, 32),
+              k.drawImage(e.img, 0, 0),
+              (k.fillStyle = l),
+              k.beginPath(),
+              k.arc(16, 16, 24, 1.5 * Math.PI, ((1.5 + 2 * g) % 2) * Math.PI),
+              k.lineTo(16, 16),
+              k.fill(),
               e.time &&
                 e.timeTick + 1e3 < f &&
                 ((e.timeTick = f),
-                (l = ((h - f) / 1e3) | 0),
-                (k = l % 60),
-                (l = (l / 60) | 0),
+                (k = ((h - f) / 1e3) | 0),
+                (l = k % 60),
+                (k = (k / 60) | 0),
                 (e.time.textContent =
                   f >= h || Infinity === h
                     ? ""
-                    : (l ? l + " " + r.getMessage(1807, "\u5206") + " " : "") +
-                      k +
+                    : (k ? k + " " + q.getMessage(1807, "\u5206") + " " : "") +
+                      l +
                       " " +
-                      r.getMessage(1808, "\u79d2")))));
+                      q.getMessage(1808, "\u79d2")))));
       }
     }
     var h = a("DB/Status/StatusInfo"),
-      r = a("DB/DBManager"),
-      q = a("Utils/jquery"),
+      q = a("DB/DBManager"),
+      r = a("Utils/jquery"),
       k = a("Utils/Texture"),
       g = a("Core/Client"),
-      t = a("Renderer/Renderer"),
+      u = a("Renderer/Renderer"),
       l = a("UI/UIManager"),
       f = a("UI/UIComponent");
     a = a("text!./StatusIcons.css");
@@ -154,13 +154,13 @@ define(
     n.needFocus = !1;
     var p = {};
     n.init = function () {
-      this.ui = q("\x3cdiv/\x3e").attr("id", "StatusIcons");
+      this.ui = r("\x3cdiv/\x3e").attr("id", "StatusIcons");
     };
     n.onAppend = function () {
-      t.render(m);
+      u.render(m);
     };
     n.onRemove = function () {
-      t.stop(m);
+      u.stop(m);
     };
     n.clean = function () {
       this.ui.empty();
@@ -173,8 +173,8 @@ define(
         } else if (!h[a].icon) return;
         f
           ? (a in p || d(a, l),
-            (p[a].start = t.tick),
-            (p[a].end = t.tick + n),
+            (p[a].start = u.tick),
+            (p[a].end = u.tick + n),
             9999 === n && (p[a].end = Infinity),
             p.img ||
               g.loadFile(

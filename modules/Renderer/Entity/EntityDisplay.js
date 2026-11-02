@@ -2,13 +2,13 @@ define("Renderer/Entity/EntityDisplay", [
   "Utils/gl-matrix",
   "Renderer/Renderer",
 ], function (a, b) {
-  function c(a, b, c, d, e, n, p) {
+  function c(a, b, c, d, f, e, p) {
     a.textBaseline = "top";
     a.lineWidth = 1;
     a.shadowColor = "#222";
     a.shadowBlur = p;
-    a.shadowOffsetX = e;
-    a.shadowOffsetY = n;
+    a.shadowOffsetX = f;
+    a.shadowOffsetY = e;
     a.fillStyle = "black";
     a.fillText(b, c, d);
   }
@@ -33,7 +33,7 @@ define("Renderer/Entity/EntityDisplay", [
   var e = a.vec4,
     m = new Float32Array(4),
     h = new Float32Array(2),
-    r = window.devicePixelRatio;
+    q = window.devicePixelRatio;
   "undefined" !== typeof CanvasRenderingContext2D &&
     (CanvasRenderingContext2D.prototype.outlineText = function (a, b, c) {
       this.fillText(a, b - 1, c);
@@ -41,7 +41,7 @@ define("Renderer/Entity/EntityDisplay", [
       this.fillText(a, b + 1, c);
       this.fillText(a, b, c + 1);
     });
-  var q = (function () {
+  var r = (function () {
     var a = document.createElement("canvas").getContext("2d"),
       b;
     a.font = "12px Arial";
@@ -77,7 +77,7 @@ define("Renderer/Entity/EntityDisplay", [
   d.prototype.update = function (a) {
     this.guild_name.length || (this.emblem = 0);
     var b = Array(2),
-      d = 11 * r,
+      d = 11 * q,
       e = this.ctx,
       f = (this.emblem ? 26 : 0) + 5,
       n,
@@ -98,7 +98,7 @@ define("Renderer/Entity/EntityDisplay", [
     a = a || "white";
     e.font = "bold " + d + "px Arial";
     e.textBaseline = "top";
-    q
+    r
       ? (e.translate(0.5, 0.5),
         (e.fillStyle = "black"),
         e.outlineText(b[0], f, 0),
@@ -135,9 +135,9 @@ define("Renderer/Entity/EntityDisplay", [
     m[1] = h[1] - Math.round(h[1] * m[1] * a);
     this.entity.life.display && (d = 10);
     c.style.top = ((m[1] + 5 + d) | 0) + "px";
-    c.style.left = ((m[0] - c.width / r / 2) | 0) + "px";
-    c.style.width = c.width / r + "px";
-    c.style.height = c.height / r + "px";
+    c.style.left = ((m[0] - c.width / q / 2) | 0) + "px";
+    c.style.width = c.width / q + "px";
+    c.style.height = c.height / q + "px";
     c.parentNode || document.body.appendChild(c);
   };
   return function () {

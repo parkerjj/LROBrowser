@@ -12,13 +12,13 @@ define("Renderer/Effects/PropertyGround", [
     this.height = d;
     this.tick = k;
     this.sizeRandomize = 0 + 10 * Math.random();
-    this.ix = g++ % q.length;
+    this.ix = g++ % r.length;
   }
   var m,
     h,
-    r = c.mat4,
-    q = (function () {
-      for (var a = [], b = 0; 16 > b; b++) a.push(r.create());
+    q = c.mat4,
+    r = (function () {
+      for (var a = [], b = 0; 16 > b; b++) a.push(q.create());
       return a;
     })(),
     k = 0,
@@ -43,7 +43,7 @@ define("Renderer/Effects/PropertyGround", [
       d = m.attribute;
     b = Math.sin(b / (360 * Math.PI) + this.sizeRandomize);
     0.5 > b && (b = 0.5);
-    a.uniformMatrix4fv(c.uRotationMat, !1, q[this.ix]);
+    a.uniformMatrix4fv(c.uRotationMat, !1, r[this.ix]);
     a.bindTexture(a.TEXTURE_2D, this.texture);
     a.enableVertexAttribArray(d.aPosition);
     a.enableVertexAttribArray(d.aTextureCoord);
@@ -61,8 +61,8 @@ define("Renderer/Effects/PropertyGround", [
       d,
       e,
       g = [],
-      t = [],
-      q = [];
+      u = [],
+      t = [];
     for (c = 0; 20 >= c; c++)
       ((d = (c + 0) / 20),
         (e = (c + 0.5) / 20),
@@ -73,7 +73,7 @@ define("Renderer/Effects/PropertyGround", [
           d,
           1,
         ]),
-        (t[c] = [
+        (u[c] = [
           Math.sin(e * Math.PI * 2),
           Math.cos(e * Math.PI * 2),
           1,
@@ -81,13 +81,13 @@ define("Renderer/Effects/PropertyGround", [
           0,
         ]));
     for (c = 0; 20 >= c; c++)
-      (q.push.apply(q, g[c + 0]),
-        q.push.apply(q, t[c + 0]),
-        q.push.apply(q, g[c + 1]),
-        q.push.apply(q, t[c + 0]),
-        q.push.apply(q, g[c + 1]),
-        q.push.apply(q, t[c + 1]));
-    c = new Float32Array(q);
+      (t.push.apply(t, g[c + 0]),
+        t.push.apply(t, u[c + 0]),
+        t.push.apply(t, g[c + 1]),
+        t.push.apply(t, u[c + 0]),
+        t.push.apply(t, g[c + 1]),
+        t.push.apply(t, u[c + 1]));
+    c = new Float32Array(t);
     k = c.length / 5;
     m = a.createShaderProgram(
       b,
@@ -106,11 +106,11 @@ define("Renderer/Effects/PropertyGround", [
     this.ready = !1;
   };
   e.beforeRender = function (a, b, c, d, e) {
-    for (var f = m.uniform, g, l, k = 0, h = q.length; k < h; k++)
-      ((g = q[k]),
-        r.identity(g),
-        (l = (2 * k * Math.PI) / q.length),
-        r.rotateY(g, g, l + (e / 8 / 180) * Math.PI));
+    for (var f = m.uniform, g, l, k = 0, h = r.length; k < h; k++)
+      ((g = r[k]),
+        q.identity(g),
+        (l = (2 * k * Math.PI) / r.length),
+        q.rotateY(g, g, l + (e / 8 / 180) * Math.PI));
     a.useProgram(m);
     a.uniformMatrix4fv(f.uModelViewMat, !1, b);
     a.uniformMatrix4fv(f.uProjectionMat, !1, c);

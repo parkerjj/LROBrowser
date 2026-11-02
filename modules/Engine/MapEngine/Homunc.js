@@ -13,25 +13,25 @@ define(
             ((a = new g.CZ.REQUEST_MOVETOOWNER()),
             (a.GID = l.homGID),
             k.sendPacket(a)),
-          t.clearTimeout(D),
-          (D = t.setTimeout(b, 200)))
-        : t.clearTimeout(D);
+          u.clearTimeout(E),
+          (E = u.setTimeout(b, 200)))
+        : u.clearTimeout(E);
     }
     function c(a) {
-      u.initData(a);
+      t.initData(a);
     }
     function d(a) {
       0 < a.nRelationship
-        ? u.setInformations(a)
-        : ((l.homGID = 0), (u.info = null));
+        ? t.setInformations(a)
+        : ((l.homGID = 0), (t.info = null));
     }
     function e(a) {
-      A.append();
-      A.setskill(a.skillList);
+      z.append();
+      z.setskill(a.skillList);
     }
     function m() {
       l.moveAction &&
-        t.setTimeout(function () {
+        u.setTimeout(function () {
           l.moveAction &&
             (k.sendPacket(l.moveAction),
             null == f.getFocusEntity() &&
@@ -42,18 +42,18 @@ define(
     function h(a) {
       a.cRet ||
         v.addText(
-          r
+          q
             .getMessage(591)
-            .replace("%s", r.getItemInfo(a.ITID).identifiedDiSPlayName),
+            .replace("%s", q.getItemInfo(a.ITID).identifiedDiSPlayName),
           v.TYPE.ERROR,
         );
     }
-    var r = a("DB/DBManager"),
-      q = a("Utils/PathFinding"),
+    var q = a("DB/DBManager"),
+      r = a("Utils/PathFinding"),
       k = a("Network/NetworkManager"),
       g = a("Network/PacketStructure");
     a("Core/Client");
-    var t = a("Core/Events"),
+    var u = a("Core/Events"),
       l = a("Engine/SessionStorage"),
       f = a("Renderer/EntityManager"),
       n = a("Renderer/Map/Altitude"),
@@ -62,49 +62,49 @@ define(
     a("UI/Components/SkillTargetSelection/SkillTargetSelection");
     a("UI/Components/ItemSelection/ItemSelection");
     var v = a("UI/Components/ChatBox/ChatBox"),
-      u = a("UI/Components/Homunc/HomuncInformations"),
-      A = a("UI/Components/Homunc/HomuncskillList"),
-      D = null;
-    u.reqPetFeed = function (a) {
-      p.showPromptBox(r.getMessage(601), "ok", "cancel", function () {
+      t = a("UI/Components/Homunc/HomuncInformations"),
+      z = a("UI/Components/Homunc/HomuncskillList"),
+      E = null;
+    t.reqPetFeed = function (a) {
+      p.showPromptBox(q.getMessage(601), "ok", "cancel", function () {
         var a = new g.CZ.COMMAND_MER();
         a.type = 0;
         a.command = 1;
         k.sendPacket(a);
       });
     };
-    u.reqNameEdit = function (a) {
-      p.showPromptBox(r.getMessage(683), "ok", "cancel", function () {
+    t.reqNameEdit = function (a) {
+      p.showPromptBox(q.getMessage(683), "ok", "cancel", function () {
         var b = new g.CZ.RENAME_MER();
         b.name = a;
         k.sendPacket(b);
       });
     };
-    u.reqFired = function () {
-      p.showPromptBox(r.getMessage(955), "ok", "cancel", function () {
-        u.remove();
-        A.remove();
+    t.reqFired = function () {
+      p.showPromptBox(q.getMessage(955), "ok", "cancel", function () {
+        t.remove();
+        z.remove();
         var a = new g.CZ.COMMAND_MER();
         a.type = 0;
         a.command = 2;
         k.sendPacket(a);
       });
     };
-    A.onIncreaseSkill = function (a) {
+    z.onIncreaseSkill = function (a) {
       var b = new g.CZ.UPGRADE_SKILLLEVEL();
       b.SKID = a;
       k.sendPacket(b);
     };
-    A.onUseSkill = function (a, b, c) {
+    z.onUseSkill = function (a, b, c) {
       var d, e, h, m, p;
       d = f.get(l.homGID);
       h = f.get(c) || d;
-      e = A.getSkillById(a);
+      e = z.getSkillById(a);
       m = [];
       if (h != d || !e || 1 != e.type)
         if (
           ((e = e ? e.attackRange : d.attack_range),
-          (p = q.searchLong(
+          (p = r.searchLong(
             d.position[0] | 0,
             d.position[1] | 0,
             h.position[0] | 0,
@@ -126,9 +126,9 @@ define(
               (e.dest[1] = m[2 * (p - 1) + 1])),
             k.sendPacket(e));
     };
-    u.WalkEnd = function () {
+    t.WalkEnd = function () {
       var a = f.get(l.homGID);
-      D = t.setTimeout(b, 200);
+      E = u.setTimeout(b, 200);
       a.onWalkEnd = m;
     };
     return function () {

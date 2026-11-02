@@ -20,7 +20,7 @@ define(
         var a = document.createElement("div");
         a.className = "win_popup_overlay";
         document.body.appendChild(a);
-        q.showMessageBox(
+        r.showMessageBox(
           e.getMessage(13),
           "ok",
           function () {
@@ -37,8 +37,8 @@ define(
       e = a("DB/DBManager"),
       m = a("Controls/KeyEventHandler"),
       h = a("Renderer/Renderer"),
-      r = a("Core/Preferences"),
-      q = a("UI/UIManager"),
+      q = a("Core/Preferences"),
+      r = a("UI/UIManager"),
       k = a("UI/UIComponent"),
       g = a("text!./ChatRoomCreate.html");
     a = a("text!./ChatRoomCreate.css");
@@ -47,7 +47,7 @@ define(
     k.limit = 20;
     k.type = 1;
     k.password = "";
-    var t = r.get("ChatRoomCreate", { x: 480, y: 200, show: !1 }, 1);
+    var u = q.get("ChatRoomCreate", { x: 480, y: 200, show: !1 }, 1);
     k.init = function () {
       this.ui.find(".close, .cancel").mousedown(b).click(this.hide.bind(this));
       this.ui.find(".ok").on("click", c.bind(this));
@@ -63,27 +63,27 @@ define(
     k.onAppend = function () {
       this.ui.hide();
       this.ui.css({
-        top: Math.min(Math.max(0, t.y), h.height - this.ui.height()),
-        left: Math.min(Math.max(0, t.x), h.width - this.ui.width()),
+        top: Math.min(Math.max(0, u.y), h.height - this.ui.height()),
+        left: Math.min(Math.max(0, u.x), h.width - this.ui.width()),
       });
       var a = d._data(window, "events").keydown;
       a.unshift(a.pop());
     };
     k.onRemove = function () {
-      t.show = this.ui.is(":visible");
-      t.y = parseInt(this.ui.css("top"), 10);
-      t.x = parseInt(this.ui.css("left"), 10);
-      t.save();
+      u.show = this.ui.is(":visible");
+      u.y = parseInt(this.ui.css("top"), 10);
+      u.x = parseInt(this.ui.css("left"), 10);
+      u.save();
     };
     k.show = function () {
       this.ui.show();
       this.ui.find(".title").focus();
-      t.show = !0;
+      u.show = !0;
     };
     k.hide = function () {
       this.ui.hide();
       this.ui.find(".setup")[0].reset();
-      t.show = !1;
+      u.show = !1;
     };
     k.onKeyDown = function (a) {
       if (this.ui.is(":visible")) {
@@ -101,6 +101,6 @@ define(
       }
     };
     k.requestRoom = function () {};
-    return q.addComponent(k);
+    return r.addComponent(k);
   },
 );

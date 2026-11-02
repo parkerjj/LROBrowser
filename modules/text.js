@@ -5,11 +5,11 @@ define("text", ["module"], function (a) {
     e,
     m,
     h = ["Msxml2.XMLHTTP", "Microsoft.XMLHTTP", "Msxml2.XMLHTTP.4.0"],
-    r = /^\s*<\?xml(\s)+version=[\'\"](\d)*.(\d)*[\'\"](\s)*\?>/im,
-    q = /<body[^>]*>\s*([\s\S]+)\s*<\/body>/im,
+    q = /^\s*<\?xml(\s)+version=[\'\"](\d)*.(\d)*[\'\"](\s)*\?>/im,
+    r = /<body[^>]*>\s*([\s\S]+)\s*<\/body>/im,
     k = "undefined" !== typeof location && location.href,
     g = k && location.protocol && location.protocol.replace(/\:/, ""),
-    t = k && location.hostname,
+    u = k && location.hostname,
     l = k && (location.port || void 0),
     f = {},
     n = (a.config && a.config()) || {};
@@ -17,8 +17,8 @@ define("text", ["module"], function (a) {
     version: "2.0.10",
     strip: function (a) {
       if (a) {
-        a = a.replace(r, "");
-        var d = a.match(q);
+        a = a.replace(q, "");
+        var d = a.match(r);
         d && (a = d[1]);
       } else a = "";
       return a;
@@ -44,7 +44,7 @@ define("text", ["module"], function (a) {
             b = h[d];
             try {
               a = new ActiveXObject(b);
-            } catch (A) {}
+            } catch (z) {}
             if (a) {
               h = [b];
               break;
@@ -100,7 +100,7 @@ define("text", ["module"], function (a) {
           p = n.useXhr || b.useXhr;
         0 === h.indexOf("empty:")
           ? c()
-          : !k || p(h, g, t, l)
+          : !k || p(h, g, u, l)
             ? b.get(
                 h,
                 function (d) {
@@ -158,8 +158,8 @@ define("text", ["module"], function (a) {
           var e = c.readFileSync(a, "utf8");
           0 === e.indexOf("\ufeff") && (e = e.substring(1));
           d(e);
-        } catch (D) {
-          b(D);
+        } catch (E) {
+          b(E);
         }
       }));
   else if ("xhr" === n.env || (!n.env && b.createXhr()))
@@ -249,8 +249,8 @@ define("text", ["module"], function (a) {
             f.close(),
             c.close(),
             b(h.value));
-        } catch (B) {
-          throw Error(((a && a.path) || "") + ": " + B);
+        } catch (C) {
+          throw Error(((a && a.path) || "") + ": " + C);
         }
       }));
   return b;

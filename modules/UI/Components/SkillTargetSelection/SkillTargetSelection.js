@@ -31,65 +31,65 @@ define(
       c.fillText(a, 0, 30);
     }
     function d(a) {
-      A.remove();
-      if (!q.intersect) return !1;
+      z.remove();
+      if (!r.intersect) return !1;
       if (1 !== a.which) return !0;
       a.stopImmediatePropagation();
-      if (D & A.TYPE.PLACE)
+      if (E & z.TYPE.PLACE)
         return (
-          A.onUseSkillToPos(
-            B.SKID,
-            B.useLevel ? B.useLevel : B.level,
-            q.world.x,
-            q.world.y,
+          z.onUseSkillToPos(
+            C.SKID,
+            C.useLevel ? C.useLevel : C.level,
+            r.world.x,
+            r.world.y,
           ),
           !1
         );
       a = l.getOverEntity();
-      if (!a || (a.objecttype === t.TYPE_TRAP && !(D & A.TYPE.TRAP))) return !1;
+      if (!a || (a.objecttype === u.TYPE_TRAP && !(E & z.TYPE.TRAP))) return !1;
       e(a);
       return !1;
     }
     function e(a) {
       var b;
       switch (a.objecttype) {
-        case t.TYPE_MOB:
-        case t.TYPE_UNIT:
-        case t.TYPE_TRAP:
-          b = A.TYPE.ENEMY | A.TYPE.PET;
+        case u.TYPE_MOB:
+        case u.TYPE_UNIT:
+        case u.TYPE_TRAP:
+          b = z.TYPE.ENEMY | z.TYPE.PET;
           break;
-        case t.TYPE_HOM:
-        case t.TYPE_MERC:
-          b = A.TYPE.HOMUN;
+        case u.TYPE_HOM:
+        case u.TYPE_MERC:
+          b = z.TYPE.HOMUN;
           break;
-        case t.TYPE_PC:
-        case t.TYPE_ELEM:
-          b = A.TYPE.FRIEND;
+        case u.TYPE_PC:
+        case u.TYPE_ELEM:
+          b = z.TYPE.FRIEND;
           break;
         default:
           return;
       }
-      if (b & D || r.SHIFT || n.noshift)
-        if (D === A.TYPE.PET) A.onPetSelected(a.GID);
-        else if (!(D & A.TYPE.ENEMY && a === f.Entity))
-          A.onUseSkillToId(B.SKID, B.useLevel ? B.useLevel : B.level, a.GID);
+      if (b & E || q.SHIFT || n.noshift)
+        if (E === z.TYPE.PET) z.onPetSelected(a.GID);
+        else if (!(E & z.TYPE.ENEMY && a === f.Entity))
+          z.onUseSkillToId(C.SKID, C.useLevel ? C.useLevel : C.level, a.GID);
     }
     var m = a("DB/DBManager"),
       h = a("DB/Skills/SkillInfo"),
-      r = a("Controls/KeyEventHandler"),
-      q = a("Controls/MouseEventHandler"),
+      q = a("Controls/KeyEventHandler"),
+      r = a("Controls/MouseEventHandler"),
       k = a("Utils/jquery"),
       g = a("Renderer/Renderer"),
-      t = a("Renderer/Entity/Entity"),
+      u = a("Renderer/Entity/Entity"),
       l = a("Renderer/EntityManager"),
       f = a("Engine/SessionStorage"),
       n = a("Preferences/Controls"),
       p = a("UI/UIManager"),
       v = a("UI/UIComponent"),
-      u = a("UI/CursorManager"),
-      A = new v("SkillTargetSelection");
-    A.mouseMode = v.MouseMode.CROSS;
-    A.TYPE = {
+      t = a("UI/CursorManager"),
+      z = new v("SkillTargetSelection");
+    z.mouseMode = v.MouseMode.CROSS;
+    z.TYPE = {
       ENEMY: 1,
       PLACE: 2,
       SELF: 4,
@@ -99,104 +99,104 @@ define(
       PET: 64,
       HOMUN: 128,
     };
-    var D = 0,
-      B,
-      O,
+    var E = 0,
       C,
-      y;
-    A.init = function () {
-      O = document.createElement("canvas");
-      C = document.createElement("canvas");
-      y = document.createElement("canvas");
-      O.style.position = "absolute";
-      O.style.top = "45px";
-      O.style.zIndex = 100;
-      O.style.borderRadius = "3px";
-      O.style.border = "1px solid #555";
-      C.style.position = "absolute";
-      C.style.bottom = "60px";
-      C.style.zIndex = 100;
-      C.style.borderRadius = "3px";
-      C.style.border = "1px solid #555";
-      y.style.position = "absolute";
-      y.style.left = 0;
-      y.style.top = 0;
-      y.style.zIndex = 100;
+      J,
+      A,
+      B;
+    z.init = function () {
+      J = document.createElement("canvas");
+      A = document.createElement("canvas");
+      B = document.createElement("canvas");
+      J.style.position = "absolute";
+      J.style.top = "45px";
+      J.style.zIndex = 100;
+      J.style.borderRadius = "3px";
+      J.style.border = "1px solid #555";
+      A.style.position = "absolute";
+      A.style.bottom = "60px";
+      A.style.zIndex = 100;
+      A.style.borderRadius = "3px";
+      A.style.border = "1px solid #555";
+      B.style.position = "absolute";
+      B.style.left = 0;
+      B.style.top = 0;
+      B.style.zIndex = 100;
       k(window).mousemove(function (a) {
-        y.style.left = a.pageX + 20 + "px";
-        y.style.top = a.pageY - 18 + "px";
+        B.style.left = a.pageX + 20 + "px";
+        B.style.top = a.pageY - 18 + "px";
       });
-      b(m.getMessage(234), C);
+      b(m.getMessage(234), A);
       this.ui = k('\x3cdiv id \x3d"SkillTargetSelection"/\x3e');
       this.ui.append();
     };
-    A.onAppend = function () {
+    z.onAppend = function () {
       var a;
-      O.parentNode || document.body.appendChild(O);
-      C.parentNode || document.body.appendChild(C);
-      y.parentNode || document.body.appendChild(y);
+      J.parentNode || document.body.appendChild(J);
+      A.parentNode || document.body.appendChild(A);
+      B.parentNode || document.body.appendChild(B);
       a = k._data(window, "events").keydown;
       a.unshift(a.pop());
       k(window).one("mousedown.targetselection", d);
       a = k._data(window, "events").mousedown;
       a.unshift(a.pop());
     };
-    A.onKeyDown = function (a) {
-      return a.which === r.ESCAPE
+    z.onKeyDown = function (a) {
+      return a.which === q.ESCAPE
         ? (this.remove(), a.stopImmediatePropagation(), !1)
         : !0;
     };
-    A.onRemove = function () {
+    z.onRemove = function () {
       k(window).off("mousedown.targetselection");
-      u.blockMagnetism = !1;
-      u.freeze = !1;
-      u.setType(u.ACTION.DEFAULT);
+      t.blockMagnetism = !1;
+      t.freeze = !1;
+      t.setType(t.ACTION.DEFAULT);
       l.setSupportPicking(!1);
-      O.parentNode && document.body.removeChild(O);
-      C.parentNode && document.body.removeChild(C);
-      y.parentNode && document.body.removeChild(y);
-      q.state = q.MOUSE_STATE.NORMAL;
+      J.parentNode && document.body.removeChild(J);
+      A.parentNode && document.body.removeChild(A);
+      B.parentNode && document.body.removeChild(B);
+      r.state = r.MOUSE_STATE.NORMAL;
     };
-    A.set = function (a, d, e) {
-      D = d;
-      B = a;
-      if (D) {
+    z.set = function (a, d, e) {
+      E = d;
+      C = a;
+      if (E) {
         if (f.TouchTargeting && (d = l.getFocusEntity())) {
-          if (D & A.TYPE.PLACE)
-            A.onUseSkillToPos(
-              B.SKID,
-              B.useLevel ? B.useLevel : B.level,
+          if (E & z.TYPE.PLACE)
+            z.onUseSkillToPos(
+              C.SKID,
+              C.useLevel ? C.useLevel : C.level,
               d.position[0],
               d.position[1],
             );
           else
-            A.onUseSkillToId(B.SKID, B.useLevel ? B.useLevel : B.level, d.GID);
-          A.remove();
+            z.onUseSkillToId(C.SKID, C.useLevel ? C.useLevel : C.level, d.GID);
+          z.remove();
           return;
         }
-        D & A.TYPE.PLACE && (u.blockMagnetism = !0);
-        q.state = q.MOUSE_STATE.USESKILL;
-        l.setSupportPicking(0 < (D & A.TYPE.FRIEND));
+        E & z.TYPE.PLACE && (t.blockMagnetism = !0);
+        r.state = r.MOUSE_STATE.USESKILL;
+        l.setSupportPicking(0 < (E & z.TYPE.FRIEND));
         a = m.getSkillInfo(a.SKID);
-        b(e || a.SkillName, O);
-        c(B.useLevel ? B.useLevel : B.level, y);
-        u.setType(u.ACTION.TARGET);
-        u.freeze = !0;
+        b(e || a.SkillName, J);
+        c(C.useLevel ? C.useLevel : C.level, B);
+        t.setType(t.ACTION.TARGET);
+        t.freeze = !0;
       }
     };
-    A.setSkillLevelDelta = function (a) {
-      h[B.SKID].bSeperateLv &&
-        (B.useLevel || (B.useLevel = B.level),
-        (B.useLevel += a),
-        1 > B.useLevel && (B.useLevel = 1),
-        B.useLevel > B.level && (B.useLevel = B.level),
-        c(B.useLevel, y));
+    z.setSkillLevelDelta = function (a) {
+      h[C.SKID].bSeperateLv &&
+        (C.useLevel || (C.useLevel = C.level),
+        (C.useLevel += a),
+        1 > C.useLevel && (C.useLevel = 1),
+        C.useLevel > C.level && (C.useLevel = C.level),
+        c(C.useLevel, B));
     };
-    A.intersectEntityId = function (a) {
+    z.intersectEntityId = function (a) {
       (a = l.get(a)) && e(a);
     };
-    A.onUseSkillToId = function () {};
-    A.onUseSkillToPos = function () {};
-    return p.addComponent(A);
+    z.onUseSkillToId = function () {};
+    z.onUseSkillToPos = function () {};
+    return p.addComponent(z);
   },
 );

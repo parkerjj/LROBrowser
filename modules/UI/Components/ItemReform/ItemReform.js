@@ -34,8 +34,8 @@ define(
         f = p.ui.find(".main .left_header_bottom"),
         g = l.getItemByReformLimits(a);
       g
-        ? (g.count || (g.count = 1), (A = g.index))
-        : ((D = !1),
+        ? (g.count || (g.count = 1), (z = g.index))
+        : ((E = !1),
           (g = {
             ITID: a.BaseItem,
             IsIdentified: !0,
@@ -49,7 +49,7 @@ define(
           RefiningLevel: g.RefiningLevel + a.ChangeRefineValue,
         },
         n = m.getItemInfo(a.ResultItem),
-        q = m.getItemInfo(a.BaseItem);
+        t = m.getItemInfo(a.BaseItem);
       b = e(
         '\x3cdiv class\x3d"item result" data-itid\x3d"' +
           a.ResultItem +
@@ -81,7 +81,7 @@ define(
         },
       );
       h.loadFile(
-        m.INTERFACE_PATH + "item/" + q.identifiedResourceName + ".bmp",
+        m.INTERFACE_PATH + "item/" + t.identifiedResourceName + ".bmp",
         function (b) {
           c.find('.item[data-itid\x3d"' + a.BaseItem + '"] .icon').css(
             "backgroundImage",
@@ -95,22 +95,22 @@ define(
       );
       g = Object.keys(a.Material);
       for (n = 0; n < g.length; n++) {
-        q = parseInt(g[n]);
-        b = a.Material[q];
-        var k = m.getItemInfo(q),
-          t = l.getItemById(q);
-        t || (t = { ITID: q, IsIdentified: !0, count: 0 });
+        t = parseInt(g[n]);
+        b = a.Material[t];
+        var k = m.getItemInfo(t),
+          r = l.getItemById(t);
+        r || (r = { ITID: t, IsIdentified: !0, count: 0 });
         f.append(
           '\x3cdiv class\x3d"item" data-itid\x3d"' +
-            q +
+            t +
             '" \x3e\x3cdiv class\x3d"icon"\x3e\x3c/div\x3e\x3cdiv class\x3d"amount"\x3e' +
-            t.count +
+            r.count +
             "/" +
             b +
             " \x3c/div\x3e\x3c/div\x3e",
         );
-        t.count < b && (D = !1);
-        d(f, t, k);
+        r.count < b && (E = !1);
+        d(f, r, k);
       }
     }
     function d(a, b, c) {
@@ -127,46 +127,46 @@ define(
     var e = a("Utils/jquery"),
       m = a("DB/DBManager"),
       h = a("Core/Client"),
-      r = a("Renderer/Renderer"),
-      q = a("Network/NetworkManager"),
+      q = a("Renderer/Renderer"),
+      r = a("Network/NetworkManager"),
       k = a("Network/PacketStructure"),
       g = a("UI/UIManager"),
-      t = a("UI/UIComponent"),
+      u = a("UI/UIComponent"),
       l = a("UI/Components/Inventory/Inventory"),
       f = a("UI/Components/ItemInfo/ItemInfo"),
       n = a("text!./ItemReform.html");
     a = a("text!./ItemReform.css");
-    var p = new t("ItemReform", n, a),
+    var p = new u("ItemReform", n, a),
       v = [],
-      u = -1,
-      A = -1,
-      D = !0,
-      B = null;
+      t = -1,
+      z = -1,
+      E = !0,
+      C = null;
     p.init = function () {
       p.ui.find(".close").on("click", function () {
         var a = new k.CZ.CLOSE_REFORM_UI();
-        q.sendPacket(a);
+        r.sendPacket(a);
         p.remove();
       });
       p.ui.find(".apply").on("click", function () {
-        if (-1 == u || -1 == A || !D) return !1;
+        if (-1 == t || -1 == z || !E) return !1;
         var a = new k.CZ.ITEM_REFORM();
-        a.ITID = u;
-        a.index = A;
-        q.sendPacket(a);
+        a.ITID = t;
+        a.index = z;
+        r.sendPacket(a);
       });
       p.ui.find(".left").on("contextmenu", ".item", function () {
         var a = parseInt(this.getAttribute("data-itid"), 10),
           b = parseInt(this.getAttribute("data-index"), 10);
         (b = l.getItemByIndex(b)) ||
           (b =
-            a == B.BaseItem
-              ? { ITID: a, IsIdentified: !0, RefiningLevel: B.NeedRefineMin }
-              : a == B.ResultItem
+            a == C.BaseItem
+              ? { ITID: a, IsIdentified: !0, RefiningLevel: C.NeedRefineMin }
+              : a == C.ResultItem
                 ? {
                     ITID: a,
                     IsIdentified: !0,
-                    RefiningLevel: B.NeedRefineMin + B.ChangeRefineValue,
+                    RefiningLevel: C.NeedRefineMin + C.ChangeRefineValue,
                   }
                 : { ITID: a, IsIdentified: !0 });
         if (f.uid === b.ITID) return (f.remove(), !1);
@@ -179,37 +179,37 @@ define(
       p.ui.find(".right").on("click", ".item", function () {
         p.ui.find(".main .left_header_top").empty();
         p.ui.find(".main .left_header_bottom").empty();
-        D = !0;
+        E = !0;
         var a = parseInt(this.getAttribute("data-itid"), 10),
           b = parseInt(this.getAttribute("data-index"), 10);
         p.ui.find(".item.sd").removeClass("sd");
         e(this).addClass("sd");
-        A = b;
+        z = b;
         a: {
           for (var d = 0; d < v.length; d++) {
             var f = m.ItemReformInfo[v[d]];
             if (f && f.ResultItem == a) {
-              B = f;
+              C = f;
               break a;
             }
           }
-          B = void 0;
+          C = void 0;
         }
-        c(B, b);
+        c(C, b);
       });
       this.draggable(this.ui.find(".title"));
     };
     p.onAppend = function () {
       this.ui.css({
-        top: 0.5 * (r.height - this.ui.height()),
-        left: 0.5 * (r.width - this.ui.width()),
+        top: 0.5 * (q.height - this.ui.height()),
+        left: 0.5 * (q.width - this.ui.width()),
       });
     };
     p.onRemove = function () {
       v = [];
-      A = u = -1;
-      D = !0;
-      B = null;
+      z = t = -1;
+      E = !0;
+      C = null;
       this.ui.find(".main .right").empty();
       this.ui.find(".main .left_header_top").empty();
       this.ui.find(".main .left_header_bottom").empty();
@@ -217,7 +217,7 @@ define(
     p.setData = function (a) {
       var c = m.getItemInfo(a);
       this.ui.find(".title_bar .title").text(c.identifiedDiSPlayName);
-      u = a;
+      t = a;
       v = m.ItemReformList[a];
       if (0 == v.length) return !1;
       for (a = 0; a < v.length; a++)

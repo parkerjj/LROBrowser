@@ -24,19 +24,19 @@ define(
       m = a("Network/NetworkManager"),
       h = a("Network/PacketStructure");
     a("DB/Items/ItemType");
-    var r = a("Utils/jquery"),
-      q = a("Core/Client"),
+    var q = a("Utils/jquery"),
+      r = a("Core/Client"),
       k = a("Core/Preferences");
     a("Renderer/Renderer");
     a("Controls/MouseEventHandler");
     var g = a("UI/UIManager"),
-      t = a("UI/UIComponent");
+      u = a("UI/UIComponent");
     a("UI/Components/InputBox/InputBox");
     a("UI/Components/ItemInfo/ItemInfo");
     a("UI/Components/ChatBox/ChatBox");
     var l = a("text!./MailInfo.html");
     a = a("text!./MailInfo.css");
-    var f = new t("MailInfo", l, a);
+    var f = new u("MailInfo", l, a);
     f.list = [];
     k.get(
       "MailInfo",
@@ -58,7 +58,7 @@ define(
       if (a.ITID) {
         var b = e.getItemInfo(a.ITID),
           c = this.ui.find(".content .bottom");
-        q.loadFile(
+        r.loadFile(
           e.INTERFACE_PATH + "item/" + b.identifiedResourceName + ".bmp",
           function (b) {
             c.append(
@@ -85,7 +85,7 @@ define(
         )
         .empty();
       this.ui.find(".content .bottom .item").remove();
-      r(".ItemInfo").remove();
+      q(".ItemInfo").remove();
     };
     f.remailMail = function () {};
     return g.addComponent(f);

@@ -5,11 +5,11 @@ define(
   ),
   function (a) {
     function b() {
-      D.append();
-      D.set({ SKID: -10, level: 0 }, D.TYPE.PET, "\u6355\u6349\u9b54\u7269");
-      D.onPetSelected = function (a) {
-        A.append();
-        A.onTry = function () {
+      E.append();
+      E.set({ SKID: -10, level: 0 }, E.TYPE.PET, "\u6355\u6349\u9b54\u7269");
+      E.onPetSelected = function (a) {
+        z.append();
+        z.onTry = function () {
           var b = new f.CZ.TRYCAPTURE_MONSTER();
           b.targetAID = a;
           l.sendPacket(b);
@@ -17,14 +17,14 @@ define(
       };
     }
     function c(a) {
-      A.setResult(a.result);
+      z.setResult(a.result);
     }
     function d(a) {
       a.eggList.length &&
-        (B.append(),
-        B.setList(a.eggList),
-        B.setTitle(k.getMessage(599)),
-        (B.onIndexSelected = function (a) {
+        (C.append(),
+        C.setList(a.eggList),
+        C.setTitle(k.getMessage(599)),
+        (C.onIndexSelected = function (a) {
           if (-1 < a) {
             var b = new f.CZ.SELECT_PETEGG();
             b.index = a;
@@ -33,8 +33,8 @@ define(
         }));
     }
     function e(a) {
-      C.append();
-      C.setInformations(a);
+      A.append();
+      A.setInformations(a);
       if (p.petId) {
         var b = v.get(p.petId);
         if (b) {
@@ -55,18 +55,18 @@ define(
       if (a.cRet) {
         a = k.getPetFriendlyState(p.pet.friendly);
         var b = k.getPetHungryState(p.pet.oldHungry),
-          c = k.getPetTalkNumber(p.pet.job, t.PM_FEEDING, b, p.Sex),
-          b = k.getPetEmotion(b, a, t.PM_FEEDING);
+          c = k.getPetTalkNumber(p.pet.job, u.PM_FEEDING, b, p.Sex),
+          b = k.getPetEmotion(b, a, u.PM_FEEDING);
         0 < b &&
           ((a = new f.CZ.PET_ACT()), (a.data = b + "2"), l.sendPacket(a));
         900 < p.pet.friendly &&
           ((a = new f.CZ.PET_ACT()), (a.data = c), l.sendPacket(a));
       } else
-        O.addText(
+        J.addText(
           k
             .getMessage(591)
             .replace("%s", k.getItemInfo(a.ITID).identifiedDiSPlayName),
-          O.TYPE.ERROR,
+          J.TYPE.ERROR,
         );
     }
     function h(a) {
@@ -78,10 +78,10 @@ define(
             p.petId = a.GID;
             break;
           case 1:
-            C.setIntimacy(a.data);
+            A.setIntimacy(a.data);
             break;
           case 2:
-            C.setHunger(a.data);
+            A.setHunger(a.data);
             b.life.hp = a.data;
             b.life.hp_max = 100;
             b.life.update();
@@ -118,7 +118,7 @@ define(
             });
         }
     }
-    function r(a) {
+    function q(a) {
       var b = v.get(a.GID);
       if (b)
         if (5e3 > a.data)
@@ -133,73 +133,73 @@ define(
             }));
         else if ((b = k.getPetTalk(a.data)))
           ((a = v.get(a.GID)),
-            O.addText(a.display.name + " : " + b, O.TYPE.PUBLIC),
+            J.addText(a.display.name + " : " + b, J.TYPE.PUBLIC),
             a.dialog.set(b));
     }
-    function q(a) {
+    function r(a) {
       switch (a.result) {
         case 0:
         case 1:
         case 2:
         case 3:
-          y.setMsg("\u8fdb\u5316\u5931\u8d25");
+          B.setMsg("\u8fdb\u5316\u5931\u8d25");
           break;
         case 4:
-          y.setMsg("\u8fdb\u5316\u6750\u6599\u4e0d\u8db3");
+          B.setMsg("\u8fdb\u5316\u6750\u6599\u4e0d\u8db3");
           break;
         case 5:
-          y.setMsg(
+          B.setMsg(
             "\u4eb2\u5bc6\u5ea6\u4e3a\u975e\u5e38\u4eb2\u5bc6\u624d\u80fd\u8fdb\u5316",
           );
           break;
         case 6:
-          y.setMsg("\u8fdb\u5316\u6210\u529f");
+          B.setMsg("\u8fdb\u5316\u6210\u529f");
       }
     }
     var k = a("DB/DBManager"),
       g = a("DB/Emotions"),
-      t = a("DB/Pets/PetMessageConst"),
+      u = a("DB/Pets/PetMessageConst"),
       l = a("Network/NetworkManager"),
       f = a("Network/PacketStructure"),
       n = a("Core/Client"),
       p = a("Engine/SessionStorage"),
       v = a("Renderer/EntityManager"),
-      u = a("UI/UIManager"),
-      A = a("UI/Components/SlotMachine/SlotMachine"),
-      D = a("UI/Components/SkillTargetSelection/SkillTargetSelection"),
-      B = a("UI/Components/ItemSelection/ItemSelection"),
-      O = a("UI/Components/ChatBox/ChatBox"),
-      C = a("UI/Components/PetInformations/PetInformations"),
-      y = a("UI/Components/ItemObtain/ItemObtain");
-    C.reqPetFeed = function () {
-      u.showPromptBox(k.getMessage(601), "ok", "cancel", function () {
+      t = a("UI/UIManager"),
+      z = a("UI/Components/SlotMachine/SlotMachine"),
+      E = a("UI/Components/SkillTargetSelection/SkillTargetSelection"),
+      C = a("UI/Components/ItemSelection/ItemSelection"),
+      J = a("UI/Components/ChatBox/ChatBox"),
+      A = a("UI/Components/PetInformations/PetInformations"),
+      B = a("UI/Components/ItemObtain/ItemObtain");
+    A.reqPetFeed = function () {
+      t.showPromptBox(k.getMessage(601), "ok", "cancel", function () {
         var a = new f.CZ.COMMAND_PET();
         a.cSub = 1;
         l.sendPacket(a);
       });
     };
-    C.reqPetAction = function () {
+    A.reqPetAction = function () {
       var a = new f.CZ.COMMAND_PET();
       a.cSub = 2;
       l.sendPacket(a);
     };
-    C.reqBackToEgg = function () {
+    A.reqBackToEgg = function () {
       var a = new f.CZ.COMMAND_PET();
       a.cSub = 3;
       l.sendPacket(a);
-      C.remove();
+      A.remove();
     };
-    C.reqUnEquipPet = function () {
+    A.reqUnEquipPet = function () {
       var a = new f.CZ.COMMAND_PET();
       a.cSub = 4;
       l.sendPacket(a);
     };
-    C.reqNameEdit = function (a) {
+    A.reqNameEdit = function (a) {
       var b = new f.CZ.RENAME_PET();
       b.szName = a;
       l.sendPacket(b);
     };
-    C.reqEvolution = function (a) {
+    A.reqEvolution = function (a) {
       var b = new f.CZ.PET_EVOLUTION();
       b.eggID = a;
       l.sendPacket(b);
@@ -211,8 +211,8 @@ define(
       l.hookPacket(f.ZC.PROPERTY_PET, e);
       l.hookPacket(f.ZC.FEED_PET, m);
       l.hookPacket(f.ZC.CHANGESTATE_PET, h);
-      l.hookPacket(f.ZC.PET_ACT, r);
-      l.hookPacket(f.ZC.PET_EVOLUTION_RESULT, q);
+      l.hookPacket(f.ZC.PET_ACT, q);
+      l.hookPacket(f.ZC.PET_EVOLUTION_RESULT, r);
     };
   },
 );

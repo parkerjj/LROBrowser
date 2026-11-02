@@ -7,8 +7,8 @@ define("Utils/Struct", [], function () {
       e,
       m,
       h,
-      r,
-      q = {};
+      q,
+      r = {};
     m = arguments.length;
     for (c = 0; c < m; ++c) {
       a = arguments[c].match(
@@ -21,40 +21,40 @@ define("Utils/Struct", [], function () {
       switch (e) {
         case "bool":
           e = 1;
-          r = "int8";
+          q = "int8";
           break;
         case "char":
           e = 1;
-          r = "int8";
+          q = "int8";
           break;
         case "short":
           e = 2;
-          r = "int16";
+          q = "int16";
           break;
         case "int":
           e = 4;
-          r = "int32";
+          q = "int32";
           break;
         case "long":
           e = 4;
-          r = "int32";
+          q = "int32";
           break;
         case "float":
           e = 4;
-          r = "float32";
+          q = "float32";
           break;
         case "double":
           e = 8;
-          r = "float64";
+          q = "float64";
           break;
         default:
           throw Error("Struct() - Undefined type '" + e + "'.");
       }
-      r = "get" + (b ? "U" + r : r.charAt(0).toUpperCase() + r.substr(1));
+      q = "get" + (b ? "U" + q : q.charAt(0).toUpperCase() + q.substr(1));
       d += e * a;
-      q[h] = { func: r, count: a };
+      r[h] = { func: q, count: a };
     }
-    this._list = q;
+    this._list = r;
     this.size = d;
   };
 });

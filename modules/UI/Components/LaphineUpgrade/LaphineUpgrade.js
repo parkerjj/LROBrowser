@@ -58,36 +58,36 @@ define(
       e = a("DB/DBManager"),
       m = a("Core/Client"),
       h = a("Renderer/Renderer"),
-      r = a("Network/NetworkManager"),
-      q = a("Network/PacketStructure"),
+      q = a("Network/NetworkManager"),
+      r = a("Network/PacketStructure"),
       k = a("UI/UIManager"),
       g = a("UI/UIComponent"),
-      t = a("UI/Components/Inventory/Inventory"),
+      u = a("UI/Components/Inventory/Inventory"),
       l = a("UI/Components/ItemInfo/ItemInfo"),
       f = a("text!./LaphineUpgrade.html");
     a = a("text!./LaphineUpgrade.css");
     var n = new g("LaphineUpgrade", f, a),
       p = -1,
       v = -1,
-      u = [],
-      A = 0;
+      t = [],
+      z = 0;
     n.init = function () {
       n.ui.find(".close").on("click", function () {
-        var a = new q.CZ.RANDOM_UPGRADE_ITEM_UI_CLOSE();
-        r.sendPacket(a);
+        var a = new r.CZ.RANDOM_UPGRADE_ITEM_UI_CLOSE();
+        q.sendPacket(a);
         n.remove();
       });
       n.ui.find(".apply").on("click", function () {
-        if (-1 == p || -1 == v || 0 == A) return !1;
-        var a = new q.CZ.REQ_RANDOM_UPGRADE_ITEM();
+        if (-1 == p || -1 == v || 0 == z) return !1;
+        var a = new r.CZ.REQ_RANDOM_UPGRADE_ITEM();
         a.ITID = p;
         a.index = v;
-        r.sendPacket(a);
+        q.sendPacket(a);
       });
       n.ui.find(".left").on("contextmenu", ".item", function () {
         var a = parseInt(this.getAttribute("data-itid"), 10),
           b = parseInt(this.getAttribute("data-index"), 10);
-        (b = t.getItemByIndex(b)) || (b = { ITID: a, IsIdentified: !0 });
+        (b = u.getItemByIndex(b)) || (b = { ITID: a, IsIdentified: !0 });
         if (l.uid === b.ITID) return (l.remove(), !1);
         l.append();
         l.uid = b.ITID;
@@ -98,7 +98,7 @@ define(
       n.ui.find(".right").on("contextmenu", ".item", function () {
         var a = parseInt(this.getAttribute("data-itid"), 10),
           b = parseInt(this.getAttribute("data-index"), 10);
-        (b = t.getItemByIndex(b)) || (b = { ITID: a, IsIdentified: !0 });
+        (b = u.getItemByIndex(b)) || (b = { ITID: a, IsIdentified: !0 });
         if (l.uid === b.ITID) return (l.remove(), !1);
         l.append();
         l.uid = b.ITID;
@@ -111,9 +111,9 @@ define(
         var a = parseInt(this.getAttribute("data-index"), 10),
           b;
         a: {
-          for (b = 0; b < u.length; b++)
-            if (u[b].index == a) {
-              b = u[b];
+          for (b = 0; b < t.length; b++)
+            if (t[b].index == a) {
+              b = t[b];
               break a;
             }
           b = void 0;
@@ -121,17 +121,17 @@ define(
         b &&
           (d(this).hasClass("disabled")
             ? ((v = -1),
-              A--,
+              z--,
               d(this).removeClass("disabled").attr("disabled", !1),
               (a = b),
               n.ui
                 .find(".main .left .left_header_bottom")
                 .find('.item[data-index\x3d"' + a.index + '"]')
                 .remove())
-            : 0 == A &&
+            : 0 == z &&
               ((v = a),
               d(this).addClass("disabled").attr("disabled", !0),
-              A++,
+              z++,
               c(b)));
       });
       this.draggable(this.ui.find(".title"));
@@ -143,9 +143,9 @@ define(
       });
     };
     n.onRemove = function () {
-      u = [];
+      t = [];
       v = p = -1;
-      A = 0;
+      z = 0;
       this.ui.find(".main .right").empty();
       this.ui.find(".main .left_header_top .materialString").empty();
       this.ui.find(".main .left_header_bottom").empty();
@@ -157,8 +157,8 @@ define(
       a = e.getLaphineUpgradeItem(a);
       if (!a) return !1;
       this.ui.find(".left .materialString").text(a.NeedSource_String);
-      if ((u = t.getItemByUpgradeLimits(a)))
-        for (a = 0; a < u.length; a++) b(u[a]);
+      if ((t = u.getItemByUpgradeLimits(a)))
+        for (a = 0; a < t.length; a++) b(t[a]);
     };
     return k.addComponent(n);
   },

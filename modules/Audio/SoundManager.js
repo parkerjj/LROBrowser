@@ -11,7 +11,7 @@ define("Audio/SoundManager", [
       -1 !== a &&
         (k[this.filename].instances.splice(a, 1),
         0 == k[this.filename].instances.length && delete k[this.filename]);
-      r(this);
+      q(this);
     }
   }
   function h() {
@@ -20,13 +20,13 @@ define("Audio/SoundManager", [
       (k[this.filename].instances.splice(a, 1),
       0 == k[this.filename].instances.length && delete k[this.filename]);
     this.remove();
-    t--;
+    u--;
   }
-  function r(a) {
+  function q(a) {
     a.filename &&
       (a.filename in g ||
         ((g[a.filename] = {}), (g[a.filename].instances = [])),
-      g[a.filename].instances.length < Math.ceil(30 * (1 - t / 800))
+      g[a.filename].instances.length < Math.ceil(30 * (1 - u / 800))
         ? ((a.currentTime = 0),
           (a.cleanupHandle = setTimeout(function () {
             if (
@@ -36,13 +36,13 @@ define("Audio/SoundManager", [
             ) {
               var b = g[a.filename].instances.indexOf(a);
               -1 !== b &&
-                (g[a.filename].instances.splice(b, 1), a.remove(), t--);
+                (g[a.filename].instances.splice(b, 1), a.remove(), u--);
             }
           }, 3e4)),
           g[a.filename].instances.push(a))
-        : (a.remove(), t--));
+        : (a.remove(), u--));
   }
-  function q(a) {
+  function r(a) {
     var b = null;
     a in g &&
       0 < g[a].instances.length &&
@@ -52,7 +52,7 @@ define("Audio/SoundManager", [
   }
   var k = {},
     g = {},
-    t = 0,
+    u = 0,
     l = {};
   l.volume = b.Sound.volume;
   l.play = function (c, d) {
@@ -61,7 +61,7 @@ define("Audio/SoundManager", [
     0 >= f ||
       !b.Sound.play ||
       (c in k || ((k[c] = {}), (k[c].instances = []), (k[c].lastTick = 0)),
-      (d = q(c))
+      (d = r(c))
         ? ((d.volume = Math.min(f, 1)),
           (d._volume = f),
           d.play(),
@@ -71,9 +71,9 @@ define("Audio/SoundManager", [
             var b;
             (c in k &&
               (k[c].lastTick > Date.now() - 100 ||
-                k[c].instances.length > Math.ceil(10 * (1 - t / 800)))) ||
+                k[c].instances.length > Math.ceil(10 * (1 - u / 800)))) ||
               ((b = document.createElement("audio")),
-              t++,
+              u++,
               (b.filename = c),
               (b.src = a),
               (b.volume = Math.min(f, 1)),
@@ -94,7 +94,7 @@ define("Audio/SoundManager", [
     if (a) {
       if (a in k) {
         for (; 0 < k[a].instances.length;)
-          ((b = k[a].instances.shift()), b.pause(), b.remove(), t--);
+          ((b = k[a].instances.shift()), b.pause(), b.remove(), u--);
         delete k[a];
       }
     } else
@@ -104,7 +104,7 @@ define("Audio/SoundManager", [
             var b = k[a].instances.shift();
             b.pause();
             b.remove();
-            t--;
+            u--;
           }
           delete k[a];
         }),

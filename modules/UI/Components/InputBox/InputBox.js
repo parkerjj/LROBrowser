@@ -15,12 +15,12 @@ define(
       e = a("Controls/KeyEventHandler"),
       m = a("DB/DBManager"),
       h = a("UI/UIManager"),
-      r = a("UI/UIComponent"),
-      q = a("text!./InputBox.html");
+      q = a("UI/UIComponent"),
+      r = a("text!./InputBox.html");
     a = a("text!./InputBox.css");
-    r = new r("InputBox", q, a);
-    r.needFocus = !1;
-    r.init = function () {
+    q = new q("InputBox", r, a);
+    q.needFocus = !1;
+    q.init = function () {
       this.ui.css("zIndex", 99);
       this.draggable();
       this.ui.css({ top: "60%", left: (d.width - 280) / 2 + 1 });
@@ -37,20 +37,20 @@ define(
           }.bind(this),
         );
     };
-    r.onAppend = function () {
+    q.onAppend = function () {
       this.ui.find("input").select();
     };
-    r.onRemove = function () {
+    q.onRemove = function () {
       this.ui.find("input").val("");
       this.ui.find(".text").text("");
       this.overlay.detach();
     };
-    r.onKeyDown = function (a) {
+    q.onKeyDown = function (a) {
       return this.isPersistent || a.which !== e.ENTER
         ? !0
         : (b.call(this), a.stopImmediatePropagation(), !1);
     };
-    r.setType = function (a, b, c) {
+    q.setType = function (a, b, c) {
       switch (a) {
         case "number":
           this.ui.addClass("number");
@@ -75,7 +75,7 @@ define(
       }
       "undefined" !== typeof c && this.ui.find("input").val(c).select();
     };
-    r.onSubmitRequest = function () {};
-    return h.addComponent(r);
+    q.onSubmitRequest = function () {};
+    return h.addComponent(q);
   },
 );

@@ -25,13 +25,13 @@ define(
     }
     var m = a("Utils/jquery"),
       h = a("Controls/KeyEventHandler"),
-      r = a("Renderer/Renderer"),
-      q = a("UI/UIManager"),
+      q = a("Renderer/Renderer"),
+      r = a("UI/UIManager"),
       k = a("UI/UIComponent"),
       g = a("Preferences/Controls"),
-      t = a("text!./NpcMenu.html");
+      u = a("text!./NpcMenu.html");
     a = a("text!./NpcMenu.css");
-    var k = new k("NpcMenu", t, a),
+    var k = new k("NpcMenu", u, a),
       l = 0,
       f = 0;
     k.needFocus = !1;
@@ -40,8 +40,8 @@ define(
       this.ui.find(".cancel").click(c.bind(this));
       this.ui.css({
         zIndex: 99,
-        top: 0.5 * (r.height - this.ui.height()) + 100,
-        left: 0.5 * (r.width - this.ui.width()),
+        top: 0.5 * (q.height - this.ui.height()) + 100,
+        left: 0.5 * (q.width - this.ui.width()),
       });
       this.draggable();
       var a = this;
@@ -112,6 +112,6 @@ define(
       c.find("div:first").addClass("selected");
     };
     k.onSelectMenu = function () {};
-    return q.addComponent(k);
+    return r.addComponent(k);
   },
 );

@@ -14,8 +14,8 @@ define(
       e = a("./CursorManager"),
       m = a("DB/DBManager"),
       h = a("Core/Client"),
-      r = a("Core/Events"),
-      q = a("Controls/MouseEventHandler"),
+      q = a("Core/Events"),
+      r = a("Controls/MouseEventHandler"),
       k = d("style:first");
     k.length ||
       (k = d('\x3cstyle type\x3d"text/css"\x3e\x3c/style\x3e').appendTo(
@@ -52,23 +52,23 @@ define(
         d = 0;
       b.mouseenter(function () {
         0 === d &&
-          ((c = q.intersect),
+          ((c = r.intersect),
           d++,
-          c && ((q.intersect = !1), e.setType(e.ACTION.DEFAULT)));
+          c && ((r.intersect = !1), e.setType(e.ACTION.DEFAULT)));
       });
       b.mouseleave(function () {
         0 < d &&
           (d--,
           0 === d &&
             c &&
-            ((q.intersect = !0),
+            ((r.intersect = !0),
             a("Renderer/EntityManager").setOverEntity(null)));
       });
       b.on("x_remove", function () {
         0 < d &&
           ((d = 0),
           c &&
-            ((q.intersect = !0),
+            ((r.intersect = !0),
             a("Renderer/EntityManager").setOverEntity(null)));
       });
       b.on("touchstart", function (a) {
@@ -83,7 +83,7 @@ define(
         this.onKeyDown && d(window).off("keydown." + this.name);
         this.ui.trigger("x_remove");
         this.ui.detach();
-        this.mouseMode === b.MouseMode.FREEZE && (q.intersect = !0);
+        this.mouseMode === b.MouseMode.FREEZE && (r.intersect = !0);
       }
     };
     b.prototype.append = function () {
@@ -95,12 +95,12 @@ define(
             .off("keydown." + this.name)
             .on("keydown." + this.name, this.onKeyDown.bind(this));
         this.mouseMode === b.MouseMode.FREEZE &&
-          ((q.intersect = !1), e.setType(e.ACTION.DEFAULT));
+          ((r.intersect = !1), e.setType(e.ACTION.DEFAULT));
         if (this.onAppend) this.onAppend();
         this.focus();
       } else
         (this.prepare(),
-          r.setTimeout(
+          q.setTimeout(
             function () {
               this.__active && this.append();
             }.bind(this),
@@ -161,31 +161,31 @@ define(
       a || (a = this.ui);
       a.on("mousedown touchstart", function (a) {
         function c() {
-          var a = q.screen.x + e,
-            d = q.screen.y + g,
+          var a = r.screen.x + e,
+            d = r.screen.y + g,
             f = parseFloat(b.css("opacity") || 1) - 0.02;
           10 > Math.abs(a) && (a = 0);
           10 > Math.abs(d) && (d = 0);
-          10 > Math.abs(a + l - q.screen.width) && (a = q.screen.width - l);
-          10 > Math.abs(d + k - q.screen.height) && (d = q.screen.height - k);
+          10 > Math.abs(a + l - r.screen.width) && (a = r.screen.width - l);
+          10 > Math.abs(d + k - r.screen.height) && (d = r.screen.height - k);
           b.css({ top: d, left: a, opacity: Math.max(f, 0.7) });
-          h = r.setTimeout(c, 15);
+          h = q.setTimeout(c, 15);
         }
         if ("touchstart" === a.type)
-          ((q.screen.x = a.originalEvent.touches[0].pageX),
-            (q.screen.y = a.originalEvent.touches[0].pageY));
+          ((r.screen.x = a.originalEvent.touches[0].pageX),
+            (r.screen.y = a.originalEvent.touches[0].pageY));
         else if (1 !== a.which) return;
         var e, g, l, k, h;
-        e = b.position().left - q.screen.x;
-        g = b.position().top - q.screen.y;
+        e = b.position().left - r.screen.x;
+        g = b.position().top - r.screen.y;
         l = b.width();
         k = b.height();
         b.stop();
-        h = r.setTimeout(c, 15);
+        h = q.setTimeout(c, 15);
         d(window).on("mouseup.dragdrop touchend.dragdrop", function (a) {
           if ("touchend" === a.type || 1 === a.which || a.isTrigger)
             (b.stop().animate({ opacity: 1 }, 500),
-              r.clearTimeout(h),
+              q.clearTimeout(h),
               d(window).off("mouseup.dragdrop touchend.dragdrop"));
         });
       });
@@ -255,7 +255,7 @@ define(
         n = a.data("down"),
         k = a.data("text"),
         v = null,
-        u = null;
+        t = null;
       k && m.getMessage(k, "") && a.text(m.getMessage(k, ""));
       b &&
         h.loadFile(m.INTERFACE_PATH + b, function (b) {
@@ -264,9 +264,9 @@ define(
         });
       e &&
         h.loadFile(m.INTERFACE_PATH + e, function (b) {
-          u = b;
+          t = b;
           a.mouseover(function () {
-            this.style.backgroundImage = "url(" + u + ")";
+            this.style.backgroundImage = "url(" + t + ")";
           });
           a.mouseout(function () {
             this.style.backgroundImage = "url(" + v + ")";
@@ -279,7 +279,7 @@ define(
             a.stopImmediatePropagation();
           });
           a.mouseup(function () {
-            this.style.backgroundImage = "url(" + (u || v) + ")";
+            this.style.backgroundImage = "url(" + (t || v) + ")";
           });
         }),
         e ||

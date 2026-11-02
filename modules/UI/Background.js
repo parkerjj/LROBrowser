@@ -4,19 +4,19 @@ define("UI/Background", [
   "Utils/jquery",
   "Core/Client",
 ], function (a) {
-  function b(a, b, c, d, e, f, g) {
-    if (2 * f > d || 2 * f > e) return !1;
+  function b(a, b, c, d, f, e, g) {
+    if (2 * e > d || 2 * e > f) return !1;
     a.save();
     a.translate(b, c);
     a.beginPath(0);
-    a.arc(d - f, e - f, f, 0, Math.PI / 2);
-    a.lineTo(f, e);
-    a.arc(f, e - f, f, Math.PI / 2, Math.PI);
-    a.lineTo(0, f);
-    a.arc(f, f, f, Math.PI, (3 * Math.PI) / 2);
-    a.lineTo(d - f, 0);
-    a.arc(d - f, f, f, (3 * Math.PI) / 2, 2 * Math.PI);
-    a.lineTo(d, e - f);
+    a.arc(d - e, f - e, e, 0, Math.PI / 2);
+    a.lineTo(e, f);
+    a.arc(e, f - e, e, Math.PI / 2, Math.PI);
+    a.lineTo(0, e);
+    a.arc(e, e, e, Math.PI, (3 * Math.PI) / 2);
+    a.lineTo(d - e, 0);
+    a.arc(d - e, e, e, (3 * Math.PI) / 2, 2 * Math.PI);
+    a.lineTo(d, f - e);
     a.closePath();
     a.fillStyle = g || "#000";
     a.fill();
@@ -24,9 +24,9 @@ define("UI/Background", [
   }
   function c() {
     l.complete && l.width
-      ? k.drawImage(l, 0, 0, q[0].width, q[0].height)
-      : ((k.fillStyle = "#000"), k.fillRect(0, 0, q[0].width, q[0].height));
-    -1 < t && r.setPercent(t);
+      ? k.drawImage(l, 0, 0, r[0].width, r[0].height)
+      : ((k.fillStyle = "#000"), k.fillRect(0, 0, r[0].width, r[0].height));
+    -1 < u && q.setPercent(u);
   }
   function d(a) {
     g.stop()
@@ -42,14 +42,14 @@ define("UI/Background", [
   var e = a("DB/DBManager"),
     m = a("Utils/jquery"),
     h = a("Core/Client"),
-    r = {},
-    q = m("\x3ccanvas/\x3e").css({
+    q = {},
+    r = m("\x3ccanvas/\x3e").css({
       position: "absolute",
       top: 0,
       left: 0,
       zIndex: 5,
     }),
-    k = q[0].getContext("2d"),
+    k = r[0].getContext("2d"),
     g = m("\x3cdiv/\x3e").css({
       position: "absolute",
       top: 0,
@@ -58,32 +58,32 @@ define("UI/Background", [
       backgroundColor: "black",
       opacity: 0,
     }),
-    t = -1,
+    u = -1,
     l = new Image(),
     f = [],
     n = window.devicePixelRatio;
-  r.init = function (a) {
-    t = 0;
-    q.css("zIndex", 0);
+  q.init = function (a) {
+    u = 0;
+    r.css("zIndex", 0);
     c();
     if (a) f = a;
     else
       for (a = 11; 19 >= a; ++a)
         f[a - 1] = "loading" + (19 > a ? a : a - 1) + ".jpg";
   };
-  r.resize = function (a, b) {
-    q[0].width = a * n;
-    q[0].height = b * n;
-    q[0].style.width = a + "px";
-    q[0].style.height = b + "px";
+  q.resize = function (a, b) {
+    r[0].width = a * n;
+    r[0].height = b * n;
+    r[0].style.width = a + "px";
+    r[0].style.height = b + "px";
     g.css({ width: a * n, height: b * n });
     k.fillStyle = "black";
     k.fillRect(0, 0, a * n, b * n);
     c();
   };
-  r.setImage = function (a, b) {
-    var f = !!q[0].parentNode;
-    t = -1;
+  q.setImage = function (a, b) {
+    var f = !!r[0].parentNode;
+    u = -1;
     c();
     h.loadFile(
       e.INTERFACE_PATH + a,
@@ -97,55 +97,55 @@ define("UI/Background", [
     );
     f ||
       d(function () {
-        q.appendTo("body");
+        r.appendTo("body");
         b && b();
       });
   };
-  r.reload = function (a) {
-    var b = !!q[0].parentNode;
-    t = -1;
+  q.reload = function (a) {
+    var b = !!r[0].parentNode;
+    u = -1;
     b ||
       d(function () {
         a && a();
       });
   };
-  r.setLoading = function (a) {
-    r.setImage(
+  q.setLoading = function (a) {
+    q.setImage(
       f[Math.floor(Math.random() * f.length) + 10] || "loading11.jpg",
       function () {
-        q.css("zIndex", 39);
-        r.setPercent(0);
+        r.css("zIndex", 39);
+        q.setPercent(0);
         a && a();
       },
     );
   };
-  r.remove = function (a) {
+  q.remove = function (a) {
     d(function () {
-      q.css("zIndex", 0);
-      q.remove();
+      r.css("zIndex", 0);
+      r.remove();
       a && a();
     });
   };
-  r.setPercent = function (a) {
-    var c, d, e, f;
-    t = Math.min(Math.floor(a), 100);
-    e = 300 * n;
-    f = 7 * n;
-    c = Math.floor(0.5 * (q[0].width - e));
-    d = Math.floor(0.75 * q[0].height);
-    k.clearRect(0, 0, q[0].width, q[0].height);
+  q.setPercent = function (a) {
+    var c, d, f, e;
+    u = Math.min(Math.floor(a), 100);
+    f = 300 * n;
+    e = 7 * n;
+    c = Math.floor(0.5 * (r[0].width - f));
+    d = Math.floor(0.75 * r[0].height);
+    k.clearRect(0, 0, r[0].width, r[0].height);
     if (l.complete && l.width) {
-      var g = q[0].height / l.height;
-      g * l.width > q[0].width
+      var g = r[0].height / l.height;
+      g * l.width > r[0].width
         ? k.drawImage(
             l,
-            -(g * l.width - q[0].width) / 2,
+            -(g * l.width - r[0].width) / 2,
             0,
             g * l.width,
-            q[0].height,
+            r[0].height,
           )
-        : k.drawImage(l, 0, 0, q[0].width, q[0].height);
-    } else ((k.fillStyle = "#000"), k.fillRect(0, 0, q[0].width, q[0].height));
+        : k.drawImage(l, 0, 0, r[0].width, r[0].height);
+    } else ((k.fillStyle = "#000"), k.fillRect(0, 0, r[0].width, r[0].height));
     k.shadowColor = "#333";
     k.shadowOffsetX = 0;
     k.shadowOffsetY = 0;
@@ -154,14 +154,14 @@ define("UI/Background", [
     k.fillStyle = "#ffffff";
     k.fillText(
       a + "%",
-      Math.floor(0.5 * (q[0].width - k.measureText(a + "%").width)),
-      d + f / 2 - 15,
+      Math.floor(0.5 * (r[0].width - k.measureText(a + "%").width)),
+      d + e / 2 - 15,
     );
     k.shadowColor = "#555";
     k.shadowBlur = 0;
-    b(k, c, d, e, f, f / 2, "rgba(0,0,0,0.5)");
+    b(k, c, d, f, e, e / 2, "rgba(0,0,0,0.5)");
     k.shadowBlur = 0;
-    b(k, c, d, Math.floor(a * e * 0.01), f, f / 2, "#a3e3ff");
+    b(k, c, d, Math.floor(a * f * 0.01), e, e / 2, "#a3e3ff");
   };
-  return r;
+  return q;
 });

@@ -45,20 +45,20 @@ define(
       var p = (k = void 0 === k ? {} : k),
         h = void 0 === p.enableTrail ? !1 : p.enableTrail;
       k = void 0 === p.trailLength ? 5 : p.trailLength;
-      var t = void 0 === p.blurType ? 1 : p.blurType;
+      var u = void 0 === p.blurType ? 1 : p.blurType;
       if (h && "shadow" !== f && "cartshadow" !== f && h) {
         a._trailData || (a._trailData = {});
         a._trailData[f] || (a._trailData[f] = { snapshots: [], lastTick: 0 });
-        var u = a._trailData[f],
+        var t = a._trailData[f],
           v = Date.now(),
-          p = 3 === t || 5 === t ? 560 : 100;
-        k = 4 === t ? 1 : Math.floor(k / 2);
+          p = 3 === u || 5 === u ? 560 : 100;
+        k = 4 === u ? 1 : Math.floor(k / 2);
         h = !1;
-        1 === t || 3 === t
-          ? (h = a.action === a.ACTION.WALK && v - u.lastTick > p)
-          : 4 === t
-            ? (h = 0 === u.snapshots.length)
-            : 5 === t &&
+        1 === u || 3 === u
+          ? (h = a.action === a.ACTION.WALK && v - t.lastTick > p)
+          : 4 === u
+            ? (h = 0 === t.snapshots.length)
+            : 5 === u &&
               (h =
                 [
                   a.ACTION.ATTACK,
@@ -66,9 +66,9 @@ define(
                   a.ACTION.ATTACK2,
                   a.ACTION.ATTACK3,
                   a.ACTION.SKILL,
-                ].includes(a.action) && v - u.lastTick > p);
+                ].includes(a.action) && v - t.lastTick > p);
         h &&
-          (u.snapshots.unshift({
+          (t.snapshots.unshift({
             position: m.vec3.clone(a.position),
             tick: v,
             layers: b,
@@ -77,33 +77,33 @@ define(
             _position: new Int32Array(l),
             color: [].concat($jscomp.arrayFromIterable(a.effectColor)),
           }),
-          (u.lastTick = v),
-          u.snapshots.length > k && u.snapshots.pop());
-        if (u.snapshots.length) {
+          (t.lastTick = v),
+          t.snapshots.length > k && t.snapshots.pop());
+        if (t.snapshots.length) {
           b = m.vec3.clone(g.position);
-          var q = g.zIndex;
+          var r = g.zIndex;
           c = new Float32Array(a.effectColor);
           g.runWithDepth(!0, !1, !1, function () {
             for (
-              var b = 4 === t || 3 === t ? 800 : 400, c = 0;
-              c < u.snapshots.length;
+              var b = 4 === u || 3 === u ? 800 : 400, c = 0;
+              c < t.snapshots.length;
               c++
             ) {
-              var d = u.snapshots[c],
+              var d = t.snapshots[c],
                 l = v - d.tick;
               if (!(
-                (l > b && 4 !== t) ||
-                ((l = Math.max(0, 0.5 * (1 - l / b))), 0.05 >= l && 4 !== t)
+                (l > b && 4 !== u) ||
+                ((l = Math.max(0, 0.5 * (1 - l / b))), 0.05 >= l && 4 !== u)
               ))
                 for (
-                  3 === t && (l *= 2),
-                    1 !== t &&
+                  3 === u && (l *= 2),
+                    1 !== u &&
                       ((a.effectColor[0] = 1),
                       (a.effectColor[1] = 1),
                       (a.effectColor[2] = 1)),
                     a.effectColor[3] = l,
                     g.position.set(d.position),
-                    g.zIndex = q - c,
+                    g.zIndex = r - c,
                     l = 0;
                   l < d.layers.length;
                   ++l
@@ -121,7 +121,7 @@ define(
             }
           });
           g.position.set(b);
-          g.zIndex = q;
+          g.zIndex = r;
           a.effectColor.set(c);
         }
       }
@@ -251,11 +251,11 @@ define(
     }
     var m = a("Utils/gl-matrix"),
       h = a("Renderer/Camera"),
-      r = a("Core/Client"),
-      q = a("DB/Status/StatusState"),
+      q = a("Core/Client"),
+      r = a("DB/Status/StatusState"),
       k = a("Renderer/Renderer"),
       g = a("Renderer/SpriteRenderer"),
-      t = a("Renderer/Map/Ground"),
+      u = a("Renderer/Map/Ground"),
       l = a("Renderer/Map/Altitude");
     a("Engine/SessionStorage");
     a("DB/Jobs/JobConst");
@@ -343,7 +343,7 @@ define(
           if (!this.hideEntity) {
             var c = this.animation,
               d = this.constructor;
-            g.shadow = t.getShadowFactor(this.position[0], this.position[1]);
+            g.shadow = u.getShadowFactor(this.position[0], this.position[1]);
             g.zIndex =
               this.ghost && this.ghost.render
                 ? 99
@@ -461,11 +461,11 @@ define(
         return function (b, e, f, g, l, n) {
           var p = !1;
           if (e.spr && e.act) {
-            var t = r.loadFile(e.spr),
-              m = r.loadFile(e.act);
-            if (t && m) {
-              var v = (e.pal && r.loadFile(e.pal)) || t,
-                u =
+            var u = q.loadFile(e.spr),
+              m = q.loadFile(e.act);
+            if (u && m) {
+              var t = (e.pal && q.loadFile(e.pal)) || u,
+                v =
                   "falcon" === f
                     ? m.actions[
                         (8 * b.ACTION.IDLE +
@@ -476,37 +476,37 @@ define(
                         (8 * b.action + ((h.direction + b.direction + 8) % 8)) %
                           m.actions.length
                       ],
-                D = d(b, u, f, k.tick - b.animation.tick);
-              if ((u = u.animations[D])) {
-                var B = u.layers;
-                -1 < u.sound && b.sound.play(m.sounds[u.sound], b.action, D);
+                z = d(b, v, f, k.tick - b.animation.tick);
+              if ((v = v.animations[z])) {
+                var C = v.layers;
+                -1 < v.sound && b.sound.play(m.sounds[v.sound], b.action, z);
                 a[0] = 0;
                 a[1] = 0;
-                u.pos.length &&
+                v.pos.length &&
                   !l &&
-                  ((a[0] = g[0] - u.pos[0].x), (a[1] = g[1] - u.pos[0].y));
+                  ((a[0] = g[0] - v.pos[0].x), (a[1] = g[1] - v.pos[0].y));
                 if (
-                  ("shadow" !== f && b.getOpt3(q.Status.BERSERK)) ||
-                  b.getOpt3(q.Status.MARIONETTE)
+                  ("shadow" !== f && b.getOpt3(r.Status.BERSERK)) ||
+                  b.getOpt3(r.Status.MARIONETTE)
                 )
                   p = !0;
                 if (!b.ghost.render) {
-                  var m = b.getOpt3(q.Status.NJ_BUNSINJYUTSU),
-                    D = b.getOpt3(q.Status.HALLUCINATIONWALK),
-                    A = b.getOpt3(q.Status.ENERGYCOAT),
-                    y = b.virtue & q.OPT3.QUICKEN,
-                    O = b.getOpt3(q.Status.OVERTHRUST),
-                    C = b.getOpt3(q.Status.EXPLOSIONSPIRITS),
-                    P = b.getOpt3(q.Status.BERSERK);
-                  c(b, B, t, v, e, f, a, n, {
+                  var m = b.getOpt3(r.Status.NJ_BUNSINJYUTSU),
+                    z = b.getOpt3(r.Status.HALLUCINATIONWALK),
+                    E = b.getOpt3(r.Status.ENERGYCOAT),
+                    J = b.virtue & r.OPT3.QUICKEN,
+                    A = b.getOpt3(r.Status.OVERTHRUST),
+                    B = b.getOpt3(r.Status.EXPLOSIONSPIRITS),
+                    N = b.getOpt3(r.Status.BERSERK);
+                  c(b, C, u, t, e, f, a, n, {
                     enableTrail:
-                      A || m || D || y || O || C || P || !!b._enableTrail,
+                      E || m || z || J || A || B || N || !!b._enableTrail,
                   });
                 }
                 m = 0;
-                for (D = B.length; m < D; ++m)
-                  b.renderLayer(B[m], t, v, e.size, a, f, p, n);
-                l && u.pos.length && ((g[0] = u.pos[0].x), (g[1] = u.pos[0].y));
+                for (z = C.length; m < z; ++m)
+                  b.renderLayer(C[m], u, t, e.size, a, f, p, n);
+                l && v.pos.length && ((g[0] = v.pos[0].x), (g[1] = v.pos[0].y));
               }
             }
           }

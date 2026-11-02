@@ -97,155 +97,155 @@ define(
       e = a("Utils/WebGL"),
       m = a("./Configs"),
       h = a("./Thread"),
-      r = a("./MemoryManager"),
-      q = a("Network/PacketVerManager"),
+      q = a("./MemoryManager"),
+      r = a("Network/PacketVerManager"),
       k = a("Vendors/text-encoding"),
       g = (function () {
         function a(a, b, c) {
-          r.set(c.filename, a, b);
+          q.set(c.filename, a, b);
         }
         var b = { filename: "", args: null };
         return function (c, d, f, n) {
           c = k.decodeString(c);
-          r.exist(c) ||
+          q.exist(c) ||
             ((b.filename = c), (b.args = n || null), h.send("GET_FILE", b, a));
-          return r.get(c, d, f);
+          return q.get(c, d, f);
         };
       })(),
-      t = (function () {
+      u = (function () {
         function b(b, c, f) {
-          var n, p, g, k, t, v;
+          var n, p, g, t, k, u;
           if (b && !c)
             switch (f.filename.substr(-3)) {
               case "bmp":
                 d.load(b, function () {
-                  r.set(f.filename, this.toDataURL(), c);
+                  q.set(f.filename, this.toDataURL(), c);
                 });
                 return;
               case "str":
-                k = a("Renderer/Renderer").getContext();
+                t = a("Renderer/Renderer").getContext();
                 p = b.layers;
                 n = f.filename.split("/");
                 n.pop();
-                t = n.join("/");
+                k = n.join("/");
                 for (n = 0; n < b.layernum; ++n)
                   for (
                     p[n].materials = Array(p[n].texcnt), g = 0;
                     g < p[n].texcnt;
                     ++g
                   ) {
-                    v = "";
-                    if ("data/texture/effect" == t) v = p[n].texname[g];
+                    u = "";
+                    if ("data/texture/effect" == k) u = p[n].texname[g];
                     else {
-                      v = p[n].texname[g].split("\\");
-                      var u = v.pop();
-                      v.join("/");
-                      v = t + "/" + u;
+                      u = p[n].texname[g].split("\\");
+                      var v = u.pop();
+                      u.join("/");
+                      u = k + "/" + v;
                     }
                     (function (a, b, c) {
                       l.loadFile(a, function (a) {
-                        e.texture(k, a, function (a) {
+                        e.texture(t, a, function (a) {
                           b[c] = a;
                         });
                       });
-                    })(v, p[n].materials, g);
+                    })(u, p[n].materials, g);
                   }
-                r.set(f.filename, b, c);
+                q.set(f.filename, b, c);
                 return;
               case "spr":
-                k = a("Renderer/Renderer").getContext();
-                t = b.frames;
-                p = t.length;
+                t = a("Renderer/Renderer").getContext();
+                k = b.frames;
+                p = k.length;
                 for (n = 0; n < p; n++)
-                  ((t[n].texture = k.createTexture()),
-                    (v = t[n].type ? k.LINEAR : k.NEAREST),
-                    (g = t[n].type ? k.RGBA : k.LUMINANCE),
-                    k.pixelStorei(k.UNPACK_ALIGNMENT, 1),
-                    k.bindTexture(k.TEXTURE_2D, t[n].texture),
-                    k.texImage2D(
-                      k.TEXTURE_2D,
+                  ((k[n].texture = t.createTexture()),
+                    (u = k[n].type ? t.LINEAR : t.NEAREST),
+                    (g = k[n].type ? t.RGBA : t.LUMINANCE),
+                    t.pixelStorei(t.UNPACK_ALIGNMENT, 1),
+                    t.bindTexture(t.TEXTURE_2D, k[n].texture),
+                    t.texImage2D(
+                      t.TEXTURE_2D,
                       0,
                       g,
-                      t[n].width,
-                      t[n].height,
+                      k[n].width,
+                      k[n].height,
                       0,
                       g,
-                      k.UNSIGNED_BYTE,
-                      t[n].data,
+                      t.UNSIGNED_BYTE,
+                      k[n].data,
                     ),
-                    k.texParameteri(k.TEXTURE_2D, k.TEXTURE_MAG_FILTER, v),
-                    k.texParameteri(k.TEXTURE_2D, k.TEXTURE_MIN_FILTER, v),
-                    k.texParameteri(
-                      k.TEXTURE_2D,
-                      k.TEXTURE_WRAP_S,
-                      k.CLAMP_TO_EDGE,
+                    t.texParameteri(t.TEXTURE_2D, t.TEXTURE_MAG_FILTER, u),
+                    t.texParameteri(t.TEXTURE_2D, t.TEXTURE_MIN_FILTER, u),
+                    t.texParameteri(
+                      t.TEXTURE_2D,
+                      t.TEXTURE_WRAP_S,
+                      t.CLAMP_TO_EDGE,
                     ),
-                    k.texParameteri(
-                      k.TEXTURE_2D,
-                      k.TEXTURE_WRAP_T,
-                      k.CLAMP_TO_EDGE,
+                    t.texParameteri(
+                      t.TEXTURE_2D,
+                      t.TEXTURE_WRAP_T,
+                      t.CLAMP_TO_EDGE,
                     ));
                 0 !== b.rgba_index &&
-                  ((b.texture = k.createTexture()),
-                  k.bindTexture(k.TEXTURE_2D, b.texture),
-                  k.texImage2D(
-                    k.TEXTURE_2D,
+                  ((b.texture = t.createTexture()),
+                  t.bindTexture(t.TEXTURE_2D, b.texture),
+                  t.texImage2D(
+                    t.TEXTURE_2D,
                     0,
-                    k.RGBA,
+                    t.RGBA,
                     256,
                     1,
                     0,
-                    k.RGBA,
-                    k.UNSIGNED_BYTE,
+                    t.RGBA,
+                    t.UNSIGNED_BYTE,
                     b.palette,
                   ),
-                  k.texParameteri(
-                    k.TEXTURE_2D,
-                    k.TEXTURE_MAG_FILTER,
-                    k.NEAREST,
+                  t.texParameteri(
+                    t.TEXTURE_2D,
+                    t.TEXTURE_MAG_FILTER,
+                    t.NEAREST,
                   ),
-                  k.texParameteri(
-                    k.TEXTURE_2D,
-                    k.TEXTURE_MIN_FILTER,
-                    k.NEAREST,
+                  t.texParameteri(
+                    t.TEXTURE_2D,
+                    t.TEXTURE_MIN_FILTER,
+                    t.NEAREST,
                   ));
-                r.set(f.filename, b, c);
+                q.set(f.filename, b, c);
                 return;
               case "pal":
-                k = a("Renderer/Renderer").getContext();
-                n = k.createTexture();
+                t = a("Renderer/Renderer").getContext();
+                n = t.createTexture();
                 b = new Uint8Array(b);
-                k.bindTexture(k.TEXTURE_2D, n);
-                k.texImage2D(
-                  k.TEXTURE_2D,
+                t.bindTexture(t.TEXTURE_2D, n);
+                t.texImage2D(
+                  t.TEXTURE_2D,
                   0,
-                  k.RGBA,
+                  t.RGBA,
                   256,
                   1,
                   0,
-                  k.RGBA,
-                  k.UNSIGNED_BYTE,
+                  t.RGBA,
+                  t.UNSIGNED_BYTE,
                   b,
                 );
-                k.texParameteri(k.TEXTURE_2D, k.TEXTURE_MAG_FILTER, k.NEAREST);
-                k.texParameteri(k.TEXTURE_2D, k.TEXTURE_MIN_FILTER, k.NEAREST);
-                r.set(f.filename, { palette: b, texture: n }, c);
+                t.texParameteri(t.TEXTURE_2D, t.TEXTURE_MAG_FILTER, t.NEAREST);
+                t.texParameteri(t.TEXTURE_2D, t.TEXTURE_MIN_FILTER, t.NEAREST);
+                q.set(f.filename, { palette: b, texture: n }, c);
                 return;
             }
-          r.set(f.filename, b, c);
+          q.set(f.filename, b, c);
         }
         var c = { filename: "", args: null };
         return function (a, d, f, n) {
           a = k.decodeString(a);
-          r.exist(a) ||
+          q.exist(a) ||
             ((c.filename = a), (c.args = n || null), h.send("LOAD_FILE", c, b));
-          return r.get(a, d, f);
+          return q.get(a, d, f);
         };
       })(),
       l = {
         init: function (a) {
           function d(a) {
-            2e7 < a && (q.value = a);
+            2e7 < a && (r.value = a);
           }
           var f,
             e,
@@ -258,7 +258,7 @@ define(
                 break;
               }
             }
-          else q.value = 20211103;
+          else r.value = 20211103;
           g && h.send("SET_HOST", g);
           b(a);
         },
@@ -274,17 +274,17 @@ define(
           f = 0;
           g(a[f], c);
         },
-        loadFile: t,
+        loadFile: u,
         loadFiles: function (a, b) {
           function c(e) {
             n[f++] = e;
-            f === d ? b && b.apply(null, n) : t(a[f], c);
+            f === d ? b && b.apply(null, n) : u(a[f], c);
           }
           var d, f, n;
           d = a.length;
           n = Array(d);
           f = 0;
-          t(a[f], c);
+          u(a[f], c);
         },
         search: function (a, b) {
           h.send("SEARCH_FILE", a, b);

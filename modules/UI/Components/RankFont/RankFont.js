@@ -12,14 +12,14 @@ define(
     a("Renderer/SpriteRenderer");
     var m = a("Renderer/Entity/Entity"),
       h = a("UI/UIManager"),
-      r = a("UI/UIComponent");
+      q = a("UI/UIComponent");
     a("UI/Components/ChatBox/ChatBox");
-    var q = a("text!./RankFont.html");
+    var r = a("text!./RankFont.html");
     a = a("text!./RankFont.css");
-    var k = new r("RankFont", q, a);
+    var k = new q("RankFont", r, a);
     k.needFocus = !1;
     var g = Array(11),
-      t = 0;
+      u = 0;
     new m();
     d.get("RankFont", { x: 600, y: 200, show: !0 }, 1.1);
     k.init = function () {
@@ -46,7 +46,7 @@ define(
     };
     k.onRemove = function () {};
     k.updateCount = function (a) {
-      t = a.total;
+      u = a.total;
       this.refresh();
     };
     k.refresh = function () {
@@ -56,40 +56,40 @@ define(
         e,
         h,
         m = k.ui.find(".content");
-      if (0 != t) {
+      if (0 != u) {
         m.find(".row").empty();
-        var q = document.createElement("canvas"),
-          r = q.getContext("2d"),
-          B = t.toString().split(""),
-          O,
-          C;
+        var r = document.createElement("canvas"),
+          q = r.getContext("2d"),
+          C = u.toString().split(""),
+          J,
+          A;
         h = g[1];
-        O = 0 + (h.width + 2.8);
-        C = Math.max(0, h.height);
+        J = 0 + (h.width + 2.8);
+        A = Math.max(0, h.height);
         h = g[10];
-        O += h.width + 2.8;
-        C = Math.max(C, h.height);
+        J += h.width + 2.8;
+        A = Math.max(A, h.height);
         a = 0;
-        for (c = B.length; a < c; ++a)
-          ((h = g[B[a]]), (O += h.width + 2.8), (C = Math.max(C, h.height)));
-        r.canvas.width = b.toPowerOfTwo(O);
-        r.canvas.height = b.toPowerOfTwo(C);
-        q.style.width = r.canvas.width / 2 + "px";
-        d = (r.canvas.width - O + 4) >> 1;
-        e = (r.canvas.height - C + 25) >> 1;
-        O = 0;
+        for (c = C.length; a < c; ++a)
+          ((h = g[C[a]]), (J += h.width + 2.8), (A = Math.max(A, h.height)));
+        q.canvas.width = b.toPowerOfTwo(J);
+        q.canvas.height = b.toPowerOfTwo(A);
+        r.style.width = q.canvas.width / 2 + "px";
+        d = (q.canvas.width - J + 4) >> 1;
+        e = (q.canvas.height - A + 25) >> 1;
+        J = 0;
         h = g[1];
-        r.drawImage(h, d + O, (e + (C - h.height)) >> 1);
-        O += h.width + 2.8;
+        q.drawImage(h, d + J, (e + (A - h.height)) >> 1);
+        J += h.width + 2.8;
         h = g[10];
-        r.drawImage(h, d + O, (e + (C - h.height)) >> 1);
-        O += h.width + 2.8;
+        q.drawImage(h, d + J, (e + (A - h.height)) >> 1);
+        J += h.width + 2.8;
         a = 0;
-        for (c = B.length; a < c; ++a)
-          ((h = g[B[a]]),
-            r.drawImage(h, d + O, (e + (C - h.height)) >> 1),
-            (O += h.width + 2.8));
-        m.find(".row").append(q);
+        for (c = C.length; a < c; ++a)
+          ((h = g[C[a]]),
+            q.drawImage(h, d + J, (e + (A - h.height)) >> 1),
+            (J += h.width + 2.8));
+        m.find(".row").append(r);
       }
     };
     return h.addComponent(k);

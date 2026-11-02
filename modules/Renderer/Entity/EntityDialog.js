@@ -28,7 +28,7 @@ define("Renderer/Entity/EntityDialog", [
   }
   var m = a.vec4,
     h = new Float32Array(4),
-    r = new Float32Array(2);
+    q = new Float32Array(2);
   e.prototype.set = function (a, e) {
     this.text = a;
     this.tick = c.tick;
@@ -86,12 +86,12 @@ define("Renderer/Entity/EntityDialog", [
     h[1] = 90 / 35;
     h[2] = 0;
     h[3] = 1;
-    r[0] = c.width / 2;
-    r[1] = c.height / 2;
+    q[0] = c.width / 2;
+    q[1] = c.height / 2;
     m.transformMat4(h, h, a);
     a = 0 === h[3] ? 1 : 1 / h[3];
-    h[0] = r[0] + Math.round(r[0] * h[0] * a);
-    h[1] = r[1] - Math.round(r[1] * h[1] * a);
+    h[0] = q[0] + Math.round(q[0] * h[0] * a);
+    h[1] = q[1] - Math.round(q[1] * h[1] * a);
     b.style.zIndex = c.canvas.style.zIndex + 1;
     b.style.top = ((h[1] - b.height - 2) | 0) + "px";
     b.style.left = ((h[0] - b.width / 2) | 0) + "px";

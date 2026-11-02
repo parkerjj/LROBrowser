@@ -6,56 +6,56 @@ define(
   function (a) {
     function b(a) {
       return function (b) {
-        r((L + 12 + a) % 12);
+        q((H + 12 + a) % 12);
         b.stopImmediatePropagation();
         return !1;
       };
     }
     function c(a) {
       return function (b) {
-        r(3 * Math.floor(L / 3) + a);
+        q(3 * Math.floor(H / 3) + a);
         b.stopImmediatePropagation();
         return !1;
       };
     }
     function d() {
-      A.showPromptBox(
+      z.showPromptBox(
         k.getMessage(17),
         "ok",
         "cancel",
         function () {
-          C.onExitRequest();
+          A.onExitRequest();
         },
         null,
       );
     }
     function e() {
-      if (!B.ready) return !1;
-      C.onCreateRequest(L);
+      if (!C.ready) return !1;
+      A.onCreateRequest(H);
     }
     function m() {
-      if (!B.ready) return !1;
-      J[L] && ((y.index = L), y.save(), C.onConnectRequest(J[L]));
+      if (!C.ready) return !1;
+      O[H] && ((B.index = H), B.save(), A.onConnectRequest(O[H]));
     }
     function h() {
-      J[L] && (C.off("keydown"), C.onDeleteRequest(J[L].GID));
+      O[H] && (A.off("keydown"), A.onDeleteRequest(O[H].GID));
     }
-    function r(a) {
-      var b = C.ui,
+    function q(a) {
+      var b = A.ui,
         c = b.find(".charinfo"),
-        d = I[L];
+        d = M[H];
       d &&
         d.setAction({ action: d.ACTION.IDLE, frame: 0, play: !0, repeat: !0 });
-      L = (a + 12) % 12;
+      H = (a + 12) % 12;
       b.find(".box_select")
         .removeClass("slot1 slot2 slot3")
-        .addClass("slot" + ((L % 3) + 1));
-      a = Math.floor(L / 3) + 1;
-      J[3 * a - 3] ? b.find(".add_slot1").hide() : b.find(".add_slot1").show();
-      J[3 * a - 2] ? b.find(".add_slot2").hide() : b.find(".add_slot2").show();
-      J[3 * a - 1] ? b.find(".add_slot3").hide() : b.find(".add_slot3").show();
-      b.find(".pageinfo .current").text(Math.floor(L / 3) + 1);
-      (d = I[L])
+        .addClass("slot" + ((H % 3) + 1));
+      a = Math.floor(H / 3) + 1;
+      O[3 * a - 3] ? b.find(".add_slot1").hide() : b.find(".add_slot1").show();
+      O[3 * a - 2] ? b.find(".add_slot2").hide() : b.find(".add_slot2").show();
+      O[3 * a - 1] ? b.find(".add_slot3").hide() : b.find(".add_slot3").show();
+      b.find(".pageinfo .current").text(Math.floor(H / 3) + 1);
+      (d = M[H])
         ? (d.setAction({
             action: d.ACTION.READYFIGHT,
             frame: 0,
@@ -65,7 +65,7 @@ define(
           b.find(".make").hide(),
           b.find(".delete").show(),
           b.find(".ok").show(),
-          (b = J[L]),
+          (b = O[H]),
           c.find(".name").text(b.name),
           c.find(".job").text(g[b.job] || ""),
           c.find(".lvl").text(b.level),
@@ -84,39 +84,39 @@ define(
           b.find(".delete").hide(),
           b.find(".ok").hide());
     }
-    function q() {
+    function r() {
       var a, b, c;
-      u.direction = 4;
-      c = 3 * Math.floor(L / 3);
+      t.direction = 4;
+      c = 3 * Math.floor(H / 3);
       b = x.length;
       for (a = 0; a < b; ++a)
         (x[a].clearRect(0, 0, x[a].canvas.width, x[a].canvas.height),
-          I[c + a] &&
-            (v.bind2DContext(x[a], 67, 134), I[c + a].renderEntity()));
+          M[c + a] &&
+            (v.bind2DContext(x[a], 67, 134), M[c + a].renderEntity()));
     }
     var k = a("DB/DBManager"),
       g = a("DB/Monsters/MonsterTable"),
-      t = a("Core/Configs"),
+      u = a("Core/Configs"),
       l = a("Core/Preferences"),
       f = a("Controls/KeyEventHandler"),
       n = a("Renderer/Renderer"),
       p = a("Renderer/Entity/Entity"),
       v = a("Renderer/SpriteRenderer"),
-      u = a("Renderer/Camera"),
-      A = a("UI/UIManager"),
-      D = a("UI/UIComponent"),
-      B = a("UI/Components/PincodeBox/PincodeBox"),
-      O = a("text!./CharSelect.html");
+      t = a("Renderer/Camera"),
+      z = a("UI/UIManager"),
+      E = a("UI/UIComponent"),
+      C = a("UI/Components/PincodeBox/PincodeBox"),
+      J = a("text!./CharSelect.html");
     a = a("text!./CharSelect.css");
-    var C = new D("CharSelect", O, a),
-      y = l.get("CharSelect", { index: 0 }, 1),
-      z = [],
-      J = [],
-      I = [],
-      L = 0,
+    var A = new E("CharSelect", J, a),
+      B = l.get("CharSelect", { index: 0 }, 1),
+      F = [],
+      O = [],
+      M = [],
+      H = 0,
       x = [],
-      M = 0;
-    C.init = function () {
+      I = 0;
+    A.init = function () {
       var a = this.ui;
       a.css({ top: (n.height - 342) / 2, left: (n.width - 576) / 2 });
       a.find(".ok").click(m);
@@ -133,42 +133,42 @@ define(
       a.find(".slot3").mousedown(c(2));
       a.find("canvas")
         .dblclick(function () {
-          J[L] ? m() : e();
+          O[H] ? m() : e();
         })
         .each(function () {
           x.push(this.getContext("2d"));
         });
       this.draggable();
     };
-    C.onAppend = function () {
-      L = y.index;
-      this.ui.find(".slotinfo .number").text(z.length + " / 12");
+    A.onAppend = function () {
+      H = B.index;
+      this.ui.find(".slotinfo .number").text(F.length + " / 12");
       this.ui.find(".pageinfo .count").text(4);
-      r(L);
-      n.render(q);
+      q(H);
+      n.render(r);
     };
-    C.onRemove = function () {
-      y.index = L;
-      y.save();
+    A.onRemove = function () {
+      B.index = H;
+      B.save();
       n.stop();
     };
-    C.onKeyDown = function (a) {
+    A.onKeyDown = function (a) {
       switch (a.which) {
         case f.ESCAPE:
           d();
           break;
         case f.LEFT:
-          r(L - 1);
+          q(H - 1);
           break;
         case f.RIGHT:
-          r(L + 1);
+          q(H + 1);
           break;
         case f.SUPR:
-          J[L] && h();
+          O[H] && h();
           break;
         case f.ENTER:
-          if (!B.ready) return !1;
-          J[L] ? m() : e();
+          if (!C.ready) return !1;
+          O[H] ? m() : e();
           break;
         default:
           return !0;
@@ -176,53 +176,53 @@ define(
       a.stopImmediatePropagation();
       return !1;
     };
-    C.setInfo = function (a) {
-      M = a.sex;
-      J.length = 0;
-      I.length = 0;
-      z.length = 0;
+    A.setInfo = function (a) {
+      I = a.sex;
+      O.length = 0;
+      M.length = 0;
+      F.length = 0;
       if (a.charInfo) {
         var b,
           c = a.charInfo.length;
-        for (b = 0; b < c; ++b) C.addCharacter(a.charInfo[b]);
+        for (b = 0; b < c; ++b) A.addCharacter(a.charInfo[b]);
       }
-      this.ui.find(".slotinfo .number").text(z.length + " / 12");
+      this.ui.find(".slotinfo .number").text(F.length + " / 12");
       this.ui.find(".pageinfo .count").text(4);
-      r(L);
-      3 != t.get("ClientVer") &&
+      q(H);
+      3 != u.get("ClientVer") &&
         0 <= a.code &&
-        ((b = J[a.code]), (b.CharNum = a.code), C.onConnectRequest(b));
+        ((b = O[a.code]), (b.CharNum = a.code), A.onConnectRequest(b));
     };
-    C.deleteAnswer = function (a) {
+    A.deleteAnswer = function (a) {
       this.on("keydown");
       switch (a) {
         case -2:
           break;
         case -1:
-          delete J[L];
-          delete I[L];
+          delete O[H];
+          delete M[H];
           a = 0;
-          for (var b = z.length; a < b;)
-            z[a].CharNum === L ? (z.splice(a, 1), --b) : a++;
-          r(L);
-          this.ui.find(".slotinfo .number").text(z.length + " / 12");
+          for (var b = F.length; a < b;)
+            F[a].CharNum === H ? (F.splice(a, 1), --b) : a++;
+          q(H);
+          this.ui.find(".slotinfo .number").text(F.length + " / 12");
           break;
         default:
         case 0:
-          A.showMessageBox(k.getMessage(301), "ok");
+          z.showMessageBox(k.getMessage(301), "ok");
       }
     };
-    C.addCharacter = function (a) {
-      ("sex" in a && 99 !== a.sex) || (a.sex = M);
-      z.push(a);
-      J[a.CharNum] = a;
-      I[a.CharNum] = new p();
-      I[a.CharNum].set(a);
+    A.addCharacter = function (a) {
+      ("sex" in a && 99 !== a.sex) || (a.sex = I);
+      F.push(a);
+      O[a.CharNum] = a;
+      M[a.CharNum] = new p();
+      M[a.CharNum].set(a);
     };
-    C.onExitRequest = function () {};
-    C.onDeleteRequest = function () {};
-    C.onCreateRequest = function () {};
-    C.onConnectRequest = function () {};
-    return A.addComponent(C);
+    A.onExitRequest = function () {};
+    A.onDeleteRequest = function () {};
+    A.onCreateRequest = function () {};
+    A.onConnectRequest = function () {};
+    return z.addComponent(A);
   },
 );

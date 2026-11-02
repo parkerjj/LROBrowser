@@ -12,24 +12,24 @@ define(
       }
       function d(a, c) {
         a.isFile
-          ? (++k,
+          ? (++l,
             a.file(function (d) {
               d.fullPath = a.fullPath.substr(c);
               n.push(d);
-              ++l === k && h === g && b(n);
+              ++k === l && h === g && b(n);
             }))
           : a.isDirectory &&
             (++g,
             a.createReader().readEntries(function (a) {
               for (var e = 0, f = a.length; e < f; ++e) d(a[e], c);
-              ++h === g && l === k && b(n);
+              ++h === g && k === l && b(n);
             }));
       }
       var e,
         g = 0,
         h = 0,
-        k = 0,
         l = 0,
+        k = 0,
         n = [];
       a.stopImmediatePropagation();
       c(this).removeClass("over");
@@ -43,9 +43,9 @@ define(
                 : null;
           if (m) {
             e = this.files.length;
-            var t = /^[^(\/|\\)]+(\/|\\)/;
+            var u = /^[^(\/|\\)]+(\/|\\)/;
             for (a = 0; a < e; ++a)
-              this.files[a].fullPath = this.files[a][m].replace(t, "");
+              this.files[a].fullPath = this.files[a][m].replace(u, "");
           }
         }
         b(this.files);
@@ -54,14 +54,14 @@ define(
       if (a.originalEvent.dataTransfer) {
         m = a.originalEvent.dataTransfer;
         if (m.items && m.items.length && m.items[0].webkitGetAsEntry) {
-          t = 1;
+          u = 1;
           a = m.items[0].webkitGetAsEntry();
           1 === m.items.length &&
             a.isDirectory &&
-            (t = a.fullPath.split("/")[1].length + 2);
+            (u = a.fullPath.split("/")[1].length + 2);
           a = 0;
           for (e = m.items.length; a < e; ++a)
-            d(m.items[a].webkitGetAsEntry(), t);
+            d(m.items[a].webkitGetAsEntry(), u);
           return !1;
         }
         if (m.files) return (b(m.files), !1);
@@ -74,17 +74,17 @@ define(
       e = a("UI/UIManager"),
       m = a("UI/UIComponent"),
       h = a("text!./Intro.html"),
-      r = a("text!./Intro.css"),
-      q = a("Core/Context"),
+      q = a("text!./Intro.css"),
+      r = a("Core/Context"),
       k = a("Core/Configs"),
       g = a("./Particle"),
-      t = a("./Preferences"),
+      u = a("./Preferences"),
       l = a("./FileSystem"),
-      f = new m("Intro", h, r);
+      f = new m("Intro", h, q);
     f.files = [];
     f.onKeyDown = function (a) {
       return a.which === d.ESCAPE
-        ? (q.isFullScreen() && q.cancelFullScreen(),
+        ? (r.isFullScreen() && r.cancelFullScreen(),
           a.stopImmediatePropagation(),
           !1)
         : !0;
@@ -137,7 +137,7 @@ define(
           });
       });
       d.find(".btn_settings").mousedown(function () {
-        t.load(d);
+        u.load(d);
         d.find(".overlay.settings").show().animate({ opacity: 1 }, 200);
       });
       d.find(".box")
@@ -201,7 +201,7 @@ define(
         a.find("tr :eq(" + b + ") input:first").focus();
       });
       d.find(".btn_save").on("click", function () {
-        t.save(d);
+        u.save(d);
         d.find(".overlay").animate({ opacity: 0 }, 200, function () {
           d.find(".overlay").hide();
         });
@@ -215,7 +215,7 @@ define(
       });
     };
     f.onAppend = function () {
-      q.Is.POPUP || this.ui.find(".resolution").hide();
+      r.Is.POPUP || this.ui.find(".resolution").hide();
       this.ui.find(".clean").hide();
       l.getSize(
         function (a) {

@@ -13,11 +13,11 @@ define(
       return d;
     }
     function c(a, b) {
-      a in z
-        ? O.addText(t.getMessage(51), O.TYPE.ERROR)
-        : 10 < J.length
-          ? O.addText(t.getMessage(297), O.TYPE.ERROR)
-          : ((z[a] = b), y.reqAddItem(a, b));
+      a in F
+        ? J.addText(u.getMessage(51), J.TYPE.ERROR)
+        : 10 < O.length
+          ? J.addText(u.getMessage(297), J.TYPE.ERROR)
+          : ((F[a] = b), B.reqAddItem(a, b));
     }
     function d(a) {
       a.stopImmediatePropagation();
@@ -25,35 +25,35 @@ define(
     }
     function e() {
       this.remove();
-      y.onCancel();
+      B.onCancel();
     }
     function m() {
-      var a = parseInt(y.ui.find(".zeny.send").val(), 10) || 0,
+      var a = parseInt(B.ui.find(".zeny.send").val(), 10) || 0,
         a = Math.min(Math.max(0, a), n.zeny);
       c(0, a);
-      y.onConclude();
+      B.onConclude();
     }
     function h() {
-      y.onTradeSubmit();
+      B.onTradeSubmit();
       this.ui.find(".trade.enabled").hide();
       this.ui.find(".trade.disabled").show();
     }
-    function r(a) {
+    function q(a) {
       var b, d;
       try {
         d = JSON.parse(a.originalEvent.dataTransfer.getData("Text"));
-      } catch (E) {}
+      } catch (D) {}
       a.stopImmediatePropagation();
       if (!d || "item" !== d.type || "Inventory" !== d.from) return !1;
       b = d.data;
       if (1 < b.count)
         return (
-          A.append(),
-          A.setType("number", !1, b.count),
-          (A.onSubmitRequest = function (a) {
+          z.append(),
+          z.setType("number", !1, b.count),
+          (z.onSubmitRequest = function (a) {
             a = parseInt(a, 10) || 0;
             a = Math.min(Math.max(a, 0), b.count);
-            A.remove();
+            z.remove();
             a && c(b.index, a);
           }),
           !1
@@ -61,67 +61,67 @@ define(
       c(b.index, 1);
       return !1;
     }
-    function q() {
+    function r() {
       var a = parseInt(this.getAttribute("data-index"), 10);
-      if ((a = this.parentNode.className.match(/send/i) ? J[a] : I[a])) {
+      if ((a = this.parentNode.className.match(/send/i) ? O[a] : M[a])) {
         var b = l(this),
           c = b.parent().position(),
-          d = y.ui.find(".overlay");
+          d = B.ui.find(".overlay");
         c.left += b.position().left;
         c.top += b.position().top;
         d.show();
         d.css({ top: c.top + 5, left: c.left + 30 });
-        d.text(t.getItemName(a));
+        d.text(u.getItemName(a));
         a.IsIdentified ? d.removeClass("grey") : d.addClass("grey");
       }
     }
     function k() {
-      y.ui.find(".overlay").hide();
+      B.ui.find(".overlay").hide();
     }
     function g(a) {
       var b = parseInt(this.getAttribute("data-index"), 10),
-        b = this.parentNode.className.match(/send/i) ? J[b] : I[b];
+        b = this.parentNode.className.match(/send/i) ? O[b] : M[b];
       if (!b) return d(a);
-      if (D.uid === b.ITID) return (D.remove(), !1);
-      D.append();
-      D.uid = b.ITID;
-      D.setItem(b);
+      if (E.uid === b.ITID) return (E.remove(), !1);
+      E.append();
+      E.uid = b.ITID;
+      E.setItem(b);
       return d(a);
     }
-    var t = a("DB/DBManager"),
+    var u = a("DB/DBManager"),
       l = a("Utils/jquery"),
       f = a("Core/Client"),
       n = a("Engine/SessionStorage"),
       p = a("Renderer/Renderer"),
       v = a("UI/UIManager"),
-      u = a("UI/UIComponent"),
-      A = a("UI/Components/InputBox/InputBox"),
-      D = a("UI/Components/ItemInfo/ItemInfo"),
-      B = a("UI/Components/Inventory/Inventory"),
-      O = a("UI/Components/ChatBox/ChatBox"),
-      C = a("text!./Trade.html");
+      t = a("UI/UIComponent"),
+      z = a("UI/Components/InputBox/InputBox"),
+      E = a("UI/Components/ItemInfo/ItemInfo"),
+      C = a("UI/Components/Inventory/Inventory"),
+      J = a("UI/Components/ChatBox/ChatBox"),
+      A = a("text!./Trade.html");
     a = a("text!./Trade.css");
-    var y = new u("Trade", C, a),
-      z = {},
-      J = [],
-      I = [];
-    y.title = "";
-    y.init = function () {
+    var B = new t("Trade", A, a),
+      F = {},
+      O = [],
+      M = [];
+    B.title = "";
+    B.init = function () {
       this.ui.find(".ok.enabled").click(m);
       this.ui.find(".trade.enabled").click(h.bind(this));
       this.ui.find(".cancel").click(e.bind(this));
-      this.ui.on("mousedown", ".disabled", d).on("drop", r).on("dragover", d);
+      this.ui.on("mousedown", ".disabled", d).on("drop", q).on("dragover", d);
       this.ui.find(".zeny.send").mousedown(function () {
         this.select();
       });
       this.ui
         .find(".box")
-        .on("mouseover", ".item", q)
+        .on("mouseover", ".item", r)
         .on("mouseout", ".item", k)
         .on("contextmenu", ".item", g);
       this.draggable(this.ui.find(".titlebar"));
     };
-    y.onAppend = function () {
+    B.onAppend = function () {
       this.onRemove();
       this.ui.find(".titlebar .title").text(this.title);
       this.ui.css({
@@ -129,10 +129,10 @@ define(
         left: (p.width - this.ui.width()) / 2,
       });
     };
-    y.onRemove = function () {
-      z = {};
-      I.length = 0;
-      J.length = 0;
+    B.onRemove = function () {
+      F = {};
+      M.length = 0;
+      O.length = 0;
       this.ui.find(".overlay").hide();
       this.ui.find(".ok.disabled, .trade.enabled").hide();
       this.ui.find(".ok.enabled, .trade.disabled").show();
@@ -144,26 +144,26 @@ define(
         .attr("disabled", !1);
       this.ui.find(".zeny.recv").text("0");
     };
-    y.addItemFromInventory = function (a, c) {
+    B.addItemFromInventory = function (a, c) {
       if (c)
-        if (0 === a) 0 < z[a] && this.ui.find(".zeny.send").val(b(z[a]));
+        if (0 === a) 0 < F[a] && this.ui.find(".zeny.send").val(b(F[a]));
         else {
-          c = l.extend({}, B.removeItem(a, z[a]));
-          var d = t.getItemInfo(c.ITID),
-            e = J.push(c) - 1,
+          c = l.extend({}, C.removeItem(a, F[a]));
+          var d = u.getItemInfo(c.ITID),
+            e = O.push(c) - 1,
             g = this.ui.find(".box.send");
-          c.count = z[a];
+          c.count = F[a];
           g.append(
             '\x3cdiv class\x3d"item" data-index\x3d"' +
               e +
               '"\x3e\x3cdiv class\x3d"icon"\x3e\x3c/div\x3e\x3cdiv class\x3d"amount"\x3e\x3cspan class\x3d"count"\x3e' +
-              (z[a] || 1) +
+              (F[a] || 1) +
               '\x3c/span\x3e\x3c/div\x3e\x3cspan class\x3d"name"\x3e' +
-              l.escape(t.getItemName(c)) +
+              l.escape(u.getItemName(c)) +
               "\x3c/span\x3e\x3c/div\x3e",
           );
           f.loadFile(
-            t.INTERFACE_PATH +
+            u.INTERFACE_PATH +
               "item/" +
               (c.IsIdentified
                 ? d.identifiedResourceName
@@ -177,13 +177,13 @@ define(
             }.bind(this),
           );
         }
-      else delete z[a];
+      else delete F[a];
     };
-    y.addItem = function (a) {
+    B.addItem = function (a) {
       if (0 === a.ITID) this.ui.find(".zeny.recv").text(b(a.count));
       else {
-        var c = t.getItemInfo(a.ITID),
-          d = I.push(a) - 1,
+        var c = u.getItemInfo(a.ITID),
+          d = M.push(a) - 1,
           e = this.ui.find(".box.recv");
         e.append(
           '\x3cdiv class\x3d"item" data-index\x3d"' +
@@ -191,11 +191,11 @@ define(
             '"\x3e\x3cdiv class\x3d"icon"\x3e\x3c/div\x3e\x3cdiv class\x3d"amount"\x3e' +
             a.count +
             '\x3c/div\x3e\x3cspan class\x3d"name"\x3e' +
-            l.escape(t.getItemName(a)) +
+            l.escape(u.getItemName(a)) +
             "\x3c/span\x3e\x3c/div\x3e",
         );
         f.loadFile(
-          t.INTERFACE_PATH +
+          u.INTERFACE_PATH +
             "item/" +
             (a.IsIdentified
               ? c.identifiedResourceName
@@ -210,7 +210,7 @@ define(
         );
       }
     };
-    y.conclude = function (a) {
+    B.conclude = function (a) {
       this.ui.find(".box." + a).addClass("disabled");
       "send" === a &&
         (this.ui.find(".ok.disabled").show(),
@@ -221,10 +221,10 @@ define(
         (this.ui.find(".trade.enabled").show(),
         this.ui.find(".trade.disabled").hide());
     };
-    y.onConclude = function () {};
-    y.onTradeSubmit = function () {};
-    y.reqAddItem = function () {};
-    y.onCancel = function () {};
-    return v.addComponent(y);
+    B.onConclude = function () {};
+    B.onTradeSubmit = function () {};
+    B.reqAddItem = function () {};
+    B.onCancel = function () {};
+    return v.addComponent(B);
   },
 );

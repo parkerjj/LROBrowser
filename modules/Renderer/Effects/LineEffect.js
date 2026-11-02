@@ -4,10 +4,10 @@ define(
     " ",
   ),
   function (a) {
-    function b(a, b, c, d, q) {
+    function b(a, b, c, d, r) {
       this.lineCheck = !0;
       this.AID = d;
-      this.tAID = q;
+      this.tAID = r;
       this.position = a;
       this._position = b;
       this.alpha = c.alphaMax ? c.alphaMax : 1;
@@ -72,11 +72,11 @@ define(
     b.free = function (a) {
       d && (a.deleteProgram(d), (d = null));
     };
-    b.beforeRender = function (a, b, c, r, q) {
-      r = d.uniform;
+    b.beforeRender = function (a, b, c, q, r) {
+      q = d.uniform;
       a.useProgram(d);
-      a.uniformMatrix4fv(r.uModelViewMat, !1, b);
-      a.uniformMatrix4fv(r.uProjectionMat, !1, c);
+      a.uniformMatrix4fv(q.uModelViewMat, !1, b);
+      a.uniformMatrix4fv(q.uProjectionMat, !1, c);
     };
     b.afterRender = function (a) {
       a.disableVertexAttribArray(d.attribute.aPosition);

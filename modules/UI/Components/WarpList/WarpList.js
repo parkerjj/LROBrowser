@@ -5,7 +5,7 @@ define(
   ),
   function (a) {
     function b() {
-      this.onSelectMenu(l, t + 1);
+      this.onSelectMenu(l, u + 1);
     }
     function c() {
       this.onSelectMenu(l, 255);
@@ -13,7 +13,7 @@ define(
     function d(a) {
       this.ui.find(".content div").removeClass("selected");
       a.addClass("selected");
-      t = parseInt(a.data("index"), 10);
+      u = parseInt(a.data("index"), 10);
     }
     function e(a) {
       var b;
@@ -25,20 +25,20 @@ define(
     }
     var m = a("Utils/jquery"),
       h = a("Controls/KeyEventHandler"),
-      r = a("Renderer/Renderer"),
-      q = a("UI/UIManager"),
+      q = a("Renderer/Renderer"),
+      r = a("UI/UIManager"),
       k = a("UI/UIComponent"),
       g = a("text!./WarpList.html");
     a = a("text!./WarpList.css");
     var k = new k("WarpList", g, a),
-      t = 0,
+      u = 0,
       l = 0;
     k.init = function () {
       this.ui.find(".ok").click(b.bind(this));
       this.ui.find(".cancel").click(c.bind(this));
       this.ui.css({
-        top: Math.max(300, r.height / 2 + 60),
-        left: Math.max(r.width / 3, 20),
+        top: Math.max(300, q.height / 2 + 60),
+        left: Math.max(q.width / 3, 20),
       });
       this.draggable();
       var a = this;
@@ -68,20 +68,20 @@ define(
           break;
         case h.UP:
           this.ui.find(".content div");
-          t = Math.max(t - 1, 0);
+          u = Math.max(u - 1, 0);
           this.ui.find(".content div").removeClass("selected");
-          this.ui.find(".content div:eq(" + t + ")").addClass("selected");
+          this.ui.find(".content div:eq(" + u + ")").addClass("selected");
           d = this.ui.find(".content")[0];
-          c = 20 * t;
+          c = 20 * u;
           c < d.scrollTop && (d.scrollTop = c);
           break;
         case h.DOWN:
           c = this.ui.find(".content div").length;
-          t = Math.min(t + 1, c - 1);
+          u = Math.min(u + 1, c - 1);
           this.ui.find(".content div").removeClass("selected");
-          this.ui.find(".content div:eq(" + t + ")").addClass("selected");
+          this.ui.find(".content div:eq(" + u + ")").addClass("selected");
           d = this.ui.find(".content")[0];
-          c = 20 * t;
+          c = 20 * u;
           c >= d.scrollTop + 80 && (d.scrollTop = c - 60);
           break;
         default:
@@ -95,7 +95,7 @@ define(
       c = this.ui.find(".content");
       a = a.split(":");
       l = b;
-      t = 0;
+      u = 0;
       c.empty();
       d = b = 0;
       for (e = a.length; b < e; ++b)
@@ -104,6 +104,6 @@ define(
       c.find("div:first").addClass("selected");
     };
     k.onSelectMenu = function () {};
-    return q.addComponent(k);
+    return r.addComponent(k);
   },
 );

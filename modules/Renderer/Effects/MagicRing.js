@@ -14,8 +14,8 @@ define("Renderer/Effects/MagicRing", [
   }
   var m,
     h,
-    r = c.mat4,
-    q = r.create(),
+    q = c.mat4,
+    r = q.create(),
     k = 0;
   e.prototype.init = function (b) {
     var c = this;
@@ -55,7 +55,7 @@ define("Renderer/Effects/MagicRing", [
       e,
       g = [],
       p = [],
-      q = [];
+      r = [];
     for (c = 0; 20 >= c; c++)
       ((d = (c + 0) / 20),
         (e = (c + 0.5) / 20),
@@ -74,13 +74,13 @@ define("Renderer/Effects/MagicRing", [
           0,
         ]));
     for (c = 0; 20 >= c; c++)
-      (q.push.apply(q, g[c + 0]),
-        q.push.apply(q, p[c + 0]),
-        q.push.apply(q, g[c + 1]),
-        q.push.apply(q, p[c + 0]),
-        q.push.apply(q, g[c + 1]),
-        q.push.apply(q, p[c + 1]));
-    c = new Float32Array(q);
+      (r.push.apply(r, g[c + 0]),
+        r.push.apply(r, p[c + 0]),
+        r.push.apply(r, g[c + 1]),
+        r.push.apply(r, p[c + 0]),
+        r.push.apply(r, g[c + 1]),
+        r.push.apply(r, p[c + 1]));
+    c = new Float32Array(r);
     k = c.length / 5;
     m = a.createShaderProgram(
       b,
@@ -100,12 +100,12 @@ define("Renderer/Effects/MagicRing", [
   };
   e.beforeRender = function (a, b, c, d, e) {
     var f = m.uniform;
-    r.identity(q);
-    r.rotateY(q, q, (e / 4 / 180) * Math.PI);
+    q.identity(r);
+    q.rotateY(r, r, (e / 4 / 180) * Math.PI);
     a.useProgram(m);
     a.uniformMatrix4fv(f.uModelViewMat, !1, b);
     a.uniformMatrix4fv(f.uProjectionMat, !1, c);
-    a.uniformMatrix4fv(f.uRotationMat, !1, q);
+    a.uniformMatrix4fv(f.uRotationMat, !1, r);
     a.uniform1i(f.uFogUse, d.use && d.exist);
     a.uniform1f(f.uFogNear, d.near);
     a.uniform1f(f.uFogFar, d.far);

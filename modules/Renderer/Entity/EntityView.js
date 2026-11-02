@@ -44,7 +44,7 @@ define(
         this._job = a;
         this.costume && (a = this.costume);
         this.xSize = this.ySize = g.isBaby(a) ? 4 : 5;
-        this.files.shadow.size = a in t ? t[a] : 1;
+        this.files.shadow.size = a in u ? u[a] : 1;
         c = g.getBodyPath(a, this._sex);
         b = this.constructor;
         if (this.objecttype === b.TYPE_UNKNOWN) {
@@ -121,7 +121,7 @@ define(
           }.bind(this),
         ));
     }
-    function r(a) {
+    function q(a) {
       this._headpalette = a;
       0 >= a
         ? (this.files.head.pal = null)
@@ -133,23 +133,23 @@ define(
             this._job,
           ));
     }
-    function q(a, b, c) {
+    function r(a, b, c) {
       return function (d) {
-        function e(f, u) {
+        function e(f, m) {
           if ("robe" === a && !k.loadFile(f + ".spr")) {
-            var v = g.getRobePath2(d, h, p);
+            var v = g.getRobePath2(d, p, h);
             k.loadFile(f + ".act");
             k.loadFile(
               v + ".spr",
               function (b) {
-                n["_" + a] = t;
+                n["_" + a] = u;
                 n.files[a].spr = v + ".spr";
                 n.files[a].act = f + ".act";
               },
               function () {
                 c &&
-                  !u &&
-                  ((t = g[c](d)), (f = g[b](t, n.job, n._sex)) && e(f, !0));
+                  !m &&
+                  ((u = g[c](d)), (f = g[b](u, n.job, n._sex)) && e(f, !0));
               },
               { to_rgba: !0 },
             );
@@ -159,19 +159,19 @@ define(
           k.loadFile(
             f + ".spr",
             function (b) {
-              n["_" + a] = t;
+              n["_" + a] = u;
               n.files[a].spr = f + ".spr";
               n.files[a].act = f + ".act";
               "weapon" === a &&
-                ((n["_" + a + "effect"] = m),
+                ((n["_" + a + "effect"] = t),
                 (n.files[a + "effect"].spr = l + "_effect.spr"),
                 (n.files[a + "effect"].act = l + "_effect.act"),
-                (n.sound.attackFile = g.getWeaponSound(t)));
+                (n.sound.attackFile = g.getWeaponSound(u)));
             },
             function () {
               c &&
-                !u &&
-                ((t = g[c](d)), (f = g[b](t, n.job, n._sex)) && e(f, !0));
+                !m &&
+                ((u = g[c](d)), (f = g[b](u, n.job, n._sex)) && e(f, !0));
             },
             { to_rgba: !0 },
           );
@@ -179,16 +179,16 @@ define(
         var f,
           l,
           n = this,
-          h = this.job,
-          p = this._sex,
-          t = d;
-        if ("weapon" === a) var m = g[c](d);
+          p = this.job,
+          h = this._sex,
+          u = d;
+        if ("weapon" === a) var t = g[c](d);
         if (0 >= d) this["_" + a] = 0;
         else {
           switch (a) {
             case "weapon":
               f = g[b](d, this.job, this._sex);
-              l = g[b](m, this.job, this._sex);
+              l = g[b](t, this.job, this._sex);
               break;
             case "shield":
               f = g[b](d, this.job, this._sex);
@@ -214,7 +214,7 @@ define(
     }
     var k = a("Core/Client"),
       g = a("DB/DBManager"),
-      t = a("DB/Monsters/ShadowTable"),
+      u = a("DB/Monsters/ShadowTable"),
       l = a("DB/Jobs/MountTable"),
       f = a("./EntityAction");
     return function () {
@@ -247,49 +247,49 @@ define(
         get: function () {
           return this._headpalette;
         },
-        set: r,
+        set: q,
       });
       Object.defineProperty(this, "weapon", {
         get: function () {
           return this._weapon;
         },
-        set: q("weapon", "getWeaponPath", "getWeaponViewID"),
+        set: r("weapon", "getWeaponPath", "getWeaponViewID"),
       });
       Object.defineProperty(this, "weaponeffect", {
         get: function () {
           return this._weaponeffect;
         },
-        set: q("weaponeffect", "getWeaponEffectPath", "getWeaponViewID"),
+        set: r("weaponeffect", "getWeaponEffectPath", "getWeaponViewID"),
       });
       Object.defineProperty(this, "shield", {
         get: function () {
           return this._shield;
         },
-        set: q("shield", "getShieldPath"),
+        set: r("shield", "getShieldPath"),
       });
       Object.defineProperty(this, "accessory", {
         get: function () {
           return this._accessory;
         },
-        set: q("accessory", "getHatPath"),
+        set: r("accessory", "getHatPath"),
       });
       Object.defineProperty(this, "accessory2", {
         get: function () {
           return this._accessory2;
         },
-        set: q("accessory2", "getHatPath"),
+        set: r("accessory2", "getHatPath"),
       });
       Object.defineProperty(this, "accessory3", {
         get: function () {
           return this._accessory3;
         },
-        set: q("accessory3", "getHatPath"),
+        set: r("accessory3", "getHatPath"),
       });
       Object.defineProperty(this, "robe", {
         get: function () {
           return this._robe;
         },
-        set: q("robe", "getRobePath"),
+        set: r("robe", "getRobePath"),
       });
     };
   },

@@ -1,15 +1,15 @@
 define("Loaders/Targa", [], function () {
   function a() {}
   function b(a, b, c, d, e, l, f, n, p, v) {
-    var g, k, t;
+    var g, k, u;
     g = 0;
-    for (t = e; t !== f; t += l)
+    for (u = e; u !== f; u += l)
       for (k = n; k !== v; k += p, g++)
         ((e = b[g]),
-          (a[4 * (k + d * t) + 3] = 255),
-          (a[4 * (k + d * t) + 2] = c[3 * e + 0]),
-          (a[4 * (k + d * t) + 1] = c[3 * e + 1]),
-          (a[4 * (k + d * t) + 0] = c[3 * e + 2]));
+          (a[4 * (k + d * u) + 3] = 255),
+          (a[4 * (k + d * u) + 2] = c[3 * e + 0]),
+          (a[4 * (k + d * u) + 1] = c[3 * e + 1]),
+          (a[4 * (k + d * u) + 0] = c[3 * e + 2]));
     return a;
   }
   function c(a, b, c, d, e, l, f, n, p, v) {
@@ -159,42 +159,42 @@ define("Loaders/Targa", [], function () {
       (c += d));
     var d = this.header.pixelDepth >> 3,
       e = this.header.width * this.header.height,
-      t = e * d;
+      u = e * d;
     if (this.header.hasEncoding) {
       var l, f, n, p;
-      p = new Uint8Array(t);
+      p = new Uint8Array(u);
       n = new Uint8Array(d);
-      for (e = 0; e < t;)
+      for (e = 0; e < u;)
         if (((l = b[c++]), (f = (l & 127) + 1), l & 128)) {
           for (l = 0; l < d; ++l) n[l] = b[c++];
           for (l = 0; l < f; ++l) (p.set(n, e), (e += d));
         } else for (f *= d, l = 0; l < f; ++l) p[e++] = b[c++];
       this.imageData = p;
     } else
-      this.imageData = b.subarray(c, c + (this.header.hasColorMap ? e : t));
+      this.imageData = b.subarray(c, c + (this.header.hasColorMap ? e : u));
   };
-  a.prototype.getImageData = function (r) {
-    var q = this.header.width,
+  a.prototype.getImageData = function (q) {
+    var r = this.header.width,
       k = this.header.height,
       g = (this.header.flags & a.Origin.MASK) >> a.Origin.SHIFT,
-      t,
+      u,
       l,
       f,
       n,
       p;
-    r ||
-      (r = document
+    q ||
+      (q = document
         ? document
             .createElement("canvas")
             .getContext("2d")
-            .createImageData(q, k)
-        : { width: q, height: k, data: new Uint8ClampedArray(q * k * 4) });
+            .createImageData(r, k)
+        : { width: r, height: k, data: new Uint8ClampedArray(r * k * 4) });
     g === a.Origin.TOP_LEFT || g === a.Origin.TOP_RIGHT
       ? ((f = 0), (n = 1))
       : ((f = k - 1), (k = n = -1));
     g === a.Origin.TOP_LEFT || g === a.Origin.BOTTOM_LEFT
-      ? ((g = 0), (t = 1), (l = q))
-      : ((g = q - 1), (l = t = -1));
+      ? ((g = 0), (u = 1), (l = r))
+      : ((g = r - 1), (l = u = -1));
     switch (this.header.pixelDepth) {
       case 8:
         p = this.header.isGreyColor ? m : b;
@@ -208,8 +208,8 @@ define("Loaders/Targa", [], function () {
       case 32:
         p = e;
     }
-    p(r.data, this.imageData, this.palette, q, f, n, k, g, t, l);
-    return r;
+    p(q.data, this.imageData, this.palette, r, f, n, k, g, u, l);
+    return q;
   };
   a.prototype.getCanvas = function () {
     var a, b, c;

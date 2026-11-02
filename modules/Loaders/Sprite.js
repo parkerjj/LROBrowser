@@ -41,11 +41,11 @@ define("Loaders/Sprite", ["Utils/BinaryReader"], function (a) {
       e,
       m,
       h,
-      r = this.frames;
+      q = this.frames;
     for (e = 0; e < a; ++e)
       ((m = d.readUShort()),
         (h = d.readUShort()),
-        (r[e] = {
+        (q[e] = {
           type: b.TYPE_PAL,
           width: m,
           height: h,
@@ -59,24 +59,24 @@ define("Loaders/Sprite", ["Utils/BinaryReader"], function (a) {
       e,
       m,
       h,
-      r,
       q,
+      r,
       k,
       g,
-      t,
+      u,
       l,
       f = this.frames;
     for (e = 0; e < a; ++e) {
       m = d.readUShort();
       h = d.readUShort();
-      r = m * h;
-      r = new Uint8Array(r);
-      q = 0;
+      q = m * h;
+      q = new Uint8Array(q);
+      r = 0;
       for (l = d.readUShort() + d.tell(); d.tell() < l;)
-        if (((k = d.readUByte()), (r[q++] = k), !k))
-          if ((g = d.readUByte())) for (t = 1; t < g; ++t) r[q++] = k;
-          else r[q++] = g;
-      f[e] = { type: b.TYPE_PAL, width: m, height: h, data: r };
+        if (((k = d.readUByte()), (q[r++] = k), !k))
+          if ((g = d.readUByte())) for (u = 1; u < g; ++u) q[r++] = k;
+          else q[r++] = g;
+      f[e] = { type: b.TYPE_PAL, width: m, height: h, data: q };
     }
   };
   b.prototype.readRgbaImage = function () {
@@ -85,18 +85,18 @@ define("Loaders/Sprite", ["Utils/BinaryReader"], function (a) {
       e = this.fp,
       m = this.frames,
       h,
-      r,
-      q;
+      q,
+      r;
     for (h = 0; h < a; ++h)
-      ((r = e.readShort()),
-        (q = e.readShort()),
+      ((q = e.readShort()),
+        (r = e.readShort()),
         (m[h + d] = {
           type: b.TYPE_RGBA,
-          width: r,
-          height: q,
-          data: new Uint8Array(e.buffer, e.tell(), r * q * 4),
+          width: q,
+          height: r,
+          data: new Uint8Array(e.buffer, e.tell(), q * r * 4),
         }),
-        e.seek(r * q * 4, SEEK_CUR));
+        e.seek(q * r * 4, SEEK_CUR));
   };
   b.prototype.switchToRGBA = function () {
     var a = this.frames,
@@ -104,29 +104,29 @@ define("Loaders/Sprite", ["Utils/BinaryReader"], function (a) {
       e,
       m = this.indexed_count,
       h,
-      r,
       q,
+      r,
       k,
       g,
-      t,
+      u,
       l = this.palette,
       f,
       n;
     for (e = 0; e < m; ++e)
       if (((d = a[e]), d.type === b.TYPE_PAL)) {
         h = d.data;
-        r = d.width;
-        q = d.height;
-        t = new Uint8Array(r * q * 4);
-        for (g = 0; g < q; ++g)
-          for (k = 0; k < r; ++k)
-            ((f = 4 * h[k + g * r]),
-              (n = 4 * (k + (q - g - 1) * r)),
-              (t[n + 3] = l[f + 0]),
-              (t[n + 2] = l[f + 1]),
-              (t[n + 1] = l[f + 2]),
-              (t[n + 0] = f ? 255 : 0));
-        d.data = t;
+        q = d.width;
+        r = d.height;
+        u = new Uint8Array(q * r * 4);
+        for (g = 0; g < r; ++g)
+          for (k = 0; k < q; ++k)
+            ((f = 4 * h[k + g * q]),
+              (n = 4 * (k + (r - g - 1) * q)),
+              (u[n + 3] = l[f + 0]),
+              (u[n + 2] = l[f + 1]),
+              (u[n + 1] = l[f + 2]),
+              (u[n + 0] = f ? 255 : 0));
+        d.data = u;
         d.type = b.TYPE_RGBA;
       }
     this.indexed_count = 0;
@@ -138,37 +138,37 @@ define("Loaders/Sprite", ["Utils/BinaryReader"], function (a) {
       c = d.getContext("2d"),
       m,
       h,
-      r,
       q,
+      r,
       k,
       g,
-      t;
+      u;
     m = this.frames[a];
     if (0 >= m.width || 0 >= m.height) return null;
     d.width = m.width;
     d.height = m.height;
     g = m.width;
-    t = m.height;
+    u = m.height;
     a = c.createImageData(m.width, m.height);
     if (m.type === b.TYPE_RGBA)
-      for (r = 0; r < t; ++r)
+      for (q = 0; q < u; ++q)
         for (h = 0; h < g; ++h)
-          ((q = 4 * (h + r * g)),
-            (k = 4 * (h + (t - r - 1) * g)),
-            (a.data[k + 0] = m.data[q + 3]),
-            (a.data[k + 1] = m.data[q + 2]),
-            (a.data[k + 2] = m.data[q + 1]),
-            (a.data[k + 3] = m.data[q + 0]));
+          ((r = 4 * (h + q * g)),
+            (k = 4 * (h + (u - q - 1) * g)),
+            (a.data[k + 0] = m.data[r + 3]),
+            (a.data[k + 1] = m.data[r + 2]),
+            (a.data[k + 2] = m.data[r + 1]),
+            (a.data[k + 3] = m.data[r + 0]));
     else {
       var l = this.palette;
-      for (r = 0; r < t; ++r)
+      for (q = 0; q < u; ++q)
         for (h = 0; h < g; ++h)
-          ((q = 4 * m.data[h + r * g]),
-            (k = 4 * (h + r * g)),
-            (a.data[k + 0] = l[q + 0]),
-            (a.data[k + 1] = l[q + 1]),
-            (a.data[k + 2] = l[q + 2]),
-            (a.data[k + 3] = q ? 255 : 0));
+          ((r = 4 * m.data[h + q * g]),
+            (k = 4 * (h + q * g)),
+            (a.data[k + 0] = l[r + 0]),
+            (a.data[k + 1] = l[r + 1]),
+            (a.data[k + 2] = l[r + 2]),
+            (a.data[k + 3] = r ? 255 : 0));
     }
     c.putImageData(a, 0, 0);
     return d;
@@ -179,59 +179,59 @@ define("Loaders/Sprite", ["Utils/BinaryReader"], function (a) {
       e,
       m = a.length,
       h,
-      r,
       q,
+      r,
       k,
       g,
-      t,
+      u,
       l,
       f,
       n,
       p = Math.pow,
       v = Math.ceil,
-      u = Math.log,
-      A = Math.floor,
-      D,
-      B = Array(m);
+      t = Math.log,
+      z = Math.floor,
+      E,
+      C = Array(m);
     for (e = 0; e < m; ++e) {
       d = a[e];
       h = d.data;
-      r = d.width;
-      q = d.height;
-      k = p(2, v(u(r) / u(2)));
-      g = p(2, v(u(q) / u(2)));
-      t = A(0.5 * (k - r));
-      l = A(0.5 * (g - q));
+      q = d.width;
+      r = d.height;
+      k = p(2, v(t(q) / t(2)));
+      g = p(2, v(t(r) / t(2)));
+      u = z(0.5 * (k - q));
+      l = z(0.5 * (g - r));
       if (d.type === b.TYPE_PAL)
-        for (D = new Uint8Array(k * g), n = 0; n < q; ++n)
-          for (f = 0; f < r; ++f)
-            ((D[(n + l) * k + (f + t)] = h[n * r + f]),
-              255 == this.palette[4 * h[n * r + f]] &&
-                255 == this.palette[4 * h[n * r + f] + 2] &&
-                0 == this.palette[4 * h[n * r + f] + 1] &&
-                (D[(n + l) * k + (f + t)] = 0));
+        for (E = new Uint8Array(k * g), n = 0; n < r; ++n)
+          for (f = 0; f < q; ++f)
+            ((E[(n + l) * k + (f + u)] = h[n * q + f]),
+              255 == this.palette[4 * h[n * q + f]] &&
+                255 == this.palette[4 * h[n * q + f] + 2] &&
+                0 == this.palette[4 * h[n * q + f] + 1] &&
+                (E[(n + l) * k + (f + u)] = 0));
       else
-        for (D = new Uint8Array(k * g * 4), n = 0; n < q; ++n)
-          for (f = 0; f < r; ++f)
-            ((D[4 * ((n + l) * k + (f + t)) + 0] =
-              h[4 * ((q - n - 1) * r + f) + 3]),
-              (D[4 * ((n + l) * k + (f + t)) + 1] =
-                h[4 * ((q - n - 1) * r + f) + 2]),
-              (D[4 * ((n + l) * k + (f + t)) + 2] =
-                h[4 * ((q - n - 1) * r + f) + 1]),
-              (D[4 * ((n + l) * k + (f + t)) + 3] =
-                h[4 * ((q - n - 1) * r + f) + 0]));
-      B[e] = {
+        for (E = new Uint8Array(k * g * 4), n = 0; n < r; ++n)
+          for (f = 0; f < q; ++f)
+            ((E[4 * ((n + l) * k + (f + u)) + 0] =
+              h[4 * ((r - n - 1) * q + f) + 3]),
+              (E[4 * ((n + l) * k + (f + u)) + 1] =
+                h[4 * ((r - n - 1) * q + f) + 2]),
+              (E[4 * ((n + l) * k + (f + u)) + 2] =
+                h[4 * ((r - n - 1) * q + f) + 1]),
+              (E[4 * ((n + l) * k + (f + u)) + 3] =
+                h[4 * ((r - n - 1) * q + f) + 0]));
+      C[e] = {
         type: d.type,
         width: k,
         height: g,
-        originalWidth: r,
-        originalHeight: q,
-        data: D,
+        originalWidth: q,
+        originalHeight: r,
+        data: E,
       };
     }
     return {
-      frames: B,
+      frames: C,
       palette: this.palette,
       rgba_index: this.rgba_index,
       old_rgba_index: this._indexed_count,

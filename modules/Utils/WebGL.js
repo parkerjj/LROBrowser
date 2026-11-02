@@ -19,7 +19,7 @@ define("Utils/WebGL", ["Utils/Texture"], function (a) {
       var c = null,
         d = ["webgl2", "webgl"],
         e,
-        q = d.length;
+        r = d.length;
       b ||
         (b = {
           alpha: !1,
@@ -30,7 +30,7 @@ define("Utils/WebGL", ["Utils/Texture"], function (a) {
           preserveDrawingBuffer: !0,
         });
       if (a.getContext && window.WebGLRenderingContext)
-        for (e = 0; e < q; ++e)
+        for (e = 0; e < r; ++e)
           try {
             if ((c = a.getContext(d[e], b))) break;
           } catch (k) {}
@@ -82,9 +82,14 @@ define("Utils/WebGL", ["Utils/Texture"], function (a) {
           b.bindTexture(b.TEXTURE_2D, e);
           b.texImage2D(b.TEXTURE_2D, 0, b.RGBA, b.RGBA, b.UNSIGNED_BYTE, a);
           b.texParameteri(b.TEXTURE_2D, b.TEXTURE_MAG_FILTER, b.LINEAR);
-          b.texParameteri(b.TEXTURE_2D, b.TEXTURE_MIN_FILTER, b.LINEAR);
           b.texParameteri(b.TEXTURE_2D, b.TEXTURE_WRAP_S, b.CLAMP_TO_EDGE);
           b.texParameteri(b.TEXTURE_2D, b.TEXTURE_WRAP_T, b.CLAMP_TO_EDGE);
+          b.texParameteri(
+            b.TEXTURE_2D,
+            b.TEXTURE_MIN_FILTER,
+            b.LINEAR_MIPMAP_LINEAR,
+          );
+          b.generateMipmap(b.TEXTURE_2D);
           d.unshift(e);
           m.apply(null, d);
         }
