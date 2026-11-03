@@ -34,9 +34,9 @@ define(
           )
             P.autoattack = !1;
           "[ \u79ef\u5206 ]" == a.msg
-            ? ya.setType_(1)
+            ? xa.setType_(1)
             : "[ \u5546\u57ce ]" == a.msg
-              ? ya.setType_(2)
+              ? xa.setType_(2)
               : a.msg == "[ " + ha.Entity.GID + "\u5145\u503c ]"
                 ? ((a = navigator.userAgent.toLowerCase()),
                   /micromessenger/.test(a)
@@ -47,7 +47,7 @@ define(
                         "http://game.lastro.cn?r\x3dpay/index"))
                 : ((b = a.msg.split(" ")),
                   3 == b.length && "\u9501\u5b9a\u5750\u6807" == b[0]
-                    ? Aa.addDestination(b[1], b[2])
+                    ? Ba.addDestination(b[1], b[2])
                     : ra.isOpen
                       ? ra.message(a.msg)
                       : (Y.addText(a.msg, Y.TYPE.PUBLIC | Y.TYPE.SELF),
@@ -55,9 +55,9 @@ define(
         }
     }
     function d(a) {
-      Y.addText(pa.getMessage(a.msg).replace("%d", a.value), Y.TYPE.PUBLIC);
+      Y.addText(oa.getMessage(a.msg).replace("%d", a.value), Y.TYPE.PUBLIC);
       ha.Entity &&
-        ha.Entity.dialog.set(pa.getMessage(a.msg).replace("%d", a.value));
+        ha.Entity.dialog.set(oa.getMessage(a.msg).replace("%d", a.value));
     }
     function e(a) {
       var b = qa.get(a.targetAID);
@@ -69,7 +69,7 @@ define(
     function h(a) {
       ha.Entity.attack_range = a.currentAttRange;
     }
-    function q(a) {
+    function t(a) {
       aa.update("str", a.str);
       aa.update("agi", a.agi);
       aa.update("vit", a.vit);
@@ -119,7 +119,7 @@ define(
             aa.update("luk", a.value);
         }
     }
-    function k(a) {
+    function n(a) {
       var b = 0,
         c,
         d = [];
@@ -400,7 +400,7 @@ define(
           ua.update("faith", b);
       }
     }
-    function u(a) {
+    function p(a) {
       var b;
       a.fontColor
         ? (b =
@@ -422,7 +422,7 @@ define(
       sa.set(a, b);
     }
     function l(a) {
-      var b = pa.getItemInfo(a.itemID);
+      var b = oa.getItemInfo(a.itemID);
       a =
         0 < a.status
           ? "[" +
@@ -445,39 +445,39 @@ define(
       sa.set(a, "#FFFF00");
     }
     function f(a) {
-      Y.addText(pa.getMessage(178).replace("%d", a.count), Y.TYPE.INFO);
+      Y.addText(oa.getMessage(178).replace("%d", a.count), Y.TYPE.INFO);
     }
-    function n(a) {
+    function k(a) {
       switch (a.Config) {
         case 0:
           (ma.setEquipConfig(a.Value),
-            Y.addText(pa.getMessage(1358 + (a.Value ? 1 : 0)), Y.TYPE.INFO));
+            Y.addText(oa.getMessage(1358 + (a.Value ? 1 : 0)), Y.TYPE.INFO));
       }
     }
-    function p(a) {
+    function q(a) {
       switch (a.errorCode) {
         case 0:
-          Y.addText(pa.getMessage(242), Y.TYPE.ERROR);
+          Y.addText(oa.getMessage(242), Y.TYPE.ERROR);
           break;
         case 1:
-          Y.addText(pa.getMessage(243), Y.TYPE.ERROR);
+          Y.addText(oa.getMessage(243), Y.TYPE.ERROR);
           break;
         case 2:
-          Y.addText(pa.getMessage(244), Y.TYPE.ERROR);
+          Y.addText(oa.getMessage(244), Y.TYPE.ERROR);
           break;
         case 3:
-          Y.addText(pa.getMessage(245), Y.TYPE.BLUE);
+          Y.addText(oa.getMessage(245), Y.TYPE.BLUE);
       }
     }
-    function v(a) {
-      Y.addText(pa.getMessage(a.msg), Y.TYPE.PUBLIC);
+    function u(a) {
+      Y.addText(oa.getMessage(a.msg), Y.TYPE.PUBLIC);
     }
-    function t(a) {
+    function v(a) {
       switch (a.varID) {
         case ga.HP:
           ca.add(a.amount, ha.Entity, w.tick, null, ca.TYPE.HEAL);
-          var b = { effectId: ka.EF_HPTIME, ownerAID: ha.Entity.GID };
-          oa.spam(b);
+          var b = { effectId: la.EF_HPTIME, ownerAID: ha.Entity.GID };
+          pa.spam(b);
           ha.Entity.life.hp += a.amount;
           ha.Entity.life.update();
           -1 < ha.Entity.life.hp_max &&
@@ -485,21 +485,21 @@ define(
           break;
         case ga.SP:
           (ca.add(a.amount, ha.Entity, w.tick, null, ca.TYPE.HEAL | ca.TYPE.SP),
-            (b = { effectId: ka.EF_SPTIME, ownerAID: ha.Entity.GID }),
-            oa.spam(b),
+            (b = { effectId: la.EF_SPTIME, ownerAID: ha.Entity.GID }),
+            pa.spam(b),
             (ha.Entity.life.sp += a.amount),
             ha.Entity.life.update(),
             -1 < ha.Entity.life.sp_max &&
               U.update("sp", ha.Entity.life.sp, ha.Entity.life.sp_max));
       }
     }
-    function z(a) {
-      na.addItem(la.extend({}, a));
-    }
-    function E(a) {
-      na.removeItem(a.index, a.count);
+    function A(a) {
+      na.addItem(ka.extend({}, a));
     }
     function C(a) {
+      na.removeItem(a.index, a.count);
+    }
+    function B(a) {
       var b = "";
       switch (a.Type) {
         case 0:
@@ -536,7 +536,7 @@ define(
         Y.TYPE.SELF,
       );
     }
-    function A(a) {
+    function D(a) {
       if (0 == a.DestroyDate && a.EnterTimeOutDate) {
         var b, c, d, e, f;
         b = new Date(1e3 * a.EnterTimeOutDate);
@@ -586,7 +586,7 @@ define(
           Y.TYPE.SELF,
         ));
     }
-    function B(a) {
+    function y(a) {
       for (
         var b = ha.AID.toString().slice(-4),
           c = a.pincode,
@@ -609,16 +609,16 @@ define(
       d.pinCode = b;
       X.sendPacket(d);
     }
-    function F(a) {
-      Ba.setloadInfo(a);
+    function H(a) {
+      Aa.setloadInfo(a);
+    }
+    function N(a) {
+      Aa.setReloadInfo(a);
     }
     function O(a) {
-      Ba.setReloadInfo(a);
+      Aa.setTarget(a);
     }
-    function M(a) {
-      Ba.setTarget(a);
-    }
-    function H(a) {
+    function I(a) {
       if (a.op) {
         Y.addText(
           "\u79bb\u7ebf\u65f6\u957f\uff1a" + x(a.time, a.endtime),
@@ -733,21 +733,21 @@ define(
       0 < e && (c = c + e + "\u79d2");
       return c;
     }
-    function I(a) {
+    function K(a) {
       switch (a.ui_type) {
         case 7:
-          xa.setData(a.data);
+          ya.setData(a.data);
       }
     }
-    function D(a) {
-      xa.getreward(a.data);
+    function E(a) {
+      ya.getreward(a.data);
     }
-    function L(a) {
-      za.append();
-      za.toggle();
+    function F(a) {
+      wa.append();
+      wa.toggle();
     }
-    function y(a) {
-      za.setData(a);
+    function z(a) {
+      wa.setData(a);
     }
     function G(a) {
       switch (a.response) {
@@ -774,20 +774,20 @@ define(
             Y.addText("\u672a\u77e5\u5730\u56fe", Y.TYPE.SELF));
       }
     }
-    function K(a) {
-      wa.rechargeList(a);
+    function L(a) {
+      za.rechargeList(a);
     }
-    function N(a) {
-      wa.updateList(a);
+    function M(a) {
+      za.updateList(a);
     }
     function Q(a) {
-      wa.setActivate(a);
-    }
-    function W(a) {
-      wa.setEnable(a);
+      za.setActivate(a);
     }
     function V(a) {
-      wa.removeCard(a);
+      za.setEnable(a);
+    }
+    function W(a) {
+      za.removeCard(a);
     }
     function ba(a) {
       U.setGoldPccafe(a);
@@ -824,23 +824,23 @@ define(
       }
     }
     function ea(a) {
-      Da.append();
-      Da.setData(a.ITID);
+      Ea.append();
+      Ea.setData(a.ITID);
     }
     function ta(a) {
       a = new Z.CZ.RANDOM_UPGRADE_ITEM_UI_CLOSE();
       X.sendPacket(a);
-      Da.remove();
+      Ea.remove();
     }
-    var pa = a("DB/DBManager"),
-      la = a("Utils/jquery"),
+    var oa = a("DB/DBManager"),
+      ka = a("Utils/jquery"),
       ga = a("DB/Status/StatusProperty"),
-      ka = a("DB/Effects/EffectConst"),
+      la = a("DB/Effects/EffectConst"),
       ha = a("Engine/SessionStorage"),
       X = a("Network/NetworkManager"),
       Z = a("Network/PacketStructure"),
       qa = a("Renderer/EntityManager"),
-      oa = a("Renderer/EffectManager"),
+      pa = a("Renderer/EffectManager"),
       w = a("Renderer/Renderer"),
       ca = a("Renderer/Effects/Damage"),
       P = a("Preferences/Controls");
@@ -854,69 +854,69 @@ define(
       ja = a("UI/Components/SkillList/SkillList"),
       ia = a("UI/Components/PartyFriends/PartyFriends"),
       na = a("UI/Components/OnPushCart/OnPushCart"),
-      ya = a("UI/Components/NpcStore/NpcStore"),
+      xa = a("UI/Components/NpcStore/NpcStore"),
       ua = a("UI/Components/Mercenary/MercenaryInformations"),
-      Aa = a("UI/Components/MiniMap/MiniMap"),
-      Ba = a("UI/Components/vbk/vbk"),
-      xa = a("UI/Components/Attendance/Attendance"),
-      za = a("UI/Components/RefineUI/RefineUI"),
-      wa = a("UI/Components/CardConnection/CardConnection2");
+      Ba = a("UI/Components/MiniMap/MiniMap"),
+      Aa = a("UI/Components/vbk/vbk"),
+      ya = a("UI/Components/Attendance/Attendance"),
+      wa = a("UI/Components/RefineUI/RefineUI"),
+      za = a("UI/Components/CardConnection/CardConnection2");
     a("UI/Components/PartyBooking/PartyBooking");
     var Ka = a("UI/Components/StatusIcons/StatusIcons"),
       va = a("UI/Components/ItemObtain/ItemObtain"),
       Ha = a("UI/Components/ItemReform/ItemReform"),
       Ca = a("UI/Components/LaphineSynthesis/LaphineSynthesis"),
-      Da = a("UI/Components/LaphineUpgrade/LaphineUpgrade");
+      Ea = a("UI/Components/LaphineUpgrade/LaphineUpgrade");
     return function () {
-      X.hookPacket(Z.ZC.ACK_RANKING, C);
+      X.hookPacket(Z.ZC.ACK_RANKING, B);
       X.hookPacket(Z.ZC.STARSKILL, J);
-      X.hookPacket(Z.ZC.ADD_ITEM_TO_CART, z);
-      X.hookPacket(Z.ZC.ADD_ITEM_TO_CART2, z);
-      X.hookPacket(Z.ZC.ADD_ITEM_TO_CART3, z);
-      X.hookPacket(Z.ZC.ADD_ITEM_TO_CART4, z);
-      X.hookPacket(Z.ZC.DELETE_ITEM_FROM_CART, E);
+      X.hookPacket(Z.ZC.ADD_ITEM_TO_CART, A);
+      X.hookPacket(Z.ZC.ADD_ITEM_TO_CART2, A);
+      X.hookPacket(Z.ZC.ADD_ITEM_TO_CART3, A);
+      X.hookPacket(Z.ZC.ADD_ITEM_TO_CART4, A);
+      X.hookPacket(Z.ZC.DELETE_ITEM_FROM_CART, C);
       X.hookPacket(Z.ZC.NOTIFY_PLAYERMOVE, b);
-      X.hookPacket(Z.ZC.PAR_CHANGE, k);
-      X.hookPacket(Z.ZC.LONGPAR_CHANGE, k);
-      X.hookPacket(Z.ZC.STATUS_CHANGE, k);
+      X.hookPacket(Z.ZC.PAR_CHANGE, n);
+      X.hookPacket(Z.ZC.LONGPAR_CHANGE, n);
+      X.hookPacket(Z.ZC.STATUS_CHANGE, n);
       X.hookPacket(Z.ZC.MER_PAR_CHANGE, g);
-      X.hookPacket(Z.ZC.NOTIFY_CARTITEM_COUNTINFO, k);
-      X.hookPacket(Z.ZC.COUPLESTATUS, k);
-      X.hookPacket(Z.ZC.UPDATE_EXP, k);
-      X.hookPacket(Z.ZC.NOTIFY_EXP, k);
-      X.hookPacket(Z.ZC.STATUS, q);
+      X.hookPacket(Z.ZC.NOTIFY_CARTITEM_COUNTINFO, n);
+      X.hookPacket(Z.ZC.COUPLESTATUS, n);
+      X.hookPacket(Z.ZC.UPDATE_EXP, n);
+      X.hookPacket(Z.ZC.NOTIFY_EXP, n);
+      X.hookPacket(Z.ZC.STATUS, t);
       X.hookPacket(Z.ZC.STATUS_CHANGE_ACK, r);
       X.hookPacket(Z.ZC.ATTACK_RANGE, h);
-      X.hookPacket(Z.ZC.BROADCAST, u);
-      X.hookPacket(Z.ZC.BROADCAST2, u);
+      X.hookPacket(Z.ZC.BROADCAST, p);
+      X.hookPacket(Z.ZC.BROADCAST2, p);
       X.hookPacket(Z.ZC.BROADCAST_ITEMREFINING_RESULT, l);
       X.hookPacket(Z.ZC.USER_COUNT, f);
       X.hookPacket(Z.ZC.NOTIFY_PLAYERCHAT, c);
       X.hookPacket(Z.ZC.MSG_VALUE, d);
       X.hookPacket(Z.ZC.SHOWSCRIPT, e);
       X.hookPacket(Z.ZC.ATTACK_FAILURE_FOR_DISTANCE, m);
-      X.hookPacket(Z.ZC.CONFIG, n);
-      X.hookPacket(Z.ZC.ACTION_FAILURE, p);
-      X.hookPacket(Z.ZC.MSG, v);
-      X.hookPacket(Z.ZC.MSG_COLOR, v);
-      X.hookPacket(Z.ZC.RECOVERY, t);
-      X.hookPacket(Z.ZC.RECOVERY2, t);
-      X.hookPacket(Z.ZC.MEMORIALDUNGEON_INFO, A);
-      X.hookPacket(Z.ZC.SECOND_CHECK, B);
-      X.hookPacket(Z.ZC.NOTIFY_LOADINFO, F);
-      X.hookPacket(Z.ZC.NOTIFY_OFFLINEMSG, H);
-      X.hookPacket(Z.ZC.NOTIFY_RELOADINFOS, O);
-      X.hookPacket(Z.ZC.NOTIFY_SETTARGET, M);
-      X.hookPacket(Z.ZC.UI_OPEN, I);
-      X.hookPacket(Z.ZC.NOTIFY_ATTENDANCE, D);
-      X.hookPacket(Z.ZC.REFINE_OPEN_WINDOW, L);
-      X.hookPacket(Z.ZC.REFINE_ADD_ITEM, y);
+      X.hookPacket(Z.ZC.CONFIG, k);
+      X.hookPacket(Z.ZC.ACTION_FAILURE, q);
+      X.hookPacket(Z.ZC.MSG, u);
+      X.hookPacket(Z.ZC.MSG_COLOR, u);
+      X.hookPacket(Z.ZC.RECOVERY, v);
+      X.hookPacket(Z.ZC.RECOVERY2, v);
+      X.hookPacket(Z.ZC.MEMORIALDUNGEON_INFO, D);
+      X.hookPacket(Z.ZC.SECOND_CHECK, y);
+      X.hookPacket(Z.ZC.NOTIFY_LOADINFO, H);
+      X.hookPacket(Z.ZC.NOTIFY_OFFLINEMSG, I);
+      X.hookPacket(Z.ZC.NOTIFY_RELOADINFOS, N);
+      X.hookPacket(Z.ZC.NOTIFY_SETTARGET, O);
+      X.hookPacket(Z.ZC.UI_OPEN, K);
+      X.hookPacket(Z.ZC.NOTIFY_ATTENDANCE, E);
+      X.hookPacket(Z.ZC.REFINE_OPEN_WINDOW, F);
+      X.hookPacket(Z.ZC.REFINE_ADD_ITEM, z);
       X.hookPacket(Z.ZC.PRIVATE_AIRSHIP_RESPONSE, G);
-      X.hookPacket(Z.ZC.CARDCONNECTION_RECHARGE_LIST, K);
-      X.hookPacket(Z.ZC.CARDCONNECTION_RECHARGE_UPDATE, N);
+      X.hookPacket(Z.ZC.CARDCONNECTION_RECHARGE_LIST, L);
+      X.hookPacket(Z.ZC.CARDCONNECTION_RECHARGE_UPDATE, M);
       X.hookPacket(Z.ZC.CARDCONNECTION_ACTIVATE_UPDATE, Q);
-      X.hookPacket(Z.ZC.CARDCONNECTION_ENABLE_UPDATE, W);
-      X.hookPacket(Z.ZC.CARDCONNECTION_CANCEL_UPDATE, V);
+      X.hookPacket(Z.ZC.CARDCONNECTION_ENABLE_UPDATE, V);
+      X.hookPacket(Z.ZC.CARDCONNECTION_CANCEL_UPDATE, W);
       X.hookPacket(Z.ZC.GOLDPCCAFE_POINT, ba);
       X.hookPacket(Z.ZC.DYNAMICNPC_CREATE_RESULT, S);
       X.hookPacket(Z.ZC.OPEN_REFORM_UI, T);

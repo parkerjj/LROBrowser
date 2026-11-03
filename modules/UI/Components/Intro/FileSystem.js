@@ -29,11 +29,11 @@ define("UI/Components/Intro/FileSystem", [], function () {
     cleanup: function (a) {
       b.root.createReader().readEntries(function (b) {
         function c() {
-          ++k >= e && a();
+          ++m >= e && a();
         }
         var d,
           e = b.length,
-          k = 0;
+          m = 0;
         for (d = 0; d < e; ++d)
           b[d].isDirectory ? b[d].removeRecursively(c) : b[d].remove(c);
         e || a();

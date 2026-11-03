@@ -12,94 +12,94 @@ define(
               3 < Math.abs(l.Entity.position[1] - a.position[1])) &&
             ((a = new g.CZ.REQUEST_MOVETOOWNER()),
             (a.GID = l.homGID),
-            k.sendPacket(a)),
-          u.clearTimeout(E),
-          (E = u.setTimeout(b, 200)))
-        : u.clearTimeout(E);
+            n.sendPacket(a)),
+          p.clearTimeout(C),
+          (C = p.setTimeout(b, 200)))
+        : p.clearTimeout(C);
     }
     function c(a) {
-      t.initData(a);
+      v.initData(a);
     }
     function d(a) {
       0 < a.nRelationship
-        ? t.setInformations(a)
-        : ((l.homGID = 0), (t.info = null));
+        ? v.setInformations(a)
+        : ((l.homGID = 0), (v.info = null));
     }
     function e(a) {
-      z.append();
-      z.setskill(a.skillList);
+      A.append();
+      A.setskill(a.skillList);
     }
     function m() {
       l.moveAction &&
-        u.setTimeout(function () {
+        p.setTimeout(function () {
           l.moveAction &&
-            (k.sendPacket(l.moveAction),
+            (n.sendPacket(l.moveAction),
             null == f.getFocusEntity() &&
-              k.sendPacket(new g.CZ.CANCEL_LOCKON()),
+              n.sendPacket(new g.CZ.CANCEL_LOCKON()),
             (l.moveAction = null));
         }, 50);
     }
     function h(a) {
       a.cRet ||
-        v.addText(
-          q
+        u.addText(
+          t
             .getMessage(591)
-            .replace("%s", q.getItemInfo(a.ITID).identifiedDiSPlayName),
-          v.TYPE.ERROR,
+            .replace("%s", t.getItemInfo(a.ITID).identifiedDiSPlayName),
+          u.TYPE.ERROR,
         );
     }
-    var q = a("DB/DBManager"),
+    var t = a("DB/DBManager"),
       r = a("Utils/PathFinding"),
-      k = a("Network/NetworkManager"),
+      n = a("Network/NetworkManager"),
       g = a("Network/PacketStructure");
     a("Core/Client");
-    var u = a("Core/Events"),
+    var p = a("Core/Events"),
       l = a("Engine/SessionStorage"),
       f = a("Renderer/EntityManager"),
-      n = a("Renderer/Map/Altitude"),
-      p = a("UI/UIManager");
+      k = a("Renderer/Map/Altitude"),
+      q = a("UI/UIManager");
     a("UI/Components/SlotMachine/SlotMachine");
     a("UI/Components/SkillTargetSelection/SkillTargetSelection");
     a("UI/Components/ItemSelection/ItemSelection");
-    var v = a("UI/Components/ChatBox/ChatBox"),
-      t = a("UI/Components/Homunc/HomuncInformations"),
-      z = a("UI/Components/Homunc/HomuncskillList"),
-      E = null;
-    t.reqPetFeed = function (a) {
-      p.showPromptBox(q.getMessage(601), "ok", "cancel", function () {
+    var u = a("UI/Components/ChatBox/ChatBox"),
+      v = a("UI/Components/Homunc/HomuncInformations"),
+      A = a("UI/Components/Homunc/HomuncskillList"),
+      C = null;
+    v.reqPetFeed = function (a) {
+      q.showPromptBox(t.getMessage(601), "ok", "cancel", function () {
         var a = new g.CZ.COMMAND_MER();
         a.type = 0;
         a.command = 1;
-        k.sendPacket(a);
+        n.sendPacket(a);
       });
     };
-    t.reqNameEdit = function (a) {
-      p.showPromptBox(q.getMessage(683), "ok", "cancel", function () {
+    v.reqNameEdit = function (a) {
+      q.showPromptBox(t.getMessage(683), "ok", "cancel", function () {
         var b = new g.CZ.RENAME_MER();
         b.name = a;
-        k.sendPacket(b);
+        n.sendPacket(b);
       });
     };
-    t.reqFired = function () {
-      p.showPromptBox(q.getMessage(955), "ok", "cancel", function () {
-        t.remove();
-        z.remove();
+    v.reqFired = function () {
+      q.showPromptBox(t.getMessage(955), "ok", "cancel", function () {
+        v.remove();
+        A.remove();
         var a = new g.CZ.COMMAND_MER();
         a.type = 0;
         a.command = 2;
-        k.sendPacket(a);
+        n.sendPacket(a);
       });
     };
-    z.onIncreaseSkill = function (a) {
+    A.onIncreaseSkill = function (a) {
       var b = new g.CZ.UPGRADE_SKILLLEVEL();
       b.SKID = a;
-      k.sendPacket(b);
+      n.sendPacket(b);
     };
-    z.onUseSkill = function (a, b, c) {
+    A.onUseSkill = function (a, b, c) {
       var d, e, h, m, p;
       d = f.get(l.homGID);
       h = f.get(c) || d;
-      e = z.getSkillById(a);
+      e = A.getSkillById(a);
       m = [];
       if (h != d || !e || 1 != e.type)
         if (
@@ -111,7 +111,7 @@ define(
             h.position[1] | 0,
             e,
             m,
-            n.TYPE.WALKABLE,
+            k.TYPE.WALKABLE,
           )))
         )
           ((e = new g.CZ.USE_SKILL()),
@@ -124,19 +124,19 @@ define(
               (e = new g.CZ.REQUEST_MOVE()),
               (e.dest[0] = m[2 * (p - 1) + 0]),
               (e.dest[1] = m[2 * (p - 1) + 1])),
-            k.sendPacket(e));
+            n.sendPacket(e));
     };
-    t.WalkEnd = function () {
+    v.WalkEnd = function () {
       var a = f.get(l.homGID);
-      E = u.setTimeout(b, 200);
+      C = p.setTimeout(b, 200);
       a.onWalkEnd = m;
     };
     return function () {
-      k.hookPacket(g.ZC.CHANGESTATE_MER, c);
-      k.hookPacket(g.ZC.PROPERTY_HOMUN_2, d);
-      k.hookPacket(g.ZC.PROPERTY_HOMUN4, d);
-      k.hookPacket(g.ZC.HOM_SKILLINFO_LIST, e);
-      k.hookPacket(g.ZC.FEED_HOM, h);
+      n.hookPacket(g.ZC.CHANGESTATE_MER, c);
+      n.hookPacket(g.ZC.PROPERTY_HOMUN_2, d);
+      n.hookPacket(g.ZC.PROPERTY_HOMUN4, d);
+      n.hookPacket(g.ZC.HOM_SKILLINFO_LIST, e);
+      n.hookPacket(g.ZC.FEED_HOM, h);
     };
   },
 );

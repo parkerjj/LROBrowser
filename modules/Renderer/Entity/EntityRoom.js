@@ -19,9 +19,9 @@ define(
       e = a("Core/Client"),
       m = a("DB/DBManager"),
       h = a("UI/Components/EntityRoom/EntityRoom"),
-      q = c.vec4,
+      t = c.vec4,
       r = new Float32Array(4),
-      k = new Float32Array(2);
+      n = new Float32Array(2);
     b.Type = { SELL_SHOP: 0, BUY_SHOP: 1, PUBLIC_CHAT: 2, PRIVATE_CHAT: 3 };
     b.prototype.create = function (a, c, d, f) {
       function g() {
@@ -67,12 +67,12 @@ define(
       r[1] = 4;
       r[2] = 0;
       r[3] = 1;
-      k[0] = d.width / 2;
-      k[1] = d.height / 2;
-      q.transformMat4(r, r, a);
+      n[0] = d.width / 2;
+      n[1] = d.height / 2;
+      t.transformMat4(r, r, a);
       a = 0 === r[3] ? 1 : 1 / r[3];
-      r[0] = k[0] + k[0] * r[0] * a;
-      r[1] = k[1] - k[1] * r[1] * a;
+      r[0] = n[0] + n[0] * r[0] * a;
+      r[1] = n[1] - n[1] * r[1] * a;
       b.style.top = (r[1] | 0) + "px";
       b.style.left = ((r[0] - 70) | 0) + "px";
     };

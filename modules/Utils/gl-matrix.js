@@ -1,57 +1,57 @@
 define("Utils/gl-matrix", ["Vendors/gl-matrix"], function (a) {
   a.vec3.calcNormal = function (a, c, d, e) {
-    var b, h, q, r;
+    var b, h, t, r;
     b = d[0] - c[0];
     h = d[1] - c[1];
-    q = d[2] - c[2];
+    t = d[2] - c[2];
     d = a[0] - c[0];
     r = a[1] - c[1];
     c = a[2] - c[2];
-    a = h * c - q * r;
-    q = q * d - b * c;
+    a = h * c - t * r;
+    t = t * d - b * c;
     b = b * r - h * d;
-    h = 1 / Math.sqrt(a * a + q * q + b * b);
+    h = 1 / Math.sqrt(a * a + t * t + b * b);
     e[0] = a * h;
-    e[1] = q * h;
+    e[1] = t * h;
     e[2] = b * h;
     return e;
   };
   a.vec4.calcNormal = function (a, c, d, e, m) {
-    var b, q, r, k, g, u, l, f, n;
+    var b, t, r, n, g, p, l, f, k;
     r = d[0] - c[0];
-    k = d[1] - c[1];
+    n = d[1] - c[1];
     g = d[2] - c[2];
-    u = a[0] - c[0];
+    p = a[0] - c[0];
     l = a[1] - c[1];
     f = a[2] - c[2];
-    n = k * f - g * l;
-    g = g * u - r * f;
-    r = r * l - k * u;
-    k = 1 / Math.sqrt(n * n + g * g + r * r);
-    c = n * k;
-    b = g * k;
-    q = r * k;
+    k = n * f - g * l;
+    g = g * p - r * f;
+    r = r * l - n * p;
+    n = 1 / Math.sqrt(k * k + g * g + r * r);
+    c = k * n;
+    b = g * n;
+    t = r * n;
     r = a[0] - e[0];
-    k = a[1] - e[1];
+    n = a[1] - e[1];
     g = a[2] - e[2];
-    u = d[0] - e[0];
+    p = d[0] - e[0];
     l = d[1] - e[1];
     f = d[2] - e[2];
-    n = k * f - g * l;
-    g = g * u - r * f;
-    r = r * l - k * u;
-    k = 1 / Math.sqrt(n * n + g * g + r * r);
-    c += n * k;
-    b += g * k;
-    q += r * k;
-    k = 1 / Math.sqrt(c * c + b * b + q * q);
-    m[0] = c * k;
-    m[1] = b * k;
-    m[2] = q * k;
+    k = n * f - g * l;
+    g = g * p - r * f;
+    r = r * l - n * p;
+    n = 1 / Math.sqrt(k * k + g * g + r * r);
+    c += k * n;
+    b += g * n;
+    t += r * n;
+    n = 1 / Math.sqrt(c * c + b * b + t * t);
+    m[0] = c * n;
+    m[1] = b * n;
+    m[2] = t * n;
     return m;
   };
   a.mat4.translateZ = function (a, c, d) {
-    var b, m, h, q, r, k, g, u, l, f, n;
+    var b, m, h, t, r, n, g, p, l, f, k;
     if (!d || a === d)
       return (
         (a[12] += a[8] * c),
@@ -63,30 +63,30 @@ define("Utils/gl-matrix", ["Vendors/gl-matrix"], function (a) {
     b = a[0];
     m = a[1];
     h = a[2];
-    q = a[3];
+    t = a[3];
     r = a[4];
-    k = a[5];
+    n = a[5];
     g = a[6];
-    u = a[7];
+    p = a[7];
     l = a[8];
     f = a[9];
-    n = a[10];
+    k = a[10];
     a = a[11];
     d[0] = b;
     d[1] = m;
     d[2] = h;
-    d[3] = q;
+    d[3] = t;
     d[4] = r;
-    d[5] = k;
+    d[5] = n;
     d[6] = g;
-    d[7] = u;
+    d[7] = p;
     d[8] = l;
     d[9] = f;
-    d[10] = n;
+    d[10] = k;
     d[11] = a;
     d[12] += l * c;
     d[13] += f * c;
-    d[14] += n * c;
+    d[14] += k * c;
     d[15] += a * c;
     return d;
   };
@@ -96,11 +96,11 @@ define("Utils/gl-matrix", ["Vendors/gl-matrix"], function (a) {
     m = d[1];
     h = d[2];
     d = d[3];
-    var q = Math.sqrt(e * e + m * m + h * h + d * d);
-    e /= q;
-    m /= q;
-    h /= q;
-    d /= q;
+    var t = Math.sqrt(e * e + m * m + h * h + d * d);
+    e /= t;
+    m /= t;
+    h /= t;
+    d /= t;
     return a.mat4.multiply(b, c, [
       1 - 2 * (m * m + h * h),
       2 * (e * m + h * d),
@@ -160,27 +160,27 @@ define("Utils/gl-matrix", ["Vendors/gl-matrix"], function (a) {
       e = b[1],
       m = b[2],
       h = b[4],
-      q = b[5],
+      t = b[5],
       r = b[6],
-      k = b[8],
+      n = b[8],
       g = b[9];
     b = b[10];
-    var u = b * q - r * g,
-      l = -b * h + r * k,
-      f = g * h - q * k,
-      n = d * u + e * l + m * f;
-    if (!n) return null;
-    n = 1 / n;
+    var p = b * t - r * g,
+      l = -b * h + r * n,
+      f = g * h - t * n,
+      k = d * p + e * l + m * f;
+    if (!k) return null;
+    k = 1 / k;
     c || (c = a.mat3.create());
-    c[0] = u * n;
-    c[1] = (-b * e + m * g) * n;
-    c[2] = (r * e - m * q) * n;
-    c[3] = l * n;
-    c[4] = (b * d - m * k) * n;
-    c[5] = (-r * d + m * h) * n;
-    c[6] = f * n;
-    c[7] = (-g * d + e * k) * n;
-    c[8] = (q * d - e * h) * n;
+    c[0] = p * k;
+    c[1] = (-b * e + m * g) * k;
+    c[2] = (r * e - m * t) * k;
+    c[3] = l * k;
+    c[4] = (b * d - m * n) * k;
+    c[5] = (-r * d + m * h) * k;
+    c[6] = f * k;
+    c[7] = (-g * d + e * n) * k;
+    c[8] = (t * d - e * h) * k;
     return c;
   };
   a.mat4.perspective = function (b, c, d, e, m) {

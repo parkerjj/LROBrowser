@@ -11,61 +11,61 @@ define(
       d(1);
     }
     function d(a) {
-      W.size = (W.size + a) % (Q + 1);
-      W.save();
-      K.ui.css("height", 34 * W.size);
-      1 >= W.size
-        ? K.ui.find(".resize-up").hide()
-        : K.ui.find(".resize-up").show();
-      4 == W.size
-        ? (K.ui.find(".resize-down").hide(),
-          K.ui.find(".resize-down-disabled").show())
-        : (K.ui.find(".resize-down").show(),
-          K.ui.find(".resize-down-disabled").hide());
+      V.size = (V.size + a) % (Q + 1);
+      V.save();
+      L.ui.css("height", 34 * V.size);
+      1 >= V.size
+        ? L.ui.find(".resize-up").hide()
+        : L.ui.find(".resize-up").show();
+      4 == V.size
+        ? (L.ui.find(".resize-down").hide(),
+          L.ui.find(".resize-down-disabled").show())
+        : (L.ui.find(".resize-down").show(),
+          L.ui.find(".resize-down-disabled").hide());
     }
     function e(a) {
       a.stopImmediatePropagation();
       return !1;
     }
     function m(a) {
-      var b = K.ui,
+      var b = L.ui,
         c = b.position().top,
         d = 0,
         f;
       f = setInterval(function () {
         var a = Math.floor((J.screen.y - c) / 34 + 1),
           a = Math.min(Math.max(a, 1), Q);
-        a !== d && (b.css("height", 34 * a), (W.size = a), W.save(), (d = a));
+        a !== d && (b.css("height", 34 * a), (V.size = a), V.save(), (d = a));
       }, 30);
-      t(window).on("mouseup.resize", function (a) {
-        1 === a.which && (clearInterval(f), t(window).off("mouseup.resize"));
+      v(window).on("mouseup.resize", function (a) {
+        1 === a.which && (clearInterval(f), v(window).off("mouseup.resize"));
       });
       return e(a);
     }
     function h(a, b, c, d) {
       var e,
-        f = K.ui.find(".container:eq(" + a + ")").empty();
+        f = L.ui.find(".container:eq(" + a + ")").empty();
       __list[a] || (__list[a] = {});
       __list[a].isSkill = b;
       __list[a].ID = c;
       __list[a].count = d;
       if (b) {
         if (!d) return;
-        a = p.getSkillInfo(c);
+        a = q.getSkillInfo(c);
         c = a.Name;
         e = a.SkillName;
       } else {
-        a = O.getItemById(c);
+        a = N.getItemById(c);
         if (!a) return;
-        c = p.getItemInfo(c);
+        c = q.getItemInfo(c);
         c = a.IsIdentified
           ? c.identifiedResourceName
           : c.unidentifiedResourceName;
-        e = p.getItemName(a);
-        d = a.type === v.WEAPON || a.type === v.EQUIP ? 1 : a.count;
+        e = q.getItemName(a);
+        d = a.type === u.WEAPON || a.type === u.EQUIP ? 1 : a.count;
         if (!d) return;
       }
-      z.loadFile(p.INTERFACE_PATH + "item/" + c + ".bmp", function (a) {
+      A.loadFile(q.INTERFACE_PATH + "item/" + c + ".bmp", function (a) {
         f.html(
           '\x3cdiv draggable\x3d"true" class\x3d"icon" data-isSkill\x3d"' +
             b +
@@ -76,7 +76,7 @@ define(
         f.find(".name").text(e);
       });
     }
-    function q(a, b, c, d) {
+    function t(a, b, c, d) {
       var e;
       if (b)
         if (d)
@@ -85,21 +85,21 @@ define(
               __list[e].isSkill == a &&
               __list[e].ID === b &&
               __list[e].count == d &&
-              (K.ui.find(".container:eq(" + e + ")").empty(),
+              (L.ui.find(".container:eq(" + e + ")").empty(),
               (__list[e].isSkill = 0),
               (__list[e].ID = 0),
               (__list[e].count = 0),
-              K.onChange(e, 0, 0, 0));
+              L.onChange(e, 0, 0, 0));
         else
           for (e = 9 * c, c = Math.min(__list.length, 9 * c + 9); e < c; ++e)
             __list[e] &&
               __list[e].isSkill == a &&
               __list[e].ID === b &&
-              (K.ui.find(".container:eq(" + e + ")").empty(),
+              (L.ui.find(".container:eq(" + e + ")").empty(),
               (__list[e].isSkill = 0),
               (__list[e].ID = 0),
               (__list[e].count = 0),
-              K.onChange(e, 0, 0, 0));
+              L.onChange(e, 0, 0, 0));
     }
     function r(a) {
       var b,
@@ -112,39 +112,39 @@ define(
         ((b = JSON.parse(a.originalEvent.dataTransfer.getData("Text"))),
           (c = b.data),
           (d = b.level));
-      } catch (pa) {
+      } catch (oa) {
         return !1;
       }
       if ("item" !== b.type && "skill" !== b.type) return !1;
       switch (b.from) {
         case "SkillList":
-          K.onChange(e, !0, c.SKID, d);
-          q(!0, c.SKID, f, d);
+          L.onChange(e, !0, c.SKID, d);
+          t(!0, c.SKID, f, d);
           h(e, !0, c.SKID, d);
           break;
         case "MercenaryskillList":
-          K.onChange(e, !0, c.SKID, d);
-          q(!0, c.SKID, f, d);
+          L.onChange(e, !0, c.SKID, d);
+          t(!0, c.SKID, f, d);
           h(e, !0, c.SKID, d);
           break;
         case "HomuncskillList":
-          K.onChange(e, !0, c.SKID, d);
-          q(!0, c.SKID, f, d);
+          L.onChange(e, !0, c.SKID, d);
+          t(!0, c.SKID, f, d);
           h(e, !0, c.SKID, d);
           break;
         case "Inventory":
-          K.onChange(e, !1, c.ITID, 0);
-          q(!1, c.ITID, f);
+          L.onChange(e, !1, c.ITID, 0);
+          t(!1, c.ITID, f);
           h(e, !1, c.ITID, 0);
           break;
         case "ShortCut":
-          (K.onChange(e, c.isSkill, c.ID, c.count),
-            q(c.isSkill, c.ID, f),
+          (L.onChange(e, c.isSkill, c.ID, c.count),
+            t(c.isSkill, c.ID, f),
             h(e, c.isSkill, c.ID, c.count));
       }
       return !1;
     }
-    function k() {
+    function n() {
       delete window._OBJ_DRAG_;
       this.classList.remove("hide");
     }
@@ -166,55 +166,55 @@ define(
         ),
       );
     }
-    function u(a) {
+    function p(a) {
       var b = parseInt(this.parentNode.getAttribute("data-index"), 10),
         c = __list[b];
       a.stopImmediatePropagation();
       if (c.isSkill)
-        L.uid === __list[b].ID
-          ? L.remove()
-          : (L.append(), L.setSkill(__list[b].ID));
+        F.uid === __list[b].ID
+          ? F.remove()
+          : (F.append(), F.setSkill(__list[b].ID));
       else {
-        if (F.uid === __list[b].ID) return (F.remove(), !1);
-        F.append();
-        F.uid = __list[b].ID;
-        F.setItem(O.getItemById(__list[b].ID));
+        if (H.uid === __list[b].ID) return (H.remove(), !1);
+        H.append();
+        H.uid = __list[b].ID;
+        H.setItem(N.getItemById(__list[b].ID));
       }
       return !1;
     }
     function l() {
       var a = parseInt(this.parentNode.getAttribute("data-index"), 10),
-        b = t(this).parent().find(".amount").text();
+        b = v(this).parent().find(".amount").text();
       f(a, b);
     }
     function f(a, b) {
       var c = __list[a];
-      y.remove();
+      z.remove();
       if (S) return !1;
       ba
-        ? A.showMessageBox(
+        ? D.showMessageBox(
             "You are temporarily restricted from clicking.",
             "ok",
           )
         : !c ||
-          t("#NpcStore").is(":visible") ||
-          t("#NpcBox").is(":visible") ||
-          t("#NpcMenu").is(":visible") ||
-          t("#WarpList").is(":visible") ||
-          K.ui.find(".container[data-index\x3d" + a + "]").hasClass("cd") ||
-          (1 === V &&
+          v("#NpcStore").is(":visible") ||
+          v("#NpcBox").is(":visible") ||
+          v("#NpcMenu").is(":visible") ||
+          v("#WarpList").is(":visible") ||
+          L.ui.find(".container[data-index\x3d" + a + "]").hasClass("cd") ||
+          (1 === W &&
             setTimeout(function () {
-              V = 0;
+              W = 0;
             }, 5e3),
-          30 < V
+          30 < W
             ? ((ba = !0),
-              A.showMessageBox(
+              D.showMessageBox(
                 "Click limit exceeded. You are restricted for 10s.",
                 "ok",
               ),
               setTimeout(function () {
                 ba = !1;
-                A.showMessageBox(
+                D.showMessageBox(
                   "Restriction lifted. You can click again.",
                   "ok",
                 );
@@ -227,91 +227,91 @@ define(
                 100,
               ),
               c.isSkill
-                ? "" == t("#SkillTargetSelection").html()
-                  ? y.remove()
+                ? "" == v("#SkillTargetSelection").html()
+                  ? z.remove()
                   : (a = x.getSkillById(c.ID)) && a.level
                     ? x.useSkillID(c.ID, b)
-                    : (a = I.getSkillById(c.ID)) && a.level
-                      ? I.useSkillID(c.ID, b)
-                      : (a = D.getSkillById(c.ID)) &&
+                    : (a = K.getSkillById(c.ID)) && a.level
+                      ? K.useSkillID(c.ID, b)
+                      : (a = E.getSkillById(c.ID)) &&
                         a.level &&
-                        D.useSkillID(c.ID, b)
-                : (b = O.getItemById(__list[a].ID)) && O.useItem(b)));
+                        E.useSkillID(c.ID, b)
+                : (b = N.getItemById(__list[a].ID)) && N.useItem(b)));
     }
-    function n() {
-      K.ui.css("height", 0);
-      W.size = 0;
-      W.save();
+    function k() {
+      L.ui.css("height", 0);
+      V.size = 0;
+      V.save();
     }
-    var p = a("DB/DBManager"),
-      v = a("DB/Items/ItemType"),
-      t = a("Utils/jquery"),
-      z = a("Core/Client"),
-      E = a("Core/Preferences"),
-      C = a("Renderer/Renderer"),
+    var q = a("DB/DBManager"),
+      u = a("DB/Items/ItemType"),
+      v = a("Utils/jquery"),
+      A = a("Core/Client"),
+      C = a("Core/Preferences"),
+      B = a("Renderer/Renderer"),
       J = a("Controls/MouseEventHandler"),
-      A = a("UI/UIManager"),
-      B = a("UI/UIComponent"),
-      F = a("UI/Components/ItemInfo/ItemInfo"),
-      O = a("UI/Components/Inventory/Inventory"),
-      M = a("UI/Components/OnPushCart/OnPushCart"),
-      H = a("UI/Components/Guild/Guild"),
+      D = a("UI/UIManager"),
+      y = a("UI/UIComponent"),
+      H = a("UI/Components/ItemInfo/ItemInfo"),
+      N = a("UI/Components/Inventory/Inventory"),
+      O = a("UI/Components/OnPushCart/OnPushCart"),
+      I = a("UI/Components/Guild/Guild"),
       x = a("UI/Components/SkillList/SkillList"),
-      I = a("UI/Components/Mercenary/MercenaryskillList"),
-      D = a("UI/Components/Homunc/HomuncskillList"),
-      L = a("UI/Components/SkillDescription/SkillDescription"),
-      y = a("UI/Components/SkillTargetSelection/SkillTargetSelection"),
+      K = a("UI/Components/Mercenary/MercenaryskillList"),
+      E = a("UI/Components/Homunc/HomuncskillList"),
+      F = a("UI/Components/SkillDescription/SkillDescription"),
+      z = a("UI/Components/SkillTargetSelection/SkillTargetSelection"),
       G = a("text!./ShortCut.html");
     a = a("text!./ShortCut.css");
-    var K = new B("ShortCut", G, a),
-      N = [],
+    var L = new y("ShortCut", G, a),
+      M = [],
       Q = 0,
-      W = E.get("ShortCut", { x: 223, y: 0, size: 1 }, 1.1),
-      V = 0,
+      V = C.get("ShortCut", { x: 223, y: 0, size: 1 }, 1.1),
+      W = 0,
       ba = !1;
-    K.init = function () {
+    L.init = function () {
       this.ui.find(".resize").mousedown(m);
-      this.ui.find(".close").mousedown(e).click(n);
+      this.ui.find(".close").mousedown(e).click(k);
       this.ui.find(".resize-up").on("click", b);
       this.ui.find(".resize-down").on("click", c);
       this.ui
         .on("drop", ".container", r)
         .on("dragover", ".container", e)
         .on("dragstart", ".icon", g)
-        .on("dragend", ".icon", k)
+        .on("dragend", ".icon", n)
         .on("dblclick", ".icon", l)
-        .on("contextmenu", ".icon", u)
+        .on("contextmenu", ".icon", p)
         .on("mousedown", ".icon", function (a) {
           a.stopImmediatePropagation();
         });
-      1 >= W.size
-        ? K.ui.find(".resize-up").hide()
-        : K.ui.find(".resize-up").show();
-      4 == W.size
-        ? (K.ui.find(".resize-down").hide(),
-          K.ui.find(".resize-down-disabled").show())
-        : (K.ui.find(".resize-down").show(),
-          K.ui.find(".resize-down-disabled").hide());
+      1 >= V.size
+        ? L.ui.find(".resize-up").hide()
+        : L.ui.find(".resize-up").show();
+      4 == V.size
+        ? (L.ui.find(".resize-down").hide(),
+          L.ui.find(".resize-down-disabled").show())
+        : (L.ui.find(".resize-down").show(),
+          L.ui.find(".resize-down-disabled").hide());
       this.draggable();
     };
-    K.onAppend = function () {
+    L.onAppend = function () {
       this.ui.css({
-        top: Math.min(Math.max(0, W.y), C.height - this.ui.height()),
-        left: Math.min(Math.max(0, W.x), C.width - this.ui.width()),
-        height: 34 * W.size,
+        top: Math.min(Math.max(0, V.y), B.height - this.ui.height()),
+        left: Math.min(Math.max(0, V.x), B.width - this.ui.width()),
+        height: 34 * V.size,
       });
     };
-    K.onRemove = function () {
-      W.y = parseInt(this.ui.css("top"), 10);
-      W.x = parseInt(this.ui.css("left"), 10);
-      W.size = Math.floor(parseInt(this.ui.css("height"), 10) / 34);
-      W.save();
+    L.onRemove = function () {
+      V.y = parseInt(this.ui.css("top"), 10);
+      V.x = parseInt(this.ui.css("left"), 10);
+      V.size = Math.floor(parseInt(this.ui.css("height"), 10) / 34);
+      V.save();
     };
-    K.clean = function () {
-      N.length = 0;
+    L.clean = function () {
+      M.length = 0;
       this.ui.find(".container").empty();
     };
-    K.onShortCut = (function () {
+    L.onShortCut = (function () {
       var a = 0;
       return function (b) {
         var c = new Date().getTime();
@@ -319,23 +319,23 @@ define(
           switch (((a = c), b.cmd.replace(/\d+/, ""))) {
             case "EXECUTE":
               b = parseInt(b.cmd.match(/\d+/).toString(), 10);
-              c = t("#ShortCut .container[data-index\x3d" + b + "]")
+              c = v("#ShortCut .container[data-index\x3d" + b + "]")
                 .find(".amount")
                 .text();
               f(b, c);
               break;
             case "EXTEND":
-              ((W.size = (W.size + 1) % (Q + 1)),
-                W.save(),
-                this.ui.css("height", 34 * W.size));
+              ((V.size = (V.size + 1) % (Q + 1)),
+                V.save(),
+                this.ui.css("height", 34 * V.size));
           }
       };
     })();
-    K.setList = function (a) {
+    L.setList = function (a) {
       var b, c, d, e;
-      N = a;
+      M = a;
       this.ui.find(".container .border").empty();
-      N.length = a.length;
+      M.length = a.length;
       Q = Math.min(4, Math.floor(a.length / 9));
       b = 0;
       for (c = a.length; b < c; ++b)
@@ -350,25 +350,25 @@ define(
                     .text(a[b].count),
                 h(b, !0, a[b].ID, a[b].count)),
               0 == e &&
-                (d = I.getSkillById(a[b].ID)) &&
+                (d = K.getSkillById(a[b].ID)) &&
                 d.level &&
                 ((e = 1),
                 d.bSeperateLv &&
-                  I.ui
+                  K.ui
                     .find(".skill[data-index\x3d" + a[b].ID + "] .current")
                     .text(a[b].count),
                 h(b, !0, a[b].ID, a[b].count)),
               0 == e &&
-                (d = D.getSkillById(a[b].ID)) &&
+                (d = E.getSkillById(a[b].ID)) &&
                 d.level &&
                 (d.bSeperateLv &&
-                  D.ui
+                  E.ui
                     .find(".skill[data-index\x3d" + a[b].ID + "] .current")
                     .text(a[b].count),
                 h(b, !0, a[b].ID, a[b].count)))
             : h(b, a[b].isSkill, a[b].ID, a[b].count));
     };
-    K.setElement = function (a, b, c) {
+    L.setElement = function (a, b, c) {
       var d, e;
       d = 0;
       for (e = __list.length; d < e; ++d)
@@ -377,24 +377,24 @@ define(
           __list[d].ID === b &&
           h(d, a, b, c);
     };
-    K.setPostdelay = function (a) {
+    L.setPostdelay = function (a) {
       for (var b, c = 0; 18 > c; ++c)
-        if (N[c] && 1 == N[c].isSkill && N[c].ID == a.SKID) {
-          K.ui.find(".container[data-index\x3d" + c + "] ._cover").show();
+        if (M[c] && 1 == M[c].isSkill && M[c].ID == a.SKID) {
+          L.ui.find(".container[data-index\x3d" + c + "] ._cover").show();
           b = c;
           break;
         }
       setTimeout(function () {
-        K.ui.find(".container[data-index\x3d" + b + "] ._cover").hide();
+        L.ui.find(".container[data-index\x3d" + b + "] ._cover").hide();
       }, a.DelayTM);
     };
-    K.setCustom = function () {
+    L.setCustom = function () {
       d(1);
     };
-    K.getList = function () {
-      return N;
+    L.getList = function () {
+      return M;
     };
-    K.addCooldown = function (a) {
+    L.addCooldown = function (a) {
       this.ui.find(".container").addClass("cd");
       this.ui
         .find(".container .icon[data-isSkill\x3dtrue]")
@@ -404,13 +404,13 @@ define(
         .find(".container .cooldown-square")
         .css("animation", "cooldown " + a / 1e3 + "s linear 1");
       setTimeout(function () {
-        K.ui.find(".container").removeClass("cd");
-        K.ui.find(".container .cooldown-square").remove();
+        L.ui.find(".container").removeClass("cd");
+        L.ui.find(".container .cooldown-square").remove();
       }, a);
     };
-    K.addSkillCooldown = function (a, b) {
-      for (var c = -1, d = 0, e = N.length; d < e; ++d)
-        if (N[d].ID === a) {
+    L.addSkillCooldown = function (a, b) {
+      for (var c = -1, d = 0, e = M.length; d < e; ++d)
+        if (M[d].ID === a) {
           c = d;
           break;
         }
@@ -423,32 +423,32 @@ define(
           .find(".container[data-index\x3d" + c + "] .cooldown-square2")
           .css("animation", "cooldown " + b / 1e3 + "s linear 1"),
         setTimeout(function () {
-          K.ui
+          L.ui
             .find(".container[data-index\x3d" + c + "] .cooldown-square2")
             .parent()
             .removeClass("cd");
-          K.ui
+          L.ui
             .find(".container[data-index\x3d" + c + "] .cooldown-square2")
             .remove();
         }, b));
     };
-    K.AddClickCount = function () {
-      V++;
+    L.AddClickCount = function () {
+      W++;
     };
     var S = !1;
+    N.onUpdateItem = function (a, b) {
+      L.setElement(!1, a, b);
+    };
     O.onUpdateItem = function (a, b) {
-      K.setElement(!1, a, b);
+      L.setElement(!1, a, b);
     };
-    M.onUpdateItem = function (a, b) {
-      K.setElement(!1, a, b);
-    };
-    H.onUpdateSkill = function (a, b) {
-      K.setElement(!0, a, b);
+    I.onUpdateSkill = function (a, b) {
+      L.setElement(!0, a, b);
     };
     x.onUpdateSkill = function (a, b) {
-      K.setElement(!0, a, b);
+      L.setElement(!0, a, b);
     };
-    K.onChange = function () {};
-    return A.addComponent(K);
+    L.onChange = function () {};
+    return D.addComponent(L);
   },
 );

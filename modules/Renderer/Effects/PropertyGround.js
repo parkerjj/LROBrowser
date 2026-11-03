@@ -4,24 +4,24 @@ define("Renderer/Effects/PropertyGround", [
   "Utils/gl-matrix",
   "Core/Client",
 ], function (a, b, c, d) {
-  function e(a, b, c, d, e, k) {
+  function e(a, b, c, d, e, h) {
     this.position = a;
     this.topSize = b;
     this.bottomSize = c;
     this.textureName = e;
     this.height = d;
-    this.tick = k;
+    this.tick = h;
     this.sizeRandomize = 0 + 10 * Math.random();
     this.ix = g++ % r.length;
   }
   var m,
     h,
-    q = c.mat4,
+    t = c.mat4,
     r = (function () {
-      for (var a = [], b = 0; 16 > b; b++) a.push(q.create());
+      for (var a = [], b = 0; 16 > b; b++) a.push(t.create());
       return a;
     })(),
-    k = 0,
+    n = 0,
     g = 0;
   e.prototype.init = function (b) {
     var c = this;
@@ -54,15 +54,15 @@ define("Renderer/Effects/PropertyGround", [
     a.uniform1f(c.uBottomSize, this.bottomSize * b);
     a.uniform1f(c.uTopSize, this.topSize * b);
     a.uniform1f(c.uHeight, this.height);
-    a.drawArrays(a.TRIANGLES, 0, k);
+    a.drawArrays(a.TRIANGLES, 0, n);
   };
   e.init = function (b) {
     var c,
       d,
       e,
       g = [],
-      u = [],
-      t = [];
+      p = [],
+      r = [];
     for (c = 0; 20 >= c; c++)
       ((d = (c + 0) / 20),
         (e = (c + 0.5) / 20),
@@ -73,7 +73,7 @@ define("Renderer/Effects/PropertyGround", [
           d,
           1,
         ]),
-        (u[c] = [
+        (p[c] = [
           Math.sin(e * Math.PI * 2),
           Math.cos(e * Math.PI * 2),
           1,
@@ -81,14 +81,14 @@ define("Renderer/Effects/PropertyGround", [
           0,
         ]));
     for (c = 0; 20 >= c; c++)
-      (t.push.apply(t, g[c + 0]),
-        t.push.apply(t, u[c + 0]),
-        t.push.apply(t, g[c + 1]),
-        t.push.apply(t, u[c + 0]),
-        t.push.apply(t, g[c + 1]),
-        t.push.apply(t, u[c + 1]));
-    c = new Float32Array(t);
-    k = c.length / 5;
+      (r.push.apply(r, g[c + 0]),
+        r.push.apply(r, p[c + 0]),
+        r.push.apply(r, g[c + 1]),
+        r.push.apply(r, p[c + 0]),
+        r.push.apply(r, g[c + 1]),
+        r.push.apply(r, p[c + 1]));
+    c = new Float32Array(r);
+    n = c.length / 5;
     m = a.createShaderProgram(
       b,
       "\n\t\t#version 100\n\t\t#pragma vscode_glsllint_stage : vert\n\t\tprecision highp float;\n\n\t\tattribute vec3 aPosition;\n\t\tattribute vec2 aTextureCoord;\n\n\t\tvarying vec2 vTextureCoord;\n\n\t\tuniform mat4 uModelViewMat;\n\t\tuniform mat4 uProjectionMat;\n\t\tuniform mat4 uRotationMat;\n\n\t\tuniform vec3 uPosition;\n\t\tuniform float uTopSize;\n\t\tuniform float uBottomSize;\n\t\tuniform float uHeight;\n\n\t\tvoid main(void) {\n\t\t\tfloat size, height;\n\n\t\t\tif (aPosition.z \x3d\x3d 1.0) {\n\t\t\t\tsize   \x3d uTopSize;\n\t\t\t\theight \x3d uHeight;\n\t\t\t}\n\t\t\telse {\n\t\t\t\tsize   \x3d uBottomSize;\n\t\t\t\theight \x3d 0.0;\n\t\t\t}\n\n\t\t\tvec4 position  \x3d vec4(uPosition.x + 0.5, -uPosition.z - height, uPosition.y + 0.5, 1.0);\n\t\t\tposition      +\x3d vec4(aPosition.x * size, 0.0, aPosition.y * size, 0.0) * uRotationMat;\n\n\t\t\tgl_Position    \x3d uProjectionMat * uModelViewMat * position;\n\t\t\tvTextureCoord  \x3d aTextureCoord;\n\t\t}\n\t",
@@ -106,11 +106,11 @@ define("Renderer/Effects/PropertyGround", [
     this.ready = !1;
   };
   e.beforeRender = function (a, b, c, d, e) {
-    for (var f = m.uniform, g, l, k = 0, h = r.length; k < h; k++)
-      ((g = r[k]),
-        q.identity(g),
-        (l = (2 * k * Math.PI) / r.length),
-        q.rotateY(g, g, l + (e / 8 / 180) * Math.PI));
+    for (var f = m.uniform, g, l, h = 0, k = r.length; h < k; h++)
+      ((g = r[h]),
+        t.identity(g),
+        (l = (2 * h * Math.PI) / r.length),
+        t.rotateY(g, g, l + (e / 8 / 180) * Math.PI));
     a.useProgram(m);
     a.uniformMatrix4fv(f.uModelViewMat, !1, b);
     a.uniformMatrix4fv(f.uProjectionMat, !1, c);

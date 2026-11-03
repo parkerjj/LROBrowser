@@ -14,8 +14,8 @@
       : c((a[b] = {}));
 })(this, "luaparse", function (a) {
   function b(a) {
-    if (za) {
-      var d = xa.pop();
+    if (wa) {
+      var d = ya.pop();
       d.complete();
       d.bless(a);
     }
@@ -54,7 +54,7 @@
         (d = e(new SyntaxError(c("[%1:%2] %3", a.line, b, d)))),
         (d.line = a.line),
         (d.index = a.range[0]))
-      : ((b = U - ya + 1),
+      : ((b = U - xa + 1),
         (d = e(new SyntaxError(c("[%1:%2] %3", na, b, d)))),
         (d.index = U),
         (d.line = na));
@@ -64,7 +64,7 @@
   function h(a, d) {
     m(d, ca.expectedToken, a, d.value);
   }
-  function q(a) {
+  function t(a) {
     var d = ma.value;
     if ("undefined" !== typeof a.type) {
       var b;
@@ -102,11 +102,11 @@
         d = "",
         b = !1,
         c = U,
-        e = ya,
+        e = xa,
         h = na;
-      "[" === a && ((d = v(!0)), !1 === d ? (d = a) : (b = !0));
+      "[" === a && ((d = u(!0)), !1 === d ? (d = a) : (b = !0));
       if (!b) {
-        for (; U < qa && !C(X.charCodeAt(U));) ++U;
+        for (; U < qa && !B(X.charCodeAt(U));) ++U;
         Z.comments && (d = X.slice(c, U));
       }
       if (Z.comments) {
@@ -114,7 +114,7 @@
         Z.locations &&
           (a.loc = {
             start: { line: h, column: ia - e },
-            end: { line: na, column: U - ya },
+            end: { line: na, column: U - xa },
           });
         Z.ranges && (a.range = [ia, U]);
         if (Z.onCreateNode) Z.onCreateNode(a);
@@ -127,7 +127,7 @@
         type: 1,
         value: "\x3ceof\x3e",
         line: na,
-        lineStart: ya,
+        lineStart: xa,
         range: [U, U],
       };
     e = X.charCodeAt(U);
@@ -140,29 +140,29 @@
           ? !0
           : !1;
     if (a) {
-      for (; B(X.charCodeAt(++U)););
+      for (; y(X.charCodeAt(++U)););
       e = l(X.slice(ia, U));
-      F(e)
+      H(e)
         ? (h = 4)
         : "true" === e || "false" === e
           ? ((h = 64), (e = "true" === e))
           : "nil" === e
             ? ((h = 128), (e = null))
             : (h = 8);
-      return { type: h, value: e, line: na, lineStart: ya, range: [ia, U] };
+      return { type: h, value: e, line: na, lineStart: xa, range: [ia, U] };
     }
     switch (e) {
       case 39:
       case 34:
         e = X.charCodeAt(U++);
         h = na;
-        a = ya;
+        a = xa;
         d = U;
         for (b = ""; U < qa;) {
           c = X.charCodeAt(U++);
           if (e === c) break;
-          if (92 === c) ((b += l(X.slice(d, U - 1)) + p()), (d = U));
-          else if (U >= qa || C(c))
+          if (92 === c) ((b += l(X.slice(d, U - 1)) + q()), (d = U));
+          else if (U >= qa || B(c))
             ((b += X.slice(d, U - 1)),
               m({}, ca.unfinishedString, b + String.fromCharCode(c)));
         }
@@ -173,7 +173,7 @@
           line: h,
           lineStart: a,
           lastLine: na,
-          lastLineStart: ya,
+          lastLineStart: xa,
           range: [ia, U],
         };
       case 48:
@@ -186,10 +186,10 @@
       case 55:
       case 56:
       case 57:
-        return n();
+        return k();
       case 46:
         return J(h)
-          ? n()
+          ? k()
           : 46 === h
             ? 46 === X.charCodeAt(U + 2)
               ? ((U += 3),
@@ -197,7 +197,7 @@
                   type: 256,
                   value: "...",
                   line: na,
-                  lineStart: ya,
+                  lineStart: xa,
                   range: [ia, U],
                 })
               : f("..")
@@ -205,28 +205,28 @@
       case 61:
         return 61 === h ? f("\x3d\x3d") : f("\x3d");
       case 62:
-        return oa.bitwiseOperators && 62 === h
+        return pa.bitwiseOperators && 62 === h
           ? f("\x3e\x3e")
           : 61 === h
             ? f("\x3e\x3d")
             : f("\x3e");
       case 60:
-        return oa.bitwiseOperators && 60 === h
+        return pa.bitwiseOperators && 60 === h
           ? f("\x3c\x3c")
           : 61 === h
             ? f("\x3c\x3d")
             : f("\x3c");
       case 126:
         if (61 === h) return f("~\x3d");
-        if (!oa.bitwiseOperators) break;
+        if (!pa.bitwiseOperators) break;
         return f("~");
       case 58:
-        return oa.labels && 58 === h ? f("::") : f(":");
+        return pa.labels && 58 === h ? f("::") : f(":");
       case 91:
         return 91 === h || 61 === h
           ? ((e = na),
-            (h = ya),
-            (a = v(!1)),
+            (h = xa),
+            (a = u(!1)),
             !1 === a && m(aa, ca.expected, "[", aa.value),
             {
               type: 2,
@@ -234,15 +234,15 @@
               line: e,
               lineStart: h,
               lastLine: na,
-              lastLineStart: ya,
+              lastLineStart: xa,
               range: [ia, U],
             })
           : f("[");
       case 47:
-        return oa.integerDivision && 47 === h ? f("//") : f("/");
+        return pa.integerDivision && 47 === h ? f("//") : f("/");
       case 38:
       case 124:
-        if (!oa.bitwiseOperators) break;
+        if (!pa.bitwiseOperators) break;
       case 42:
       case 94:
       case 37:
@@ -258,16 +258,16 @@
       case 43:
         return f(X.charAt(U));
     }
-    return q(X.charAt(U));
+    return t(X.charAt(U));
   }
-  function k() {
+  function n() {
     var a = X.charCodeAt(U),
       d = X.charCodeAt(U + 1);
-    return C(a)
+    return B(a)
       ? (10 === a && 13 === d && ++U,
         13 === a && 10 === d && ++U,
         ++na,
-        (ya = ++U),
+        (xa = ++U),
         !0)
       : !1;
   }
@@ -275,10 +275,10 @@
     for (; U < qa;) {
       var a = X.charCodeAt(U);
       if (9 === a || 32 === a || 11 === a || 12 === a) ++U;
-      else if (!k()) break;
+      else if (!n()) break;
     }
   }
-  function u(a) {
+  function p(a) {
     return 128 > a
       ? String.fromCharCode(a)
       : 2048 > a
@@ -303,8 +303,8 @@
       /[\ud800-\udbff][\udc00-\udfff]|[^\x00-\x7f]/g,
       function (a) {
         return 1 === a.length
-          ? u(a.charCodeAt(0))
-          : u(
+          ? p(a.charCodeAt(0))
+          : p(
               65536 +
                 (((a.charCodeAt(0) & 1023) << 10) | (a.charCodeAt(1) & 1023)),
             );
@@ -313,9 +313,9 @@
   }
   function f(a) {
     U += a.length;
-    return { type: 32, value: a, line: na, lineStart: ya, range: [ia, U] };
+    return { type: 32, value: a, line: na, lineStart: xa, range: [ia, U] };
   }
-  function n() {
+  function k() {
     var a = X.charAt(U),
       d = X.charAt(U + 1);
     if ("0" === a && 0 <= "xX".indexOf(d || null)) {
@@ -326,13 +326,13 @@
         e;
       c = U += 2;
       for (
-        A(X.charCodeAt(U)) || m({}, ca.malformedNumber, X.slice(ia, U));
-        A(X.charCodeAt(U));
+        D(X.charCodeAt(U)) || m({}, ca.malformedNumber, X.slice(ia, U));
+        D(X.charCodeAt(U));
       )
         ++U;
       c = parseInt(X.slice(c, U), 16);
       if ("." === X.charAt(U)) {
-        for (e = ++U; A(X.charCodeAt(U));) ++U;
+        for (e = ++U; D(X.charCodeAt(U));) ++U;
         a = X.slice(e, U);
         a = e === U ? 0 : parseInt(a, 16) / Math.pow(16, U - e);
       }
@@ -363,9 +363,9 @@
           ++U;
       a = parseFloat(X.slice(ia, U));
     }
-    return { type: 16, value: a, line: na, lineStart: ya, range: [ia, U] };
+    return { type: 16, value: a, line: na, lineStart: xa, range: [ia, U] };
   }
-  function p() {
+  function q() {
     var a = U;
     switch (X.charAt(U)) {
       case "a":
@@ -384,7 +384,7 @@
         return (++U, "\f");
       case "\r":
       case "\n":
-        return (k(), "\n");
+        return (n(), "\n");
       case "0":
       case "1":
       case "2":
@@ -400,10 +400,10 @@
         255 < a && m({}, ca.decimalEscapeTooLarge, "\\" + a);
         return String.fromCharCode(a);
       case "z":
-        if (oa.skipWhitespaceEscape) return (++U, g(), "");
+        if (pa.skipWhitespaceEscape) return (++U, g(), "");
       case "x":
-        if (oa.hexEscapes) {
-          if (A(X.charCodeAt(U + 1)) && A(X.charCodeAt(U + 2)))
+        if (pa.hexEscapes) {
+          if (D(X.charCodeAt(U + 1)) && D(X.charCodeAt(U + 2)))
             return (
               (U += 3),
               String.fromCharCode(parseInt(X.slice(a + 1, U), 16))
@@ -411,17 +411,17 @@
           m({}, ca.hexadecimalDigitExpected, "\\" + X.slice(a, U + 2));
         }
       case "u":
-        if (oa.unicodeEscapes) {
+        if (pa.unicodeEscapes) {
           a = U++;
           "{" !== X.charAt(U++) &&
             m({}, ca.braceExpected, "{", "\\" + X.slice(a, U));
           for (
-            A(X.charCodeAt(U)) ||
+            D(X.charCodeAt(U)) ||
             m({}, ca.hexadecimalDigitExpected, "\\" + X.slice(a, U));
             48 === X.charCodeAt(U);
           )
             ++U;
-          for (var d = U; A(X.charCodeAt(U));)
+          for (var d = U; D(X.charCodeAt(U));)
             (++U,
               6 < U - d && m({}, ca.tooLargeCodepoint, "\\" + X.slice(a, U)));
           var b = X.charAt(U++);
@@ -430,19 +430,19 @@
               ? m({}, ca.braceExpected, "}", "\\" + X.slice(a, U--))
               : m({}, ca.hexadecimalDigitExpected, "\\" + X.slice(a, U)));
           d = parseInt(X.slice(d, U - 1), 16);
-          d = u(d);
+          d = p(d);
           null === d && m({}, ca.tooLargeCodepoint, "\\" + X.slice(a, U));
           return d;
         }
       default:
-        oa.strictEscapes && m({}, ca.invalidEscape, "\\" + X.slice(a, U + 1));
+        pa.strictEscapes && m({}, ca.invalidEscape, "\\" + X.slice(a, U + 1));
       case "\\":
       case '"':
       case "'":
         return X.charAt(U++);
     }
   }
-  function v(a) {
+  function u(a) {
     var d = 0,
       b = "",
       c = !1,
@@ -452,9 +452,9 @@
     for (++U; "\x3d" === X.charAt(U + d);) ++d;
     if ("[" !== X.charAt(U + d)) return !1;
     U += d + 1;
-    C(X.charCodeAt(U)) && k();
+    B(X.charCodeAt(U)) && n();
     for (f = U; U < qa;) {
-      for (; C(X.charCodeAt(U));) k();
+      for (; B(X.charCodeAt(U));) n();
       e = X.charAt(U++);
       if ("]" === e) {
         c = !0;
@@ -470,29 +470,29 @@
       "\x3ceof\x3e",
     );
   }
-  function t() {
+  function v() {
     sa = aa;
     aa = ma;
     ma = r();
   }
-  function z(a) {
-    return a === aa.value ? (t(), !0) : !1;
-  }
-  function E(a) {
-    a === aa.value ? t() : m(aa, ca.expected, a, aa.value);
+  function A(a) {
+    return a === aa.value ? (v(), !0) : !1;
   }
   function C(a) {
+    a === aa.value ? v() : m(aa, ca.expected, a, aa.value);
+  }
+  function B(a) {
     return 10 === a || 13 === a;
   }
   function J(a) {
     return 48 <= a && 57 >= a;
   }
-  function A(a) {
+  function D(a) {
     return (
       (48 <= a && 57 >= a) || (97 <= a && 102 >= a) || (65 <= a && 70 >= a)
     );
   }
-  function B(a) {
+  function y(a) {
     return (65 <= a && 90 >= a) ||
       (97 <= a && 122 >= a) ||
       95 === a ||
@@ -501,7 +501,7 @@
       ? !0
       : !1;
   }
-  function F(a) {
+  function H(a) {
     switch (a.length) {
       case 2:
         return "do" === a || "if" === a || "in" === a || "or" === a;
@@ -509,7 +509,7 @@
         return "and" === a || "end" === a || "for" === a || "not" === a;
       case 4:
         if ("else" === a || "then" === a) return !0;
-        if (oa.labels && !oa.contextualGoto) return "goto" === a;
+        if (pa.labels && !pa.contextualGoto) return "goto" === a;
         break;
       case 5:
         return "break" === a || "local" === a || "until" === a || "while" === a;
@@ -520,7 +520,7 @@
     }
     return !1;
   }
-  function O(a) {
+  function N(a) {
     if (1 === a.type) return !0;
     if (4 !== a.type) return !1;
     switch (a.value) {
@@ -533,41 +533,41 @@
         return !1;
     }
   }
-  function M() {
-    var a = Array.apply(null, ua[Aa++]);
+  function O() {
+    var a = Array.apply(null, ua[Ba++]);
     ua.push(a);
     if (Z.onCreateScope) Z.onCreateScope();
   }
-  function H() {
+  function I() {
     ua.pop();
-    Aa--;
+    Ba--;
     if (Z.onDestroyScope) Z.onDestroyScope();
   }
   function x(a) {
     if (Z.onLocalDeclaration) Z.onLocalDeclaration(a);
-    -1 === ra(ua[Aa], a) && ua[Aa].push(a);
+    -1 === ra(ua[Ba], a) && ua[Ba].push(a);
   }
-  function I(a) {
+  function K(a) {
     x(a.name);
-    D(a, !0);
+    E(a, !0);
   }
-  function D(a, d) {
+  function E(a, d) {
     var b;
     if ((b = !d)) {
       a: {
         b = 0;
-        for (var c = Ba.length; b < c; ++b) if (Ba[b].name === a.name) break a;
+        for (var c = Aa.length; b < c; ++b) if (Aa[b].name === a.name) break a;
         b = -1;
       }
       b = -1 === b;
     }
-    b && Ba.push(a);
+    b && Aa.push(a);
     a.isLocal = d;
   }
-  function L() {
-    return new y(aa);
+  function F() {
+    return new z(aa);
   }
-  function y(a) {
+  function z(a) {
     Z.locations &&
       (this.loc = {
         start: { line: a.line, column: a.range[0] - a.lineStart },
@@ -576,192 +576,192 @@
     Z.ranges && (this.range = [a.range[0], 0]);
   }
   function G() {
-    za && xa.push(L());
+    wa && ya.push(F());
   }
-  function K(a) {
-    za && xa.push(a);
+  function L(a) {
+    wa && ya.push(a);
   }
-  function N() {
-    t();
+  function M() {
+    v();
     G();
-    Z.scope && M();
+    Z.scope && O();
     var a = Q();
-    Z.scope && H();
-    1 !== aa.type && q(aa);
-    za && !a.length && (sa = aa);
+    Z.scope && I();
+    1 !== aa.type && t(aa);
+    wa && !a.length && (sa = aa);
     return b(P.chunk(a));
   }
   function Q(a) {
     a = [];
-    for (var d; !O(aa);) {
+    for (var d; !N(aa);) {
       if ("return" === aa.value) {
-        a.push(W());
+        a.push(V());
         break;
       }
-      d = W();
-      z(";");
+      d = V();
+      A(";");
       d && a.push(d);
     }
     return a;
   }
-  function W() {
+  function V() {
     G();
     if (4 === aa.type)
       switch (aa.value) {
         case "local":
-          t();
+          v();
           var a;
           var d;
           if (8 === aa.type) {
             a = [];
             var c = [];
             do ((d = T()), a.push(d));
-            while (z(","));
-            if (z("\x3d")) {
+            while (A(","));
+            if (A("\x3d")) {
               do ((d = fa()), c.push(d));
-              while (z(","));
+              while (A(","));
             }
             if (Z.scope) {
               d = 0;
-              for (var e = a.length; d < e; ++d) I(a[d]);
+              for (var e = a.length; d < e; ++d) K(a[d]);
             }
             a = b(P.localStatement(a, c));
           } else
-            z("function")
-              ? ((d = T()), Z.scope && (I(d), M()), (a = da(d, !0)))
+            A("function")
+              ? ((d = T()), Z.scope && (K(d), O()), (a = da(d, !0)))
               : (h("\x3cname\x3e", aa), (a = void 0));
           return a;
         case "if":
-          t();
+          v();
           c = [];
-          za && ((a = xa[xa.length - 1]), xa.push(a));
+          wa && ((a = ya[ya.length - 1]), ya.push(a));
           d = fa();
-          E("then");
-          Z.scope && M();
+          C("then");
+          Z.scope && O();
           e = Q();
-          Z.scope && H();
+          Z.scope && I();
           c.push(b(P.ifClause(d, e)));
-          for (za && (a = L()); z("elseif");)
-            (K(a),
+          for (wa && (a = F()); A("elseif");)
+            (L(a),
               (d = fa()),
-              E("then"),
-              Z.scope && M(),
+              C("then"),
+              Z.scope && O(),
               (e = Q()),
-              Z.scope && H(),
+              Z.scope && I(),
               c.push(b(P.elseifClause(d, e))),
-              za && (a = L()));
-          z("else") &&
-            (za && ((a = new y(sa)), xa.push(a)),
-            Z.scope && M(),
+              wa && (a = F()));
+          A("else") &&
+            (wa && ((a = new z(sa)), ya.push(a)),
+            Z.scope && O(),
             (e = Q()),
-            Z.scope && H(),
+            Z.scope && I(),
             c.push(b(P.elseClause(e))));
-          E("end");
+          C("end");
           return b(P.ifStatement(c));
         case "return":
-          t();
+          v();
           a = [];
           if ("end" !== aa.value) {
             c = ta(0);
-            for (null != c && a.push(c); z(",");) ((c = fa()), a.push(c));
-            z(";");
+            for (null != c && a.push(c); A(",");) ((c = fa()), a.push(c));
+            A(";");
           }
           return b(P.returnStatement(a));
         case "function":
-          t();
-          za && (c = L());
+          v();
+          wa && (c = F());
           a = T();
-          Z.scope && (D(a, -1 !== ra(ua[Aa], a.name)), M());
-          for (; z(".");)
-            (K(c), (d = T()), (a = b(P.memberExpression(a, ".", d))));
-          z(":") &&
-            (K(c),
+          Z.scope && (E(a, -1 !== ra(ua[Ba], a.name)), O());
+          for (; A(".");)
+            (L(c), (d = T()), (a = b(P.memberExpression(a, ".", d))));
+          A(":") &&
+            (L(c),
             (d = T()),
             (a = b(P.memberExpression(a, ":", d))),
             Z.scope && x("self"));
           return da(a);
         case "while":
           return (
-            t(),
+            v(),
             (a = fa()),
-            E("do"),
-            Z.scope && M(),
+            C("do"),
+            Z.scope && O(),
             (c = Q()),
-            Z.scope && H(),
-            E("end"),
+            Z.scope && I(),
+            C("end"),
             b(P.whileStatement(a, c))
           );
         case "for":
-          t();
+          v();
           c = T();
-          Z.scope && (M(), I(c));
-          if (z("\x3d")) {
+          Z.scope && (O(), K(c));
+          if (A("\x3d")) {
             d = fa();
-            E(",");
+            C(",");
             var e = fa(),
-              f = z(",") ? fa() : null;
-            E("do");
+              f = A(",") ? fa() : null;
+            C("do");
             a = Q();
-            E("end");
-            Z.scope && H();
+            C("end");
+            Z.scope && I();
             a = b(P.forNumericStatement(c, d, e, f, a));
           } else {
-            for (d = [c]; z(",");) ((c = T()), Z.scope && I(c), d.push(c));
-            E("in");
+            for (d = [c]; A(",");) ((c = T()), Z.scope && K(c), d.push(c));
+            C("in");
             c = [];
             do ((a = fa()), c.push(a));
-            while (z(","));
-            E("do");
+            while (A(","));
+            C("do");
             a = Q();
-            E("end");
-            Z.scope && H();
+            C("end");
+            Z.scope && I();
             a = b(P.forGenericStatement(d, c, a));
           }
           return a;
         case "repeat":
           return (
-            t(),
-            Z.scope && M(),
+            v(),
+            Z.scope && O(),
             (a = Q()),
-            E("until"),
+            C("until"),
             (c = fa()),
-            Z.scope && H(),
+            Z.scope && I(),
             b(P.repeatStatement(c, a))
           );
         case "break":
-          return (t(), b(P.breakStatement()));
+          return (v(), b(P.breakStatement()));
         case "do":
           return (
-            t(),
-            Z.scope && M(),
+            v(),
+            Z.scope && O(),
             (a = Q()),
-            Z.scope && H(),
-            E("end"),
+            Z.scope && I(),
+            C("end"),
             b(P.doStatement(a))
           );
         case "goto":
-          return (t(), V());
+          return (v(), W());
       }
     if (
-      oa.contextualGoto &&
+      pa.contextualGoto &&
       8 === aa.type &&
       "goto" === aa.value &&
       8 === ma.type &&
       "goto" !== ma.value
     )
-      return (t(), V());
-    if (32 === aa.type && z("::"))
+      return (v(), W());
+    if (32 === aa.type && A("::"))
       return (
         (a = aa.value),
         (c = T()),
-        Z.scope && (x("::" + a + "::"), D(c, !0)),
-        E("::"),
+        Z.scope && (x("::" + a + "::"), E(c, !0)),
+        C("::"),
         b(P.labelStatement(c))
       );
-    za && xa.pop();
-    if (!oa.emptyStatement || !z(";")) return S();
+    wa && ya.pop();
+    if (!pa.emptyStatement || !A(";")) return S();
   }
-  function V() {
+  function W() {
     var a = T();
     return b(P.gotoStatement(a));
   }
@@ -777,21 +777,21 @@
     var a = aa,
       d,
       c;
-    za && (c = L());
-    d = pa();
-    if (null == d) return q(aa);
+    wa && (c = F());
+    d = oa();
+    if (null == d) return t(aa);
     if (0 <= ",\x3d".indexOf(aa.value)) {
       var a = [d],
         e = [];
-      for (ba(d); z(",");)
-        ((d = pa()),
+      for (ba(d); A(",");)
+        ((d = oa()),
           null == d && h("\x3cexpression\x3e", aa),
           ba(d),
           a.push(d));
-      E("\x3d");
+      C("\x3d");
       do ((d = fa()), e.push(d));
-      while (z(","));
-      K(c);
+      while (A(","));
+      L(c);
       return b(P.assignmentStatement(a, e));
     }
     a: {
@@ -804,58 +804,58 @@
       }
       e = !1;
     }
-    return e ? (K(c), b(P.callStatement(d))) : q(a);
+    return e ? (L(c), b(P.callStatement(d))) : t(a);
   }
   function T() {
     G();
     var a = aa.value;
     8 !== aa.type && h("\x3cname\x3e", aa);
-    t();
+    v();
     return b(P.identifier(a));
   }
   function da(a, d) {
     var c = [];
-    E("(");
-    if (!z(")"))
+    C("(");
+    if (!A(")"))
       for (;;) {
         if (8 === aa.type) {
           var e = T();
-          Z.scope && I(e);
+          Z.scope && K(e);
           c.push(e);
-          if (z(",")) continue;
+          if (A(",")) continue;
         } else 256 === aa.type ? c.push(ga()) : h("\x3cname\x3e or '...'", aa);
-        E(")");
+        C(")");
         break;
       }
     e = Q();
-    E("end");
-    Z.scope && H();
+    C("end");
+    Z.scope && I();
     return b(P.functionStatement(a, c, d || !1, e));
   }
   function R() {
     for (var a = [], d, c; ;) {
       G();
-      if (32 === aa.type && z("["))
+      if (32 === aa.type && A("["))
         ((d = fa()),
-          E("]"),
-          E("\x3d"),
+          C("]"),
+          C("\x3d"),
           (c = fa()),
           a.push(b(P.tableKey(d, c))));
       else if (8 === aa.type)
         "\x3d" === ma.value
-          ? ((d = T()), t(), (c = fa()), a.push(b(P.tableKeyString(d, c))))
+          ? ((d = T()), v(), (c = fa()), a.push(b(P.tableKeyString(d, c))))
           : ((c = fa()), a.push(b(P.tableValue(c))));
       else {
         if (null == (c = ta(0))) {
-          xa.pop();
+          ya.pop();
           break;
         }
         a.push(b(P.tableValue(c)));
       }
-      if (0 <= ",;".indexOf(aa.value)) t();
+      if (0 <= ",;".indexOf(aa.value)) v();
       else break;
     }
-    E("}");
+    C("}");
     return b(P.tableConstructorExpression(a));
   }
   function fa() {
@@ -909,7 +909,7 @@
     var d = aa.value,
       c,
       e;
-    za && (e = L());
+    wa && (e = F());
     var f;
     f = aa;
     f =
@@ -920,82 +920,82 @@
           : !1;
     f &&
       (G(),
-      t(),
+      v(),
       (c = ta(10)),
       null == c && h("\x3cexpression\x3e", aa),
       (c = b(P.unaryExpression(d, c))));
-    null == c && ((c = ga()), null == c && (c = pa()));
+    null == c && ((c = ga()), null == c && (c = oa()));
     if (null == c) return null;
     for (;;) {
       d = aa.value;
       f = 32 === aa.type || 4 === aa.type ? ea(d) : 0;
       if (0 === f || f <= a) break;
       ("^" !== d && ".." !== d) || f--;
-      t();
+      v();
       f = ta(f);
       null == f && h("\x3cexpression\x3e", aa);
-      za && xa.push(e);
+      wa && ya.push(e);
       c = b(P.binaryExpression(d, c, f));
     }
     return c;
   }
-  function pa() {
+  function oa() {
     var a, d, c;
-    za && (c = L());
+    wa && (c = F());
     if (8 === aa.type)
-      ((d = aa.value), (a = T()), Z.scope && D(a, -1 !== ra(ua[Aa], d)));
-    else if (z("(")) ((a = fa()), E(")"), (a.inParens = !0));
+      ((d = aa.value), (a = T()), Z.scope && E(a, -1 !== ra(ua[Ba], d)));
+    else if (A("(")) ((a = fa()), C(")"), (a.inParens = !0));
     else return null;
     for (;;)
       if (32 === aa.type)
         switch (aa.value) {
           case "[":
-            K(c);
-            t();
+            L(c);
+            v();
             d = fa();
-            E("]");
+            C("]");
             a = b(P.indexExpression(a, d));
             break;
           case ".":
-            K(c);
-            t();
+            L(c);
+            v();
             d = T();
             a = b(P.memberExpression(a, ".", d));
             break;
           case ":":
-            K(c);
-            t();
+            L(c);
+            v();
             d = T();
             a = b(P.memberExpression(a, ":", d));
-            K(c);
-            a = la(a);
+            L(c);
+            a = ka(a);
             break;
           case "(":
           case "{":
-            K(c);
-            a = la(a);
+            L(c);
+            a = ka(a);
             break;
           default:
             return a;
         }
-      else if (2 === aa.type) (K(c), (a = la(a)));
+      else if (2 === aa.type) (L(c), (a = ka(a)));
       else break;
     return a;
   }
-  function la(a) {
+  function ka(a) {
     if (32 === aa.type)
       switch (aa.value) {
         case "(":
-          oa.emptyStatement ||
+          pa.emptyStatement ||
             (aa.line !== sa.line && m({}, ca.ambiguousSyntax, aa.value));
-          t();
+          v();
           var d = [],
             c = ta(0);
-          for (null != c && d.push(c); z(",");) ((c = fa()), d.push(c));
-          E(")");
+          for (null != c && d.push(c); A(",");) ((c = fa()), d.push(c));
+          C(")");
           return b(P.callExpression(a, d));
         case "{":
-          return (G(), t(), (d = R()), b(P.tableCallExpression(a, d)));
+          return (G(), v(), (d = R()), b(P.tableCallExpression(a, d)));
       }
     else if (2 === aa.type) return b(P.stringCallExpression(a, ga()));
     h("function arguments", aa);
@@ -1004,37 +1004,37 @@
     var a = aa.value,
       d = aa.type,
       c;
-    za && (c = L());
+    wa && (c = F());
     if (d & 466)
       return (
-        K(c),
+        L(c),
         (c = X.slice(aa.range[0], aa.range[1])),
-        t(),
+        v(),
         b(P.literal(d, a, c))
       );
     if (4 === d && "function" === a)
-      return (K(c), t(), Z.scope && M(), da(null));
-    if (z("{")) return (K(c), R());
+      return (L(c), v(), Z.scope && O(), da(null));
+    if (A("{")) return (L(c), R());
   }
-  function ka(d) {
+  function la(d) {
     X += String(d);
     qa = X.length;
     return a;
   }
   function ha(a) {
-    "undefined" !== typeof a && ka(a);
+    "undefined" !== typeof a && la(a);
     X &&
       "#!" === X.substr(0, 2) &&
       (X = X.replace(/^.*/, function (a) {
         return a.replace(/./g, " ");
       }));
     qa = X.length;
-    za = Z.locations || Z.ranges;
+    wa = Z.locations || Z.ranges;
     ma = r();
-    a = N();
+    a = M();
     Z.comments && (a.comments = ja);
-    Z.scope && (a.globals = Ba);
-    if (0 < xa.length)
+    Z.scope && (a.globals = Aa);
+    if (0 < ya.length)
       throw Error(
         "Location tracking failed. This is most likely a bug in luaparse",
       );
@@ -1044,7 +1044,7 @@
   var X,
     Z,
     qa,
-    oa,
+    pa,
     w = (a.defaultOptions = {
       wait: !1,
       comments: !0,
@@ -1237,20 +1237,20 @@
     ja,
     ia,
     na,
-    ya;
+    xa;
   a.lex = r;
   var ua,
-    Aa,
     Ba,
-    xa = [],
-    za;
-  y.prototype.complete = function () {
+    Aa,
+    ya = [],
+    wa;
+  z.prototype.complete = function () {
     Z.locations &&
       ((this.loc.end.line = sa.lastLine || sa.line),
       (this.loc.end.column = sa.range[1] - (sa.lastLineStart || sa.lineStart)));
     Z.ranges && (this.range[1] = sa.range[1]);
   };
-  y.prototype.bless = function (a) {
+  z.prototype.bless = function (a) {
     if (this.loc) {
       var d = this.loc;
       a.loc = {
@@ -1269,18 +1269,18 @@
     Z = d(w, e);
     U = 0;
     na = 1;
-    ya = 0;
+    xa = 0;
     qa = X.length;
     ua = [[]];
-    Aa = 0;
-    Ba = [];
-    xa = [];
-    if (!(oa = wa[Z.luaVersion]))
+    Ba = 0;
+    Aa = [];
+    ya = [];
+    if (!(pa = za[Z.luaVersion]))
       throw Error(c("Lua version '%1' not supported", Z.luaVersion));
     Z.comments && (ja = []);
     return Z.wait ? a : ha();
   };
-  var wa = {
+  var za = {
     5.1: {},
     5.2: {
       labels: !0,
@@ -1308,6 +1308,6 @@
       unicodeEscapes: !0,
     },
   };
-  a.write = ka;
+  a.write = la;
   a.end = ha;
 });

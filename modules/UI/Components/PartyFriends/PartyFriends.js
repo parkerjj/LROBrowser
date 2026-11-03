@@ -5,7 +5,7 @@ define(
   ),
   function (a) {
     function b() {
-      var a = D.ui,
+      var a = E.ui,
         b = a.position().top,
         c = a.position().left,
         d = 0,
@@ -16,91 +16,91 @@ define(
           f = Math.floor((J.screen.y - b - 46) / 20),
           a = Math.min(Math.max(a, 12), 13),
           f = Math.min(Math.max(f, 6), 12);
-        if (a !== d || f !== e) (D.resize(a, f), (d = a), (e = f));
+        if (a !== d || f !== e) (E.resize(a, f), (d = a), (e = f));
       }, 30);
-      v(window).on("mouseup.resize", function (a) {
-        1 === a.which && (clearInterval(f), v(window).off("mouseup.resize"));
+      u(window).on("mouseup.resize", function (a) {
+        1 === a.which && (clearInterval(f), u(window).off("mouseup.resize"));
       });
     }
     function c() {
-      D.ui.hide();
+      E.ui.hide();
     }
     function d() {
-      N.lock = !N.lock;
-      N.save();
-      N.lock
-        ? (D.ui.find(".lock.on").show(), D.ui.find(".lock.off").hide())
-        : (D.ui.find(".lock.on").hide(), D.ui.find(".lock.off").show());
+      M.lock = !M.lock;
+      M.save();
+      M.lock
+        ? (E.ui.find(".lock.on").show(), E.ui.find(".lock.off").hide())
+        : (E.ui.find(".lock.on").hide(), E.ui.find(".lock.off").show());
     }
     function e() {
-      var a = D.ui;
-      N.friend = !N.friend;
-      N.save();
-      N.friend
+      var a = E.ui;
+      M.friend = !M.friend;
+      M.save();
+      M.friend
         ? (a.find(".friend").show(), a.find(".party").hide())
         : (a.find(".friend").hide(),
           a.find(".party").show(),
-          C.hasParty
+          B.hasParty
             ? (a.find(".party.create").hide(),
-              C.isPartyLeader || a.find(".party.add").hide())
+              B.isPartyLeader || a.find(".party.add").hide())
             : a.find(".party.add, .party.leave").hide());
       a.find(".node").removeClass(".selection");
-      L = -1;
+      F = -1;
     }
     function m() {
-      if (!(0 > L || N.lock)) {
-        var a = N.friend ? p.getMessage(356) : p.getMessage(363);
-        A.showPromptBox(a, "ok", "cancel", function () {
-          if (N.friend) D.onRemoveFriend(L);
-          else D.onExpelMember(G[L].AID, G[L].characterName);
+      if (!(0 > F || M.lock)) {
+        var a = M.friend ? q.getMessage(356) : q.getMessage(363);
+        D.showPromptBox(a, "ok", "cancel", function () {
+          if (M.friend) E.onRemoveFriend(F);
+          else E.onExpelMember(G[F].AID, G[F].characterName);
         });
       }
     }
     function h() {
-      0 > L ||
-        N.lock ||
-        (N.friend
-          ? M.ui.find(".username").val(y[L].Name)
-          : M.ui.find(".username").val(G[L].characterName),
-        M.ui.find(".message").select());
+      0 > F ||
+        M.lock ||
+        (M.friend
+          ? O.ui.find(".username").val(z[F].Name)
+          : O.ui.find(".username").val(G[F].characterName),
+        O.ui.find(".message").select());
     }
-    function q() {
-      N.lock ||
-        (O.remove(),
-        O.append(),
-        N.friend
-          ? (O.addElement(p.getMessage(360), h),
-            y[L].GID !== C.GID && O.addElement(p.getMessage(351), m))
-          : (O.addElement(p.getMessage(129), r),
-            G[L].GID === C.GID
-              ? O.addElement(p.getMessage(2055), k)
-              : (O.addElement(p.getMessage(360), h),
-                C.isPartyLeader &&
-                  (O.addElement(p.getMessage(97), m),
-                  O.addElement(p.getMessage(1532), g)))));
+    function t() {
+      M.lock ||
+        (N.remove(),
+        N.append(),
+        M.friend
+          ? (N.addElement(q.getMessage(360), h),
+            z[F].GID !== B.GID && N.addElement(q.getMessage(351), m))
+          : (N.addElement(q.getMessage(129), r),
+            G[F].GID === B.GID
+              ? N.addElement(q.getMessage(2055), n)
+              : (N.addElement(q.getMessage(360), h),
+                B.isPartyLeader &&
+                  (N.addElement(q.getMessage(97), m),
+                  N.addElement(q.getMessage(1532), g)))));
     }
     function r() {
-      N.lock || A.showMessageBox(p.getMessage(191), "ok");
+      M.lock || D.showMessageBox(q.getMessage(191), "ok");
     }
-    function k() {
-      N.lock ||
-        A.showPromptBox(p.getMessage(357), "ok", "cancel", function () {
-          D.onRequestLeave();
+    function n() {
+      M.lock ||
+        D.showPromptBox(q.getMessage(357), "ok", "cancel", function () {
+          E.onRequestLeave();
         });
     }
     function g() {
-      N.lock ||
-        A.showPromptBox(p.getMessage(1532), "ok", "cancel", function () {
-          D.onRequestChangeLeader(G[L].AID);
+      M.lock ||
+        D.showPromptBox(q.getMessage(1532), "ok", "cancel", function () {
+          E.onRequestChangeLeader(G[F].AID);
         });
     }
-    function u(a) {
-      D.ui.find(".content .name").removeClass("selection");
+    function p(a) {
+      E.ui.find(".content .name").removeClass("selection");
       this.classList.add("selection");
-      L = D.ui.find(this.parentNode.parentNode).find(".name").index(this);
-      var b = I("UI/Components/SkillTargetSelection/SkillTargetSelection");
-      if (b.__active && !N.friend) {
-        var c = G[L];
+      F = E.ui.find(this.parentNode.parentNode).find(".name").index(this);
+      var b = K("UI/Components/SkillTargetSelection/SkillTargetSelection");
+      if (b.__active && !M.friend) {
+        var c = G[F];
         0 === c.state && b.intersectEntityId(c.AID);
         b.remove();
         a.stopImmediatePropagation();
@@ -108,44 +108,44 @@ define(
       }
     }
     function l() {
-      F.__active && F.getType() === F.Type.CREATE
-        ? F.remove()
-        : (F.append(), F.setType(F.Type.CREATE));
+      H.__active && H.getType() === H.Type.CREATE
+        ? H.remove()
+        : (H.append(), H.setType(H.Type.CREATE));
     }
     function f() {
-      F.__active && F.getType() === F.Type.INVITE
-        ? F.remove()
-        : (F.append(), F.setType(F.Type.INVITE));
+      H.__active && H.getType() === H.Type.INVITE
+        ? H.remove()
+        : (H.append(), H.setType(H.Type.INVITE));
     }
-    function n() {
-      N.friend ||
-        (F.__active && F.getType() === F.Type.SETUP
-          ? F.remove()
-          : (F.append(),
-            F.setType(F.Type.SETUP),
-            F.setOptions(K, C.isPartyLeader)));
+    function k() {
+      M.friend ||
+        (H.__active && H.getType() === H.Type.SETUP
+          ? H.remove()
+          : (H.append(),
+            H.setType(H.Type.SETUP),
+            H.setOptions(L, B.isPartyLeader)));
     }
-    var p = a("DB/DBManager"),
-      v = a("Utils/jquery"),
-      t = a("Core/Preferences"),
-      z = a("Core/Client"),
-      E = a("Renderer/Renderer"),
-      C = a("Engine/SessionStorage"),
+    var q = a("DB/DBManager"),
+      u = a("Utils/jquery"),
+      v = a("Core/Preferences"),
+      A = a("Core/Client"),
+      C = a("Renderer/Renderer"),
+      B = a("Engine/SessionStorage"),
       J = a("Controls/MouseEventHandler"),
-      A = a("UI/UIManager"),
-      B = a("UI/UIComponent"),
-      F = a("UI/Components/PartyFriends/PartyHelper"),
-      O = a("UI/Components/ContextMenu/ContextMenu"),
-      M = a("UI/Components/ChatBox/ChatBox"),
-      H = a("text!./PartyFriends.html"),
+      D = a("UI/UIManager"),
+      y = a("UI/UIComponent"),
+      H = a("UI/Components/PartyFriends/PartyHelper"),
+      N = a("UI/Components/ContextMenu/ContextMenu"),
+      O = a("UI/Components/ChatBox/ChatBox"),
+      I = a("text!./PartyFriends.html"),
       x = a("text!./PartyFriends.css"),
-      I = a,
-      D = new B("PartyFriends", H, x),
-      L = -1,
-      y = [],
+      K = a,
+      E = new y("PartyFriends", I, x),
+      F = -1,
+      z = [],
       G = [],
-      K = { exp_share: 0, item_share: 0, item_sharing_type: 0 },
-      N = t.get(
+      L = { exp_share: 0, item_share: 0, item_sharing_type: 0 },
+      M = v.get(
         "PartyFriends",
         {
           x: 200,
@@ -158,8 +158,8 @@ define(
         },
         1.2,
       );
-    D.init = function () {
-      F.prepare();
+    E.init = function () {
+      H.prepare();
       this.ui.find(".base").mousedown(function (a) {
         a.stopImmediatePropagation();
         return !1;
@@ -169,142 +169,142 @@ define(
       this.ui.find(".switchtab.off").mousedown(e);
       this.ui.find(".remove").mousedown(m);
       this.ui.find(".privatemessage").mousedown(h);
-      this.ui.find(".leave").mousedown(k);
+      this.ui.find(".leave").mousedown(n);
       this.ui.find(".resize").mousedown(b);
       this.ui.find(".party.create").mousedown(l);
       this.ui.find(".party.add").mousedown(f);
-      this.ui.find(".info").mousedown(n);
+      this.ui.find(".info").mousedown(k);
       this.ui
         .find(".content")
-        .on("contextmenu", ".name", q)
-        .on("mousedown", ".name", u);
+        .on("contextmenu", ".name", t)
+        .on("mousedown", ".name", p);
       this.draggable(this.ui.find(".titlebar"));
     };
-    D.onAppend = function () {
-      N.friend = !N.friend;
+    E.onAppend = function () {
+      M.friend = !M.friend;
       e();
-      N.lock
+      M.lock
         ? (this.ui.find(".lock.on").show(), this.ui.find(".lock.off").hide())
         : (this.ui.find(".lock.on").hide(), this.ui.find(".lock.off").show());
-      this.resize(N.width, N.height);
+      this.resize(M.width, M.height);
       this.ui.css({
-        top: Math.min(Math.max(0, N.y), E.height - this.ui.height()),
-        left: Math.min(Math.max(0, N.x), E.width - this.ui.width()),
+        top: Math.min(Math.max(0, M.y), C.height - this.ui.height()),
+        left: Math.min(Math.max(0, M.x), C.width - this.ui.width()),
       });
       this.ui.hide();
     };
-    D.clean = function () {
+    E.clean = function () {
       G.length = 0;
-      y.length = 0;
-      L = -1;
-      K.exp_share = 0;
-      K.item_share = 0;
-      K.item_sharing_type = 0;
+      z.length = 0;
+      F = -1;
+      L.exp_share = 0;
+      L.item_share = 0;
+      L.item_sharing_type = 0;
       this.ui.find(".partyname").text("");
       this.ui.find(".friendcount").text("0");
       this.ui.find(".content .party, .content .friend").empty();
-      N.friend = !N.friend;
+      M.friend = !M.friend;
       e();
     };
-    D.onRemove = function () {
-      N.show = this.ui.is(":visible");
-      N.y = parseInt(this.ui.css("top"), 10);
-      N.x = parseInt(this.ui.css("left"), 10);
-      N.save();
+    E.onRemove = function () {
+      M.show = this.ui.is(":visible");
+      M.y = parseInt(this.ui.css("top"), 10);
+      M.x = parseInt(this.ui.css("left"), 10);
+      M.save();
     };
-    D.onShortCut = function (a) {
+    E.onShortCut = function (a) {
       switch (a.cmd) {
         case "FRIEND":
-          N.friend ? this.ui.toggle() : ((N.friend = !1), e(), this.ui.show());
+          M.friend ? this.ui.toggle() : ((M.friend = !1), e(), this.ui.show());
           this.ui.is(":visible") && this.focus();
           break;
         case "PARTY":
-          (N.friend ? ((N.friend = !0), e(), this.ui.show()) : this.ui.toggle(),
+          (M.friend ? ((M.friend = !0), e(), this.ui.show()) : this.ui.toggle(),
             this.ui.is(":visible") && this.focus());
       }
     };
-    D.toggle = function () {
+    E.toggle = function () {
       this.ui.toggle();
       this.ui.is(":visible") && this.focus();
     };
-    D.setFriends = function (a) {
+    E.setFriends = function (a) {
       var b,
         c = a.length,
         d = this.ui.find(".content .friend");
-      y.length = a.length;
+      z.length = a.length;
       d.empty();
       for (b = 0; b < c; b++)
-        ((y[b] = a[b]),
+        ((z[b] = a[b]),
           d.append(
             '\x3cdiv class\x3d"node' +
               (0 === a[b].State ? " online" : "") +
               '"\x3e\x3cspan class\x3d"name"\x3e' +
-              v.escape(a[b].Name) +
+              u.escape(a[b].Name) +
               "\x3c/span\x3e\x3c/div\x3e",
           ));
       this.ui.find(".friendcount").text(c);
-      L = -1;
+      F = -1;
     };
-    D.updateFriendState = function (a, b) {
+    E.updateFriendState = function (a, b) {
       var c = this.ui.find(".content .friend .node:eq(" + a + ")");
-      (y[a].State = b)
+      (z[a].State = b)
         ? (c.css("backgroundImage", ""),
-          M.addText(p.getMessage(1042).replace("%s", y[a].Name), M.TYPE.BLUE))
-        : (M.addText(p.getMessage(1041).replace("%s", y[a].Name), M.TYPE.BLUE),
-          z.loadFile(
-            p.INTERFACE_PATH + "basic_interface/grp_online.bmp",
+          O.addText(q.getMessage(1042).replace("%s", z[a].Name), O.TYPE.BLUE))
+        : (O.addText(q.getMessage(1041).replace("%s", z[a].Name), O.TYPE.BLUE),
+          A.loadFile(
+            q.INTERFACE_PATH + "basic_interface/grp_online.bmp",
             function (a) {
               c.css("backgroundImage", "url(" + a + ")");
             },
           ));
     };
-    D.updateFriend = function (a, b) {
-      y[a] ||
-        ((y[a] = {}),
+    E.updateFriend = function (a, b) {
+      z[a] ||
+        ((z[a] = {}),
         this.ui
           .find(".content .friend")
           .append(
             '\x3cdiv class\x3d"node"\x3e\x3cspan class\x3d"name"\x3e\x3c/span\x3e\x3c/div\x3e',
           ),
-        this.ui.find(".friendcount").text(y.length));
-      y[a].Name = b.Name;
-      y[a].GID = b.GID;
-      y[a].AID = b.AID;
-      y[a].State = b.State || 0;
+        this.ui.find(".friendcount").text(z.length));
+      z[a].Name = b.Name;
+      z[a].GID = b.GID;
+      z[a].AID = b.AID;
+      z[a].State = b.State || 0;
       var c = this.ui.find(".content .friend .node:eq(" + a + ")");
       c.find(".name").text(b.Name);
-      z.loadFile(
-        p.INTERFACE_PATH + "basic_interface/grp_online.bmp",
+      A.loadFile(
+        q.INTERFACE_PATH + "basic_interface/grp_online.bmp",
         function (a) {
           c.css("backgroundImage", "url(" + a + ")");
         },
       );
     };
-    D.removeFriend = function (a) {
-      y.splice(a, 1);
+    E.removeFriend = function (a) {
+      z.splice(a, 1);
       this.ui.find(".content .friend .node:eq(" + a + ")").remove();
-      this.ui.find(".friendcount").text(y.length);
-      L === a && (L = -1);
+      this.ui.find(".friendcount").text(z.length);
+      F === a && (F = -1);
     };
-    D.setParty = function (a, b) {
+    E.setParty = function (a, b) {
       this.ui.find(".curnum").text(b.length);
       a && this.ui.find(".partyname").text("(" + a + ")");
       this.ui.find(".content .party").empty();
-      C.isPartyLeader = !1;
+      B.isPartyLeader = !1;
       this.ui.find(".party.create").hide();
       this.ui.find(".party.leave").show();
       var c = b.length;
-      for (a = G.length = 0; a < c; a++) D.addPartyMember(b[a]);
-      L = -1;
+      for (a = G.length = 0; a < c; a++) E.addPartyMember(b[a]);
+      F = -1;
     };
-    D.addPartyMember = function (a) {
+    E.addPartyMember = function (a) {
       var b = a.role || a.Role || 0,
         c,
         d = G.length,
         e;
-      a.AID === C.AID &&
-        ((C.isPartyLeader = 0 === b),
-        C.isPartyLeader
+      a.AID === B.AID &&
+        ((B.isPartyLeader = 0 === b),
+        B.isPartyLeader
           ? this.ui.find(".party.add").show()
           : this.ui.find(".party.add").hide());
       for (
@@ -319,8 +319,8 @@ define(
           0 === a.state && e.addClass("online"),
           e.css("backgroundImage", ""),
           e.find(".name").text(a.characterName),
-          e.find(".map").text("(" + p.getMapName(a.mapName) + ")"))
-        : ((a = v.extend({}, a)),
+          e.find(".map").text("(" + q.getMapName(a.mapName) + ")"))
+        : ((a = u.extend({}, a)),
           G.push(a),
           this.ui
             .find(".content .party")
@@ -329,9 +329,9 @@ define(
                 (0 === b ? " leader" : "") +
                 (0 === a.state ? " online" : "") +
                 '"\x3e\x3cspan class\x3d"name"\x3e' +
-                v.escape(a.characterName) +
+                u.escape(a.characterName) +
                 '\x3c/span\x3e\x3cspan class\x3d"map"\x3e(' +
-                v.escape(p.getMapName(a.mapName)) +
+                u.escape(q.getMapName(a.mapName)) +
                 ')\x3c/span\x3e\x3ccanvas class\x3d"life" width\x3d"60" height\x3d"5"\x3e\x3c/canvas\x3e \x3cspan class\x3d"hp"\x3e\x3c/span\x3e\x3c/div\x3e',
             ),
           (e = this.ui.find(".content .party .node:eq(" + c + ")")));
@@ -348,19 +348,19 @@ define(
           : 0 === a.state
             ? "grp_online.bmp"
             : "") &&
-        z.loadFile(p.INTERFACE_PATH + "basic_interface/" + a, function (a) {
+        A.loadFile(q.INTERFACE_PATH + "basic_interface/" + a, function (a) {
           e.css("backgroundImage", "url(" + a + ")");
         });
     };
-    D.removePartyMember = function (a, b) {
-      if (a === C.AID)
+    E.removePartyMember = function (a, b) {
+      if (a === B.AID)
         ((G.length = 0),
           this.ui.find(".curnum").text(0),
           this.ui.find(".content .party").empty(),
           this.ui.find(".partyname").text(""),
           this.ui.find(".party.create").show(),
           this.ui.find(".party.leave, .party.add").hide(),
-          M.addText(p.getMessage(84), M.TYPE.BLUE));
+          O.addText(q.getMessage(84), O.TYPE.BLUE));
       else {
         var c,
           d = G.length;
@@ -373,15 +373,15 @@ define(
         this.ui.find(".curnum").text(G.length);
       }
     };
-    D.resize = function (a, b) {
+    E.resize = function (a, b) {
       a = Math.min(Math.max(a, 12), 13);
       b = Math.min(Math.max(b, 6), 12);
-      N.width = a;
-      N.height = b;
-      N.save();
+      M.width = a;
+      M.height = b;
+      M.save();
       this.ui.find(".content").css({ width: 20 * a, height: 20 * b });
     };
-    D.updateMemberLife = function (a, b, c, d) {
+    E.updateMemberLife = function (a, b, c, d) {
       var e,
         f = G.length;
       for (e = 0; e < f; ++e)
@@ -393,18 +393,18 @@ define(
           break;
         }
     };
-    D.setOptions = function (a, b, c) {
-      K.exp_share = a;
-      K.item_share = b;
-      K.item_sharing_type = c;
+    E.setOptions = function (a, b, c) {
+      L.exp_share = a;
+      L.item_share = b;
+      L.item_sharing_type = c;
     };
-    D.onRemoveFriend = function () {};
-    D.onRequestLeave = function () {};
-    D.onExpelMember = function () {};
-    D.onRequestChangeLeader = function () {};
-    D.onRequestAddingMember = function () {};
-    D.onRequestPartyCreation = function () {};
-    D.onRequestSettingUpdate = function () {};
-    return A.addComponent(D);
+    E.onRemoveFriend = function () {};
+    E.onRequestLeave = function () {};
+    E.onExpelMember = function () {};
+    E.onRequestChangeLeader = function () {};
+    E.onRequestAddingMember = function () {};
+    E.onRequestPartyCreation = function () {};
+    E.onRequestSettingUpdate = function () {};
+    return D.addComponent(E);
   },
 );

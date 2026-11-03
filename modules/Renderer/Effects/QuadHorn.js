@@ -46,22 +46,22 @@ define("Renderer/Effects/QuadHorn", [
   }
   var m,
     h,
-    q,
+    t,
     r = c.mat4;
   r.create();
-  var k = {},
+  var n = {},
     g = [
       0, 1, 0, -1, -1, 1, 1, -1, 1, 0, 1, 0, 1, -1, 1, 1, -1, -1, 0, 1, 0, 1,
       -1, -1, -1, -1, -1, 0, 1, 0, -1, -1, -1, -1, -1, 1,
     ],
-    u = [
+    p = [
       0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0,
     ],
     l = function (a, b) {
       return parseFloat(Math.min(a + Math.random() * (b - a), b).toFixed(3));
     },
     f = r.create(),
-    n = r.create();
+    k = r.create();
   e.prototype.init = function (b) {
     var c = this;
     d.loadFile("data/texture/" + this.textureFile, function (d) {
@@ -84,7 +84,7 @@ define("Renderer/Effects/QuadHorn", [
     a.enableVertexAttribArray(d.aTextureCoord);
     a.enableVertexAttribArray(d.aColor);
     0 < this.blendMode && 16 > this.blendMode
-      ? a.blendFunc(a.SRC_ALPHA, k[this.blendMode])
+      ? a.blendFunc(a.SRC_ALPHA, n[this.blendMode])
       : a.blendFunc(a.SRC_ALPHA, a.ONE_MINUS_SRC_ALPHA);
     1 !== this.animation || this._endAnimation
       ? 2 !== this.animation || this._endAnimation
@@ -118,7 +118,7 @@ define("Renderer/Effects/QuadHorn", [
     a.bindBuffer(a.ARRAY_BUFFER, h);
     a.vertexAttribPointer(d.aPosition, 3, a.FLOAT, !1, 0, 0);
     a.bindBuffer(a.ARRAY_BUFFER, null);
-    a.bindBuffer(a.ARRAY_BUFFER, q);
+    a.bindBuffer(a.ARRAY_BUFFER, t);
     a.vertexAttribPointer(d.aTextureCoord, 2, a.FLOAT, !1, 0, 0);
     a.bindBuffer(a.ARRAY_BUFFER, null);
     a.uniform3fv(c.uPosition, this.position);
@@ -126,9 +126,9 @@ define("Renderer/Effects/QuadHorn", [
     a.uniform1f(c.uOffsetX, this.offsetX);
     a.uniform1f(c.uOffsetY, this.offsetY);
     a.uniform4fv(c.uColor, this.color);
-    r.identity(n);
-    r.rotate(n, n, (this.rotateY * Math.PI) / 180, [0, 1, 0]);
-    a.uniformMatrix4fv(c.uYRotationMat, !1, n);
+    r.identity(k);
+    r.rotate(k, k, (this.rotateY * Math.PI) / 180, [0, 1, 0]);
+    a.uniformMatrix4fv(c.uYRotationMat, !1, k);
     r.identity(f);
     r.rotate(f, f, ((180 + this.rotateZ) * Math.PI) / 180, [0, 0, 1]);
     a.uniformMatrix4fv(c.uZRotationMat, !1, f);
@@ -141,34 +141,34 @@ define("Renderer/Effects/QuadHorn", [
       "\n        #version 100\n        #pragma vscode_glsllint_stage : vert\n        precision highp float;\n\n\t\tattribute vec3 aPosition;\n\t\tattribute vec2 aTextureCoord;\n\t\tvarying vec2 vTextureCoord;\n\n        uniform vec3 uPosition;\n\t\tuniform float uHeight;\n\t\tuniform float uBottomSize;\n\t\tuniform float uOffsetX;\n\t\tuniform float uOffsetY;\n\t\tuniform float uOffsetZ;\n\n\t\tuniform mat4 uModelViewMat;\n\t\tuniform mat4 uProjectionMat;\n\t\tuniform mat4 uYRotationMat;\n\t\tuniform mat4 uZRotationMat;\n\t\tvoid main(void) {\n\t\t\tvec4 position       \x3d vec4(uPosition.x + uOffsetX, -uPosition.z - ((uHeight * 0.9) + uOffsetZ), uPosition.y + uOffsetY, 1.0);\n\t\t\tposition            +\x3d vec4(aPosition.x * uBottomSize, aPosition.y * uHeight, aPosition.z * uBottomSize, 0.0) * uYRotationMat * uZRotationMat;\n            gl_Position         \x3d uProjectionMat * uModelViewMat * position;\n\n            vTextureCoord \x3d aTextureCoord;\n\t\t}\n\t",
       "\n        #version 100\n        #pragma vscode_glsllint_stage : frag\n        precision highp float;\n\n\t\tvarying vec2 vTextureCoord;\n        uniform vec4 uColor;\n\t\tuniform sampler2D uDiffuse;\n\t\tuniform bool  uFogUse;\n\t\tuniform float uFogNear;\n\t\tuniform float uFogFar;\n\t\tuniform vec3  uFogColor;\n\t\t\n\t\tvoid main(void) {\n\t\t\t\n\t\t\tvec4 texture \x3d texture2D( uDiffuse,  vTextureCoord.st );\n\t\t\t\n\t\t\tif (texture.a \x3d\x3d 0.0 ) { discard; }\n            if (texture.r \x3c 0.01 \x26\x26 texture.g \x3c 0.01 \x26\x26 texture.b \x3c 0.01) {\n                discard;\n             }\n\t\t\t\n\t\t\tgl_FragColor \x3d texture * uColor;\n\n\t\t\tif (uFogUse) {\n\t\t\t\tfloat depth     \x3d gl_FragCoord.z / gl_FragCoord.w;\n\t\t\t\tfloat fogFactor \x3d smoothstep( uFogNear, uFogFar, depth );\n\t\t\t\tgl_FragColor    \x3d mix( gl_FragColor, vec4( uFogColor, gl_FragColor.w ), fogFactor );\n\t\t\t}\n\t\t}\n\t",
     );
-    k[1] = b.ZERO;
-    k[2] = b.ONE;
-    k[3] = b.SRC_COLOR;
-    k[4] = b.ONE_MINUS_SRC_COLOR;
-    k[5] = b.DST_COLOR;
-    k[6] = b.ONE_MINUS_DST_COLOR;
-    k[7] = b.SRC_ALPHA;
-    k[8] = b.ONE_MINUS_SRC_ALPHA;
-    k[9] = b.DST_ALPHA;
-    k[10] = b.ONE_MINUS_DST_ALPHA;
-    k[11] = b.CONSTANT_COLOR;
-    k[12] = b.ONE_MINUS_CONSTANT_COLOR;
-    k[13] = b.CONSTANT_ALPHA;
-    k[14] = b.ONE_MINUS_CONSTANT_ALPHA;
-    k[15] = b.SRC_ALPHA_SATURATE;
+    n[1] = b.ZERO;
+    n[2] = b.ONE;
+    n[3] = b.SRC_COLOR;
+    n[4] = b.ONE_MINUS_SRC_COLOR;
+    n[5] = b.DST_COLOR;
+    n[6] = b.ONE_MINUS_DST_COLOR;
+    n[7] = b.SRC_ALPHA;
+    n[8] = b.ONE_MINUS_SRC_ALPHA;
+    n[9] = b.DST_ALPHA;
+    n[10] = b.ONE_MINUS_DST_ALPHA;
+    n[11] = b.CONSTANT_COLOR;
+    n[12] = b.ONE_MINUS_CONSTANT_COLOR;
+    n[13] = b.CONSTANT_ALPHA;
+    n[14] = b.ONE_MINUS_CONSTANT_ALPHA;
+    n[15] = b.SRC_ALPHA_SATURATE;
     h = b.createBuffer();
     b.bindBuffer(b.ARRAY_BUFFER, h);
     b.bufferData(b.ARRAY_BUFFER, new Float32Array(g), b.STATIC_DRAW);
-    q = b.createBuffer();
-    b.bindBuffer(b.ARRAY_BUFFER, q);
-    b.bufferData(b.ARRAY_BUFFER, new Float32Array(u), b.STATIC_DRAW);
+    t = b.createBuffer();
+    b.bindBuffer(b.ARRAY_BUFFER, t);
+    b.bufferData(b.ARRAY_BUFFER, new Float32Array(p), b.STATIC_DRAW);
     this.ready = !0;
     this.renderBeforeEntities = !1;
   };
   e.free = function (a) {
     m && (a.deleteProgram(m), (m = null));
     h && a.deleteBuffer(h);
-    q && a.deleteBuffer(q);
+    t && a.deleteBuffer(t);
     this.ready = !1;
   };
   e.beforeRender = function (a, b, c, d, e) {

@@ -6,44 +6,44 @@ define(
   function (a) {
     function b(a) {
       a = (a && a.which) || 1;
-      E.moveAction = null;
+      C.moveAction = null;
       if (f.intersect && !f.padOn)
-        switch (((O = Date.now()), a)) {
+        switch (((N = Date.now()), a)) {
           case 1:
-            if (n.SHIFT) {
-              E.Entity.lookTo(f.world.x, f.world.y);
+            if (k.SHIFT) {
+              C.Entity.lookTo(f.world.x, f.world.y);
               a = new J.CZ.CHANGE_DIRECTION();
-              a.headDir = E.Entity.headDir;
-              a.dir = E.Entity.direction;
-              A.sendPacket(a);
+              a.headDir = C.Entity.headDir;
+              a.dir = C.Entity.direction;
+              D.sendPacket(a);
               break;
             }
-            a = z.getFocusEntity();
-            var b = z.getOverEntity(),
-              c = z.get(E.mercGID),
+            a = A.getFocusEntity();
+            var b = A.getOverEntity(),
+              c = A.get(C.mercGID),
               d = !1;
-            a && a != b && (a.onFocusEnd(), z.setFocusEntity(null));
-            if (n.ALT && c) {
+            a && a != b && (a.onFocusEnd(), A.setFocusEntity(null));
+            if (k.ALT && c) {
               if (
                 b &&
-                b != E.Entity &&
+                b != C.Entity &&
                 b != c &&
                 ((d = (d = d || b.onMouseDown()) || b.onMercFocus()),
-                z.setFocusEntity(b),
+                A.setFocusEntity(b),
                 d)
               )
                 break;
               a = new J.CZ.REQUEST_MOVENPC();
-              a.GID = E.mercGID;
+              a.GID = C.mercGID;
               a.dest[0] = f.world.x;
               a.dest[1] = f.world.y;
-              A.sendPacket(a);
+              D.sendPacket(a);
             } else {
               if (
                 b &&
-                b != E.Entity &&
+                b != C.Entity &&
                 ((d = (d = d || b.onMouseDown()) || b.onFocus()),
-                z.setFocusEntity(b),
+                A.setFocusEntity(b),
                 d)
               )
                 break;
@@ -51,10 +51,10 @@ define(
             }
             break;
           case 3:
-            ((B[0] = f.screen.x),
-              (B[1] = f.screen.y),
-              k.setType(k.ACTION.ROTATE),
-              t.rotate(!0));
+            ((y[0] = f.screen.x),
+              (y[1] = f.screen.y),
+              n.setType(n.ACTION.ROTATE),
+              v.rotate(!0));
         }
     }
     function c(a) {
@@ -62,31 +62,31 @@ define(
       if (f.intersect && !f.padOn)
         switch ((a && a.which) || 1) {
           case 1:
-            if ((b = z.getFocusEntity())) {
+            if ((b = A.getFocusEntity())) {
               b.onMouseUp();
               if ("touchend" == a.type)
                 if (
-                  O + 600 < Date.now() &&
-                  B[0] === f.screen.x &&
-                  B[1] === f.screen.y
+                  N + 600 < Date.now() &&
+                  y[0] === f.screen.x &&
+                  y[1] === f.screen.y
                 ) {
-                  if ((b = z.getOverEntity()) && b !== E.Entity)
+                  if ((b = A.getOverEntity()) && b !== C.Entity)
                     b.onContextMenu();
                   break;
                 } else if (this.onRequestWalk) this.onRequestWalk();
-              if (!1 === C.noctrl || b.objecttype !== b.constructor.TYPE_MOB)
-                (z.setFocusEntity(null), b.onFocusEnd());
+              if (!1 === B.noctrl || b.objecttype !== b.constructor.TYPE_MOB)
+                (A.setFocusEntity(null), b.onFocusEnd());
             }
             if (this.onRequestStopWalk) this.onRequestStopWalk();
             break;
           case 3:
             if (
-              (k.setType(k.ACTION.DEFAULT),
-              t.rotate(!1),
-              B[0] === f.screen.x &&
-                B[1] === f.screen.y &&
-                (b = z.getOverEntity()) &&
-                b !== E.Entity)
+              (n.setType(n.ACTION.DEFAULT),
+              v.rotate(!1),
+              y[0] === f.screen.x &&
+                y[1] === f.screen.y &&
+                (b = A.getOverEntity()) &&
+                b !== C.Entity)
             )
               b.onContextMenu();
         }
@@ -96,7 +96,7 @@ define(
       a.originalEvent.wheelDelta
         ? ((b = a.originalEvent.wheelDelta / 120), window.opera && (b = -b))
         : a.originalEvent.detail && (b = -a.originalEvent.detail);
-      t.setZoom(b);
+      v.setZoom(b);
     }
     function e(a) {
       a.stopImmediatePropagation();
@@ -106,53 +106,53 @@ define(
       var b, c;
       try {
         c = JSON.parse(a.originalEvent.dataTransfer.getData("Text"));
-      } catch (I) {}
+      } catch (K) {}
       a.stopImmediatePropagation();
       if (!c) return !1;
       c.from && r.getComponent(c.from).ui.trigger("mouseleave");
       if ("item" !== c.type || "Inventory" !== c.from) return !1;
       if (l.ui.is(":visible"))
-        return (u.addText(q.getMessage(189), u.TYPE.ERROR), !1);
+        return (p.addText(t.getMessage(189), p.TYPE.ERROR), !1);
       b = c.data;
       if (1 < b.count)
         (g.append(),
           g.setType("number", !1, b.count),
           (g.onSubmitRequest = function (a) {
             g.remove();
-            F.onRequestDropItem(b.index, parseInt(a, 10));
+            H.onRequestDropItem(b.index, parseInt(a, 10));
           }));
-      else F.onRequestDropItem(b.index, 1);
+      else H.onRequestDropItem(b.index, 1);
       return !1;
     }
     var h = a("Utils/jquery"),
-      q = a("DB/DBManager"),
+      t = a("DB/DBManager"),
       r = a("UI/UIManager"),
-      k = a("UI/CursorManager"),
+      n = a("UI/CursorManager"),
       g = a("UI/Components/InputBox/InputBox"),
-      u = a("UI/Components/ChatBox/ChatBox"),
+      p = a("UI/Components/ChatBox/ChatBox"),
       l = a("UI/Components/Equipment/Equipment"),
       f = a("Controls/MouseEventHandler"),
-      n = a("Controls/KeyEventHandler"),
-      p = a("Core/Mobile"),
-      v = a("Renderer/Renderer"),
-      t = a("Renderer/Camera"),
-      z = a("Renderer/EntityManager"),
-      E = a("Engine/SessionStorage"),
-      C = a("Preferences/Controls"),
+      k = a("Controls/KeyEventHandler"),
+      q = a("Core/Mobile"),
+      u = a("Renderer/Renderer"),
+      v = a("Renderer/Camera"),
+      A = a("Renderer/EntityManager"),
+      C = a("Engine/SessionStorage"),
+      B = a("Preferences/Controls"),
       J = a("Network/PacketStructure"),
-      A = a("Network/NetworkManager");
+      D = a("Network/NetworkManager");
     a("Controls/ScreenShot");
-    var B = new Int16Array(2),
-      F = {},
-      O = 0;
-    F.onRequestWalk = function () {};
-    F.onRequestStopWalk = function () {};
-    F.onRequestDropItem = function () {};
-    F.init = function () {
-      p.init();
-      p.onTouchStart = b.bind(this);
-      p.onTouchEnd = c.bind(this);
-      h(v.canvas)
+    var y = new Int16Array(2),
+      H = {},
+      N = 0;
+    H.onRequestWalk = function () {};
+    H.onRequestStopWalk = function () {};
+    H.onRequestDropItem = function () {};
+    H.init = function () {
+      q.init();
+      q.onTouchStart = b.bind(this);
+      q.onTouchEnd = c.bind(this);
+      h(u.canvas)
         .on("mousewheel DOMMouseScroll", d)
         .on("dragover", e)
         .on("drop", m.bind(this));
@@ -160,6 +160,6 @@ define(
         .on("mousedown.map", b.bind(this))
         .on("mouseup.map", c.bind(this));
     };
-    return F;
+    return H;
   },
 );

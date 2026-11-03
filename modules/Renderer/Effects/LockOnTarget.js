@@ -17,12 +17,12 @@ define(
       e = a("Utils/gl-matrix"),
       m = a("Core/Client"),
       h = a("Renderer/Map/Altitude"),
-      q = a("Engine/SessionStorage"),
+      t = a("Engine/SessionStorage"),
       r,
-      k,
+      n,
       g,
-      u = e.mat4,
-      l = u.create();
+      p = e.mat4,
+      l = p.create();
     b.prototype.init = function (a) {
       this.ready = !0;
     };
@@ -37,9 +37,9 @@ define(
           c = c / 20,
           d = Math.max(d / 50, 1),
           d = Math.min(d, 5);
-        a.uniform3fv(k.uniform.uPosition, this.target.position);
-        a.uniform1f(k.uniform.uSize, 3 * (6 - d));
-        a.uniform1f(k.uniform.uColor, c);
+        a.uniform3fv(n.uniform.uPosition, this.target.position);
+        a.uniform1f(n.uniform.uSize, 3 * (6 - d));
+        a.uniform1f(n.uniform.uColor, c);
         a.drawArrays(a.TRIANGLES, 0, 6);
         this.needCleanUp = this.endLifeTime < b;
       } else {
@@ -48,18 +48,18 @@ define(
         b[1] = this.src[1] + this.target[1];
         b[2] = h.getCellHeight(b[0], b[1]);
         var d = this.range + 1,
-          e = q.Entity.position[0] - b[0],
-          f = q.Entity.position[1] - b[1];
+          e = t.Entity.position[0] - b[0],
+          f = t.Entity.position[1] - b[1];
         d * d <= e * e + f * f && (c = 0.2);
-        a.uniform3fv(k.uniform.uPosition, b);
-        a.uniform1f(k.uniform.uSize, 3);
-        a.uniform1f(k.uniform.uColor, c);
+        a.uniform3fv(n.uniform.uPosition, b);
+        a.uniform1f(n.uniform.uSize, 3);
+        a.uniform1f(n.uniform.uColor, c);
         a.drawArrays(a.TRIANGLES, 0, 6);
         this.needCleanUp = null;
       }
     };
     b.init = function (a) {
-      k = c.createShaderProgram(
+      n = c.createShaderProgram(
         a,
         "\n\t\t#version 100\n\t\t#pragma vscode_glsllint_stage : vert\n\t\tprecision highp float;\n\n\t\tattribute vec2 aPosition;\n\t\tattribute vec2 aTextureCoord;\n\n\t\tvarying vec2 vTextureCoord;\n\n\t\tuniform mat4 uModelViewMat;\n\t\tuniform mat4 uProjectionMat;\n\t\tuniform mat4 uRotationMat;\n\n\t\tuniform vec3 uPosition;\n\t\tuniform float uSize;\n\n\t\tvoid main(void) {\n\t\t\tvec4 position  \x3d vec4(uPosition.x + 0.5, -uPosition.z, uPosition.y + 0.5, 1.0);\n\t\t\tposition      +\x3d vec4(aPosition.x * uSize, 0.0, aPosition.y * uSize, 0.0) * uRotationMat;\n\n\t\t\tgl_Position    \x3d uProjectionMat * uModelViewMat * position;\n\t\t\tgl_Position.z -\x3d 0.02;\n\n\t\t\tvTextureCoord  \x3d aTextureCoord;\n\t\t}\n\t",
         "\n\t\t#version 100\n\t\t#pragma vscode_glsllint_stage : frag\n\t\tprecision highp float;\n\n\t\tvarying vec2 vTextureCoord;\n\n\t\tuniform sampler2D uDiffuse;\n\t\tuniform float uColor;\n\n\t\tuniform bool  uFogUse;\n\t\tuniform float uFogNear;\n\t\tuniform float uFogFar;\n\t\tuniform vec3  uFogColor;\n\n\t\tvoid main(void) {\n\t\t\tvec4 texture \x3d texture2D( uDiffuse,  vTextureCoord.st );\n\n\t\t\tif (texture.a \x3d\x3d 0.0) {\n\t\t\t\tdiscard;\n\t\t\t}\n\n\t\t\tgl_FragColor     \x3d texture;\n\t\t\tgl_FragColor.gb *\x3d uColor;\n\n\t\t\tif (uFogUse) {\n\t\t\t\tfloat depth     \x3d gl_FragCoord.z / gl_FragCoord.w;\n\t\t\t\tfloat fogFactor \x3d smoothstep( uFogNear, uFogFar, depth );\n\t\t\t\tgl_FragColor    \x3d mix( gl_FragColor, vec4( uFogColor, gl_FragColor.w ), fogFactor );\n\t\t\t}\n\t\t}\n\t",
@@ -95,16 +95,16 @@ define(
     b.renderBeforeEntities = !0;
     b.free = function (a) {
       r && (a.deleteTexture(r), (r = null));
-      k && (a.deleteProgram(k), (k = null));
+      n && (a.deleteProgram(n), (n = null));
       g && a.deleteBuffer(g);
       this.ready = !1;
     };
     b.beforeRender = function (a, b, c, d, e) {
-      var f = k.uniform,
-        h = k.attribute;
-      u.identity(l);
-      u.rotateY(l, l, (e / 4 / 180) * Math.PI);
-      a.useProgram(k);
+      var f = n.uniform,
+        h = n.attribute;
+      p.identity(l);
+      p.rotateY(l, l, (e / 4 / 180) * Math.PI);
+      a.useProgram(n);
       a.uniformMatrix4fv(f.uModelViewMat, !1, b);
       a.uniformMatrix4fv(f.uProjectionMat, !1, c);
       a.uniformMatrix4fv(f.uRotationMat, !1, l);
@@ -122,8 +122,8 @@ define(
       a.vertexAttribPointer(h.aTextureCoord, 2, a.FLOAT, !1, 16, 8);
     };
     b.afterRender = function (a) {
-      a.disableVertexAttribArray(k.attribute.aPosition);
-      a.disableVertexAttribArray(k.attribute.aTextureCoord);
+      a.disableVertexAttribArray(n.attribute.aPosition);
+      a.disableVertexAttribArray(n.attribute.aTextureCoord);
     };
     return b;
   },

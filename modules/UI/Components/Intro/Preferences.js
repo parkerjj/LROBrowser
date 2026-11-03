@@ -19,13 +19,13 @@ define(
                 (screen.availHeight - a[1]) / 2,
               ))));
       b.get("_serverEditMode") &&
-        ("serverlist" === q.serverdef
-          ? b.set("servers", q.serverlist)
-          : b.set("servers", "data/" + q.serverfile));
-      b.set("saveFiles", q.saveFiles);
+        ("serverlist" === t.serverdef
+          ? b.set("servers", t.serverlist)
+          : b.set("servers", "data/" + t.serverfile));
+      b.set("saveFiles", t.saveFiles);
       b.set("quality", m.quality);
     }
-    var q = d.get(
+    var t = d.get(
       "Window",
       {
         serverfile: "clientinfo.xml",
@@ -40,22 +40,22 @@ define(
         m.screensize = a.find(".screensize").val();
         m.quality = a.find(".quality").val();
         m.cursor = a.find(".cursor:checked").length ? !0 : !1;
-        q.saveFiles = a.find(".save:checked").length ? !0 : !1;
+        t.saveFiles = a.find(".save:checked").length ? !0 : !1;
         var c = a.find(".servers"),
           d,
-          u = c.find("tr").length,
+          p = c.find("tr").length,
           l;
         if (b.get("_serverEditMode"))
           for (
-            q.serverdef = a.find(".serverdef:checked").val(),
-              q.serverfile = a.find(".clientinfo").val(),
-              q.serverlist = [],
+            t.serverdef = a.find(".serverdef:checked").val(),
+              t.serverfile = a.find(".clientinfo").val(),
+              t.serverlist = [],
               d = 0;
-            d < u;
+            d < p;
             ++d
           )
             ((l = c.find("tr:eq(" + d + ")")),
-              q.serverlist.push({
+              t.serverlist.push({
                 display: l.find(".display").val(),
                 address: l.find(".address").val().split(":")[0],
                 port: parseInt(l.find(".address").val().split(":")[1], 10),
@@ -69,7 +69,7 @@ define(
         e.Sound.play = 0 < e.Sound.volume ? !0 : !1;
         e.save();
         m.save();
-        q.save();
+        t.save();
         h();
       },
       load: function (d) {
@@ -80,10 +80,10 @@ define(
         d.find(".quality").val(m.quality).trigger("change");
         d.find(".serverdef").attr("checked", !1);
         d.find(".cursor").attr("checked", m.cursor);
-        d.find('.serverdef[value\x3d"' + q.serverdef + '"]')
+        d.find('.serverdef[value\x3d"' + t.serverdef + '"]')
           .attr("checked", "true")
           .trigger("click");
-        d.find(".clientinfo").val(q.serverfile);
+        d.find(".clientinfo").val(t.serverfile);
         d.find(".bgmvol")
           .val(100 * e.BGM.volume)
           .trigger("change");
@@ -92,25 +92,25 @@ define(
           .trigger("change");
         window.requestFileSystem || window.webkitRequestFileSystem
           ? b.get("saveFiles")
-            ? d.find(".save").attr("checked", q.saveFiles ? "checked" : !1)
+            ? d.find(".save").attr("checked", t.saveFiles ? "checked" : !1)
             : d.find(".save").attr("disabled", "disabled")
           : (b.set("saveFiles", !1),
             d.find(".save").attr("disabled", "disabled"));
-        var k,
-          g = q.serverlist,
-          u = d.find(".servers").empty(),
+        var n,
+          g = t.serverlist,
+          p = d.find(".servers").empty(),
           l = a(
             '\x3ctr\x3e\t\x3ctd\x3e\x3cinput type\x3d"text" class\x3d"display"/\x3e\x3c/td\x3e\t\x3ctd\x3e\x3cinput type\x3d"text" class\x3d"address"/\x3e\x3c/td\x3e\t\x3ctd\x3e\x3cinput type\x3d"text" class\x3d"version"/\x3e\x3c/td\x3e\t\x3ctd\x3e\x3cinput type\x3d"text" class\x3d"langtype"/\x3e\x3c/td\x3e\t\x3ctd\x3e\x3cinput type\x3d"text" class\x3d"packetver"/\x3e\x3c/td\x3e\t\x3ctd\x3e\x3cbutton class\x3d"btn_delete"\x3e\x3c/button\x3e\x3c/td\x3e\x3c/tr\x3e',
           );
         d = 0;
-        for (k = g.length; d < k; ++d) {
+        for (n = g.length; d < n; ++d) {
           var f = l.clone();
           f.find(".display").val(g[d].display);
           f.find(".address").val(g[d].address + ":" + g[d].port);
           f.find(".version").val(g[d].version);
           f.find(".langtype").val(g[d].langtype);
           f.find(".packetver").val(g[d].packetver);
-          u.append(f);
+          p.append(f);
         }
         h();
       },

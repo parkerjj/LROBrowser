@@ -11,16 +11,16 @@ define(
           f.limit = l.limit;
           f.type = l.type;
           f.count = 1;
-          f.members = [p.Entity.display.name];
-          f.owner = p.Entity.display.name;
+          f.members = [q.Entity.display.name];
+          f.owner = q.Entity.display.name;
           f.append();
-          n.addText(r.getMessage(64), n.TYPE.BLUE);
+          k.addText(r.getMessage(64), k.TYPE.BLUE);
           break;
         case 1:
-          n.addText(r.getMessage(65), n.TYPE.ERROR);
+          k.addText(r.getMessage(65), k.TYPE.ERROR);
           break;
         case 2:
-          n.addText(r.getMessage(66), n.TYPE.ERROR);
+          k.addText(r.getMessage(66), k.TYPE.ERROR);
       }
     }
     function c(a) {
@@ -49,7 +49,7 @@ define(
         case 7:
           b = 434;
       }
-      n.addText(r.getMessage(b), n.TYPE.ERROR);
+      k.addText(r.getMessage(b), k.TYPE.ERROR);
     }
     function d(a) {
       f.count = a.curcount;
@@ -76,59 +76,59 @@ define(
       f.title = a.title;
       f.updateChat();
     }
-    function q(a) {
+    function t(a) {
       var b,
         c = a.memberList.length;
       f.members = Array(c);
       for (b = 0; b < c; ++b)
         (0 === a.memberList[b].role && (f.owner = a.memberList[b].name),
           (f.members[b] = a.memberList[b].name));
-      u.forEach(function (b) {
+      p.forEach(function (b) {
         return b.room.id === a.roomID ? (b.room.remove(), !1) : !0;
       });
       f.count = c;
       f.append();
     }
     var r = a("DB/DBManager"),
-      k = a("Network/NetworkManager"),
+      n = a("Network/NetworkManager"),
       g = a("Network/PacketStructure"),
-      u = a("Renderer/EntityManager"),
+      p = a("Renderer/EntityManager"),
       l = a("UI/Components/ChatRoomCreate/ChatRoomCreate"),
       f = a("UI/Components/ChatRoom/ChatRoom"),
-      n = a("UI/Components/ChatBox/ChatBox"),
-      p = a("Engine/SessionStorage");
+      k = a("UI/Components/ChatBox/ChatBox"),
+      q = a("Engine/SessionStorage");
     l.requestRoom = function () {
       var a = new g.CZ.CREATE_CHATROOM();
       a.size = this.limit;
       a.type = this.type;
       a.passwd = this.password;
       a.title = this.title;
-      k.sendPacket(a);
+      n.sendPacket(a);
     };
     f.changeChatRoom = function () {
       var a = new g.CZ.CHANGE_CHATROOM();
-      k.sendPacket(a);
+      n.sendPacket(a);
     };
     f.requestRoleChange = function () {
       var a = new g.CZ.REQ_ROLE_CHANGE();
-      k.sendPacket(a);
+      n.sendPacket(a);
     };
     f.requestExpelMember = function () {
       var a = new g.CZ.REQ_EXPEL_MEMBER();
-      k.sendPacket(a);
+      n.sendPacket(a);
     };
     f.exitRoom = function () {
       var a = new g.CZ.EXIT_ROOM();
-      k.sendPacket(a);
+      n.sendPacket(a);
     };
     return function () {
-      k.hookPacket(g.ZC.ACK_CREATE_CHATROOM, b);
-      k.hookPacket(g.ZC.CHANGE_CHATROOM, h);
-      k.hookPacket(g.ZC.ENTER_ROOM, q);
-      k.hookPacket(g.ZC.MEMBER_NEWENTRY, d);
-      k.hookPacket(g.ZC.ROLE_CHANGE, e);
-      k.hookPacket(g.ZC.MEMBER_EXIT, m);
-      k.hookPacket(g.ZC.REFUSE_ENTER_ROOM, c);
+      n.hookPacket(g.ZC.ACK_CREATE_CHATROOM, b);
+      n.hookPacket(g.ZC.CHANGE_CHATROOM, h);
+      n.hookPacket(g.ZC.ENTER_ROOM, t);
+      n.hookPacket(g.ZC.MEMBER_NEWENTRY, d);
+      n.hookPacket(g.ZC.ROLE_CHANGE, e);
+      n.hookPacket(g.ZC.MEMBER_EXIT, m);
+      n.hookPacket(g.ZC.REFUSE_ENTER_ROOM, c);
     };
   },
 );

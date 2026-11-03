@@ -6,79 +6,79 @@ define(
   function (a) {
     function b() {
       if (g.mercGID) {
-        var a = u.get(g.mercGID);
+        var a = p.get(g.mercGID);
         a
           ? (a.action == a.ACTION.IDLE &&
               (3 < Math.abs(g.Entity.position[0] - a.position[0]) ||
                 3 < Math.abs(g.Entity.position[1] - a.position[1])) &&
               ((a = new r.CZ.REQUEST_MOVETOOWNER()),
               (a.GID = g.mercGID),
-              q.sendPacket(a)),
-            k.clearTimeout(v),
-            (v = k.setTimeout(b, 200)))
-          : ((g.mercGID = 0), k.clearTimeout(v));
+              t.sendPacket(a)),
+            n.clearTimeout(u),
+            (u = n.setTimeout(b, 200)))
+          : ((g.mercGID = 0), n.clearTimeout(u));
       }
     }
     function c(a) {
-      n.append();
-      n.setInformations(a);
+      k.append();
+      k.setInformations(a);
     }
     function d(a) {
-      p.append();
-      p.setskill(a.skillList);
+      q.append();
+      q.setskill(a.skillList);
     }
     function e() {
       g.moveAction &&
-        k.setTimeout(function () {
+        n.setTimeout(function () {
           g.moveAction &&
-            (q.sendPacket(g.moveAction),
-            null == u.getFocusEntity() &&
-              q.sendPacket(new r.CZ.CANCEL_LOCKON()),
+            (t.sendPacket(g.moveAction),
+            null == p.getFocusEntity() &&
+              t.sendPacket(new r.CZ.CANCEL_LOCKON()),
             (g.moveAction = null));
         }, 50);
     }
     var m = a("DB/DBManager"),
       h = a("Utils/PathFinding"),
-      q = a("Network/NetworkManager"),
+      t = a("Network/NetworkManager"),
       r = a("Network/PacketStructure");
     a("Core/Client");
-    var k = a("Core/Events"),
+    var n = a("Core/Events"),
       g = a("Engine/SessionStorage"),
-      u = a("Renderer/EntityManager"),
+      p = a("Renderer/EntityManager"),
       l = a("Renderer/Map/Altitude"),
       f = a("UI/UIManager");
     a("UI/Components/SlotMachine/SlotMachine");
     a("UI/Components/SkillTargetSelection/SkillTargetSelection");
     a("UI/Components/ItemSelection/ItemSelection");
     a("UI/Components/ChatBox/ChatBox");
-    var n = a("UI/Components/Mercenary/MercenaryInformations"),
-      p = a("UI/Components/Mercenary/MercenaryskillList"),
-      v = null;
-    n.reqFired = function () {
+    var k = a("UI/Components/Mercenary/MercenaryInformations"),
+      q = a("UI/Components/Mercenary/MercenaryskillList"),
+      u = null;
+    k.reqFired = function () {
       f.showPromptBox(m.getMessage(1370), "ok", "cancel", function () {
-        n.remove();
-        p.remove();
+        k.remove();
+        q.remove();
         var a = new r.CZ.MER_COMMAND();
         a.command = 2;
-        q.sendPacket(a);
+        t.sendPacket(a);
       });
     };
-    p.onUseSkill = function (a, b, c) {
-      var d, e, f, n, k;
-      d = u.get(g.mercGID);
-      f = u.get(c) || d;
-      e = p.getSkillById(a);
-      n = [];
+    q.onUseSkill = function (a, b, c) {
+      var d, e, f, k, m;
+      d = p.get(g.mercGID);
+      f = p.get(c) || d;
+      e = q.getSkillById(a);
+      k = [];
       if (f != d || !e || 1 != e.type)
         if (
           ((e = e ? e.attackRange : d.attack_range),
-          (k = h.searchLong(
+          (m = h.searchLong(
             d.position[0] | 0,
             d.position[1] | 0,
             f.position[0] | 0,
             f.position[1] | 0,
             e,
-            n,
+            k,
             l.TYPE.WALKABLE,
           )))
         )
@@ -86,22 +86,22 @@ define(
             (e.SKID = a),
             (e.selectedLevel = b),
             (e.targetID = c || d),
-            2 > k ||
+            2 > m ||
               f === d ||
               ((g.moveAction = e),
               (e = new r.CZ.REQUEST_MOVE()),
-              (e.dest[0] = n[2 * (k - 1) + 0]),
-              (e.dest[1] = n[2 * (k - 1) + 1])),
-            q.sendPacket(e));
+              (e.dest[0] = k[2 * (m - 1) + 0]),
+              (e.dest[1] = k[2 * (m - 1) + 1])),
+            t.sendPacket(e));
     };
-    n.WalkEnd = function () {
-      var a = u.get(g.mercGID);
-      v = k.setTimeout(b, 200);
+    k.WalkEnd = function () {
+      var a = p.get(g.mercGID);
+      u = n.setTimeout(b, 200);
       a.onWalkEnd = e;
     };
     return function () {
-      q.hookPacket(r.ZC.MER_INIT, c);
-      q.hookPacket(r.ZC.MER_SKILLINFO_LIST, d);
+      t.hookPacket(r.ZC.MER_INIT, c);
+      t.hookPacket(r.ZC.MER_SKILLINFO_LIST, d);
     };
   },
 );

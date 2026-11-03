@@ -2,11 +2,11 @@ define("Renderer/Entity/EntityDisplay", [
   "Utils/gl-matrix",
   "Renderer/Renderer",
 ], function (a, b) {
-  function c(a, b, c, d, f, e, p) {
+  function c(a, b, c, d, f, e, q) {
     a.textBaseline = "top";
     a.lineWidth = 1;
     a.shadowColor = "#222";
-    a.shadowBlur = p;
+    a.shadowBlur = q;
     a.shadowOffsetX = f;
     a.shadowOffsetY = e;
     a.fillStyle = "black";
@@ -33,7 +33,7 @@ define("Renderer/Entity/EntityDisplay", [
   var e = a.vec4,
     m = new Float32Array(4),
     h = new Float32Array(2),
-    q = window.devicePixelRatio;
+    t = window.devicePixelRatio;
   "undefined" !== typeof CanvasRenderingContext2D &&
     (CanvasRenderingContext2D.prototype.outlineText = function (a, b, c) {
       this.fillText(a, b - 1, c);
@@ -77,11 +77,11 @@ define("Renderer/Entity/EntityDisplay", [
   d.prototype.update = function (a) {
     this.guild_name.length || (this.emblem = 0);
     var b = Array(2),
-      d = 11 * q,
+      d = 11 * t,
       e = this.ctx,
       f = (this.emblem ? 26 : 0) + 5,
-      n,
-      k;
+      k,
+      q;
     b[0] = this.name.split("#")[0];
     b[1] = "";
     this.title.length && (b[0] = " [" + this.title + "]" + b[0]);
@@ -90,10 +90,10 @@ define("Renderer/Entity/EntityDisplay", [
       ((b[1] = this.guild_name),
       this.guild_rank.length && (b[1] += " [" + this.guild_rank + "]"));
     e.font = "bold " + d + "px Arial";
-    n = Math.max(e.measureText(b[0]).width, e.measureText(b[1]).width) + f + 5;
-    k = 3 * d * (b[1].length ? 2 : 1);
-    e.canvas.width = n;
-    e.canvas.height = k;
+    k = Math.max(e.measureText(b[0]).width, e.measureText(b[1]).width) + f + 5;
+    q = 3 * d * (b[1].length ? 2 : 1);
+    e.canvas.width = k;
+    e.canvas.height = q;
     this.emblem && e.drawImage(this.emblem, 0, 0);
     a = a || "white";
     e.font = "bold " + d + "px Arial";
@@ -135,9 +135,9 @@ define("Renderer/Entity/EntityDisplay", [
     m[1] = h[1] - Math.round(h[1] * m[1] * a);
     this.entity.life.display && (d = 10);
     c.style.top = ((m[1] + 5 + d) | 0) + "px";
-    c.style.left = ((m[0] - c.width / q / 2) | 0) + "px";
-    c.style.width = c.width / q + "px";
-    c.style.height = c.height / q + "px";
+    c.style.left = ((m[0] - c.width / t / 2) | 0) + "px";
+    c.style.width = c.width / t + "px";
+    c.style.height = c.height / t + "px";
     c.parentNode || document.body.appendChild(c);
   };
   return function () {

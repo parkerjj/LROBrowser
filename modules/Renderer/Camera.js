@@ -10,21 +10,21 @@ define(
       e = a("Core/Events"),
       m = a("Core/Configs"),
       h = a("Preferences/Camera"),
-      q = a("Utils/gl-matrix"),
-      r = q.mat4,
-      k = q.mat3,
-      g = q.vec2,
-      q = q.vec3,
-      u = q.create(),
+      t = a("Utils/gl-matrix"),
+      r = t.mat4,
+      n = t.mat3,
+      g = t.vec2,
+      t = t.vec3,
+      p = t.create(),
       l = {};
     l.projection = r.create();
     l.modelView = r.create();
-    l.normalMat = k.create();
+    l.normalMat = n.create();
     l.zoom = h.zoom;
     l.zoomFinal = h.zoom;
     l.angle = g.create();
     l.angleFinal = g.create();
-    l.position = q.create();
+    l.position = t.create();
     l.target = null;
     l.lastTick = 0;
     l.MAX_ZOOM = 15;
@@ -252,12 +252,12 @@ define(
       r.translateZ(a, (this.altitudeFrom - this.zoom) / 2);
       r.rotateX(a, a, (this.angle[0] / 180) * Math.PI);
       r.rotateY(a, a, (this.angle[1] / 180) * Math.PI);
-      u[0] = this.position[0] - 0.5;
-      u[1] = this.position[2];
-      u[2] = this.position[1] - 0.5;
-      r.translate(a, a, u);
+      p[0] = this.position[0] - 0.5;
+      p[1] = this.position[2];
+      p[2] = this.position[1] - 0.5;
+      r.translate(a, a, p);
       r.toInverseMat3(a, this.normalMat);
-      k.transpose(this.normalMat, this.normalMat);
+      n.transpose(this.normalMat, this.normalMat);
     };
     return l;
   },

@@ -11,7 +11,7 @@ define("Renderer/Effects/Cylinder", [
       f,
       g = [],
       l = [],
-      k = [];
+      h = [];
     for (d = 0; d <= b; d++)
       ((e = (d + 0) / a),
         (f = (d + 0) / a),
@@ -30,13 +30,13 @@ define("Renderer/Effects/Cylinder", [
           0,
         ]));
     for (d = 0; d <= b; d++)
-      (k.push.apply(k, g[d + 0]),
-        k.push.apply(k, l[d + 0]),
-        k.push.apply(k, g[d + 1]),
-        k.push.apply(k, l[d + 0]),
-        k.push.apply(k, g[d + 1]),
-        k.push.apply(k, l[d + 1]));
-    return new Float32Array(k);
+      (h.push.apply(h, g[d + 0]),
+        h.push.apply(h, l[d + 0]),
+        h.push.apply(h, g[d + 1]),
+        h.push.apply(h, l[d + 0]),
+        h.push.apply(h, g[d + 1]),
+        h.push.apply(h, l[d + 1]));
+    return new Float32Array(h);
   }
   function h(a, b, c) {
     c = b.position;
@@ -102,11 +102,11 @@ define("Renderer/Effects/Cylinder", [
     this.repeat = a.repeat;
     this.isBmp = a.isBmp ? !0 : !1;
   }
-  var q,
+  var t,
     r = {};
   h.buffer;
-  var k = c.mat4,
-    g = k.create();
+  var n = c.mat4,
+    g = n.create();
   h.verticeCount = 0;
   h.prototype.init = function (b) {
     this.vertices = m(
@@ -138,10 +138,10 @@ define("Renderer/Effects/Cylinder", [
     if (!(this.startTick > b)) {
       var c = b - this.startTick,
         d = this.endTick - this.startTick,
-        l = q.uniform,
-        h = q.attribute,
-        m = (c / d) * 100;
-      100 < m && (m = 100);
+        l = t.uniform,
+        h = t.attribute,
+        p = (c / d) * 100;
+      100 < p && (p = 100);
       a.bindTexture(a.TEXTURE_2D, this.texture);
       1 < this.repeatTextureX &&
         a.texParameteri(a.TEXTURE_2D, a.TEXTURE_WRAP_S, a.REPEAT);
@@ -178,10 +178,10 @@ define("Renderer/Effects/Cylinder", [
         a.uniform1f(l.uHeight, this.height);
         h = (c / d) * this.bottomSize;
         0 > h && (h = 0);
-        var u = (c / d) * this.topSize;
-        0 > u && (u = 0);
+        var m = (c / d) * this.topSize;
+        0 > m && (m = 0);
         a.uniform1f(l.uBottomSize, h);
-        a.uniform1f(l.uTopSize, u);
+        a.uniform1f(l.uTopSize, m);
       } else
         (5 == this.animation
           ? c < d / 2
@@ -204,14 +204,14 @@ define("Renderer/Effects/Cylinder", [
         ? this.poszStart != this.poszEnd
           ? ((d = this.poszEnd - this.poszStart),
             (h = this.poszStart),
-            (m = Math.log10(0.09 * m + 1) * d + h))
-          : (m = this.poszStart)
+            (p = Math.log10(0.09 * p + 1) * d + h))
+          : (p = this.poszStart)
         : this.poszStart != this.poszEnd
           ? ((d = (this.poszEnd - this.poszStart) / 100),
             (h = this.poszStart),
-            (m = m * d + h))
-          : (m = this.poszStart);
-      c[2] = this.position[2] + m;
+            (p = p * d + h))
+          : (p = this.poszStart);
+      c[2] = this.position[2] + p;
       if (
         this.rotate ||
         this.angleX ||
@@ -220,24 +220,24 @@ define("Renderer/Effects/Cylinder", [
         this.rotateWithCamera ||
         this.fixedPerspective
       ) {
-        k.identity(g);
-        this.rotate && k.rotateY(g, g, (b / 4 / 180) * Math.PI);
-        this.angleX && k.rotateX(g, g, (this.angleX / 180) * Math.PI);
-        this.angleY && k.rotateY(g, g, (this.angleY / 180) * Math.PI);
-        this.angleZ && k.rotateZ(g, g, (this.angleZ / 180) * Math.PI);
+        n.identity(g);
+        this.rotate && n.rotateY(g, g, (b / 4 / 180) * Math.PI);
+        this.angleX && n.rotateX(g, g, (this.angleX / 180) * Math.PI);
+        this.angleY && n.rotateY(g, g, (this.angleY / 180) * Math.PI);
+        this.angleZ && n.rotateZ(g, g, (this.angleZ / 180) * Math.PI);
         if (this.rotateWithCamera || this.fixedPerspective) {
-          m = this.posY;
+          p = this.posY;
           this.fixedPerspective &&
             ((d = ((e.angle[0] - 180) * Math.PI) / 180),
             this.posZ &&
               ((c[2] += this.posZ * Math.cos(d) - this.posY * Math.sin(d)),
-              (m = this.posY * Math.sin(d) + this.posZ * Math.sin(d))),
-            k.rotateX(g, g, d));
+              (p = this.posY * Math.sin(d) + this.posZ * Math.sin(d))),
+            n.rotateX(g, g, d));
           d = (e.angle[1] * Math.PI) / 180;
           if (this.posX || this.posY)
-            ((c[0] += this.posX * Math.cos(d) - m * Math.sin(d)),
-              (c[1] += m * Math.cos(d) + this.posX * Math.sin(d)));
-          k.rotateY(g, g, d);
+            ((c[0] += this.posX * Math.cos(d) - p * Math.sin(d)),
+              (c[1] += p * Math.cos(d) + this.posX * Math.sin(d)));
+          n.rotateY(g, g, d);
         } else ((c[0] += this.posX), (c[1] += this.posY), (c[2] += this.posZ));
         a.uniform1i(l.uRotate, !0);
         a.uniformMatrix4fv(l.uRotationMat, !1, g);
@@ -267,7 +267,7 @@ define("Renderer/Effects/Cylinder", [
     r[13] = b.CONSTANT_ALPHA;
     r[14] = b.ONE_MINUS_CONSTANT_ALPHA;
     r[15] = b.SRC_ALPHA_SATURATE;
-    q = a.createShaderProgram(
+    t = a.createShaderProgram(
       b,
       "\n\t\t#version 100\n\t\t#pragma vscode_glsllint_stage : vert\n\t\tprecision highp float;\n\n\t\tattribute vec3 aPosition;\n\t\tattribute vec2 aTextureCoord;\n\t\t\n\t\tvarying vec2 vTextureCoord;\n\t\t\n\t\tuniform mat4 uModelViewMat;\n\t\tuniform mat4 uProjectionMat;\n\t\tuniform mat4 uRotationMat;\n\t\tuniform bool uRotate;\n\t\tuniform vec3 uPosition;\n\t\tuniform float uTopSize;\n\t\tuniform float uBottomSize;\n\t\tuniform float uHeight;\n\t\t\n\t\tuniform float uZindex;\n\t\t\n\t\tvoid main(void) {\n\t\t\tfloat size, height;\n\t\t\t\n\t\t\tif (aPosition.z \x3d\x3d 1.0) {\n\t\t\t\tsize   \x3d uTopSize;\n\t\t\t\theight \x3d uHeight;\n\t\t\t} else {\n\t\t\t\tsize   \x3d uBottomSize;\n\t\t\t\theight \x3d 0.0;\n\t\t\t}\n\t\t\t\n\t\t\tvec4 position  \x3d vec4(uPosition.x + 0.5, -uPosition.z, uPosition.y + 0.5, 1.0);\n\t\t\tif(uRotate) {\n\t\t\t\tposition +\x3d vec4(aPosition.x * size, -height, aPosition.y * size, 0.0) * uRotationMat;\n\t\t\t} else {\n\t\t\t\tposition  +\x3d vec4(aPosition.x * size, -height, aPosition.y * size, 0.0);\n\t\t\t}\n\t\t\t\n\t\t\tgl_Position    \x3d uProjectionMat * uModelViewMat * position;\n\t\t\tgl_Position.z -\x3d uZindex;\n\t\t\t\n\t\t\tvTextureCoord  \x3d aTextureCoord;\n\t\t}\n\t",
       "\n\t\t#version 100\n\t\t#pragma vscode_glsllint_stage : frag\n\n\t\tprecision highp float;\n\n\t\tvarying vec2 vTextureCoord;\n\n\t\tuniform sampler2D uDiffuse;\n\t\tuniform vec4 uSpriteRendererColor;\n\t\t\n\t\tuniform bool  uFogUse;\n\t\tuniform float uFogNear;\n\t\tuniform float uFogFar;\n\t\tuniform vec3  uFogColor;\n\t\t\n\t\tvoid main(void) {\n\t\t\t\n\t\t\tif (uSpriteRendererColor.a \x3d\x3d  0.0) { \n\t\t\t\tdiscard; \n\t\t\t}\n\t\t\t\n\t\t vec4 texture \x3d texture2D( uDiffuse,  vTextureCoord.st );\n\t\t\t\n\t\t\tif (texture.a \x3d\x3d 0.0) {\n\t\t\t\tdiscard;\n\t\t\t}\n\t\t\t\n\t\t\tif (texture.r \x3c 0.01 \x26\x26 texture.g \x3c 0.01 \x26\x26 texture.b \x3c 0.01) {\n               discard;\n            }\n\t\t\t\n\t\t\tgl_FragColor   \x3d texture * uSpriteRendererColor;\n\t\t\t\n\t\t\tif (uFogUse) {\n\t\t\t float depth \x3d gl_FragCoord.z / gl_FragCoord.w;\n\t\t\t float fogFactor \x3d smoothstep( uFogNear, uFogFar, depth );\n\t\t\t\tgl_FragColor    \x3d mix( gl_FragColor, vec4( uFogColor, gl_FragColor.w ), fogFactor );\n\t\t\t}\n\t\t}\n\t",
@@ -276,14 +276,14 @@ define("Renderer/Effects/Cylinder", [
     this.renderBeforeEntities = !1;
   };
   h.free = function (a) {
-    q && (a.deleteProgram(q), (q = null));
+    t && (a.deleteProgram(t), (t = null));
     this.buffer && a.deleteBuffer(this.buffer);
     this.ready = !1;
   };
   h.beforeRender = function (a, b, c, d, e) {
-    e = q.uniform;
+    e = t.uniform;
     a.depthMask(!1);
-    a.useProgram(q);
+    a.useProgram(t);
     a.uniformMatrix4fv(e.uModelViewMat, !1, b);
     a.uniformMatrix4fv(e.uProjectionMat, !1, c);
     a.uniform1i(e.uFogUse, d.use && d.exist);
@@ -295,8 +295,8 @@ define("Renderer/Effects/Cylinder", [
   };
   h.afterRender = function (a) {
     a.depthMask(!0);
-    a.disableVertexAttribArray(q.attribute.aPosition);
-    a.disableVertexAttribArray(q.attribute.aTextureCoord);
+    a.disableVertexAttribArray(t.attribute.aPosition);
+    a.disableVertexAttribArray(t.attribute.aTextureCoord);
     a.blendFunc(a.SRC_ALPHA, a.ONE_MINUS_SRC_ALPHA);
   };
   return h;

@@ -8,12 +8,12 @@ define(
       var b;
       try {
         b = JSON.parse(a.originalEvent.dataTransfer.getData("Text"));
-      } catch (p) {
+      } catch (q) {
         return !1;
       }
       a.stopImmediatePropagation();
       a = b.data;
-      u("UI/Components/Inventory/Inventory").removeItem(a.index, 1);
+      p("UI/Components/Inventory/Inventory").removeItem(a.index, 1);
       l.throwItem_ItemMakeSure(a);
       return !1;
     }
@@ -27,12 +27,12 @@ define(
     a("DB/Items/Makablelist_dg");
     var m = a("Core/Client"),
       h = a("Renderer/Renderer"),
-      q = a("UI/UIManager"),
+      t = a("UI/UIManager"),
       r = a("UI/UIComponent"),
-      k = a("text!./ItemMakeSure.html"),
+      n = a("text!./ItemMakeSure.html"),
       g = a("text!./ItemMakeSure.css"),
-      u = a,
-      l = new r("ItemMakeSure", k, g);
+      p = a,
+      l = new r("ItemMakeSure", n, g);
     l.list = [];
     l.init = function () {
       this.ui.css({
@@ -92,6 +92,6 @@ define(
       );
     };
     l.onIndexSelected = function () {};
-    return q.addComponent(l);
+    return t.addComponent(l);
   },
 );

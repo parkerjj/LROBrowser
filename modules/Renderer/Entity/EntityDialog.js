@@ -28,28 +28,28 @@ define("Renderer/Entity/EntityDialog", [
   }
   var m = a.vec4,
     h = new Float32Array(4),
-    q = new Float32Array(2);
+    t = new Float32Array(2);
   e.prototype.set = function (a, e) {
     this.text = a;
     this.tick = c.tick;
     this.display = !0;
     var g = this.ctx,
-      k = [],
+      p = [],
       l = 0,
       f,
-      n,
-      p = e || "white";
+      k,
+      q = e || "white";
     for (g.font = "12px serif"; a.length;) {
       for (e = a.length; 250 < g.measureText(a.substr(0, e)).width;) e--;
-      n = a.substr(0, e);
+      k = a.substr(0, e);
       if (e !== a.length)
-        for (f = 0; -1 !== n.indexOf(" ", f);) f = n.indexOf(" ", f) + 1;
-      k.push(n.substr(0, f || n.length));
-      l = Math.max(l, g.measureText(k[k.length - 1]).width);
-      a = a.substr(k[k.length - 1].length, a.length);
+        for (f = 0; -1 !== k.indexOf(" ", f);) f = k.indexOf(" ", f) + 1;
+      p.push(k.substr(0, f || k.length));
+      l = Math.max(l, g.measureText(p[p.length - 1]).width);
+      a = a.substr(p[p.length - 1].length, a.length);
     }
     g.canvas.width = 14 + l;
-    g.canvas.height = 8 + 17 * k.length;
+    g.canvas.height = 8 + 17 * p.length;
     g.font = "12px serif";
     g.fillStyle = "rgba(0,0,0,0.4)";
     g.fillRect(0, 0, g.canvas.width, g.canvas.height);
@@ -57,11 +57,11 @@ define("Renderer/Entity/EntityDialog", [
     d(g, 0.5, 0.5, g.canvas.width - 1, g.canvas.height - 1, 2);
     g.stroke();
     e = 0;
-    for (f = k.length; e < f; ++e)
+    for (f = p.length; e < f; ++e)
       ((g.fillStyle = "black"),
-        g.fillText(k[e], 8, 17 + 17 * e),
-        (g.fillStyle = p),
-        g.fillText(k[e], 7, 16 + 17 * e));
+        g.fillText(p[e], 8, 17 + 17 * e),
+        (g.fillStyle = q),
+        g.fillText(p[e], 7, 16 + 17 * e));
     this.timeout && b.clearTimeout(this.timeout);
     this.timeout = b.setTimeout(
       function () {
@@ -86,12 +86,12 @@ define("Renderer/Entity/EntityDialog", [
     h[1] = 90 / 35;
     h[2] = 0;
     h[3] = 1;
-    q[0] = c.width / 2;
-    q[1] = c.height / 2;
+    t[0] = c.width / 2;
+    t[1] = c.height / 2;
     m.transformMat4(h, h, a);
     a = 0 === h[3] ? 1 : 1 / h[3];
-    h[0] = q[0] + Math.round(q[0] * h[0] * a);
-    h[1] = q[1] - Math.round(q[1] * h[1] * a);
+    h[0] = t[0] + Math.round(t[0] * h[0] * a);
+    h[1] = t[1] - Math.round(t[1] * h[1] * a);
     b.style.zIndex = c.canvas.style.zIndex + 1;
     b.style.top = ((h[1] - b.height - 2) | 0) + "px";
     b.style.left = ((h[0] - b.width / 2) | 0) + "px";

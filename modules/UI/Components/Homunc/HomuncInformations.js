@@ -27,13 +27,13 @@ define(
     var e = a("DB/DBManager"),
       m = a("Core/Preferences"),
       h = a("Engine/SessionStorage"),
-      q = a("Renderer/EntityManager"),
+      t = a("Renderer/EntityManager"),
       r = a("UI/UIManager"),
-      k = a("UI/UIComponent"),
+      n = a("UI/UIComponent"),
       g = a("UI/Components/Homunc/HomuncskillList"),
-      u = a("text!./HomuncInformations.html");
+      p = a("text!./HomuncInformations.html");
     a = a("text!./HomuncInformations.css");
-    var l = new k("HomuncInformations", u, a);
+    var l = new n("HomuncInformations", p, a);
     m.get("HomuncInformations", { x: 100, y: 200, show: !1 }, 1);
     l.init = function () {
       this.draggable(this.ui.find(".titlebar"));
@@ -72,7 +72,7 @@ define(
         }
     };
     l.initData = function (a) {
-      var b = q.get(a.GID);
+      var b = t.get(a.GID);
       if (b)
         switch (a.state) {
           case 0:
@@ -106,7 +106,7 @@ define(
         }
     };
     l.setInformations = function (a) {
-      var b = q.get(h.homGID);
+      var b = t.get(h.homGID);
       b &&
         (a &&
           ((l.info = a),
@@ -169,7 +169,7 @@ define(
         l.WalkEnd());
     };
     l.resetHom = function () {
-      var a = q.get(h.homGID),
+      var a = t.get(h.homGID),
         b = l.info;
       a &&
         ((a.attack_range = b.ATKRange),

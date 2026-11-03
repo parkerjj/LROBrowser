@@ -5,8 +5,8 @@ define(
   ),
   function (a) {
     function b() {
-      var a = t.ui.find(".container .itype option:selected").data("index"),
-        b = t.ui.find(".container .iid"),
+      var a = v.ui.find(".container .itype option:selected").data("index"),
+        b = v.ui.find(".container .iid"),
         c = Object.keys(m[e.nid][a].nav);
       b.empty();
       for (var d = 0; d < c.length; d++)
@@ -25,21 +25,21 @@ define(
       return !1;
     }
     function d() {
-      if ("" == t.ui.find(".container .memo").val())
+      if ("" == v.ui.find(".container .memo").val())
         return (f.setMsg("\u5907\u6ce8\u5185\u5bb9\u4e0d\u4e3a\u7a7a"), !1);
       if (0 == this.type) {
         var a = new FormData();
-        a.append("AuthToken", k.AuthToken);
-        a.append("AID", k.AID);
-        a.append("GDID", k.Entity.GUID);
-        a.append("GID", k.GID);
+        a.append("AuthToken", n.AuthToken);
+        a.append("AID", n.AID);
+        a.append("GDID", n.Entity.GUID);
+        a.append("GID", n.GID);
         a.append(
           "WorldName",
-          UrlTools.encode(t.ui.find(".container .mapname").text()),
+          UrlTools.encode(v.ui.find(".container .mapname").text()),
         );
         a.append(
           "CharName",
-          UrlTools.encode(t.ui.find(".container .name").text()),
+          UrlTools.encode(v.ui.find(".container .name").text()),
         );
         a.append("IID", 0);
         a.append("Type", 0);
@@ -47,9 +47,9 @@ define(
         a.append("Dealer", 1);
         a.append("Healer", 1);
         a.append("Tanker", 1);
-        a.append("MinLV", t.ui.find(".container .minlvl").val());
-        a.append("MaxLV", t.ui.find(".container .maxlvl").val());
-        a.append("Memo", UrlTools.encode(t.ui.find(".container .memo").val()));
+        a.append("MinLV", v.ui.find(".container .minlvl").val());
+        a.append("MaxLV", v.ui.find(".container .maxlvl").val());
+        a.append("Memo", UrlTools.encode(v.ui.find(".container .memo").val()));
         a.append("ISTATE", 0);
         $.ajax({
           url: "https://game.lastro.cn/" + e.webpath + "/party/add",
@@ -62,18 +62,18 @@ define(
           .done(function (a) {
             1 == a.Type
               ? (f.setMsg("\u62db\u52df\u4fe1\u606f\u6dfb\u52a0\u6210\u529f"),
-                v("UI/Components/PartyBooking/PartyBooking").reload())
+                u("UI/Components/PartyBooking/PartyBooking").reload())
               : f.setMsg("\u62db\u52df\u4fe1\u606f\u6dfb\u52a0\u5931\u8d25");
           })
           .fail(function (a) {
-            u.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
+            p.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
           });
         this.remove();
       } else {
-        var a = t.ui.find(".container .iid").val(),
+        var a = v.ui.find(".container .iid").val(),
           b = new h.CZ.REQ_CREATE_INSTANCE();
         b.instanceName = a;
-        q.sendPacket(b);
+        t.sendPacket(b);
         return !1;
       }
     }
@@ -81,46 +81,46 @@ define(
     var e = a("DB/DBManager"),
       m = a("DB/AgencyTable"),
       h = a("Network/PacketStructure"),
-      q = a("Network/NetworkManager"),
+      t = a("Network/NetworkManager"),
       r = a("Renderer/MapRenderer"),
-      k = a("Engine/SessionStorage");
+      n = a("Engine/SessionStorage");
     a("Controls/KeyEventHandler");
     a("Renderer/Renderer");
     var g = a("Core/Preferences"),
-      u = a("UI/UIManager"),
+      p = a("UI/UIManager"),
       l = a("UI/UIComponent"),
       f = a("UI/Components/ItemObtain/ItemObtain"),
-      n = a("text!./PartyBookingReg.html"),
-      p = a("text!./PartyBookingReg.css"),
-      v = a,
-      t = new l("PartyBookingReg", n, p);
-    t.title = "";
-    t.limit = 20;
-    t.type = 0;
-    t.password = "";
-    var z = g.get("PartyBookingReg", { x: 480, y: 260, show: !1 }, 1);
-    t.init = function () {
+      k = a("text!./PartyBookingReg.html"),
+      q = a("text!./PartyBookingReg.css"),
+      u = a,
+      v = new l("PartyBookingReg", k, q);
+    v.title = "";
+    v.limit = 20;
+    v.type = 0;
+    v.password = "";
+    var A = g.get("PartyBookingReg", { x: 480, y: 260, show: !1 }, 1);
+    v.init = function () {
       this.ui
         .find(".close, .cancel")
         .mousedown(c)
         .click(this.remove.bind(this));
       this.ui.find(".ok").on("click", d.bind(this));
       this.ui.find(".update").on("click", function () {
-        t.onUpdateBookingLog();
+        v.onUpdateBookingLog();
       });
       this.ui.find(".container .itype").change(b);
       this.draggable(this.ui.find(".titlebar"));
       this.ui.find(".del").on("click", function () {
-        0 == t.type
-          ? u.showPromptBox(
+        0 == v.type
+          ? p.showPromptBox(
               "\u786e\u5b9a\u5220\u9664\u62db\u52df\u4fe1\u606f\u5417?",
               "ok",
               "cancel",
               function () {
                 var a = new FormData();
-                a.append("AuthToken", k.AuthToken);
-                a.append("AID", k.Entity.GID);
-                a.append("GDID", k.Entity.GUID);
+                a.append("AuthToken", n.AuthToken);
+                a.append("AID", n.Entity.GID);
+                a.append("GDID", n.Entity.GUID);
                 a.append("WorldName", "lastro");
                 $.ajax({
                   url: "https://game.lastro.cn/" + e.webpath + "/party/del",
@@ -131,14 +131,14 @@ define(
                   contentType: !1,
                 })
                   .done(function (a) {
-                    t.remove();
+                    v.remove();
                     f.setMsg(
                       "\u62db\u52df\u4fe1\u606f\u5220\u9664\u6210\u529f",
                     );
-                    v("UI/Components/PartyBooking/PartyBooking").reload();
+                    u("UI/Components/PartyBooking/PartyBooking").reload();
                   })
                   .fail(function (a) {
-                    u.showMessageBox(
+                    p.showMessageBox(
                       "\u6570\u636e\u52a0\u8f7d\u5931\u8d25",
                       "ok",
                     );
@@ -146,32 +146,32 @@ define(
               },
               null,
             )
-          : u.showPromptBox(
+          : p.showPromptBox(
               "\u786e\u5b9a\u5173\u95ed\u526f\u672c\u5417?",
               "ok",
               "cancel",
               function () {
                 var a = new h.CZ.REQ_DEL_INSTANCE();
-                q.sendPacket(a);
+                t.sendPacket(a);
               },
               null,
             );
       });
     };
-    t.setType = function (a) {
+    v.setType = function (a) {
       this.type = a;
     };
-    t.onAppend = function () {
-      var a = k.Entity;
-      t.ui.find(".container .name").text(a.display.name);
+    v.onAppend = function () {
+      var a = n.Entity;
+      v.ui.find(".container .name").text(a.display.name);
       a = "";
-      t.ui.find(".container .memo").val(a);
+      v.ui.find(".container .memo").val(a);
       if (0 == this.type)
         (this.ui
           .find(".titlebar p")
           .text("\u521b\u5efa\u5192\u9669\u5bb6\u52df\u96c6"),
-          t.ui.find(".container .mapinfo").show(),
-          t.ui.find(".container .instance").hide(),
+          v.ui.find(".container .mapinfo").show(),
+          v.ui.find(".container .instance").hide(),
           (a = r.currentMap),
           this.ui.find(".mapinfo .mapname").text(a),
           (a = "[ " + e.getMapName(a) + " ] "),
@@ -180,11 +180,11 @@ define(
         this.ui
           .find(".titlebar p")
           .text("\u521b\u5efa\u6e38\u620f\u526f\u672c");
-        t.ui.find(".container .mapinfo").hide();
-        t.ui.find(".container .instance").show();
+        v.ui.find(".container .mapinfo").hide();
+        v.ui.find(".container .instance").show();
         var b = Object.keys(m[e.nid]),
-          c = t.ui.find(".container .itype"),
-          a = t.ui.find(".container .iid");
+          c = v.ui.find(".container .itype"),
+          a = v.ui.find(".container .iid");
         c.empty();
         for (var d = 0; d < b.length; d++)
           c.append(
@@ -214,7 +214,7 @@ define(
       this.ui.find(".btns .upbtn").hide();
       this.ui.find(".btns .delbtn").removeClass("alive");
     };
-    t.onRemove = function () {
+    v.onRemove = function () {
       this.ui.find(".titlebar p").text("\u521b\u5efa\u6e38\u620f\u526f\u672c");
       this.ui.find(".btns .delbtn").removeClass("alive");
       this.ui.find(".container .name").text("");
@@ -223,31 +223,31 @@ define(
       this.ui.find(".container .mapname").text("");
       this.ui.find(".container .memo").text("");
     };
-    t.show = function () {
+    v.show = function () {
       this.ui.show();
       this.ui.find(".title").focus();
-      z.show = !0;
+      A.show = !0;
     };
-    t.hide = function () {
+    v.hide = function () {
       this.ui.hide();
-      z.show = !1;
+      A.show = !1;
     };
-    t.toggle = function () {
+    v.toggle = function () {
       this.ui.is(":visible")
-        ? (this.remove(), (z.show = !1))
-        : (this.append(), this.focus(), (z.show = !0));
+        ? (this.remove(), (A.show = !1))
+        : (this.append(), this.focus(), (A.show = !0));
     };
-    t.resetpos = function () {
+    v.resetpos = function () {
       this.ui.css("top", "");
       this.ui.css("left", "");
     };
-    t.onShortCut = function (a) {
+    v.onShortCut = function (a) {
       switch (a.cmd) {
         case "TOGGLE":
           this.toggle();
       }
     };
-    t.onUpdate = function (a) {
+    v.onUpdate = function (a) {
       if (0 == a.Type)
         (this.ui.find(".btns .okbtn").hide(),
           this.ui.find(".btns .upbtn").show(),
@@ -276,7 +276,7 @@ define(
           .find(".container .itype option[data-index\x3d" + b + "]")
           .prop("selected", "selected");
         g = Object.keys(m[e.nid][b].nav);
-        d = t.ui.find(".container .iid");
+        d = v.ui.find(".container .iid");
         d.empty();
         for (f = 0; f < g.length; f++)
           d.append(
@@ -308,30 +308,30 @@ define(
         .find(".container .memo")
         .val(UrlTools.decode(a.Memo.replaceAll("%20", " ")));
     };
-    t.onCreateBookingLog = function (a) {
+    v.onCreateBookingLog = function (a) {
       1 == a.rs &&
         ((a = new FormData()),
-        a.append("AuthToken", k.AuthToken),
-        a.append("AID", k.AID),
-        a.append("GDID", k.Entity.GUID),
-        a.append("GID", k.GID),
+        a.append("AuthToken", n.AuthToken),
+        a.append("AID", n.AID),
+        a.append("GDID", n.Entity.GUID),
+        a.append("GID", n.GID),
         a.append("WorldName", "lastro"),
         a.append(
           "CharName",
-          UrlTools.encode(t.ui.find(".container .name").text()),
+          UrlTools.encode(v.ui.find(".container .name").text()),
         ),
         a.append(
           "IID",
-          t.ui.find(".container .iid option:selected").data("id"),
+          v.ui.find(".container .iid option:selected").data("id"),
         ),
         a.append("Type", 1),
         a.append("Assist", 1),
         a.append("Dealer", 1),
         a.append("Healer", 1),
         a.append("Tanker", 1),
-        a.append("MinLV", t.ui.find(".container .minlvl").val()),
-        a.append("MaxLV", t.ui.find(".container .maxlvl").val()),
-        a.append("Memo", UrlTools.encode(t.ui.find(".container .memo").val())),
+        a.append("MinLV", v.ui.find(".container .minlvl").val()),
+        a.append("MaxLV", v.ui.find(".container .maxlvl").val()),
+        a.append("Memo", UrlTools.encode(v.ui.find(".container .memo").val())),
         a.append("ISTATE", 0),
         $.ajax({
           url: "https://game.lastro.cn/" + e.webpath + "/party/add",
@@ -344,20 +344,20 @@ define(
           .done(function (a) {
             1 == a.Type
               ? (f.setMsg("\u526f\u672c\u6570\u636e\u6dfb\u52a0\u6210\u529f"),
-                v("UI/Components/PartyBooking/PartyBooking").reload())
+                u("UI/Components/PartyBooking/PartyBooking").reload())
               : f.setMsg("\u526f\u672c\u6570\u636e\u6dfb\u52a0\u5931\u8d25");
           })
           .fail(function (a) {
-            u.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
+            p.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
           }),
         this.remove());
     };
-    t.onDelBookingLog = function (a) {
+    v.onDelBookingLog = function (a) {
       1 == a.rs
         ? ((a = new FormData()),
-          a.append("AuthToken", k.AuthToken),
-          a.append("AID", k.Entity.GID),
-          a.append("GDID", k.Entity.GUID),
+          a.append("AuthToken", n.AuthToken),
+          a.append("AID", n.Entity.GID),
+          a.append("GDID", n.Entity.GUID),
           a.append("WorldName", "lastro"),
           $.ajax({
             url: "https://game.lastro.cn/" + e.webpath + "/party/del",
@@ -369,34 +369,34 @@ define(
           })
             .done(function (a) {
               1 == a.Type &&
-                (t.remove(),
+                (v.remove(),
                 f.setMsg("\u526f\u672c\u6570\u636e\u5220\u9664\u6210\u529f"),
-                v("UI/Components/PartyBooking/PartyBooking").reload());
+                u("UI/Components/PartyBooking/PartyBooking").reload());
             })
             .fail(function (a) {
-              u.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
+              p.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
             }))
         : 2 == a.rs &&
-          (t.remove(),
+          (v.remove(),
           f.setMsg("\u526f\u672c\u6570\u636e\u5220\u9664\u6210\u529f"),
-          v("UI/Components/PartyBooking/PartyBooking").reload());
+          u("UI/Components/PartyBooking/PartyBooking").reload());
     };
-    t.onUpdateBookingLog = function () {
-      if ("" == t.ui.find(".container .memo").val())
+    v.onUpdateBookingLog = function () {
+      if ("" == v.ui.find(".container .memo").val())
         return (f.setMsg("\u5907\u6ce8\u5185\u5bb9\u4e0d\u4e3a\u7a7a"), !1);
       if (0 == this.type) {
         var a = new FormData();
-        a.append("AuthToken", k.AuthToken);
-        a.append("AID", k.AID);
-        a.append("GDID", k.Entity.GUID);
-        a.append("GID", k.GID);
+        a.append("AuthToken", n.AuthToken);
+        a.append("AID", n.AID);
+        a.append("GDID", n.Entity.GUID);
+        a.append("GID", n.GID);
         a.append(
           "WorldName",
-          UrlTools.encode(t.ui.find(".container .mapname").text()),
+          UrlTools.encode(v.ui.find(".container .mapname").text()),
         );
         a.append(
           "CharName",
-          UrlTools.encode(t.ui.find(".container .name").text()),
+          UrlTools.encode(v.ui.find(".container .name").text()),
         );
         a.append("IID", 0);
         a.append("Type", 0);
@@ -404,9 +404,9 @@ define(
         a.append("Dealer", 1);
         a.append("Healer", 1);
         a.append("Tanker", 1);
-        a.append("MinLV", t.ui.find(".container .minlvl").val());
-        a.append("MaxLV", t.ui.find(".container .maxlvl").val());
-        a.append("Memo", UrlTools.encode(t.ui.find(".container .memo").val()));
+        a.append("MinLV", v.ui.find(".container .minlvl").val());
+        a.append("MaxLV", v.ui.find(".container .maxlvl").val());
+        a.append("Memo", UrlTools.encode(v.ui.find(".container .memo").val()));
         a.append("ISTATE", 0);
         $.ajax({
           url: "https://game.lastro.cn/" + e.webpath + "/party/add",
@@ -419,39 +419,39 @@ define(
           .done(function (a) {
             1 == a.Type
               ? (f.setMsg("\u62db\u52df\u4fe1\u606f\u4fee\u6539\u6210\u529f"),
-                v("UI/Components/PartyBooking/PartyBooking").reload())
+                u("UI/Components/PartyBooking/PartyBooking").reload())
               : f.setMsg("\u62db\u52df\u4fe1\u606f\u4fee\u6539\u5931\u8d25");
           })
           .fail(function (a) {
-            u.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
+            p.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
           });
       } else
         ((a = new FormData()),
-          a.append("AuthToken", k.AuthToken),
-          a.append("AID", k.AID),
-          a.append("GDID", k.Entity.GUID),
-          a.append("GID", k.GID),
+          a.append("AuthToken", n.AuthToken),
+          a.append("AID", n.AID),
+          a.append("GDID", n.Entity.GUID),
+          a.append("GID", n.GID),
           a.append("WorldName", "lastro"),
           a.append(
             "CharName",
-            UrlTools.encode(t.ui.find(".container .name").text()),
+            UrlTools.encode(v.ui.find(".container .name").text()),
           ),
           a.append(
             "IID",
-            t.ui.find(".container .iid option:selected").data("id"),
+            v.ui.find(".container .iid option:selected").data("id"),
           ),
           a.append("Type", 1),
           a.append("Assist", 1),
           a.append("Dealer", 1),
           a.append("Healer", 1),
           a.append("Tanker", 1),
-          a.append("MinLV", t.ui.find(".container .minlvl").val()),
-          a.append("MaxLV", t.ui.find(".container .maxlvl").val()),
+          a.append("MinLV", v.ui.find(".container .minlvl").val()),
+          a.append("MaxLV", v.ui.find(".container .maxlvl").val()),
           a.append(
             "Memo",
-            UrlTools.encode(t.ui.find(".container .memo").val()),
+            UrlTools.encode(v.ui.find(".container .memo").val()),
           ),
-          a.append("ISTATE", t.ui.find(".container .istate").val()),
+          a.append("ISTATE", v.ui.find(".container .istate").val()),
           $.ajax({
             url: "https://game.lastro.cn/" + e.webpath + "/party/add",
             type: "POST",
@@ -463,14 +463,14 @@ define(
             .done(function (a) {
               1 == a.Type
                 ? (f.setMsg("\u526f\u672c\u6570\u636e\u4fee\u6539\u6210\u529f"),
-                  v("UI/Components/PartyBooking/PartyBooking").reload())
+                  u("UI/Components/PartyBooking/PartyBooking").reload())
                 : f.setMsg("\u526f\u672c\u6570\u636e\u4fee\u6539\u5931\u8d25");
             })
             .fail(function (a) {
-              u.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
+              p.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
             }));
       this.remove();
     };
-    return u.addComponent(t);
+    return p.addComponent(v);
   },
 );

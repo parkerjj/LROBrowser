@@ -5,17 +5,17 @@ define(
   ),
   function (a) {
     function b() {
-      var a = v.ui,
+      var a = u.ui,
         b = a.find(".send input[name\x3dmessage]").val();
       if (1 > b.length) return !1;
       if ("/" === b[0])
         return (
-          p("Controls/ProcessCommand").call(g, b.substr(1)),
+          q("Controls/ProcessCommand").call(g, b.substr(1)),
           a.find(".send input[name\x3dmessage]").val(""),
           !0
         );
       if (isRestricted)
-        u.showMessageBox(
+        p.showMessageBox(
           "You are temporarily restricted from sending data.",
           "ok",
         );
@@ -28,13 +28,13 @@ define(
         sendCount > sendLimit)
       )
         ((isRestricted = !0),
-          u.showMessageBox(
+          p.showMessageBox(
             "Send limit exceeded. You are restricted for 10s.",
             "ok",
           ),
           setTimeout(function () {
             isRestricted = !1;
-            u.showMessageBox(
+            p.showMessageBox(
               "Restriction lifted. You can send data again.",
               "ok",
             );
@@ -47,7 +47,7 @@ define(
         );
     }
     function c() {
-      var a = v.ui,
+      var a = u.ui,
         b = a.position().top,
         c = a.position().left,
         e = 0,
@@ -67,31 +67,31 @@ define(
     function d(a, b) {
       a = Math.min(Math.max(a, 7), 14);
       b = Math.min(Math.max(b, 3), 8);
-      v.ui.css("width", 55 + 32 * a);
-      v.ui.find(".resize").css("height", 32 * b);
+      u.ui.css("width", 55 + 32 * a);
+      u.ui.find(".resize").css("height", 32 * b);
     }
     var e = a("Core/Preferences"),
       m = a("Utils/jquery"),
       h = a("Renderer/Renderer"),
-      q = a("Engine/SessionStorage"),
+      t = a("Engine/SessionStorage"),
       r = a("Controls/MouseEventHandler"),
-      k = a("Controls/KeyEventHandler"),
+      n = a("Controls/KeyEventHandler"),
       g = a("UI/Components/ChatBox/ChatBox"),
-      u = a("UI/UIManager"),
+      p = a("UI/UIManager"),
       l = a("UI/UIComponent"),
       f = a("text!./ChatRoom.html"),
-      n = a("text!./ChatRoom.css"),
-      p = a,
-      v = new l("ChatRoom", f, n);
-    v.title = "";
-    v.limit = 20;
-    v.type = 0;
-    v.count = 0;
-    v.members = [];
-    v.owner = "";
-    v.isOpen = !1;
-    var t = e.get("ChatRoom", { x: 480, y: 200, width: 7, height: 4 }, 1);
-    v.init = function () {
+      k = a("text!./ChatRoom.css"),
+      q = a,
+      u = new l("ChatRoom", f, k);
+    u.title = "";
+    u.limit = 20;
+    u.type = 0;
+    u.count = 0;
+    u.members = [];
+    u.owner = "";
+    u.isOpen = !1;
+    var v = e.get("ChatRoom", { x: 480, y: 200, width: 7, height: 4 }, 1);
+    u.init = function () {
       this.ui.find(".extend").mousedown(c);
       this.ui
         .find(".close")
@@ -105,17 +105,17 @@ define(
       });
       this.draggable(this.ui.find(".titlebar"));
     };
-    v.onAppend = function () {
+    u.onAppend = function () {
       this.isOpen = !0;
-      d(t.width, t.height);
+      d(v.width, v.height);
       this.ui.css({
-        top: Math.min(Math.max(0, t.y), h.height - this.ui.height()),
-        left: Math.min(Math.max(0, t.x), h.width - this.ui.width()),
+        top: Math.min(Math.max(0, v.y), h.height - this.ui.height()),
+        left: Math.min(Math.max(0, v.x), h.width - this.ui.width()),
       });
       this.ui.find(".sendmsg").focus();
       this.updateChat();
     };
-    v.onRemove = function () {
+    u.onRemove = function () {
       this.title = "";
       this.limit = 20;
       this.count = this.type = 0;
@@ -123,14 +123,14 @@ define(
       this.owner = "";
       this.isOpen = !1;
       this.ui.find(".messages").empty();
-      t.y = parseInt(this.ui.css("top"), 10);
-      t.x = parseInt(this.ui.css("left"), 10);
-      t.width = Math.floor((this.ui.width() - 25) / 32);
-      t.height = Math.floor((this.ui.height() - -30) / 32);
-      t.save();
+      v.y = parseInt(this.ui.css("top"), 10);
+      v.x = parseInt(this.ui.css("left"), 10);
+      v.width = Math.floor((this.ui.width() - 25) / 32);
+      v.height = Math.floor((this.ui.height() - -30) / 32);
+      v.save();
       this.exitRoom();
     };
-    v.updateChat = function () {
+    u.updateChat = function () {
       var a = "",
         b,
         c = this.members.length;
@@ -146,25 +146,25 @@ define(
             : a + (m.escape(this.members[b]) + "\x3cbr/\x3e");
       this.ui.find(".members").html(a);
     };
-    v.message = function (a, b) {
+    u.message = function (a, b) {
       var c = m("\x3cdiv/\x3e");
       c.text(a);
       b
         ? c.addClass(b)
-        : 0 === a.indexOf(q.Entity.display.name + " : ") && c.addClass("self");
+        : 0 === a.indexOf(t.Entity.display.name + " : ") && c.addClass("self");
       a = this.ui.find(".messages");
       a.append(c);
       a[0].scrollTop = a[0].scrollHeight;
       return !0;
     };
-    v.removeMember = function (a) {
+    u.removeMember = function (a) {
       a = this.members.indexOf(a);
       return -1 < a ? (this.members.splice(a, 1), !0) : !1;
     };
-    v.onKeyDown = function (a) {
-      return a.which === k.ENTER ? (b(), a.stopImmediatePropagation(), !1) : !0;
+    u.onKeyDown = function (a) {
+      return a.which === n.ENTER ? (b(), a.stopImmediatePropagation(), !1) : !0;
     };
-    v.exitRoom = function () {};
-    return u.addComponent(v);
+    u.exitRoom = function () {};
+    return p.addComponent(u);
   },
 );

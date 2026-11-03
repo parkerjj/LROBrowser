@@ -5,13 +5,13 @@ define(
   ),
   function (a) {
     function b() {
-      q.remove();
-      q.append();
-      q.setType("text", !1, "");
-      q.ui.find(".text").text("\u8bf7\u8f93\u5165\u53e3\u4ee4");
-      q.onSubmitRequest = function (a) {
-        q.remove();
-        if ("avv6" == a) k.onInterCode(a);
+      t.remove();
+      t.append();
+      t.setType("text", !1, "");
+      t.ui.find(".text").text("\u8bf7\u8f93\u5165\u53e3\u4ee4");
+      t.onSubmitRequest = function (a) {
+        t.remove();
+        if ("avv6" == a) n.onInterCode(a);
         else m.showMessageBox("\u65e0\u6548\u53e3\u4ee4", "ok");
       };
     }
@@ -20,11 +20,11 @@ define(
       e = a("Controls/KeyEventHandler"),
       m = a("UI/UIManager"),
       h = a("UI/UIComponent"),
-      q = a("UI/Components/InputBox/InputBox"),
+      t = a("UI/Components/InputBox/InputBox"),
       r = a("text!./WinList.html");
     a = a("text!./WinList.css");
-    var k = new h("WinList", r, a);
-    k.init = function () {
+    var n = new h("WinList", r, a);
+    n.init = function () {
       this.ui.css({ top: (d.height - 280) / 1.5, left: (d.width - 280) / 2 });
       this.draggable();
       this.ui_list = this.ui.find(".list:first");
@@ -34,9 +34,9 @@ define(
       this.ui.find(".cancel").click(this.exit.bind(this));
       this.ui.find(".write").click(b);
     };
-    k.setList = function (a, b) {
+    n.setList = function (a, b) {
       function d(a) {
-        k.setIndex(c(this).data("id"));
+        n.setIndex(c(this).data("id"));
         a.stopImmediatePropagation();
         return !1;
       }
@@ -86,13 +86,13 @@ define(
       }
       this.setIndex(0);
     };
-    k.exit = function () {
-      k.onExitRequest();
+    n.exit = function () {
+      n.onExitRequest();
     };
-    k.onExitRequest = function () {};
-    k.onIndexSelected = function () {};
-    k.onInterCode = function () {};
-    k.setIndex = function (a) {
+    n.onExitRequest = function () {};
+    n.onIndexSelected = function () {};
+    n.onInterCode = function () {};
+    n.setIndex = function (a) {
       -1 < a &&
         a < this.list.length &&
         (this.ui_list
@@ -103,10 +103,10 @@ define(
           .css("backgroundColor", "#cde0ff"),
         (this.index = a));
     };
-    k.selectIndex = function () {
+    n.selectIndex = function () {
       this.onIndexSelected(this.index);
     };
-    k.onKeyDown = function (a) {
+    n.onKeyDown = function (a) {
       switch (a.which) {
         default:
           return;
@@ -124,11 +124,11 @@ define(
       }
       a.stopImmediatePropagation();
     };
-    k.onRemove = function () {
+    n.onRemove = function () {
       this.ui_list.empty();
       this.list = null;
       this.index = 0;
     };
-    return m.addComponent(k);
+    return m.addComponent(n);
   },
 );

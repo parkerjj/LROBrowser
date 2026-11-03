@@ -24,9 +24,9 @@ define("UI/Background", [
   }
   function c() {
     l.complete && l.width
-      ? k.drawImage(l, 0, 0, r[0].width, r[0].height)
-      : ((k.fillStyle = "#000"), k.fillRect(0, 0, r[0].width, r[0].height));
-    -1 < u && q.setPercent(u);
+      ? n.drawImage(l, 0, 0, r[0].width, r[0].height)
+      : ((n.fillStyle = "#000"), n.fillRect(0, 0, r[0].width, r[0].height));
+    -1 < p && t.setPercent(p);
   }
   function d(a) {
     g.stop()
@@ -42,14 +42,14 @@ define("UI/Background", [
   var e = a("DB/DBManager"),
     m = a("Utils/jquery"),
     h = a("Core/Client"),
-    q = {},
+    t = {},
     r = m("\x3ccanvas/\x3e").css({
       position: "absolute",
       top: 0,
       left: 0,
       zIndex: 5,
     }),
-    k = r[0].getContext("2d"),
+    n = r[0].getContext("2d"),
     g = m("\x3cdiv/\x3e").css({
       position: "absolute",
       top: 0,
@@ -58,12 +58,12 @@ define("UI/Background", [
       backgroundColor: "black",
       opacity: 0,
     }),
-    u = -1,
+    p = -1,
     l = new Image(),
     f = [],
-    n = window.devicePixelRatio;
-  q.init = function (a) {
-    u = 0;
+    k = window.devicePixelRatio;
+  t.init = function (a) {
+    p = 0;
     r.css("zIndex", 0);
     c();
     if (a) f = a;
@@ -71,19 +71,19 @@ define("UI/Background", [
       for (a = 11; 19 >= a; ++a)
         f[a - 1] = "loading" + (19 > a ? a : a - 1) + ".jpg";
   };
-  q.resize = function (a, b) {
-    r[0].width = a * n;
-    r[0].height = b * n;
+  t.resize = function (a, b) {
+    r[0].width = a * k;
+    r[0].height = b * k;
     r[0].style.width = a + "px";
     r[0].style.height = b + "px";
-    g.css({ width: a * n, height: b * n });
-    k.fillStyle = "black";
-    k.fillRect(0, 0, a * n, b * n);
+    g.css({ width: a * k, height: b * k });
+    n.fillStyle = "black";
+    n.fillRect(0, 0, a * k, b * k);
     c();
   };
-  q.setImage = function (a, b) {
+  t.setImage = function (a, b) {
     var f = !!r[0].parentNode;
-    u = -1;
+    p = -1;
     c();
     h.loadFile(
       e.INTERFACE_PATH + a,
@@ -101,67 +101,67 @@ define("UI/Background", [
         b && b();
       });
   };
-  q.reload = function (a) {
+  t.reload = function (a) {
     var b = !!r[0].parentNode;
-    u = -1;
+    p = -1;
     b ||
       d(function () {
         a && a();
       });
   };
-  q.setLoading = function (a) {
-    q.setImage(
+  t.setLoading = function (a) {
+    t.setImage(
       f[Math.floor(Math.random() * f.length) + 10] || "loading11.jpg",
       function () {
         r.css("zIndex", 39);
-        q.setPercent(0);
+        t.setPercent(0);
         a && a();
       },
     );
   };
-  q.remove = function (a) {
+  t.remove = function (a) {
     d(function () {
       r.css("zIndex", 0);
       r.remove();
       a && a();
     });
   };
-  q.setPercent = function (a) {
+  t.setPercent = function (a) {
     var c, d, f, e;
-    u = Math.min(Math.floor(a), 100);
-    f = 300 * n;
-    e = 7 * n;
+    p = Math.min(Math.floor(a), 100);
+    f = 300 * k;
+    e = 7 * k;
     c = Math.floor(0.5 * (r[0].width - f));
     d = Math.floor(0.75 * r[0].height);
-    k.clearRect(0, 0, r[0].width, r[0].height);
+    n.clearRect(0, 0, r[0].width, r[0].height);
     if (l.complete && l.width) {
       var g = r[0].height / l.height;
       g * l.width > r[0].width
-        ? k.drawImage(
+        ? n.drawImage(
             l,
             -(g * l.width - r[0].width) / 2,
             0,
             g * l.width,
             r[0].height,
           )
-        : k.drawImage(l, 0, 0, r[0].width, r[0].height);
-    } else ((k.fillStyle = "#000"), k.fillRect(0, 0, r[0].width, r[0].height));
-    k.shadowColor = "#333";
-    k.shadowOffsetX = 0;
-    k.shadowOffsetY = 0;
-    k.shadowBlur = 5;
-    k.font = "bold " + 14 * n + "px Arial";
-    k.fillStyle = "#ffffff";
-    k.fillText(
+        : n.drawImage(l, 0, 0, r[0].width, r[0].height);
+    } else ((n.fillStyle = "#000"), n.fillRect(0, 0, r[0].width, r[0].height));
+    n.shadowColor = "#333";
+    n.shadowOffsetX = 0;
+    n.shadowOffsetY = 0;
+    n.shadowBlur = 5;
+    n.font = "bold " + 14 * k + "px Arial";
+    n.fillStyle = "#ffffff";
+    n.fillText(
       a + "%",
-      Math.floor(0.5 * (r[0].width - k.measureText(a + "%").width)),
+      Math.floor(0.5 * (r[0].width - n.measureText(a + "%").width)),
       d + e / 2 - 15,
     );
-    k.shadowColor = "#555";
-    k.shadowBlur = 0;
-    b(k, c, d, f, e, e / 2, "rgba(0,0,0,0.5)");
-    k.shadowBlur = 0;
-    b(k, c, d, Math.floor(a * f * 0.01), e, e / 2, "#a3e3ff");
+    n.shadowColor = "#555";
+    n.shadowBlur = 0;
+    b(n, c, d, f, e, e / 2, "rgba(0,0,0,0.5)");
+    n.shadowBlur = 0;
+    b(n, c, d, Math.floor(a * f * 0.01), e, e / 2, "#a3e3ff");
   };
-  return q;
+  return t;
 });

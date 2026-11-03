@@ -5,10 +5,10 @@ define(
   ),
   function (a) {
     function b() {
-      v.ui && v.ui[0].parentNode ? v.remove() : v.append();
+      u.ui && u.ui[0].parentNode ? u.remove() : u.append();
     }
     function c() {
-      for (var a = v.ui.find("td[data-button]"), b = 0; b < a.length; b++)
+      for (var a = u.ui.find("td[data-button]"), b = 0; b < a.length; b++)
         d(a.eq(b).data("button"))
           ? a
               .eq(b)
@@ -32,56 +32,56 @@ define(
     function h(a) {
       return f[a].Custom_settings ? f[a].Custom_shift : f[a].shift;
     }
-    var q = a("Utils/jquery"),
+    var t = a("Utils/jquery"),
       r = a("Controls/KeyEventHandler");
     a("Core/Configs");
     a("Core/Context");
-    var k = a("Core/Preferences"),
+    var n = a("Core/Preferences"),
       g = a("Renderer/Renderer"),
-      u = a("UI/UIManager"),
+      p = a("UI/UIManager"),
       l = a("UI/UIComponent"),
       f = a("Preferences/ShortCutControls"),
-      n = a("Controls/BattleMode"),
-      p = a("text!./ShortCutOption.html");
+      k = a("Controls/BattleMode"),
+      q = a("text!./ShortCutOption.html");
     a = a("text!./ShortCutOption.css");
-    var v = new l("ShortCutOption", p, a),
-      t = k.get("ShortCutOption", { x: 300, y: 300 }, 1.1),
-      z = (v.needFocus = !1);
-    v.init = function () {
+    var u = new l("ShortCutOption", q, a),
+      v = n.get("ShortCutOption", { x: 300, y: 300 }, 1.1),
+      A = (u.needFocus = !1);
+    u.init = function () {
       this.ui.find(".close").on("click", b);
       this.ui.find(".tabs").on("click", "button", function () {
-        0 == q(this).data("index")
-          ? v.ui.find(".border").hasClass("ui") &&
-            v.ui.find(".border").removeClass("ui").addClass("ShortCut")
-          : v.ui.find(".border").hasClass("ShortCut") &&
-            v.ui.find(".border").removeClass("ShortCut").addClass("ui");
+        0 == t(this).data("index")
+          ? u.ui.find(".border").hasClass("ui") &&
+            u.ui.find(".border").removeClass("ui").addClass("ShortCut")
+          : u.ui.find(".border").hasClass("ShortCut") &&
+            u.ui.find(".border").removeClass("ShortCut").addClass("ui");
       });
       this.ui.find("td").on("click", function () {
-        q(this).hasClass("customize")
-          ? ((z = !0),
-            q("#ShortCutOption td.sd").removeClass("sd"),
-            q(this).addClass("sd"))
-          : ((z = !1), q("#ShortCutOption td.sd").removeClass("sd"));
+        t(this).hasClass("customize")
+          ? ((A = !0),
+            t("#ShortCutOption td.sd").removeClass("sd"),
+            t(this).addClass("sd"))
+          : ((A = !1), t("#ShortCutOption td.sd").removeClass("sd"));
       });
       c();
       this.draggable(this.ui.find(".titlebar"));
     };
-    v.onAppend = function () {
+    u.onAppend = function () {
       this.ui.css({
         top: 0.5 * (g.height - this.ui.height()),
         left: 0.5 * (g.width - this.ui.width()),
         zIndex: 100,
       });
     };
-    v.onRemove = function () {
-      t.x = parseInt(this.ui.css("left"), 10);
-      t.y = parseInt(this.ui.css("top"), 10);
-      t.save();
+    u.onRemove = function () {
+      v.x = parseInt(this.ui.css("left"), 10);
+      v.y = parseInt(this.ui.css("top"), 10);
+      v.save();
     };
-    v.onKeyDown = function (a) {
-      if (z) {
-        var b = v.ui.find("td.sd");
-        if (n.match(a.which, r.ALT, r.CTRL, r.SHIFT))
+    u.onKeyDown = function (a) {
+      if (A) {
+        var b = u.ui.find("td.sd");
+        if (k.match(a.which, r.ALT, r.CTRL, r.SHIFT))
           return (
             alert("\u4e0e\u5176\u5b83\u5feb\u6377\u952e\u51b2\u7a81"),
             !1
@@ -94,7 +94,7 @@ define(
           (f[b.data("button")].Custom_ctrl = r.CTRL),
           (f[b.data("button")].Custom_shift = r.SHIFT),
           f.save());
-        n.reload();
+        k.reload();
         b.text(
           (e(b.data("button")) ? "ALT + " : "") +
             (m(b.data("button")) ? "CTRL + " : "") +
@@ -104,6 +104,6 @@ define(
       }
       return !1;
     };
-    return u.addComponent(v);
+    return p.addComponent(u);
   },
 );

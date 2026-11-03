@@ -11,9 +11,9 @@ define(
       e = a("Controls/MouseEventHandler"),
       m = a("UI/UIManager"),
       h = a("UI/UIComponent"),
-      q = a("text!./SkillDescription.html");
+      t = a("text!./SkillDescription.html");
     a = a("text!./SkillDescription.css");
-    h = new h("SkillDescription", q, a);
+    h = new h("SkillDescription", t, a);
     h.uid = -1;
     h.onKeyDown = function (a) {
       return a.which === d.ESCAPE

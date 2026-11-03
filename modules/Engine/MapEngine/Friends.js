@@ -6,20 +6,20 @@ define(
   function (a) {
     function b(a) {}
     function c(a) {
-      p = a.friendList;
-      f.setFriends(p);
+      q = a.friendList;
+      f.setFriends(q);
     }
     function d(a) {
-      var b = q(a.AID, a.GID);
-      -1 < b && ((p[b].State = a.State), f.updateFriendState(b, a.State));
+      var b = t(a.AID, a.GID);
+      -1 < b && ((q[b].State = a.State), f.updateFriendState(b, a.State));
     }
     function e(a) {
       function b(b) {
         return function () {
-          n.answerFriendRequest(a.ReqAID, a.ReqGID, b);
+          k.answerFriendRequest(a.ReqAID, a.ReqGID, b);
         };
       }
-      u.showPromptBox(
+      p.showPromptBox(
         r.getMessage(818).replace("%s", a.Name),
         "ok",
         "cancel",
@@ -32,13 +32,13 @@ define(
       switch (a.Result) {
         case 0:
           l.addText(r.getMessage(821).replace("%s", a.Name), l.TYPE.BLUE);
-          b = q(a.AID, a.GID);
-          0 > b && ((b = p.length), (p[b] = {}));
-          p[b].AID = a.AID;
-          p[b].GID = a.GID;
-          p[b].Name = a.Name;
-          p[b].State = 0;
-          f.updateFriend(b, p[b]);
+          b = t(a.AID, a.GID);
+          0 > b && ((b = q.length), (q[b] = {}));
+          q[b].AID = a.AID;
+          q[b].GID = a.GID;
+          q[b].Name = a.Name;
+          q[b].State = 0;
+          f.updateFriend(b, q[b]);
           break;
         case 1:
           l.addText(r.getMessage(822).replace("%s", a.Name), l.TYPE.ERROR);
@@ -51,70 +51,70 @@ define(
       }
     }
     function h(a) {
-      a = q(a.AID, a.GID);
-      -1 < a && (p.splice(a, 1), f.removeFriend(a));
+      a = t(a.AID, a.GID);
+      -1 < a && (q.splice(a, 1), f.removeFriend(a));
     }
-    function q(a, b) {
+    function t(a, b) {
       var c, d;
       c = 0;
-      for (d = p.length; c < d; ++c)
-        if (p[c].AID === a && p[c].GID === b) return c;
+      for (d = q.length; c < d; ++c)
+        if (q[c].AID === a && q[c].GID === b) return c;
       return -1;
     }
     var r = a("DB/DBManager"),
-      k = a("Network/NetworkManager"),
+      n = a("Network/NetworkManager"),
       g = a("Network/PacketStructure"),
-      u = a("UI/UIManager"),
+      p = a("UI/UIManager"),
       l = a("UI/Components/ChatBox/ChatBox"),
       f = a("UI/Components/PartyFriends/PartyFriends"),
-      n = {},
-      p = [];
-    n.init = function () {
-      k.hookPacket(g.ZC.FRIENDS_LIST, c);
-      k.hookPacket(g.ZC.FRIENDS_STATE, d);
-      k.hookPacket(g.ZC.REQ_ADD_FRIENDS, e);
-      k.hookPacket(g.ZC.ADD_FRIENDS_LIST, m);
-      k.hookPacket(g.ZC.DELETE_FRIENDS, h);
-      k.hookPacket(g.ZC.SETTING_WHISPER_STATE, b);
-      f.onRequestNewFriend = n.addFriend;
-      f.onRemoveFriend = n.removeFriend;
+      k = {},
+      q = [];
+    k.init = function () {
+      n.hookPacket(g.ZC.FRIENDS_LIST, c);
+      n.hookPacket(g.ZC.FRIENDS_STATE, d);
+      n.hookPacket(g.ZC.REQ_ADD_FRIENDS, e);
+      n.hookPacket(g.ZC.ADD_FRIENDS_LIST, m);
+      n.hookPacket(g.ZC.DELETE_FRIENDS, h);
+      n.hookPacket(g.ZC.SETTING_WHISPER_STATE, b);
+      f.onRequestNewFriend = k.addFriend;
+      f.onRemoveFriend = k.removeFriend;
     };
-    n.free = function () {
-      p.length = 0;
+    k.free = function () {
+      q.length = 0;
     };
-    n.addFriend = function (a) {
+    k.addFriend = function (a) {
       var b = new g.CZ.ADD_FRIENDS();
       b.name = a;
-      k.sendPacket(b);
+      n.sendPacket(b);
     };
-    n.removeFriend = function (a) {
+    k.removeFriend = function (a) {
       var b = new g.CZ.DELETE_FRIENDS();
-      b.AID = p[a].AID;
-      b.GID = p[a].GID;
-      k.sendPacket(b);
+      b.AID = q[a].AID;
+      b.GID = q[a].GID;
+      n.sendPacket(b);
     };
-    n.answerFriendRequest = function (a, b, c) {
+    k.answerFriendRequest = function (a, b, c) {
       var d = new g.CZ.ACK_REQ_ADD_FRIENDS();
       d.ReqAID = a;
       d.ReqGID = b;
       d.Result = c;
-      k.sendPacket(d);
+      n.sendPacket(d);
     };
-    n.isFriend = function (a) {
+    k.isFriend = function (a) {
       var b,
-        c = p.length;
-      for (b = 0; b < c; ++b) if (a === p[b].Name) return !0;
+        c = q.length;
+      for (b = 0; b < c; ++b) if (a === q[b].Name) return !0;
       return !1;
     };
-    n.sayHi = function () {
+    k.sayHi = function () {
       var a,
-        b = p.length,
+        b = q.length,
         c = new g.CZ.WHISPER();
       c.msg = "(Hi) *^_^*";
       for (a = 0; a < b; ++a)
-        0 === p[a].State && ((c.receiver = p[a].Name), k.sendPacket(c));
+        0 === q[a].State && ((c.receiver = q[a].Name), n.sendPacket(c));
       l.addText("[ To Friends ] : " + c.msg, l.TYPE.PRIVATE);
     };
-    return n;
+    return k;
   },
 );

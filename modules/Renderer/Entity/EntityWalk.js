@@ -52,35 +52,35 @@ define(
         d = b.index,
         e = b.total,
         m,
-        t,
-        z,
-        E = h.tick;
+        v,
+        A,
+        C = h.tick;
       if (d < e) {
         for (; d < e;) {
           m = c[d + 0] - b.pos[0];
-          t = c[d + 1] - b.pos[1];
-          z = m && t ? b.speed / 0.7 : b.speed;
-          if (E - b.tick <= z) break;
-          b.tick += z;
+          v = c[d + 1] - b.pos[1];
+          A = m && v ? b.speed / 0.7 : b.speed;
+          if (C - b.tick <= A) break;
+          b.tick += A;
           b.pos[0] = c[d + 0];
           b.pos[1] = c[d + 1];
           d += 2;
         }
-        c = Math.min(z, E - b.tick);
+        c = Math.min(A, C - b.tick);
         b.index = d;
         c || (c = 150);
-        a[0] = b.pos[0] + m / (z / c);
-        a[1] = b.pos[1] + t / (z / c);
-        a[2] = q.getCellHeight(a[0], a[1]);
+        a[0] = b.pos[0] + m / (A / c);
+        a[1] = b.pos[1] + v / (A / c);
+        a[2] = t.getCellHeight(a[0], a[1]);
         this._position[0] = a[0];
         this._position[1] = a[1];
         this._position[2] = a[2] + 3;
         r.Entity.GID == this.GID &&
-          k.setPosition(Math.round(a[0]), Math.round(a[1]));
+          n.setPosition(Math.round(a[0]), Math.round(a[1]));
         if (d < e) {
           this.direction =
             g[(0 < m ? 1 : 0 > m ? -1 : 0) + 1][
-              (0 < t ? 1 : 0 > t ? -1 : 0) + 1
+              (0 < v ? 1 : 0 > v ? -1 : 0) + 1
             ];
           return;
         }
@@ -95,17 +95,17 @@ define(
       b.onEnd && (b.onEnd(), (b.onEnd = null));
       a[0] = Math.round(a[0]);
       a[1] = Math.round(a[1]);
-      a[2] = q.getCellHeight(a[0], a[1]);
+      a[2] = t.getCellHeight(a[0], a[1]);
       this._position[0] = a[0];
       this._position[1] = a[1];
       this._position[2] = a[2] + 3;
-      r.Entity.GID == this.GID && k.setPosition(a[0], a[1]);
+      r.Entity.GID == this.GID && n.setPosition(a[0], a[1]);
     }
     var m = a("Utils/PathFinding"),
       h = a("Renderer/Renderer"),
-      q = a("Renderer/Map/Altitude"),
+      t = a("Renderer/Map/Altitude"),
       r = a("Engine/SessionStorage"),
-      k = a("UI/Components/MiniMap/MiniMap"),
+      n = a("UI/Components/MiniMap/MiniMap"),
       g = [
         [1, 2, 3],
         [0, 0, 4],

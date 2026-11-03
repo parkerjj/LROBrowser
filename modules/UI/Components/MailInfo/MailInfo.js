@@ -24,21 +24,21 @@ define(
       m = a("Network/NetworkManager"),
       h = a("Network/PacketStructure");
     a("DB/Items/ItemType");
-    var q = a("Utils/jquery"),
+    var t = a("Utils/jquery"),
       r = a("Core/Client"),
-      k = a("Core/Preferences");
+      n = a("Core/Preferences");
     a("Renderer/Renderer");
     a("Controls/MouseEventHandler");
     var g = a("UI/UIManager"),
-      u = a("UI/UIComponent");
+      p = a("UI/UIComponent");
     a("UI/Components/InputBox/InputBox");
     a("UI/Components/ItemInfo/ItemInfo");
     a("UI/Components/ChatBox/ChatBox");
     var l = a("text!./MailInfo.html");
     a = a("text!./MailInfo.css");
-    var f = new u("MailInfo", l, a);
+    var f = new p("MailInfo", l, a);
     f.list = [];
-    k.get(
+    n.get(
       "MailInfo",
       { x: 200, y: 300, width: 6, height: 9, show: !0, reduce: !1 },
       1.1,
@@ -85,7 +85,7 @@ define(
         )
         .empty();
       this.ui.find(".content .bottom .item").remove();
-      q(".ItemInfo").remove();
+      t(".ItemInfo").remove();
     };
     f.remailMail = function () {};
     return g.addComponent(f);

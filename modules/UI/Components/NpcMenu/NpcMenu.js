@@ -25,23 +25,23 @@ define(
     }
     var m = a("Utils/jquery"),
       h = a("Controls/KeyEventHandler"),
-      q = a("Renderer/Renderer"),
+      t = a("Renderer/Renderer"),
       r = a("UI/UIManager"),
-      k = a("UI/UIComponent"),
+      n = a("UI/UIComponent"),
       g = a("Preferences/Controls"),
-      u = a("text!./NpcMenu.html");
+      p = a("text!./NpcMenu.html");
     a = a("text!./NpcMenu.css");
-    var k = new k("NpcMenu", u, a),
+    var n = new n("NpcMenu", p, a),
       l = 0,
       f = 0;
-    k.needFocus = !1;
-    k.init = function () {
+    n.needFocus = !1;
+    n.init = function () {
       this.ui.find(".ok").click(b.bind(this));
       this.ui.find(".cancel").click(c.bind(this));
       this.ui.css({
         zIndex: 99,
-        top: 0.5 * (q.height - this.ui.height()) + 100,
-        left: 0.5 * (q.width - this.ui.width()),
+        top: 0.5 * (t.height - this.ui.height()) + 100,
+        left: 0.5 * (t.width - this.ui.width()),
       });
       this.draggable();
       var a = this;
@@ -57,15 +57,15 @@ define(
           return !1;
         });
     };
-    k.onAppend = function () {
+    n.onAppend = function () {
       g.talk = !0;
     };
-    k.onRemove = function () {
+    n.onRemove = function () {
       f = 0;
       g.talk = !1;
       this.ui.find(".content").empty();
     };
-    k.onKeyDown = function (a) {
+    n.onKeyDown = function (a) {
       var c, d;
       switch (a.which) {
         case h.ENTER:
@@ -98,7 +98,7 @@ define(
       a.stopImmediatePropagation();
       return !1;
     };
-    k.setMenu = function (a, b) {
+    n.setMenu = function (a, b) {
       var c, d, e;
       c = this.ui.find(".content");
       a = a.split(":");
@@ -111,7 +111,7 @@ define(
           m("\x3cdiv/\x3e").text(a[b]).data("index", d++).appendTo(c);
       c.find("div:first").addClass("selected");
     };
-    k.onSelectMenu = function () {};
-    return r.addComponent(k);
+    n.onSelectMenu = function () {};
+    return r.addComponent(n);
   },
 );

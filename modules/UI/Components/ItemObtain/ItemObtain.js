@@ -11,12 +11,12 @@ define(
     a("Renderer/Renderer");
     var m = a("UI/UIManager"),
       h = a("UI/UIComponent"),
-      q = a("text!./ItemObtain.html");
+      t = a("text!./ItemObtain.html");
     a = a("text!./ItemObtain.css");
-    var r = new h("ItemObtain", q, a);
+    var r = new h("ItemObtain", t, a);
     r.mouseMode = h.MouseMode.CROSS;
     r.needFocus = !1;
-    var k = 0,
+    var n = 0,
       g = 0;
     r.ready = 0;
     r.parReady = 0;
@@ -25,7 +25,7 @@ define(
     };
     r.onAppend = function () {};
     r.onRemove = function () {
-      k && (e.clearTimeout(k), (k = 0));
+      n && (e.clearTimeout(n), (n = 0));
     };
     r.clean = function () {
       r.ready = 0;

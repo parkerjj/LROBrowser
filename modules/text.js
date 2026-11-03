@@ -5,19 +5,19 @@ define("text", ["module"], function (a) {
     e,
     m,
     h = ["Msxml2.XMLHTTP", "Microsoft.XMLHTTP", "Msxml2.XMLHTTP.4.0"],
-    q = /^\s*<\?xml(\s)+version=[\'\"](\d)*.(\d)*[\'\"](\s)*\?>/im,
+    t = /^\s*<\?xml(\s)+version=[\'\"](\d)*.(\d)*[\'\"](\s)*\?>/im,
     r = /<body[^>]*>\s*([\s\S]+)\s*<\/body>/im,
-    k = "undefined" !== typeof location && location.href,
-    g = k && location.protocol && location.protocol.replace(/\:/, ""),
-    u = k && location.hostname,
-    l = k && (location.port || void 0),
+    n = "undefined" !== typeof location && location.href,
+    g = n && location.protocol && location.protocol.replace(/\:/, ""),
+    p = n && location.hostname,
+    l = n && (location.port || void 0),
     f = {},
-    n = (a.config && a.config()) || {};
+    k = (a.config && a.config()) || {};
   b = {
     version: "2.0.10",
     strip: function (a) {
       if (a) {
-        a = a.replace(q, "");
+        a = a.replace(t, "");
         var d = a.match(r);
         d && (a = d[1]);
       } else a = "";
@@ -35,7 +35,7 @@ define("text", ["module"], function (a) {
         .replace(/[\u2029]/g, "\\u2029");
     },
     createXhr:
-      n.createXhr ||
+      k.createXhr ||
       function () {
         var a, d, b;
         if ("undefined" !== typeof XMLHttpRequest) return new XMLHttpRequest();
@@ -44,7 +44,7 @@ define("text", ["module"], function (a) {
             b = h[d];
             try {
               a = new ActiveXObject(b);
-            } catch (z) {}
+            } catch (A) {}
             if (a) {
               h = [b];
               break;
@@ -87,20 +87,20 @@ define("text", ["module"], function (a) {
     },
     finishLoad: function (a, d, c, e) {
       c = d ? b.strip(c) : c;
-      n.isBuild && (f[a] = c);
+      k.isBuild && (f[a] = c);
       e(c);
     },
     load: function (a, d, c, e) {
       if (e.isBuild && !e.inlineText) c();
       else {
-        n.isBuild = e.isBuild;
+        k.isBuild = e.isBuild;
         var f = b.parseName(a);
         e = f.moduleName + (f.ext ? "." + f.ext : "");
         var h = d.toUrl(e),
-          p = n.useXhr || b.useXhr;
+          q = k.useXhr || b.useXhr;
         0 === h.indexOf("empty:")
           ? c()
-          : !k || p(h, g, u, l)
+          : !n || q(h, g, p, l)
             ? b.get(
                 h,
                 function (d) {
@@ -126,27 +126,27 @@ define("text", ["module"], function (a) {
     writeFile: function (a, d, c, e, f) {
       d = b.parseName(d);
       var h = d.ext ? "." + d.ext : "",
-        n = d.moduleName + h,
-        p = c.toUrl(d.moduleName + h) + ".js";
+        k = d.moduleName + h,
+        q = c.toUrl(d.moduleName + h) + ".js";
       b.load(
-        n,
+        k,
         c,
         function (d) {
           d = function (a) {
-            return e(p, a);
+            return e(q, a);
           };
           d.asModule = function (a, d) {
-            return e.asModule(a, p, d);
+            return e.asModule(a, q, d);
           };
-          b.write(a, n, d, f);
+          b.write(a, k, d, f);
         },
         f,
       );
     },
   };
   if (
-    "node" === n.env ||
-    (!n.env &&
+    "node" === k.env ||
+    (!k.env &&
       "undefined" !== typeof process &&
       process.versions &&
       process.versions.node &&
@@ -158,11 +158,11 @@ define("text", ["module"], function (a) {
           var e = c.readFileSync(a, "utf8");
           0 === e.indexOf("\ufeff") && (e = e.substring(1));
           d(e);
-        } catch (E) {
-          b(E);
+        } catch (C) {
+          b(C);
         }
       }));
-  else if ("xhr" === n.env || (!n.env && b.createXhr()))
+  else if ("xhr" === k.env || (!k.env && b.createXhr()))
     b.get = function (a, d, c, e) {
       var f = b.createXhr(),
         h;
@@ -170,7 +170,7 @@ define("text", ["module"], function (a) {
       if (e)
         for (h in e)
           e.hasOwnProperty(h) && f.setRequestHeader(h.toLowerCase(), e[h]);
-      if (n.onXhr) n.onXhr(f, a);
+      if (k.onXhr) k.onXhr(f, a);
       f.onreadystatechange = function (b) {
         if (
           4 === f.readyState &&
@@ -178,15 +178,15 @@ define("text", ["module"], function (a) {
           399 < b && 600 > b
             ? ((b = Error(a + " HTTP status: " + b)), (b.xhr = f), c(b))
             : d(f.responseText),
-          n.onXhrComplete)
+          k.onXhrComplete)
         )
-          n.onXhrComplete(f, a);
+          k.onXhrComplete(f, a);
       };
       f.send(null);
     };
   else if (
-    "rhino" === n.env ||
-    (!n.env && "undefined" !== typeof Packages && "undefined" !== typeof java)
+    "rhino" === k.env ||
+    (!k.env && "undefined" !== typeof Packages && "undefined" !== typeof java)
   )
     b.get = function (a, d) {
       var b,
@@ -215,8 +215,8 @@ define("text", ["module"], function (a) {
       d(f);
     };
   else if (
-    "xpconnect" === n.env ||
-    (!n.env &&
+    "xpconnect" === k.env ||
+    (!k.env &&
       "undefined" !== typeof Components &&
       Components.classes &&
       Components.interfaces)
@@ -249,8 +249,8 @@ define("text", ["module"], function (a) {
             f.close(),
             c.close(),
             b(h.value));
-        } catch (C) {
-          throw Error(((a && a.path) || "") + ": " + C);
+        } catch (B) {
+          throw Error(((a && a.path) || "") + ": " + B);
         }
       }));
   return b;

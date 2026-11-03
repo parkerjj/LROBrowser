@@ -6,11 +6,11 @@ define("Renderer/Map/Ground", [
   function d(c, d) {
     function f(a, b) {
       a &&
-        ((a = (b % k) * 258),
-        (b = 258 * Math.floor(b / k)),
+        ((a = (b % p) * 258),
+        (b = 258 * Math.floor(b / p)),
         m.drawImage(this, a + 0, b + 0, 258, 258),
         m.drawImage(this, a + 1, b + 1, 256, 256));
-      ++u === g &&
+      ++n === g &&
         ((b = h),
         r || (r = c.createTexture()),
         c.bindTexture(c.TEXTURE_2D, r),
@@ -19,30 +19,30 @@ define("Renderer/Map/Ground", [
         c.texParameteri(c.TEXTURE_2D, c.TEXTURE_MIN_FILTER, c.LINEAR),
         c.generateMipmap(c.TEXTURE_2D));
     }
-    var e, g, l, k, u, h, m;
+    var e, g, l, p, n, h, m;
     g = d.length;
-    k = Math.round(Math.sqrt(g));
-    e = a.toPowerOfTwo(258 * k);
+    p = Math.round(Math.sqrt(g));
+    e = a.toPowerOfTwo(258 * p);
     l = a.toPowerOfTwo(258 * Math.ceil(Math.sqrt(g)));
     h = document.createElement("canvas");
     h.width = e;
     h.height = l;
     m = h.getContext("2d");
-    for (e = u = 0; e < g; ++e) b.load(d[e], f, e);
+    for (e = n = 0; e < g; ++e) b.load(d[e], f, e);
   }
   var e = null,
     m = null,
     h = null,
-    q = null,
+    t = null,
     r = null,
-    k = null,
+    n = null,
     g = 0,
-    u = 0;
+    p = 0;
   return {
     init: function (b, c) {
       g = c.meshVertCount;
-      u = c.width;
-      k = c.shadowMap;
+      p = c.width;
+      n = c.shadowMap;
       m || (m = b.createBuffer());
       e ||
         (e = a.createShaderProgram(
@@ -53,10 +53,10 @@ define("Renderer/Map/Ground", [
       b.bindBuffer(b.ARRAY_BUFFER, m);
       b.bufferData(b.ARRAY_BUFFER, c.mesh, b.STATIC_DRAW);
       var f = c.lightmap,
-        p = c.lightmapSize,
+        q = c.lightmapSize,
         l;
-      l = a.toPowerOfTwo(8 * Math.round(Math.sqrt(p)));
-      p = a.toPowerOfTwo(8 * Math.ceil(Math.sqrt(p)));
+      l = a.toPowerOfTwo(8 * Math.round(Math.sqrt(q)));
+      q = a.toPowerOfTwo(8 * Math.ceil(Math.sqrt(q)));
       h || (h = b.createTexture());
       b.bindTexture(b.TEXTURE_2D, h);
       b.texImage2D(
@@ -64,7 +64,7 @@ define("Renderer/Map/Ground", [
         0,
         b.RGBA,
         l,
-        p,
+        q,
         0,
         b.RGBA,
         b.UNSIGNED_BYTE,
@@ -73,34 +73,34 @@ define("Renderer/Map/Ground", [
       b.texParameteri(b.TEXTURE_2D, b.TEXTURE_MAG_FILTER, b.LINEAR);
       b.texParameteri(b.TEXTURE_2D, b.TEXTURE_MIN_FILTER, b.LINEAR);
       b.generateMipmap(b.TEXTURE_2D);
-      var t = c.tileColor,
-        z = c.width,
-        p = c.height,
-        E,
+      var v = c.tileColor,
+        A = c.width,
+        q = c.height,
         C,
+        B,
         r,
-        A,
+        D,
         f = document.createElement("canvas");
-      f.width = z;
-      f.height = p;
+      f.width = A;
+      f.height = q;
       l = f.getContext("2d");
-      r = l.createImageData(z, p);
-      A = r.data;
-      C = A.length;
-      for (E = 0; E < C; ++E) A[E] = t[E];
+      r = l.createImageData(A, q);
+      D = r.data;
+      B = D.length;
+      for (C = 0; C < B; ++C) D[C] = v[C];
       l.putImageData(r, 0, 0);
-      t = a.toPowerOfTwo(z);
-      p = a.toPowerOfTwo(p);
-      z = document.createElement("canvas");
-      z.width = t;
-      z.height = p;
-      l = z.getContext("2d");
+      v = a.toPowerOfTwo(A);
+      q = a.toPowerOfTwo(q);
+      A = document.createElement("canvas");
+      A.width = v;
+      A.height = q;
+      l = A.getContext("2d");
       l.fillStyle = "black";
-      l.fillRect(0, 0, t, p);
-      l.drawImage(f, 0, 0, t, p);
-      q || (q = b.createTexture());
-      b.bindTexture(b.TEXTURE_2D, q);
-      b.texImage2D(b.TEXTURE_2D, 0, b.RGBA, b.RGBA, b.UNSIGNED_BYTE, z);
+      l.fillRect(0, 0, v, q);
+      l.drawImage(f, 0, 0, v, q);
+      t || (t = b.createTexture());
+      b.bindTexture(b.TEXTURE_2D, t);
+      b.texImage2D(b.TEXTURE_2D, 0, b.RGBA, b.RGBA, b.UNSIGNED_BYTE, A);
       b.texParameteri(b.TEXTURE_2D, b.TEXTURE_MAG_FILTER, b.LINEAR);
       b.texParameteri(b.TEXTURE_2D, b.TEXTURE_MIN_FILTER, b.LINEAR);
       b.generateMipmap(b.TEXTURE_2D);
@@ -108,39 +108,39 @@ define("Renderer/Map/Ground", [
     },
     free: function (a) {
       h && (a.deleteTexture(h), (h = null));
-      q && (a.deleteTexture(q), (q = null));
+      t && (a.deleteTexture(t), (t = null));
       r && (a.deleteTexture(r), (r = null));
       m && (a.deleteBuffer(m), (m = null));
-      k = null;
+      n = null;
       g = 0;
     },
-    render: function (a, b, d, p, k, t, u) {
+    render: function (a, b, d, q, p, n, A) {
       var f = e.uniform,
-        n = e.attribute;
+        k = e.attribute;
       a.useProgram(e);
       a.uniformMatrix4fv(f.uModelViewMat, !1, b);
       a.uniformMatrix4fv(f.uProjectionMat, !1, d);
-      a.uniformMatrix3fv(f.uNormalMat, !1, p);
-      a.uniform3fv(f.uLightDirection, t.direction);
-      a.uniform1f(f.uLightOpacity, t.opacity);
-      a.uniform3fv(f.uLightAmbient, t.ambient);
-      a.uniform3fv(f.uLightDiffuse, t.diffuse);
+      a.uniformMatrix3fv(f.uNormalMat, !1, q);
+      a.uniform3fv(f.uLightDirection, n.direction);
+      a.uniform1f(f.uLightOpacity, n.opacity);
+      a.uniform3fv(f.uLightAmbient, n.ambient);
+      a.uniform3fv(f.uLightDiffuse, n.diffuse);
       a.uniform1i(f.uLightMapUse, c.lightmap);
-      a.uniform1i(f.uFogUse, k.use && k.exist);
-      a.uniform1f(f.uFogNear, k.near);
-      a.uniform1f(f.uFogFar, k.far);
-      a.uniform3fv(f.uFogColor, k.color);
-      a.enableVertexAttribArray(n.aPosition);
-      a.enableVertexAttribArray(n.aVertexNormal);
-      a.enableVertexAttribArray(n.aTextureCoord);
-      a.enableVertexAttribArray(n.aLightmapCoord);
-      a.enableVertexAttribArray(n.aTileColorCoord);
+      a.uniform1i(f.uFogUse, p.use && p.exist);
+      a.uniform1f(f.uFogNear, p.near);
+      a.uniform1f(f.uFogFar, p.far);
+      a.uniform3fv(f.uFogColor, p.color);
+      a.enableVertexAttribArray(k.aPosition);
+      a.enableVertexAttribArray(k.aVertexNormal);
+      a.enableVertexAttribArray(k.aTextureCoord);
+      a.enableVertexAttribArray(k.aLightmapCoord);
+      a.enableVertexAttribArray(k.aTileColorCoord);
       a.bindBuffer(a.ARRAY_BUFFER, m);
-      a.vertexAttribPointer(n.aPosition, 3, a.FLOAT, !1, 48, 0);
-      a.vertexAttribPointer(n.aVertexNormal, 3, a.FLOAT, !1, 48, 12);
-      a.vertexAttribPointer(n.aTextureCoord, 2, a.FLOAT, !1, 48, 24);
-      a.vertexAttribPointer(n.aLightmapCoord, 2, a.FLOAT, !1, 48, 32);
-      a.vertexAttribPointer(n.aTileColorCoord, 2, a.FLOAT, !1, 48, 40);
+      a.vertexAttribPointer(k.aPosition, 3, a.FLOAT, !1, 48, 0);
+      a.vertexAttribPointer(k.aVertexNormal, 3, a.FLOAT, !1, 48, 12);
+      a.vertexAttribPointer(k.aTextureCoord, 2, a.FLOAT, !1, 48, 24);
+      a.vertexAttribPointer(k.aLightmapCoord, 2, a.FLOAT, !1, 48, 32);
+      a.vertexAttribPointer(k.aTileColorCoord, 2, a.FLOAT, !1, 48, 40);
       a.activeTexture(a.TEXTURE0);
       a.bindTexture(a.TEXTURE_2D, r);
       a.uniform1i(f.uDiffuse, 0);
@@ -148,17 +148,17 @@ define("Renderer/Map/Ground", [
       a.bindTexture(a.TEXTURE_2D, h);
       a.uniform1i(f.uLightmap, 1);
       a.activeTexture(a.TEXTURE2);
-      a.bindTexture(a.TEXTURE_2D, q);
+      a.bindTexture(a.TEXTURE_2D, t);
       a.uniform1i(f.uTileColor, 2);
-      u ? a.drawArrays(a.LINES, 0, g) : a.drawArrays(a.TRIANGLES, 0, g);
-      a.disableVertexAttribArray(n.aPosition);
-      a.disableVertexAttribArray(n.aVertexNormal);
-      a.disableVertexAttribArray(n.aTextureCoord);
-      a.disableVertexAttribArray(n.aLightmapCoord);
-      a.disableVertexAttribArray(n.aTileColorCoord);
+      A ? a.drawArrays(a.LINES, 0, g) : a.drawArrays(a.TRIANGLES, 0, g);
+      a.disableVertexAttribArray(k.aPosition);
+      a.disableVertexAttribArray(k.aVertexNormal);
+      a.disableVertexAttribArray(k.aTextureCoord);
+      a.disableVertexAttribArray(k.aLightmapCoord);
+      a.disableVertexAttribArray(k.aTileColorCoord);
     },
     getShadowFactor: function (a, b) {
-      if (!k) return 1;
+      if (!n) return 1;
       var c,
         d,
         f = 0;
@@ -169,7 +169,7 @@ define("Renderer/Map/Ground", [
       c += Math.min((a & 1 ? 4 : 0) + Math.floor((a % 1) * 4), 6);
       d += Math.min((b & 1 ? 4 : 0) + Math.floor((b % 1) * 4), 6);
       for (b = -3; 3 > b; ++b)
-        for (a = -3; 3 > a; ++a) f += k[c + a + (d + b) * u * 8];
+        for (a = -3; 3 > a; ++a) f += n[c + a + (d + b) * p * 8];
       return f / 36 / 255;
     },
   };

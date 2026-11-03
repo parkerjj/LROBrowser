@@ -17,11 +17,11 @@ define(
       e = a("Loaders/Sprite"),
       m = a("Renderer/Renderer"),
       h = a("Renderer/SpriteRenderer"),
-      q = a("Preferences/Map"),
+      t = a("Preferences/Map"),
       r = a("DB/DBManager"),
-      k = a("Audio/SoundManager"),
+      n = a("Audio/SoundManager"),
       g = a("Renderer/EffectManager"),
-      u = a("Core/MemoryManager"),
+      p = a("Core/MemoryManager"),
       l = a("Renderer/Entity/Entity");
     b.TYPE = {
       HEAL: 1,
@@ -37,7 +37,7 @@ define(
       COMBO_B: 1024,
     };
     var f = Array(10),
-      n = {
+      k = {
         0: "miss",
         1: "guard",
         2: "crit",
@@ -45,12 +45,12 @@ define(
         4: "luckybg",
         5: "lucky",
       },
-      p = Array(6),
-      v = Array(6),
-      t = [],
-      z = window.devicePixelRatio;
+      q = Array(6),
+      u = Array(6),
+      v = [],
+      A = window.devicePixelRatio;
     b.init = function (a) {
-      (f[0] && p.miss && v.miss) ||
+      (f[0] && q.miss && u.miss) ||
         d.getFiles(
           [
             "data/sprite/\u00c0\u00cc\u00c6\u00d1\u00c6\u00ae/\u00bc\u00fd\u00c0\u00da.spr",
@@ -58,24 +58,24 @@ define(
             "data/sprite/\u00c0\u00cc\u00c6\u00d1\u00c6\u00ae/bluemsg.spr",
           ],
           function (b, d, g) {
-            var l, k, h;
-            u.remove(
+            var l, h, n;
+            p.remove(
               null,
               "data/sprite/\u00c0\u00cc\u00c6\u00d1\u00c6\u00ae/msg.spr",
             );
             try {
-              ((l = new e(b)), (k = new e(d)), (h = new e(g)));
-            } catch (M) {
-              console.error("Damage::init() - " + M.message);
+              ((l = new e(b)), (h = new e(d)), (n = new e(g)));
+            } catch (O) {
+              console.error("Damage::init() - " + O.message);
               return;
             }
             for (b = 0; 10 > b; ++b) f[b] = l.getCanvasFromFrame(b);
             for (b = 0; 6 > b; b++)
-              ((l = k.getCanvasFromFrame(b)),
+              ((l = h.getCanvasFromFrame(b)),
                 (d = document.createElement("canvas")),
                 (g = d.getContext("2d")),
-                (d.width = c.toPowerOfTwo(l.width) * z),
-                (d.height = c.toPowerOfTwo(l.height) * z),
+                (d.width = c.toPowerOfTwo(l.width) * A),
+                (d.height = c.toPowerOfTwo(l.height) * A),
                 g.drawImage(
                   l,
                   (d.width - l.width) / 2,
@@ -83,8 +83,8 @@ define(
                   l.width,
                   l.height,
                 ),
-                (p[n[b]] = { texture: a.createTexture(), canvas: d }),
-                a.bindTexture(a.TEXTURE_2D, p[n[b]].texture),
+                (q[k[b]] = { texture: a.createTexture(), canvas: d }),
+                a.bindTexture(a.TEXTURE_2D, q[k[b]].texture),
                 a.texImage2D(
                   a.TEXTURE_2D,
                   0,
@@ -106,11 +106,11 @@ define(
                   a.CLAMP_TO_EDGE,
                 ));
             for (b = 0; 6 > b; b++)
-              ((l = h.getCanvasFromFrame(b)),
+              ((l = n.getCanvasFromFrame(b)),
                 (d = document.createElement("canvas")),
                 (g = d.getContext("2d")),
-                (d.width = c.toPowerOfTwo(l.width) * z),
-                (d.height = c.toPowerOfTwo(l.height) * z),
+                (d.width = c.toPowerOfTwo(l.width) * A),
+                (d.height = c.toPowerOfTwo(l.height) * A),
                 g.drawImage(
                   l,
                   (d.width - l.width) / 2,
@@ -118,8 +118,8 @@ define(
                   l.width,
                   l.height,
                 ),
-                (v[n[b]] = { texture: a.createTexture(), canvas: d }),
-                a.bindTexture(a.TEXTURE_2D, v[n[b]].texture),
+                (u[k[b]] = { texture: a.createTexture(), canvas: d }),
+                a.bindTexture(a.TEXTURE_2D, u[k[b]].texture),
                 a.texImage2D(
                   a.TEXTURE_2D,
                   0,
@@ -143,123 +143,123 @@ define(
           },
         );
     };
-    b.add = function (a, d, e, n, k) {
-      if (!(0 > a) && f[0] && p.miss && v.miss) {
+    b.add = function (a, d, e, k, p) {
+      if (!(0 > a) && f[0] && q.miss && u.miss) {
         a = Math.floor(a);
         var h,
-          u,
-          z = document.createElement("canvas"),
-          C = z.getContext("2d"),
-          E = a.toString().split(""),
+          n,
+          C = document.createElement("canvas"),
+          B = C.getContext("2d"),
+          A = a.toString().split(""),
           J = 0,
-          A = 0,
-          B = m.gl,
-          y = new b();
-        y.type = k || (a ? b.TYPE.DAMAGE : b.TYPE.MISS);
-        d.objecttype === d.constructor.TYPE_PC && (y.type |= b.TYPE.ENEMY);
-        y.color = [1, 1, 1, 1];
-        y.delay = 1500;
-        y.startTick = e;
-        y.entity = d;
-        y.color = [1, 1, 1, 1];
-        y.delay = 1500;
-        y.startTick = e;
-        y.entity = d;
-        y.type & b.TYPE.SP
-          ? ((y.color[0] = 0.13), (y.color[1] = 0.19), (y.color[2] = 0.75))
-          : y.type & b.TYPE.HEAL
-            ? ((y.color[0] = 0), (y.color[1] = 1), (y.color[2] = 0))
-            : y.type & b.TYPE.ENEMY
-              ? ((y.color[0] = 1), (y.color[1] = 0), (y.color[2] = 0))
-              : y.type & b.TYPE.COMBO
-                ? ((y.color[0] = 0.9),
-                  (y.color[1] = 0.9),
-                  (y.color[2] = 0.15),
-                  (y.delay = 3e3))
-                : y.type & b.TYPE.CRIT
-                  ? ((y.color[0] = 0.8),
-                    (y.color[1] = 0.8),
-                    (y.color[2] = 0.25),
-                    (k = new b()),
-                    (k.type = b.TYPE.CRIT),
-                    (k.color = [0.66, 0.66, 0.66, 1]),
-                    (k.delay = 1500),
-                    (k.startTick = e),
-                    (k.entity = d),
-                    (k.texture = p.critbg.texture),
-                    (k.width = 0.6 * p.critbg.canvas.width),
-                    (k.height = 0.6 * p.critbg.canvas.height),
-                    (k.offset = [0, -6]),
-                    (k.isDisposable = !1),
-                    t.push(k),
+          y = 0,
+          D = m.gl,
+          z = new b();
+        z.type = p || (a ? b.TYPE.DAMAGE : b.TYPE.MISS);
+        d.objecttype === d.constructor.TYPE_PC && (z.type |= b.TYPE.ENEMY);
+        z.color = [1, 1, 1, 1];
+        z.delay = 1500;
+        z.startTick = e;
+        z.entity = d;
+        z.color = [1, 1, 1, 1];
+        z.delay = 1500;
+        z.startTick = e;
+        z.entity = d;
+        z.type & b.TYPE.SP
+          ? ((z.color[0] = 0.13), (z.color[1] = 0.19), (z.color[2] = 0.75))
+          : z.type & b.TYPE.HEAL
+            ? ((z.color[0] = 0), (z.color[1] = 1), (z.color[2] = 0))
+            : z.type & b.TYPE.ENEMY
+              ? ((z.color[0] = 1), (z.color[1] = 0), (z.color[2] = 0))
+              : z.type & b.TYPE.COMBO
+                ? ((z.color[0] = 0.9),
+                  (z.color[1] = 0.9),
+                  (z.color[2] = 0.15),
+                  (z.delay = 3e3))
+                : z.type & b.TYPE.CRIT
+                  ? ((z.color[0] = 0.8),
+                    (z.color[1] = 0.8),
+                    (z.color[2] = 0.25),
+                    (p = new b()),
+                    (p.type = b.TYPE.CRIT),
+                    (p.color = [0.66, 0.66, 0.66, 1]),
+                    (p.delay = 1500),
+                    (p.startTick = e),
+                    (p.entity = d),
+                    (p.texture = q.critbg.texture),
+                    (p.width = 0.6 * q.critbg.canvas.width),
+                    (p.height = 0.6 * q.critbg.canvas.height),
+                    (p.offset = [0, -6]),
+                    (p.isDisposable = !1),
+                    v.push(p),
                     g.spam({
                       effectId: 1,
                       ownerAID: d.GID,
                       position: d.position,
                       startTick: e,
                     }))
-                  : y.type & b.TYPE.COMBO_B
-                    ? ((y.color[0] = 1),
-                      (y.color[1] = 1),
-                      (y.color[2] = 1),
-                      (k = new b()),
-                      (k.type = y.type),
-                      (k.color = [0.66, 0.66, 0.66, 1]),
-                      (k.delay = 1500),
-                      (k.startTick = e),
-                      (k.entity = d),
-                      (k.texture = v.critbg.texture),
-                      (k.width = 0.6 * v.critbg.canvas.width),
-                      (k.height = 0.6 * v.critbg.canvas.height),
-                      (k.offset = [0, -6]),
-                      (k.isDisposable = !1),
-                      t.push(k))
-                    : ((y.color[0] = 1), (y.color[1] = 1), (y.color[2] = 1));
+                  : z.type & b.TYPE.COMBO_B
+                    ? ((z.color[0] = 1),
+                      (z.color[1] = 1),
+                      (z.color[2] = 1),
+                      (p = new b()),
+                      (p.type = z.type),
+                      (p.color = [0.66, 0.66, 0.66, 1]),
+                      (p.delay = 1500),
+                      (p.startTick = e),
+                      (p.entity = d),
+                      (p.texture = u.critbg.texture),
+                      (p.width = 0.6 * u.critbg.canvas.width),
+                      (p.height = 0.6 * u.critbg.canvas.height),
+                      (p.offset = [0, -6]),
+                      (p.isDisposable = !1),
+                      v.push(p))
+                    : ((z.color[0] = 1), (z.color[1] = 1), (z.color[2] = 1));
         if (a) {
           a = 0;
-          for (e = E.length; a < e; ++a)
-            ((u = f[E[a]]), (J += u.width + 2.8), (A = Math.max(A, u.height)));
-          C.canvas.width = c.toPowerOfTwo(J);
-          C.canvas.height = c.toPowerOfTwo(A);
-          k = (C.canvas.width - J) >> 1;
-          h = (C.canvas.height - A) >> 1;
+          for (e = A.length; a < e; ++a)
+            ((n = f[A[a]]), (J += n.width + 2.8), (y = Math.max(y, n.height)));
+          B.canvas.width = c.toPowerOfTwo(J);
+          B.canvas.height = c.toPowerOfTwo(y);
+          p = (B.canvas.width - J) >> 1;
+          h = (B.canvas.height - y) >> 1;
           a = J = 0;
-          for (e = E.length; a < e; ++a)
-            ((u = f[E[a]]),
-              C.drawImage(u, k + J, h + ((A - u.height) >> 1)),
-              (J += u.width + 2.8));
-          C = B.createTexture();
-          B.bindTexture(B.TEXTURE_2D, C);
-          B.texImage2D(B.TEXTURE_2D, 0, B.RGBA, B.RGBA, B.UNSIGNED_BYTE, z);
-          B.texParameteri(B.TEXTURE_2D, B.TEXTURE_MAG_FILTER, B.LINEAR);
-          B.texParameteri(B.TEXTURE_2D, B.TEXTURE_MIN_FILTER, B.LINEAR);
-          y.texture = C;
-          y.width = z.width;
-          y.height = z.height;
-          y.isDisposable = !0;
+          for (e = A.length; a < e; ++a)
+            ((n = f[A[a]]),
+              B.drawImage(n, p + J, h + ((y - n.height) >> 1)),
+              (J += n.width + 2.8));
+          B = D.createTexture();
+          D.bindTexture(D.TEXTURE_2D, B);
+          D.texImage2D(D.TEXTURE_2D, 0, D.RGBA, D.RGBA, D.UNSIGNED_BYTE, C);
+          D.texParameteri(D.TEXTURE_2D, D.TEXTURE_MAG_FILTER, D.LINEAR);
+          D.texParameteri(D.TEXTURE_2D, D.TEXTURE_MIN_FILTER, D.LINEAR);
+          z.texture = B;
+          z.width = C.width;
+          z.height = C.height;
+          z.isDisposable = !0;
           var G;
           if (d.objecttype === l.TYPE_PC) G = r.getJobHitSound(d._job);
-          else if (n || 0 === n) G = r.getWeaponHitSound(n);
-          G && (y.soundFile = G[0]);
-          t.push(y);
+          else if (k || 0 === k) G = r.getWeaponHitSound(k);
+          G && (z.soundFile = G[0]);
+          v.push(z);
         } else
-          q.miss &&
-            ((y.texture = p.miss.texture),
-            (y.width = p.miss.canvas.width),
-            (y.height = p.miss.canvas.height),
-            (y.isDisposable = !1),
-            t.push(y));
+          t.miss &&
+            ((z.texture = q.miss.texture),
+            (z.width = q.miss.canvas.width),
+            (z.height = q.miss.canvas.height),
+            (z.isDisposable = !1),
+            v.push(z));
       }
     };
     b.free = function (a) {
       var b, c;
       b = 0;
-      for (c = t.length; b < c; ++b)
-        t[b].isDisposable && a.deleteTexture(t[b].texture);
-      t.length = 0;
+      for (c = v.length; b < c; ++b)
+        v[b].isDisposable && a.deleteTexture(v[b].texture);
+      v.length = 0;
     };
     b.render = function (a, c, d, f, e) {
-      if (t.length) {
+      if (v.length) {
         h.bind3DContext(a, c, d, f);
         h.shadow = 1;
         h.angle = 0;
@@ -267,11 +267,11 @@ define(
         h.image.palette = null;
         var g, l;
         c = 0;
-        for (d = t.length; c < d; ++c)
-          if (((g = t[c]), !(g.startTick > e)))
+        for (d = v.length; c < d; ++c)
+          if (((g = v[c]), !(g.startTick > e)))
             if (g.startTick + g.delay < e)
               (g.isDisposable && a.deleteTexture(g.texture),
-                t.splice(c, 1),
+                v.splice(c, 1),
                 d--,
                 c--);
             else {
@@ -295,8 +295,8 @@ define(
                     5 * Math.sin(-Math.PI / 2 + Math.PI * (0.5 + 1.5 * f))),
                   g.soundFile &&
                     (g.type & b.TYPE.ENDURE &&
-                      k.playPosition("player_metal.wav", g.entity.position),
-                    k.playPosition(g.soundFile, g.entity.position),
+                      n.playPosition("player_metal.wav", g.entity.position),
+                    n.playPosition(g.soundFile, g.entity.position),
                     delete g.soundFile));
               else if (g.type & b.TYPE.HEAL)
                 ((l = Math.max(3 * (1 - f), 0.8)),
@@ -317,21 +317,21 @@ define(
                   (h.position[1] = g.entity.position[1]),
                   (h.position[2] = g.entity.position[2] + 3.5 + 7 * f));
               else if (g.type & b.TYPE.CRIT) {
-                var n = 0.06 * (2 * Math.random() - 1),
-                  p = 0.06 * (2 * Math.random() - 1),
-                  u = 0.06 * (2 * Math.random() - 1);
+                var p = 0.06 * (2 * Math.random() - 1),
+                  k = 0.06 * (2 * Math.random() - 1),
+                  q = 0.06 * (2 * Math.random() - 1);
                 l = 4 * (1 - f);
-                h.position[0] = g.entity.position[0] + 4 * f + n;
-                h.position[1] = g.entity.position[1] - f + p;
+                h.position[0] = g.entity.position[0] + 4 * f + p;
+                h.position[1] = g.entity.position[1] - f + k;
                 h.position[2] =
                   g.entity.position[2] +
                   4 +
                   5 * Math.sin(-Math.PI / 2 + Math.PI * (0.5 + 1.5 * f)) +
-                  u;
+                  q;
                 g.soundFile &&
                   (g.type & b.TYPE.ENDURE &&
-                    k.playPosition("player_metal.wav", g.entity.position),
-                  k.playPosition(g.soundFile, g.entity.position),
+                    n.playPosition("player_metal.wav", g.entity.position),
+                  n.playPosition(g.soundFile, g.entity.position),
                   delete g.soundFile);
               }
               h.size[0] = g.width * l;

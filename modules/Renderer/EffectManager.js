@@ -6,7 +6,7 @@ define(
   function (a) {
     function b(a) {
       var b;
-      b = C.mineffect && a.effect.min ? a.effect.min : a.effect.file;
+      b = B.mineffect && a.effect.min ? a.effect.min : a.effect.file;
       a.effect.rand &&
         (b = b.replace(
           "%d",
@@ -15,8 +15,8 @@ define(
               (a.effect.rand[1] - a.effect.rand[0]) * Math.random(),
           ),
         ));
-      F.add(
-        new u(
+      H.add(
+        new p(
           "data/texture/effect/" + b + ".str",
           a.Inst.position,
           a.Inst.startTick,
@@ -31,12 +31,12 @@ define(
         c = !1;
       b
         ? a.effect.attachedEntity ||
-          ((b = new p()),
+          ((b = new q()),
           (b.GID = -1),
           (b.position = a.Inst.position),
           (b.objecttype = b.constructor.TYPE_EFFECT),
           (c = !0))
-        : ((b = new p()),
+        : ((b = new q()),
           (b.GID = a.Init.ownerAID),
           (b.position = a.Inst.position),
           (b.objecttype = b.constructor.TYPE_EFFECT),
@@ -54,97 +54,97 @@ define(
         frame: a.effect.frame,
         delay: a.effect.delayFrame,
       });
-      c && v.add(b);
+      c && u.add(b);
     }
     var d = a("DB/Effects/EffectTable"),
       e = a("DB/Skills/SkillEffect"),
       m = a("DB/Skills/SkillUnit"),
       h = a("DB/Skills/SkillUnitConst"),
-      q = a("DB/Items/ItemEffect"),
+      t = a("DB/Items/ItemEffect"),
       r = a("Core/Events"),
-      k = a("Renderer/Effects/RsmViewer"),
+      n = a("Renderer/Effects/RsmViewer"),
       g = a("Renderer/Effects/Cylinder"),
-      u = a("Renderer/Effects/StrEffect"),
+      p = a("Renderer/Effects/StrEffect"),
       l = a("Renderer/Effects/TwoDEffect"),
       f = a("Renderer/Effects/ThreeDEffect"),
-      n = a("Renderer/Effects/GroundEffect"),
-      p = a("Renderer/Entity/Entity"),
-      v = a("Renderer/EntityManager"),
-      t = a("Renderer/Renderer"),
-      z = a("Renderer/Map/Altitude"),
-      E = a("Audio/SoundManager"),
-      C = a("Preferences/Map"),
+      k = a("Renderer/Effects/GroundEffect"),
+      q = a("Renderer/Entity/Entity"),
+      u = a("Renderer/EntityManager"),
+      v = a("Renderer/Renderer"),
+      A = a("Renderer/Map/Altitude"),
+      C = a("Audio/SoundManager"),
+      B = a("Preferences/Map"),
       J = a("Renderer/Effects/QuadHorn"),
-      A,
-      B = {},
-      F = {},
-      O = 1;
-    F.init = function (a) {
-      A = a;
+      D,
+      y = {},
+      H = {},
+      N = 1;
+    H.init = function (a) {
+      D = a;
     };
-    F.add = function (a, b) {
-      if (A) {
-        var c = a.constructor._uid || (a.constructor._uid = O++);
-        c in B ||
-          ((B[c] = []),
-          a.constructor.init && a.constructor.init(A),
+    H.add = function (a, b) {
+      if (D) {
+        var c = a.constructor._uid || (a.constructor._uid = N++);
+        c in y ||
+          ((y[c] = []),
+          a.constructor.init && a.constructor.init(D),
           a.constructor.renderBeforeEntities ||
             (a.constructor.renderBeforeEntities = !1));
-        a.init && a.init(A);
+        a.init && a.init(D);
         a._Params = b;
-        B[c].push(a);
+        y[c].push(a);
       }
     };
-    F.remove = (function () {
+    H.remove = (function () {
       function a(a, b, c) {
         var d,
           e,
           f,
           g = Array.isArray(c) ? c : [c];
-        d = B[a];
+        d = y[a];
         f = d.length;
         for (e = 0; e < f; ++e)
           (!b || (b && d[e]._Params.Init.ownerAID === b)) &&
             (!c || (c && g.includes(d[e]._Params.Inst.effectID))) &&
-            (d[e].free && d[e].free(A), d.splice(e, 1), e--, f--);
-        f || delete B[a];
+            (d[e].free && d[e].free(D), d.splice(e, 1), e--, f--);
+        f || delete y[a];
       }
       return function (b, c, d) {
-        if (b) b._uid in B && a(b._uid, c, d);
+        if (b) b._uid in y && a(b._uid, c, d);
         else {
           var e,
-            f = Object.keys(B);
+            f = Object.keys(y);
           b = 0;
           for (e = f.length; b < e; ++b) a(f[b], c, d);
         }
       };
     })();
-    F.removeSpirits = (function () {
+    H.removeSpirits = (function () {
       return function (a) {
         var b,
           c,
-          d = Object.keys(B);
+          d = Object.keys(y);
         b = 0;
         for (c = d.length; b < c; ++b) {
           var e = d[b],
             f = a,
             g = [2011, 2012, 2013, 2014, 2015],
             h,
-            l,
             k,
-            n = Array.isArray(g) ? g : [g];
-          h = B[e];
-          k = h.length;
-          for (l = 0; l < k; ++l)
-            (!f || (f && h[l]._Params.Init.ownerAID === f)) &&
-              (!g || (g && n.includes(h[l]._Params.Inst.effectID))) &&
-              (h[l].free && h[l].free(A), h.splice(l, 1), l--, k--);
-          k || delete B[e];
+            l,
+            m = Array.isArray(g) ? g : [g];
+          h = y[e];
+          l = h.length;
+          for (k = 0; k < l; ++k)
+            (!f || (f && h[k]._Params.Init.ownerAID === f)) &&
+              (!g || (g && m.includes(h[k]._Params.Inst.effectID))) &&
+              (h[k].free && h[k].free(D), h.splice(k, 1), k--, l--);
+          l || delete y[e];
         }
       };
     })();
-    F.free = function (a) {
-      var b = Object.keys(B),
+    H.free = function (a) {
+      var b = Object.keys(y),
         c,
         d,
         e,
@@ -153,44 +153,44 @@ define(
         h;
       c = 0;
       for (f = b.length; c < f; ++c) {
-        g = B[b[c]];
+        g = y[b[c]];
         h = g[0].constructor;
         d = 0;
         for (e = g.length; d < e; ++d) g[d].free && g[d].free(a);
         h.free && h.free(a);
-        delete B[b[c]];
+        delete y[b[c]];
       }
     };
-    F.render = function (a, b, c, d, e, f) {
-      var g = Object.keys(B),
+    H.render = function (a, b, c, d, e, f) {
+      var g = Object.keys(y),
         h,
-        l = g.length,
-        k,
-        n,
+        k = g.length,
+        l,
         m,
-        p;
-      for (h = 0; h < l; ++h)
-        if (((m = B[g[h]]), m.length)) {
+        p,
+        n;
+      for (h = 0; h < k; ++h)
+        if (((p = y[g[h]]), p.length)) {
           if (
-            ((p = m[0].constructor), p.renderBeforeEntities === f && p.ready)
+            ((n = p[0].constructor), n.renderBeforeEntities === f && n.ready)
           ) {
-            p.beforeRender && p.beforeRender(a, b, c, d, e);
-            k = 0;
-            for (n = m.length; k < n; ++k) {
-              m[k].ready && m[k].render(a, e);
-              var u;
+            n.beforeRender && n.beforeRender(a, b, c, d, e);
+            l = 0;
+            for (m = p.length; l < m; ++l) {
+              p[l].ready && p[l].render(a, e);
+              var q;
               a: {
-                u = m[k];
-                var r = u._Params;
+                q = p[l];
+                var r = q._Params;
                 if (
                   (r.Inst.persistent || r.Inst.repeatEnd) &&
-                  !u._AlreadyRepeated
+                  !q._AlreadyRepeated
                 ) {
                   var T = !1;
                   if (
                     r.Inst.duration &&
                     0 < r.Inst.duration &&
-                    t.tick > r.Inst.endTick + r.Inst.repeatDelay
+                    v.tick > r.Inst.endTick + r.Inst.repeatDelay
                   ) {
                     if (
                       !r.Inst.repeatEnd ||
@@ -198,12 +198,12 @@ define(
                     )
                       T = r.Inst.endTick + r.Inst.repeatDelay;
                   } else
-                    u.needCleanUp &&
+                    q.needCleanUp &&
                       (!r.Inst.repeatEnd ||
-                        r.Inst.repeatEnd > t.tick + r.Inst.repeatDelay) &&
-                      (T = t.tick + r.Inst.repeatDelay);
+                        r.Inst.repeatEnd > v.tick + r.Inst.repeatDelay) &&
+                      (T = v.tick + r.Inst.repeatDelay);
                   if (T) {
-                    F.spamEffect({
+                    H.spamEffect({
                       effect: r.effect,
                       Inst: {
                         effectID: r.Inst.effectID,
@@ -213,31 +213,31 @@ define(
                       },
                       Init: r.Init,
                     });
-                    u._AlreadyRepeated = !0;
-                    u = 1;
+                    q._AlreadyRepeated = !0;
+                    q = 1;
                     break a;
                   }
                 }
-                u = 0;
+                q = 0;
               }
-              n += u;
-              m[k].noLifeTime
-                ? v.get(m[k]._Params.Init.ownerAID) ||
-                  (m[k].free && m[k].free(a), m.splice(k, 1), k--, n--)
-                : m[k].needCleanUp &&
-                  (m[k].free && m[k].free(a), m.splice(k, 1), k--, n--);
+              m += q;
+              p[l].noLifeTime
+                ? u.get(p[l]._Params.Init.ownerAID) ||
+                  (p[l].free && p[l].free(a), p.splice(l, 1), l--, m--)
+                : p[l].needCleanUp &&
+                  (p[l].free && p[l].free(a), p.splice(l, 1), l--, m--);
             }
-            p.afterRender && p.afterRender(a);
-            0 === n && (p.free && p.free(a), delete B[g[h]]);
+            n.afterRender && n.afterRender(a);
+            0 === m && (n.free && n.free(a), delete y[g[h]]);
           }
-        } else delete B[g[h]];
+        } else delete y[g[h]];
     };
-    F.endRepeat = (function () {
+    H.endRepeat = (function () {
       function a(a, b, c) {
         var d,
           e,
           f = Array.isArray(c) ? c : [c];
-        a = B[a];
+        a = y[a];
         e = a.length;
         for (d = 0; d < e; ++d)
           (!b || (b && a[d]._Params.Init.ownerAID === b)) &&
@@ -247,17 +247,17 @@ define(
             a[d]._Params.Inst.repeatEnd && (a[d]._Params.Inst.repeatEnd = !1));
       }
       return function (b, c, d) {
-        if (b && b.name in B) a(b.name, c, d);
+        if (b && b.name in y) a(b.name, c, d);
         else {
           var e,
-            f = Object.keys(B);
+            f = Object.keys(y);
           b = 0;
           for (e = f.length; b < e; ++b) a(f[b], c, d);
         }
       };
     })();
-    F.spam = function (a) {
-      if (a && C.effect) {
+    H.spam = function (a) {
+      if (a && B.effect) {
         var b = {
             effectId: -1,
             skillId: null,
@@ -274,9 +274,9 @@ define(
             otherPosition: null,
           },
           b = Object.assign(b, a);
-        b.startTick || (b.startTick = t.tick);
-        b.ownerEntity = v.get(b.ownerAID);
-        b.otherEntity = v.get(b.otherAID);
+        b.startTick || (b.startTick = v.tick);
+        b.ownerEntity = u.get(b.ownerAID);
+        b.otherEntity = u.get(b.otherAID);
         a = b;
         if (a.effectId in d) {
           var b = d[a.effectId],
@@ -299,7 +299,7 @@ define(
               e < b[c].duplicate;
               ++e
             )
-              F.spamEffect({
+              H.spamEffect({
                 effect: b[c],
                 Inst: {
                   effectID: a.effectId,
@@ -311,7 +311,7 @@ define(
         }
       }
     };
-    F.spamEffect = function (a) {
+    H.spamEffect = function (a) {
       var d;
       a.Inst.position = a.Init.position;
       a.Inst.otherPosition = a.Init.otherPosition;
@@ -352,11 +352,11 @@ define(
           )),
         r.setTimeout(
           function () {
-            E.playPosition(d + ".wav", a.Inst.position);
+            C.playPosition(d + ".wav", a.Inst.position);
           },
           a.Inst.startTick +
             (isNaN(a.effect.delayWav) ? 0 : a.effect.delayWav) -
-            t.tick,
+            v.tick,
         ));
       a.Inst.direction =
         a.effect.attachedEntity && a.Init.ownerEntity
@@ -394,22 +394,22 @@ define(
           b(a);
           break;
         case "CYLINDER":
-          F.add(new g(a.effect, a.Inst, a.Init), a);
+          H.add(new g(a.effect, a.Inst, a.Init), a);
           break;
         case "2D":
-          F.add(new l(a.effect, a.Inst, a.Init), a);
+          H.add(new l(a.effect, a.Inst, a.Init), a);
           break;
         case "3D":
-          F.add(new f(a.effect, a.Inst, a.Init), a);
+          H.add(new f(a.effect, a.Inst, a.Init), a);
           break;
         case "QuadHorn":
-          F.add(new J(a.effect, a.Inst, a.Init), a);
+          H.add(new J(a.effect, a.Inst, a.Init), a);
           break;
         case "GROUND":
-          F.add(new n(a.effect, a.Inst, a.Init), a);
+          H.add(new k(a.effect, a.Inst, a.Init), a);
           break;
         case "TRAP":
-          F.add(new k(a.effect, a.Inst, a.Init), a);
+          H.add(new n(a.effect, a.Inst, a.Init), a);
           break;
         case "FUNC":
           a.effect.func &&
@@ -418,11 +418,11 @@ define(
               : a.effect.func.call(this, a));
       }
     };
-    F.spamSkillZone = function (a, b, c, f, g) {
-      var l = v.get(g),
-        k = [h.UNT_ICEWALL, h.UNT_REVERBERATION],
-        n = [h.UNT_PRE_WARPPORTAL],
-        u = [
+    H.spamSkillZone = function (a, b, c, f, g) {
+      var k = u.get(g),
+        l = [h.UNT_ICEWALL, h.UNT_REVERBERATION],
+        p = [h.UNT_PRE_WARPPORTAL],
+        n = [
           h.UNT_TRAP,
           h.UNT_BLASTMINE,
           h.UNT_SKIDTRAP,
@@ -444,58 +444,58 @@ define(
           h.UNT_CLUSTERBOMB,
           h.UNT_ICEMINE,
         ];
-      if (C.effect && l) {
+      if (B.effect && k) {
         if (134 == a) {
-          if (91 != l.skillId && 254 != l.skillId && 2452 != l.skillId) return;
-          l = l.skillId;
-          if (!(l in e)) return;
-          l = e[l];
-          if (!l.groundEffectId) return;
-          l = l.groundEffectId;
+          if (91 != k.skillId && 254 != k.skillId && 2452 != k.skillId) return;
+          k = k.skillId;
+          if (!(k in e)) return;
+          k = e[k];
+          if (!k.groundEffectId) return;
+          k = k.groundEffectId;
         } else {
           if (!(a in m)) return;
-          l = m[a];
+          k = m[a];
         }
-        if (l in d) {
-          var r = v.get(f),
-            q = !1;
+        if (k in d) {
+          var r = u.get(f),
+            t = !1;
           r ||
-            ((r = new p()),
+            ((r = new q()),
             (r.GID = f),
-            (r.position = [b, c, z.getCellHeight(b, c)]),
+            (r.position = [b, c, A.getCellHeight(b, c)]),
             (r.hideShadow = !0),
-            (r.objecttype = u.includes(a)
+            (r.objecttype = n.includes(a)
               ? r.constructor.TYPE_TRAP
-              : k.includes(a)
+              : l.includes(a)
                 ? r.constructor.TYPE_UNIT
-                : n.includes(a)
+                : p.includes(a)
                   ? r.constructor.TYPE_WARP
                   : r.constructor.TYPE_EFFECT),
             (r.creatorGID = g),
-            (q = !0));
-          q && v.add(r);
-          F.remove(null, f);
+            (t = !0));
+          t && u.add(r);
+          H.remove(null, f);
           a = {
-            effectId: l,
+            effectId: k,
             ownerAID: f,
-            position: [b, c, z.getCellHeight(b, c)],
-            startTick: t.tick,
+            position: [b, c, A.getCellHeight(b, c)],
+            startTick: v.tick,
             persistent: !0,
             duration: -1,
             otherAID: g,
           };
-          F.spam(a);
+          H.spam(a);
         }
       }
     };
-    F.spamSkill = function (a, b, c, d, f) {
+    H.spamSkill = function (a, b, c, d, f) {
       if (a in e) {
         if (e[a].effectId) {
           var g = Array.isArray(e[a].effectId)
             ? e[a].effectId
             : [e[a].effectId];
           g.forEach(function (a) {
-            F.spam({
+            H.spam({
               effectId: a,
               ownerAID: b,
               position: c,
@@ -510,7 +510,7 @@ define(
             ? e[a].effectIdOnCaster
             : [e[a].effectIdOnCaster]),
           g.forEach(function (a) {
-            F.spam({
+            H.spam({
               effectId: a,
               ownerAID: f,
               position: c,
@@ -520,14 +520,14 @@ define(
           }));
       }
     };
-    F.spamSkillSuccess = function (a, b, c, d) {
+    H.spamSkillSuccess = function (a, b, c, d) {
       if (a in e) {
         if (e[a].successEffectId) {
           var f = Array.isArray(e[a].successEffectId)
             ? e[a].successEffectId
             : [e[a].successEffectId];
           f.forEach(function (a) {
-            F.spam({ effectId: a, ownerAID: b, startTick: c, otherAID: d });
+            H.spam({ effectId: a, ownerAID: b, startTick: c, otherAID: d });
           });
         }
         e[a].successEffectIdOnCaster &&
@@ -535,28 +535,28 @@ define(
             ? e[a].successEffectIdOnCaster
             : [e[a].successEffectIdOnCaster]),
           f.forEach(function (a) {
-            F.spam({ effectId: a, ownerAID: d, startTick: c, otherAID: b });
+            H.spam({ effectId: a, ownerAID: d, startTick: c, otherAID: b });
           }));
       }
     };
-    F.spamSkillHit = function (a, b, c, d) {
+    H.spamSkillHit = function (a, b, c, d) {
       a in e &&
         e[a].hitEffectId &&
         (Array.isArray(e[a].hitEffectId)
           ? e[a].hitEffectId
           : [e[a].hitEffectId]
         ).forEach(function (a) {
-          F.spam({ effectId: a, ownerAID: b, startTick: c, otherAID: d });
+          H.spam({ effectId: a, ownerAID: b, startTick: c, otherAID: d });
         });
     };
-    F.spamSkillBeforeHit = function (a, b, c, d) {
+    H.spamSkillBeforeHit = function (a, b, c, d) {
       if (a in e) {
         if (e[a].beforeHitEffectId) {
           var f = Array.isArray(e[a].beforeHitEffectId)
             ? e[a].beforeHitEffectId
             : [e[a].beforeHitEffectId];
           f.forEach(function (a) {
-            F.spam({ effectId: a, ownerAID: b, startTick: c, otherAID: d });
+            H.spam({ effectId: a, ownerAID: b, startTick: c, otherAID: d });
           });
         }
         e[a].beforeHitEffectIdOnCaster &&
@@ -564,28 +564,28 @@ define(
             ? e[a].beforeHitEffectIdOnCaster
             : [e[a].beforeHitEffectIdOnCaster]),
           f.forEach(function (a) {
-            F.spam({ effectId: a, ownerAID: d, startTick: c, otherAID: b });
+            H.spam({ effectId: a, ownerAID: d, startTick: c, otherAID: b });
           }));
       }
     };
-    F.spamSkillCast = function (a, b, c, d) {
+    H.spamSkillCast = function (a, b, c, d) {
       a in e &&
         e[a].beginCastEffectId &&
         (Array.isArray(e[a].beginCastEffectId)
           ? e[a].beginCastEffectId
           : [e[a].beginCastEffectId]
         ).forEach(function (a) {
-          F.spam({ effectId: a, ownerAID: b, startTick: c, otherAID: d });
+          H.spam({ effectId: a, ownerAID: b, startTick: c, otherAID: d });
         });
     };
-    F.spamItem = function (a, b, c, d, e) {
-      if (a in q) {
-        if (q[a].effectId) {
-          var f = Array.isArray(q[a].effectId)
-            ? q[a].effectId
-            : [q[a].effectId];
+    H.spamItem = function (a, b, c, d, e) {
+      if (a in t) {
+        if (t[a].effectId) {
+          var f = Array.isArray(t[a].effectId)
+            ? t[a].effectId
+            : [t[a].effectId];
           f.forEach(function (a) {
-            F.spam({
+            H.spam({
               effectId: a,
               ownerAID: b,
               position: c,
@@ -594,13 +594,13 @@ define(
             });
           });
         }
-        q[a].effectIdOnCaster &&
+        t[a].effectIdOnCaster &&
           e &&
-          ((f = Array.isArray(q[a].effectIdOnCaster)
-            ? q[a].effectIdOnCaster
-            : [q[a].effectIdOnCaster]),
+          ((f = Array.isArray(t[a].effectIdOnCaster)
+            ? t[a].effectIdOnCaster
+            : [t[a].effectIdOnCaster]),
           f.forEach(function (a) {
-            F.spam({
+            H.spam({
               effectId: a,
               ownerAID: e,
               position: c,
@@ -610,6 +610,6 @@ define(
           }));
       }
     };
-    return F;
+    return H;
   },
 );

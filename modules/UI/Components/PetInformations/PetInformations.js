@@ -19,7 +19,7 @@ define(
           f.reqUnEquipPet();
           break;
         default:
-          var a = p[this.value];
+          var a = q[this.value];
           if (a) {
             for (var b = "", c = 1; c < a.length; c += 2)
               ((b +=
@@ -53,16 +53,16 @@ define(
     }
     var m = a("DB/DBManager"),
       h = a("DB/Pets/PetEvolution"),
-      q = a("Core/Client"),
+      t = a("Core/Client"),
       r = a("Core/Preferences"),
-      k = a("Renderer/Renderer"),
+      n = a("Renderer/Renderer"),
       g = a("UI/UIManager"),
-      u = a("UI/UIComponent"),
+      p = a("UI/UIComponent"),
       l = a("text!./PetInformations.html");
     a = a("text!./PetInformations.css");
-    var f = new u("PetInformations", l, a),
-      n = r.get("PetInformations", { x: 100, y: 200, show: !1 }, 1),
-      p = {};
+    var f = new p("PetInformations", l, a),
+      k = r.get("PetInformations", { x: 100, y: 200, show: !1 }, 1),
+      q = {};
     f.init = function () {
       this.draggable(this.ui.find(".titlebar"));
       this.ui.find(".base").mousedown(e);
@@ -71,15 +71,15 @@ define(
       this.ui.find(".command").change(b);
       this.ui.hide();
       this.ui.css({
-        top: Math.min(Math.max(0, n.y), k.height - this.ui.height()),
-        left: Math.min(Math.max(0, n.x), k.width - this.ui.width()),
+        top: Math.min(Math.max(0, k.y), n.height - this.ui.height()),
+        left: Math.min(Math.max(0, k.x), n.width - this.ui.width()),
       });
     };
     f.onRemove = function () {
-      n.show = this.ui.is(":visible");
-      n.y = parseInt(this.ui.css("top"), 10);
-      n.x = parseInt(this.ui.css("left"), 10);
-      n.save();
+      k.show = this.ui.is(":visible");
+      k.y = parseInt(this.ui.css("top"), 10);
+      k.x = parseInt(this.ui.css("left"), 10);
+      k.save();
     };
     f.onShortCut = function (a) {
       if (this.ui)
@@ -89,14 +89,14 @@ define(
         }
     };
     f.setInformations = function (a) {
-      p = {};
+      q = {};
       this.ui.find(".command .evolution").remove();
       this.ui.find(".name").val(a.szName);
       this.ui.find(".level").text(a.nLevel);
       this.setHunger(a.nFullness);
       this.setIntimacy(a.nRelationship);
       this.ui.find(".accessory").text(m.getMessage(a.ITID ? 598 : 600));
-      q.loadFile(
+      t.loadFile(
         m.getPetIllustPath(a.job),
         function (a) {
           this.ui.find(".content").css("backgroundImage", "url(" + a + ")");
@@ -111,9 +111,9 @@ define(
             .find(".name, .modify")
             .removeClass("disabled")
             .attr("disabled", !1);
-      if ((p = h[a.job])) {
+      if ((q = h[a.job])) {
         a = this.ui.find(".command");
-        for (var b = Object.keys(p), c = 0; c < b.length; c++)
+        for (var b = Object.keys(q), c = 0; c < b.length; c++)
           a.append(
             jQuery("\x3coption/\x3e")
               .addClass("evolution")

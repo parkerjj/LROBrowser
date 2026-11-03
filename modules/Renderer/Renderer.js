@@ -10,11 +10,11 @@ define(
       e = a("Core/Configs"),
       m = a("Preferences/Graphics"),
       h = a("Core/Events"),
-      q = a("UI/Background"),
+      t = a("UI/Background"),
       r = a("UI/CursorManager"),
-      k = a("Controls/MouseEventHandler"),
+      n = a("Controls/MouseEventHandler"),
       g = a("Renderer/Camera"),
-      u = d.mat4,
+      p = d.mat4,
       d = {};
     d.canvas = document.createElement("canvas");
     d.gl = null;
@@ -83,8 +83,8 @@ define(
       var b, c, d;
       b = window.innerWidth || document.body.offsetWidth;
       c = window.innerHeight || document.body.offsetHeight;
-      k.screen.width = this.width = b;
-      k.screen.height = this.height = c;
+      n.screen.width = this.width = b;
+      n.screen.height = this.height = c;
       d = e.get("quality", m.quality) / 100;
       b *= d;
       c *= d;
@@ -93,8 +93,8 @@ define(
       this.canvas.style.width = this.width + "px";
       this.canvas.style.height = this.height + "px";
       this.gl.viewport(0, 0, 1.5 * b, 1.5 * c);
-      u.perspective(this.vFov, b / c, 1, 1e3, g.projection);
-      q.resize(this.width, this.height);
+      p.perspective(this.vFov, b / c, 1, 1e3, g.projection);
+      t.resize(this.width, this.height);
       a("UI/UIManager").fixResizeOverflow(this.width, this.height);
     };
     d.rendering = !1;

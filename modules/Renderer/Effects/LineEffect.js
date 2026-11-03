@@ -72,11 +72,11 @@ define(
     b.free = function (a) {
       d && (a.deleteProgram(d), (d = null));
     };
-    b.beforeRender = function (a, b, c, q, r) {
-      q = d.uniform;
+    b.beforeRender = function (a, b, c, t, r) {
+      t = d.uniform;
       a.useProgram(d);
-      a.uniformMatrix4fv(q.uModelViewMat, !1, b);
-      a.uniformMatrix4fv(q.uProjectionMat, !1, c);
+      a.uniformMatrix4fv(t.uModelViewMat, !1, b);
+      a.uniformMatrix4fv(t.uProjectionMat, !1, c);
     };
     b.afterRender = function (a) {
       a.disableVertexAttribArray(d.attribute.aPosition);

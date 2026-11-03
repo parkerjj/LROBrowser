@@ -10,19 +10,19 @@ define(
         c,
         d,
         e,
-        f = n.ui.find(".state");
+        f = k.ui.find(".state");
       c = f.length;
       for (b = e = d = 0; b < c; ++b, e += 36)
-        (e >= 36 * v && ((e = 0), (d += 36)),
+        (e >= 36 * u && ((e = 0), (d += 36)),
           (a = f[b]),
           (a.style.top = e + "px"),
           (a.style.right = d + "px"));
     }
     function c(a) {
-      if (a in p) {
-        var b = p[a].element;
+      if (a in q) {
+        var b = q[a].element;
         b && b.parentNode && b.parentNode.removeChild(b);
-        delete p[a];
+        delete q[a];
       }
     }
     function d(a, b) {
@@ -33,11 +33,11 @@ define(
       d.width = 32;
       d.height = 32;
       c.appendChild(d);
-      p[a] = {};
-      p[a].element = c;
-      p[a].ctx = d.getContext("2d");
-      p[a].type = 2e3 == a ? 1 : 0;
-      0 < Object.keys(p).length && u.render(m);
+      q[a] = {};
+      q[a].element = c;
+      q[a].ctx = d.getContext("2d");
+      q[a].type = 2e3 == a ? 1 : 0;
+      0 < Object.keys(q).length && p.render(m);
       if (h[a].length) {
         if (h[a][b].descript) {
           var e, f;
@@ -56,7 +56,7 @@ define(
             d.appendChild(g);
           }
           b = d.getElementsByClassName("time");
-          b.length && ((p[a].time = b[0]), (p[a].timeTick = 0));
+          b.length && ((q[a].time = b[0]), (q[a].timeTick = 0));
           c.appendChild(d);
         }
       } else if (h[a].descript) {
@@ -74,25 +74,25 @@ define(
             )),
             d.appendChild(g));
         b = d.getElementsByClassName("time");
-        b.length && ((p[a].time = b[0]), (p[a].timeTick = 0));
+        b.length && ((q[a].time = b[0]), (q[a].timeTick = 0));
         c.appendChild(d);
       }
     }
     function e(a) {
       var b, c;
-      b = n.ui.find(".state").length;
-      c = (b % v) * 36;
-      b = 36 * ((b / v) | 0);
+      b = k.ui.find(".state").length;
+      c = (b % u) * 36;
+      b = 36 * ((b / u) | 0);
       a.style.top = c + "px";
       a.style.right = b + "px";
-      n.ui.append(a);
+      k.ui.append(a);
     }
     function m(a) {
       var b, c, d;
-      d = Object.keys(p);
+      d = Object.keys(q);
       c = d.length;
       for (b = 0; b < c; ++b) {
-        var e = p[d[b]],
+        var e = q[d[b]],
           f = a,
           g,
           h,
@@ -134,84 +134,84 @@ define(
                 (e.time.textContent =
                   f >= h || Infinity === h
                     ? ""
-                    : (k ? k + " " + q.getMessage(1807, "\u5206") + " " : "") +
+                    : (k ? k + " " + t.getMessage(1807, "\u5206") + " " : "") +
                       l +
                       " " +
-                      q.getMessage(1808, "\u79d2")))));
+                      t.getMessage(1808, "\u79d2")))));
       }
     }
     var h = a("DB/Status/StatusInfo"),
-      q = a("DB/DBManager"),
+      t = a("DB/DBManager"),
       r = a("Utils/jquery"),
-      k = a("Utils/Texture"),
+      n = a("Utils/Texture"),
       g = a("Core/Client"),
-      u = a("Renderer/Renderer"),
+      p = a("Renderer/Renderer"),
       l = a("UI/UIManager"),
       f = a("UI/UIComponent");
     a = a("text!./StatusIcons.css");
-    var n = new f("StatusIcons", null, a);
-    n.mouseMode = f.MouseMode.CROSS;
-    n.needFocus = !1;
-    var p = {};
-    n.init = function () {
+    var k = new f("StatusIcons", null, a);
+    k.mouseMode = f.MouseMode.CROSS;
+    k.needFocus = !1;
+    var q = {};
+    k.init = function () {
       this.ui = r("\x3cdiv/\x3e").attr("id", "StatusIcons");
     };
-    n.onAppend = function () {
-      u.render(m);
+    k.onAppend = function () {
+      p.render(m);
     };
-    n.onRemove = function () {
-      u.stop(m);
+    k.onRemove = function () {
+      p.stop(m);
     };
-    n.clean = function () {
+    k.clean = function () {
       this.ui.empty();
-      p = {};
+      q = {};
     };
-    n.update = function (a, f, l, n) {
+    k.update = function (a, f, l, k) {
       if (a in h) {
         if (h[a].length) {
           if (f && !h[a][l].icon) return;
         } else if (!h[a].icon) return;
         f
-          ? (a in p || d(a, l),
-            (p[a].start = u.tick),
-            (p[a].end = u.tick + n),
-            9999 === n && (p[a].end = Infinity),
-            p.img ||
+          ? (a in q || d(a, l),
+            (q[a].start = p.tick),
+            (q[a].end = p.tick + k),
+            9999 === k && (q[a].end = Infinity),
+            q.img ||
               g.loadFile(
                 "data/texture/effect/" +
                   (h[a].length ? h[a][l].icon : h[a].icon),
                 function (b) {
-                  k.load(b, function () {
-                    p[a] && !p[a].img && ((p[a].img = this), e(p[a].element));
+                  n.load(b, function () {
+                    q[a] && !q[a].img && ((q[a].img = this), e(q[a].element));
                   });
                 },
               ))
           : (c(a), b());
       }
     };
-    n.update2 = function (a, f, l, n) {
+    k.update2 = function (a, f, l, k) {
       if (a in h) {
         if (h[a].length) {
           if (f && (!h[a][l] || !h[a][l].icon)) return;
         } else if (!h[a].icon) return;
         f
-          ? (a in p || d(a, l),
-            (p[a].val = n),
-            (p[a].refresh = 1),
-            p.img ||
+          ? (a in q || d(a, l),
+            (q[a].val = k),
+            (q[a].refresh = 1),
+            q.img ||
               g.loadFile(
                 "data/texture/effect/" +
                   (h[a].length ? h[a][l].icon : h[a].icon),
                 function (b) {
-                  k.load(b, function () {
-                    p[a] && !p[a].img && ((p[a].img = this), e(p[a].element));
+                  n.load(b, function () {
+                    q[a] && !q[a].img && ((q[a].img = this), e(q[a].element));
                   });
                 },
               ))
           : (c(a), b());
       }
     };
-    var v = 5;
-    return l.addComponent(n);
+    var u = 5;
+    return l.addComponent(k);
   },
 );

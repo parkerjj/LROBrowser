@@ -32,7 +32,7 @@ define("Core/Preferences", ["./Context"], function (a) {
   return {
     get: function (a, m, h) {
       d.get(a, function (d) {
-        var e, k, g;
+        var e, n, g;
         h = h || 0;
         if (d[a] && JSON.parse(d[a])._version === h)
           for (
@@ -42,11 +42,11 @@ define("Core/Preferences", ["./Context"], function (a) {
               d.save = c,
               e = Object.keys(d),
               g = e.length,
-              k = 0;
-            k < g;
-            ++k
+              n = 0;
+            n < g;
+            ++n
           )
-            m[e[k]] = d[e[k]];
+            m[e[n]] = d[e[n]];
         else b(m);
       });
       m._key = a;

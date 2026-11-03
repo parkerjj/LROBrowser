@@ -28,17 +28,17 @@ define(
       e = a("DB/Effects/WeatherEffect"),
       m = a("Core/Client"),
       h = a("Engine/SessionStorage"),
-      q = a("Renderer/SpriteRenderer"),
+      t = a("Renderer/SpriteRenderer"),
       r = a("Utils/gl-matrix").vec3,
-      k = Array(150),
+      n = Array(150),
       g = [],
-      u = null,
+      p = null,
       l = !0;
     return {
       init: function (a, c) {
         if (e.sky[c]) {
           if (
-            ((u = e.sky[c].cloudColor),
+            ((p = e.sky[c].cloudColor),
             (c = e.sky[c].skyColor),
             (l = !0),
             a.clearColor(c[0], c[1], c[2], c[3]),
@@ -50,49 +50,49 @@ define(
       setUpCloudData: function () {
         var a;
         for (a = 0; 150 > a; a++)
-          (k[a] ||
-            (k[a] = {
+          (n[a] ||
+            (n[a] = {
               position: r.create(),
               direction: r.create(),
               born_tick: 0,
               death_tick: 0,
             }),
-            c(k[a]),
-            (k[a].sprite = (Math.random() * (g.length - 1)) | 0),
-            (k[a].death_tick = k[a].born_tick + 8e3 * Math.random()),
-            (k[a].born_tick -= 2e3));
-        k.sort(function (a, b) {
+            c(n[a]),
+            (n[a].sprite = (Math.random() * (g.length - 1)) | 0),
+            (n[a].death_tick = n[a].born_tick + 8e3 * Math.random()),
+            (n[a].born_tick -= 2e3));
+        n.sort(function (a, b) {
           return a.sprite - b.sprite;
         });
       },
       render: function (a, b, d, e, h) {
         if (l) {
-          q.bind3DContext(a, b, d, e);
-          q.color.set(u);
-          q.shadow = 1;
-          q.angle = 0;
-          q.size[0] = 500;
-          q.size[1] = 500;
-          q.offset[0] = 0;
-          q.offset[1] = 0;
-          q.image.palette = null;
-          q.depth = 0;
-          q.blendMode = 3;
+          t.bind3DContext(a, b, d, e);
+          t.color.set(p);
+          t.shadow = 1;
+          t.angle = 0;
+          t.size[0] = 500;
+          t.size[1] = 500;
+          t.offset[0] = 0;
+          t.offset[1] = 0;
+          t.image.palette = null;
+          t.depth = 0;
+          t.blendMode = 3;
           a.depthMask(!1);
           for (b = 0; 150 > b; b++)
-            ((d = k[b]),
+            ((d = n[b]),
               d.born_tick + 1e3 > h
                 ? (e = (h - d.born_tick) / 1e3)
                 : d.death_tick + 2e3 < h
                   ? (c(d), (e = 0))
                   : (e = d.death_tick < h ? 1 - (h - d.death_tick) / 2e3 : 1),
-              (q.zIndex = 0),
-              (q.color[3] = e),
-              (q.image.texture = g[d.sprite]),
+              (t.zIndex = 0),
+              (t.color[3] = e),
+              (t.image.texture = g[d.sprite]),
               r.add(d.position, d.position, d.direction),
-              q.position.set(d.position),
-              q.render());
-          q.unbind(a);
+              t.position.set(d.position),
+              t.render());
+          t.unbind(a);
           a.depthMask(!0);
         }
       },

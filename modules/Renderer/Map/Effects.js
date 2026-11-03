@@ -27,8 +27,8 @@ define("Renderer/Map/Effects", [
     spam: function (a, h) {
       var m,
         r,
-        k = e.length;
-      for (r = 0; r < k; ++r)
+        n = e.length;
+      for (r = 0; r < n; ++r)
         ((m = e[r]),
           !m.isVisible && 25 > d.dist(m.pos, a)
             ? (b.spam({

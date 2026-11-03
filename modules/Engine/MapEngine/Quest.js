@@ -5,10 +5,10 @@ define(
   ),
   function (a) {
     function b(a) {
-      0 >= a.questCount || (q.setList(a), r.updateQList());
+      0 >= a.questCount || (t.setList(a), r.updateQList());
     }
     function c(a) {
-      q.addList({
+      t.addList({
         active: a.active,
         count: a.count,
         hunt: a.hunt,
@@ -19,12 +19,12 @@ define(
       r.updateQList();
     }
     function d(a) {
-      q.delQuest(a.questID);
+      t.delQuest(a.questID);
       r.updateQList();
     }
     function e(a) {
       if (0 == a.count) return !1;
-      for (var b = 0; b < a.count; b++) q.updateQuest(a.MobHuntList[b]);
+      for (var b = 0; b < a.count; b++) t.updateQuest(a.MobHuntList[b]);
       r.updateQList();
     }
     a("DB/DBManager");
@@ -32,9 +32,9 @@ define(
     var m = a("Network/NetworkManager"),
       h = a("Network/PacketStructure");
     a("Engine/SessionStorage");
-    var q = a("UI/Components/Quest/Quest"),
+    var t = a("UI/Components/Quest/Quest"),
       r = a("UI/Components/miniQuest/miniQuest");
-    q.requestChangeQuestState = function (a, b) {
+    t.requestChangeQuestState = function (a, b) {
       var c = new h.CZ.ACTIVE_QUEST();
       c.questID = a;
       c.active = b;

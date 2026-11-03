@@ -13,13 +13,13 @@ define("Renderer/Map/Sounds", [
     },
     render: function (a, m) {
       var e,
-        q,
+        t,
         r = d.length;
-      for (q = 0; q < r; ++q) {
-        e = d[q];
-        var k = Math.floor(c.dist(e.pos, a));
+      for (t = 0; t < r; ++t) {
+        e = d[t];
+        var n = Math.floor(c.dist(e.pos, a));
         e.tick < m &&
-          k <= e.range &&
+          n <= e.range &&
           (b.playPosition(e.file, e.pos), (e.tick = m + 1e3 * e.cycle));
       }
     },

@@ -95,15 +95,15 @@ define("DB/Emotions", [], function () {
     e,
     m = {},
     h = {},
-    q = {},
+    t = {},
     r = {};
   b = 0;
   for (d = a.length; b < d; ++b) {
     e = a[b].length;
     for (c = 2; c < e; ++c) m[a[b][c]] = b;
-    0 < e && (q[b] = a[b][0]);
+    0 < e && (t[b] = a[b][0]);
     1 < e && -1 < a[b][1] && (r[a[b][1]] = a[b][0]);
     2 < e && (h[a[b][0]] = a[b][2]);
   }
-  return { commands: m, names: h, indexes: q, order: r };
+  return { commands: m, names: h, indexes: t, order: r };
 });

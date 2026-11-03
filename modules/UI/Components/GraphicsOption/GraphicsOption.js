@@ -5,25 +5,25 @@ define(
   ),
   function (a) {
     function b() {
-      q.quality = parseInt(this.value, 10);
-      q.save();
-      e.set("quality", q.quality);
+      t.quality = parseInt(this.value, 10);
+      t.save();
+      e.set("quality", t.quality);
       r.resize();
     }
     function c() {
-      q.cursor = !!this.checked;
-      q.save();
-      q.cursor || (document.body.style.cursor = "default");
+      t.cursor = !!this.checked;
+      t.save();
+      t.cursor || (document.body.style.cursor = "default");
     }
     function d() {
       var a = m.isFullScreen();
-      q.screensize = this.value;
-      q.save();
-      "full" === q.screensize
+      t.screensize = this.value;
+      t.save();
+      "full" === t.screensize
         ? a || m.requestFullScreen()
         : (a && m.cancelFullScreen(),
           m.Is.POPUP &&
-            ((a = q.screensize.split("x")),
+            ((a = t.screensize.split("x")),
             a[0] != window.innerWidth &&
               a[1] != window.innerHeight &&
               (window.resizeTo(a[0], a[1]),
@@ -35,13 +35,13 @@ define(
     var e = a("Core/Configs"),
       m = a("Core/Context"),
       h = a("Core/Preferences"),
-      q = a("Preferences/Graphics"),
+      t = a("Preferences/Graphics"),
       r = a("Renderer/Renderer"),
-      k = a("UI/UIManager"),
+      n = a("UI/UIManager"),
       g = a("UI/UIComponent"),
-      u = a("text!./GraphicsOption.html");
+      p = a("text!./GraphicsOption.html");
     a = a("text!./GraphicsOption.css");
-    var g = new g("GraphicsOption", u, a),
+    var g = new g("GraphicsOption", p, a),
       l = h.get("GraphicsOption", { x: 300, y: 300 }, 1.1);
     g.init = function () {
       this.ui.find(".base").mousedown(function (a) {
@@ -56,15 +56,15 @@ define(
     };
     g.onAppend = function () {
       this.ui.css({ top: l.y, left: l.x });
-      this.ui.find(".details").val(q.quality);
-      this.ui.find(".screensize").val(q.screensize);
-      this.ui.find(".cursor").attr("checked", q.cursor);
+      this.ui.find(".details").val(t.quality);
+      this.ui.find(".screensize").val(t.screensize);
+      this.ui.find(".cursor").attr("checked", t.cursor);
     };
     g.onRemove = function () {
       l.x = parseInt(this.ui.css("left"), 10);
       l.y = parseInt(this.ui.css("top"), 10);
       l.save();
     };
-    return k.addComponent(g);
+    return n.addComponent(g);
   },
 );

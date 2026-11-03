@@ -5,10 +5,10 @@ define(
   ),
   function (a) {
     function b(a) {
-      if (!(1e3 > a - V)) {
-        V = a;
-        W++;
-        var b = 3600 - W;
+      if (!(1e3 > a - W)) {
+        W = a;
+        V++;
+        var b = 3600 - V;
         0 > b && (b = 0);
         a = parseInt(b / 60);
         b %= 60;
@@ -16,7 +16,7 @@ define(
           (0 == parseInt(a / 10) ? "0" + a : a) +
           ":" +
           (0 == parseInt(b / 10) ? "0" + b : b);
-        K.ui.find("#goldpcButton .timer").text(a);
+        L.ui.find("#goldpcButton .timer").text(a);
       }
     }
     var c = a("DB/DBManager"),
@@ -24,116 +24,116 @@ define(
       e = a("Core/Client"),
       m = a("Core/Preferences"),
       h = a("Core/Configs"),
-      q = a("Preferences/Controls"),
+      t = a("Preferences/Controls"),
       r = a("Network/NetworkManager"),
-      k = a("Network/PacketStructure"),
+      n = a("Network/PacketStructure"),
       g = a("Renderer/Renderer"),
-      u = a("Engine/SessionStorage"),
+      p = a("Engine/SessionStorage"),
       l = a("UI/UIManager"),
       f = a("UI/UIComponent"),
-      n = a("UI/Components/Inventory/Inventory");
+      k = a("UI/Components/Inventory/Inventory");
     a("UI/Components/OnPushCart/OnPushCart");
-    var p = a("UI/Components/WinStats/WinStats"),
-      v = a("UI/Components/Equipment/Equipment"),
-      t = a("UI/Components/SkillList/SkillList"),
-      z = a("UI/Components/PartyFriends/PartyFriends"),
-      E = a("UI/Components/ChatBox/ChatBox"),
-      C = a("UI/Components/Guild/Guild"),
+    var q = a("UI/Components/WinStats/WinStats"),
+      u = a("UI/Components/Equipment/Equipment"),
+      v = a("UI/Components/SkillList/SkillList"),
+      A = a("UI/Components/PartyFriends/PartyFriends"),
+      C = a("UI/Components/ChatBox/ChatBox"),
+      B = a("UI/Components/Guild/Guild"),
       J = a("UI/Components/Emoticons/Emoticons"),
-      A = a("UI/Components/Escape/Escape"),
-      B = a("UI/Components/Quest/Quest"),
-      F = a("UI/Components/Mail/Rodex"),
-      O = a("UI/Components/WorldMap/WorldMap"),
-      M = a("UI/Components/Achievement/Achievement"),
-      H = a("UI/Components/Attendance/Attendance"),
+      D = a("UI/Components/Escape/Escape"),
+      y = a("UI/Components/Quest/Quest"),
+      H = a("UI/Components/Mail/Rodex"),
+      N = a("UI/Components/WorldMap/WorldMap"),
+      O = a("UI/Components/Achievement/Achievement"),
+      I = a("UI/Components/Attendance/Attendance"),
       x = a("UI/Components/CardConnection/CardConnection2"),
-      I = a("UI/Components/ShortCut/ShortCut"),
-      D = a("UI/Components/Shop/CashShop"),
-      L = a("UI/Components/PartyBooking/PartyBooking"),
-      y = a("text!./BasicInfo.html"),
+      K = a("UI/Components/ShortCut/ShortCut"),
+      E = a("UI/Components/Shop/CashShop"),
+      F = a("UI/Components/PartyBooking/PartyBooking"),
+      z = a("text!./BasicInfo.html"),
       G = a("text!./BasicInfo.css"),
-      K = new f("BasicInfo", y, G);
-    K.base_exp = 0;
-    K.base_exp_next = 1;
-    K.job_exp = 0;
-    K.job_exp_next = -1;
-    K.weight = 0;
-    K.weight_max = 1;
-    var N = m.get("BasicInfo", { x: 0, y: 0, reduce: !0, buttons: !0 }, 1),
+      L = new f("BasicInfo", z, G);
+    L.base_exp = 0;
+    L.base_exp_next = 1;
+    L.job_exp = 0;
+    L.job_exp_next = -1;
+    L.weight = 0;
+    L.weight_max = 1;
+    var M = m.get("BasicInfo", { x: 0, y: 0, reduce: !0, buttons: !0 }, 1),
       Q = h.get("ClientVer");
-    K.init = function () {
+    L.init = function () {
       this.ui.find(".topbar button").mousedown(function (a) {
         a.stopImmediatePropagation();
       });
-      this.ui.find(".topbar .right").click(K.toggleMode.bind(this));
-      this.ui.find(".toggle_btns_show").mousedown(K.toggleButtons.bind(this));
-      this.ui.find(".toggle_btns_hide").mousedown(K.toggleButtons.bind(this));
+      this.ui.find(".topbar .right").click(L.toggleMode.bind(this));
+      this.ui.find(".toggle_btns_show").mousedown(L.toggleButtons.bind(this));
+      this.ui.find(".toggle_btns_hide").mousedown(L.toggleButtons.bind(this));
       this.ui.find(".buttons button").mousedown(function () {
         switch (this.className) {
           case "status":
-            p.ui.toggle();
-            p.focus();
+            q.ui.toggle();
+            q.focus();
             break;
           case "equip":
-            v.toggle();
+            u.toggle();
             break;
           case "item":
-            n.ui.toggle();
-            n.focus();
+            k.ui.toggle();
+            k.focus();
             break;
           case "info":
-            v.toggle();
+            u.toggle();
             break;
           case "skill":
-            t.toggle();
+            v.toggle();
             break;
           case "option":
-            A.ui.toggle();
-            A.focus();
+            D.ui.toggle();
+            D.focus();
             break;
           case "party":
-            z.toggle();
+            A.toggle();
             break;
           case "guild":
-            C.toggle();
+            B.toggle();
             break;
           case "cashshop":
-            if (D.ui && D.ui.is(":visible")) break;
-            D.ui.show();
-            var b = new k.CZ.REQ_CASHSHOP_OPEN();
+            if (E.ui && E.ui.is(":visible")) break;
+            E.ui.show();
+            var b = new n.CZ.REQ_CASHSHOP_OPEN();
             r.sendPacket(b);
             break;
           case "sit":
-            b = new k.CZ.REQUEST_ACT();
-            b.action = u.Entity.action === u.Entity.ACTION.SIT ? 3 : 2;
+            b = new n.CZ.REQUEST_ACT();
+            b.action = p.Entity.action === p.Entity.ACTION.SIT ? 3 : 2;
             r.sendPacket(b);
             break;
           case "quest":
-            B.toggle();
-            B.focus();
+            y.toggle();
+            y.focus();
             break;
           case "emo":
             J.ui.toggle();
             J.focus();
             break;
           case "map":
-            O.select();
+            N.select();
             break;
           case "mail":
-            if (F.ui && F.ui.is(":visible")) break;
-            F.ui.show();
-            b = new k.CZ.OPEN_MAILBOX();
+            if (H.ui && H.ui.is(":visible")) break;
+            H.ui.show();
+            b = new n.CZ.OPEN_MAILBOX();
             b.MailTAB = 0;
             b.MailID = 0;
             r.sendPacket(b);
-            F.focus();
+            H.focus();
             break;
           case "shortcut":
-            I.setCustom();
+            K.setCustom();
             break;
           case "achievement":
             3 == Q || 4 == Q || 5 == Q
-              ? M.toggle()
+              ? O.toggle()
               : l.showMessageBox(
                   "\u7248\u672c\u5347\u7ea7\u540e\u5f00\u653e",
                   "ok",
@@ -141,7 +141,7 @@ define(
             break;
           case "attendance":
             3 == Q || 4 == Q || 5 == Q
-              ? H.toggle()
+              ? I.toggle()
               : l.showMessageBox(
                   "\u7248\u672c\u5347\u7ea7\u540e\u5f00\u653e",
                   "ok",
@@ -159,9 +159,9 @@ define(
             3 == Q || 4 == Q || 5 == Q
               ? (a("Renderer/MapRenderer"),
                 (b = new FormData()),
-                b.append("AuthToken", u.AuthToken),
-                b.append("AID", u.Entity.GID),
-                b.append("GDID", u.Entity.GUID),
+                b.append("AuthToken", p.AuthToken),
+                b.append("AID", p.Entity.GID),
+                b.append("GDID", p.Entity.GUID),
                 b.append("WorldName", "lastro"),
                 $.ajax({
                   url: "https://game.lastro.cn/" + c.webpath + "/party/list",
@@ -172,7 +172,7 @@ define(
                   contentType: !1,
                 })
                   .done(function (a) {
-                    L.setList(a);
+                    F.setList(a);
                   })
                   .fail(function (a) {
                     l.showMessageBox(
@@ -187,32 +187,32 @@ define(
         }
       });
       this.ui.find("#goldpcButton").on("click", function () {
-        if (!q.talk) {
-          var a = new k.CZ.DYNAMICNPC_CREATE_REQUEST();
+        if (!t.talk) {
+          var a = new n.CZ.DYNAMICNPC_CREATE_REQUEST();
           a.name = "GOLDPCCAFE";
           r.sendPacket(a);
         }
       });
     };
-    var W = 0;
-    K.setGoldPccafe = function (a) {
+    var V = 0;
+    L.setGoldPccafe = function (a) {
       a.isActive
-        ? ((W = a.playedTime),
+        ? ((V = a.playedTime),
           this.ui.find("#goldpcButton .points").text(a.point),
           g.stop(b),
-          0 < 3600 - W && g.render(b))
+          0 < 3600 - V && g.render(b))
         : g.stop(b);
     };
-    var V = 0;
-    K.onAppend = function () {
+    var W = 0;
+    L.onAppend = function () {
       this.ui.css({
-        top: Math.min(Math.max(0, N.y), g.height - this.ui.height()),
-        left: Math.min(Math.max(0, N.x), g.width - this.ui.width()),
+        top: Math.min(Math.max(0, M.y), g.height - this.ui.height()),
+        left: Math.min(Math.max(0, M.x), g.width - this.ui.width()),
       });
       this.ui.removeClass("small large");
-      N.reduce
+      M.reduce
         ? (this.ui.addClass("small"),
-          N.buttons
+          M.buttons
             ? (this.ui.find(".buttons").show(),
               this.ui.find(".toggle_btns_hide").show(),
               this.ui.find(".toggle_btns_show").hide())
@@ -221,29 +221,29 @@ define(
               this.ui.find(".toggle_btns_show").show()))
         : this.ui.addClass("large");
     };
-    K.onRemove = function () {
+    L.onRemove = function () {
       g.stop(b);
-      K.ui &&
-        (K.ui.find("#goldpcButton .timer").text("00:00"),
-        K.ui.find("#goldpcButton .points").text("0"));
-      N.x = parseInt(this.ui.css("left"), 10);
-      N.y = parseInt(this.ui.css("top"), 10);
-      N.reduce = this.ui.hasClass("small");
-      N.buttons = this.ui.find(".buttons").is(":visible");
-      N.save();
+      L.ui &&
+        (L.ui.find("#goldpcButton .timer").text("00:00"),
+        L.ui.find("#goldpcButton .points").text("0"));
+      M.x = parseInt(this.ui.css("left"), 10);
+      M.y = parseInt(this.ui.css("top"), 10);
+      M.reduce = this.ui.hasClass("small");
+      M.buttons = this.ui.find(".buttons").is(":visible");
+      M.save();
     };
-    K.onShortCut = function (a) {
+    L.onShortCut = function (a) {
       switch (a.cmd) {
         case "EXTEND":
           this.toggleMode();
       }
     };
-    K.toggleMode = function () {
+    L.toggleMode = function () {
       var a;
       this.ui.toggleClass("small large");
       this.ui.hasClass("large")
         ? this.ui.find(".buttons").show()
-        : (N.buttons
+        : (M.buttons
             ? (this.ui.find(".buttons").show(), (a = "off"))
             : (this.ui.find(".buttons").hide(), (a = "on")),
           e.loadFile(
@@ -255,10 +255,10 @@ define(
             }.bind(this),
           ));
     };
-    K.toggleButtons = function (a) {
+    L.toggleButtons = function (a) {
       var b = this.ui.find(".buttons");
-      N.buttons = !b.is(":visible");
-      N.buttons
+      M.buttons = !b.is(":visible");
+      M.buttons
         ? (b.show(),
           this.ui.find(".toggle_btns_hide").show(),
           this.ui.find(".toggle_btns_show").hide())
@@ -267,7 +267,7 @@ define(
           this.ui.find(".toggle_btns_show").show());
       a.stopImmediatePropagation();
     };
-    K.update = function (a, b, f) {
+    L.update = function (a, b, f) {
       switch (a) {
         case "name":
         case "blvl":
@@ -275,14 +275,14 @@ define(
           this.ui.find("." + a + "_value").text(b);
           break;
         case "zeny":
-          u.zeny = b;
+          p.zeny = b;
           b = b.toString().split("");
           var g = b.length,
             h = "";
           for (f = 0; f < g; f++)
             h = b[g - f - 1] + (f && 0 === f % 3 ? "," : "") + h;
           this.ui.find("." + a + "_value").text(h);
-          n.ui.find(".curzeny").text(h);
+          k.ui.find(".curzeny").text(h);
           break;
         case "job":
           this.ui.find(".job_value").text(d[b]);
@@ -307,19 +307,19 @@ define(
           this.ui.find(".weight_value").text((b / 10) | 0);
           this.ui.find(".weight_total").text((f / 10) | 0);
           this.ui.find(".weight").css("color", b < 0.7 * f ? "" : "red");
-          n.ui.find(".curweight").text((b / 10) | 0);
-          n.ui.find(".maxweight").text((f / 10) | 0);
-          n.ui.find(".curweight").css("color", b < 0.7 * f ? "#FFB850" : "red");
-          b > 0.9 * f && E.addText(c.getMessage(243), E.TYPE.ERROR);
+          k.ui.find(".curweight").text((b / 10) | 0);
+          k.ui.find(".maxweight").text((f / 10) | 0);
+          k.ui.find(".curweight").css("color", b < 0.7 * f ? "#FFB850" : "red");
+          b > 0.9 * f && C.addText(c.getMessage(243), C.TYPE.ERROR);
           break;
         case "hp":
         case "sp":
-          var k = Math.floor((100 * b) / f),
-            g = 25 > k ? "red" : "blue";
+          var l = Math.floor((100 * b) / f),
+            g = 25 > l ? "red" : "blue";
           this.ui.find("." + a + "_value").text(b);
           this.ui.find("." + a + "_max_value").text(f);
-          this.ui.find("." + a + "_perc").text(k + "%");
-          0 >= k
+          this.ui.find("." + a + "_perc").text(l + "%");
+          0 >= l
             ? this.ui.find("." + a + "_bar div").css("backgroundImage", "none")
             : (e.loadFile(
                 c.INTERFACE_PATH + "basic_interface/gze" + g + "_left.bmp",
@@ -336,7 +336,7 @@ define(
                     .find("." + a + "_bar_middle")
                     .css({
                       backgroundImage: "url(" + b + ")",
-                      width: Math.floor(1.27 * Math.min(k, 100)) + "px",
+                      width: Math.floor(1.27 * Math.min(l, 100)) + "px",
                     });
                 }.bind(this),
               ),
@@ -347,12 +347,12 @@ define(
                     .find("." + a + "_bar_right")
                     .css({
                       backgroundImage: "url(" + b + ")",
-                      left: Math.floor(1.27 * Math.min(k, 100)) + "px",
+                      left: Math.floor(1.27 * Math.min(l, 100)) + "px",
                     });
                 }.bind(this),
               ));
       }
     };
-    return l.addComponent(K);
+    return l.addComponent(L);
   },
 );

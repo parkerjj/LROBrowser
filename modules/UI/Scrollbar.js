@@ -17,19 +17,19 @@ define("UI/Scrollbar", [
             c.INTERFACE_PATH + "scroll0bar_mid.bmp",
             c.INTERFACE_PATH + "scroll0bar_up.bmp",
           ],
-          function (c, d, q, r, k, g) {
+          function (c, d, t, r, n, g) {
             b.load(r, function () {
-              var h = this;
-              b.load(k, function () {
+              var p = this;
+              b.load(n, function () {
                 var l = this;
                 b.load(g, function () {
                   var b = document.createElement("canvas"),
                     g = b.getContext("2d");
                   b.width = this.width;
-                  b.height = this.height + l.height + h.height;
+                  b.height = this.height + l.height + p.height;
                   g.drawImage(this, 0, 0);
                   g.drawImage(l, 0, this.height);
-                  g.drawImage(h, 0, this.height + l.height);
+                  g.drawImage(p, 0, this.height + l.height);
                   a("style:first").append(
                     [
                       "::-webkit-scrollbar { width: 13px; height: 12px; }\n::-webkit-scrollbar-button:vertical:start:increment,\n::-webkit-scrollbar-button:vertical:end:decrement { display: none;}\n::-webkit-scrollbar-button:start:decrement,\n::-webkit-scrollbar-button:end:increment { display: block; }\n::-webkit-scrollbar-corner:vertical {display:none;}\n::-webkit-scrollbar-resizer:vertical {display:none;}\n::-webkit-scrollbar-button:vertical:increment { background-repeat:no-repeat; height:13px;}\n::-webkit-scrollbar-button:vertical:decrement { background-repeat:no-repeat; height:12px;}\n::-webkit-scrollbar-track-piece:vertical {background-repeat:repeat-y;}\n::-webkit-scrollbar-thumb:vertical{border-color: transparent;border-width: 4px 0;min-height: 6px;}",
@@ -37,7 +37,7 @@ define("UI/Scrollbar", [
                         c +
                         ");}",
                       "::-webkit-scrollbar-button:vertical:decrement { background-image: url(" +
-                        q +
+                        t +
                         ");}",
                       "::-webkit-scrollbar-track-piece:vertical { background-image: url(" +
                         d +

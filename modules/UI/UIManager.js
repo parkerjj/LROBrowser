@@ -28,7 +28,7 @@ define(
     a("Network/NetworkManager");
     a("Network/PacketStructure");
     var h = a("Controls/KeyEventHandler"),
-      q = a("Renderer/Renderer"),
+      t = a("Renderer/Renderer"),
       r = {
         components: {},
         addComponent: function (a) {
@@ -57,18 +57,18 @@ define(
             d,
             e = c.length,
             g,
-            k,
+            p,
             h,
-            u,
+            n,
             m;
           for (d = 0; d < e; ++d)
             if ((g = this.components[c[d]].ui))
-              ((k = parseInt(g.css("left"), 10)),
+              ((p = parseInt(g.css("left"), 10)),
                 (h = parseInt(g.css("top"), 10)),
-                (u = parseInt(g.css("width"), 10)),
+                (n = parseInt(g.css("width"), 10)),
                 (m = parseInt(g.css("height"), 10)),
                 h + m > b && b > m && g.css("top", b - m),
-                k + u > a && a > u && g.css("left", a - u));
+                p + n > a && a > n && g.css("left", a - n));
         },
         showEventBox: function (a) {
           var b, e, f, g;
@@ -78,8 +78,8 @@ define(
           b.init = function () {
             this.ui.find(".text").text(a);
             this.ui.css({
-              top: (q.height - this.ui.height()) / 2,
-              left: (q.width - this.ui.width()) / 2,
+              top: (t.height - this.ui.height()) / 2,
+              left: (t.width - this.ui.width()) / 2,
               marginTop: "-60px",
               zIndex: 100,
             });
@@ -130,8 +130,8 @@ define(
           e.init = function () {
             this.ui.find(".text").text(b);
             this.ui.css({
-              top: (q.height - 120) / 1.5 - 120,
-              left: (q.width - 280) / 2,
+              top: (t.height - 120) / 1.5 - 120,
+              left: (t.width - 280) / 2,
               zIndex: 100,
             });
             this.draggable();
@@ -176,8 +176,8 @@ define(
             this.draggable();
             this.ui.find(".text").text(a);
             this.ui.css({
-              top: (q.height - 120) / 1.5 - 125,
-              left: (q.width - 280) / 2,
+              top: (t.height - 120) / 1.5 - 125,
+              left: (t.width - 280) / 2,
               zIndex: 100,
             });
             b &&
@@ -211,16 +211,16 @@ define(
           return f;
         },
       },
-      k;
-    r.showPromptBox = function (a, b, c, e, n) {
-      k && k.remove();
-      k = this.getComponent("WinPopup").clone("WinPrompt");
-      k.init = function () {
+      n;
+    r.showPromptBox = function (a, b, c, e, k) {
+      n && n.remove();
+      n = this.getComponent("WinPopup").clone("WinPrompt");
+      n.init = function () {
         this.draggable();
         this.ui.find(".text").text(a);
         this.ui.css({
-          top: (q.height - 120) / 1.5 - 120,
-          left: (q.width - 280) / 2,
+          top: (t.height - 120) / 1.5 - 120,
+          left: (t.width - 280) / 2,
           zIndex: 100,
         });
         this.ui.find(".btns").append(
@@ -230,7 +230,7 @@ define(
             .data("hover", "btn_" + b + "_a.bmp")
             .data("down", "btn_" + b + "_b.bmp")
             .one("click", function () {
-              k.remove();
+              n.remove();
               e && e();
             })
             .each(this.parseHTML),
@@ -240,14 +240,14 @@ define(
             .data("hover", "btn_" + c + "_a.bmp")
             .data("down", "btn_" + c + "_b.bmp")
             .one("click", function () {
-              k.remove();
-              n && n();
+              n.remove();
+              k && k();
             })
             .each(this.parseHTML),
         );
       };
-      k.append();
-      return k;
+      n.append();
+      return n;
     };
     r.showOfflineMsgBox = function (a) {
       var c,

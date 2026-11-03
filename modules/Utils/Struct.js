@@ -7,7 +7,7 @@ define("Utils/Struct", [], function () {
       e,
       m,
       h,
-      q,
+      t,
       r = {};
     m = arguments.length;
     for (c = 0; c < m; ++c) {
@@ -21,38 +21,38 @@ define("Utils/Struct", [], function () {
       switch (e) {
         case "bool":
           e = 1;
-          q = "int8";
+          t = "int8";
           break;
         case "char":
           e = 1;
-          q = "int8";
+          t = "int8";
           break;
         case "short":
           e = 2;
-          q = "int16";
+          t = "int16";
           break;
         case "int":
           e = 4;
-          q = "int32";
+          t = "int32";
           break;
         case "long":
           e = 4;
-          q = "int32";
+          t = "int32";
           break;
         case "float":
           e = 4;
-          q = "float32";
+          t = "float32";
           break;
         case "double":
           e = 8;
-          q = "float64";
+          t = "float64";
           break;
         default:
           throw Error("Struct() - Undefined type '" + e + "'.");
       }
-      q = "get" + (b ? "U" + q : q.charAt(0).toUpperCase() + q.substr(1));
+      t = "get" + (b ? "U" + t : t.charAt(0).toUpperCase() + t.substr(1));
       d += e * a;
-      r[h] = { func: q, count: a };
+      r[h] = { func: t, count: a };
     }
     this._list = r;
     this.size = d;

@@ -5,7 +5,7 @@ define(
   ),
   function (a) {
     function b(a) {
-      var b = n.ui.find(".main .right"),
+      var b = k.ui.find(".main .right"),
         c = e.getItemInfo(a.ITID),
         f = d(
           '\x3cdiv class\x3d"item" data-index\x3d"' +
@@ -32,7 +32,7 @@ define(
       b.append(f);
     }
     function b(a) {
-      var b = n.ui.find(".main .right"),
+      var b = k.ui.find(".main .right"),
         c = e.getItemInfo(a.ITID),
         f = d(
           '\x3cdiv class\x3d"item" data-index\x3d"' +
@@ -59,7 +59,7 @@ define(
       b.append(f);
     }
     function c(a) {
-      var b = n.ui.find(".main .left .left_header_bottom"),
+      var b = k.ui.find(".main .left .left_header_bottom"),
         c = e.getItemInfo(a.ITID),
         f = d(
           '\x3cdiv class\x3d"item" data-index\x3d"' +
@@ -87,37 +87,37 @@ define(
       e = a("DB/DBManager"),
       m = a("Core/Client"),
       h = a("Renderer/Renderer"),
-      q = a("Network/NetworkManager"),
+      t = a("Network/NetworkManager"),
       r = a("Network/PacketStructure"),
-      k = a("UI/UIManager"),
+      n = a("UI/UIManager"),
       g = a("UI/UIComponent"),
-      u = a("UI/Components/Inventory/Inventory"),
+      p = a("UI/Components/Inventory/Inventory"),
       l = a("UI/Components/ItemInfo/ItemInfo"),
       f = a("text!./LaphineSynthesis.html");
     a = a("text!./LaphineSynthesis.css");
-    var n = new g("LaphineSynthesis", f, a),
-      p = -1,
+    var k = new g("LaphineSynthesis", f, a),
+      q = -1,
+      u = [],
       v = [],
-      t = [],
-      z = 0,
-      E = 0;
-    n.init = function () {
-      n.ui.find(".close").on("click", function () {
+      A = 0,
+      C = 0;
+    k.init = function () {
+      k.ui.find(".close").on("click", function () {
         var a = new r.CZ.RANDOM_COMBINE_ITEM_UI_CLOSE();
-        q.sendPacket(a);
-        n.remove();
+        t.sendPacket(a);
+        k.remove();
       });
-      n.ui.find(".apply").on("click", function () {
-        if (0 == t.length || z < E) return !1;
+      k.ui.find(".apply").on("click", function () {
+        if (0 == v.length || A < C) return !1;
         var a = new r.CZ.REQ_RANDOM_COMBINE_ITEM();
-        a.ITID = p;
-        a.list = t;
-        q.sendPacket(a);
+        a.ITID = q;
+        a.list = v;
+        t.sendPacket(a);
       });
-      n.ui.find(".left").on("contextmenu", ".item", function () {
+      k.ui.find(".left").on("contextmenu", ".item", function () {
         var a = parseInt(this.getAttribute("data-itid"), 10),
           b = parseInt(this.getAttribute("data-index"), 10);
-        (b = u.getItemByIndex(b)) || (b = { ITID: a, IsIdentified: !0 });
+        (b = p.getItemByIndex(b)) || (b = { ITID: a, IsIdentified: !0 });
         if (l.uid === b.ITID) return (l.remove(), !1);
         l.append();
         l.uid = b.ITID;
@@ -125,10 +125,10 @@ define(
         l.setItem(b);
         return !1;
       });
-      n.ui.find(".right").on("contextmenu", ".item", function () {
+      k.ui.find(".right").on("contextmenu", ".item", function () {
         var a = parseInt(this.getAttribute("data-itid"), 10),
           b = parseInt(this.getAttribute("data-index"), 10);
-        (b = u.getItemByIndex(b)) || (b = { ITID: a, IsIdentified: !0 });
+        (b = p.getItemByIndex(b)) || (b = { ITID: a, IsIdentified: !0 });
         if (l.uid === b.ITID) return (l.remove(), !1);
         l.append();
         l.uid = b.ITID;
@@ -136,25 +136,25 @@ define(
         l.setItem(b);
         return !1;
       });
-      n.ui.find(".right").on("click", ".item", function () {
+      k.ui.find(".right").on("click", ".item", function () {
         parseInt(this.getAttribute("data-itid"), 10);
         var a = parseInt(this.getAttribute("data-index"), 10);
         a: {
-          for (var b = 0; b < v.length; b++)
-            if (v[b].index == a) {
-              a = v[b];
+          for (var b = 0; b < u.length; b++)
+            if (u[b].index == a) {
+              a = u[b];
               break a;
             }
           a = void 0;
         }
         if (a)
           if (d(this).hasClass("disabled")) {
-            for (var b = -1, e = 0; e < t.length; e++)
-              t[e].index == a.index && (b = e);
+            for (var b = -1, e = 0; e < v.length; e++)
+              v[e].index == a.index && (b = e);
             -1 < b &&
-              (t.splice(b, 1),
-              z--,
-              n.ui.find(".main .left_header_top .materialCurAmount").text(z),
+              (v.splice(b, 1),
+              A--,
+              k.ui.find(".main .left_header_top .materialCurAmount").text(A),
               (b = (b = d(this).find(".amount").text())
                 ? parseInt(b) + a.needAmount
                 : a.needAmount),
@@ -162,55 +162,55 @@ define(
                 .find(".amount")
                 .text(0 == b ? "" : b),
               d(this).removeClass("disabled").attr("disabled", !1),
-              n.ui
+              k.ui
                 .find(".main .left .left_header_bottom")
                 .find('.item[data-index\x3d"' + a.index + '"]')
                 .remove());
           } else
-            z < E &&
+            A < C &&
               ((b = { index: a.index, count: a.needAmount }),
-              t.push(b),
+              v.push(b),
               (b = a.count || 1),
               (b -= a.needAmount),
               d(this)
                 .find(".amount")
                 .text(0 == b ? "" : b),
               d(this).addClass("disabled").attr("disabled", !0),
-              z++,
-              n.ui.find(".main .left_header_top .materialCurAmount").text(z),
+              A++,
+              k.ui.find(".main .left_header_top .materialCurAmount").text(A),
               c(a));
       });
       this.draggable(this.ui.find(".title"));
     };
-    n.onAppend = function () {
+    k.onAppend = function () {
       this.ui.css({
         top: 0.5 * (h.height - this.ui.height()),
         left: 0.5 * (h.width - this.ui.width()),
       });
     };
-    n.onRemove = function () {
+    k.onRemove = function () {
+      u = [];
       v = [];
-      t = [];
-      p = -1;
-      E = z = 0;
+      q = -1;
+      C = A = 0;
       this.ui.find(".main .right").empty();
       this.ui.find(".main .left_header_top .materialString").empty();
       this.ui.find(".main .left_header_top .materialCurAmount").text(0);
       this.ui.find(".main .left_header_top .materialNeedAmount").text(0);
       this.ui.find(".main .left_header_bottom").empty();
     };
-    n.setData = function (a) {
+    k.setData = function (a) {
       var c = e.getItemInfo(a);
       this.ui.find(".title_bar .title").text(c.identifiedDiSPlayName);
-      p = a;
+      q = a;
       a = e.getLaphineItem(a);
       if (!a) return !1;
       this.ui.find(".left .materialString").text(a.NeedSource_String);
-      E = a.NeedCount;
+      C = a.NeedCount;
       this.ui.find(".left .materialNeedAmount").text(a.NeedCount);
-      if ((v = u.getItemBySynthesisLimits(a)))
-        for (a = 0; a < v.length; a++) b(v[a]);
+      if ((u = p.getItemBySynthesisLimits(a)))
+        for (a = 0; a < u.length; a++) b(u[a]);
     };
-    return k.addComponent(n);
+    return n.addComponent(k);
   },
 );

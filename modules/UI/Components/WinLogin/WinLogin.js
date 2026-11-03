@@ -9,11 +9,11 @@ define(
       return !1;
     }
     function c() {
-      if (C) return !1;
-      C = !0;
-      var a = n.val(),
-        b = p.val();
-      if (!a || !b) return (C = !1);
+      if (B) return !1;
+      B = !0;
+      var a = k.val(),
+        b = q.val();
+      if (!a || !b) return (B = !1);
       f.saveID
         ? ((f.saveID = !0), (f.ID = a), (f.PD = b))
         : ((f.saveID = !1), (f.ID = ""), (f.PD = ""));
@@ -25,7 +25,7 @@ define(
         e("#body-cover").removeClass("input");
       d.Character = null;
       var c = e("#_csrf").val(),
-        g = q.get("ClientVer"),
+        g = t.get("ClientVer"),
         h;
       switch (g) {
         case 3:
@@ -51,13 +51,13 @@ define(
         data: h,
         success: function (c) {
           if (3 == c)
-            k.showMessageBox(
+            n.showMessageBox(
               "\u767b\u5f55\u7ec8\u7aef\u8d85\u9650",
               "ok",
               null,
             );
           else l.onConnectionRequest(a, b);
-          C = !1;
+          B = !1;
         },
       });
       return !1;
@@ -67,20 +67,20 @@ define(
       m = a("DB/DBManager");
     a("Core/Client");
     var h = a("Core/Preferences"),
-      q = a("Core/Configs");
+      t = a("Core/Configs");
     a("Renderer/Renderer");
     var r = a("Controls/KeyEventHandler"),
-      k = a("UI/UIManager"),
+      n = a("UI/UIManager"),
       g = a("UI/UIComponent"),
-      u = a("text!./WinLogin.html");
+      p = a("text!./WinLogin.html");
     a = a("text!./WinLogin.css");
-    var l = new g("WinLogin", u, a),
+    var l = new g("WinLogin", p, a),
       f = h.get("WinLogin", { saveID: !0, ID: "", PD: "" }, 1),
-      n,
-      p,
-      v = q.get("ClientVer"),
-      t = !1,
-      z = {
+      k,
+      q,
+      u = t.get("ClientVer"),
+      v = !1,
+      A = {
         0: "\u521d\u5b66\u8005",
         1: "\u5251\u58eb",
         2: "\u9b54\u6cd5\u5e08",
@@ -219,12 +219,12 @@ define(
     l.init = function () {
       var a = this.ui,
         d = 0;
-      n = a.find(".user");
-      p = a.find(".pass");
-      n.on("focus", function () {
+      k = a.find(".user");
+      q = a.find(".pass");
+      k.on("focus", function () {
         window.scrollTo(0, 0);
       });
-      p.on("focus", function () {
+      q.on("focus", function () {
         window.scrollTo(0, 0);
       });
       a.find(".field")
@@ -240,12 +240,12 @@ define(
           : e(this).parent().parent().removeClass("field--non-empty");
       });
       a.find(".register").on("click", function () {
-        3 == v
+        3 == u
           ? window.open(
               "http://game.lastro.cn/?r\x3dpc/reg\x26nid\x3d3",
               "_blank",
             )
-          : k.showMessageBox(
+          : n.showMessageBox(
               "\u8bf7\u4f7f\u7528MF\u65b9\u5f0f\u6ce8\u518c\uff0cM\u4e3a\u7537\u6027\uff0cF\u4e3a\u5973\u6027\uff0c\u5047\u8bbe\u8d26\u53f7\u4e3atest\uff0c\u5728\u6700\u540e\u52a0\u4e0a_M(\u4e0b\u5212\u7ebfM)\uff0c\u70b9\u51fb\u767b\u5f55\u5373\u53ef\u521b\u5efa\u8d26\u53f7",
               "ok",
               null,
@@ -258,7 +258,7 @@ define(
         });
       });
       a.find(".ck .close").on("click", function () {
-        t = !1;
+        v = !1;
         var b = a.find(".overlay.ck");
         b.animate({ opacity: 0 }, 200, function () {
           b.hide();
@@ -276,11 +276,11 @@ define(
       });
       a.find(".reg .submit").on("click", function () {
         var b = $("#_csrf").val();
-        if (!t) {
-          t = !0;
+        if (!v) {
+          v = !0;
           a.find(".reg .submit").addClass("processing").attr("disabled", !0);
           var c;
-          switch (v) {
+          switch (u) {
             case 3:
               c = {
                 _csrf: b,
@@ -304,7 +304,7 @@ define(
               };
           }
           $.ajax({
-            url: "/?r\x3dmn/register\x26nid\x3d" + v,
+            url: "/?r\x3dmn/register\x26nid\x3d" + u,
             type: "post",
             data: c,
             success: function (b) {
@@ -324,7 +324,7 @@ define(
                     });
                     a.find(".user").val(f.ID);
                     a.find(".pass").val(f.PD);
-                    t = !1;
+                    v = !1;
                   }, 500),
                   setTimeout(function () {
                     a.find(".reg .name input").empty();
@@ -344,7 +344,7 @@ define(
                   (b = a.find("#captchaimg").attr("src")),
                   a.find("#captchaimg").attr("src", ""),
                   a.find("#captchaimg").attr("src", b + "?" + Math.random()));
-              t = !1;
+              v = !1;
             },
           });
         }
@@ -353,10 +353,10 @@ define(
         var b = $("#_csrf").val();
         if ("" == a.find(".user").val()) a.find(".user").focus();
         else if ("" == a.find(".pass").val()) a.find(".pass").focus();
-        else if (!t) {
-          t = !0;
+        else if (!v) {
+          v = !0;
           var c;
-          switch (v) {
+          switch (u) {
             case 3:
               c = {
                 _csrf: b,
@@ -380,7 +380,7 @@ define(
           }
           a.find(".cheak button").addClass("processing");
           $.ajax({
-            url: "/?r\x3dmn/search\x26nid\x3d" + v,
+            url: "/?r\x3dmn/search\x26nid\x3d" + u,
             type: "post",
             dataType: "json",
             data: c,
@@ -393,7 +393,7 @@ define(
                 a.find(".updatetime").text(b.updatetime);
                 a.find(".ssres_inminute").text(b.inminute);
                 a.find(".ssres_name").text(b.name);
-                a.find(".ssres_job").text(z[b.class]);
+                a.find(".ssres_job").text(A[b.class]);
                 a.find(".ssres_base_level").text(b.base_level);
                 a.find(".ssres_job_level").text(b.job_level);
                 a.find(".ssres_map").text(m.getMapName(b.last_map + ".gat"));
@@ -560,15 +560,15 @@ define(
                 a.find(".overlay.ck").show().animate({ opacity: 1 }, 200);
               } else
                 1 == b
-                  ? ((t = !1),
-                    k.showMessageBox(
+                  ? ((v = !1),
+                    n.showMessageBox(
                       "\u7528\u6237\u540d\u6216\u5bc6\u7801\u9519\u8bef",
                       "ok",
                       null,
                     ))
                   : 2 == b &&
-                    ((t = !1),
-                    k.showMessageBox(
+                    ((v = !1),
+                    n.showMessageBox(
                       "\u8be5\u8d26\u53f7\u6ca1\u6709\u89d2\u8272\u5728\u7ebf",
                       "ok",
                       null,
@@ -612,26 +612,26 @@ define(
           }));
     };
     l.onAppend = function () {
-      C = !1;
-      n.val(f.saveID ? f.ID : "");
-      p.val(f.saveID ? f.PD : "");
-      n.val() && n.parent().parent().addClass("field--non-empty");
-      p.val() && p.parent().parent().addClass("field--non-empty");
+      B = !1;
+      k.val(f.saveID ? f.ID : "");
+      q.val(f.saveID ? f.PD : "");
+      k.val() && k.parent().parent().addClass("field--non-empty");
+      q.val() && q.parent().parent().addClass("field--non-empty");
     };
     l.onRemove = function () {
       this.ui.find(".btn button").removeClass("processing");
     };
-    var E = !1;
+    var C = !1;
     l.onKeyDown = function (a) {
       switch (a.which) {
         case r.ENTER:
-          if (!E)
+          if (!C)
             return (
-              (E = !0),
+              (C = !0),
               c(),
               a.stopImmediatePropagation(),
               setTimeout(function () {
-                E = !1;
+                C = !1;
               }, 1e3),
               !1
             );
@@ -640,16 +640,16 @@ define(
           return (b(), a.stopImmediatePropagation(), !1);
         case r.TAB:
           return (
-            (document.activeElement === n[0] ? p : n).focus().select(),
+            (document.activeElement === k[0] ? q : k).focus().select(),
             a.stopImmediatePropagation(),
             !1
           );
       }
       return !0;
     };
-    var C = !1;
+    var B = !1;
     l.onConnectionRequest = function () {};
     l.onExitRequest = function () {};
-    return k.addComponent(l);
+    return n.addComponent(l);
   },
 );

@@ -66,13 +66,13 @@ define("Renderer/Entity/EntityAttachments", [
     var a = new Float32Array(4),
       b = new Float32Array([1, 1, 1, 1]);
     return function (d) {
-      var e, k;
-      k = this.list.length;
+      var e, h;
+      h = this.list.length;
       a.set(this.entity.effectColor);
       this.entity.effectColor.set(b);
-      for (e = 0; e < k; ++e)
+      for (e = 0; e < h; ++e)
         this.renderAttachment(this.list[e], d) &&
-          (this.removeIndex(e), e--, k--);
+          (this.removeIndex(e), e--, h--);
       c.depth = 0;
       this.entity.effectColor.set(a);
     };
@@ -82,23 +82,23 @@ define("Renderer/Entity/EntityAttachments", [
     return function (e, m) {
       if (!(e.startTick > m)) {
         var h,
-          k,
+          n,
           g,
-          u,
+          p,
           l = !1;
-        k = a.loadFile(e.spr);
+        n = a.loadFile(e.spr);
         g = a.loadFile(e.act);
-        if (!k || !g) return l;
+        if (!n || !g) return l;
         this.entity.effectColor[3] = e.opacity;
         e.position
           ? e.position && (b = e.position)
           : (b[1] = e.head ? -100 : 0);
-        u = e.direction
+        p = e.direction
           ? (d.direction + this.entity.direction + 8) % 8
           : e.frame;
-        u %= g.actions.length;
-        h = g.actions[u].animations;
-        g = e.delay || g.actions[u].delay;
+        p %= g.actions.length;
+        h = g.actions[p].animations;
+        g = e.delay || g.actions[p].delay;
         c.depth = e.depth;
         "animationId" in e
           ? (m = h[e.animationId].layers)
@@ -116,7 +116,7 @@ define("Renderer/Entity/EntityAttachments", [
                 g !== h.length - 1 || e.stopAtEnd || (l = !0));
         e = 0;
         for (h = m.length; e < h; ++e)
-          this.entity.renderLayer(m[e], k, k, 1, b, !1);
+          this.entity.renderLayer(m[e], n, n, 1, b, !1);
         return l;
       }
     };

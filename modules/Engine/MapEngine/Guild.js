@@ -5,71 +5,71 @@ define(
   ),
   function (a) {
     function b(a) {
-      V.setSkills(a.skillList);
-      V.setSkillsPoints(a.skillPoint);
+      W.setSkills(a.skillList);
+      W.setSkillsPoints(a.skillPoint);
     }
     function c(a) {
       Q.addText(a.msg, Q.TYPE.GUILD);
     }
     function d(a) {
       0 > a.xPos || 0 > a.yPos
-        ? W.removeGuildMemberMark(a.AID)
-        : W.addGuildMemberMark(a.AID, a.xPos, a.yPos);
+        ? V.removeGuildMemberMark(a.AID)
+        : V.addGuildMemberMark(a.AID, a.xPos, a.yPos);
     }
     function e(a) {
-      V.setGuildInformations(a);
+      W.setGuildInformations(a);
     }
     function m(a) {
       S.guild_id = a.GDID;
-      V.changeGuildInfo(a);
+      W.changeGuildInfo(a);
     }
     function h(a) {
-      V.setAccess(a.guildMemuFlag);
+      W.setAccess(a.guildMemuFlag);
     }
-    function q(a) {
+    function t(a) {
       S.guild_id = a.GDID;
-      y.hasGuild = !0;
-      y.guildRight = a.right;
-      y.isGuildMaster = !!a.isMaster;
-      y.Entity.GUID = a.GDID;
-      y.Entity.GEmblemVer = a.emblemVersion;
+      z.hasGuild = !0;
+      z.guildRight = a.right;
+      z.isGuildMaster = !!a.isMaster;
+      z.Entity.GUID = a.GDID;
+      z.Entity.GEmblemVer = a.emblemVersion;
     }
     function r(a) {
-      V.setRelations(a.relatedGuildList);
+      W.setRelations(a.relatedGuildList);
     }
-    function k(a) {
-      V.setMembers(a.memberInfo);
+    function n(a) {
+      W.setMembers(a.memberInfo);
     }
     function g(a) {
       var b = !1;
-      a instanceof K.ZC.POSITION_INFO
+      a instanceof L.ZC.POSITION_INFO
         ? ((a = a.memberInfo), (b = !0))
         : (a = a.memberList);
-      V.setPositions(a, b);
-    }
-    function u(a) {
-      V.setPositionsName(a.memberList);
-    }
-    function l(a) {
-      V.setMember(a.Info);
-    }
-    function f(a) {
-      V.updateMemberPosition(a.AID, a.GID, a.positionID);
-    }
-    function n(a) {
-      Q.addText("[ " + a.subject + " ]", Q.TYPE.GUILD, "#FFFF63");
-      Q.addText("[ " + a.notice + " ]", Q.TYPE.GUILD, "#FFFF63");
-      V.setNotice(a.subject, a.notice);
+      W.setPositions(a, b);
     }
     function p(a) {
-      V.setExpelList(a.banList);
+      W.setPositionsName(a.memberList);
     }
-    function v(a) {
+    function l(a) {
+      W.setMember(a.Info);
+    }
+    function f(a) {
+      W.updateMemberPosition(a.AID, a.GID, a.positionID);
+    }
+    function k(a) {
+      Q.addText("[ " + a.subject + " ]", Q.TYPE.GUILD, "#FFFF63");
+      Q.addText("[ " + a.notice + " ]", Q.TYPE.GUILD, "#FFFF63");
+      W.setNotice(a.subject, a.notice);
+    }
+    function q(a) {
+      W.setExpelList(a.banList);
+    }
+    function u(a) {
       switch (a.result) {
         case 0:
-          y.hasGuild = !0;
+          z.hasGuild = !0;
           Q.addText(x.getMessage(374), Q.TYPE.BLUE);
-          V.show();
+          W.show();
           break;
         case 1:
           Q.addText(x.getMessage(375), Q.TYPE.ERROR);
@@ -81,11 +81,11 @@ define(
           Q.addText(x.getMessage(405), Q.TYPE.ERROR);
       }
     }
-    function t(a) {
+    function v(a) {
       switch (a.reason) {
         case 0:
-          V.hide();
-          y.hasGuild = !1;
+          W.hide();
+          z.hasGuild = !1;
           Q.addText(x.getMessage(400), Q.TYPE.BLUE);
           break;
         case 1:
@@ -95,10 +95,10 @@ define(
           Q.addText(x.getMessage(402), Q.TYPE.ERROR);
       }
     }
-    function z(a) {
+    function A(a) {
       function b(a) {
         return function () {
-          var b = new K.CZ.JOIN_GUILD();
+          var b = new L.CZ.JOIN_GUILD();
           b.GDID = c;
           b.answer = a;
           G.sendPacket(b);
@@ -113,7 +113,7 @@ define(
         b(0),
       );
     }
-    function E(a) {
+    function C(a) {
       switch (a.answer) {
         case 0:
           Q.addText(x.getMessage(378), Q.TYPE.ERROR);
@@ -128,35 +128,35 @@ define(
           Q.addText(x.getMessage(381), Q.TYPE.ERROR);
       }
     }
-    function C(a) {
-      V.updateMemberStatus(a);
+    function B(a) {
+      W.updateMemberStatus(a);
     }
     function J(a) {
-      if (y.GID == a.charID || a.charName === y.Entity.display.name)
-        (V.hide(),
-          (y.hasGuild = !1),
-          (y.isGuildMaster = !1),
-          (y.guildRight = 0),
-          (y.Entity.GUID = 0));
+      if (z.GID == a.charID || a.charName === z.Entity.display.name)
+        (W.hide(),
+          (z.hasGuild = !1),
+          (z.isGuildMaster = !1),
+          (z.guildRight = 0),
+          (z.Entity.GUID = 0));
     }
-    function A(a) {
-      if (y.GID == a.charID || a.charName === y.Entity.display.name)
-        (V.hide(),
-          (y.hasGuild = !1),
-          (y.isGuildMaster = !1),
-          (y.guildRight = 0),
-          (y.Entity.GUID = 0));
+    function D(a) {
+      if (z.GID == a.charID || a.charName === z.Entity.display.name)
+        (W.hide(),
+          (z.hasGuild = !1),
+          (z.isGuildMaster = !1),
+          (z.guildRight = 0),
+          (z.Entity.GUID = 0));
     }
-    function B(a) {
-      V.removeRelation(a.OpponentGDID, a.Relation);
+    function y(a) {
+      W.removeRelation(a.OpponentGDID, a.Relation);
     }
-    function F(a) {
-      V.addRelation(a.Info);
+    function H(a) {
+      W.addRelation(a.Info);
     }
-    function O(a) {
+    function N(a) {
       function b(a) {
         return function () {
-          var b = new K.CZ.ALLY_GUILD();
+          var b = new L.CZ.ALLY_GUILD();
           b.otherAID = c;
           b.answer = a;
           G.sendPacket(b);
@@ -171,7 +171,7 @@ define(
         b(0),
       );
     }
-    function M(a) {
+    function O(a) {
       switch (a.answer) {
         case 0:
           Q.addText(x.getMessage(394), Q.TYPE.ERROR);
@@ -192,7 +192,7 @@ define(
           Q.addText(x.getMessage(1717), Q.TYPE.ERROR);
       }
     }
-    function H(a) {
+    function I(a) {
       switch (a.result) {
         case 0:
           Q.addText(x.getMessage(495), Q.TYPE.BLUE);
@@ -208,72 +208,72 @@ define(
       }
     }
     var x = a("DB/DBManager"),
-      I = a("Utils/Inflate"),
-      D = a("Utils/Texture"),
-      L = a("Utils/BinaryWriter"),
-      y = a("Engine/SessionStorage"),
+      K = a("Utils/Inflate"),
+      E = a("Utils/Texture"),
+      F = a("Utils/BinaryWriter"),
+      z = a("Engine/SessionStorage"),
       G = a("Network/NetworkManager"),
-      K = a("Network/PacketStructure"),
-      N = a("Renderer/EntityManager"),
+      L = a("Network/PacketStructure"),
+      M = a("Renderer/EntityManager"),
       Q = a("UI/Components/ChatBox/ChatBox"),
-      W = a("UI/Components/MiniMap/MiniMap"),
-      V = a("UI/Components/Guild/Guild"),
+      V = a("UI/Components/MiniMap/MiniMap"),
+      W = a("UI/Components/Guild/Guild"),
       ba = a("UI/UIManager"),
       S = {},
       T = {};
     S.init = function () {
-      G.hookPacket(K.ZC.GUILD_SKILLINFO, b);
-      G.hookPacket(K.ZC.GUILD_CHAT, c);
-      G.hookPacket(K.ZC.NOTIFY_POSITION_TO_GUILDM, d);
-      G.hookPacket(K.ZC.GUILD_INFO, e);
-      G.hookPacket(K.ZC.GUILD_INFO2, e);
-      G.hookPacket(K.ZC.GUILD_INFO3, e);
-      G.hookPacket(K.ZC.GUILD_INFO4, e);
-      G.hookPacket(K.ZC.CHANGE_GUILD2, m);
-      G.hookPacket(K.ZC.MYGUILD_BASIC_INFO, r);
-      G.hookPacket(K.ZC.GUILD_EMBLEM_IMG, da);
-      G.hookPacket(K.ZC.MEMBERMGR_INFO, k);
-      G.hookPacket(K.ZC.MEMBERMGR_INFO2, k);
-      G.hookPacket(K.ZC.PKT_MC_GUILDMEMBERLIST2, k);
-      G.hookPacket(K.ZC.ACK_GUILD_MEMBER_INFO, l);
-      G.hookPacket(K.ZC.POSITION_INFO, g);
-      G.hookPacket(K.ZC.POSITION_ID_NAME_INFO, u);
-      G.hookPacket(K.ZC.ACK_CHANGE_GUILD_POSITIONINFO, g);
-      G.hookPacket(K.ZC.GUILD_NOTICE, n);
-      G.hookPacket(K.ZC.ACK_REQ_CHANGE_MEMBERS, f);
-      G.hookPacket(K.ZC.ACK_GUILD_MENUINTERFACE, h);
-      G.hookPacket(K.ZC.RESULT_MAKE_GUILD, v);
-      G.hookPacket(K.ZC.UPDATE_GDID, q);
-      G.hookPacket(K.ZC.BAN_LIST, p);
-      G.hookPacket(K.ZC.ACK_DISORGANIZE_GUILD_RESULT, t);
-      G.hookPacket(K.ZC.REQ_JOIN_GUILD, z);
-      G.hookPacket(K.ZC.ACK_REQ_JOIN_GUILD, E);
-      G.hookPacket(K.ZC.UPDATE_CHARSTAT, C);
-      G.hookPacket(K.ZC.UPDATE_CHARSTAT2, C);
-      G.hookPacket(K.ZC.ACK_BAN_GUILD, J);
-      G.hookPacket(K.ZC.ACK_BAN_GUILD_SSO, J);
-      G.hookPacket(K.ZC.ACK_BAN_GUILD_SSO2, J);
-      G.hookPacket(K.ZC.ACK_LEAVE_GUILD, A);
-      G.hookPacket(K.ZC.ACK_LEAVE_GUILD2, A);
-      G.hookPacket(K.ZC.DELETE_RELATED_GUILD, B);
-      G.hookPacket(K.ZC.ADD_RELATED_GUILD, F);
-      G.hookPacket(K.ZC.REQ_ALLY_GUILD, O);
-      G.hookPacket(K.ZC.ACK_REQ_ALLY_GUILD, M);
-      G.hookPacket(K.ZC.ACK_REQ_HOSTILE_GUILD, H);
-      V.onGuildInfoRequest = S.requestInfo;
-      V.onPositionUpdateRequest = S.requestPositionUpdate;
-      V.onNoticeUpdateRequest = S.requestNoticeUpdate;
-      V.onRequestLeave = S.requestLeave;
-      V.onRequestMemberExpel = S.requestMemberExpel;
-      V.onRequestMemberInfo = S.requestMemberInfo;
-      V.onRequestDeleteRelation = S.requestDeleteRelatedGuild;
-      V.onRequestAccess = S.requestAccess;
-      V.onRequestGuildEmblem = S.requestGuildEmblem;
-      V.onSendEmblem = S.sendEmblem;
+      G.hookPacket(L.ZC.GUILD_SKILLINFO, b);
+      G.hookPacket(L.ZC.GUILD_CHAT, c);
+      G.hookPacket(L.ZC.NOTIFY_POSITION_TO_GUILDM, d);
+      G.hookPacket(L.ZC.GUILD_INFO, e);
+      G.hookPacket(L.ZC.GUILD_INFO2, e);
+      G.hookPacket(L.ZC.GUILD_INFO3, e);
+      G.hookPacket(L.ZC.GUILD_INFO4, e);
+      G.hookPacket(L.ZC.CHANGE_GUILD2, m);
+      G.hookPacket(L.ZC.MYGUILD_BASIC_INFO, r);
+      G.hookPacket(L.ZC.GUILD_EMBLEM_IMG, da);
+      G.hookPacket(L.ZC.MEMBERMGR_INFO, n);
+      G.hookPacket(L.ZC.MEMBERMGR_INFO2, n);
+      G.hookPacket(L.ZC.PKT_MC_GUILDMEMBERLIST2, n);
+      G.hookPacket(L.ZC.ACK_GUILD_MEMBER_INFO, l);
+      G.hookPacket(L.ZC.POSITION_INFO, g);
+      G.hookPacket(L.ZC.POSITION_ID_NAME_INFO, p);
+      G.hookPacket(L.ZC.ACK_CHANGE_GUILD_POSITIONINFO, g);
+      G.hookPacket(L.ZC.GUILD_NOTICE, k);
+      G.hookPacket(L.ZC.ACK_REQ_CHANGE_MEMBERS, f);
+      G.hookPacket(L.ZC.ACK_GUILD_MENUINTERFACE, h);
+      G.hookPacket(L.ZC.RESULT_MAKE_GUILD, u);
+      G.hookPacket(L.ZC.UPDATE_GDID, t);
+      G.hookPacket(L.ZC.BAN_LIST, q);
+      G.hookPacket(L.ZC.ACK_DISORGANIZE_GUILD_RESULT, v);
+      G.hookPacket(L.ZC.REQ_JOIN_GUILD, A);
+      G.hookPacket(L.ZC.ACK_REQ_JOIN_GUILD, C);
+      G.hookPacket(L.ZC.UPDATE_CHARSTAT, B);
+      G.hookPacket(L.ZC.UPDATE_CHARSTAT2, B);
+      G.hookPacket(L.ZC.ACK_BAN_GUILD, J);
+      G.hookPacket(L.ZC.ACK_BAN_GUILD_SSO, J);
+      G.hookPacket(L.ZC.ACK_BAN_GUILD_SSO2, J);
+      G.hookPacket(L.ZC.ACK_LEAVE_GUILD, D);
+      G.hookPacket(L.ZC.ACK_LEAVE_GUILD2, D);
+      G.hookPacket(L.ZC.DELETE_RELATED_GUILD, y);
+      G.hookPacket(L.ZC.ADD_RELATED_GUILD, H);
+      G.hookPacket(L.ZC.REQ_ALLY_GUILD, N);
+      G.hookPacket(L.ZC.ACK_REQ_ALLY_GUILD, O);
+      G.hookPacket(L.ZC.ACK_REQ_HOSTILE_GUILD, I);
+      W.onGuildInfoRequest = S.requestInfo;
+      W.onPositionUpdateRequest = S.requestPositionUpdate;
+      W.onNoticeUpdateRequest = S.requestNoticeUpdate;
+      W.onRequestLeave = S.requestLeave;
+      W.onRequestMemberExpel = S.requestMemberExpel;
+      W.onRequestMemberInfo = S.requestMemberInfo;
+      W.onRequestDeleteRelation = S.requestDeleteRelatedGuild;
+      W.onRequestAccess = S.requestAccess;
+      W.onRequestGuildEmblem = S.requestGuildEmblem;
+      W.onSendEmblem = S.sendEmblem;
     };
     S.requestInfo = function (a) {
       if (!(4 < a)) {
-        var b = new K.CZ.REQ_GUILD_MENU();
+        var b = new L.CZ.REQ_GUILD_MENU();
         b.Type = a;
         G.sendPacket(b);
       }
@@ -284,58 +284,58 @@ define(
       d = T[a];
       b <= d.version
         ? c(d.image)
-        : ((b = new K.CZ.REQ_GUILD_EMBLEM_IMG()),
+        : ((b = new L.CZ.REQ_GUILD_EMBLEM_IMG()),
           (b.GDID = a),
           G.sendPacket(b),
           d.callback.push(c));
     };
     S.requestAccess = function () {
-      G.sendPacket(new K.CZ.REQ_GUILD_MENUINTERFACE());
+      G.sendPacket(new L.CZ.REQ_GUILD_MENUINTERFACE());
     };
     S.createGuild = function (a) {
-      var b = new K.CZ.REQ_MAKE_GUILD();
-      b.GID = y.GID;
+      var b = new L.CZ.REQ_MAKE_GUILD();
+      b.GID = z.GID;
       b.GName = a;
       G.sendPacket(b);
     };
     S.breakGuild = function (a) {
-      var b = new K.CZ.REQ_DISORGANIZE_GUILD();
+      var b = new L.CZ.REQ_DISORGANIZE_GUILD();
       b.key = a;
       G.sendPacket(b);
     };
     S.requestPositionUpdate = function (a) {
-      var b = new K.CZ.REG_CHANGE_GUILD_POSITIONINFO();
+      var b = new L.CZ.REG_CHANGE_GUILD_POSITIONINFO();
       b.memberList = a;
       G.sendPacket(b);
     };
     S.requestNoticeUpdate = function (a, b) {
-      var c = new K.CZ.GUILD_NOTICE();
+      var c = new L.CZ.GUILD_NOTICE();
       c.GDID = S.guild_id;
       c.subject = a;
       c.notice = b;
       G.sendPacket(c);
     };
     S.requestPlayerInvitation = function (a) {
-      var b = new K.CZ.REQ_JOIN_GUILD();
+      var b = new L.CZ.REQ_JOIN_GUILD();
       b.AID = a;
-      b.MyAID = y.AID;
-      b.MyGID = y.GID;
+      b.MyAID = z.AID;
+      b.MyGID = z.GID;
       G.sendPacket(b);
     };
     S.requestAlliance = function (a) {
-      var b = new K.CZ.REQ_ALLY_GUILD();
+      var b = new L.CZ.REQ_ALLY_GUILD();
       b.AID = a;
-      b.MyAID = y.AID;
-      b.MyGID = y.GID;
+      b.MyAID = z.AID;
+      b.MyGID = z.GID;
       G.sendPacket(b);
     };
     S.requestHostility = function (a) {
-      var b = new K.CZ.REQ_HOSTILE_GUILD();
+      var b = new L.CZ.REQ_HOSTILE_GUILD();
       b.AID = a;
       G.sendPacket(b);
     };
     S.requestLeave = function (a, b, c) {
-      var d = new K.CZ.REQ_LEAVE_GUILD();
+      var d = new L.CZ.REQ_LEAVE_GUILD();
       d.GDID = S.guild_id;
       d.AID = a;
       d.GID = b;
@@ -343,7 +343,7 @@ define(
       G.sendPacket(d);
     };
     S.requestMemberExpel = function (a, b, c) {
-      var d = new K.CZ.REQ_BAN_GUILD();
+      var d = new L.CZ.REQ_BAN_GUILD();
       d.GDID = S.guild_id;
       d.AID = a;
       d.GID = b;
@@ -351,12 +351,12 @@ define(
       G.sendPacket(d);
     };
     S.requestMemberInfo = function (a) {
-      var b = new K.CZ.REQ_OPEN_MEMBER_INFO();
+      var b = new L.CZ.REQ_OPEN_MEMBER_INFO();
       b.AID = a;
       G.sendPacket(b);
     };
     S.requestDeleteRelatedGuild = function (a, b) {
-      var c = new K.CZ.REQ_DELETE_RELATED_GUILD();
+      var c = new L.CZ.REQ_DELETE_RELATED_GUILD();
       c.OpponentGDID = a;
       c.Relation = b;
       G.sendPacket(c);
@@ -369,7 +369,7 @@ define(
       }
       return function (b) {
         var c = b.length,
-          d = new L(7 + c + 4);
+          d = new F(7 + c + 4);
         d.writeUChar(120);
         d.writeUChar(1);
         d.writeUChar(1);
@@ -377,7 +377,7 @@ define(
         d.writeUShort(~c & 65535);
         d.writeBuffer(b.buffer);
         d.view.setInt32(d.offset, a(b), !1);
-        b = new K.CZ.REGISTER_GUILD_EMBLEM_IMG();
+        b = new L.CZ.REGISTER_GUILD_EMBLEM_IMG();
         b.img = d.buffer;
         G.sendPacket(b);
       };
@@ -389,7 +389,7 @@ define(
         var c, d, e;
         T[b.GDID] ||
           (T[b.GDID] = { version: -1, image: new Image(), callback: [] });
-        d = new I(b.img).getBytes(a);
+        d = new K(b.img).getBytes(a);
         d = URL.createObjectURL(
           new Blob([a.subarray(0, d).buffer], { type: "image/bmp" }),
         );
@@ -397,9 +397,9 @@ define(
         e = new Image();
         e.onload = function () {
           c.image = this;
-          for (b.GDID === S.guild_id && V.setEmblem(this); c.callback.length;)
+          for (b.GDID === S.guild_id && W.setEmblem(this); c.callback.length;)
             c.callback.shift().call(null, this);
-          N.forEach(function (a) {
+          M.forEach(function (a) {
             a.GUID === b.GDID &&
               ((a.display.emblem = e),
               a.display.update(
@@ -412,7 +412,7 @@ define(
           });
         };
         c.version = b.emblemVersion;
-        D.load(d, function () {
+        E.load(d, function () {
           e.src = this.toDataURL();
         });
       };

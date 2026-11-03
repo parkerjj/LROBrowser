@@ -6,15 +6,15 @@ define(
   function (a) {
     function b() {
       J.removeComponents();
-      F.append();
-      t.close();
+      H.append();
+      v.close();
     }
     function c(a, b) {
       l.play("\u00b9\u00f6\u00c6\u00b0\u00bc\u00d2\u00b8\u00ae.wav");
-      F.remove();
-      M.append();
-      I = a;
-      t.connect(H.address, H.port, function (c) {
+      H.remove();
+      O.append();
+      K = a;
+      v.connect(I.address, I.port, function (c) {
         if (c) {
           account = a;
           var d;
@@ -27,35 +27,35 @@ define(
               d += String.fromCharCode(parseInt(c.substr(e, 2), 16));
             c = d;
           }
-          d = new z.CA.EXE_HASHCHECK();
+          d = new A.CA.EXE_HASHCHECK();
           d.HashValue = c;
-          t.sendPacket(d);
-          d = new z.CA.LOGIN();
+          v.sendPacket(d);
+          d = new A.CA.LOGIN();
           d.ID = a;
           d.Passwd = b;
-          d.Version = parseInt(H.version, 10);
-          d.clienttype = parseInt(H.langtype, 10);
-          t.sendPacket(d);
+          d.Version = parseInt(I.version, 10);
+          d.clienttype = parseInt(I.langtype, 10);
+          v.sendPacket(d);
           c = jQuery("#_csrf").val();
           d = f.get("ClientVer");
-          var l;
+          var k;
           switch (d) {
             case 3:
-              l = {
+              k = {
                 _csrf: c,
                 "Login_cn2[userid]": uid,
                 "Login_cn2[user_pass]": psd,
               };
               break;
             case 4:
-              l = {
+              k = {
                 _csrf: c,
                 "Login_ts[userid]": uid,
                 "Login_ts[user_pass]": psd,
               };
               break;
             case 5:
-              l = {
+              k = {
                 _csrf: c,
                 "Login_debug[userid]": uid,
                 "Login_debug[user_pass]": psd,
@@ -64,27 +64,27 @@ define(
           jQuery.ajax({
             url: "/?r\x3dmg/checkin\x26nid\x3d" + d,
             type: "post",
-            data: l,
+            data: k,
             success: function (a) {},
           });
         } else J.showErrorBox(g.getMessage(1));
       });
     }
     function d() {
-      O("Engine/GameEngine").reload();
+      N("Engine/GameEngine").reload();
     }
     function e(a) {
       l.play("\u00b9\u00f6\u00c6\u00b0\u00bc\u00d2\u00b8\u00ae.wav");
-      A.remove();
-      M.append();
-      v.onExitRequest = b;
-      v.init(x[a]);
+      D.remove();
+      O.append();
+      u.onExitRequest = b;
+      u.init(x[a]);
     }
     function m(a) {
       l.play("\u00b9\u00f6\u00c6\u00b0\u00bc\u00d2\u00b8\u00ae.wav");
-      A.remove();
-      M.append();
-      v.onExitRequest = b;
+      D.remove();
+      O.append();
+      u.onExitRequest = b;
       var c = x[0];
       switch (a) {
         case "zgv4":
@@ -93,15 +93,15 @@ define(
         case "avv6":
           c.port = 24323;
       }
-      v.init(c);
+      u.init(c);
     }
     function h(a) {
       J.removeComponents();
-      p.AuthCode = a.AuthCode;
-      p.AuthToken = a.AuthToken;
-      p.AID = a.AID;
-      p.UserLevel = a.userLevel;
-      p.Sex = a.Sex;
+      q.AuthCode = a.AuthCode;
+      q.AuthToken = a.AuthToken;
+      q.AID = a.AID;
+      q.UserLevel = a.userLevel;
+      q.Sex = a.Sex;
       x = a.ServerList;
       var c = x.length,
         d = Array(c);
@@ -112,26 +112,26 @@ define(
             ? g.getMessage(484)
             : " " + g.getMessage(483).replace("%d", x[a].usercount)));
       1 === c
-        ? (M.append(), (v.onExitRequest = b), v.init(x[0]))
-        : (M.remove(),
-          A.append(),
-          A.ui.find("h1").text("\u6570\u636e\u4e92\u901a\u7ebf\u8def"),
-          (A.onIndexSelected = e),
-          (A.onInterCode = m),
-          (A.onExitRequest = function () {
-            t.close();
+        ? (O.append(), (u.onExitRequest = b), u.init(x[0]))
+        : (O.remove(),
+          D.append(),
+          D.ui.find("h1").text("\u6570\u636e\u4e92\u901a\u7ebf\u8def"),
+          (D.onIndexSelected = e),
+          (D.onInterCode = m),
+          (D.onExitRequest = function () {
+            v.close();
             J.removeComponents();
-            A.remove();
-            F.append();
+            D.remove();
+            H.append();
           }),
-          A.setList(x, 1));
-      var f = new z.CA.CONNECT_INFO_CHANGED();
-      f.ID = I;
-      t.setPing(function () {
-        t.sendPacket(f);
+          D.setList(x, 1));
+      var f = new A.CA.CONNECT_INFO_CHANGED();
+      f.ID = K;
+      v.setPing(function () {
+        v.sendPacket(f);
       });
     }
-    function q(a) {
+    function t(a) {
       var b = 9;
       switch (a.ErrorCode) {
         case 0:
@@ -205,10 +205,10 @@ define(
         "ok",
         function () {
           J.removeComponents();
-          F.append();
+          H.append();
         },
       );
-      t.close();
+      v.close();
     }
     function r(a) {
       var b;
@@ -264,41 +264,41 @@ define(
         default:
           J.showEventBox(g.getMessage(b));
       }
-      t.close();
+      v.close();
     }
-    var k = a("Vendors/text-encoding"),
+    var n = a("Vendors/text-encoding"),
       g = a("DB/DBManager"),
-      u = a("Audio/BGM"),
+      p = a("Audio/BGM"),
       l = a("Audio/SoundManager"),
       f = a("Core/Configs"),
-      n = a("Core/Thread"),
-      p = a("Engine/SessionStorage"),
-      v = a("Engine/CharEngine"),
-      t = a("Network/NetworkManager"),
-      z = a("Network/PacketStructure"),
-      E = a("Network/PacketVerManager"),
-      C = a("Renderer/Renderer"),
+      k = a("Core/Thread"),
+      q = a("Engine/SessionStorage"),
+      u = a("Engine/CharEngine"),
+      v = a("Network/NetworkManager"),
+      A = a("Network/PacketStructure"),
+      C = a("Network/PacketVerManager"),
+      B = a("Renderer/Renderer"),
       J = a("UI/UIManager"),
-      A = a("UI/Components/WinList/WinList"),
-      B = a("UI/Components/WinPopup/WinPopup"),
-      F = a("UI/Components/WinLogin/WinLogin"),
-      O = a,
-      M = B.clone("WinLoading");
-    M.init = function () {
-      this.ui.css({ top: (C.height - 120) / 1.5, left: (C.width - 280) / 2 });
+      D = a("UI/Components/WinList/WinList"),
+      y = a("UI/Components/WinPopup/WinPopup"),
+      H = a("UI/Components/WinLogin/WinLogin"),
+      N = a,
+      O = y.clone("WinLoading");
+    O.init = function () {
+      this.ui.css({ top: (B.height - 120) / 1.5, left: (B.width - 280) / 2 });
       this.ui.find(".text").text(g.getMessage(121));
     };
-    J.addComponent(M);
-    var H = null,
+    J.addComponent(O);
+    var I = null,
       x = [],
-      I = "";
+      K = "";
     return {
       init: function (a) {
         var b;
         f.setServer(a);
         J.removeComponents();
-        p.LangType = "langtype" in a ? parseInt(a.langtype, 10) : 1;
-        switch (p.LangType) {
+        q.LangType = "langtype" in a ? parseInt(a.langtype, 10) : 1;
+        switch (q.LangType) {
           case 0:
             if (f.get("disableKorean")) {
               b = "windows-1252";
@@ -336,27 +336,27 @@ define(
           case 20:
             b = "windows-1256";
         }
-        k.setCharset(b);
-        H = a;
+        n.setCharset(b);
+        I = a;
         b = f.get("remoteClient");
         f.get("ClientVer");
         var e = f.get("autoLogin"),
           g = f.get("BGMFileExtension");
-        "20211103".match(/^\d+$/) && (E.value = 20211103);
-        E.value
-          ? (b && n.send("SET_HOST", b),
-            g && u.setAvailableExtensions(g),
-            (p.AdminList = a.adminList || []),
-            (F.onConnectionRequest = c),
-            (F.onExitRequest = d),
+        "20211103".match(/^\d+$/) && (C.value = 20211103);
+        C.value
+          ? (b && k.send("SET_HOST", b),
+            g && p.setAvailableExtensions(g),
+            (q.AdminList = a.adminList || []),
+            (H.onConnectionRequest = c),
+            (H.onExitRequest = d),
             e instanceof Array && e[0] && e[1]
               ? (c.apply(null, e), f.set("autoLogin", null))
-              : F.append(),
-            t.hookPacket(z.AC.ACCEPT_LOGIN, h),
-            t.hookPacket(z.AC.ACCEPT_LOGIN3, h),
-            t.hookPacket(z.AC.REFUSE_LOGIN, q),
-            t.hookPacket(z.AC.REFUSE_LOGIN_R2, q),
-            t.hookPacket(z.SC.NOTIFY_BAN, r))
+              : H.append(),
+            v.hookPacket(A.AC.ACCEPT_LOGIN, h),
+            v.hookPacket(A.AC.ACCEPT_LOGIN3, h),
+            v.hookPacket(A.AC.REFUSE_LOGIN, t),
+            v.hookPacket(A.AC.REFUSE_LOGIN_R2, t),
+            v.hookPacket(A.SC.NOTIFY_BAN, r))
           : J.showErrorBox("Sorry, no PACKETVER configs found.");
       },
       reload: b,

@@ -10,10 +10,10 @@ define(
       e = a("Network/PacketStructure"),
       m = a("Network/NetworkManager"),
       h = a("Engine/SessionStorage"),
-      q = a("UI/UIManager"),
+      t = a("UI/UIManager"),
       r = a("UI/Components/MiniMap/MiniMap");
     a("UI/Components/ChatBox/ChatBox");
-    var k = a("UI/Components/WorldMap/WorldMap"),
+    var n = a("UI/Components/WorldMap/WorldMap"),
       g = a("UI/Components/Inventory/Inventory");
     a("UI/Components/ItemObtain/ItemObtain");
     return {
@@ -28,16 +28,16 @@ define(
         m.sendPacket(b);
       },
       SearchMob: function (a) {
-        k.select();
-        k.selectMob(a.cname);
+        n.select();
+        n.selectMob(a.cname);
       },
       SearchItem: function (a) {
-        k.select();
-        k.selectItem(a.cname);
+        n.select();
+        n.selectItem(a.cname);
       },
       SearchMap: function (a) {
-        k.select();
-        a.ename && k.selectMap(a.ename);
+        n.select();
+        a.ename && n.selectMap(a.ename);
       },
       getTrainingRoute: function (a) {
         a = c[b.nid].train;
@@ -61,7 +61,7 @@ define(
         var c = d.currentMap.replace(/\.gat$/i, "");
         a.ename
           ? c == a.ename && 0 < a.x && 0 < a.y
-            ? q.showPromptBox(
+            ? t.showPromptBox(
                 "\u524d\u5f80\u5750\u6807(" + a.x + "," + a.y + ")\u5417?",
                 "ok",
                 "cancel",
@@ -69,7 +69,7 @@ define(
                   r.moving(1, c, a.x, a.y);
                 },
               )
-            : q.showPromptBox(
+            : t.showPromptBox(
                 "\u5feb\u901f\u524d\u5f80" +
                   b.getMapName(a.ename + ".gat") +
                   "\u5730\u56fe\u5417?",
@@ -88,7 +88,7 @@ define(
               )
           : 0 < a.x &&
             0 < a.y &&
-            q.showPromptBox(
+            t.showPromptBox(
               "\u524d\u5f80\u5750\u6807(" + a.x + "," + a.y + ")\u5417?",
               "ok",
               "cancel",
@@ -169,21 +169,21 @@ define(
       SearchNpcByFunc: function (a) {
         if (a.cname) {
           for (
-            var d = 0, e = "", g = c[b.nid].guide, h = Object.keys(g), k = 0;
-            k < h.length;
-            k++
+            var d = 0, e = "", g = c[b.nid].guide, h = Object.keys(g), m = 0;
+            m < h.length;
+            m++
           )
-            g[h[k]].desc.includes(a.cname) &&
+            g[h[m]].desc.includes(a.cname) &&
               ((d = 1),
               (e =
                 "NPC\u540d\u5b57\u53eb" +
-                g[h[k]].npc +
+                g[h[m]].npc +
                 "\uff0c\u4f4d\u4e8e\u5730\u56fe" +
-                g[h[k]].path[0][0] +
+                g[h[m]].path[0][0] +
                 "\uff0cX\u5750\u6807" +
-                g[h[k]].path[0][1] +
+                g[h[m]].path[0][1] +
                 "\uff0cY\u5750\u6807" +
-                g[h[k]].path[0][2] +
+                g[h[m]].path[0][2] +
                 "\u662f\u8981\u524d\u5f80\u5417\uff1f"));
           if (1 == d) return e;
         }

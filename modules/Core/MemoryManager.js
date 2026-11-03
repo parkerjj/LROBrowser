@@ -44,16 +44,16 @@ define("Core/MemoryManager", ["Core/MemoryItem"], function (a) {
       if (!(e + 3e4 > b)) {
         var h,
           m,
-          k,
+          n,
           g,
-          u,
+          p,
           l = [];
         h = Object.keys(d);
         g = h.length;
-        u = b - 12e4;
-        for (k = 0; k < g; ++k)
-          ((m = d[h[k]]),
-            m.complete && m.lastTimeUsed < u && (c(a, h[k]), l.push(h[k])));
+        p = b - 12e4;
+        for (n = 0; n < g; ++n)
+          ((m = d[h[n]]),
+            m.complete && m.lastTimeUsed < p && (c(a, h[n]), l.push(h[n])));
         e = b;
       }
     },

@@ -16,7 +16,7 @@ define(
       return null;
     }
     function d() {
-      var a = H(this).index();
+      var a = I(this).index();
       fa.tab = parseInt(a, 10);
       R.ui.find(".tabs button").removeClass("active");
       this.classList.add("active");
@@ -25,7 +25,7 @@ define(
         R.ui.find(".content table").empty();
         for (var a = 0, b = R.list.length; a < b; ++a) R.addSkill(R.list[a]);
       }
-      v();
+      u();
     }
     function e() {
       var a = R.ui,
@@ -35,37 +35,37 @@ define(
         e = 0,
         f;
       f = setInterval(function () {
-        var a = Math.floor((N.screen.x - c - -6) / 32),
-          f = Math.floor((N.screen.y - b - 32) / 32),
+        var a = Math.floor((M.screen.x - c - -6) / 32),
+          f = Math.floor((M.screen.y - b - 32) / 32),
           a = Math.min(Math.max(a, 8), 8),
           f = Math.min(Math.max(f, 4), 10);
         if (a !== d || f !== e) (r(a, f), (d = a), (e = f));
       }, 30);
-      H(window).on("mouseup.resize", function (a) {
-        1 === a.which && (clearInterval(f), H(window).off("mouseup.resize"));
+      I(window).on("mouseup.resize", function (a) {
+        1 === a.which && (clearInterval(f), I(window).off("mouseup.resize"));
       });
     }
     function m() {
-      la != ga &&
-        W.showPromptBox(O.getMessage(1377), "ok", "cancel", function () {
-          for (var a in pa)
-            for (var b = 0, c = pa[a]; b < c; b++) R.onIncreaseSkill(a);
+      ka != ga &&
+        V.showPromptBox(N.getMessage(1377), "ok", "cancel", function () {
+          for (var a in oa)
+            for (var b = 0, c = oa[a]; b < c; b++) R.onIncreaseSkill(a);
           h();
         });
     }
     function h() {
-      pa = {};
-      la != ga && ((ga = la), R.updateSkpoints());
+      oa = {};
+      ka != ga && ((ga = ka), R.updateSkpoints());
       if (fa.treeView) R.buildSkillTree();
       else {
         R.ui.find(".content table").empty();
         for (var a = 0, b = R.list.length; a < b; ++a) R.addSkill(R.list[a]);
       }
     }
-    function q() {
+    function t() {
       fa.showDesc = !fa.showDesc;
       x.loadFile(
-        O.INTERFACE_PATH + "checkbox_" + (fa.showDesc ? "1" : "0") + ".bmp",
+        N.INTERFACE_PATH + "checkbox_" + (fa.showDesc ? "1" : "0") + ".bmp",
         function (a) {
           R.ui.find(".show_descr").css("backgroundImage", "url(" + a + ")");
         },
@@ -76,25 +76,25 @@ define(
       b = Math.min(Math.max(b, 4), 10);
       R.ui.find(".content").css({ width: 32 * a, height: 32 * b });
     }
-    function k() {
+    function n() {
       R.ui.hide();
     }
     function g() {
       R.ui.toggleClass("tree");
       fa.treeView = R.ui.hasClass("tree");
       fa.treeView
-        ? (D.render(qa),
+        ? (E.render(qa),
           R.ui.find(".content").css("width", ""),
           R.ui.find(".content").css("height", ""))
-        : (D.stop(qa), r(fa.width, fa.height));
+        : (E.stop(qa), r(fa.width, fa.height));
       if (fa.treeView) R.buildSkillTree();
       else {
         R.ui.find(".content table").empty();
         for (var a = 0, b = R.list.length; a < b; ++a) R.addSkill(R.list[a]);
       }
-      v();
+      u();
     }
-    function u() {
+    function p() {
       R.ui.find(".prereq").removeClass("prereq");
       R.ui.find(".preNumber").hide();
     }
@@ -123,19 +123,19 @@ define(
         (R.ui.find(".skill.id" + a + ":first").addClass("prereq"),
         null != b && l(b.SKID));
     }
-    function n() {
+    function k() {
       Z ||
-        p(
+        q(
           parseInt(this.parentNode.parentNode.getAttribute("data-index"), 10),
           1,
         );
     }
-    function p(a, b) {
+    function q(a, b) {
       b = void 0 === b ? 1 : b;
       var d = c(a);
       if (3 != d.tab) {
         a = R.ui.find(".skill.id" + a + ":first");
-        if (0 > ga - b || null == d || d.level + pa[d.SKID] + b > d.MaxLv)
+        if (0 > ga - b || null == d || d.level + oa[d.SKID] + b > d.MaxLv)
           return 0;
         if (!d.upgradable) {
           var e = d._NeedSkillList.length,
@@ -150,35 +150,35 @@ define(
               h = k[0],
               l = k[1],
               k = c(k[0]);
-            if (null == k || k.level + pa[k.SKID] >= l) f++;
+            if (null == k || k.level + oa[k.SKID] >= l) f++;
             else {
-              for (var m = l - k.level, n = 0; n < m; n++) p(h);
-              k.level + pa[k.SKID] >= l && f++;
+              for (var m = l - k.level, n = 0; n < m; n++) q(h);
+              k.level + oa[k.SKID] >= l && f++;
             }
           }
           if (f < e) return 0;
         }
-        pa[d.SKID] = d.SKID in pa ? pa[d.SKID] + b : b;
+        oa[d.SKID] = d.SKID in oa ? oa[d.SKID] + b : b;
         ga -= b;
         d.bSeperateLv
           ? a
               .find(".level .max")
               .addClass("tempLevel")
-              .text(d.level + pa[d.SKID])
+              .text(d.level + oa[d.SKID])
           : a
               .find(".level .current")
               .addClass("tempLevel")
-              .text(d.level + pa[d.SKID]);
+              .text(d.level + oa[d.SKID]);
         a.removeClass("active passive disabled");
         a.addClass(d.type ? "active" : "passive");
         R.updateSkpoints();
-        d.level + pa[d.SKID] == d.MaxLv &&
+        d.level + oa[d.SKID] == d.MaxLv &&
           a.find(".levelupcontainer .levelup").hide();
         return 1;
       }
     }
-    function v() {
-      for (var a in pa) {
+    function u() {
+      for (var a in oa) {
         var b = c(a),
           d = R.ui.find(".skill.id" + a + ":first");
         null != b &&
@@ -187,33 +187,33 @@ define(
             ? d
                 .find(".level .max")
                 .addClass("tempLevel")
-                .text(b.level + pa[b.SKID])
+                .text(b.level + oa[b.SKID])
             : d
                 .find(".level .current")
                 .addClass("tempLevel")
-                .text(b.level + pa[b.SKID]),
+                .text(b.level + oa[b.SKID]),
           d.removeClass("active passive disabled"),
           d.addClass(b.type ? "active" : "passive"));
       }
     }
-    function t() {
-      var a = H(this).parent();
+    function v() {
+      var a = I(this).parent();
       a.hasClass("skill") || (a = a.parent());
       R.useSkillID(parseInt(a.data("index"), 10), a.find(".current").text());
     }
-    function z() {
+    function A() {
       if (fa.showDesc) {
-        var a = H(this);
+        var a = I(this);
         a.hasClass("skill") || (a = a.parent());
         if ((a = c(parseInt(a.data("index"), 10))))
           S.uid === a.SKID ? S.remove() : (S.append(), S.setSkill(a.SKID));
-      } else E();
-    }
-    function E() {
-      H("#SkillDescription").is(":visible") && S.remove();
+      } else C();
     }
     function C() {
-      var a = H(this).parent();
+      I("#SkillDescription").is(":visible") && S.remove();
+    }
+    function B() {
+      var a = I(this).parent();
       a.hasClass("skill") || (a = a.parent());
       R.ui.find(".skill").removeClass("selected");
       a.addClass("selected");
@@ -221,7 +221,7 @@ define(
     function J(a) {
       var d = parseInt(this.getAttribute("data-index"), 10),
         d = c(d),
-        e = H(this).find(".current").text();
+        e = I(this).find(".current").text();
       if (!(d && d.level && d.type && e)) return b(a);
       Z = !0;
       var f = new Image();
@@ -239,11 +239,11 @@ define(
         ),
       );
     }
-    function A() {
+    function D() {
       Z = !1;
       delete window._OBJ_DRAG_;
     }
-    function B() {
+    function y() {
       var a = parseInt(
           this.parentNode.parentNode.parentNode.getAttribute("data-index"),
           10,
@@ -252,9 +252,9 @@ define(
         b = a._level;
       b < a.level &&
         ((a._level += 1),
-        H("#SkillList .selected .current").text(parseInt(b) + 1));
+        I("#SkillList .selected .current").text(parseInt(b) + 1));
     }
-    function F() {
+    function H() {
       var a = parseInt(
           this.parentNode.parentNode.parentNode.getAttribute("data-index"),
           10,
@@ -262,30 +262,30 @@ define(
         a = c(a),
         b = a._level;
       1 < b &&
-        (--a._level, H("#SkillList .selected .current").text(parseInt(b) - 1));
+        (--a._level, I("#SkillList .selected .current").text(parseInt(b) - 1));
     }
-    var O = a("DB/DBManager"),
-      M = a("Engine/SessionStorage"),
-      H = a("Utils/jquery"),
+    var N = a("DB/DBManager"),
+      O = a("Engine/SessionStorage"),
+      I = a("Utils/jquery"),
       x = a("Core/Client"),
-      I = a("Core/Preferences"),
-      D = a("Renderer/Renderer"),
-      L = a("DB/Status/StatusState"),
-      y = a("DB/Jobs/JobConst"),
+      K = a("Core/Preferences"),
+      E = a("Renderer/Renderer"),
+      F = a("DB/Status/StatusState"),
+      z = a("DB/Jobs/JobConst"),
       G = a("Renderer/Camera"),
-      K = a("Renderer/SpriteRenderer"),
-      N = a("Controls/MouseEventHandler"),
+      L = a("Renderer/SpriteRenderer"),
+      M = a("Controls/MouseEventHandler"),
       Q = a("Preferences/Graphics");
     a("UI/Components/ChatBox/ChatBox");
-    var W = a("UI/UIManager"),
-      V = a("UI/UIComponent"),
+    var V = a("UI/UIManager"),
+      W = a("UI/UIComponent"),
       ba = a("UI/Components/SkillTargetSelection/SkillTargetSelection"),
       S = a("UI/Components/SkillDescription/SkillDescription"),
       T = a("text!./SkillList.html"),
       da = a("text!./SkillList.css"),
-      R = new V("SkillList", T, da);
+      R = new W("SkillList", T, da);
     R.TAB = { FIRST: 0, SECOND: 1, THIRD: 2, ETC: 3 };
-    var fa = I.get(
+    var fa = K.get(
       "SkillList",
       {
         x: 100,
@@ -302,10 +302,10 @@ define(
     R.list = [];
     var ea,
       ta,
-      pa = {},
-      la = 0,
+      oa = {},
+      ka = 0,
       ga = 0,
-      ka,
+      la,
       ha = 0,
       X = 0,
       Z = !1;
@@ -314,49 +314,49 @@ define(
       this.ui.find(".titlebar .base").mousedown(b);
       this.ui.find(".footer .extend").mousedown(e);
       this.ui.find(".tabs button").mousedown(d);
-      this.ui.find(".titlebar .close").click(k);
+      this.ui.find(".titlebar .close").click(n);
       this.ui.find(".titlebar .mini").click(g);
       this.ui.find(".footer .reset").click(h);
       this.ui.find(".footer .apply").click(m);
-      ta = this.ui.find(".btn.levelup").detach().click(n);
-      ka = H("#lvlup_job").detach();
-      ka.click(function () {
-        ka.detach();
+      ta = this.ui.find(".btn.levelup").detach().click(k);
+      la = I("#lvlup_job").detach();
+      la.click(function () {
+        la.detach();
         R.ui.show();
         R.ui.parent().append(R.ui);
-        R.ui.is(":visible") && fa.treeView && D.render(qa);
+        R.ui.is(":visible") && fa.treeView && E.render(qa);
       }).mousedown(b);
       this.ui
-        .on("dblclick", ".skill .icon, .skill .name", t)
-        .on("mouseover", ".skill", z)
-        .on("mouseout", "", E)
-        .on("mousedown", ".selectable", C)
+        .on("dblclick", ".skill .icon, .skill .name", v)
+        .on("mouseover", ".skill", A)
+        .on("mouseout", "", C)
+        .on("mousedown", ".selectable", B)
         .on("dragstart", ".skill", J)
-        .on("dragend", ".skill", A)
-        .on("click", ".selected .arw_left", F)
-        .on("click", ".selected .arw_right", B);
+        .on("dragend", ".skill", D)
+        .on("click", ".selected .arw_left", H)
+        .on("click", ".selected .arw_right", y);
       this.setSkills();
       R.ui
-        .on("mouseup", ".skill .icon img", n)
+        .on("mouseup", ".skill .icon img", k)
         .on("mouseover", ".skill .icon img", f)
-        .on("mouseleave", ".skill .icon img", u);
-      this.ui.find(".show_descr").mousedown(q);
+        .on("mouseleave", ".skill .icon img", p);
+      this.ui.find(".show_descr").mousedown(t);
       this.draggable(this.ui.find(".titlebar"));
       this.ui.css("transform", "scale(" + Q.zoom / 100 + ")");
     };
     R.onAppend = function () {
       fa.show || this.ui.hide();
       this.ui.css({
-        top: Math.min(Math.max(0, fa.y), (D.height - this.ui.height()) / 2),
-        left: Math.min(Math.max(0, fa.x), (D.width - this.ui.width()) / 2),
+        top: Math.min(Math.max(0, fa.y), (E.height - this.ui.height()) / 2),
+        left: Math.min(Math.max(0, fa.x), (E.width - this.ui.width()) / 2),
       });
       x.loadFile(
-        O.INTERFACE_PATH + "checkbox_" + (fa.showDesc ? "1" : "0") + ".bmp",
+        N.INTERFACE_PATH + "checkbox_" + (fa.showDesc ? "1" : "0") + ".bmp",
         function (a) {
           R.ui.find(".show_descr").css("backgroundImage", "url(" + a + ")");
         },
       );
-      this.ui.find("canvas").is(":visible") && fa.treeView && D.render(qa);
+      this.ui.find("canvas").is(":visible") && fa.treeView && E.render(qa);
       this.ui
         .find(".tabs button")
         .eq(fa.tab || 0)
@@ -369,8 +369,8 @@ define(
       }
     };
     R.onRemove = function () {
-      ka.detach();
-      fa.treeView && D.stop(qa);
+      la.detach();
+      fa.treeView && E.stop(qa);
       fa.show = this.ui.is(":visible");
       fa.y = parseInt(this.ui.css("top"), 10);
       fa.x = parseInt(this.ui.css("left"), 10);
@@ -388,9 +388,9 @@ define(
     R.toggle = function () {
       this.ui.toggle();
       this.ui.is(":visible")
-        ? (fa.treeView && (h(), D.render(qa)), this.focus(), ka.detach())
+        ? (fa.treeView && (h(), E.render(qa)), this.focus(), la.detach())
         : fa.treeView &&
-          (H("#SkillDescription").is(":visible") && E(), D.stop(qa));
+          (I("#SkillDescription").is(":visible") && C(), E.stop(qa));
     };
     R.onShortCut = function (a) {
       switch (a.cmd) {
@@ -413,35 +413,35 @@ define(
           save: !1,
         },
         f =
-          L.EffectState.FALCON |
-          L.EffectState.RIDING |
-          L.EffectState.DRAGON1 |
-          L.EffectState.DRAGON2 |
-          L.EffectState.DRAGON3 |
-          L.EffectState.DRAGON4 |
-          L.EffectState.DRAGON5 |
-          L.EffectState.MADOGEAR |
-          L.EffectState.CART1 |
-          L.EffectState.CART2 |
-          L.EffectState.CART3 |
-          L.EffectState.CART4 |
-          L.EffectState.CART5,
+          F.EffectState.FALCON |
+          F.EffectState.RIDING |
+          F.EffectState.DRAGON1 |
+          F.EffectState.DRAGON2 |
+          F.EffectState.DRAGON3 |
+          F.EffectState.DRAGON4 |
+          F.EffectState.DRAGON5 |
+          F.EffectState.MADOGEAR |
+          F.EffectState.CART1 |
+          F.EffectState.CART2 |
+          F.EffectState.CART3 |
+          F.EffectState.CART4 |
+          F.EffectState.CART5,
         g =
-          L.EffectState.CART1 |
-          L.EffectState.CART2 |
-          L.EffectState.CART3 |
-          L.EffectState.CART4 |
-          L.EffectState.CART5;
+          F.EffectState.CART1 |
+          F.EffectState.CART2 |
+          F.EffectState.CART3 |
+          F.EffectState.CART4 |
+          F.EffectState.CART5;
       return function () {
-        var h = M.Entity;
+        var h = O.Entity;
         if (!(0 < h.tranfrom_bjob)) {
           var k = h.direction,
             l = h.headDir,
             m = h.action,
             n = h.animation;
-          if (h.effectState !== a || b !== M.Entity.cart)
+          if (h.effectState !== a || b !== O.Entity.cart)
             ((a = h.effectState),
-              (b = M.Entity.cart),
+              (b = O.Entity.cart),
               a & f || b
                 ? R.ui.find(".removeOption").show()
                 : R.ui.find(".removeOption").hide(),
@@ -451,13 +451,13 @@ define(
           G.direction = 4;
           h.direction = 3;
           h.headDir = X;
-          D.tick > ha + 1e3 && ((h.headDir = 1 < X ? 0 : X + 1), (ha = D.tick));
+          E.tick > ha + 1e3 && ((h.headDir = 1 < X ? 0 : X + 1), (ha = E.tick));
           X = h.headDir;
           h.action = h.ACTION.SIT;
           h.animation = e;
           d.set(h.effectColor);
           h.effectColor.set(c);
-          K.bind2DContext(ea, 30, 130);
+          L.bind2DContext(ea, 30, 130);
           ea.clearRect(0, 0, ea.canvas.width, ea.canvas.height);
           h.renderEntity();
           h.direction = k;
@@ -501,7 +501,7 @@ define(
           return b.SKID == a.SKID;
         })
       ) {
-        var b = O.getSkillInfo(a.SKID);
+        var b = N.getSkillInfo(a.SKID);
         null != b &&
           ((b.SKID = a.SKID),
           (b.type = a.type),
@@ -516,11 +516,11 @@ define(
       }
     };
     R.buildSkillList = function (a, b) {
-      var d = O.getSkillTreePos(a),
+      var d = N.getSkillTreePos(a),
         e;
       for (e in d)
-        if (((d = O.getSkillTreePos(a, e)), !c(d))) {
-          var f = O.getSkillInfo(d);
+        if (((d = N.getSkillTreePos(a, e)), !c(d))) {
+          var f = N.getSkillInfo(d);
           f.SKID = d;
           f.type = 0;
           f.level = 0;
@@ -530,30 +530,30 @@ define(
           f.attackRange = 0;
           f.upgradable = 0;
           f.tab =
-            a <= y.THIEF ||
-            (a >= y.NOVICE_H && a <= y.THIEF_H) ||
-            (a >= y.NOVICE_B && a <= y.THIEF_B) ||
-            a == y.TAEKWON ||
-            (a >= y.GUNSLINGER && a <= y.NINJA) ||
-            (a >= y.DO_SUMMONER && a <= y.DO_CART_SUMMONER_B)
+            a <= z.THIEF ||
+            (a >= z.NOVICE_H && a <= z.THIEF_H) ||
+            (a >= z.NOVICE_B && a <= z.THIEF_B) ||
+            a == z.TAEKWON ||
+            (a >= z.GUNSLINGER && a <= z.NINJA) ||
+            (a >= z.DO_SUMMONER && a <= z.DO_CART_SUMMONER_B)
               ? R.TAB.FIRST
-              : (a >= y.KNIGHT && a <= y.SUMMER) ||
-                  (a >= y.KNIGHT_H && a <= y.CRUSADER2_H) ||
-                  (a >= y.KNIGHT_B && a <= y.CRUSADER2_B) ||
-                  (a >= y.STAR && a <= y.LINKER) ||
-                  (a >= y.KAGEROU && a <= y.FROG_OBORO)
+              : (a >= z.KNIGHT && a <= z.SUMMER) ||
+                  (a >= z.KNIGHT_H && a <= z.CRUSADER2_H) ||
+                  (a >= z.KNIGHT_B && a <= z.CRUSADER2_B) ||
+                  (a >= z.STAR && a <= z.LINKER) ||
+                  (a >= z.KAGEROU && a <= z.FROG_OBORO)
                 ? R.TAB.SECOND
-                : a >= y.RUNE_KNIGHT && a <= y.STAR_EMPEROR2_B
+                : a >= z.RUNE_KNIGHT && a <= z.STAR_EMPEROR2_B
                   ? R.TAB.THIRD
                   : R.TAB.ETC;
           b[f.tab]++;
           R.list.push(f);
         }
-      a in O.JobInheritList &&
-        (1 < O.JobInheritList[a].length
-          ? (R.buildSkillList(O.JobInheritList[a][1], b),
-            R.buildSkillList(O.JobInheritList[a][0], b))
-          : R.buildSkillList(O.JobInheritList[a], b));
+      a in N.JobInheritList &&
+        (1 < N.JobInheritList[a].length
+          ? (R.buildSkillList(N.JobInheritList[a][1], b),
+            R.buildSkillList(N.JobInheritList[a][0], b))
+          : R.buildSkillList(N.JobInheritList[a], b));
     };
     R.setSkills = function () {
       var a,
@@ -563,7 +563,7 @@ define(
       for (b = R.list.length; a < b; ++a) this.onUpdateSkill(R.list[a].SKID, 0);
       R.list.length = 0;
       this.ui.find(".content table").empty();
-      R.buildSkillList(M.Character.job, c);
+      R.buildSkillList(O.Character.job, c);
       a = 0;
       for (b = c.length; a < b; ++a)
         c[a]
@@ -571,16 +571,16 @@ define(
           : R.ui.find(".tabs button").eq(a).hide();
     };
     R.getSkillPosTree = function (a, b) {
-      var d = O.getSkillTreePos(a, b),
+      var d = N.getSkillTreePos(a, b),
         d = c(d);
       if (null != d && d.tab == fa.tab) return d;
-      if (a in O.JobInheritList)
-        if (1 < O.JobInheritList[a].length) {
-          d = R.getSkillPosTree(O.JobInheritList[a][1], b);
-          a = R.getSkillPosTree(O.JobInheritList[a][0], b);
+      if (a in N.JobInheritList)
+        if (1 < N.JobInheritList[a].length) {
+          d = R.getSkillPosTree(N.JobInheritList[a][1], b);
+          a = R.getSkillPosTree(N.JobInheritList[a][0], b);
           if (-1 != d) return d;
           if (-1 != a) return a;
-        } else return R.getSkillPosTree(O.JobInheritList[a], b);
+        } else return R.getSkillPosTree(N.JobInheritList[a], b);
       return -1;
     };
     R.buildSkillTree = function (a) {
@@ -598,10 +598,10 @@ define(
               R.updateSkill(a);
               return;
             }
-            var f = O.getSkillInfo(a.SKID),
+            var f = N.getSkillInfo(a.SKID),
               g = a.level ? (a.type ? "active" : "passive") : "disabled",
               h = ta.clone(!0);
-            e = H(
+            e = I(
               '\x3ctr class\x3d"skill id' +
                 a.SKID +
                 " " +
@@ -611,7 +611,7 @@ define(
                 '" data-index\x3d"' +
                 a.SKID +
                 '" draggable\x3d"true"\x3e\x3ctd class\x3d"icon"\x3e\x3cimg src\x3d"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw\x3d\x3d" width\x3d"24" height\x3d"24" /\x3e\x3c/td\x3e\x3ctd class\x3d"levelupcontainer"\x3e\x3c/td\x3e\x3ctd class\x3dselectable\x3e\x3cdiv class\x3d"name"\x3e' +
-                H.escape(
+                I.escape(
                   9 < f.SkillName.length
                     ? f.SkillName.substring(0, 6) + "..."
                     : f.SkillName,
@@ -628,9 +628,9 @@ define(
                     "\x3c/span\x3e") +
                 '\x3c/div\x3e\x3c/td\x3e\x3ctd class\x3d"preNumber"\x3e\x3c/td\x3e\x3c/tr\x3e',
             );
-            a.upgradable && la ? e.addClass("upgradable") : h.hide();
+            a.upgradable && ka ? e.addClass("upgradable") : h.hide();
             x.loadFile(
-              O.INTERFACE_PATH + "basic_interface/arw_left.bmp",
+              N.INTERFACE_PATH + "basic_interface/arw_left.bmp",
               function (a) {
                 e.find(".arw_left").attr(
                   "style",
@@ -641,7 +641,7 @@ define(
               },
             );
             x.loadFile(
-              O.INTERFACE_PATH + "basic_interface/arw_right.bmp",
+              N.INTERFACE_PATH + "basic_interface/arw_right.bmp",
               function (a) {
                 e.find(".arw_right").attr(
                   "style",
@@ -655,7 +655,7 @@ define(
             R.parseHTML.call(h);
             R.ui.find(".content table").append(e);
             x.loadFile(
-              O.INTERFACE_PATH + "item/" + f.Name + ".bmp",
+              N.INTERFACE_PATH + "item/" + f.Name + ".bmp",
               function (a) {
                 e.find(".icon img").attr("src", a);
               },
@@ -665,7 +665,7 @@ define(
         a = 42 - c;
         if (0 < a)
           for (b = 0; b < a; ++b)
-            ((e = H(
+            ((e = I(
               '\x3ctr class\x3d"skill emptyCell pos' +
                 b +
                 '" draggable\x3d"false"\x3e\x3ctd class\x3d"icon"\x3e\x3c/td\x3e\x3c/tr\x3e',
@@ -675,16 +675,16 @@ define(
         for (b = {}, c = 0; 42 > c; b = { element: b.element }, ++c)
           if (
             ((b.element = void 0),
-            -1 != (a = R.getSkillPosTree(M.Character.job, c)))
+            -1 != (a = R.getSkillPosTree(O.Character.job, c)))
           ) {
             if (R.ui.find(".skill.id" + a.SKID + ":first").length) {
               R.updateSkill(a);
               break;
             }
-            f = O.getSkillInfo(a.SKID);
+            f = N.getSkillInfo(a.SKID);
             g = a.level ? (a.type ? "active" : "passive") : "disabled";
             h = ta.clone(!0);
-            b.element = H(
+            b.element = I(
               '\x3ctr class\x3d"skill id' +
                 a.SKID +
                 " " +
@@ -694,7 +694,7 @@ define(
                 '" data-index\x3d"' +
                 a.SKID +
                 '" draggable\x3d"true"\x3e\x3ctd class\x3d"icon"\x3e\x3cimg src\x3d"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw\x3d\x3d" width\x3d"24" height\x3d"24" /\x3e\x3c/td\x3e\x3ctd class\x3d"levelupcontainer"\x3e\x3c/td\x3e\x3ctd class\x3dselectable\x3e\x3cdiv class\x3d"name"\x3e' +
-                H.escape(
+                I.escape(
                   9 < f.SkillName.length
                     ? f.SkillName.substring(0, 6) + "..."
                     : f.SkillName,
@@ -711,9 +711,9 @@ define(
                     "\x3c/span\x3e") +
                 '\x3c/div\x3e\x3c/td\x3e\x3ctd class\x3d"preNumber"\x3e\x3c/td\x3e\x3c/tr\x3e',
             );
-            a.upgradable && la ? b.element.addClass("upgradable") : h.hide();
+            a.upgradable && ka ? b.element.addClass("upgradable") : h.hide();
             x.loadFile(
-              O.INTERFACE_PATH + "basic_interface/arw_left.bmp",
+              N.INTERFACE_PATH + "basic_interface/arw_left.bmp",
               (function (a) {
                 return function (b) {
                   a.element
@@ -728,7 +728,7 @@ define(
               })(b),
             );
             x.loadFile(
-              O.INTERFACE_PATH + "basic_interface/arw_right.bmp",
+              N.INTERFACE_PATH + "basic_interface/arw_right.bmp",
               (function (a) {
                 return function (b) {
                   a.element
@@ -746,7 +746,7 @@ define(
             R.parseHTML.call(h);
             R.ui.find(".content table").append(b.element);
             x.loadFile(
-              O.INTERFACE_PATH + "item/" + f.Name + ".bmp",
+              N.INTERFACE_PATH + "item/" + f.Name + ".bmp",
               (function (a) {
                 return function (b) {
                   a.element.find(".icon img").attr("src", b);
@@ -754,7 +754,7 @@ define(
               })(b),
             );
           } else
-            ((b.element = H(
+            ((b.element = I(
               '\x3ctr class\x3d"skill emptyCell pos' +
                 c +
                 '" draggable\x3d"false"\x3e\x3ctd class\x3d"icon"\x3e\x3c/td\x3e\x3c/tr\x3e',
@@ -762,13 +762,13 @@ define(
               R.ui.find(".content table").append(b.element));
     };
     R.addSkill = function (a) {
-      if (a.tab === fa.tab && a.SKID in O.getAllSkillInfo())
+      if (a.tab === fa.tab && a.SKID in N.getAllSkillInfo())
         if (R.ui.find(".skill.id" + a.SKID + ":first").length) R.updateSkill(a);
         else {
-          var b = O.getSkillInfo(a.SKID),
+          var b = N.getSkillInfo(a.SKID),
             c = a.level ? (a.type ? "active" : "passive") : "disabled",
             d = ta.clone(!0),
-            e = H(
+            e = I(
               '\x3ctr class\x3d"skill id' +
                 a.SKID +
                 " " +
@@ -776,7 +776,7 @@ define(
                 '" data-index\x3d"' +
                 a.SKID +
                 '" draggable\x3d"true"\x3e\x3ctd class\x3d"icon"\x3e\x3cimg src\x3d"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw\x3d\x3d" width\x3d"24" height\x3d"24" /\x3e\x3c/td\x3e\x3ctd class\x3d"levelupcontainer"\x3e\x3c/td\x3e\x3ctd class\x3dselectable\x3e\x3cdiv class\x3d"name"\x3e' +
-                H.escape(b.SkillName) +
+                I.escape(b.SkillName) +
                 '\x3cbr/\x3e\x3cspan class\x3d"level"\x3e' +
                 (b.bSeperateLv
                   ? '\x3cspan class\x3d"arw_left" \x3e\x3c/span\x3eLv : \x3cspan class\x3d"current"\x3e' +
@@ -795,9 +795,9 @@ define(
                   : "\u88ab\u52a8") +
                 "\x3c/div\x3e\x3c/td\x3e\x3c/tr\x3e",
             );
-          (a.upgradable && la) || d.hide();
+          (a.upgradable && ka) || d.hide();
           x.loadFile(
-            O.INTERFACE_PATH + "basic_interface/arw_left.bmp",
+            N.INTERFACE_PATH + "basic_interface/arw_left.bmp",
             function (a) {
               e.find(".arw_left").attr(
                 "style",
@@ -808,7 +808,7 @@ define(
             },
           );
           x.loadFile(
-            O.INTERFACE_PATH + "basic_interface/arw_right.bmp",
+            N.INTERFACE_PATH + "basic_interface/arw_right.bmp",
             function (a) {
               e.find(".arw_right").attr(
                 "style",
@@ -822,7 +822,7 @@ define(
           R.parseHTML.call(d);
           R.ui.find(".content table").append(e);
           x.loadFile(
-            O.INTERFACE_PATH + "item/" + b.Name + ".bmp",
+            N.INTERFACE_PATH + "item/" + b.Name + ".bmp",
             function (a) {
               e.find(".icon img").attr("src", a);
             },
@@ -842,7 +842,7 @@ define(
         b.find(".spcost").text(a.spcost),
         b.removeClass("active passive disabled"),
         b.addClass(a.level ? (a.type ? "active" : "passive") : "disabled"),
-        a.upgradable && la
+        a.upgradable && ka
           ? b.find(".levelup").show()
           : b.find(".levelup").hide());
     };
@@ -862,7 +862,7 @@ define(
         if (!(200 > d - a)) {
           a = d;
           if (b.type & ba.TYPE.SELF) {
-            if (M.Entity.cast.isCasting()) return;
+            if (O.Entity.cast.isCasting()) return;
             this.onUseSkill(b.SKID, c);
           }
           b.type & ba.TYPE.TARGET &&
@@ -875,8 +875,8 @@ define(
     })();
     R.setPoints = function (a) {
       var b, c;
-      b = !la === !a;
-      ga = la = a;
+      b = !ka === !a;
+      ga = ka = a;
       this.updateSkpoints();
       if (!b)
         for (c = R.list.length, b = 0; b < c; ++b)
@@ -885,16 +885,16 @@ define(
             : this.ui.find(".skill.id" + R.list[b].SKID + " .levelup").hide();
     };
     R.updateSkpoints = function () {
-      la == ga
-        ? this.ui.find(".skpoints_count").text(la)
+      ka == ga
+        ? this.ui.find(".skpoints_count").text(ka)
         : this.ui
             .find(".skpoints_count")
             .html(
-              '\x3cspan class\x3d"tempPoints"\x3e' + ga + "\x3c/span\x3e/" + la,
+              '\x3cspan class\x3d"tempPoints"\x3e' + ga + "\x3c/span\x3e/" + ka,
             );
     };
     R.onLevelUp = function () {
-      ka.appendTo("body");
+      la.appendTo("body");
     };
     R.getList = function () {
       return R.list;
@@ -904,6 +904,6 @@ define(
     R.onIncreaseSkill = function () {};
     R.onUpdateSkill = function () {};
     R.getSkillById = c;
-    return W.addComponent(R);
+    return V.addComponent(R);
   },
 );

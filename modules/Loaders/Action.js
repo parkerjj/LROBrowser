@@ -48,10 +48,10 @@ define("Loaders/Action", ["Utils/BinaryReader"], function (a) {
       b = Array(d),
       m,
       h = this.version,
-      q,
+      t,
       r;
-    for (q = 0; q < d; ++q)
-      ((m = b[q] =
+    for (t = 0; t < d; ++t)
+      ((m = b[t] =
         {
           pos: [a.readLong(), a.readLong()],
           index: a.readLong(),
@@ -76,9 +76,9 @@ define("Loaders/Action", ["Utils/BinaryReader"], function (a) {
     m = 2 <= h ? a.readLong() : -1;
     r = [];
     if (2.3 <= h)
-      for (d = a.readLong(), r.length = d, q = 0; q < d; ++q)
+      for (d = a.readLong(), r.length = d, t = 0; t < d; ++t)
         (a.seek(4, SEEK_CUR),
-          (r[q] = { x: a.readLong(), y: a.readLong() }),
+          (r[t] = { x: a.readLong(), y: a.readLong() }),
           a.seek(4, SEEK_CUR));
     return { layers: b, sound: m, pos: r };
   };

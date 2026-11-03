@@ -25,11 +25,11 @@ define(
       e = a("Engine/SessionStorage"),
       m = a("Renderer/EntityManager"),
       h = a("UI/UIManager"),
-      q = a("UI/UIComponent"),
+      t = a("UI/UIComponent"),
       r = a("UI/Components/Mercenary/MercenaryskillList"),
-      k = a("text!./MercenaryInformations.html");
+      n = a("text!./MercenaryInformations.html");
     a = a("text!./MercenaryInformations.css");
-    var g = new q("MercenaryInformations", k, a);
+    var g = new t("MercenaryInformations", n, a);
     d.get("MercenaryInformations", { x: 100, y: 200, show: !0 }, 1);
     g.init = function () {
       this.draggable(this.ui.find(".titlebar"));

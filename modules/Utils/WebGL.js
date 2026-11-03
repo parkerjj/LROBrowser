@@ -33,7 +33,7 @@ define("Utils/WebGL", ["Utils/Texture"], function (a) {
         for (e = 0; e < r; ++e)
           try {
             if ((c = a.getContext(d[e], b))) break;
-          } catch (k) {}
+          } catch (n) {}
       if (!c)
         throw Error(
           "WebGL::getContext() - Can't find a valid context, is WebGL supported ?",

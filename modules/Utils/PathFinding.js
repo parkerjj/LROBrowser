@@ -7,275 +7,275 @@ define("Utils/PathFinding", [], function () {
     a[d + 1] = b;
   }
   function b(a) {
-    var b, c, d, n, e;
+    var b, c, d, k, e;
     if (0 >= a[0]) return -1;
     d = +a[1];
-    n = +a[a[0]--];
-    e = f[n];
+    k = +a[a[0]--];
+    e = f[k];
     c = 0;
     for (b = 2; b < a[0]; b = 2 * b + 2)
       (f[a[b + 1]] > f[a[b]] && b--, (a[c + 1] = +a[b + 1]), (c = b));
     b === a[0] && ((a[c + 1] = +a[b]), (c = b - 1));
     for (b = (c - 1) >> 1; 0 < c && f[a[b + 1]] > e; b = (c - 1) >> 1)
       ((a[c + 1] = a[b + 1]), (c = b));
-    a[c + 1] = n;
+    a[c + 1] = k;
     return d;
   }
-  function c(b, c, d, e, k, h) {
-    var t = (c + 512 * d) & 262143;
-    if (g[t] === c && u[t] === d) {
-      if (l[t] > e) {
-        l[t] = e;
-        n[t] = k;
-        f[t] = h;
-        if (p[t]) a(b, t);
+  function c(b, c, d, e, n, h) {
+    var u = (c + 512 * d) & 262143;
+    if (g[u] === c && p[u] === d) {
+      if (l[u] > e) {
+        l[u] = e;
+        k[u] = n;
+        f[u] = h;
+        if (q[u]) a(b, u);
         else {
-          for (d = 0; d < b[0] && b[d + 1] !== t; ++d);
+          for (d = 0; d < b[0] && b[d + 1] !== u; ++d);
           if (d === b[0])
             throw Error(
               "PathFinding::update_heap_path() - Error updating head path",
             );
-          e = f[t];
+          e = f[u];
           for (c = (d - 1) >> 1; 0 < d && e < f[b[c + 1]]; c = (d - 1) >> 1)
             ((b[d + 1] = b[c + 1]), (d = c));
-          b[d + 1] = t;
+          b[d + 1] = u;
         }
-        p[t] = 0;
+        q[u] = 0;
       }
       return 0;
     }
-    if (g[t] || u[t]) return 1;
-    g[t] = c;
-    u[t] = d;
-    l[t] = e;
-    n[t] = k;
-    f[t] = h;
-    p[t] = 0;
-    a(b, t);
+    if (g[u] || p[u]) return 1;
+    g[u] = c;
+    p[u] = d;
+    l[u] = e;
+    k[u] = n;
+    f[u] = h;
+    q[u] = 0;
+    a(b, u);
     return 0;
   }
-  function d(a, b, c, f, n, p, g) {
+  function d(a, b, c, f, k, q, g) {
     var l,
-      t,
-      k,
+      p,
+      n,
       u,
       h,
       v = e.cells,
-      m = e.width;
-    t = (t = c - a) ? (0 > t ? -1 : 1) : 0;
-    k = (k = f - b) ? (0 > k ? -1 : 1) : 0;
+      C = e.width;
+    p = (p = c - a) ? (0 > p ? -1 : 1) : 0;
+    n = (n = f - b) ? (0 > n ? -1 : 1) : 0;
     u = a;
     h = b;
     l = 0;
-    p[0] = a;
+    q[0] = a;
     for (
-      p[1] = b;
+      q[1] = b;
       512 > l++ &&
-      ((u += t),
-      (h += k),
-      (p[2 * l + 0] = u),
-      (p[2 * l + 1] = h),
-      u === c && (t = 0),
-      h === f && (k = 0),
-      (0 !== t || 0 !== k) && 0 !== (v[u + h * m] & g));
+      ((u += p),
+      (h += n),
+      (q[2 * l + 0] = u),
+      (q[2 * l + 1] = h),
+      u === c && (p = 0),
+      h === f && (n = 0),
+      (0 !== p || 0 !== n) && 0 !== (v[u + h * C] & g));
     );
     if (u === c && h === f) {
-      if (0 < n)
+      if (0 < k)
         for (u = 0; u < l; ++u)
           if (
-            Math.abs(p[2 * u + 0] - c) <= n &&
-            Math.abs(p[2 * u + 1] - f) <= n
+            Math.abs(q[2 * u + 0] - c) <= k &&
+            Math.abs(q[2 * u + 1] - f) <= k
           )
             return u + 1;
       return l + 1;
     }
-    return 0 < n && ((u = c - a), (h = f - b), Math.sqrt(u * u + h * h) <= n)
-      ? d(a, b, c, f, 0, p, e.type.SNIPABLE)
+    return 0 < k && ((u = c - a), (h = f - b), Math.sqrt(u * u + h * h) <= k)
+      ? d(a, b, c, f, 0, q, e.type.SNIPABLE)
       : 0;
   }
   var e = { width: 0, height: 0, cells: null, type: null },
     m = new Uint32Array(2400),
     h = new Uint32Array(2400),
-    q = new Uint16Array(262144),
+    t = new Uint16Array(262144),
     r = new Uint8Array(262144),
-    k = new Uint8Array(4),
+    n = new Uint8Array(4),
     g = new Uint16Array(262144),
-    u = new Uint16Array(262144),
+    p = new Uint16Array(262144),
     l = new Uint16Array(262144),
     f = new Uint16Array(262144),
-    n = new Uint32Array(262144),
-    p = new Uint8Array(262144);
+    k = new Uint32Array(262144),
+    q = new Uint8Array(262144);
   return {
-    search: function (v, t, z, E, C, J) {
-      var A,
-        B,
-        F,
-        O,
-        M,
+    search: function (u, v, A, C, B, J) {
+      var D,
+        y,
         H,
-        x,
-        I,
-        D = e.width;
-      F = e.height;
-      var L = e.cells,
-        y = e.type;
-      if ((C = d(v, t, z, E, C, J, y.WALKABLE))) return C;
-      m.set(h);
-      g.set(q);
-      u.set(q);
-      l.set(q);
-      f.set(q);
-      n.set(q);
-      p.set(r);
-      J[0] = v;
-      J[1] = t;
-      C = (v + 512 * t) & 262143;
-      g[C] = v;
-      u[C] = t;
-      f[C] = 10 * (Math.abs(z - g[C]) + Math.abs(E - u[C])) + l[C];
-      m[0] = 0;
-      a(m, C);
-      C = D - 1;
-      for (O = F - 1; ;) {
-        H = M = 0;
-        k[0] = 0;
-        k[1] = 0;
-        k[2] = 0;
-        k[3] = 0;
-        F = b(m);
-        if (0 > F) return 0;
-        A = g[F];
-        B = u[F];
-        x = l[F] + 10;
-        I = f[F];
-        if (A === z && B === E) break;
-        B < O &&
-          L[A + 0 + (B + 1) * D] & y.WALKABLE &&
-          ((k[0] = B >= E ? 20 : 0),
-          (H |= 1),
-          (M += c(m, A + 0, B + 1, x, F, I + k[0])));
-        0 < A &&
-          L[A - 1 + (B + 0) * D] & y.WALKABLE &&
-          ((k[1] = A <= z ? 20 : 0),
-          (H |= 2),
-          (M += c(m, A - 1, B + 0, x, F, I + k[1])));
-        0 < B &&
-          L[A + 0 + (B - 1) * D] & y.WALKABLE &&
-          ((k[2] = B <= E ? 20 : 0),
-          (H |= 4),
-          (M += c(m, A + 0, B - 1, x, F, I + k[2])));
-        A < C &&
-          L[A + 1 + (B + 0) * D] & y.WALKABLE &&
-          ((k[3] = A >= z ? 20 : 0),
-          (H |= 8),
-          (M += c(m, A + 1, B + 0, x, F, I + k[3])));
-        3 === (H & 3) &&
-          L[A - 1 + (B + 1) * D] & y.WALKABLE &&
-          (M += c(m, A - 1, B + 1, x + 4, F, I + k[1] + k[0] - 6));
-        6 === (H & 6) &&
-          L[A - 1 + (B - 1) * D] & y.WALKABLE &&
-          (M += c(m, A - 1, B - 1, x + 4, F, I + k[1] + k[2] - 6));
-        12 === (H & 12) &&
-          L[A + 1 + (B - 1) * D] & y.WALKABLE &&
-          (M += c(m, A + 1, B - 1, x + 4, F, I + k[3] + k[2] - 6));
-        9 === (H & 9) &&
-          L[A + 1 + (B + 1) * D] & y.WALKABLE &&
-          (M += c(m, A + 1, B + 1, x + 4, F, I + k[3] + k[0] - 6));
-        p[F] = 1;
-        if (M || 2395 <= m[0]) return 0;
-      }
-      z = 0;
-      for (C = F; 100 > z && C !== ((v + 512 * t) & 262143); C = n[C], z++);
-      C = F;
-      for (v = z - 1; 0 <= v; C = n[C], v--)
-        ((J[2 * (v + 1) + 0] = g[C]), (J[2 * (v + 1) + 1] = u[C]));
-      return z + 1;
-    },
-    searchLong: d,
-    searchNavigate: function (d, t, z, E, C) {
-      var v,
-        A,
-        B,
-        F,
+        N,
         O,
-        M,
-        H,
-        x,
         I,
-        D = e.width;
-      F = e.height;
-      var L = e.cells,
-        y = e.type;
+        x,
+        K,
+        E = e.width;
+      H = e.height;
+      var F = e.cells,
+        z = e.type;
+      if ((B = d(u, v, A, C, B, J, z.WALKABLE))) return B;
       m.set(h);
-      g.set(q);
-      u.set(q);
-      l.set(q);
-      f.set(q);
-      n.set(q);
-      p.set(r);
-      C[0] = d;
-      C[1] = t;
-      B = (d + 512 * t) & 262143;
-      g[B] = d;
-      u[B] = t;
-      f[B] = 10 * (Math.abs(z - g[B]) + Math.abs(E - u[B])) + l[B];
+      g.set(t);
+      p.set(t);
+      l.set(t);
+      f.set(t);
+      k.set(t);
+      q.set(r);
+      J[0] = u;
+      J[1] = v;
+      B = (u + 512 * v) & 262143;
+      g[B] = u;
+      p[B] = v;
+      f[B] = 10 * (Math.abs(A - g[B]) + Math.abs(C - p[B])) + l[B];
       m[0] = 0;
       a(m, B);
-      B = D - 1;
-      for (O = F - 1; ;) {
-        H = M = 0;
-        k[0] = 0;
-        k[1] = 0;
-        k[2] = 0;
-        k[3] = 0;
-        F = b(m);
-        if (0 > F) return 0;
-        v = g[F];
-        A = u[F];
-        x = l[F] + 10;
-        I = f[F];
-        if (v === z && A === E) break;
-        A < O &&
-          L[v + 0 + (A + 1) * D] & y.WALKABLE &&
-          ((k[0] = A >= E ? 20 : 0),
-          (H |= 1),
-          (M += c(m, v + 0, A + 1, x, F, I + k[0])));
-        0 < v &&
-          L[v - 1 + (A + 0) * D] & y.WALKABLE &&
-          ((k[1] = v <= z ? 20 : 0),
-          (H |= 2),
-          (M += c(m, v - 1, A + 0, x, F, I + k[1])));
-        0 < A &&
-          L[v + 0 + (A - 1) * D] & y.WALKABLE &&
-          ((k[2] = A <= E ? 20 : 0),
-          (H |= 4),
-          (M += c(m, v + 0, A - 1, x, F, I + k[2])));
-        v < B &&
-          L[v + 1 + (A + 0) * D] & y.WALKABLE &&
-          ((k[3] = v >= z ? 20 : 0),
-          (H |= 8),
-          (M += c(m, v + 1, A + 0, x, F, I + k[3])));
-        3 === (H & 3) &&
-          L[v - 1 + (A + 1) * D] & y.WALKABLE &&
-          (M += c(m, v - 1, A + 1, x + 4, F, I + k[1] + k[0] - 6));
-        6 === (H & 6) &&
-          L[v - 1 + (A - 1) * D] & y.WALKABLE &&
-          (M += c(m, v - 1, A - 1, x + 4, F, I + k[1] + k[2] - 6));
-        12 === (H & 12) &&
-          L[v + 1 + (A - 1) * D] & y.WALKABLE &&
-          (M += c(m, v + 1, A - 1, x + 4, F, I + k[3] + k[2] - 6));
-        9 === (H & 9) &&
-          L[v + 1 + (A + 1) * D] & y.WALKABLE &&
-          (M += c(m, v + 1, A + 1, x + 4, F, I + k[3] + k[0] - 6));
-        p[F] = 1;
-        if (M || 2395 <= m[0]) return 0;
+      B = E - 1;
+      for (N = H - 1; ;) {
+        I = O = 0;
+        n[0] = 0;
+        n[1] = 0;
+        n[2] = 0;
+        n[3] = 0;
+        H = b(m);
+        if (0 > H) return 0;
+        D = g[H];
+        y = p[H];
+        x = l[H] + 10;
+        K = f[H];
+        if (D === A && y === C) break;
+        y < N &&
+          F[D + 0 + (y + 1) * E] & z.WALKABLE &&
+          ((n[0] = y >= C ? 20 : 0),
+          (I |= 1),
+          (O += c(m, D + 0, y + 1, x, H, K + n[0])));
+        0 < D &&
+          F[D - 1 + (y + 0) * E] & z.WALKABLE &&
+          ((n[1] = D <= A ? 20 : 0),
+          (I |= 2),
+          (O += c(m, D - 1, y + 0, x, H, K + n[1])));
+        0 < y &&
+          F[D + 0 + (y - 1) * E] & z.WALKABLE &&
+          ((n[2] = y <= C ? 20 : 0),
+          (I |= 4),
+          (O += c(m, D + 0, y - 1, x, H, K + n[2])));
+        D < B &&
+          F[D + 1 + (y + 0) * E] & z.WALKABLE &&
+          ((n[3] = D >= A ? 20 : 0),
+          (I |= 8),
+          (O += c(m, D + 1, y + 0, x, H, K + n[3])));
+        3 === (I & 3) &&
+          F[D - 1 + (y + 1) * E] & z.WALKABLE &&
+          (O += c(m, D - 1, y + 1, x + 4, H, K + n[1] + n[0] - 6));
+        6 === (I & 6) &&
+          F[D - 1 + (y - 1) * E] & z.WALKABLE &&
+          (O += c(m, D - 1, y - 1, x + 4, H, K + n[1] + n[2] - 6));
+        12 === (I & 12) &&
+          F[D + 1 + (y - 1) * E] & z.WALKABLE &&
+          (O += c(m, D + 1, y - 1, x + 4, H, K + n[3] + n[2] - 6));
+        9 === (I & 9) &&
+          F[D + 1 + (y + 1) * E] & z.WALKABLE &&
+          (O += c(m, D + 1, y + 1, x + 4, H, K + n[3] + n[0] - 6));
+        q[H] = 1;
+        if (O || 2395 <= m[0]) return 0;
       }
-      z = 0;
-      for (B = F; 2e3 > z && B !== ((d + 512 * t) & 262143); B = n[B], z++);
-      B = F;
-      for (d = z - 1; 0 <= d; B = n[B], d--)
-        ((C[2 * (d + 1) + 0] = g[B]), (C[2 * (d + 1) + 1] = u[B]));
-      return z + 1;
+      A = 0;
+      for (B = H; 100 > A && B !== ((u + 512 * v) & 262143); B = k[B], A++);
+      B = H;
+      for (u = A - 1; 0 <= u; B = k[B], u--)
+        ((J[2 * (u + 1) + 0] = g[B]), (J[2 * (u + 1) + 1] = p[B]));
+      return A + 1;
+    },
+    searchLong: d,
+    searchNavigate: function (d, v, A, C, B) {
+      var u,
+        D,
+        y,
+        H,
+        N,
+        O,
+        I,
+        x,
+        K,
+        E = e.width;
+      H = e.height;
+      var F = e.cells,
+        z = e.type;
+      m.set(h);
+      g.set(t);
+      p.set(t);
+      l.set(t);
+      f.set(t);
+      k.set(t);
+      q.set(r);
+      B[0] = d;
+      B[1] = v;
+      y = (d + 512 * v) & 262143;
+      g[y] = d;
+      p[y] = v;
+      f[y] = 10 * (Math.abs(A - g[y]) + Math.abs(C - p[y])) + l[y];
+      m[0] = 0;
+      a(m, y);
+      y = E - 1;
+      for (N = H - 1; ;) {
+        I = O = 0;
+        n[0] = 0;
+        n[1] = 0;
+        n[2] = 0;
+        n[3] = 0;
+        H = b(m);
+        if (0 > H) return 0;
+        u = g[H];
+        D = p[H];
+        x = l[H] + 10;
+        K = f[H];
+        if (u === A && D === C) break;
+        D < N &&
+          F[u + 0 + (D + 1) * E] & z.WALKABLE &&
+          ((n[0] = D >= C ? 20 : 0),
+          (I |= 1),
+          (O += c(m, u + 0, D + 1, x, H, K + n[0])));
+        0 < u &&
+          F[u - 1 + (D + 0) * E] & z.WALKABLE &&
+          ((n[1] = u <= A ? 20 : 0),
+          (I |= 2),
+          (O += c(m, u - 1, D + 0, x, H, K + n[1])));
+        0 < D &&
+          F[u + 0 + (D - 1) * E] & z.WALKABLE &&
+          ((n[2] = D <= C ? 20 : 0),
+          (I |= 4),
+          (O += c(m, u + 0, D - 1, x, H, K + n[2])));
+        u < y &&
+          F[u + 1 + (D + 0) * E] & z.WALKABLE &&
+          ((n[3] = u >= A ? 20 : 0),
+          (I |= 8),
+          (O += c(m, u + 1, D + 0, x, H, K + n[3])));
+        3 === (I & 3) &&
+          F[u - 1 + (D + 1) * E] & z.WALKABLE &&
+          (O += c(m, u - 1, D + 1, x + 4, H, K + n[1] + n[0] - 6));
+        6 === (I & 6) &&
+          F[u - 1 + (D - 1) * E] & z.WALKABLE &&
+          (O += c(m, u - 1, D - 1, x + 4, H, K + n[1] + n[2] - 6));
+        12 === (I & 12) &&
+          F[u + 1 + (D - 1) * E] & z.WALKABLE &&
+          (O += c(m, u + 1, D - 1, x + 4, H, K + n[3] + n[2] - 6));
+        9 === (I & 9) &&
+          F[u + 1 + (D + 1) * E] & z.WALKABLE &&
+          (O += c(m, u + 1, D + 1, x + 4, H, K + n[3] + n[0] - 6));
+        q[H] = 1;
+        if (O || 2395 <= m[0]) return 0;
+      }
+      A = 0;
+      for (y = H; 2e3 > A && y !== ((d + 512 * v) & 262143); y = k[y], A++);
+      y = H;
+      for (d = A - 1; 0 <= d; y = k[y], d--)
+        ((B[2 * (d + 1) + 0] = g[y]), (B[2 * (d + 1) + 1] = p[y]));
+      return A + 1;
     },
     setGat: function (a) {
       e.width = a.width;
@@ -291,143 +291,143 @@ define("Utils/PathFinding", [], function () {
           ((a[d + 1] = a[c + 1]), (d = c));
         a[d + 1] = b;
       }
-      function c(a, c, d, f, n, e) {
-        var p = (c + 512 * d) & 262143;
-        if (T[p] === c && da[p] === d) {
-          if (R[p] > f) {
-            R[p] = f;
-            ea[p] = n;
-            fa[p] = e;
-            if (ta[p]) b(a, p);
+      function c(a, c, d, f, k, e) {
+        var q = (c + 512 * d) & 262143;
+        if (T[q] === c && da[q] === d) {
+          if (R[q] > f) {
+            R[q] = f;
+            ea[q] = k;
+            fa[q] = e;
+            if (ta[q]) b(a, q);
             else {
-              for (d = 0; d < a[0] && a[d + 1] !== p; ++d);
+              for (d = 0; d < a[0] && a[d + 1] !== q; ++d);
               if (d === a[0])
                 throw Error(
                   "PathFinding::update_heap_path() - Error updating head path",
                 );
-              f = fa[p];
+              f = fa[q];
               for (
                 c = (d - 1) >> 1;
                 0 < d && f < fa[a[c + 1]];
                 c = (d - 1) >> 1
               )
                 ((a[d + 1] = a[c + 1]), (d = c));
-              a[d + 1] = p;
+              a[d + 1] = q;
             }
-            ta[p] = 0;
+            ta[q] = 0;
           }
           return 0;
         }
-        if (T[p] || da[p]) return 1;
-        T[p] = c;
-        da[p] = d;
-        R[p] = f;
-        ea[p] = n;
-        fa[p] = e;
-        ta[p] = 0;
-        b(a, p);
+        if (T[q] || da[q]) return 1;
+        T[q] = c;
+        da[q] = d;
+        R[q] = f;
+        ea[q] = k;
+        fa[q] = e;
+        ta[q] = 0;
+        b(a, q);
         return 0;
       }
-      function d(a, d, f, n, e) {
-        var p,
+      function d(a, d, f, k, e) {
+        var q,
           g,
           l,
-          t,
-          k,
+          p,
+          n,
           u,
           h,
           v,
+          C,
           m,
-          z,
-          C = N.width;
-        u = N.height;
-        var E = N.cells,
-          r = N.type;
-        Q.set(W);
-        T.set(V);
-        da.set(V);
-        R.set(V);
-        fa.set(V);
-        ea.set(V);
+          B = M.width;
+        u = M.height;
+        var A = M.cells,
+          r = M.type;
+        Q.set(V);
+        T.set(W);
+        da.set(W);
+        R.set(W);
+        fa.set(W);
+        ea.set(W);
         ta.set(ba);
-        p = Q;
+        q = Q;
         e[0] = a;
         e[1] = d;
-        t = (a + 512 * d) & 262143;
-        T[t] = a;
-        da[t] = d;
-        fa[t] = 10 * (Math.abs(f - T[t]) + Math.abs(n - da[t])) + R[t];
-        p[0] = 0;
-        b(p, t);
-        t = C - 1;
+        p = (a + 512 * d) & 262143;
+        T[p] = a;
+        da[p] = d;
+        fa[p] = 10 * (Math.abs(f - T[p]) + Math.abs(k - da[p])) + R[p];
+        q[0] = 0;
+        b(q, p);
+        p = B - 1;
         for (--u; ;) {
           v = h = 0;
           S[0] = 0;
           S[1] = 0;
           S[2] = 0;
           S[3] = 0;
-          k = p;
+          n = q;
           var J;
-          if (0 >= k[0]) k = -1;
+          if (0 >= n[0]) n = -1;
           else {
-            l = +k[1];
-            m = +k[k[0]--];
-            z = fa[m];
+            l = +n[1];
+            C = +n[n[0]--];
+            m = fa[C];
             g = 0;
-            for (J = 2; J < k[0]; J = 2 * J + 2)
-              (fa[k[J + 1]] > fa[k[J]] && J--, (k[g + 1] = +k[J + 1]), (g = J));
-            J === k[0] && ((k[g + 1] = +k[J]), (g = J - 1));
-            for (J = (g - 1) >> 1; 0 < g && fa[k[J + 1]] > z; J = (g - 1) >> 1)
-              ((k[g + 1] = k[J + 1]), (g = J));
-            k[g + 1] = m;
-            k = l;
+            for (J = 2; J < n[0]; J = 2 * J + 2)
+              (fa[n[J + 1]] > fa[n[J]] && J--, (n[g + 1] = +n[J + 1]), (g = J));
+            J === n[0] && ((n[g + 1] = +n[J]), (g = J - 1));
+            for (J = (g - 1) >> 1; 0 < g && fa[n[J + 1]] > m; J = (g - 1) >> 1)
+              ((n[g + 1] = n[J + 1]), (g = J));
+            n[g + 1] = C;
+            n = l;
           }
-          if (0 > k) return 0;
-          g = T[k];
-          l = da[k];
-          m = R[k] + 10;
-          z = fa[k];
-          if (g === f && l === n) break;
+          if (0 > n) return 0;
+          g = T[n];
+          l = da[n];
+          C = R[n] + 10;
+          m = fa[n];
+          if (g === f && l === k) break;
           l < u &&
-            E[g + 0 + (l + 1) * C] & r.WALKABLE &&
-            ((S[0] = l >= n ? 20 : 0),
+            A[g + 0 + (l + 1) * B] & r.WALKABLE &&
+            ((S[0] = l >= k ? 20 : 0),
             (v |= 1),
-            (h += c(p, g + 0, l + 1, m, k, z + S[0])));
+            (h += c(q, g + 0, l + 1, C, n, m + S[0])));
           0 < g &&
-            E[g - 1 + (l + 0) * C] & r.WALKABLE &&
+            A[g - 1 + (l + 0) * B] & r.WALKABLE &&
             ((S[1] = g <= f ? 20 : 0),
             (v |= 2),
-            (h += c(p, g - 1, l + 0, m, k, z + S[1])));
+            (h += c(q, g - 1, l + 0, C, n, m + S[1])));
           0 < l &&
-            E[g + 0 + (l - 1) * C] & r.WALKABLE &&
-            ((S[2] = l <= n ? 20 : 0),
+            A[g + 0 + (l - 1) * B] & r.WALKABLE &&
+            ((S[2] = l <= k ? 20 : 0),
             (v |= 4),
-            (h += c(p, g + 0, l - 1, m, k, z + S[2])));
-          g < t &&
-            E[g + 1 + (l + 0) * C] & r.WALKABLE &&
+            (h += c(q, g + 0, l - 1, C, n, m + S[2])));
+          g < p &&
+            A[g + 1 + (l + 0) * B] & r.WALKABLE &&
             ((S[3] = g >= f ? 20 : 0),
             (v |= 8),
-            (h += c(p, g + 1, l + 0, m, k, z + S[3])));
+            (h += c(q, g + 1, l + 0, C, n, m + S[3])));
           3 === (v & 3) &&
-            E[g - 1 + (l + 1) * C] & r.WALKABLE &&
-            (h += c(p, g - 1, l + 1, m + 4, k, z + S[1] + S[0] - 6));
+            A[g - 1 + (l + 1) * B] & r.WALKABLE &&
+            (h += c(q, g - 1, l + 1, C + 4, n, m + S[1] + S[0] - 6));
           6 === (v & 6) &&
-            E[g - 1 + (l - 1) * C] & r.WALKABLE &&
-            (h += c(p, g - 1, l - 1, m + 4, k, z + S[1] + S[2] - 6));
+            A[g - 1 + (l - 1) * B] & r.WALKABLE &&
+            (h += c(q, g - 1, l - 1, C + 4, n, m + S[1] + S[2] - 6));
           12 === (v & 12) &&
-            E[g + 1 + (l - 1) * C] & r.WALKABLE &&
-            (h += c(p, g + 1, l - 1, m + 4, k, z + S[3] + S[2] - 6));
+            A[g + 1 + (l - 1) * B] & r.WALKABLE &&
+            (h += c(q, g + 1, l - 1, C + 4, n, m + S[3] + S[2] - 6));
           9 === (v & 9) &&
-            E[g + 1 + (l + 1) * C] & r.WALKABLE &&
-            (h += c(p, g + 1, l + 1, m + 4, k, z + S[3] + S[0] - 6));
-          ta[k] = 1;
-          if (h || 2395 <= p[0]) return 0;
+            A[g + 1 + (l + 1) * B] & r.WALKABLE &&
+            (h += c(q, g + 1, l + 1, C + 4, n, m + S[3] + S[0] - 6));
+          ta[n] = 1;
+          if (h || 2395 <= q[0]) return 0;
         }
         f = 0;
-        for (t = k; 2e3 > f && t !== ((a + 512 * d) & 262143); t = ea[t], f++);
-        t = k;
-        for (a = f - 1; 0 <= a; t = ea[t], a--)
-          ((e[2 * (a + 1) + 0] = T[t]), (e[2 * (a + 1) + 1] = da[t]));
+        for (p = n; 2e3 > f && p !== ((a + 512 * d) & 262143); p = ea[p], f++);
+        p = n;
+        for (a = f - 1; 0 <= a; p = ea[p], a--)
+          ((e[2 * (a + 1) + 0] = T[p]), (e[2 * (a + 1) + 1] = da[p]));
         return f + 1;
       }
       function f(a, b) {
@@ -435,24 +435,24 @@ define("Utils/PathFinding", [], function () {
         return !1;
       }
       a = a.data;
-      var n = a.x,
+      var k = a.x,
         e = a.y,
-        p = a.type,
+        q = a.type,
         g = a.sx,
         l = a.sy,
-        k = a.warps,
-        u = a.curMap,
-        h = a.nextMap,
-        v = [],
+        p = a.warps,
+        n = a.curMap,
+        u = a.nextMap,
+        h = [],
         m = 0,
-        r = (v = 0),
-        q = 0,
+        r = (h = 0),
+        t = 0,
         G = [],
-        K = {},
-        N = { width: a.width, height: a.height, cells: a.cells, type: a.types },
+        L = {},
+        M = { width: a.width, height: a.height, cells: a.cells, type: a.types },
         Q = new Uint32Array(2400),
-        W = new Uint32Array(2400),
-        V = new Uint16Array(262144),
+        V = new Uint32Array(2400),
+        W = new Uint16Array(262144),
         ba = new Uint8Array(262144),
         S = new Uint8Array(4),
         T = new Uint16Array(262144),
@@ -461,108 +461,108 @@ define("Utils/PathFinding", [], function () {
         fa = new Uint16Array(262144),
         ea = new Uint32Array(262144),
         ta = new Uint8Array(262144),
-        pa = [];
+        oa = [];
       do {
-        var la = a.x + r,
-          q = a.y + q,
-          m = d(g | 0, l | 0, la | 0, q | 0, pa);
+        var ka = a.x + r,
+          t = a.y + t,
+          m = d(g | 0, l | 0, ka | 0, t | 0, oa);
         if (0 < m) {
-          K = { map: a.map, x: la, y: q };
+          L = { map: a.map, x: ka, y: t };
           break;
         }
         r =
           Math.floor(3 * Math.random()) *
           (0 == Math.floor(Math.random()) % 2 ? -1 : 1);
-        q =
+        t =
           Math.floor(3 * Math.random()) *
           (0 == Math.floor(Math.random()) % 2 ? -1 : 1);
-        v += 1;
-      } while (5 > v && 0 == m);
-      if (0 < m) (G.push(K), self.postMessage(G));
+        h += 1;
+      } while (5 > h && 0 == m);
+      if (0 < m) (G.push(L), self.postMessage(G));
       else {
-        K = [];
-        m = JSON.parse(JSON.stringify(k));
-        q = 0;
+        L = [];
+        m = JSON.parse(JSON.stringify(p));
+        t = 0;
         do
-          if (((q += 1), (v = m.shift()), 0 < v.length))
-            for (v.push(q), K.push(v), k = 0; k < m.length; k++)
-              if (0 < m[k].length) {
-                var la = d(v[0] | 0, v[1] | 0, m[k][3] | 0, m[k][4] | 0, 0, pa),
-                  ga = d(v[3] | 0, v[4] | 0, m[k][0] | 0, m[k][1] | 0, 0, pa);
-                if (la && ga) {
-                  m[k].push(q);
-                  K.push(m[k]);
-                  m[k] = [];
+          if (((t += 1), (h = m.shift()), 0 < h.length))
+            for (h.push(t), L.push(h), p = 0; p < m.length; p++)
+              if (0 < m[p].length) {
+                var ka = d(h[0] | 0, h[1] | 0, m[p][3] | 0, m[p][4] | 0, 0, oa),
+                  ga = d(h[3] | 0, h[4] | 0, m[p][0] | 0, m[p][1] | 0, 0, oa);
+                if (ka && ga) {
+                  m[p].push(t);
+                  L.push(m[p]);
+                  m[p] = [];
                   break;
                 }
               }
         while (0 != m.length);
-        for (var ka = [], la = -1, v = [], ga = [], k = 0; k < K.length; k++)
-          if (0 < K[k].length) {
-            v = m = q = r = 0;
+        for (var la = [], ka = -1, h = [], ga = [], p = 0; p < L.length; p++)
+          if (0 < L[p].length) {
+            h = m = t = r = 0;
             do
               ((m = g + r),
-                (q = l + q),
-                (m = d(m | 0, q | 0, K[k][0] | 0, K[k][1] | 0, pa)),
+                (t = l + t),
+                (m = d(m | 0, t | 0, L[p][0] | 0, L[p][1] | 0, oa)),
                 (r =
                   Math.floor(3 * Math.random()) *
                   (0 == Math.floor(Math.random()) % 2 ? -1 : 1)),
-                (q =
+                (t =
                   Math.floor(3 * Math.random()) *
                   (0 == Math.floor(Math.random()) % 2 ? -1 : 1)),
-                (v += 1));
-            while (5 > v && 0 == m);
-            0 < m && ((v = K[k]), ga.push(v));
+                (h += 1));
+            while (5 > h && 0 == m);
+            0 < m && ((h = L[p]), ga.push(h));
           }
         if (0 < ga.length) {
           do
-            if (((g = ga.shift()), 0 < g.length && (g[2] == h || g[2] == u)))
-              for (ka.push(g), _sx = g[3], _sy = g[4], k = 0; k < K.length; k++)
+            if (((g = ga.shift()), 0 < g.length && (g[2] == u || g[2] == n)))
+              for (la.push(g), _sx = g[3], _sy = g[4], p = 0; p < L.length; p++)
                 if (
-                  ((v = m = q = r = 0),
-                  0 < K[k].length && (K[k][2] == h || K[k][2] == u))
+                  ((h = m = t = r = 0),
+                  0 < L[p].length && (L[p][2] == u || L[p][2] == n))
                 )
-                  if (f(K[k], ka)) K[k] = [];
+                  if (f(L[p], la)) L[p] = [];
                   else {
                     do
                       ((m = _sx + r),
-                        (q = _sy + q),
-                        (m = d(m | 0, q | 0, K[k][0] | 0, K[k][1] | 0, pa)),
+                        (t = _sy + t),
+                        (m = d(m | 0, t | 0, L[p][0] | 0, L[p][1] | 0, oa)),
                         (r =
                           Math.floor(3 * Math.random()) *
                           (0 == Math.floor(Math.random()) % 2 ? -1 : 1)),
-                        (q =
+                        (t =
                           Math.floor(3 * Math.random()) *
                           (0 == Math.floor(Math.random()) % 2 ? -1 : 1)),
-                        (v += 1));
-                    while (5 > v && 0 == m);
-                    0 < m && ((v = K[k]), (v[6] = g), ga.push(v), (K[k] = []));
+                        (h += 1));
+                    while (5 > h && 0 == m);
+                    0 < m && ((h = L[p]), (h[6] = g), ga.push(h), (L[p] = []));
                   }
           while (0 != ga.length);
         }
-        for (k = 0; k < ka.length; k++)
-          if (1 == p) {
+        for (p = 0; p < la.length; p++)
+          if (1 == q) {
             if (
-              ((pa = []),
-              (m = d(n | 0, e | 0, ka[k][3] | 0, ka[k][4] | 0, pa)),
+              ((oa = []),
+              (m = d(k | 0, e | 0, la[p][3] | 0, la[p][4] | 0, oa)),
               0 < m)
             ) {
-              la = k;
+              ka = p;
               break;
             }
-          } else if (ka[k][2] == h) {
-            la = k;
+          } else if (la[p][2] == u) {
+            ka = p;
             break;
           }
-        if (0 <= la) {
-          n = ka[la];
-          do (G.unshift({ map: n[2], x: n[0], y: n[1] }), (n = n[6]));
-          while (n);
+        if (0 <= ka) {
+          k = la[ka];
+          do (G.unshift({ map: k[2], x: k[0], y: k[1] }), (k = k[6]));
+          while (k);
           0 < G.length &&
-            (1 == p && G.push({ map: a.map, x: a.x, y: a.y }),
+            (1 == q && G.push({ map: a.map, x: a.x, y: a.y }),
             self.postMessage(G));
         }
-        0 == ga.length && 0 > la && self.postMessage([]);
+        0 == ga.length && 0 > ka && self.postMessage([]);
       }
     },
   };

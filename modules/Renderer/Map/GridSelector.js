@@ -7,7 +7,7 @@ define("Renderer/Map/GridSelector", [
   var e = null,
     m = null,
     h = null,
-    q = null,
+    t = null,
     r = new Float32Array([
       0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1,
     ]);
@@ -46,10 +46,10 @@ define("Renderer/Map/GridSelector", [
       h && (a.deleteTexture(h), (h = null));
       e && (a.deleteProgram(e), (e = null));
     },
-    render: function (b, c, d, l, f, n) {
+    render: function (b, c, d, l, f, k) {
       if (h) {
         var g = e.uniform,
-          k = e.attribute;
+          p = e.attribute;
         b.useProgram(e);
         b.uniformMatrix4fv(g.uModelViewMat, !1, c);
         b.uniformMatrix4fv(g.uProjectionMat, !1, d);
@@ -57,20 +57,20 @@ define("Renderer/Map/GridSelector", [
         b.uniform1f(g.uFogNear, l.near);
         b.uniform1f(g.uFogFar, l.far);
         b.uniform3fv(g.uFogColor, l.color);
-        b.enableVertexAttribArray(k.aPosition);
-        b.enableVertexAttribArray(k.aTextCoord);
+        b.enableVertexAttribArray(p.aPosition);
+        b.enableVertexAttribArray(p.aTextCoord);
         b.bindBuffer(b.ARRAY_BUFFER, m);
-        b.vertexAttribPointer(k.aPosition, 3, b.FLOAT, !1, 20, 0);
-        b.vertexAttribPointer(k.aTextCoord, 2, b.FLOAT, !1, 20, 12);
+        b.vertexAttribPointer(p.aPosition, 3, b.FLOAT, !1, 20, 0);
+        b.vertexAttribPointer(p.aTextCoord, 2, b.FLOAT, !1, 20, 12);
         b.activeTexture(b.TEXTURE0);
         b.uniform1i(g.uDiffuse, 0);
-        q !== f + "" + n &&
-          ((q = f + "" + n),
-          (c = a.getCell(f, n)),
+        t !== f + "" + k &&
+          ((t = f + "" + k),
+          (c = a.getCell(f, k)),
           (r[0] = r[10] = f + 0),
-          (r[2] = r[7] = n + 0),
+          (r[2] = r[7] = k + 0),
           (r[5] = r[15] = f + 1),
-          (r[12] = r[17] = n + 1),
+          (r[12] = r[17] = k + 1),
           (r[1] = c[0]),
           (r[6] = c[1]),
           (r[11] = c[2]),
@@ -78,8 +78,8 @@ define("Renderer/Map/GridSelector", [
           b.bufferData(b.ARRAY_BUFFER, r, b.STREAM_DRAW));
         b.bindTexture(b.TEXTURE_2D, h);
         b.drawArrays(b.TRIANGLE_STRIP, 0, 4);
-        b.disableVertexAttribArray(k.aPosition);
-        b.disableVertexAttribArray(k.aTextCoord);
+        b.disableVertexAttribArray(p.aPosition);
+        b.disableVertexAttribArray(p.aTextCoord);
       }
     },
   };

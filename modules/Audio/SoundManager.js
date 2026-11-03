@@ -6,27 +6,27 @@ define("Audio/SoundManager", [
   "Engine/SessionStorage",
 ], function (a, b, c, d, e) {
   function m() {
-    if (k[this.filename]) {
-      var a = k[this.filename].instances.indexOf(this);
+    if (n[this.filename]) {
+      var a = n[this.filename].instances.indexOf(this);
       -1 !== a &&
-        (k[this.filename].instances.splice(a, 1),
-        0 == k[this.filename].instances.length && delete k[this.filename]);
-      q(this);
+        (n[this.filename].instances.splice(a, 1),
+        0 == n[this.filename].instances.length && delete n[this.filename]);
+      t(this);
     }
   }
   function h() {
-    var a = k[this.filename].instances.indexOf(this);
+    var a = n[this.filename].instances.indexOf(this);
     -1 !== a &&
-      (k[this.filename].instances.splice(a, 1),
-      0 == k[this.filename].instances.length && delete k[this.filename]);
+      (n[this.filename].instances.splice(a, 1),
+      0 == n[this.filename].instances.length && delete n[this.filename]);
     this.remove();
-    u--;
+    p--;
   }
-  function q(a) {
+  function t(a) {
     a.filename &&
       (a.filename in g ||
         ((g[a.filename] = {}), (g[a.filename].instances = [])),
-      g[a.filename].instances.length < Math.ceil(30 * (1 - u / 800))
+      g[a.filename].instances.length < Math.ceil(30 * (1 - p / 800))
         ? ((a.currentTime = 0),
           (a.cleanupHandle = setTimeout(function () {
             if (
@@ -36,11 +36,11 @@ define("Audio/SoundManager", [
             ) {
               var b = g[a.filename].instances.indexOf(a);
               -1 !== b &&
-                (g[a.filename].instances.splice(b, 1), a.remove(), u--);
+                (g[a.filename].instances.splice(b, 1), a.remove(), p--);
             }
           }, 3e4)),
           g[a.filename].instances.push(a))
-        : (a.remove(), u--));
+        : (a.remove(), p--));
   }
   function r(a) {
     var b = null;
@@ -50,9 +50,9 @@ define("Audio/SoundManager", [
       b.cleanupHandle && clearTimeout(b.cleanupHandle));
     return b;
   }
-  var k = {},
+  var n = {},
     g = {},
-    u = 0,
+    p = 0,
     l = {};
   l.volume = b.Sound.volume;
   l.play = function (c, d) {
@@ -60,20 +60,20 @@ define("Audio/SoundManager", [
     f = d ? d * this.volume : this.volume;
     0 >= f ||
       !b.Sound.play ||
-      (c in k || ((k[c] = {}), (k[c].instances = []), (k[c].lastTick = 0)),
+      (c in n || ((n[c] = {}), (n[c].instances = []), (n[c].lastTick = 0)),
       (d = r(c))
         ? ((d.volume = Math.min(f, 1)),
           (d._volume = f),
           d.play(),
-          k[c].instances.push(d),
-          (k[c].lastTick = Date.now()))
+          n[c].instances.push(d),
+          (n[c].lastTick = Date.now()))
         : a.loadFile("data/wav/" + c, function (a) {
             var b;
-            (c in k &&
-              (k[c].lastTick > Date.now() - 100 ||
-                k[c].instances.length > Math.ceil(10 * (1 - u / 800)))) ||
+            (c in n &&
+              (n[c].lastTick > Date.now() - 100 ||
+                n[c].instances.length > Math.ceil(10 * (1 - p / 800)))) ||
               ((b = document.createElement("audio")),
-              u++,
+              p++,
               (b.filename = c),
               (b.src = a),
               (b.volume = Math.min(f, 1)),
@@ -81,8 +81,8 @@ define("Audio/SoundManager", [
               b.addEventListener("error", h, !1),
               b.addEventListener("ended", m, !1),
               b.play(),
-              k[c].instances.push(b),
-              (k[c].lastTick = Date.now()));
+              n[c].instances.push(b),
+              (n[c].lastTick = Date.now()));
           }));
   };
   l.playPosition = function (a, b) {
@@ -92,21 +92,21 @@ define("Audio/SoundManager", [
   l.stop = function (a) {
     var b, d;
     if (a) {
-      if (a in k) {
-        for (; 0 < k[a].instances.length;)
-          ((b = k[a].instances.shift()), b.pause(), b.remove(), u--);
-        delete k[a];
+      if (a in n) {
+        for (; 0 < n[a].instances.length;)
+          ((b = n[a].instances.shift()), b.pause(), b.remove(), p--);
+        delete n[a];
       }
     } else
       for (
-        Object.keys(k).forEach(function (a) {
-          for (; 0 < k[a].instances.length;) {
-            var b = k[a].instances.shift();
+        Object.keys(n).forEach(function (a) {
+          for (; 0 < n[a].instances.length;) {
+            var b = n[a].instances.shift();
             b.pause();
             b.remove();
-            u--;
+            p--;
           }
-          delete k[a];
+          delete n[a];
         }),
           d = c.search(/\.wav$/),
           a = 0,
@@ -120,8 +120,8 @@ define("Audio/SoundManager", [
     this.volume = Math.min(a, 1);
     b.Sound.volume = this.volume;
     b.save();
-    Object.keys(k).forEach(function (a) {
-      k[a].instances.forEach(function (a) {
+    Object.keys(n).forEach(function (a) {
+      n[a].instances.forEach(function (a) {
         a.volume = Math.min(a._volume, 1);
       });
     });

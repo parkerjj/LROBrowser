@@ -25,11 +25,11 @@ define(
     var e = a("Engine/SessionStorage"),
       m = a("./Entity/Entity"),
       h = a("./SpriteRenderer"),
-      q = a("Controls/MouseEventHandler"),
+      t = a("Controls/MouseEventHandler"),
       r = a("Controls/KeyEventHandler"),
-      k = a("Preferences/Map"),
+      n = a("Preferences/Map"),
       g = [],
-      u = null,
+      p = null,
       l = !1,
       f = null;
     a = {
@@ -59,14 +59,14 @@ define(
         for (b = 0; b < c && !1 !== a(g[b]); ++b);
       },
       getOverEntity: function () {
-        return u;
+        return p;
       },
       setOverEntity: function (a) {
-        var b = u;
+        var b = p;
         if (a !== b || l !== r.SHIFT) {
           l = r.SHIFT;
           if (b) b.onMouseOut();
-          a ? ((u = a), a.onMouseOver()) : (u = null);
+          a ? ((p = a), a.onMouseOver()) : (p = null);
         }
       },
       getFocusEntity: function () {
@@ -80,7 +80,7 @@ define(
           l = Date.now();
         if (g.length) {
           g.sort(c);
-          h.bind3DContext(a, b, d, e, k.lightmap);
+          h.bind3DContext(a, b, d, e, n.lightmap);
           e = 0;
           for (f = g.length; e < f; ++e)
             g[e].remove_tick && g[e].remove_tick + g[e].remove_delay < l
@@ -93,8 +93,8 @@ define(
         var a, b, c;
         if (g.length) {
           g.sort(d);
-          var e = q.screen.x,
-            f = q.screen.y;
+          var e = t.screen.x,
+            f = t.screen.y;
           a = 0;
           for (b = g.length; a < b; ++a)
             if (

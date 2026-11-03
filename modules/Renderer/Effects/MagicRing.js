@@ -4,19 +4,19 @@ define("Renderer/Effects/MagicRing", [
   "Utils/gl-matrix",
   "Core/Client",
 ], function (a, b, c, d) {
-  function e(a, b, c, d, e, k) {
+  function e(a, b, c, d, e, h) {
     this.target = a;
     this.topSize = b;
     this.bottomSize = c;
     this.textureName = e;
     this.height = d;
-    this.endTick = k;
+    this.endTick = h;
   }
   var m,
     h,
-    q = c.mat4,
-    r = q.create(),
-    k = 0;
+    t = c.mat4,
+    r = t.create(),
+    n = 0;
   e.prototype.init = function (b) {
     var c = this;
     d.loadFile(
@@ -45,7 +45,7 @@ define("Renderer/Effects/MagicRing", [
     a.uniform1f(c.uBottomSize, this.bottomSize);
     a.uniform1f(c.uTopSize, this.topSize);
     a.uniform1f(c.uHeight, this.height);
-    a.drawArrays(a.TRIANGLES, 0, k);
+    a.drawArrays(a.TRIANGLES, 0, n);
     this.needCleanUp = this.endTick < b;
     this.target.cast.display || (this.needCleanUp = !0);
   };
@@ -54,7 +54,7 @@ define("Renderer/Effects/MagicRing", [
       d,
       e,
       g = [],
-      p = [],
+      q = [],
       r = [];
     for (c = 0; 20 >= c; c++)
       ((d = (c + 0) / 20),
@@ -66,7 +66,7 @@ define("Renderer/Effects/MagicRing", [
           d,
           1,
         ]),
-        (p[c] = [
+        (q[c] = [
           Math.sin(e * Math.PI * 2),
           Math.cos(e * Math.PI * 2),
           1,
@@ -75,13 +75,13 @@ define("Renderer/Effects/MagicRing", [
         ]));
     for (c = 0; 20 >= c; c++)
       (r.push.apply(r, g[c + 0]),
-        r.push.apply(r, p[c + 0]),
+        r.push.apply(r, q[c + 0]),
         r.push.apply(r, g[c + 1]),
-        r.push.apply(r, p[c + 0]),
+        r.push.apply(r, q[c + 0]),
         r.push.apply(r, g[c + 1]),
-        r.push.apply(r, p[c + 1]));
+        r.push.apply(r, q[c + 1]));
     c = new Float32Array(r);
-    k = c.length / 5;
+    n = c.length / 5;
     m = a.createShaderProgram(
       b,
       "\n\t\t#version 100\n\t\t#pragma vscode_glsllint_stage : vert\n\t\tprecision highp float;\n\n\t\tattribute vec3 aPosition;\n\t\tattribute vec2 aTextureCoord;\n\n\t\tvarying vec2 vTextureCoord;\n\n\t\tuniform mat4 uModelViewMat;\n\t\tuniform mat4 uProjectionMat;\n\t\tuniform mat4 uRotationMat;\n\n\t\tuniform vec3 uPosition;\n\t\tuniform float uTopSize;\n\t\tuniform float uBottomSize;\n\t\tuniform float uHeight;\n\n\t\tvoid main(void) {\n\t\t\tfloat size, height;\n\n\t\t\tif (aPosition.z \x3d\x3d 1.0) {\n\t\t\t\tsize   \x3d uTopSize;\n\t\t\t\theight \x3d uHeight;\n\t\t\t}\n\t\t\telse {\n\t\t\t\tsize   \x3d uBottomSize;\n\t\t\t\theight \x3d 0.0;\n\t\t\t}\n\n\t\t\tvec4 position  \x3d vec4(uPosition.x + 0.5, -uPosition.z - height, uPosition.y + 0.5, 1.0);\n\t\t\tposition      +\x3d vec4(aPosition.x * size, 0.0, aPosition.y * size, 0.0) * uRotationMat;\n\n\t\t\tgl_Position    \x3d uProjectionMat * uModelViewMat * position;\n\t\t\tvTextureCoord  \x3d aTextureCoord;\n\t\t}\n\t",
@@ -100,8 +100,8 @@ define("Renderer/Effects/MagicRing", [
   };
   e.beforeRender = function (a, b, c, d, e) {
     var f = m.uniform;
-    q.identity(r);
-    q.rotateY(r, r, (e / 4 / 180) * Math.PI);
+    t.identity(r);
+    t.rotateY(r, r, (e / 4 / 180) * Math.PI);
     a.useProgram(m);
     a.uniformMatrix4fv(f.uModelViewMat, !1, b);
     a.uniformMatrix4fv(f.uProjectionMat, !1, c);

@@ -14,14 +14,14 @@ define(
       e = a("./CursorManager"),
       m = a("DB/DBManager"),
       h = a("Core/Client"),
-      q = a("Core/Events"),
+      t = a("Core/Events"),
       r = a("Controls/MouseEventHandler"),
-      k = d("style:first");
-    k.length ||
-      (k = d('\x3cstyle type\x3d"text/css"\x3e\x3c/style\x3e').appendTo(
+      n = d("style:first");
+    n.length ||
+      (n = d('\x3cstyle type\x3d"text/css"\x3e\x3c/style\x3e').appendTo(
         "head",
       ));
-    k.append(c);
+    n.append(c);
     b.MouseMode = { CROSS: 0, STOP: 1, FREEZE: 2 };
     b.prototype.mouseMode = b.MouseMode.STOP;
     b.prototype.__loaded = !1;
@@ -32,8 +32,8 @@ define(
         this._htmlText &&
           ((this.ui = d(this._htmlText)), this.ui.css("zIndex", 50));
         this._cssText &&
-          (-1 === k.text().indexOf("\n\n/** " + this.name + " **/\n") &&
-            k.append("\n\n/** " + this.name + " **/\n" + this._cssText),
+          (-1 === n.text().indexOf("\n\n/** " + this.name + " **/\n") &&
+            n.append("\n\n/** " + this.name + " **/\n" + this._cssText),
           d("body").append(this.ui));
         this._htmlText &&
           this.ui.each(this.parseHTML).find("*").each(this.parseHTML);
@@ -100,7 +100,7 @@ define(
         this.focus();
       } else
         (this.prepare(),
-          q.setTimeout(
+          t.setTimeout(
             function () {
               this.__active && this.append();
             }.bind(this),
@@ -114,21 +114,21 @@ define(
           c,
           d = [],
           e,
-          k;
+          q;
         for (b in a)
           this !== a[b] &&
             a[b].__active &&
             a[b].needFocus &&
             ((c = parseInt(a[b].ui.css("zIndex"), 10)), (d[c - 50] = c));
-        k = c = 0;
-        for (e = d.length; c < e; ++c) d[c] ? (d[c] -= k) : k++;
+        q = c = 0;
+        for (e = d.length; c < e; ++c) d[c] ? (d[c] -= q) : q++;
         for (b in a)
           this !== a[b] &&
             a[b].__active &&
             a[b].needFocus &&
             ((c = parseInt(a[b].ui.css("zIndex"), 10)),
             a[b].ui.css("zIndex", d[c - 50]));
-        this.ui.css("zIndex", d.length + 50 - k);
+        this.ui.css("zIndex", d.length + 50 - q);
       }
     };
     b.prototype.clone = function (a, c) {
@@ -136,8 +136,8 @@ define(
       if (c) {
         c = Object.keys(this);
         var d,
-          e = c.length;
-        for (d = 0; d < e; ++d) a[c[d]] = this[c[d]];
+          f = c.length;
+        for (d = 0; d < f; ++d) a[c[d]] = this[c[d]];
       }
       return a;
     };
@@ -167,25 +167,25 @@ define(
           10 > Math.abs(a) && (a = 0);
           10 > Math.abs(d) && (d = 0);
           10 > Math.abs(a + l - r.screen.width) && (a = r.screen.width - l);
-          10 > Math.abs(d + k - r.screen.height) && (d = r.screen.height - k);
+          10 > Math.abs(d + p - r.screen.height) && (d = r.screen.height - p);
           b.css({ top: d, left: a, opacity: Math.max(f, 0.7) });
-          h = q.setTimeout(c, 15);
+          h = t.setTimeout(c, 15);
         }
         if ("touchstart" === a.type)
           ((r.screen.x = a.originalEvent.touches[0].pageX),
             (r.screen.y = a.originalEvent.touches[0].pageY));
         else if (1 !== a.which) return;
-        var e, g, l, k, h;
+        var e, g, l, p, h;
         e = b.position().left - r.screen.x;
         g = b.position().top - r.screen.y;
         l = b.width();
-        k = b.height();
+        p = b.height();
         b.stop();
-        h = q.setTimeout(c, 15);
+        h = t.setTimeout(c, 15);
         d(window).on("mouseup.dragdrop touchend.dragdrop", function (a) {
           if ("touchend" === a.type || 1 === a.which || a.isTrigger)
             (b.stop().animate({ opacity: 1 }, 500),
-              q.clearTimeout(h),
+              t.clearTimeout(h),
               d(window).off("mouseup.dragdrop touchend.dragdrop"));
         });
       });
@@ -198,21 +198,21 @@ define(
         function c() {
           var a = b74.zoom / 100,
             f = b73.screen.x + d,
-            n = e - b73.screen.y,
-            p = parseFloat(b.css("opacity") || 1) - 0.02;
+            k = e - b73.screen.y,
+            q = parseFloat(b.css("opacity") || 1) - 0.02;
           10 > Math.abs(f) && (f = 0);
-          10 > Math.abs(n) && (n = 0);
+          10 > Math.abs(k) && (k = 0);
           10 > Math.abs(f + g - b73.screen.width) && (f = b73.screen.width - g);
-          10 > Math.abs(n + l * a - b73.screen.height) &&
-            (n = b73.screen.height - l * a);
-          b.css({ bottom: n, left: f, opacity: Math.max(p, 0.7) });
-          k = b72.setTimeout(c, 15);
+          10 > Math.abs(k + l * a - b73.screen.height) &&
+            (k = b73.screen.height - l * a);
+          b.css({ bottom: k, left: f, opacity: Math.max(q, 0.7) });
+          p = b72.setTimeout(c, 15);
         }
         if ("touchstart" === a.type)
           ((b73.screen.x = a.originalEvent.touches[0].pageX),
             (b73.screen.y = a.originalEvent.touches[0].pageY));
         else if (1 !== a.which) return;
-        var d, e, g, l, k;
+        var d, e, g, l, p;
         a = b74.zoom / 100;
         d = b.position().left - b73.screen.x;
         e =
@@ -223,11 +223,11 @@ define(
         g = b.width();
         l = b.height();
         b.stop();
-        k = b72.setTimeout(c, 15);
+        p = b72.setTimeout(c, 15);
         b6Y(window).on("mouseup.dragdrop touchend.dragdrop", function (a) {
           if ("touchend" === a.type || 1 === a.which || a.isTrigger)
             (b.stop().animate({ opacity: 1 }, 500),
-              b72.clearTimeout(k),
+              b72.clearTimeout(p),
               b6Y(window).off("mouseup.dragdrop touchend.dragdrop"));
         });
       });
@@ -252,39 +252,39 @@ define(
         b = a.data("background"),
         c = a.data("preload"),
         e = a.data("hover"),
-        n = a.data("down"),
-        k = a.data("text"),
-        v = null,
-        t = null;
-      k && m.getMessage(k, "") && a.text(m.getMessage(k, ""));
+        k = a.data("down"),
+        q = a.data("text"),
+        n = null,
+        v = null;
+      q && m.getMessage(q, "") && a.text(m.getMessage(q, ""));
       b &&
         h.loadFile(m.INTERFACE_PATH + b, function (b) {
-          v = b;
-          a.css("backgroundImage", "url(" + v + ")");
+          n = b;
+          a.css("backgroundImage", "url(" + n + ")");
         });
       e &&
         h.loadFile(m.INTERFACE_PATH + e, function (b) {
-          t = b;
+          v = b;
           a.mouseover(function () {
-            this.style.backgroundImage = "url(" + t + ")";
-          });
-          a.mouseout(function () {
             this.style.backgroundImage = "url(" + v + ")";
           });
+          a.mouseout(function () {
+            this.style.backgroundImage = "url(" + n + ")";
+          });
         });
-      n &&
-        (h.loadFile(m.INTERFACE_PATH + n, function (b) {
+      k &&
+        (h.loadFile(m.INTERFACE_PATH + k, function (b) {
           a.mousedown(function (a) {
             this.style.backgroundImage = "url(" + b + ")";
             a.stopImmediatePropagation();
           });
           a.mouseup(function () {
-            this.style.backgroundImage = "url(" + (t || v) + ")";
+            this.style.backgroundImage = "url(" + (v || n) + ")";
           });
         }),
         e ||
           a.mouseout(function () {
-            this.style.backgroundImage = "url(" + v + ")";
+            this.style.backgroundImage = "url(" + n + ")";
           }));
       if (c) {
         b = c.split(";");

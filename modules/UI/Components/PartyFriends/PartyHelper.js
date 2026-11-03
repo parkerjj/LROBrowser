@@ -97,13 +97,13 @@ define("UI/Components/PartyFriends/PartyHelper", [
         ((h = this.ui.find("." + c[d]).find(".off")),
         a[c[d]] == h.data("value"))
       ) {
-        var f, n;
+        var f, k;
         f = h.parent().find(".on");
         f.addClass("off").removeClass("on");
         h.addClass("on").removeClass("off");
-        n = f.css("background-image");
+        k = f.css("background-image");
         f.css("background-image", h.css("background-image"));
-        h.css("background-image", n);
+        h.css("background-image", k);
       }
     b
       ? this.ui.find(".content").removeClass("disabled")

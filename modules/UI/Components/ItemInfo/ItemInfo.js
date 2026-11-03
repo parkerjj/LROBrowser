@@ -36,17 +36,17 @@ define(
       e = a("DB/Items/Randomoption"),
       m = a("DB/Items/ItemType"),
       h = a("Core/Client"),
-      q = a("Core/Configs"),
+      t = a("Core/Configs"),
       r = a("Controls/KeyEventHandler"),
-      k = a("UI/Components/CardIllustration/CardIllustration"),
+      n = a("UI/Components/CardIllustration/CardIllustration"),
       g = a("UI/UIManager"),
-      u = a("UI/UIComponent"),
+      p = a("UI/UIComponent"),
       l = a("text!./ItemInfo.html");
     a = a("text!./ItemInfo.css");
-    var f = new u("ItemInfo", l, a);
+    var f = new p("ItemInfo", l, a);
     f.uid = -1;
     f.index = -1;
-    var n = q.get("ClientVer");
+    var k = t.get("ClientVer");
     f.onKeyDown = function (a) {
       return a.which === r.ESCAPE
         ? (f.remove(), a.stopImmediatePropagation(), !1)
@@ -70,8 +70,8 @@ define(
         .click(this.remove.bind(this));
       this.ui.find(".view").click(
         function () {
-          k.append();
-          k.setCard(this.item);
+          n.append();
+          n.setCard(this.item);
         }.bind(this),
       );
       this.draggable(this.ui.find(".title"));
@@ -80,7 +80,7 @@ define(
       var c = d.getItemInfo(a.ITID),
         f = this.ui,
         g = f.find(".cardlist .border"),
-        k = f.find(".effectlist");
+        l = f.find(".effectlist");
       this.item = c;
       h.loadFile(
         d.INTERFACE_PATH +
@@ -109,7 +109,7 @@ define(
           .append(
             '[\x3cspan style\x3d"color:red"\x3e\u5df2\u635f\u574f\x3c/span\x3e]',
           );
-      5 != n ||
+      5 != k ||
         (4 != a.type && 5 != a.type) ||
         (0 < a.bindOnEquipType
           ? f
@@ -136,22 +136,22 @@ define(
               "\x3c/span\x3e\x3cbr\x3e",
           );
       if (a.HireExpireDate) {
-        var l, p, r, q;
-        l = new Date(1e3 * a.HireExpireDate);
-        l.getFullYear();
+        var n, p, q, r;
+        n = new Date(1e3 * a.HireExpireDate);
+        n.getFullYear();
         p =
-          (10 > l.getMonth() + 1
-            ? "0" + (l.getMonth() + 1)
-            : l.getMonth() + 1) + "\u6708 ";
-        r = l.getDate() + "\u65e5 ";
-        q = l.getHours() + "\u65f6";
-        l.getMinutes();
-        l.getSeconds();
+          (10 > n.getMonth() + 1
+            ? "0" + (n.getMonth() + 1)
+            : n.getMonth() + 1) + "\u6708 ";
+        q = n.getDate() + "\u65e5 ";
+        r = n.getHours() + "\u65f6";
+        n.getMinutes();
+        n.getSeconds();
         f.find(".description").prepend(
           '\x3cp style\x3d"color:red;margin:0;"\x3e\u6d88\u5931\u65f6\u95f4\uff1a' +
             p +
-            r +
             q +
+            r +
             "\x3c/p\x3e",
         );
       }
@@ -159,29 +159,29 @@ define(
       switch (a.type) {
         default:
           g.parent().hide();
-          k.hide();
+          l.hide();
           break;
         case m.WEAPON:
         case m.EQUIP:
         case m.FASHION:
           if (!a.IsIdentified) {
             g.parent().hide();
-            k.hide();
+            l.hide();
             return;
           }
-          l = c.slotCount || 0;
+          n = c.slotCount || 0;
           g.parent().show();
           g.empty();
           for (c = 0; 4 > c; ++c)
-            b(g, (a.slot && a.slot["card" + (c + 1)]) || 0, c, l);
+            b(g, (a.slot && a.slot["card" + (c + 1)]) || 0, c, n);
           a.slot && 255 == a.slot.card1 && g.parent().hide();
       }
       g = 0;
       if (a.options) for (c = 0; 5 > c; c++) a.options["Index" + c] && g++;
       if (0 < g)
-        for (k.show(), k.empty(), c = 0; 5 > c; c++)
+        for (l.show(), l.empty(), c = 0; 5 > c; c++)
           a.options["Index" + c] &&
-            k.append(
+            l.append(
               "\x3cdiv class\x3d'border'\x3e\x3cp\x3e" +
                 e[a.options["Index" + c]].replace(
                   "%d",
@@ -189,7 +189,7 @@ define(
                 ) +
                 "\x3c/p\x3e\x3c/div\x3e",
             );
-      else (k.hide(), k.empty());
+      else (l.hide(), l.empty());
     };
     return g.addComponent(f);
   },

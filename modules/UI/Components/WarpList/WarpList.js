@@ -5,7 +5,7 @@ define(
   ),
   function (a) {
     function b() {
-      this.onSelectMenu(l, u + 1);
+      this.onSelectMenu(l, p + 1);
     }
     function c() {
       this.onSelectMenu(l, 255);
@@ -13,7 +13,7 @@ define(
     function d(a) {
       this.ui.find(".content div").removeClass("selected");
       a.addClass("selected");
-      u = parseInt(a.data("index"), 10);
+      p = parseInt(a.data("index"), 10);
     }
     function e(a) {
       var b;
@@ -25,20 +25,20 @@ define(
     }
     var m = a("Utils/jquery"),
       h = a("Controls/KeyEventHandler"),
-      q = a("Renderer/Renderer"),
+      t = a("Renderer/Renderer"),
       r = a("UI/UIManager"),
-      k = a("UI/UIComponent"),
+      n = a("UI/UIComponent"),
       g = a("text!./WarpList.html");
     a = a("text!./WarpList.css");
-    var k = new k("WarpList", g, a),
-      u = 0,
+    var n = new n("WarpList", g, a),
+      p = 0,
       l = 0;
-    k.init = function () {
+    n.init = function () {
       this.ui.find(".ok").click(b.bind(this));
       this.ui.find(".cancel").click(c.bind(this));
       this.ui.css({
-        top: Math.max(300, q.height / 2 + 60),
-        left: Math.max(q.width / 3, 20),
+        top: Math.max(300, t.height / 2 + 60),
+        left: Math.max(t.width / 3, 20),
       });
       this.draggable();
       var a = this;
@@ -54,10 +54,10 @@ define(
           return !1;
         });
     };
-    k.onRemove = function () {
+    n.onRemove = function () {
       this.ui.find(".content").empty();
     };
-    k.onKeyDown = function (a) {
+    n.onKeyDown = function (a) {
       var c, d;
       switch (a.which) {
         case h.ENTER:
@@ -68,20 +68,20 @@ define(
           break;
         case h.UP:
           this.ui.find(".content div");
-          u = Math.max(u - 1, 0);
+          p = Math.max(p - 1, 0);
           this.ui.find(".content div").removeClass("selected");
-          this.ui.find(".content div:eq(" + u + ")").addClass("selected");
+          this.ui.find(".content div:eq(" + p + ")").addClass("selected");
           d = this.ui.find(".content")[0];
-          c = 20 * u;
+          c = 20 * p;
           c < d.scrollTop && (d.scrollTop = c);
           break;
         case h.DOWN:
           c = this.ui.find(".content div").length;
-          u = Math.min(u + 1, c - 1);
+          p = Math.min(p + 1, c - 1);
           this.ui.find(".content div").removeClass("selected");
-          this.ui.find(".content div:eq(" + u + ")").addClass("selected");
+          this.ui.find(".content div:eq(" + p + ")").addClass("selected");
           d = this.ui.find(".content")[0];
-          c = 20 * u;
+          c = 20 * p;
           c >= d.scrollTop + 80 && (d.scrollTop = c - 60);
           break;
         default:
@@ -90,12 +90,12 @@ define(
       a.stopImmediatePropagation();
       return !1;
     };
-    k.setMenu = function (a, b) {
+    n.setMenu = function (a, b) {
       var c, d, e;
       c = this.ui.find(".content");
       a = a.split(":");
       l = b;
-      u = 0;
+      p = 0;
       c.empty();
       d = b = 0;
       for (e = a.length; b < e; ++b)
@@ -103,7 +103,7 @@ define(
           m("\x3cdiv/\x3e").text(a[b]).data("index", d++).appendTo(c);
       c.find("div:first").addClass("selected");
     };
-    k.onSelectMenu = function () {};
-    return r.addComponent(k);
+    n.onSelectMenu = function () {};
+    return r.addComponent(n);
   },
 );

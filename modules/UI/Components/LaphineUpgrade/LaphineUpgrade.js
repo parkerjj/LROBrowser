@@ -5,7 +5,7 @@ define(
   ),
   function (a) {
     function b(a) {
-      var b = n.ui.find(".main .right"),
+      var b = k.ui.find(".main .right"),
         c = e.getItemInfo(a.ITID),
         f = d(
           '\x3cdiv class\x3d"item" data-index\x3d"' +
@@ -32,7 +32,7 @@ define(
       b.append(f);
     }
     function c(a) {
-      var b = n.ui.find(".main .left .left_header_bottom"),
+      var b = k.ui.find(".main .left .left_header_bottom"),
         c = e.getItemInfo(a.ITID),
         f = d(
           '\x3cdiv class\x3d"item" data-index\x3d"' +
@@ -58,36 +58,36 @@ define(
       e = a("DB/DBManager"),
       m = a("Core/Client"),
       h = a("Renderer/Renderer"),
-      q = a("Network/NetworkManager"),
+      t = a("Network/NetworkManager"),
       r = a("Network/PacketStructure"),
-      k = a("UI/UIManager"),
+      n = a("UI/UIManager"),
       g = a("UI/UIComponent"),
-      u = a("UI/Components/Inventory/Inventory"),
+      p = a("UI/Components/Inventory/Inventory"),
       l = a("UI/Components/ItemInfo/ItemInfo"),
       f = a("text!./LaphineUpgrade.html");
     a = a("text!./LaphineUpgrade.css");
-    var n = new g("LaphineUpgrade", f, a),
-      p = -1,
-      v = -1,
-      t = [],
-      z = 0;
-    n.init = function () {
-      n.ui.find(".close").on("click", function () {
+    var k = new g("LaphineUpgrade", f, a),
+      q = -1,
+      u = -1,
+      v = [],
+      A = 0;
+    k.init = function () {
+      k.ui.find(".close").on("click", function () {
         var a = new r.CZ.RANDOM_UPGRADE_ITEM_UI_CLOSE();
-        q.sendPacket(a);
-        n.remove();
+        t.sendPacket(a);
+        k.remove();
       });
-      n.ui.find(".apply").on("click", function () {
-        if (-1 == p || -1 == v || 0 == z) return !1;
+      k.ui.find(".apply").on("click", function () {
+        if (-1 == q || -1 == u || 0 == A) return !1;
         var a = new r.CZ.REQ_RANDOM_UPGRADE_ITEM();
-        a.ITID = p;
-        a.index = v;
-        q.sendPacket(a);
+        a.ITID = q;
+        a.index = u;
+        t.sendPacket(a);
       });
-      n.ui.find(".left").on("contextmenu", ".item", function () {
+      k.ui.find(".left").on("contextmenu", ".item", function () {
         var a = parseInt(this.getAttribute("data-itid"), 10),
           b = parseInt(this.getAttribute("data-index"), 10);
-        (b = u.getItemByIndex(b)) || (b = { ITID: a, IsIdentified: !0 });
+        (b = p.getItemByIndex(b)) || (b = { ITID: a, IsIdentified: !0 });
         if (l.uid === b.ITID) return (l.remove(), !1);
         l.append();
         l.uid = b.ITID;
@@ -95,10 +95,10 @@ define(
         l.setItem(b);
         return !1;
       });
-      n.ui.find(".right").on("contextmenu", ".item", function () {
+      k.ui.find(".right").on("contextmenu", ".item", function () {
         var a = parseInt(this.getAttribute("data-itid"), 10),
           b = parseInt(this.getAttribute("data-index"), 10);
-        (b = u.getItemByIndex(b)) || (b = { ITID: a, IsIdentified: !0 });
+        (b = p.getItemByIndex(b)) || (b = { ITID: a, IsIdentified: !0 });
         if (l.uid === b.ITID) return (l.remove(), !1);
         l.append();
         l.uid = b.ITID;
@@ -106,60 +106,60 @@ define(
         l.setItem(b);
         return !1;
       });
-      n.ui.find(".right").on("click", ".item", function () {
+      k.ui.find(".right").on("click", ".item", function () {
         parseInt(this.getAttribute("data-itid"), 10);
         var a = parseInt(this.getAttribute("data-index"), 10),
           b;
         a: {
-          for (b = 0; b < t.length; b++)
-            if (t[b].index == a) {
-              b = t[b];
+          for (b = 0; b < v.length; b++)
+            if (v[b].index == a) {
+              b = v[b];
               break a;
             }
           b = void 0;
         }
         b &&
           (d(this).hasClass("disabled")
-            ? ((v = -1),
-              z--,
+            ? ((u = -1),
+              A--,
               d(this).removeClass("disabled").attr("disabled", !1),
               (a = b),
-              n.ui
+              k.ui
                 .find(".main .left .left_header_bottom")
                 .find('.item[data-index\x3d"' + a.index + '"]')
                 .remove())
-            : 0 == z &&
-              ((v = a),
+            : 0 == A &&
+              ((u = a),
               d(this).addClass("disabled").attr("disabled", !0),
-              z++,
+              A++,
               c(b)));
       });
       this.draggable(this.ui.find(".title"));
     };
-    n.onAppend = function () {
+    k.onAppend = function () {
       this.ui.css({
         top: 0.5 * (h.height - this.ui.height()),
         left: 0.5 * (h.width - this.ui.width()),
       });
     };
-    n.onRemove = function () {
-      t = [];
-      v = p = -1;
-      z = 0;
+    k.onRemove = function () {
+      v = [];
+      u = q = -1;
+      A = 0;
       this.ui.find(".main .right").empty();
       this.ui.find(".main .left_header_top .materialString").empty();
       this.ui.find(".main .left_header_bottom").empty();
     };
-    n.setData = function (a) {
+    k.setData = function (a) {
       var c = e.getItemInfo(a);
       this.ui.find(".title_bar .title").text(c.identifiedDiSPlayName);
-      p = a;
+      q = a;
       a = e.getLaphineUpgradeItem(a);
       if (!a) return !1;
       this.ui.find(".left .materialString").text(a.NeedSource_String);
-      if ((t = u.getItemByUpgradeLimits(a)))
-        for (a = 0; a < t.length; a++) b(t[a]);
+      if ((v = p.getItemByUpgradeLimits(a)))
+        for (a = 0; a < v.length; a++) b(v[a]);
     };
-    return k.addComponent(n);
+    return n.addComponent(k);
   },
 );

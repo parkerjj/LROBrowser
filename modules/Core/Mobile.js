@@ -32,20 +32,20 @@ define(
     }
     var m = a("Utils/jquery"),
       h = a("Core/Context"),
-      q = a("Core/Events"),
+      t = a("Core/Events"),
       r = a("Renderer/Camera"),
-      k = a("Controls/MouseEventHandler"),
+      n = a("Controls/MouseEventHandler"),
       g = a("Controls/KeyEventHandler"),
-      u = {},
+      p = {},
       l = !1,
       f,
-      n,
-      p,
+      k,
+      q,
+      u,
       v,
-      t,
-      z = -1;
-    u.init = function () {};
-    var E = (function () {
+      A = -1;
+    p.init = function () {};
+    var C = (function () {
       var a = !1;
       return function () {
         a ||
@@ -57,23 +57,23 @@ define(
     a = (function () {
       function a() {
         if (!l) {
-          z = -1;
-          if (u.onTouchStart) u.onTouchStart();
-          if (!t && u.onTouchEnd) u.onTouchEnd();
-          k.intersect = t;
+          A = -1;
+          if (p.onTouchStart) p.onTouchStart();
+          if (!v && p.onTouchEnd) p.onTouchEnd();
+          n.intersect = v;
         }
       }
       return function (d) {
-        E();
-        v = d.originalEvent.touches;
+        C();
+        u = d.originalEvent.touches;
         d.stopImmediatePropagation();
-        -1 < z && (q.clearTimeout(z), (z = -1));
-        if (1 < v.length)
-          return ((f = b(v)), (n = c(v)), (p = r.angle[1]), (l = !0), !1);
-        k.screen.x = v[0].pageX;
-        k.screen.y = v[0].pageY;
-        t = k.intersect = !0;
-        z = q.setTimeout(a, 200);
+        -1 < A && (t.clearTimeout(A), (A = -1));
+        if (1 < u.length)
+          return ((f = b(u)), (k = c(u)), (q = r.angle[1]), (l = !0), !1);
+        n.screen.x = u[0].pageX;
+        n.screen.y = u[0].pageY;
+        v = n.intersect = !0;
+        A = t.setTimeout(a, 200);
         return !1;
       };
     })();
@@ -87,24 +87,24 @@ define(
       .on("touchstart", a)
       .on("touchend", function (a) {
         if (l) ((l = !1), (g.SHIFT = !1), r.rotate(!1), r.save());
-        else if (-1 < z) t = !1;
+        else if (-1 < A) v = !1;
         else {
-          if (u.onTouchEnd) u.onTouchEnd();
-          k.intersect = !1;
+          if (p.onTouchEnd) p.onTouchEnd();
+          n.intersect = !1;
         }
       })
       .on("touchmove", function (a) {
         a.stopImmediatePropagation();
-        var h = a.originalEvent.touches;
-        k.screen.x = h[0].pageX;
-        k.screen.y = h[0].pageY;
+        var p = a.originalEvent.touches;
+        n.screen.x = p[0].pageX;
+        n.screen.y = p[0].pageY;
         if (l) {
-          a = b(h) - f;
-          var u = c(h) - n + p,
-            t = Math.abs(d(v, h)),
-            h = Math.abs(e(v, h));
-          !r.action.active && (10 < t || 10 < h)
-            ? ((g.SHIFT = h > t), r.rotate(!0))
+          a = b(p) - f;
+          var h = c(p) - k + q,
+            m = Math.abs(d(u, p)),
+            p = Math.abs(e(u, p));
+          !r.action.active && (10 < m || 10 < p)
+            ? ((g.SHIFT = p > m), r.rotate(!0))
             : (10 < Math.abs(a) &&
                 ((r.zoomFinal += 0.1 * a),
                 (r.zoomFinal = Math.min(
@@ -112,9 +112,9 @@ define(
                   Math.abs(r.altitudeTo - r.altitudeFrom) * r.MAX_ZOOM,
                 )),
                 (r.zoomFinal = Math.max(r.zoomFinal, 2))),
-              u && (r.angleFinal[1] = u));
+              h && (r.angleFinal[1] = h));
         }
       });
-    return u;
+    return p;
   },
 );

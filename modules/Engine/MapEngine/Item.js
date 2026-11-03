@@ -7,35 +7,35 @@ define(
     function b(a) {
       var b = a.xPos - 0.5 + a.subX / 12,
         c = a.yPos - 0.5 + a.subY / 12,
-        d = N.getCellHeight(b, c);
-      K.add(a.ITAID, a.ITID, a.IsIdentified, a.count, b, c, d);
+        d = M.getCellHeight(b, c);
+      L.add(a.ITAID, a.ITID, a.IsIdentified, a.count, b, c, d);
     }
     function c(a) {
       var b = a.xPos - 0.5 + a.subX / 12,
         c = a.yPos - 0.5 + a.subY / 12,
-        d = N.getCellHeight(b, c) + 5;
-      K.add(a.ITAID, a.ITID, a.IsIdentified, a.count, b, c, d, a.canShowEffect);
+        d = M.getCellHeight(b, c) + 5;
+      L.add(a.ITAID, a.ITID, a.IsIdentified, a.count, b, c, d, a.canShowEffect);
     }
     function d(a) {
       da.setBound(a.index);
     }
     function e(a) {
-      K.remove(a.ITAID);
+      L.remove(a.ITAID);
     }
     function m(a) {
-      if (0 !== a.result) W.addText(I.getMessage(53), W.TYPE.ERROR);
+      if (0 !== a.result) V.addText(K.getMessage(53), V.TYPE.ERROR);
       else {
-        V.append();
-        V.set(a);
-        var b = I.getItemInfo(a.ITID);
-        W.addText(
-          I.getMessage(153)
+        W.append();
+        W.set(a);
+        var b = K.getItemInfo(a.ITID);
+        V.addText(
+          K.getMessage(153)
             .replace(
               "%s",
-              a.IsIdentified ? I.getItemName(a) : b.unidentifiedDiSPlayName,
+              a.IsIdentified ? K.getItemName(a) : b.unidentifiedDiSPlayName,
             )
             .replace("%d", a.count),
-          W.TYPE.BLUE,
+          V.TYPE.BLUE,
         );
         T.addItem(a);
       }
@@ -43,7 +43,7 @@ define(
     function h(a) {
       T.setItems(a.itemInfo || a.ItemInfo);
     }
-    function q(a) {
+    function t(a) {
       switch (a.type) {
         case 0:
           T.setItems(a.itemInfo || a.ItemInfo);
@@ -58,66 +58,66 @@ define(
     function r(a) {
       S.setItems(a.itemInfo || a.ItemInfo);
     }
-    function k(a) {
+    function n(a) {
       T.removeItem(a.Index, a.count || a.Count || 0);
     }
     function g(a) {
       T.removeItem(a.index, a.count || a.Count || 0);
     }
-    function u(a) {
+    function p(a) {
       if (a.result) {
         var b = da.unEquip(a.index, a.wearLocation);
         if (b) {
           b.WearState = 0;
-          var c = I.getItemInfo(b.ITID);
-          W.addText(
-            c.identifiedDiSPlayName + " " + I.getMessage(171),
-            W.TYPE.ERROR,
+          var c = K.getItemInfo(b.ITID);
+          V.addText(
+            c.identifiedDiSPlayName + " " + K.getMessage(171),
+            V.TYPE.ERROR,
           );
-          a.wearLocation & L.AMMO || T.addItem(b);
+          a.wearLocation & F.AMMO || T.addItem(b);
         }
       }
     }
     function l(a) {
       if (1 == a.result) {
         var b = T.removeItem(a.index, 1),
-          c = I.getItemInfo(b.ITID);
+          c = K.getItemInfo(b.ITID);
         da.equip(b, a.wearLocation);
-        W.addText(
-          c.identifiedDiSPlayName + " " + I.getMessage(170),
-          W.TYPE.BLUE,
+        V.addText(
+          c.identifiedDiSPlayName + " " + K.getMessage(170),
+          V.TYPE.BLUE,
         );
-      } else W.addText(I.getMessage(372), W.TYPE.ERROR);
+      } else V.addText(K.getMessage(372), V.TYPE.ERROR);
     }
     function f(a) {
       da.ShowOEquip(a);
     }
-    function n(a) {
+    function k(a) {
       (a.hasOwnProperty("AID") && Q.Entity.GID !== a.AID) ||
         !a.result ||
         T.updateItem(a.index, a.count);
-      a.result && D.spamItem(a.id, a.AID, null, null, null);
+      a.result && E.spamItem(a.id, a.AID, null, null, null);
     }
-    function p(a) {
+    function q(a) {
       da.setEquipConfig(a.bOpenEquipmentWin);
-      W.addText(
-        I.getMessage(1358 + (a.bOpenEquipmentWin ? 1 : 0)),
-        W.TYPE.INFO,
+      V.addText(
+        K.getMessage(1358 + (a.bOpenEquipmentWin ? 1 : 0)),
+        V.TYPE.INFO,
       );
     }
-    function v(a) {
+    function u(a) {
       a = T.getItemByIndex(a.index);
-      da.equip(a, L.AMMO);
+      da.equip(a, F.AMMO);
     }
-    function t(a) {
+    function v(a) {
       if (a.ITIDList.length) {
         var b = T.getItemByIndex(ta);
         ba.append();
         ba.setList(a.ITIDList);
         ba.setTitle(
-          I.getMessage(522) +
+          K.getMessage(522) +
             "(" +
-            I.getItemInfo(b.ITID).identifiedDiSPlayName +
+            K.getItemInfo(b.ITID).identifiedDiSPlayName +
             ")",
         );
         ba.onIndexSelected = function (a) {
@@ -125,13 +125,13 @@ define(
             var b = new G.CZ.REQ_ITEMCOMPOSITION();
             b.cardIndex = ta;
             b.equipIndex = a;
-            y.sendPacket(b);
+            z.sendPacket(b);
           }
           ta = null;
         };
       }
     }
-    function z(a) {
+    function A(a) {
       switch (a.result) {
         case 0:
           var b = T.removeItem(a.equipIndex, 1);
@@ -146,7 +146,7 @@ define(
           }
       }
     }
-    function E(a) {
+    function C(a) {
       var b = T.removeItem(a.itemIndex, 1);
       b && ((b.RefiningLevel = a.RefiningLevel), T.addItem(b));
       switch (a.result) {
@@ -154,82 +154,82 @@ define(
           fa.ui && fa.ui.is(":visible") && fa.setStep(4);
           break;
         case 1:
-          W.addText("\u7cbe\u70bc\u5931\u8d25", W.TYPE.INFO);
+          V.addText("\u7cbe\u70bc\u5931\u8d25", V.TYPE.INFO);
           fa.ui && fa.ui.is(":visible") && fa.setStep(6);
           break;
         case 2:
-          W.addText(
+          V.addText(
             "\u7cbe\u70bc\u5931\u8d25\uff0c\u6389\u6bb5\u4e86",
-            W.TYPE.INFO,
+            V.TYPE.INFO,
           );
           fa.ui && fa.ui.is(":visible") && fa.setStep(7);
           break;
         case 3:
-          W.addText(
+          V.addText(
             "\u7cbe\u70bc\u5931\u8d25\uff0c\u5e78\u597d\u9632\u7206\u4fdd\u4f4f\u4e86\u88c5\u5907",
-            W.TYPE.INFO,
+            V.TYPE.INFO,
           );
           fa.ui && fa.ui.is(":visible") && fa.setStep(7);
           break;
         case 4:
-          (W.addText(
+          (V.addText(
             "\u7cbe\u70bc\u5931\u8d25\uff0c\u5e78\u597d\u88c5\u5907\u6ca1\u635f\u574f",
-            W.TYPE.INFO,
+            V.TYPE.INFO,
           ),
             fa.ui && fa.ui.is(":visible") && fa.setStep(7));
       }
     }
-    function C(a) {
+    function B(a) {
       0 == a.result
-        ? W.addText("\u4fee\u7406\u6210\u529f", W.TYPE.PUBLIC)
-        : W.addText("\u4fee\u7406\u5931\u8d25", W.TYPE.PUBLIC);
+        ? V.addText("\u4fee\u7406\u6210\u529f", V.TYPE.PUBLIC)
+        : V.addText("\u4fee\u7406\u5931\u8d25", V.TYPE.PUBLIC);
     }
     function J(a) {
-      var b = I.getItemInfo(a.ITID);
-      W.addText(
+      var b = K.getItemInfo(a.ITID);
+      V.addText(
         b.identifiedDiSPlayName +
           " \u9053\u5177\u7684\u4f7f\u7528\u65f6\u95f4\u6240\u5269\uff1a" +
           Math.ceil(a.RemainSecond / 60) +
           "\u5206\u949f",
-        W.TYPE.PRIVATE,
+        V.TYPE.PRIVATE,
       );
     }
-    function A(a) {
+    function D(a) {
       var b = { GID: 0, CName: "" };
       b.GID = a.GID;
       b.CName = a.CName;
       T.updateInfos(b);
     }
-    function B(a) {
+    function y(a) {
       x("#Storage").is(":visible") || R.append();
       R.setItemInfo(a.curCount, a.maxCount);
       R.setItems(ea);
       ea = [];
     }
-    function F(a) {
+    function H(a) {
       ea = ea.concat(a.ItemInfo || a.itemInfo);
     }
-    function O(a) {
+    function N(a) {
       R.addItem(x.extend({}, a));
     }
-    function M(a) {
+    function O(a) {
       R.removeItem(a.index, a.count);
     }
-    function H() {
+    function I() {
       R.remove();
     }
     var x = a("Utils/jquery"),
-      I = a("DB/DBManager"),
-      D = a("Renderer/EffectManager"),
-      L = a("DB/Items/EquipmentLocation"),
-      y = a("Network/NetworkManager"),
+      K = a("DB/DBManager"),
+      E = a("Renderer/EffectManager"),
+      F = a("DB/Items/EquipmentLocation"),
+      z = a("Network/NetworkManager"),
       G = a("Network/PacketStructure"),
-      K = a("Renderer/ItemObject"),
-      N = a("Renderer/Map/Altitude"),
+      L = a("Renderer/ItemObject"),
+      M = a("Renderer/Map/Altitude"),
       Q = a("Engine/SessionStorage");
     a("DB/Items/ItemEffect");
-    var W = a("UI/Components/ChatBox/ChatBox"),
-      V = a("UI/Components/ItemObtain/ItemObtain"),
+    var V = a("UI/Components/ChatBox/ChatBox"),
+      W = a("UI/Components/ItemObtain/ItemObtain"),
       ba = a("UI/Components/ItemSelection/ItemSelection"),
       S = a("UI/Components/OnPushCart/OnPushCart"),
       T = a("UI/Components/Inventory/Inventory"),
@@ -245,11 +245,11 @@ define(
       ta = a;
       var b = new G.CZ.REQ_ITEMCOMPOSITION_LIST();
       b.cardIndex = a;
-      y.sendPacket(b);
+      z.sendPacket(b);
     };
     R.onClosePressed = function () {
       var a = new G.CZ.CLOSE_STORE();
-      y.sendPacket(a);
+      z.sendPacket(a);
       R.remove();
     };
     R.reqAddItem = function (a, b) {
@@ -257,7 +257,7 @@ define(
         var c = new G.CZ.MOVE_ITEM_FROM_BODY_TO_STORE();
         c.index = a;
         c.count = b;
-        y.sendPacket(c);
+        z.sendPacket(c);
       }
     };
     R.reqAddItem1 = function (a, b) {
@@ -265,7 +265,7 @@ define(
         var c = new G.CZ.MOVE_ITEM_FROM_CART_TO_STORE();
         c.index = a;
         c.count = b;
-        y.sendPacket(c);
+        z.sendPacket(c);
       }
     };
     R.reqRemoveItem = function (a, b) {
@@ -273,7 +273,7 @@ define(
         var c = new G.CZ.MOVE_ITEM_FROM_STORE_TO_BODY();
         c.index = a;
         c.count = b;
-        y.sendPacket(c);
+        z.sendPacket(c);
       }
     };
     R.reqRemoveItem1 = function (a, b) {
@@ -281,76 +281,76 @@ define(
         var c = new G.CZ.MOVE_ITEM_FROM_STORE_TO_CART();
         c.index = a;
         c.count = b;
-        y.sendPacket(c);
+        z.sendPacket(c);
       }
     };
     return function () {
-      y.hookPacket(G.ZC.ITEM_ENTRY, b);
-      y.hookPacket(G.ZC.ITEM_FALL_ENTRY, c);
-      y.hookPacket(G.ZC.ITEM_FALL_ENTRY2, c);
-      y.hookPacket(G.ZC.ITEM_FALL_ENTRY3, c);
-      y.hookPacket(G.ZC.NOTIFY_BIND_ON_EQUIP, d);
-      y.hookPacket(G.ZC.ITEM_DISAPPEAR, e);
-      y.hookPacket(G.ZC.ITEM_PICKUP_ACK, m);
-      y.hookPacket(G.ZC.ITEM_PICKUP_ACK2, m);
-      y.hookPacket(G.ZC.ITEM_PICKUP_ACK3, m);
-      y.hookPacket(G.ZC.ITEM_PICKUP_ACK5, m);
-      y.hookPacket(G.ZC.ITEM_PICKUP_ACK6, m);
-      y.hookPacket(G.ZC.ITEM_PICKUP_ACK_V7, m);
-      y.hookPacket(G.ZC.ITEM_PICKUP_ACK_V8, m);
-      y.hookPacket(G.ZC.ITEM_THROW_ACK, k);
-      y.hookPacket(G.ZC.NORMAL_ITEMLIST, h);
-      y.hookPacket(G.ZC.NORMAL_ITEMLIST2, h);
-      y.hookPacket(G.ZC.NORMAL_ITEMLIST3, h);
-      y.hookPacket(G.ZC.NORMAL_ITEMLIST4, h);
-      y.hookPacket(G.ZC.EQUIPMENT_ITEMLIST, h);
-      y.hookPacket(G.ZC.EQUIPMENT_ITEMLIST2, h);
-      y.hookPacket(G.ZC.EQUIPMENT_ITEMLIST3, h);
-      y.hookPacket(G.ZC.EQUIPMENT_ITEMLIST4, h);
-      y.hookPacket(G.ZC.EQUIPMENT_ITEMLIST5, h);
-      y.hookPacket(G.ZC.CART_NORMAL_ITEMLIST4, r);
-      y.hookPacket(G.ZC.CART_EQUIPMENT_ITEMLIST4, r);
-      y.hookPacket(G.ZC.CART_EQUIPMENT_ITEMLIST5, r);
-      y.hookPacket(G.ZC.REQ_TAKEOFF_EQUIP_ACK, u);
-      y.hookPacket(G.ZC.REQ_TAKEOFF_EQUIP_ACK2, u);
-      y.hookPacket(G.ZC.ACK_TAKEOFF_EQUIP_V5, u);
-      y.hookPacket(G.ZC.REQ_WEAR_EQUIP_ACK, l);
-      y.hookPacket(G.ZC.REQ_WEAR_EQUIP_ACK2, l);
-      y.hookPacket(G.ZC.ACK_WEAR_EQUIP_V5, l);
-      y.hookPacket(G.ZC.EQUIPWIN_MICROSCOPE_V5, f);
-      y.hookPacket(G.ZC.EQUIPWIN_MICROSCOPE_V6, f);
-      y.hookPacket(G.ZC.EQUIPWIN_MICROSCOPE3, f);
-      y.hookPacket(G.ZC.DELETE_ITEM_FROM_BODY, k);
-      y.hookPacket(G.ZC.USE_ITEM_ACK, n);
-      y.hookPacket(G.ZC.USE_ITEM_ACK2, n);
-      y.hookPacket(G.ZC.CONFIG_NOTIFY, p);
-      y.hookPacket(G.ZC.EQUIP_ARROW, v);
-      y.hookPacket(G.ZC.ITEMCOMPOSITION_LIST, t);
-      y.hookPacket(G.ZC.ACK_ITEMCOMPOSITION, z);
-      y.hookPacket(G.ZC.ACK_ITEMREFINING, E);
-      y.hookPacket(G.ZC.ACK_ITEMREPAIR, C);
-      y.hookPacket(G.ZC.ITEM_DELETE_BUYING_STORE, g);
-      y.hookPacket(G.ZC.CASH_TIME_COUNTER, J);
-      y.hookPacket(G.ZC.ACK_REQNAME_BYGID, A);
-      y.hookPacket(G.ZC.ACK_REQNAME_BYGID2, A);
-      y.hookPacket(G.ZC.STORE_NORMAL_ITEMLIST, F);
-      y.hookPacket(G.ZC.STORE_NORMAL_ITEMLIST2, F);
-      y.hookPacket(G.ZC.STORE_NORMAL_ITEMLIST3, F);
-      y.hookPacket(G.ZC.STORE_NORMAL_ITEMLIST4, F);
-      y.hookPacket(G.ZC.STORE_EQUIPMENT_ITEMLIST, F);
-      y.hookPacket(G.ZC.STORE_EQUIPMENT_ITEMLIST2, F);
-      y.hookPacket(G.ZC.STORE_EQUIPMENT_ITEMLIST3, F);
-      y.hookPacket(G.ZC.STORE_EQUIPMENT_ITEMLIST4, F);
-      y.hookPacket(G.ZC.STORE_EQUIPMENT_ITEMLIST5, F);
-      y.hookPacket(G.ZC.NOTIFY_STOREITEM_COUNTINFO, B);
-      y.hookPacket(G.ZC.ADD_ITEM_TO_STORE, O);
-      y.hookPacket(G.ZC.ADD_ITEM_TO_STORE2, O);
-      y.hookPacket(G.ZC.ADD_ITEM_TO_STORE3, O);
-      y.hookPacket(G.ZC.ADD_ITEM_TO_STORE4, O);
-      y.hookPacket(G.ZC.CLOSE_STORE, H);
-      y.hookPacket(G.ZC.DELETE_ITEM_FROM_STORE, M);
-      y.hookPacket(G.ZC.INVENTORY_ITEMLIST, q);
-      y.hookPacket(G.ZC.INVENTORY_ITEMLIST_EQUIP, q);
+      z.hookPacket(G.ZC.ITEM_ENTRY, b);
+      z.hookPacket(G.ZC.ITEM_FALL_ENTRY, c);
+      z.hookPacket(G.ZC.ITEM_FALL_ENTRY2, c);
+      z.hookPacket(G.ZC.ITEM_FALL_ENTRY3, c);
+      z.hookPacket(G.ZC.NOTIFY_BIND_ON_EQUIP, d);
+      z.hookPacket(G.ZC.ITEM_DISAPPEAR, e);
+      z.hookPacket(G.ZC.ITEM_PICKUP_ACK, m);
+      z.hookPacket(G.ZC.ITEM_PICKUP_ACK2, m);
+      z.hookPacket(G.ZC.ITEM_PICKUP_ACK3, m);
+      z.hookPacket(G.ZC.ITEM_PICKUP_ACK5, m);
+      z.hookPacket(G.ZC.ITEM_PICKUP_ACK6, m);
+      z.hookPacket(G.ZC.ITEM_PICKUP_ACK_V7, m);
+      z.hookPacket(G.ZC.ITEM_PICKUP_ACK_V8, m);
+      z.hookPacket(G.ZC.ITEM_THROW_ACK, n);
+      z.hookPacket(G.ZC.NORMAL_ITEMLIST, h);
+      z.hookPacket(G.ZC.NORMAL_ITEMLIST2, h);
+      z.hookPacket(G.ZC.NORMAL_ITEMLIST3, h);
+      z.hookPacket(G.ZC.NORMAL_ITEMLIST4, h);
+      z.hookPacket(G.ZC.EQUIPMENT_ITEMLIST, h);
+      z.hookPacket(G.ZC.EQUIPMENT_ITEMLIST2, h);
+      z.hookPacket(G.ZC.EQUIPMENT_ITEMLIST3, h);
+      z.hookPacket(G.ZC.EQUIPMENT_ITEMLIST4, h);
+      z.hookPacket(G.ZC.EQUIPMENT_ITEMLIST5, h);
+      z.hookPacket(G.ZC.CART_NORMAL_ITEMLIST4, r);
+      z.hookPacket(G.ZC.CART_EQUIPMENT_ITEMLIST4, r);
+      z.hookPacket(G.ZC.CART_EQUIPMENT_ITEMLIST5, r);
+      z.hookPacket(G.ZC.REQ_TAKEOFF_EQUIP_ACK, p);
+      z.hookPacket(G.ZC.REQ_TAKEOFF_EQUIP_ACK2, p);
+      z.hookPacket(G.ZC.ACK_TAKEOFF_EQUIP_V5, p);
+      z.hookPacket(G.ZC.REQ_WEAR_EQUIP_ACK, l);
+      z.hookPacket(G.ZC.REQ_WEAR_EQUIP_ACK2, l);
+      z.hookPacket(G.ZC.ACK_WEAR_EQUIP_V5, l);
+      z.hookPacket(G.ZC.EQUIPWIN_MICROSCOPE_V5, f);
+      z.hookPacket(G.ZC.EQUIPWIN_MICROSCOPE_V6, f);
+      z.hookPacket(G.ZC.EQUIPWIN_MICROSCOPE3, f);
+      z.hookPacket(G.ZC.DELETE_ITEM_FROM_BODY, n);
+      z.hookPacket(G.ZC.USE_ITEM_ACK, k);
+      z.hookPacket(G.ZC.USE_ITEM_ACK2, k);
+      z.hookPacket(G.ZC.CONFIG_NOTIFY, q);
+      z.hookPacket(G.ZC.EQUIP_ARROW, u);
+      z.hookPacket(G.ZC.ITEMCOMPOSITION_LIST, v);
+      z.hookPacket(G.ZC.ACK_ITEMCOMPOSITION, A);
+      z.hookPacket(G.ZC.ACK_ITEMREFINING, C);
+      z.hookPacket(G.ZC.ACK_ITEMREPAIR, B);
+      z.hookPacket(G.ZC.ITEM_DELETE_BUYING_STORE, g);
+      z.hookPacket(G.ZC.CASH_TIME_COUNTER, J);
+      z.hookPacket(G.ZC.ACK_REQNAME_BYGID, D);
+      z.hookPacket(G.ZC.ACK_REQNAME_BYGID2, D);
+      z.hookPacket(G.ZC.STORE_NORMAL_ITEMLIST, H);
+      z.hookPacket(G.ZC.STORE_NORMAL_ITEMLIST2, H);
+      z.hookPacket(G.ZC.STORE_NORMAL_ITEMLIST3, H);
+      z.hookPacket(G.ZC.STORE_NORMAL_ITEMLIST4, H);
+      z.hookPacket(G.ZC.STORE_EQUIPMENT_ITEMLIST, H);
+      z.hookPacket(G.ZC.STORE_EQUIPMENT_ITEMLIST2, H);
+      z.hookPacket(G.ZC.STORE_EQUIPMENT_ITEMLIST3, H);
+      z.hookPacket(G.ZC.STORE_EQUIPMENT_ITEMLIST4, H);
+      z.hookPacket(G.ZC.STORE_EQUIPMENT_ITEMLIST5, H);
+      z.hookPacket(G.ZC.NOTIFY_STOREITEM_COUNTINFO, y);
+      z.hookPacket(G.ZC.ADD_ITEM_TO_STORE, N);
+      z.hookPacket(G.ZC.ADD_ITEM_TO_STORE2, N);
+      z.hookPacket(G.ZC.ADD_ITEM_TO_STORE3, N);
+      z.hookPacket(G.ZC.ADD_ITEM_TO_STORE4, N);
+      z.hookPacket(G.ZC.CLOSE_STORE, I);
+      z.hookPacket(G.ZC.DELETE_ITEM_FROM_STORE, O);
+      z.hookPacket(G.ZC.INVENTORY_ITEMLIST, t);
+      z.hookPacket(G.ZC.INVENTORY_ITEMLIST_EQUIP, t);
     };
   },
 );

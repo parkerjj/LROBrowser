@@ -12,61 +12,61 @@ define(
       }
       function d(a, c) {
         a.isFile
-          ? (++l,
+          ? (++k,
             a.file(function (d) {
               d.fullPath = a.fullPath.substr(c);
-              n.push(d);
-              ++k === l && h === g && b(n);
+              m.push(d);
+              ++l === k && h === g && b(m);
             }))
           : a.isDirectory &&
             (++g,
             a.createReader().readEntries(function (a) {
               for (var e = 0, f = a.length; e < f; ++e) d(a[e], c);
-              ++h === g && k === l && b(n);
+              ++h === g && l === k && b(m);
             }));
       }
       var e,
         g = 0,
         h = 0,
-        l = 0,
         k = 0,
-        n = [];
+        l = 0,
+        m = [];
       a.stopImmediatePropagation();
       c(this).removeClass("over");
       if ("files" in this) {
         if (this.files.length) {
-          var m =
+          var p =
             "webkitRelativePath" in this.files[0]
               ? "webkitRelativePath"
               : "relativePath" in this.files[0]
                 ? "relativePath"
                 : null;
-          if (m) {
+          if (p) {
             e = this.files.length;
-            var u = /^[^(\/|\\)]+(\/|\\)/;
+            var n = /^[^(\/|\\)]+(\/|\\)/;
             for (a = 0; a < e; ++a)
-              this.files[a].fullPath = this.files[a][m].replace(u, "");
+              this.files[a].fullPath = this.files[a][p].replace(n, "");
           }
         }
         b(this.files);
         return !1;
       }
       if (a.originalEvent.dataTransfer) {
-        m = a.originalEvent.dataTransfer;
-        if (m.items && m.items.length && m.items[0].webkitGetAsEntry) {
-          u = 1;
-          a = m.items[0].webkitGetAsEntry();
-          1 === m.items.length &&
+        p = a.originalEvent.dataTransfer;
+        if (p.items && p.items.length && p.items[0].webkitGetAsEntry) {
+          n = 1;
+          a = p.items[0].webkitGetAsEntry();
+          1 === p.items.length &&
             a.isDirectory &&
-            (u = a.fullPath.split("/")[1].length + 2);
+            (n = a.fullPath.split("/")[1].length + 2);
           a = 0;
-          for (e = m.items.length; a < e; ++a)
-            d(m.items[a].webkitGetAsEntry(), u);
+          for (e = p.items.length; a < e; ++a)
+            d(p.items[a].webkitGetAsEntry(), n);
           return !1;
         }
-        if (m.files) return (b(m.files), !1);
+        if (p.files) return (b(p.files), !1);
       }
-      b(n);
+      b(m);
       return !1;
     }
     var c = a("Utils/jquery"),
@@ -74,13 +74,13 @@ define(
       e = a("UI/UIManager"),
       m = a("UI/UIComponent"),
       h = a("text!./Intro.html"),
-      q = a("text!./Intro.css"),
+      t = a("text!./Intro.css"),
       r = a("Core/Context"),
-      k = a("Core/Configs"),
+      n = a("Core/Configs"),
       g = a("./Particle"),
-      u = a("./Preferences"),
+      p = a("./Preferences"),
       l = a("./FileSystem"),
-      f = new m("Intro", h, q);
+      f = new m("Intro", h, t);
     f.files = [];
     f.onKeyDown = function (a) {
       return a.which === d.ESCAPE
@@ -90,7 +90,7 @@ define(
         : !0;
     };
     f.init = function () {
-      k.get("servers") || k.set("_serverEditMode", !0);
+      n.get("servers") || n.set("_serverEditMode", !0);
       var d = this.ui;
       c("style:first").append(
         [
@@ -137,7 +137,7 @@ define(
           });
       });
       d.find(".btn_settings").mousedown(function () {
-        u.load(d);
+        p.load(d);
         d.find(".overlay.settings").show().animate({ opacity: 1 }, 200);
       });
       d.find(".box")
@@ -183,7 +183,7 @@ define(
           a.stopImmediatePropagation();
         },
       );
-      k.get("_serverEditMode") || d.find(".serveredit").hide();
+      n.get("_serverEditMode") || d.find(".serveredit").hide();
       d.find(".bgmvol").on("change", function () {
         d.find(".bgmvol_result").text(this.value + "%");
       });
@@ -201,7 +201,7 @@ define(
         a.find("tr :eq(" + b + ") input:first").focus();
       });
       d.find(".btn_save").on("click", function () {
-        u.save(d);
+        p.save(d);
         d.find(".overlay").animate({ opacity: 0 }, 200, function () {
           d.find(".overlay").hide();
         });

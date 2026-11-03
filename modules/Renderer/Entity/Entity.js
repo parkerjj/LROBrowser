@@ -20,7 +20,7 @@ define(
       a("./EntityAttachments").call(this);
       a("./EntityAnimations").call(this);
       this.boundingRect = { x1: 0, y1: 0, x2: 0, y2: 0 };
-      this.matrix = k.create();
+      this.matrix = n.create();
       this.position = r.create();
       this._position = r.create();
       b && (this.clean(), this.set(b));
@@ -30,9 +30,9 @@ define(
       e = a("Engine/SessionStorage"),
       m = a("Core/Configs"),
       h = a("Core/Client"),
-      q = a("Utils/gl-matrix"),
-      r = q.vec3,
-      k = q.mat4;
+      t = a("Utils/gl-matrix"),
+      r = t.vec3,
+      n = t.mat4;
     m.get("ClientVer");
     b.TYPE_EFFECT = -3;
     b.TYPE_UNKNOWN = -2;
@@ -149,7 +149,7 @@ define(
     b.prototype.ghost = { xSize: 1, ySize: 1 };
     b.prototype.set = function (g) {
       if ("GoldpointManager" == g.name) return ((e.goldpcid = g.GID), !1);
-      var k, l, f;
+      var p, l, f;
       this.direction = 4;
       this.setAction({
         action: this.ACTION.IDLE,
@@ -163,10 +163,10 @@ define(
       this.sex = g.hasOwnProperty("sex") ? g.sex : this._sex;
       this.job = g.hasOwnProperty("job") ? g.job : this._job;
       this.clothes = 0;
-      k = Object.keys(g);
-      f = k.length;
+      p = Object.keys(g);
+      f = p.length;
       for (l = 0; l < f; ++l)
-        switch (k[l]) {
+        switch (p[l]) {
           case "objecttype":
             this.objecttype = 45 === g.job ? b.TYPE_WARP : g.objecttype;
             a("./EntityAction").call(this);
@@ -262,10 +262,10 @@ define(
                   (this.effectColor[2] = 1));
             break;
           default:
-            (b.prototype.hasOwnProperty(k[l]) ||
-              b.prototype.hasOwnProperty("_" + k[l])) &&
-              this[k[l]] != g[k[l]] &&
-              (this[k[l]] = g[k[l]]);
+            (b.prototype.hasOwnProperty(p[l]) ||
+              b.prototype.hasOwnProperty("_" + p[l])) &&
+              this[p[l]] != g[p[l]] &&
+              (this[p[l]] = g[p[l]]);
         }
       -1 < this.life.hp &&
         -1 < this.life.hp_max &&

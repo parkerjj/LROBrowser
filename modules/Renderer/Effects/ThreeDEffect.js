@@ -7,11 +7,11 @@ define(
     function h(a, b) {
       return parseFloat(Math.min(a + Math.random() * (b - a), b).toFixed(3));
     }
-    function q(a, b, c) {
+    function t(a, b, c) {
       var d = b.position,
         e = b.otherPosition,
         g = b.startTick,
-        k = b.endTick;
+        p = b.endTick;
       this.AID = c.ownerAID;
       this.ownerEntity = c.ownerEntity;
       this.otherEntity = c.otherEntity;
@@ -303,7 +303,7 @@ define(
       this.rotate = a.rotate ? !0 : !1;
       this.toAngle = a.toAngle ? a.toAngle : 0;
       this.startTick = g;
-      this.endTick = k;
+      this.endTick = p;
       this.blendMode = a.blendMode;
       a.rotateToTarget &&
         ((this.rotateToTarget = !0),
@@ -318,18 +318,18 @@ define(
       this.noLifeTime = a.noLifeTime;
     }
     var r = {};
-    q.prototype.init = function (c) {
+    t.prototype.init = function (c) {
       this.loadedTextures = 0;
       this.textureList = [];
       var d = this;
       if (0 < this.textureNameList.length)
         for (
-          var e = this.textureNameList.length, l = { i: 0 };
-          l.i < e;
-          l = { i: l.i }, l.i++
+          var e = this.textureNameList.length, h = { i: 0 };
+          h.i < e;
+          h = { i: h.i }, h.i++
         )
           b.loadFile(
-            "data/texture/" + this.textureNameList[l.i],
+            "data/texture/" + this.textureNameList[h.i],
             (function (b) {
               return function (f) {
                 a.texture(c, f, function (a) {
@@ -338,7 +338,7 @@ define(
                   d.loadedTextures == e && (d.ready = !0);
                 });
               };
-            })(l),
+            })(h),
           );
       else
         this.textureName
@@ -350,10 +350,10 @@ define(
             })
           : (d.ready = !0);
     };
-    q.prototype.free = function (a) {
+    t.prototype.free = function (a) {
       this.ready = !1;
     };
-    q.prototype.render = function (a, g) {
+    t.prototype.render = function (a, g) {
       if (!(this.startTick > g)) {
         0 < this.blendMode && 16 > this.blendMode
           ? a.blendFunc(a.SRC_ALPHA, r[this.blendMode])
@@ -389,19 +389,19 @@ define(
         c.zIndex = this.zIndex;
         if (this.bezierCurve) {
           var f = this.pos1,
-            n = this.pos2,
-            k = this.pos3,
-            q = l / 100,
+            k = this.pos2,
+            q = this.pos3,
+            n = l / 100,
             f = new Float32Array([
-              Math.pow(1 - q, 2) * f[0] +
-                2 * (1 - q) * q * n[0] +
-                Math.pow(q, 2) * k[0],
-              Math.pow(1 - q, 2) * f[1] +
-                2 * (1 - q) * q * n[1] +
-                Math.pow(q, 2) * k[1],
-              Math.pow(1 - q, 2) * f[2] +
-                2 * (1 - q) * q * n[2] +
-                Math.pow(q, 2) * k[2],
+              Math.pow(1 - n, 2) * f[0] +
+                2 * (1 - n) * n * k[0] +
+                Math.pow(n, 2) * q[0],
+              Math.pow(1 - n, 2) * f[1] +
+                2 * (1 - n) * n * k[1] +
+                Math.pow(n, 2) * q[1],
+              Math.pow(1 - n, 2) * f[2] +
+                2 * (1 - n) * n * k[2] +
+                Math.pow(n, 2) * q[2],
             ]);
           c.position = new Float32Array(f);
         } else
@@ -416,14 +416,14 @@ define(
             : this.posxSmooth
               ? this.posxStart != this.posxEnd
                 ? ((f = Math.log10(0.09 * l + 1)),
-                  (n = this.posxEnd - this.posxStart),
-                  (k = this.posxStart),
-                  (f = f * n + k))
+                  (k = this.posxEnd - this.posxStart),
+                  (q = this.posxStart),
+                  (f = f * k + q))
                 : (f = this.posxStart)
               : this.posxStart != this.posxEnd
-                ? ((n = (this.posxEnd - this.posxStart) / 100),
-                  (k = this.posxStart),
-                  (f = l * n + k))
+                ? ((k = (this.posxEnd - this.posxStart) / 100),
+                  (q = this.posxStart),
+                  (f = l * k + q))
                 : (f = this.posxStart),
             (c.position[0] = this.position[0] + f),
             0 < this.rotatePosY
@@ -436,27 +436,27 @@ define(
               : this.posySmooth
                 ? this.posyStart != this.posyEnd
                   ? ((f = Math.log10(0.09 * l + 1)),
-                    (n = this.posyEnd - this.posyStart),
-                    (k = this.posyStart),
-                    (f = f * n + k))
+                    (k = this.posyEnd - this.posyStart),
+                    (q = this.posyStart),
+                    (f = f * k + q))
                   : (f = this.posyStart)
                 : this.posyStart != this.posyEnd
-                  ? ((n = (this.posyEnd - this.posyStart) / 100),
-                    (k = this.posyStart),
-                    (f = l * n + k))
+                  ? ((k = (this.posyEnd - this.posyStart) / 100),
+                    (q = this.posyStart),
+                    (f = l * k + q))
                   : (f = this.posyStart),
             (c.position[1] = this.position[1] + f),
             this.poszSmooth
               ? this.poszStart != this.poszEnd
                 ? ((f = Math.log10(0.09 * l + 1)),
-                  (n = this.poszEnd - this.poszStart),
-                  (k = this.poszStart),
-                  (f = f * n + k))
+                  (k = this.poszEnd - this.poszStart),
+                  (q = this.poszStart),
+                  (f = f * k + q))
                 : (f = this.poszStart)
               : this.poszStart != this.poszEnd
-                ? ((n = (this.poszEnd - this.poszStart) / 100),
-                  (k = this.poszStart),
-                  (f = l * n + k))
+                ? ((k = (this.poszEnd - this.poszStart) / 100),
+                  (q = this.poszStart),
+                  (f = l * k + q))
                 : (f = this.poszStart),
             (c.position[2] = this.position[2] + f));
         this.shadowTexture &&
@@ -479,9 +479,9 @@ define(
         this.sizeSmooth
           ? (this.sizeEndX != this.sizeStartX
               ? ((f = Math.log10(0.09 * l + 1)),
-                (n = this.sizeEndX - this.sizeStartX),
-                (k = this.sizeStartX),
-                (a = f * n + k))
+                (k = this.sizeEndX - this.sizeStartX),
+                (q = this.sizeStartX),
+                (a = f * k + q))
               : (a = this.sizeStartX),
             this.sizeEndY != this.sizeStartY
               ? ((h = this.sizeEndY - this.sizeStartY),
@@ -489,9 +489,9 @@ define(
                 (h = Math.log10(0.09 * l + 1) * h + f))
               : (h = this.sizeStartY))
           : (this.sizeEndX != this.sizeStartX
-              ? ((n = (this.sizeEndX - this.sizeStartX) / 100),
-                (k = this.sizeStartX),
-                (a = l * n + k))
+              ? ((k = (this.sizeEndX - this.sizeStartX) / 100),
+                (q = this.sizeStartX),
+                (a = l * k + q))
               : (a = this.sizeStartX),
             this.sizeEndY != this.sizeStartY
               ? ((h = (this.sizeEndY - this.sizeStartY) / 100),
@@ -524,52 +524,52 @@ define(
                 ]
               : l.animations[0];
             f = l.layers;
-            n = 0;
-            k = f.length;
+            k = 0;
+            q = f.length;
             do {
-              var q = 0 == n ? c : Object.assign({}, c),
-                t = f[n],
-                z = new Int16Array(2);
-              z[0] = 0;
-              z[1] = 0;
+              var n = 0 == k ? c : Object.assign({}, c),
+                t = f[k],
+                A = new Int16Array(2);
+              A[0] = 0;
+              A[1] = 0;
               l.pos.length &&
-                ((z[0] = this.position[0] - l.pos[0].x),
-                (z[1] = this.position[1] - l.pos[0].y));
-              q.image.texture = this.spriteRessource.frames[t.index].texture;
-              q.image.palette = null;
-              q.sprite = this.spriteRessource.frames[t.index];
-              q.palette = this.spriteRessource.palette;
-              var E = t.index + 0;
+                ((A[0] = this.position[0] - l.pos[0].x),
+                (A[1] = this.position[1] - l.pos[0].y));
+              n.image.texture = this.spriteRessource.frames[t.index].texture;
+              n.image.palette = null;
+              n.sprite = this.spriteRessource.frames[t.index];
+              n.palette = this.spriteRessource.palette;
+              var C = t.index + 0;
               1 !== t.spr_type && 0 !== this.spriteRessource.rgba_index
-                ? ((q.image.palette = this.spriteRessource.texture),
-                  (q.image.size[0] = this.spriteRessource.frames[E].width),
-                  (q.image.size[1] = this.spriteRessource.frames[E].height))
+                ? ((n.image.palette = this.spriteRessource.texture),
+                  (n.image.size[0] = this.spriteRessource.frames[C].width),
+                  (n.image.size[1] = this.spriteRessource.frames[C].height))
                 : 1 === t.spr_type &&
-                  (E += this.spriteRessource.old_rgba_index);
-              var C = this.spriteRessource.frames[E],
-                E = C.width,
-                C = C.height,
-                E = (t.scale[0] / 100) * E * a,
-                C = (t.scale[1] / 100) * C * h;
-              t.is_mirror && (E = -E);
-              q.color[0] *= t.color[0];
-              q.color[1] *= t.color[1];
-              q.color[2] *= t.color[2];
-              q.color[3] *= t.color[3];
-              this.rotateToTarget || (q.angle += t.angle);
-              q.offset[0] = t.pos[0] + z[0];
-              q.offset[1] = t.pos[1] + z[1];
-              q.size[0] = E;
-              q.size[1] = C;
-              q.render();
-              ++n;
-            } while (n < k);
+                  (C += this.spriteRessource.old_rgba_index);
+              var B = this.spriteRessource.frames[C],
+                C = B.width,
+                B = B.height,
+                C = (t.scale[0] / 100) * C * a,
+                B = (t.scale[1] / 100) * B * h;
+              t.is_mirror && (C = -C);
+              n.color[0] *= t.color[0];
+              n.color[1] *= t.color[1];
+              n.color[2] *= t.color[2];
+              n.color[3] *= t.color[3];
+              this.rotateToTarget || (n.angle += t.angle);
+              n.offset[0] = t.pos[0] + A[0];
+              n.offset[1] = t.pos[1] + A[1];
+              n.size[0] = C;
+              n.size[1] = B;
+              n.render();
+              ++k;
+            } while (k < q);
           }
         } else c.render();
         this.noLifeTime || (this.needCleanUp = this.endTick < g);
       }
     };
-    q.init = function (a) {
+    t.init = function (a) {
       r[1] = a.ZERO;
       r[2] = a.ONE;
       r[3] = a.SRC_COLOR;
@@ -588,10 +588,10 @@ define(
       this.ready = !0;
       this.renderBeforeEntities = !1;
     };
-    q.free = function (a) {
+    t.free = function (a) {
       this.ready = !1;
     };
-    q.beforeRender = function (a, b, d, e, f) {
+    t.beforeRender = function (a, b, d, e, f) {
       a.depthMask(!1);
       e.use = !1;
       c.bind3DContext(a, b, d, e);
@@ -609,12 +609,12 @@ define(
       c.depth = 0;
       c.zIndex = 0;
     };
-    q.afterRender = function (a) {
+    t.afterRender = function (a) {
       c.ufog = !0;
       a.depthMask(!0);
       a.blendFunc(a.SRC_ALPHA, a.ONE_MINUS_SRC_ALPHA);
       c.unbind(a);
     };
-    return q;
+    return t;
   },
 );

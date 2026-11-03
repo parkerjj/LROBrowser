@@ -6,16 +6,16 @@ define(
   function (a) {
     function b(a) {
       var b = [
-        W.EF_ANGEL,
-        W.EF_JOBLVUP,
-        W.EF_REFINEFAIL,
-        W.EF_REFINEOK,
-        W.NONE,
-        W.EF_PHARMACY_OK,
-        W.EF_PHARMACY_FAIL,
-        W.EF_ANGEL2,
-        W.EF_JOBLVUP2,
-        W.EF_ANGEL3,
+        V.EF_ANGEL,
+        V.EF_JOBLVUP,
+        V.EF_REFINEFAIL,
+        V.EF_REFINEOK,
+        V.NONE,
+        V.EF_PHARMACY_OK,
+        V.EF_PHARMACY_FAIL,
+        V.EF_ANGEL2,
+        V.EF_JOBLVUP2,
+        V.EF_ANGEL3,
       ];
       -1 < b[a.effectID] &&
         fa.spam({ effectId: b[a.effectID], ownerAID: a.AID });
@@ -87,7 +87,7 @@ define(
             case 83:
               b = 661;
           }
-        b && ka.addText(N.getMessage(b), ka.TYPE.ERROR);
+        b && la.addText(M.getMessage(b), la.TYPE.ERROR);
       }
     }
     function m(a) {
@@ -96,53 +96,53 @@ define(
     function h(a) {
       ca.addskillOption(a.skillList, "addiskillid", "\u8bf7\u9009\u62e9");
     }
-    function q(a) {
+    function t(a) {
       ca.addskillOption(a.skillList, "touchskillid", "\u8bf7\u9009\u62e9");
     }
     function r(a) {
       ca.addskillOption(a.skillList, "qoautoskillid");
     }
-    function k(a) {
+    function n(a) {
       ca.addskillOption2(a);
     }
     function g(a) {
       ha.updateSkills(a.skillList);
     }
-    function u(a) {
+    function p(a) {
       ha.updateSkill(a);
       ba.skillUpdate = !0;
     }
     function l(a) {
-      la.setList(a.ShortCutKey);
+      ka.setList(a.ShortCutKey);
     }
     function f(a) {
       switch (a.tab) {
         case 0:
-          (la.clean(), la.setList(a.ShortCutKey));
+          (ka.clean(), ka.setList(a.ShortCutKey));
       }
     }
-    function n(a) {
+    function k(a) {
       ha.setSkillCDById(a.SKID, a.DelayTM);
-      la.addSkillCooldown(a.SKID, a.DelayTM);
+      ka.addSkillCooldown(a.SKID, a.DelayTM);
     }
-    function p(a) {
+    function q(a) {
       ha.addSkill(a);
     }
-    function v(a) {
+    function u(a) {
       ha.useSkill(a.data, a.data.level);
     }
-    function t(a) {
+    function v(a) {
       a.ITIDList.length &&
         (Z.append(),
         Z.setList(a.ITIDList),
-        Z.setTitle(N.getMessage(521)),
+        Z.setTitle(M.getMessage(521)),
         (Z.onIndexSelected = function (a) {
           var b = new T.CZ.REQ_ITEMIDENTIFY();
           b.index = a;
           S.sendPacket(b);
         }));
     }
-    function z(a) {
+    function A(a) {
       a.itemList.length &&
         (Z.append(),
         Z.setList_p(a.itemList),
@@ -153,7 +153,7 @@ define(
           S.sendPacket(b);
         }));
     }
-    function E(a) {
+    function C(a) {
       a.itemList.length
         ? (Z.append(),
           Z.setList_p(a.itemList),
@@ -163,32 +163,32 @@ define(
             b.Index = a;
             S.sendPacket(b);
           }))
-        : pa.showMessageBox(
+        : oa.showMessageBox(
             "\u6750\u6599\u6216\u6280\u80fd\u4e0d\u8db3\uff0c\u65e0\u6cd5\u7cbe\u70bc\u9053\u5177",
             "ok",
             null,
           );
     }
-    function C(a) {
-      var b = N.getItemInfo(a.ITID);
+    function B(a) {
+      var b = M.getItemInfo(a.ITID);
       if (b)
         switch (a.msg) {
           case 0:
             ba.Entity.dialog.set(
-              b.identifiedDiSPlayName + " " + N.getMessage(498),
+              b.identifiedDiSPlayName + " " + M.getMessage(498),
             );
-            ka.addText(
-              b.identifiedDiSPlayName + " " + N.getMessage(498),
-              ka.TYPE.BLUE,
+            la.addText(
+              b.identifiedDiSPlayName + " " + M.getMessage(498),
+              la.TYPE.BLUE,
             );
             break;
           case 1:
             (ba.Entity.dialog.set(
-              b.identifiedDiSPlayName + " " + N.getMessage(499),
+              b.identifiedDiSPlayName + " " + M.getMessage(499),
             ),
-              ka.addText(
-                b.identifiedDiSPlayName + " " + N.getMessage(499),
-                ka.TYPE.ERROR,
+              la.addText(
+                b.identifiedDiSPlayName + " " + M.getMessage(499),
+                la.TYPE.ERROR,
               ));
         }
     }
@@ -203,21 +203,21 @@ define(
           S.sendPacket(b);
         }));
     }
-    function A(a) {
+    function D(a) {
       if (!(0 > a.index))
         switch (a.result) {
           case 0:
-            ka.addText(N.getMessage(491), ka.TYPE.BLUE);
-            if ((a = oa.removeItem(a.index, 1)))
-              ((a.IsIdentified = !0), (a.count = 1), oa.addItem(a));
+            la.addText(M.getMessage(491), la.TYPE.BLUE);
+            if ((a = pa.removeItem(a.index, 1)))
+              ((a.IsIdentified = !0), (a.count = 1), pa.addItem(a));
             break;
           case 1:
-            ka.addText(N.getMessage(492), ka.TYPE.ERROR);
+            la.addText(M.getMessage(492), la.TYPE.ERROR);
         }
     }
-    function B(a) {
+    function y(a) {
       0 == a.info.length
-        ? pa.showMessageBox(
+        ? oa.showMessageBox(
             "\u9053\u5177\u6253\u9020\u5931\u8d25\u3002",
             "cancel",
             function () {
@@ -229,7 +229,7 @@ define(
           )
         : (Z.append(),
           Z.setMakeList(a.info, !0),
-          Z.setTitle(N.getMessage(697)),
+          Z.setTitle(M.getMessage(697)),
           (Z.onIndexSelected = function (a) {
             if (1101 > a) {
               var b = new T.CZ.REQMAKINGITEM();
@@ -253,7 +253,7 @@ define(
                 }));
           }));
     }
-    function F(a) {
+    function H(a) {
       Z.append();
       Z.setSpiritList(a.Type);
       1 == a.Type
@@ -264,21 +264,21 @@ define(
         c.Type = a.Type;
         -1 == b
           ? ((c.Action = 0), (c.MaterialList = []))
-          : (b = oa.getItemById(b))
+          : (b = pa.getItemById(b))
             ? ((c.Action = 1),
               (c.MaterialList = [{ id: b.index, count: b.count }]))
             : ((c.Action = 0), (c.MaterialList = []));
         S.sendPacket(c);
       };
     }
-    function O(a) {
-      1 == a.result && ka.addText(N.getMessage(428), ka.TYPE.ERROR);
+    function N(a) {
+      1 == a.result && la.addText(M.getMessage(428), la.TYPE.ERROR);
     }
-    function M(a) {
+    function O(a) {
       a.SKID.length &&
         (Z.append(),
         Z.setList(a.SKID, !0),
-        Z.setTitle(N.getMessage(697)),
+        Z.setTitle(M.getMessage(697)),
         (Z.onIndexSelected = function (a) {
           if (0 <= a) {
             var b = new T.CZ.SELECTAUTOSPELL();
@@ -287,11 +287,11 @@ define(
           }
         }));
     }
-    function H(a) {
+    function I(a) {
       a.SKID.length &&
         (Z.append(),
         Z.setList(a.SKID, !0),
-        Z.setTitle(N.getMessage(697)),
+        Z.setTitle(M.getMessage(697)),
         (Z.onIndexSelected = function (a) {
           var b = new T.CZ.SKILL_SELECT_RESPONSE();
           b.why = 0;
@@ -311,7 +311,7 @@ define(
           S.sendPacket(c);
         }));
     }
-    function I(a) {
+    function K(a) {
       w.onSelectMenu = function (b, c) {
         w.remove();
         var d = new T.CZ.SELECT_WARPPOINT();
@@ -325,34 +325,34 @@ define(
           d = [];
         b = 0;
         for (c = a.mapName.length; b < c; ++b)
-          d[b] = N.getMapName(a.mapName[b], a.mapName[b]);
+          d[b] = M.getMapName(a.mapName[b], a.mapName[b]);
         w.setMenu(d.join(":") + ":Cancel", a.SKID);
-        w.ui.find(".title").text(N.getMessage(213));
+        w.ui.find(".title").text(M.getMessage(213));
       };
       w.append();
     }
-    function D(a) {
+    function E(a) {
       switch (a.type) {
         case 0:
-          ka.addText(N.getMessage(500), ka.TYPE.ERROR);
+          la.addText(M.getMessage(500), la.TYPE.ERROR);
           break;
         case 1:
-          ka.addText(N.getMessage(501), ka.TYPE.ERROR);
+          la.addText(M.getMessage(501), la.TYPE.ERROR);
       }
     }
-    function L(a) {
+    function F(a) {
       switch (a.errorCode) {
         case 0:
-          ka.addText(N.getMessage(217), ka.TYPE.BLUE);
+          la.addText(M.getMessage(217), la.TYPE.BLUE);
           break;
         case 1:
-          ka.addText(N.getMessage(214), ka.TYPE.ERROR);
+          la.addText(M.getMessage(214), la.TYPE.ERROR);
           break;
         case 2:
-          ka.addText(N.getMessage(216), ka.TYPE.ERROR);
+          la.addText(M.getMessage(216), la.TYPE.ERROR);
       }
     }
-    function y(a) {
+    function z(a) {
       ea.setCellType(a.xPos, a.yPos, a.type);
     }
     function G(a) {
@@ -360,7 +360,7 @@ define(
       for (var b = a.AID, c = 0; c < b.length; c++)
         0 < b[c] && fa.spam(2058, 1, a.myAID, b[c]);
     }
-    function K(a) {
+    function L(a) {
       var b = R.get(a.GID);
       if (a.enabled) {
         if (23 == a.hatEffectIDs[0] || 47 == a.hatEffectIDs[0])
@@ -368,11 +368,11 @@ define(
       } else if (23 == a.hatEffectIDs[0] || 47 == a.hatEffectIDs[0])
         b._explosion = 0;
     }
-    var N = a("DB/DBManager"),
+    var M = a("DB/DBManager"),
       Q = a("DB/Skills/SkillConst"),
-      W = a("DB/Effects/EffectConst");
+      V = a("DB/Effects/EffectConst");
     a("Utils/jquery");
-    var V = a("Utils/PathFinding"),
+    var W = a("Utils/PathFinding"),
       ba = a("Engine/SessionStorage"),
       S = a("Network/NetworkManager"),
       T = a("Network/PacketStructure"),
@@ -381,19 +381,19 @@ define(
       fa = a("Renderer/EffectManager"),
       ea = a("Renderer/Map/Altitude"),
       ta = a("Renderer/Effects/LineEffect"),
-      pa = a("UI/UIManager"),
-      la = a("UI/Components/ShortCut/ShortCut"),
+      oa = a("UI/UIManager"),
+      ka = a("UI/Components/ShortCut/ShortCut"),
       ga = a("UI/Components/Guild/Guild"),
-      ka = a("UI/Components/ChatBox/ChatBox"),
+      la = a("UI/Components/ChatBox/ChatBox"),
       ha = a("UI/Components/SkillList/SkillList"),
       X = a("UI/Components/SkillTargetSelection/SkillTargetSelection"),
       Z = a("UI/Components/ItemSelection/ItemSelection"),
       qa = a("UI/Components/ItemMakeSure/ItemMakeSure"),
-      oa = a("UI/Components/Inventory/Inventory");
+      pa = a("UI/Components/Inventory/Inventory");
     a("UI/Components/NpcMenu/NpcMenu");
     var w = a("UI/Components/WarpList/WarpList"),
       ca = a("UI/Components/vbk/vbk");
-    la.onChange = function (a, b, c, d) {
+    ka.onChange = function (a, b, c, d) {
       var e = new T.CZ.SHORTCUT_KEY_CHANGE();
       e.Index = a;
       e.ShortCutKey.isSkill = b ? 1 : 0;
@@ -430,7 +430,7 @@ define(
         if (f != d || !e || 1 != e.type)
           if (
             ((e = e ? e.attackRange + 1 : d.attack_range),
-            (h = V.searchLong(
+            (h = W.searchLong(
               d.position[0] | 0,
               d.position[1] | 0,
               f.position[0] | 0,
@@ -464,7 +464,7 @@ define(
         if (f != d || !e || 1 != e.type)
           if (
             ((e = e ? e.attackRange : d.attack_range),
-            (h = V.searchLong(
+            (h = W.searchLong(
               d.position[0] | 0,
               d.position[1] | 0,
               f.position[0] | 0,
@@ -496,7 +496,7 @@ define(
         h = ha.getSkillById(a);
         g = [];
         if (
-          (f = V.searchLong(
+          (f = W.searchLong(
             e[0] | 0,
             e[1] | 0,
             c | 0,
@@ -524,43 +524,43 @@ define(
     return function () {
       S.hookPacket(T.ZC.ATTACK_SKILLINFO_LIST, m);
       S.hookPacket(T.ZC.ADDIS_SKILLINFO_LIST, h);
-      S.hookPacket(T.ZC.TOUCH_SKILLINFO_LIST, q);
+      S.hookPacket(T.ZC.TOUCH_SKILLINFO_LIST, t);
       S.hookPacket(T.ZC.QOATTACK_SKILLINFO_LIST, r);
-      S.hookPacket(T.ZC.SKILL_AUTOSHADOWSPELL, k);
+      S.hookPacket(T.ZC.SKILL_AUTOSHADOWSPELL, n);
       S.hookPacket(T.ZC.SKILLINFO_LIST, g);
-      S.hookPacket(T.ZC.SKILLINFO_UPDATE, u);
-      S.hookPacket(T.ZC.ADD_SKILL, p);
-      S.hookPacket(T.ZC.ADD_SKILL2, p);
+      S.hookPacket(T.ZC.SKILLINFO_UPDATE, p);
+      S.hookPacket(T.ZC.ADD_SKILL, q);
+      S.hookPacket(T.ZC.ADD_SKILL2, q);
       S.hookPacket(T.ZC.SHORTCUT_KEY_LIST, l);
       S.hookPacket(T.ZC.SHORTCUT_KEY_LIST_V2, l);
       S.hookPacket(T.ZC.SHORTCUT_KEY_LIST_V3, l);
       S.hookPacket(T.ZC.HORTCUT_KEY_LIST, f);
-      S.hookPacket(T.ZC.SKILL_POSTDELAY, n);
+      S.hookPacket(T.ZC.SKILL_POSTDELAY, k);
       S.hookPacket(T.ZC.ACK_TOUSESKILL, e);
       S.hookPacket(T.ZC.NOTIFY_EFFECT, b);
       S.hookPacket(T.ZC.NOTIFY_EFFECT2, c);
       S.hookPacket(T.ZC.NOTIFY_EFFECT3, c);
       S.hookPacket(T.ZC.NOTIFY_GROUNDSKILL, d);
-      S.hookPacket(T.ZC.AUTORUN_SKILL, v);
-      S.hookPacket(T.ZC.ITEMIDENTIFY_LIST, t);
-      S.hookPacket(T.ZC.REPAIRITEMLIST, z);
-      S.hookPacket(T.ZC.NOTIFY_WEAPONITEMLIST, E);
-      S.hookPacket(T.ZC.ACK_WEAPONREFINE, C);
-      S.hookPacket(T.ZC.ACK_ITEMIDENTIFY, A);
+      S.hookPacket(T.ZC.AUTORUN_SKILL, u);
+      S.hookPacket(T.ZC.ITEMIDENTIFY_LIST, v);
+      S.hookPacket(T.ZC.REPAIRITEMLIST, A);
+      S.hookPacket(T.ZC.NOTIFY_WEAPONITEMLIST, C);
+      S.hookPacket(T.ZC.ACK_WEAPONREFINE, B);
+      S.hookPacket(T.ZC.ACK_ITEMIDENTIFY, D);
       S.hookPacket(T.ZC.MAKINGARROW_LIST, J);
-      S.hookPacket(T.ZC.AUTOSPELLLIST, M);
-      S.hookPacket(T.ZC.AUTOSPELLLIST2, M);
-      S.hookPacket(T.ZC.SKILL_SELECT_REQUEST, H);
-      S.hookPacket(T.ZC.WARPLIST, I);
-      S.hookPacket(T.ZC.WARPLIST2, I);
-      S.hookPacket(T.ZC.NOTIFY_MAPINFO, D);
-      S.hookPacket(T.ZC.UPDATE_MAPINFO, y);
-      S.hookPacket(T.ZC.ACK_REMEMBER_WARPPOINT, L);
-      S.hookPacket(T.ZC.MAKABLEITEMLIST, B);
-      S.hookPacket(T.ZC.ITEMLISTWIN_OPEN, F);
-      S.hookPacket(T.ZC.ACK_REQMAKINGITEM, O);
+      S.hookPacket(T.ZC.AUTOSPELLLIST, O);
+      S.hookPacket(T.ZC.AUTOSPELLLIST2, O);
+      S.hookPacket(T.ZC.SKILL_SELECT_REQUEST, I);
+      S.hookPacket(T.ZC.WARPLIST, K);
+      S.hookPacket(T.ZC.WARPLIST2, K);
+      S.hookPacket(T.ZC.NOTIFY_MAPINFO, E);
+      S.hookPacket(T.ZC.UPDATE_MAPINFO, z);
+      S.hookPacket(T.ZC.ACK_REMEMBER_WARPPOINT, F);
+      S.hookPacket(T.ZC.MAKABLEITEMLIST, y);
+      S.hookPacket(T.ZC.ITEMLISTWIN_OPEN, H);
+      S.hookPacket(T.ZC.ACK_REQMAKINGITEM, N);
       S.hookPacket(T.ZC.DEVOTIONLIST, G);
-      S.hookPacket(T.ZC.HAT_EFFECT, K);
+      S.hookPacket(T.ZC.HAT_EFFECT, L);
       S.hookPacket(T.ZC.MAKINGITEM_LIST, x);
     };
   },

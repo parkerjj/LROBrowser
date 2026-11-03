@@ -20,8 +20,8 @@ define(
       S.Character.GID = a.AID;
     }
     function m(a) {
-      S.Entity = new pa(S.Character);
-      S.Entity.onWalkEnd = O;
+      S.Entity = new oa(S.Character);
+      S.Entity.onWalkEnd = N;
       "sex" in a && 2 > a.sex && (S.Entity.sex = a.sex);
       rolename = S.Character.name;
       S.petId = 0;
@@ -38,22 +38,22 @@ define(
       h({ xPos: a.PosDir[0], yPos: a.PosDir[1], mapName: mb });
     }
     function h(a) {
-      y(window).off("keydown.map");
-      y("#header").hide();
+      z(window).off("keydown.map");
+      z("#header").hide();
       ia.empty();
-      Pa.remove();
+      Oa.remove();
       Ma.remove();
-      $a.remove();
-      Qa.remove();
+      Xa.remove();
+      Ya.remove();
       na.remove();
-      ya.remove();
+      xa.remove();
       Ga.reReady = 1;
       S.hasAttackTarget = null;
-      S.Entity.cart && ka.remove(S.Entity.GID);
+      S.Entity.cart && la.remove(S.Entity.GID);
       S.Entity.falcon && ha.remove(S.Entity.GID);
       S.Entity.wolf && X.remove(S.Entity.GID);
       ea.onLoad = function () {
-        y(window).on("keydown.map", function (a) {
+        z(window).on("keydown.map", function (a) {
           var b;
           if (
             (b =
@@ -64,16 +64,16 @@ define(
           )
             b =
               (P.situp.Custom_settings ? P.situp.Custom_alt : P.situp.alt) ==
-              oa.ALT;
+              pa.ALT;
           b &&
             (b =
               (P.situp.Custom_settings ? P.situp.Custom_ctrl : P.situp.ctrl) ==
-              oa.CTRL);
+              pa.CTRL);
           b &&
             (b =
               (P.situp.Custom_settings
                 ? P.situp.Custom_shift
-                : P.situp.shift) == oa.SHIFT);
+                : P.situp.shift) == pa.SHIFT);
           if (b)
             return (
               (b = new da.CZ.REQUEST_ACT()),
@@ -83,7 +83,7 @@ define(
               !1
             );
         });
-        y("html").addClass("gray");
+        z("html").addClass("gray");
         ca.autoattack = !1;
         ca.autofollow = !1;
         ca.autopick = !1;
@@ -98,28 +98,28 @@ define(
         if (
           !(
             S.Entity.effectState &
-            (K.EffectState.INVISIBLE |
-              K.EffectState.HIDE |
-              K.EffectState.CLOAK |
-              K.EffectState.CHASEWALK)
+            (L.EffectState.INVISIBLE |
+              L.EffectState.HIDE |
+              L.EffectState.CLOAK |
+              L.EffectState.CHASEWALK)
           )
         ) {
           var b = { ownerAID: S.Entity.GID, position: S.Entity.position };
-          b.effectId = N.EF_ENTRY2;
-          la.spam(b);
+          b.effectId = M.EF_ENTRY2;
+          ka.spam(b);
           if (99 == S.Character.level || 200 == S.Character.level)
             ((b = {
-              effectId: N.EF_LEVEL99_3,
+              effectId: M.EF_LEVEL99_3,
               ownerAID: S.Entity.GID,
               position: S.Entity.position,
             }),
-              la.spam(b));
+              ka.spam(b));
           S.Entity.falcon && ha.add(S.Entity);
           S.Entity.wolf && X.add(S.Entity);
-          S.Entity.effectState & K.EffectState.RUWACH &&
-            la.spam(33, 1, S.Entity.GID);
-          S.Entity.effectState & K.EffectState.SIGHT &&
-            la.spam(22, 1, S.Entity.GID);
+          S.Entity.effectState & L.EffectState.RUWACH &&
+            ka.spam(33, 1, S.Entity.GID);
+          S.Entity.effectState & L.EffectState.SIGHT &&
+            ka.spam(22, 1, S.Entity.GID);
         }
         fa.setTarget(S.Entity);
         fa.init();
@@ -130,18 +130,18 @@ define(
         ma.append();
         U.append();
         ia.append();
-        Aa.append();
-        ja.append();
-        xa.append();
-        za.append();
         Ba.append();
+        ja.append();
+        ya.append();
         wa.append();
+        Aa.append();
+        za.append();
         Ka.append();
         Ha.append();
         Ca.append();
-        Ea.append();
         Da.append();
-        cb.append();
+        Ea.append();
+        bb.append();
         Ia.append();
         Fa.append();
         Ga.append();
@@ -149,22 +149,22 @@ define(
         ua.append();
         lb.append();
         sb.append();
-        Oa.append();
+        Na.append();
         T.sendPacket(new da.CZ.NOTIFY_ACTORINIT());
         3 == ba.get("ClientVer") &&
           0 == Ga.ready &&
           T.sendPacket(new da.CZ.NOTIFY_LOADINFO());
         Ga.reReady = 0;
-        Ya.ready = 1;
+        Va.ready = 1;
         Ga.noMapsame &&
-          ((Ga.noMapsame = 0), Ya.setMapname(G.getMapName(ea.currentMap)));
+          ((Ga.noMapsame = 0), Va.setMapname(G.getMapName(ea.currentMap)));
       };
       ea.currentMap !== a.mapName && (Ga.noMapsame = 1);
       ea.setMap(a.mapName);
     }
-    function q(a) {
-      y(window).off("keydown.map");
-      ab.init(a.addr.ip, a.addr.port, a.mapName);
+    function t(a) {
+      z(window).off("keydown.map");
+      $a.init(a.addr.ip, a.addr.port, a.mapName);
     }
     function r() {
       var b = new da.CZ.REQUEST_QUIT();
@@ -174,13 +174,13 @@ define(
       R.stop();
       ea.free();
       Q.stop();
-      W.stop();
+      V.stop();
       ra.remove(function () {
         window.close();
         a("Engine/GameEngine").init();
       });
     }
-    function k(a) {
+    function n(a) {
       aa.addText(G.getMessage(502), aa.TYPE.ERROR);
     }
     function g() {
@@ -189,13 +189,13 @@ define(
       R.stop();
       ea.free();
       Q.stop();
-      W.stop();
+      V.stop();
       ra.remove(function () {
         window.close();
         a("Engine/GameEngine").init();
       });
     }
-    function u() {
+    function p() {
       for (var a in ia.list)
         if (7621 == ia.list[a].ITID) {
           U.ui.find(".resurection").show();
@@ -226,7 +226,7 @@ define(
         U.ui.hide();
       }
     }
-    function n() {
+    function k() {
       if (1 == ca.writemail) aa.addText("\u5199\u4fe1\u4e2d", aa.TYPE.ERROR);
       else if (sessionStorage.getItem("offline"))
         aa.addText("\u79bb\u7ebf\u72b6\u6001\u4e2d", aa.TYPE.ERROR);
@@ -236,63 +236,66 @@ define(
         T.sendPacket(a);
       }
     }
-    function p() {
+    function q() {
       var a = new da.CZ.RESTART();
       a.type = 0;
       T.sendPacket(a);
     }
-    function v() {
+    function u() {
       if (1 != ca.writemail) {
         var a = new da.CZ.STANDING_RESURRECTION();
         T.sendPacket(a);
       }
     }
-    function t(b) {
+    function v(b) {
       b.type
         ? ((b = document.getElementById("blind")) &&
             document.body.removeChild(b),
           (S.Character = null),
           (S.moveAction = null),
+          S.Entity.cart && (la.remove(S.Entity.GID), (S.Entity.cart = !1)),
+          S.Entity.falcon && (ha.remove(S.Entity.GID), (S.Entity.falcon = !1)),
+          S.Entity.wolf && (X.remove(S.Entity.GID), (S.Entity.wolf = !1)),
           Ia.clean(),
-          Ya.clean(),
-          Da.clean(),
+          Va.clean(),
+          Ea.clean(),
           Ha.clean(),
-          za.clean(),
+          wa.clean(),
           aa.clean(),
-          Ba.clean(),
           Aa.clean(),
+          Ba.clean(),
           Ca.clean(),
           ea.free(),
           R.stop(),
           sa.clearWalk(),
           Fa.clearWalk(),
-          Da.clearWalk(),
+          Ea.clearWalk(),
           a("Engine/CharEngine").reload())
         : aa.addText(G.getMessage(502), aa.TYPE.ERROR);
     }
-    function z(a) {
+    function A(a) {
       switch (a.result) {
         case 0:
           S.moveAction = null;
-          Da.clean();
-          za.clean();
+          Ea.clean();
+          wa.clean();
           aa.clean();
-          Ba.clean();
           Aa.clean();
+          Ba.clean();
           Ca.clean();
           R.stop();
           sa.clearWalk();
           Fa.clearWalk();
-          Da.clearWalk();
+          Ea.clearWalk();
           g();
           break;
         case 1:
           aa.addText(G.getMessage(502), aa.TYPE.ERROR);
       }
     }
-    function E(a, b, c) {
-      var d = "%" === b[0] || oa.CTRL,
-        e = "$" === b[0] || oa.ALT;
+    function C(a, b, c) {
+      var d = "%" === b[0] || pa.CTRL,
+        e = "$" === b[0] || pa.ALT;
       b = b.replace(/^(\$|\%)/, "");
       a.length
         ? ((c = new da.CZ.WHISPER()), (c.receiver = a), (c.msg = b))
@@ -309,26 +312,26 @@ define(
               (c.msg = S.Entity.display.name + " : " + b)));
       T.sendPacket(c);
     }
-    function C() {
+    function B() {
       var a = new da.CZ.REQ_CARTOFF();
       T.sendPacket(a);
     }
     function J() {
-      V.clearTimeout(Wa);
+      W.clearTimeout(Ta);
       if (S.Entity.action === S.Entity.ACTION.SIT) {
         S.Entity.lookTo(qa.world.x, qa.world.y);
         var a = new da.CZ.CHANGE_DIRECTION();
         a.headDir = S.Entity.headDir;
         a.dir = S.Entity.direction;
         T.sendPacket(a);
-      } else B();
+      } else y();
     }
-    function A() {
+    function D() {
       sa.clearWalk();
-      V.clearTimeout(Wa);
+      W.clearTimeout(Ta);
     }
-    function B() {
-      if (!(gb + 450 > R.tick || S.Entity.canmove > R.tick)) {
+    function y() {
+      if (!(fb + 450 > R.tick || S.Entity.canmove > R.tick)) {
         var a =
           Math.round(S.Entity.position[0]) === qa.world.x &&
           Math.round(S.Entity.position[1]) === qa.world.y;
@@ -343,13 +346,13 @@ define(
               f,
               g,
               h = S.Entity.position[0] < b ? -1 : 1,
-              l = S.Entity.position[1] < c ? -1 : 1;
+              k = S.Entity.position[1] < c ? -1 : 1;
             for (g = 0; 1 >= g; ++g)
               for (e = -g; e <= g; ++e)
                 for (f = -g; f <= g; ++f)
-                  if (F(b + e * h, c + f * l)) {
+                  if (H(b + e * h, c + f * k)) {
                     d[0] = b + e * h;
-                    d[1] = c + f * l;
+                    d[1] = c + f * k;
                     b = !0;
                     break a;
                   }
@@ -358,12 +361,12 @@ define(
           b || ((a.dest[0] = qa.world.x), (a.dest[1] = qa.world.y));
           T.sendPacket(a);
         }
-        V.clearTimeout(Wa);
-        Wa = V.setTimeout(B, 500);
-        gb = +R.tick;
+        W.clearTimeout(Ta);
+        Ta = W.setTimeout(y, 500);
+        fb = +R.tick;
       }
     }
-    function F(a, b) {
+    function H(a, b) {
       if (!(ga.getCellType(a, b) & ga.TYPE.WALKABLE)) return !1;
       var c = !0;
       ta.forEach(function (d) {
@@ -374,9 +377,9 @@ define(
       });
       return c;
     }
-    function O() {
+    function N() {
       S.moveAction &&
-        V.setTimeout(function () {
+        W.setTimeout(function () {
           S.moveAction &&
             (T.sendPacket(S.moveAction),
             null == ta.getFocusEntity() &&
@@ -384,13 +387,13 @@ define(
             (S.moveAction = null));
         }, 50);
     }
-    function M(a, b) {
+    function O(a, b) {
       var c = new da.CZ.STATUS_CHANGE();
       c.statusID = a;
       c.changeAmount = b;
       T.sendPacket(c);
     }
-    function H(a, b) {
+    function I(a, b) {
       if (b) {
         var c = new da.CZ.ITEM_THROW();
         c.Index = a;
@@ -404,30 +407,30 @@ define(
       b.AID = S.Entity.GID;
       T.sendPacket(b);
     }
-    function I(a, b) {
+    function K(a, b) {
       var c = new da.CZ.REQ_WEAR_EQUIP();
       c.index = a;
       c.wearLocation = b;
       T.sendPacket(c);
     }
-    function D(a) {
+    function E(a) {
       var b = new da.CZ.REQ_TAKEOFF_EQUIP();
       b.index = a;
       T.sendPacket(b);
     }
-    function L(a, b) {
+    function F(a, b) {
       var c = new da.CZ.CONFIG();
       c.Config = a;
       c.Value = b;
       T.sendPacket(c);
     }
-    var y = a("Utils/jquery"),
+    var z = a("Utils/jquery"),
       G = a("DB/DBManager"),
-      K = a("DB/Status/StatusState"),
-      N = a("DB/Effects/EffectConst"),
+      L = a("DB/Status/StatusState"),
+      M = a("DB/Effects/EffectConst"),
       Q = a("Audio/SoundManager"),
-      W = a("Audio/BGM"),
-      V = a("Core/Events"),
+      V = a("Audio/BGM"),
+      W = a("Core/Events"),
       ba = a("Core/Configs"),
       S = a("Engine/SessionStorage"),
       T = a("Network/NetworkManager"),
@@ -436,15 +439,15 @@ define(
       fa = a("Renderer/Camera"),
       ea = a("Renderer/MapRenderer"),
       ta = a("Renderer/EntityManager"),
-      pa = a("Renderer/Entity/Entity"),
-      la = a("Renderer/EffectManager"),
+      oa = a("Renderer/Entity/Entity"),
+      ka = a("Renderer/EffectManager"),
       ga = a("Renderer/Map/Altitude"),
-      ka = a("Renderer/CartObject"),
+      la = a("Renderer/CartObject"),
       ha = a("Renderer/FalconObject"),
       X = a("Renderer/WolfObject"),
       Z = a("Controls/MapControl"),
       qa = a("Controls/MouseEventHandler"),
-      oa = a("Controls/KeyEventHandler"),
+      pa = a("Controls/KeyEventHandler"),
       w = a("Controls/BattleMode"),
       ca = a("Preferences/Controls"),
       P = a("Preferences/ShortCutControls"),
@@ -458,41 +461,41 @@ define(
       ia = a("UI/Components/Inventory/Inventory");
     a("UI/Components/Mail/Mail");
     var na = a("UI/Components/Mail/Rodex"),
-      ya = a("UI/Components/Mail/RodexSend"),
+      xa = a("UI/Components/Mail/RodexSend"),
       ua = a("UI/Components/Shop/CashShop"),
-      Aa = a("UI/Components/OnPushCart/OnPushCart"),
-      Ba = a("UI/Components/ShortCut/ShortCut"),
-      xa = a("UI/Components/Equipment/Equipment"),
-      za = a("UI/Components/StatusIcons/StatusIcons"),
-      wa = a("UI/Components/ChatRoomCreate/ChatRoomCreate"),
+      Ba = a("UI/Components/OnPushCart/OnPushCart"),
+      Aa = a("UI/Components/ShortCut/ShortCut"),
+      ya = a("UI/Components/Equipment/Equipment"),
+      wa = a("UI/Components/StatusIcons/StatusIcons"),
+      za = a("UI/Components/ChatRoomCreate/ChatRoomCreate"),
       Ka = a("UI/Components/Emoticons/Emoticons"),
       va = a("UI/Components/RankFont/RankFont"),
       Ha = a("UI/Components/SkillList/SkillList"),
       Ca = a("UI/Components/PartyFriends/PartyFriends"),
-      Da = a("UI/Components/Quest/Quest"),
+      Ea = a("UI/Components/Quest/Quest"),
       Ia = a("UI/Components/Achievement/Achievement"),
-      Oa = a("UI/Components/PartyBooking/PartyBooking"),
+      Na = a("UI/Components/PartyBooking/PartyBooking"),
       La = a("UI/Components/PartyBookingReg/PartyBookingReg"),
-      Ea = a("UI/Components/Guild/Guild"),
+      Da = a("UI/Components/Guild/Guild"),
       Fa = a("UI/Components/WorldMap/WorldMap"),
       Ma = a("UI/Components/NpcBox/NpcBox"),
-      $a = a("UI/Components/NpcMenu/NpcMenu"),
-      Pa = a("UI/Components/Announce/Announce"),
-      Qa = a("UI/Components/InputBox/InputBox"),
+      Xa = a("UI/Components/NpcMenu/NpcMenu"),
+      Oa = a("UI/Components/Announce/Announce"),
+      Ya = a("UI/Components/InputBox/InputBox"),
       Ga = a("UI/Components/vbk/vbk"),
-      Va = a("UI/Components/Intro/Particle"),
-      Ya = a("UI/Components/ItemObtain/ItemObtain"),
+      Za = a("UI/Components/Intro/Particle"),
+      Va = a("UI/Components/ItemObtain/ItemObtain"),
       lb = a("UI/Components/Attendance/Attendance"),
       sb = a("UI/Components/CardConnection/CardConnection2"),
-      cb = a("UI/Components/miniQuest/miniQuest"),
+      bb = a("UI/Components/miniQuest/miniQuest"),
       mb = "",
-      fb = !1,
-      ab = {
-        init: function (V, R, w) {
-          Va.stop();
+      eb = !1,
+      $a = {
+        init: function (y, R, w) {
+          Za.stop();
           mb = w;
           T.connect(
-            T.utils.longToIP(V),
+            T.utils.longToIP(y),
             R,
             function (a) {
               ea.currentMap = "";
@@ -520,22 +523,22 @@ define(
             },
             !0,
           );
-          fb ||
-            ((fb = !0),
+          eb ||
+            ((eb = !0),
             Z.init(),
             (Z.onRequestWalk = J),
-            (Z.onRequestStopWalk = A),
-            (Z.onRequestDropItem = H),
+            (Z.onRequestStopWalk = D),
+            (Z.onRequestDropItem = I),
             T.hookPacket(da.ZC.AID, e),
             T.hookPacket(da.ZC.ACCEPT_ENTER, m),
             T.hookPacket(da.ZC.ACCEPT_ENTER2, m),
             T.hookPacket(da.ZC.ACCEPT_ENTER3, m),
             T.hookPacket(da.ZC.NPCACK_MAPMOVE, h),
-            T.hookPacket(da.ZC.NPCACK_SERVERMOVE, q),
+            T.hookPacket(da.ZC.NPCACK_SERVERMOVE, t),
             T.hookPacket(da.ZC.ACCEPT_QUIT, g),
-            T.hookPacket(da.ZC.REFUSE_QUIT, k),
-            T.hookPacket(da.ZC.RESTART_ACK, t),
-            T.hookPacket(da.ZC.ACK_REQ_DISCONNECT, z),
+            T.hookPacket(da.ZC.REFUSE_QUIT, n),
+            T.hookPacket(da.ZC.RESTART_ACK, v),
+            T.hookPacket(da.ZC.ACK_REQ_DISCONNECT, A),
             T.hookPacket(da.ZC.NOTIFY_TIME, b),
             T.hookPacket(da.ZC.NOTIFY_MAPPROPERTY2, c),
             T.hookPacket(da.ZC.NOTIFY_RANKING, d),
@@ -560,45 +563,45 @@ define(
             sa.prepare(),
             U.prepare(),
             ia.prepare(),
-            Aa.prepare(),
-            ja.prepare(),
-            xa.prepare(),
             Ba.prepare(),
-            wa.prepare(),
+            ja.prepare(),
+            ya.prepare(),
+            Aa.prepare(),
+            za.prepare(),
             Ka.prepare(),
             va.prepare(),
             Ha.prepare(),
             Ca.prepare(),
-            za.prepare(),
+            wa.prepare(),
             ma.prepare(),
             aa.prepare(),
-            Ea.prepare(),
-            Fa.prepare(),
             Da.prepare(),
-            cb.prepare(),
+            Fa.prepare(),
+            Ea.prepare(),
+            bb.prepare(),
             Ga.prepare(),
-            Ya.prepare(),
-            Oa.prepare(),
+            Va.prepare(),
+            Na.prepare(),
             La.prepare(),
-            (ja.onRequestUpdate = M),
-            (xa.onUnEquip = D),
-            (xa.onConfigUpdate = L),
-            (xa.onEquipItem = I),
-            (xa.onRemoveOption = C),
+            (ja.onRequestUpdate = O),
+            (ya.onUnEquip = E),
+            (ya.onConfigUpdate = F),
+            (ya.onEquipItem = K),
+            (ya.onRemoveOption = B),
             (ia.onUseItem = x),
-            (ia.onEquipItem = I),
+            (ia.onEquipItem = K),
             (U.onExitRequest = r),
-            (U.onCharSelectionRequest = n),
-            (U.onReturnSavePointRequest = p),
-            (U.onResurectionRequest = v),
+            (U.onCharSelectionRequest = k),
+            (U.onReturnSavePointRequest = q),
+            (U.onResurectionRequest = u),
             (U.onBackhomeRequest = l),
             (U.onSetofflineRequest = f),
-            (U.onCheakResurection = u),
-            (aa.onRequestTalk = E));
+            (U.onCheakResurection = p),
+            (aa.onRequestTalk = C));
         },
       },
-      Wa = null,
-      gb = 0;
-    return ab;
+      Ta = null,
+      fb = 0;
+    return $a;
   },
 );

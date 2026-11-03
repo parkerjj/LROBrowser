@@ -20,9 +20,9 @@ define("Renderer/Effects/StrEffect", [
   var e = b.mat4,
     m = {},
     h = null,
-    q = null,
+    t = null,
     r = new Float32Array(16),
-    k = e.create(),
+    n = e.create(),
     g = -1;
   d.prototype.init = function (a) {
     this.ready = !0;
@@ -57,76 +57,76 @@ define("Renderer/Effects/StrEffect", [
           if (((d = e.layers[f]), d.materials.length)) {
             var l;
             l = d;
-            var k = a,
-              h,
+            var h = a,
+              p,
+              n,
               m,
-              u,
-              r = (u = 0),
-              q = -1,
-              F = -1;
-            m = l.animations;
-            for (h = 0; h < l.anikeynum; ++h)
-              (m[h].frame <= g &&
-                (0 === m[h].type && (q = h), 1 === m[h].type && (F = h)),
-                (u = Math.max(u, m[h].frame)),
-                0 === m[h].type && (r = Math.max(r, m[h].frame)));
-            if (0 > q || (0 > F && u < g)) l = !1;
+              r = (m = 0),
+              t = -1,
+              H = -1;
+            n = l.animations;
+            for (p = 0; p < l.anikeynum; ++p)
+              (n[p].frame <= g &&
+                (0 === n[p].type && (t = p), 1 === n[p].type && (H = p)),
+                (m = Math.max(m, n[p].frame)),
+                0 === n[p].type && (r = Math.max(r, n[p].frame)));
+            if (0 > t || (0 > H && m < g)) l = !1;
             else if (
-              ((h = m[q]),
-              (u = m[F]),
-              (m = g - h.frame),
-              (k.srcalpha = h.srcalpha),
-              (k.destalpha = h.destalpha),
-              F !== q + 1 || u.frame !== h.frame)
+              ((p = n[t]),
+              (m = n[H]),
+              (n = g - p.frame),
+              (h.srcalpha = p.srcalpha),
+              (h.destalpha = p.destalpha),
+              H !== t + 1 || m.frame !== p.frame)
             )
-              u && r <= h.frame
+              m && r <= p.frame
                 ? (l = !1)
-                : ((k.angle = h.angle),
-                  (k.aniframe = h.aniframe),
-                  k.color.set(h.color),
-                  k.pos.set(h.pos),
-                  k.uv.set(h.uv),
-                  k.xy.set(h.xy),
+                : ((h.angle = p.angle),
+                  (h.aniframe = p.aniframe),
+                  h.color.set(p.color),
+                  h.pos.set(p.pos),
+                  h.uv.set(p.uv),
+                  h.xy.set(p.xy),
                   (l = !0));
             else {
-              k.color[0] = h.color[0] + u.color[0] * m;
-              k.color[1] = h.color[1] + u.color[1] * m;
-              k.color[2] = h.color[2] + u.color[2] * m;
-              k.color[3] = h.color[3] + u.color[3] * m;
-              k.uv[0] = h.uv[0] + u.uv[0] * m;
-              k.uv[1] = h.uv[1] + u.uv[1] * m;
-              k.uv[2] = h.uv[2] + u.uv[2] * m;
-              k.uv[3] = h.uv[3] + u.uv[3] * m;
-              k.uv[4] = h.uv[4] + u.uv[4] * m;
-              k.uv[5] = h.uv[5] + u.uv[5] * m;
-              k.uv[6] = h.uv[6] + u.uv[6] * m;
-              k.uv[7] = h.uv[7] + u.uv[7] * m;
-              k.xy[0] = h.xy[0] + u.xy[0] * m;
-              k.xy[1] = h.xy[1] + u.xy[1] * m;
-              k.xy[2] = h.xy[2] + u.xy[2] * m;
-              k.xy[3] = h.xy[3] + u.xy[3] * m;
-              k.xy[4] = h.xy[4] + u.xy[4] * m;
-              k.xy[5] = h.xy[5] + u.xy[5] * m;
-              k.xy[6] = h.xy[6] + u.xy[6] * m;
-              k.xy[7] = h.xy[7] + u.xy[7] * m;
-              k.angle = h.angle + u.angle * m;
-              k.pos[0] = h.pos[0] + u.pos[0] * m;
-              k.pos[1] = h.pos[1] + u.pos[1] * m;
-              switch (u.anitype) {
+              h.color[0] = p.color[0] + m.color[0] * n;
+              h.color[1] = p.color[1] + m.color[1] * n;
+              h.color[2] = p.color[2] + m.color[2] * n;
+              h.color[3] = p.color[3] + m.color[3] * n;
+              h.uv[0] = p.uv[0] + m.uv[0] * n;
+              h.uv[1] = p.uv[1] + m.uv[1] * n;
+              h.uv[2] = p.uv[2] + m.uv[2] * n;
+              h.uv[3] = p.uv[3] + m.uv[3] * n;
+              h.uv[4] = p.uv[4] + m.uv[4] * n;
+              h.uv[5] = p.uv[5] + m.uv[5] * n;
+              h.uv[6] = p.uv[6] + m.uv[6] * n;
+              h.uv[7] = p.uv[7] + m.uv[7] * n;
+              h.xy[0] = p.xy[0] + m.xy[0] * n;
+              h.xy[1] = p.xy[1] + m.xy[1] * n;
+              h.xy[2] = p.xy[2] + m.xy[2] * n;
+              h.xy[3] = p.xy[3] + m.xy[3] * n;
+              h.xy[4] = p.xy[4] + m.xy[4] * n;
+              h.xy[5] = p.xy[5] + m.xy[5] * n;
+              h.xy[6] = p.xy[6] + m.xy[6] * n;
+              h.xy[7] = p.xy[7] + m.xy[7] * n;
+              h.angle = p.angle + m.angle * n;
+              h.pos[0] = p.pos[0] + m.pos[0] * n;
+              h.pos[1] = p.pos[1] + m.pos[1] * n;
+              switch (m.anitype) {
                 default:
-                  k.aniframe = 0;
+                  h.aniframe = 0;
                   break;
                 case 1:
-                  k.aniframe = h.aniframe + u.aniframe * m;
+                  h.aniframe = p.aniframe + m.aniframe * n;
                   break;
                 case 2:
-                  k.aniframe = Math.min(h.aniframe + u.delay * m, l.texcnt - 1);
+                  h.aniframe = Math.min(p.aniframe + m.delay * n, l.texcnt - 1);
                   break;
                 case 3:
-                  k.aniframe = (h.aniframe + u.delay * m) % l.texcnt;
+                  h.aniframe = (p.aniframe + m.delay * n) % l.texcnt;
                   break;
                 case 4:
-                  k.aniframe = (h.aniframe - u.delay * m) % l.texcnt;
+                  h.aniframe = (p.aniframe - m.delay * n) % l.texcnt;
               }
               l = !0;
             }
@@ -158,16 +158,16 @@ define("Renderer/Effects/StrEffect", [
     r[14] = 1;
     r[15] = 1;
     c.angle !== g &&
-      (e.identity(k),
-      e.rotateZ(k, k, (-c.angle / 180) * Math.PI),
+      (e.identity(n),
+      e.rotateZ(n, n, (-c.angle / 180) * Math.PI),
       (g = c.angle));
     c.pos[0] -= 320;
     c.pos[1] -= 320 + (this.posYoffset ? this.posYoffset : 0);
     a.uniform4fv(d.uSpriteColor, c.color);
     a.uniform2fv(d.uSpriteOffset, c.pos);
     a.uniform3fv(d.uSpritePosition, this.position);
-    a.uniformMatrix4fv(d.uSpriteAngle, !1, k);
-    a.bindBuffer(a.ARRAY_BUFFER, q);
+    a.uniformMatrix4fv(d.uSpriteAngle, !1, n);
+    a.bindBuffer(a.ARRAY_BUFFER, t);
     a.vertexAttribPointer(f.aPosition, 2, a.FLOAT, !1, 16, 0);
     a.vertexAttribPointer(f.aTextureCoord, 2, a.FLOAT, !1, 16, 8);
     a.bufferData(a.ARRAY_BUFFER, r, a.STREAM_DRAW);
@@ -176,7 +176,7 @@ define("Renderer/Effects/StrEffect", [
     a.drawArrays(a.TRIANGLE_STRIP, 0, 4);
   };
   d.init = function (b) {
-    q || (q = b.createBuffer());
+    t || (t = b.createBuffer());
     h ||
       (h = a.createShaderProgram(
         b,
@@ -200,7 +200,7 @@ define("Renderer/Effects/StrEffect", [
   };
   d.free = function (a) {
     h && (a.deleteProgram(h), (h = null));
-    q && (a.deleteBuffer(q), (q = null));
+    t && (a.deleteBuffer(t), (t = null));
     this.ready = !1;
   };
   d.beforeRender = function (a, b, c, d, e) {

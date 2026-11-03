@@ -14,83 +14,83 @@ define(
             : parseInt(a) + "\u79d2\u540e";
     }
     function c(a) {
-      var b = n(a);
+      var b = k(a);
       if (b) {
-        var c = p.getItemName(b),
+        var c = q.getItemName(b),
           d = b.MaxPrice;
-        B.showPromptBox(
+        y.showPromptBox(
           "\u7269\u54c1\u540d\u79f0\uff1a" +
             c +
             "\uff0c\u4ef7\u683c\uff1a" +
             d +
-            L +
+            F +
             "\uff0c\u9053\u5177\u8d2d\u4e70\u540e\u5c06\u53d1\u9001\u5230\u90ae\u7bb1",
           "ok",
           "cancel",
           function () {
-            if (b.SellerName == A.Entity.display.name)
-              B.showMessageBox("\u8d2d\u4e70\u5931\u8d25", "ok");
+            if (b.SellerName == D.Entity.display.name)
+              y.showMessageBox("\u8d2d\u4e70\u5931\u8d25", "ok");
             else {
-              var c = new t.CZ.AUCTION_BUY();
+              var c = new v.CZ.AUCTION_BUY();
               c.AuctionID = a;
               c.Money = d;
-              v.sendPacket(c);
+              u.sendPacket(c);
             }
           },
         );
       }
     }
     function d(a) {
-      var b = n(a);
+      var b = k(a);
       b &&
-        ((b = p.getItemName(b)),
-        B.showPromptBox(
+        ((b = q.getItemName(b)),
+        y.showPromptBox(
           "\u7269\u54c1\u540d\u79f0\uff1a" +
             b +
             "\uff0c\u9053\u5177\u4e0b\u67b6\u540e\u5c06\u53d1\u9001\u5230\u90ae\u7bb1",
           "ok",
           "cancel",
           function () {
-            var b = new t.CZ.AUCTION_ADD_CANCEL();
+            var b = new v.CZ.AUCTION_ADD_CANCEL();
             b.AuctionID = a;
-            v.sendPacket(b);
+            u.sendPacket(b);
           },
         ));
     }
     function e(a) {
-      D.ui.find(".tabsbar .btns button").removeClass("sd");
-      D.ui.find(".tabsbar .btns button").eq(a).addClass("sd");
-      D.ui.find(".content").empty();
+      E.ui.find(".tabsbar .btns button").removeClass("sd");
+      E.ui.find(".tabsbar .btns button").eq(a).addClass("sd");
+      E.ui.find(".content").empty();
       G = a;
       switch (a) {
         case 0:
-          D.ui.find(".seachbar").show();
-          D.ui.find(".sellbar").hide();
-          D.ui.find(".nav").show();
-          D.ui.find(".nav2").hide();
-          D.ui.find(".footer .pages").show();
-          D.ui.find(".footer .btns").hide();
+          E.ui.find(".seachbar").show();
+          E.ui.find(".sellbar").hide();
+          E.ui.find(".nav").show();
+          E.ui.find(".nav2").hide();
+          E.ui.find(".footer .pages").show();
+          E.ui.find(".footer .btns").hide();
           m(4);
           break;
         case 1:
-          D.ui.find(".seachbar").hide();
-          D.ui.find(".sellbar").hide();
-          D.ui.find(".nav").show();
-          D.ui.find(".nav2").hide();
-          D.ui.find(".footer .pages").hide();
-          D.ui.find(".footer .btns").hide();
-          a = new t.CZ.AUCTION_REQ_MY_INFO();
+          E.ui.find(".seachbar").hide();
+          E.ui.find(".sellbar").hide();
+          E.ui.find(".nav").show();
+          E.ui.find(".nav2").hide();
+          E.ui.find(".footer .pages").hide();
+          E.ui.find(".footer .btns").hide();
+          a = new v.CZ.AUCTION_REQ_MY_INFO();
           a.Type = 0;
-          v.sendPacket(a);
+          u.sendPacket(a);
           break;
         case 2:
-          (D.ui.find(".seachbar").hide(),
-            D.ui.find(".sellbar").show(),
-            D.ui.find(".nav").hide(),
-            D.ui.find(".nav2").show(),
-            D.ui.find(".footer .pages").hide(),
-            D.ui.find(".footer .btns").show(),
-            (a = D.ui.find(".content")),
+          (E.ui.find(".seachbar").hide(),
+            E.ui.find(".sellbar").show(),
+            E.ui.find(".nav").hide(),
+            E.ui.find(".nav2").show(),
+            E.ui.find(".footer .pages").hide(),
+            E.ui.find(".footer .btns").show(),
+            (a = E.ui.find(".content")),
             a.empty(),
             a.append(
               "\x3cp\x3e\u6253\u5f00\u80cc\u5305\u6dfb\u52a0\u51fa\u552e\u9053\u5177\x3c/p\x3e",
@@ -98,17 +98,17 @@ define(
       }
     }
     function m(a) {
-      D.ui.find(".search input").val("");
-      D.ui
+      E.ui.find(".search input").val("");
+      E.ui
         .find(".search .sort option[value \x3d " + a + "]")
         .prop("selected", "selected");
-      K = 1;
-      var b = new t.CZ.AUCTION_ITEM_SEARCH();
+      L = 1;
+      var b = new v.CZ.AUCTION_ITEM_SEARCH();
       b.Type = a;
       b.AuctionID = 0;
-      b.Name = D.ui.find(".search input").val() || "";
-      b.Page = K;
-      v.sendPacket(b);
+      b.Name = E.ui.find(".search input").val() || "";
+      b.Page = L;
+      u.sendPacket(b);
       return !1;
     }
     function h(a) {
@@ -120,55 +120,55 @@ define(
       }
       a.stopImmediatePropagation();
       if (("item" == b.type) & ("Inventory" == b.from) && (b = b.data)) {
-        var c = new t.CZ.AUCTION_CREATE();
+        var c = new v.CZ.AUCTION_CREATE();
         c.type = 1;
-        v.sendPacket(c);
-        c = new t.CZ.AUCTION_ADD_ITEM();
+        u.sendPacket(c);
+        c = new v.CZ.AUCTION_ADD_ITEM();
         c.index = b.index;
         c.count = 1;
-        v.sendPacket(c);
-        O.auctionItem(b.index, 1);
+        u.sendPacket(c);
+        N.auctionItem(b.index, 1);
       }
       a.stopImmediatePropagation();
       return !1;
     }
-    function q(a) {
+    function t(a) {
       a.stopImmediatePropagation();
       return !1;
     }
     function r() {
-      1 < K && (--K, D.ui.find(".currentPage").text(K), g());
+      1 < L && (--L, E.ui.find(".currentPage").text(L), g());
     }
-    function k() {
-      K < N && ((K += 1), D.ui.find(".currentPage").text(K), g());
+    function n() {
+      L < M && ((L += 1), E.ui.find(".currentPage").text(L), g());
     }
     function g() {
-      var a = D.ui.find(".search .sort").val(),
-        b = new t.CZ.AUCTION_ITEM_SEARCH();
+      var a = E.ui.find(".search .sort").val(),
+        b = new v.CZ.AUCTION_ITEM_SEARCH();
       b.Type = a;
       b.AuctionID = 0;
-      b.Name = D.ui.find(".search input").val();
-      b.Page = K;
-      v.sendPacket(b);
+      b.Name = E.ui.find(".search input").val();
+      b.Page = L;
+      u.sendPacket(b);
     }
-    function u(a) {
-      D.ui
+    function p(a) {
+      E.ui
         .find(".search .sort option[value \x3d 4]")
         .prop("selected", "selected");
-      var b = new t.CZ.AUCTION_ITEM_SEARCH();
+      var b = new v.CZ.AUCTION_ITEM_SEARCH();
       b.Type = 4;
       b.AuctionID = a | 0;
-      b.Name = D.ui.find(".search input").val();
-      b.Page = K;
-      v.sendPacket(b);
+      b.Name = E.ui.find(".search input").val();
+      b.Page = L;
+      u.sendPacket(b);
     }
     function l() {
-      var a = D.ui.find(".content");
-      if (W) {
-        var b = new t.CZ.AUCTION_CREATE();
+      var a = E.ui.find(".content");
+      if (V) {
+        var b = new v.CZ.AUCTION_CREATE();
         b.type = 1;
-        v.sendPacket(b);
-        W = null;
+        u.sendPacket(b);
+        V = null;
       }
       a.empty();
       a.append(
@@ -176,35 +176,35 @@ define(
       );
     }
     function f() {
-      if (W) {
-        var a = D.ui.find(".itemSub .name").html(),
-          b = D.ui.find(".itemSub .price input").val(),
-          c = D.ui.find(".itemSub .datetime input").val();
+      if (V) {
+        var a = E.ui.find(".itemSub .name").html(),
+          b = E.ui.find(".itemSub .price input").val(),
+          c = E.ui.find(".itemSub .datetime input").val();
         a
           ? b
             ? 1 > b
-              ? B.showMessageBox(
+              ? y.showMessageBox(
                   "\u51fa\u552e\u4ef7\u683c\u5927\u4e8e\u7b49\u4e8e1",
                   "ok",
                 )
               : c
                 ? 1 > c
-                  ? B.showMessageBox(
+                  ? y.showMessageBox(
                       "\u6302\u552e\u65f6\u95f4\u81f3\u5c111\u5c0f\u65f6",
                       "ok",
                     )
                   : 168 < c
-                    ? B.showMessageBox(
+                    ? y.showMessageBox(
                         "\u6302\u552e\u65f6\u95f4\u4e0d\u80fd\u8d85\u8fc7168\u5c0f\u65f6",
                         "ok",
                       )
                     : ((b = parseInt(b)),
-                      B.showPromptBox(
+                      y.showPromptBox(
                         "\u7269\u54c1\u540d\u79f0\uff1a" +
                           a +
                           "\uff0c\u4ef7\u683c\uff1a" +
                           b +
-                          L +
+                          F +
                           "\uff0c\u624b\u7eed\u8d39\uff1a" +
                           b +
                           "Z\uff0c\u6302\u552e\u65f6\u95f4\uff1a" +
@@ -216,123 +216,123 @@ define(
                         "ok",
                         "cancel",
                         function () {
-                          var a = new t.CZ.AUCTION_ADD();
+                          var a = new v.CZ.AUCTION_ADD();
                           a.NowMoney = b;
                           a.MaxMoney = b;
                           a.DeleteHour = c;
-                          v.sendPacket(a);
+                          u.sendPacket(a);
                         },
                       ))
-                : B.showMessageBox(
+                : y.showMessageBox(
                     "\u8bf7\u586b\u5199\u6302\u552e\u65f6\u95f4",
                     "ok",
                   )
-            : B.showMessageBox(
+            : y.showMessageBox(
                 "\u8bf7\u586b\u5199\u51fa\u552e\u4ef7\u683c",
                 "ok",
               )
-          : B.showMessageBox("\u8bf7\u6dfb\u52a0\u7269\u54c1", "ok");
-      } else B.showMessageBox("\u8bf7\u6dfb\u52a0\u7269\u54c1", "ok");
+          : y.showMessageBox("\u8bf7\u6dfb\u52a0\u7269\u54c1", "ok");
+      } else y.showMessageBox("\u8bf7\u6dfb\u52a0\u7269\u54c1", "ok");
     }
-    function n(a) {
-      for (var b, c = 0; c < D.list.length; c++)
-        if (D.list[c].AuctionID == a) {
-          b = D.list[c];
+    function k(a) {
+      for (var b, c = 0; c < E.list.length; c++)
+        if (E.list[c].AuctionID == a) {
+          b = E.list[c];
           break;
         }
       return b;
     }
-    var p = a("DB/DBManager"),
-      v = a("Network/NetworkManager"),
-      t = a("Network/PacketStructure"),
-      z = a("Utils/jquery"),
-      E = a("Core/Preferences"),
-      C = a("Core/Client"),
+    var q = a("DB/DBManager"),
+      u = a("Network/NetworkManager"),
+      v = a("Network/PacketStructure"),
+      A = a("Utils/jquery"),
+      C = a("Core/Preferences"),
+      B = a("Core/Client"),
       J = a("Core/Configs");
     a("Renderer/Renderer");
-    var A = a("Engine/SessionStorage");
+    var D = a("Engine/SessionStorage");
     a("Controls/MouseEventHandler");
-    var B = a("UI/UIManager"),
-      F = a("UI/UIComponent");
+    var y = a("UI/UIManager"),
+      H = a("UI/UIComponent");
     a("UI/Components/ContextMenu/ContextMenu");
     a("UI/Components/ChatBox/ChatBox");
-    var O = a("UI/Components/Inventory/Inventory"),
-      M = a("UI/Components/OnPushCart/OnPushCart"),
-      H = a("UI/Components/ItemInfo/ItemInfo"),
+    var N = a("UI/Components/Inventory/Inventory"),
+      O = a("UI/Components/OnPushCart/OnPushCart"),
+      I = a("UI/Components/ItemInfo/ItemInfo"),
       x = a("UI/Components/ItemObtain/ItemObtain"),
-      I = a("text!./Auction.html");
+      K = a("text!./Auction.html");
     a = a("text!./Auction.css");
-    var D = new F("Auction", I, a),
-      L = "Z";
-    3 == J.get("ClientVer") && (L = "C");
-    D.list = [];
-    D.TAB = { ITEM: 0, SELLING: 1, MNSELL: 2 };
-    var y = E.get(
+    var E = new H("Auction", K, a),
+      F = "Z";
+    3 == J.get("ClientVer") && (F = "C");
+    E.list = [];
+    E.TAB = { ITEM: 0, SELLING: 1, MNSELL: 2 };
+    var z = C.get(
         "Auction",
-        { x: 200, y: 260, width: 6, height: 6, show: !1, tab: D.TAB.ITEM },
+        { x: 200, y: 260, width: 6, height: 6, show: !1, tab: E.TAB.ITEM },
         1,
       ),
       G = 0,
-      K = 1,
-      N = 1,
+      L = 1,
+      M = 1,
       Q = !1,
-      W = null;
-    D.init = function () {
+      V = null;
+    E.init = function () {
       this.ui.find(".titlebar").on("click", ".close", function () {
-        var a = new t.CZ.AUCTION_CLOSE();
-        v.sendPacket(a);
+        var a = new v.CZ.AUCTION_CLOSE();
+        u.sendPacket(a);
       });
       this.ui.find(".content").on("contextmenu", ".item .left", function () {
         if (!Q) {
-          var a = z(this).parent().attr("data-auctionid");
-          if ((a = n(a)))
-            H.AuctionID != a.AuctionID
-              ? (H.append(),
-                (H.AuctionID = a.AuctionID),
-                (H.item_ = a),
+          var a = A(this).parent().attr("data-auctionid");
+          if ((a = k(a)))
+            I.AuctionID != a.AuctionID
+              ? (I.append(),
+                (I.AuctionID = a.AuctionID),
+                (I.item_ = a),
                 (a.type = a.Type),
-                H.setItem(a))
-              : H.remove();
+                I.setItem(a))
+              : I.remove();
         }
       });
       this.ui
         .find(".content")
         .on("contextmenu", ".itemSub .left,.itemSub .name", function () {
           if (!Q) {
-            z(this).parent().attr("data-index");
-            var a = W;
+            A(this).parent().attr("data-index");
+            var a = V;
             a &&
-              (H.uid != a.ITID
-                ? (H.append(),
-                  (H.uid = a.ITID),
-                  (H.type = "Auction"),
-                  (H.item_ = a),
+              (I.uid != a.ITID
+                ? (I.append(),
+                  (I.uid = a.ITID),
+                  (I.type = "Auction"),
+                  (I.item_ = a),
                   (a.type = a.Type),
-                  H.setItem(a))
-                : H.remove());
+                  I.setItem(a))
+                : I.remove());
           }
         });
       this.ui.find(".tabsbar .btns button").on("click", function () {
-        e(z(this).index());
+        e(A(this).index());
       });
       this.ui.find(".content").on("click", ".item .buyin", function () {
-        Q || c(z(this).attr("data-auctionid"));
+        Q || c(A(this).attr("data-auctionid"));
       });
       this.ui.find(".content").on("click", ".item .takedn", function () {
-        Q || d(z(this).attr("data-auctionid"));
+        Q || d(A(this).attr("data-auctionid"));
       });
       this.ui.find(".search .sort").on("change", function () {
-        m(z(this).val());
+        m(A(this).val());
       });
-      this.ui.find(".search input").on("change", u);
+      this.ui.find(".search input").on("change", p);
       this.ui.find(".footer").on("click", ".prev", r);
-      this.ui.find(".footer").on("click", ".next", k);
+      this.ui.find(".footer").on("click", ".next", n);
       this.ui.find(".openInventory").click(function () {
-        O.toggle();
+        N.toggle();
       });
       this.ui.find(".openpushcart").click(function () {
-        A.Entity.cart
-          ? M.toggle()
+        D.Entity.cart
+          ? O.toggle()
           : x.setMsg("\u627e\u4e0d\u5230\u624b\u63a8\u8f66");
       });
       this.ui.find(".sellbar").on("click", ".reset", l);
@@ -345,31 +345,31 @@ define(
         })
         .on("touchmove", ".content", function (c) {
           Q = !0;
-          3 < z(this).find(".item").length &&
+          3 < A(this).find(".item").length &&
             ((b = c.originalEvent.targetTouches[0].clientY),
-            (0 < b - a && 0 == z("#Auction .content").scrollTop()) ||
+            (0 < b - a && 0 == A("#Auction .content").scrollTop()) ||
               c.stopImmediatePropagation());
         });
       this.draggable(this.ui.find(".titlebar"));
-      this.ui.on("drop", h).on("dragover", q);
-      y.tab = 0;
+      this.ui.on("drop", h).on("dragover", t);
+      z.tab = 0;
     };
-    D.onAppend = function () {
+    E.onAppend = function () {
       e(0);
     };
-    D.onRemove = function () {
-      H.ui && H.ui.is(":visible") && H.remove();
+    E.onRemove = function () {
+      I.ui && I.ui.is(":visible") && I.remove();
       G = 0;
-      N = K = 1;
-      W = null;
-      D.ui.find(".search input").val("");
+      M = L = 1;
+      V = null;
+      E.ui.find(".search input").val("");
     };
-    D.addItemSub = function (a, b) {
-      var c = O.getItemByIndex(a);
-      a = p.getItemInfo(c.ITID);
-      b = p.getItemName(c);
+    E.addItemSub = function (a, b) {
+      var c = N.getItemByIndex(a);
+      a = q.getItemInfo(c.ITID);
+      b = q.getItemName(c);
       var d = this.ui.find(".content");
-      W = c;
+      V = c;
       d.empty();
       d.append(
         '\x3cdiv class\x3d"itemSub" data-index\x3d"' +
@@ -378,8 +378,8 @@ define(
           b +
           '\x3c/div\x3e\x3cdiv class\x3d"price"\x3e\x3cinput type\x3d"text" value\x3d"1"/\x3e\x3c/div\x3e\x3cdiv class\x3d"datetime"\x3e\x3cinput type\x3d"text" value\x3d"168" /\x3e\x3c/div\x3e\x3c/div\x3e',
       );
-      C.loadFile(
-        p.INTERFACE_PATH + "item/" + a.identifiedResourceName + ".bmp",
+      B.loadFile(
+        q.INTERFACE_PATH + "item/" + a.identifiedResourceName + ".bmp",
         function (a) {
           d.find('.itemSub[data-index\x3d"' + c.index + '"] .icon').css(
             "backgroundImage",
@@ -388,17 +388,17 @@ define(
         },
       );
     };
-    D.addItem = function (a) {
+    E.addItem = function (a) {
       var c,
-        d = p.getItemInfo(a.ITID),
-        e = p.getItemName(a),
+        d = q.getItemInfo(a.ITID),
+        e = q.getItemName(a),
         f = this.ui.find(".content"),
-        g = D.ui.find(".tabsbar .btns button.sd").index(),
+        g = E.ui.find(".tabsbar .btns button.sd").index(),
         h = !1;
       c = a.DeleteTime - parseInt(Date.now() / 1e3);
-      a.SellerName == A.Entity.display.name && (h = !0);
+      a.SellerName == D.Entity.display.name && (h = !0);
       c = h
-        ? z(
+        ? A(
             '\x3cdiv class\x3d"item" draggable\x3d"true" data-AuctionID\x3d"' +
               a.AuctionID +
               '" \x3e\x3cdiv class\x3d"left" \x3e\x3cdiv class\x3d"icon"\x3e\x3c/div\x3e\x3cdiv class\x3d"name"\x3e' +
@@ -417,7 +417,7 @@ define(
                   '"\x3e\u4e0b\u67b6\x3c/button\x3e') +
               "\x3c/div\x3e\x3c/div\x3e",
           )
-        : z(
+        : A(
             '\x3cdiv class\x3d"item" draggable\x3d"true" data-AuctionID\x3d"' +
               a.AuctionID +
               '" \x3e\x3cdiv class\x3d"left" \x3e\x3cdiv class\x3d"icon"\x3e\x3c/div\x3e\x3cdiv class\x3d"name"\x3e' +
@@ -437,8 +437,8 @@ define(
               "\x3c/div\x3e\x3c/div\x3e",
           );
       f.append(c);
-      C.loadFile(
-        p.INTERFACE_PATH + "item/" + d.identifiedResourceName + ".bmp",
+      B.loadFile(
+        q.INTERFACE_PATH + "item/" + d.identifiedResourceName + ".bmp",
         function (b) {
           f.find('.item[data-AuctionID\x3d"' + a.AuctionID + '"] .icon').css(
             "backgroundImage",
@@ -447,36 +447,36 @@ define(
         },
       );
     };
-    D.getSellitem = function () {
-      return W;
+    E.getSellitem = function () {
+      return V;
     };
-    D.update = function (a) {
+    E.update = function (a) {
       e(a);
     };
-    D.setList = function (a) {
+    E.setList = function (a) {
       var b;
       this.list = a.auctionItemList;
       b = this.ui.find(".content");
       var c = this.ui.find(".footer .pages");
-      N = a.MaxPage;
+      M = a.MaxPage;
       b.empty();
       c.empty();
       b = 0;
       for (a = a.Number; b < a; b++)
-        if ((D.addItem(this.list[b]), 0 == G && b == a - 1)) {
-          var d = z(
+        if ((E.addItem(this.list[b]), 0 == G && b == a - 1)) {
+          var d = A(
             '\x3cbutton class\x3d"prev"\x3e\x3c\x3c/button\x3e\x3cspan class\x3d"currentPage"\x3e' +
-              K +
+              L +
               '\x3c/span\x3e / \x3cspan class\x3d"totalPages"\x3e' +
-              N +
+              M +
               '\x3c/span\x3e\x3cbutton class\x3d"next"\x3e\x3e\x3c/button\x3e',
           );
           c.append(d);
         }
     };
-    D.updatePage = function () {
+    E.updatePage = function () {
       g();
     };
-    return B.addComponent(D);
+    return y.addComponent(E);
   },
 );

@@ -9,7 +9,7 @@ define(
       return !1;
     }
     function c() {
-      var a = M.ui,
+      var a = O.ui,
         b = a.find(".container .content"),
         c = a.find(".hide"),
         d = a.position().top,
@@ -18,25 +18,25 @@ define(
         g = 0,
         h;
       h = setInterval(function () {
-        var a = Math.floor((C.screen.x - e - 25) / 32),
-          h = Math.floor((C.screen.y - d - 20) / 32),
+        var a = Math.floor((B.screen.x - e - 25) / 32),
+          h = Math.floor((B.screen.y - d - 20) / 32),
           a = Math.min(Math.max(a, 6), 9),
           h = Math.min(Math.max(h, 2), 6);
         if (a !== f || h !== g)
-          (M.resize(a, h),
+          (O.resize(a, h),
             (f = a),
             (g = h),
             b.height() === b[0].scrollHeight ? c.show() : c.hide());
       }, 30);
-      p(window).on("mouseup.resize", function (a) {
-        1 === a.which && (clearInterval(h), p(window).off("mouseup.resize"));
+      q(window).on("mouseup.resize", function (a) {
+        1 === a.which && (clearInterval(h), q(window).off("mouseup.resize"));
       });
     }
     function d() {
-      var a = M.ui;
-      H
-        ? (a.find(".panel").show(), a.height(H), (H = 0))
-        : ((H = a.height()), a.height(17), a.find(".panel").hide());
+      var a = O.ui;
+      I
+        ? (a.find(".panel").show(), a.height(I), (I = 0))
+        : ((I = a.height()), a.height(17), a.find(".panel").hide());
     }
     function e(a) {
       var b;
@@ -49,21 +49,21 @@ define(
     }
     function m() {
       var a = parseInt(this.getAttribute("data-index"), 10);
-      if ((a = M.getItemByIndex(a))) {
-        var b = p(this).position(),
-          c = M.ui.find(".overlay");
+      if ((a = O.getItemByIndex(a))) {
+        var b = q(this).position(),
+          c = O.ui.find(".overlay");
         c.show();
         c.css({ top: b.top, left: b.left + 35 });
-        c.text(u.getItemName(a));
+        c.text(p.getItemName(a));
         a.IsIdentified ? c.removeClass("grey") : c.addClass("grey");
       }
     }
     function h() {
-      M.ui.find(".overlay").hide();
+      O.ui.find(".overlay").hide();
     }
-    function q(a) {
+    function t(a) {
       var b = parseInt(this.getAttribute("data-index"), 10);
-      if ((b = M.getItemByIndex(b))) {
+      if ((b = O.getItemByIndex(b))) {
         var c = new Image(),
           d = this.firstChild.style.backgroundImage.match(/\(([^\)]+)/)[1];
         c.src = d.replace(/^\"/, "").replace(/\"$/, "");
@@ -80,88 +80,88 @@ define(
     function r() {
       delete window._OBJ_DRAG_;
     }
-    function k(a) {
+    function n(a) {
       a.stopImmediatePropagation();
       a = parseInt(this.getAttribute("data-index"), 10);
-      a = M.getItemByIndex(a);
+      a = O.getItemByIndex(a);
       if (!a) return !1;
-      if (F.index === a.index) return (F.remove(), !1);
-      F.append();
-      F.uid = a.ITID;
-      F.index = a.index;
-      F.setItem(a);
+      if (H.index === a.index) return (H.remove(), !1);
+      H.append();
+      H.uid = a.ITID;
+      H.index = a.index;
+      H.setItem(a);
       return !1;
     }
     function g(a) {
       var b, c;
       try {
         c = JSON.parse(a.originalEvent.dataTransfer.getData("Text"));
-      } catch (y) {}
+      } catch (z) {}
       a.stopImmediatePropagation();
       if (!c) return !1;
       if (("item" == c.type) & ("Inventory" == c.from)) {
         b = c.data;
         if (1 < b.count)
           return (
-            B.append(),
-            B.setType("number", !1, b.count),
-            (B.onSubmitRequest = function (a) {
-              B.remove();
-              M.reqAddItem(b.index, parseInt(a, 10));
+            y.append(),
+            y.setType("number", !1, b.count),
+            (y.onSubmitRequest = function (a) {
+              y.remove();
+              O.reqAddItem(b.index, parseInt(a, 10));
             }),
             !1
           );
-        M.reqAddItem(b.index, 1);
+        O.reqAddItem(b.index, 1);
         return !1;
       }
       if (("item" == c.type) & ("Storage" == c.from)) {
         b = c.data;
         if (1 < b.count)
           return (
-            B.append(),
-            B.setType("number", !1, b.count),
-            (B.onSubmitRequest = function (a) {
-              B.remove();
-              M.reqAddItem1(b.index, parseInt(a, 10));
+            y.append(),
+            y.setType("number", !1, b.count),
+            (y.onSubmitRequest = function (a) {
+              y.remove();
+              O.reqAddItem1(b.index, parseInt(a, 10));
             }),
             !1
           );
-        M.reqAddItem1(b.index, 1);
+        O.reqAddItem1(b.index, 1);
         return !1;
       }
     }
-    var u = a("DB/DBManager"),
+    var p = a("DB/DBManager"),
       l = a("Network/NetworkManager"),
       f = a("Network/PacketStructure"),
-      n = a("DB/Items/ItemType"),
-      p = a("Utils/jquery"),
-      v = a("Core/Client"),
-      t = a("Core/Preferences"),
-      z = a("Engine/SessionStorage"),
-      E = a("Renderer/Renderer");
+      k = a("DB/Items/ItemType"),
+      q = a("Utils/jquery"),
+      u = a("Core/Client"),
+      v = a("Core/Preferences"),
+      A = a("Engine/SessionStorage"),
+      C = a("Renderer/Renderer");
     a("Controls/KeyEventHandler");
-    var C = a("Controls/MouseEventHandler"),
+    var B = a("Controls/MouseEventHandler"),
       J = a("UI/UIManager"),
-      A = a("UI/UIComponent"),
-      B = a("UI/Components/InputBox/InputBox"),
-      F = a("UI/Components/ItemInfo/ItemInfo"),
-      O = a("text!./OnPushCart.html");
+      D = a("UI/UIComponent"),
+      y = a("UI/Components/InputBox/InputBox"),
+      H = a("UI/Components/ItemInfo/ItemInfo"),
+      N = a("text!./OnPushCart.html");
     a = a("text!./OnPushCart.css");
-    var M = new A("OnPushCart", O, a);
-    M.TAB = { ALL: 0 };
-    M.list = [];
-    var H = 0,
-      x = t.get(
+    var O = new D("OnPushCart", N, a);
+    O.TAB = { ALL: 0 };
+    O.list = [];
+    var I = 0,
+      x = v.get(
         "OnPushCart",
-        { x: 200, y: 125, width: 7, height: 4, tab: M.TAB.ALL },
+        { x: 200, y: 125, width: 7, height: 4, tab: O.TAB.ALL },
         1,
       );
-    M.init = function () {
+    O.init = function () {
       this.ui.find(".titlebar .base").mousedown(b);
       this.ui.find(".titlebar .mini").click(d);
       this.ui.find(".footer .extend").mousedown(c);
       this.ui.find(".titlebar .close").click(function () {
-        M.ui.hide();
+        O.ui.hide();
       });
       this.ui
         .on("drop", g)
@@ -170,42 +170,42 @@ define(
         .on("mousewheel DOMMouseScroll", e)
         .on("mouseover", ".item", m)
         .on("mouseout", ".item", h)
-        .on("dragstart", ".item", q)
+        .on("dragstart", ".item", t)
         .on("dragend", ".item", r)
-        .on("contextmenu", ".item", k);
+        .on("contextmenu", ".item", n);
       this.draggable(this.ui.find(".titlebar"));
     };
-    M.onAppend = function () {
+    O.onAppend = function () {
       this.ui.hide();
       this.resize(x.width, x.height);
       this.ui.css({
-        top: Math.min(Math.max(0, x.y), E.height - this.ui.height()),
-        left: Math.min(Math.max(0, x.x), E.width - this.ui.width()),
+        top: Math.min(Math.max(0, x.y), C.height - this.ui.height()),
+        left: Math.min(Math.max(0, x.x), C.width - this.ui.width()),
       });
-      H = x.reduce ? 0 : this.ui.height();
+      I = x.reduce ? 0 : this.ui.height();
       this.ui.find(".titlebar .mini").trigger("mousedown");
     };
-    M.clean = function () {
+    O.clean = function () {
       this.ui.hide();
     };
-    M.onRemove = function () {
+    O.onRemove = function () {
       this.ui.find(".container .content").empty();
       this.list.length = 0;
-      p(".ItemInfo").remove();
+      q(".ItemInfo").remove();
       x.show = this.ui.is(":visible");
-      x.reduce = !!H;
+      x.reduce = !!I;
       x.y = parseInt(this.ui.css("top"), 10);
       x.x = parseInt(this.ui.css("left"), 10);
       x.width = Math.floor((this.ui.width() - 25) / 32);
       x.height = Math.floor((this.ui.height() - 20) / 32);
       x.save();
     };
-    M.toggle = function () {
+    O.toggle = function () {
       this.ui.toggle();
       this.ui.is(":visible") && this.focus();
     };
-    M.onShortCut = function (a) {
-      if (z.Entity.cart)
+    O.onShortCut = function (a) {
+      if (A.Entity.cart)
         switch (a.cmd) {
           case "TOGGLE":
             (this.ui.toggle(),
@@ -214,7 +214,7 @@ define(
                 : this.ui.trigger("mouseleave"));
         }
     };
-    M.resize = function (a, b) {
+    O.resize = function (a, b) {
       a = Math.min(Math.max(a, 6), 9);
       b = Math.min(Math.max(b, 2), 6);
       this.ui
@@ -222,29 +222,29 @@ define(
         .css({ width: 32 * a + 46, height: 32 * b });
       this.ui.css({ width: 55 + 32 * a, height: 47 + 32 * b });
     };
-    M.update = function (a) {
+    O.update = function (a) {
       this.ui.find(".curcount").text(a[0]);
       this.ui.find(".maxcount").text(a[1]);
       this.ui.find(".curweight").text(a[2] / 10);
       this.ui.find(".maxweight").text(a[3] / 10);
     };
-    M.getItemById = function (a) {
+    O.getItemById = function (a) {
       var b,
         c,
-        d = M.list;
+        d = O.list;
       b = 0;
       for (c = d.length; b < c; ++b) if (d[b].ITID === a) return d[b];
       return null;
     };
-    M.getItemByIndex = function (a) {
+    O.getItemByIndex = function (a) {
       var b,
         c,
-        d = M.list;
+        d = O.list;
       b = 0;
       for (c = d.length; b < c; ++b) if (d[b].index === a) return d[b];
       return null;
     };
-    M.setItems = function (a) {
+    O.setItems = function (a) {
       var b, c;
       b = 0;
       for (c = a.length; b < c; ++b) {
@@ -253,35 +253,35 @@ define(
         this.addItemSub(a[b]) && this.list.push(a[b]);
       }
     };
-    M.addItem = function (a) {
+    O.addItem = function (a) {
       var b = this.getItemByIndex(a.index);
       b
         ? ((b.count += a.count),
           this.ui
             .find('.item[data-index\x3d"' + a.index + '"] .count')
             .text(b.count))
-        : ((b = p.extend({}, a)), this.addItemSub(b) && this.list.push(b));
+        : ((b = q.extend({}, a)), this.addItemSub(b) && this.list.push(b));
     };
-    M.addItemSub = function (a) {
+    O.addItemSub = function (a) {
       var b;
       switch (a.type) {
-        case n.HEALING:
-        case n.USABLE:
-        case n.USABLE_SKILL:
-        case n.USABLE_UNK:
-        case n.WEAPON:
-        case n.EQUIP:
-        case n.PETEGG:
-        case n.PETEQUIP:
-        case n.ETC:
-        case n.CARD:
-        case n.AMMO:
-        case n.FASHION:
-        case n.SHADOWGEAR:
-          b = M.TAB.ALL;
+        case k.HEALING:
+        case k.USABLE:
+        case k.USABLE_SKILL:
+        case k.USABLE_UNK:
+        case k.WEAPON:
+        case k.EQUIP:
+        case k.PETEGG:
+        case k.PETEQUIP:
+        case k.ETC:
+        case k.CARD:
+        case k.AMMO:
+        case k.FASHION:
+        case k.SHADOWGEAR:
+          b = O.TAB.ALL;
       }
       if (b === x.tab) {
-        b = u.getItemInfo(a.ITID);
+        b = p.getItemInfo(a.ITID);
         var c = this.ui.find(".container .content");
         c.append(
           '\x3cdiv class\x3d"item" data-index\x3d"' +
@@ -290,8 +290,8 @@ define(
             (a.count || 1) +
             "\x3c/span\x3e\x3c/div\x3e\x3c/div\x3e",
         );
-        v.loadFile(
-          u.INTERFACE_PATH +
+        u.loadFile(
+          p.INTERFACE_PATH +
             "item/" +
             (a.IsIdentified
               ? b.identifiedResourceName
@@ -307,7 +307,7 @@ define(
       }
       return !0;
     };
-    M.removeItem = function (a, b) {
+    O.removeItem = function (a, b) {
       a = this.getItemByIndex(a);
       if (!a || 0 >= b) return null;
       if (a.count && ((a.count -= b), 0 < a.count))
@@ -325,22 +325,22 @@ define(
       b.height() === b[0].scrollHeight && this.ui.find(".hide").show();
       return a;
     };
-    M.updateItem = function (a, b) {
+    O.updateItem = function (a, b) {
       if ((a = this.getItemByIndex(a)))
         ((a.count = b),
           0 < a.count
-            ? (M.ui
+            ? (O.ui
                 .find('.item[data-index\x3d"' + a.index + '"] .count')
                 .text(a.count),
-              M.onUpdateItem(a.ITID, a.count))
+              O.onUpdateItem(a.ITID, a.count))
             : (this.list.splice(this.list.indexOf(a), 1),
               this.ui.find('.item[data-index\x3d"' + a.index + '"]').remove(),
-              M.onUpdateItem(a.ITID, 0),
+              O.onUpdateItem(a.ITID, 0),
               (b = this.ui.find(".container .content")),
               b.height() === b[0].scrollHeight &&
                 this.ui.find(".hide").show()));
     };
-    M.reqAddItem = function (a, b) {
+    O.reqAddItem = function (a, b) {
       if (!(0 >= b)) {
         var c = new f.CZ.MOVE_ITEM_FROM_BODY_TO_CART();
         c.index = a;
@@ -348,7 +348,7 @@ define(
         l.sendPacket(c);
       }
     };
-    M.reqAddItem1 = function (a, b) {
+    O.reqAddItem1 = function (a, b) {
       if (!(0 >= b)) {
         var c = new f.CZ.MOVE_ITEM_FROM_STORE_TO_CART();
         c.index = a;
@@ -356,7 +356,7 @@ define(
         l.sendPacket(c);
       }
     };
-    M.reqRemoveItem = function (a, b) {
+    O.reqRemoveItem = function (a, b) {
       if (!(0 >= b)) {
         var c = new f.CZ.MOVE_ITEM_FROM_CART_TO_BODY();
         c.index = a;
@@ -364,6 +364,6 @@ define(
         l.sendPacket(c);
       }
     };
-    return J.addComponent(M);
+    return J.addComponent(O);
   },
 );

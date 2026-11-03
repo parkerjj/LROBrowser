@@ -17,7 +17,7 @@ define(
     a("Renderer/Renderer");
     var h = a("text!./WinStats.html");
     a = a("text!./WinStats.css");
-    var q = m.get("WinStats", { x: 50, y: 200, show: !1, reduce: !1 }, 1),
+    var t = m.get("WinStats", { x: 50, y: 200, show: !1, reduce: !1 }, 1),
       r = new e("WinStats", h, a);
     r.init = function () {
       this.statuspoint = 0;
@@ -52,19 +52,19 @@ define(
     r.stack = [];
     r.onAppend = function () {
       var a, b;
-      q.show || this.ui.hide();
-      q.reduce && this.ui.find(".panel").hide();
+      t.show || this.ui.hide();
+      t.reduce && this.ui.find(".panel").hide();
       a = 0;
       for (b = this.stack.length; a < b; ++a)
         this.update.apply(this, this.stack[a]);
       this.stack.length = 0;
     };
     r.onRemove = function () {
-      q.show = this.ui.is(":visible");
-      q.reduce = "none" === this.ui.find(".panel").css("display");
-      q.y = parseInt(this.ui.css("top"), 10);
-      q.x = parseInt(this.ui.css("left"), 10);
-      q.save();
+      t.show = this.ui.is(":visible");
+      t.reduce = "none" === this.ui.find(".panel").css("display");
+      t.y = parseInt(this.ui.css("top"), 10);
+      t.x = parseInt(this.ui.css("left"), 10);
+      t.save();
     };
     r.update = function (a, b) {
       var c;

@@ -37,18 +37,18 @@ define(
       e = a("DB/DBManager"),
       m = a("Controls/KeyEventHandler"),
       h = a("Renderer/Renderer"),
-      q = a("Core/Preferences"),
+      t = a("Core/Preferences"),
       r = a("UI/UIManager"),
-      k = a("UI/UIComponent"),
+      n = a("UI/UIComponent"),
       g = a("text!./ChatRoomCreate.html");
     a = a("text!./ChatRoomCreate.css");
-    k = new k("ChatRoomCreate", g, a);
-    k.title = "";
-    k.limit = 20;
-    k.type = 1;
-    k.password = "";
-    var u = q.get("ChatRoomCreate", { x: 480, y: 200, show: !1 }, 1);
-    k.init = function () {
+    n = new n("ChatRoomCreate", g, a);
+    n.title = "";
+    n.limit = 20;
+    n.type = 1;
+    n.password = "";
+    var p = t.get("ChatRoomCreate", { x: 480, y: 200, show: !1 }, 1);
+    n.init = function () {
       this.ui.find(".close, .cancel").mousedown(b).click(this.hide.bind(this));
       this.ui.find(".ok").on("click", c.bind(this));
       this.ui.find(".setup").submit(function () {
@@ -60,32 +60,32 @@ define(
       this.draggable(this.ui.find(".titlebar"));
       this.ui.hide();
     };
-    k.onAppend = function () {
+    n.onAppend = function () {
       this.ui.hide();
       this.ui.css({
-        top: Math.min(Math.max(0, u.y), h.height - this.ui.height()),
-        left: Math.min(Math.max(0, u.x), h.width - this.ui.width()),
+        top: Math.min(Math.max(0, p.y), h.height - this.ui.height()),
+        left: Math.min(Math.max(0, p.x), h.width - this.ui.width()),
       });
       var a = d._data(window, "events").keydown;
       a.unshift(a.pop());
     };
-    k.onRemove = function () {
-      u.show = this.ui.is(":visible");
-      u.y = parseInt(this.ui.css("top"), 10);
-      u.x = parseInt(this.ui.css("left"), 10);
-      u.save();
+    n.onRemove = function () {
+      p.show = this.ui.is(":visible");
+      p.y = parseInt(this.ui.css("top"), 10);
+      p.x = parseInt(this.ui.css("left"), 10);
+      p.save();
     };
-    k.show = function () {
+    n.show = function () {
       this.ui.show();
       this.ui.find(".title").focus();
-      u.show = !0;
+      p.show = !0;
     };
-    k.hide = function () {
+    n.hide = function () {
       this.ui.hide();
       this.ui.find(".setup")[0].reset();
-      u.show = !1;
+      p.show = !1;
     };
-    k.onKeyDown = function (a) {
+    n.onKeyDown = function (a) {
       if (this.ui.is(":visible")) {
         if (a.which === m.ENTER)
           return (c.call(this), a.stopImmediatePropagation(), !1);
@@ -94,13 +94,13 @@ define(
       }
       return !0;
     };
-    k.onShortCut = function (a) {
+    n.onShortCut = function (a) {
       switch (a.cmd) {
         case "TOGGLE":
           (this.ui.toggle(), this.ui.is(":visible") && this.focus());
       }
     };
-    k.requestRoom = function () {};
-    return r.addComponent(k);
+    n.requestRoom = function () {};
+    return r.addComponent(n);
   },
 );

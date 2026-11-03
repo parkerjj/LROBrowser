@@ -5,27 +5,27 @@ define(
   ),
   function (a) {
     function b() {
-      k.ui && k.ui[0].parentNode ? k.remove() : k.append();
+      n.ui && n.ui[0].parentNode ? n.remove() : n.append();
     }
     function c() {
       g.ui && g.ui[0].parentNode ? g.remove() : g.append();
     }
     function d() {
-      u.ui && u.ui[0].parentNode ? u.remove() : u.append();
+      p.ui && p.ui[0].parentNode ? p.remove() : p.append();
     }
     var e = a("Core/Configs");
     a("Engine/SessionStorage");
     var m = a("Controls/KeyEventHandler"),
       h = a("Renderer/Renderer"),
-      q = a("UI/UIManager"),
+      t = a("UI/UIManager"),
       r = a("UI/UIComponent"),
-      k = a("UI/Components/SoundOption/SoundOption"),
+      n = a("UI/Components/SoundOption/SoundOption"),
       g = a("UI/Components/GraphicsOption/GraphicsOption"),
-      u = a("UI/Components/ShortCutOption/ShortCutOption"),
+      p = a("UI/Components/ShortCutOption/ShortCutOption"),
       l = a("text!./Escape.html");
     a = a("text!./Escape.css");
     var f = new r("Escape", l, a),
-      n = e.get("ClientVer");
+      k = e.get("ClientVer");
     f.init = function () {
       this.draggable(this.ui.find(".top"));
       this.ui.find(".node").mousedown(function (a) {
@@ -58,7 +58,7 @@ define(
         localStorage.setItem("gid", gid);
         localStorage.setItem("rolename", rolename);
         localStorage.setItem("account", account);
-        window.open("http://game.lastro.cn/?r\x3dpay/index\x26nid\x3d" + n);
+        window.open("http://game.lastro.cn/?r\x3dpay/index\x26nid\x3d" + k);
       });
     };
     f.onAppend = function () {
@@ -90,6 +90,6 @@ define(
     f.onCharSelectionRequest = function () {};
     f.onBackhomeRequest = function () {};
     f.onSetofflineRequest = function () {};
-    return q.addComponent(f);
+    return t.addComponent(f);
   },
 );

@@ -44,7 +44,7 @@ define(
         this._job = a;
         this.costume && (a = this.costume);
         this.xSize = this.ySize = g.isBaby(a) ? 4 : 5;
-        this.files.shadow.size = a in u ? u[a] : 1;
+        this.files.shadow.size = a in p ? p[a] : 1;
         c = g.getBodyPath(a, this._sex);
         b = this.constructor;
         if (this.objecttype === b.TYPE_UNKNOWN) {
@@ -69,8 +69,8 @@ define(
         else {
           if (null === c || c.match(/\.gr2$/i))
             c = g.getBodyPath(1002, this._sex);
-          k.loadFile(c + ".act");
-          k.loadFile(
+          n.loadFile(c + ".act");
+          n.loadFile(
             c + ".spr",
             function () {
               this.files.body.spr = c + ".spr";
@@ -110,8 +110,8 @@ define(
       0 > a ||
         ((this._head = a),
         (b = g.getHeadPath(a, this._sex, this.job)),
-        k.loadFile(b + ".act"),
-        k.loadFile(
+        n.loadFile(b + ".act"),
+        n.loadFile(
           b + ".spr",
           function () {
             this.files.head.spr = b + ".spr";
@@ -121,7 +121,7 @@ define(
           }.bind(this),
         ));
     }
-    function q(a) {
+    function t(a) {
       this._headpalette = a;
       0 >= a
         ? (this.files.head.pal = null)
@@ -135,60 +135,60 @@ define(
     }
     function r(a, b, c) {
       return function (d) {
-        function e(f, m) {
-          if ("robe" === a && !k.loadFile(f + ".spr")) {
-            var v = g.getRobePath2(d, p, h);
-            k.loadFile(f + ".act");
-            k.loadFile(
+        function e(f, u) {
+          if ("robe" === a && !n.loadFile(f + ".spr")) {
+            var v = g.getRobePath2(d, q, p);
+            n.loadFile(f + ".act");
+            n.loadFile(
               v + ".spr",
               function (b) {
-                n["_" + a] = u;
-                n.files[a].spr = v + ".spr";
-                n.files[a].act = f + ".act";
+                k["_" + a] = h;
+                k.files[a].spr = v + ".spr";
+                k.files[a].act = f + ".act";
               },
               function () {
                 c &&
-                  !m &&
-                  ((u = g[c](d)), (f = g[b](u, n.job, n._sex)) && e(f, !0));
+                  !u &&
+                  ((h = g[c](d)), (f = g[b](h, k.job, k._sex)) && e(f, !0));
               },
               { to_rgba: !0 },
             );
             return !1;
           }
-          k.loadFile(f + ".act");
-          k.loadFile(
+          n.loadFile(f + ".act");
+          n.loadFile(
             f + ".spr",
             function (b) {
-              n["_" + a] = u;
-              n.files[a].spr = f + ".spr";
-              n.files[a].act = f + ".act";
+              k["_" + a] = h;
+              k.files[a].spr = f + ".spr";
+              k.files[a].act = f + ".act";
               "weapon" === a &&
-                ((n["_" + a + "effect"] = t),
-                (n.files[a + "effect"].spr = l + "_effect.spr"),
-                (n.files[a + "effect"].act = l + "_effect.act"),
-                (n.sound.attackFile = g.getWeaponSound(u)));
+                ((k["_" + a + "effect"] = m),
+                (k.files[a + "effect"].spr = l + "_effect.spr"),
+                (k.files[a + "effect"].act = l + "_effect.act"),
+                (k.sound.attackFile = g.getWeaponSound(h)));
             },
             function () {
               c &&
-                !m &&
-                ((u = g[c](d)), (f = g[b](u, n.job, n._sex)) && e(f, !0));
+                !u &&
+                ((h = g[c](d)), (f = g[b](h, k.job, k._sex)) && e(f, !0));
             },
             { to_rgba: !0 },
           );
         }
         var f,
           l,
-          n = this,
-          p = this.job,
-          h = this._sex,
-          u = d;
-        if ("weapon" === a) var t = g[c](d);
+          k = this,
+          q = this.job,
+          p = this._sex,
+          h = d;
+        if ("weapon" === a) var m = g[c](d);
         if (0 >= d) this["_" + a] = 0;
         else {
           switch (a) {
             case "weapon":
               f = g[b](d, this.job, this._sex);
-              l = g[b](t, this.job, this._sex);
+              l = g[b](m, this.job, this._sex);
               break;
             case "shield":
               f = g[b](d, this.job, this._sex);
@@ -212,9 +212,9 @@ define(
         }
       };
     }
-    var k = a("Core/Client"),
+    var n = a("Core/Client"),
       g = a("DB/DBManager"),
-      u = a("DB/Monsters/ShadowTable"),
+      p = a("DB/Monsters/ShadowTable"),
       l = a("DB/Jobs/MountTable"),
       f = a("./EntityAction");
     return function () {
@@ -247,7 +247,7 @@ define(
         get: function () {
           return this._headpalette;
         },
-        set: q,
+        set: t,
       });
       Object.defineProperty(this, "weapon", {
         get: function () {

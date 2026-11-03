@@ -32,7 +32,7 @@ define("Utils/Inflate", [], function () {
       327745, 327777, 393345, 393409, 459009, 459137, 524801, 525057, 590849,
       591361, 657409, 658433, 724993, 727041, 794625, 798721, 868353, 876545,
     ]),
-    q = [
+    t = [
       new Uint32Array([
         459008, 524368, 524304, 524568, 459024, 524400, 524336, 590016, 459016,
         524384, 524320, 589984, 524288, 524416, 524352, 590048, 459012, 524376,
@@ -145,18 +145,18 @@ define("Utils/Inflate", [], function () {
       f;
     for (f = b; f < c; ++f) a[f] > d && (d = a[f]);
     for (
-      var e = 1 << d, g = new Uint32Array(e), k = 1, u = 0, h = 2;
-      k <= d;
-      ++k, u <<= 1, h <<= 1
+      var e = 1 << d, g = new Uint32Array(e), p = 1, n = 0, h = 2;
+      p <= d;
+      ++p, n <<= 1, h <<= 1
     )
       for (var m = b; m < c; ++m)
-        if (a[m] === k) {
+        if (a[m] === p) {
           var r = 0,
-            q = u,
-            A = m - b;
-          for (f = 0; f < k; ++f) ((r = (r << 1) | (q & 1)), (q >>= 1));
-          for (f = r; f < e; f += h) g[f] = (k << 16) | A;
-          ++u;
+            t = n,
+            D = m - b;
+          for (f = 0; f < p; ++f) ((r = (r << 1) | (t & 1)), (t >>= 1));
+          for (f = r; f < e; f += h) g[f] = (p << 16) | D;
+          ++n;
         }
     return [g, d];
   };
@@ -166,64 +166,64 @@ define("Utils/Inflate", [], function () {
       a = a >> 1;
     if (0 === a) {
       var a = this.bytes,
-        u = this.bytesPos,
+        p = this.bytesPos,
         l = this.bytesLength;
-      if (u + 4 >= l) throw Error("Bad block header in flate stream");
-      var f = a[u++] | (a[u++] << 8);
-      if ((a[u++] | (a[u++] << 8)) !== (~f & 65535))
+      if (p + 4 >= l) throw Error("Bad block header in flate stream");
+      var f = a[p++] | (a[p++] << 8);
+      if ((a[p++] | (a[p++] << 8)) !== (~f & 65535))
         throw Error("Bad uncompressed block length in flate stream");
       this.codeSize = this.codeBuf = 0;
-      var n = this.bufferPos;
-      for (this.bufferPos = f = n + f; n < f && u < l; ++n)
-        this.buffer[n] = a[u++];
-      this.bytesPos = u;
-      return g || n < f;
+      var k = this.bufferPos;
+      for (this.bufferPos = f = k + f; k < f && p < l; ++k)
+        this.buffer[k] = a[p++];
+      this.bytesPos = p;
+      return g || k < f;
     }
-    if (1 == a) ((l = q), (u = r));
+    if (1 == a) ((l = t), (p = r));
     else if (2 == a) {
-      u = this.getBits(5) + 257;
+      p = this.getBits(5) + 257;
       f = this.getBits(5) + 1;
       a = this.getBits(4) + 4;
       c.set(d);
       for (l = 0; l < a; ++l) c[b[l]] = this.getBits(3);
       for (
-        var n = this.generateHuffmanTable(c, 0, 19),
+        var k = this.generateHuffmanTable(c, 0, 19),
           a = 0,
-          p,
+          q,
+          u,
           v,
-          t,
           l = 0,
-          f = u + f;
+          f = p + f;
         l < f;
       ) {
-        t = this.getCode(n);
-        if (16 === t) ((p = 2), (v = 3), (t = a));
-        else if (17 === t) ((v = p = 3), (t = a = 0));
-        else if (18 === t) ((p = 7), (v = 11), (t = a = 0));
+        v = this.getCode(k);
+        if (16 === v) ((q = 2), (u = 3), (v = a));
+        else if (17 === v) ((u = q = 3), (v = a = 0));
+        else if (18 === v) ((q = 7), (u = 11), (v = a = 0));
         else {
-          e[l++] = a = t;
+          e[l++] = a = v;
           continue;
         }
-        for (p = this.getBits(p) + v; 0 < p--;) e[l++] = t;
+        for (q = this.getBits(q) + u; 0 < q--;) e[l++] = v;
       }
-      l = this.generateHuffmanTable(e, 0, u);
-      u = this.generateHuffmanTable(e, u, f);
+      l = this.generateHuffmanTable(e, 0, p);
+      p = this.generateHuffmanTable(e, p, f);
     } else throw Error("Unknown block type in flate stream");
-    n = this.buffer;
+    k = this.buffer;
     for (f = this.bufferPos; ;)
-      if (((t = this.getCode(l)), 256 > t)) n[f++] = t;
+      if (((v = this.getCode(l)), 256 > v)) k[f++] = v;
       else {
-        if (256 == t) return ((this.bufferPos = f), g);
-        t = m[t - 257];
-        p = t >> 16;
-        0 < p && (p = this.getBits(p));
-        a = (t & 65535) + p;
-        t = this.getCode(u);
-        t = h[t];
-        p = t >> 16;
-        0 < p && (p = this.getBits(p));
-        t = (t & 65535) + p;
-        for (p = 0; p < a; ++p, ++f) n[f] = n[f - t];
+        if (256 == v) return ((this.bufferPos = f), g);
+        v = m[v - 257];
+        q = v >> 16;
+        0 < q && (q = this.getBits(q));
+        a = (v & 65535) + q;
+        v = this.getCode(p);
+        v = h[v];
+        q = v >> 16;
+        0 < q && (q = this.getBits(q));
+        v = (v & 65535) + q;
+        for (q = 0; q < a; ++q, ++f) k[f] = k[f - v];
       }
   };
   return a;
