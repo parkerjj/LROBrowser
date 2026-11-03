@@ -6,33 +6,33 @@ define(
   function (a) {
     function b(a) {
       var b = e.isFriend(a.sender) ? d.getMessage(102) : "From";
-      t.addText(
+      r.addText(
         "[ " + b + " " + a.sender + " ] : " + a.msg.replace(/\|\d{2}/, ""),
-        t.TYPE.PRIVATE,
+        r.TYPE.PRIVATE,
       );
-      t.saveNickName(a.sender);
+      r.saveNickName(a.sender);
     }
     function c(a) {
-      var b = t.PrivateMessageStorage.nick,
-        c = t.PrivateMessageStorage.msg;
+      var b = r.PrivateMessageStorage.nick,
+        c = r.PrivateMessageStorage.msg;
       0 === a.result
-        ? b && c && t.addText("[ To " + b + " ] : " + c, t.TYPE.PRIVATE)
-        : t.addText(
+        ? b && c && r.addText("[ To " + b + " ] : " + c, r.TYPE.PRIVATE)
+        : r.addText(
             "(" + b + ") : " + d.getMessage(147 + a.result),
-            t.TYPE.PRIVATE,
+            r.TYPE.PRIVATE,
           );
-      t.PrivateMessageStorage.nick = "";
-      t.PrivateMessageStorage.msg = "";
+      r.PrivateMessageStorage.nick = "";
+      r.PrivateMessageStorage.msg = "";
     }
     var d = a("DB/DBManager"),
       e = a("Engine/MapEngine/Friends"),
-      m = a("Network/NetworkManager"),
+      l = a("Network/NetworkManager"),
       h = a("Network/PacketStructure"),
-      t = a("UI/Components/ChatBox/ChatBox");
+      r = a("UI/Components/ChatBox/ChatBox");
     return function () {
-      m.hookPacket(h.ZC.WHISPER, b);
-      m.hookPacket(h.ZC.ACK_WHISPER, c);
-      m.hookPacket(h.ZC.ACK_WHISPER2, c);
+      l.hookPacket(h.ZC.WHISPER, b);
+      l.hookPacket(h.ZC.ACK_WHISPER, c);
+      l.hookPacket(h.ZC.ACK_WHISPER2, c);
     };
   },
 );

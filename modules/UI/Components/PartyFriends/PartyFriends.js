@@ -12,14 +12,14 @@ define(
         e = 0,
         f;
       f = setInterval(function () {
-        var a = Math.floor((J.screen.x - c - -20) / 20),
-          f = Math.floor((J.screen.y - b - 46) / 20),
+        var a = Math.floor((H.screen.x - c - -20) / 20),
+          f = Math.floor((H.screen.y - b - 46) / 20),
           a = Math.min(Math.max(a, 12), 13),
           f = Math.min(Math.max(f, 6), 12);
         if (a !== d || f !== e) (E.resize(a, f), (d = a), (e = f));
       }, 30);
-      u(window).on("mouseup.resize", function (a) {
-        1 === a.which && (clearInterval(f), u(window).off("mouseup.resize"));
+      v(window).on("mouseup.resize", function (a) {
+        1 === a.which && (clearInterval(f), v(window).off("mouseup.resize"));
       });
     }
     function c() {
@@ -45,107 +45,107 @@ define(
               B.isPartyLeader || a.find(".party.add").hide())
             : a.find(".party.add, .party.leave").hide());
       a.find(".node").removeClass(".selection");
-      F = -1;
+      L = -1;
     }
-    function m() {
-      if (!(0 > F || M.lock)) {
+    function l() {
+      if (!(0 > L || M.lock)) {
         var a = M.friend ? q.getMessage(356) : q.getMessage(363);
-        D.showPromptBox(a, "ok", "cancel", function () {
-          if (M.friend) E.onRemoveFriend(F);
-          else E.onExpelMember(G[F].AID, G[F].characterName);
+        C.showPromptBox(a, "ok", "cancel", function () {
+          if (M.friend) E.onRemoveFriend(L);
+          else E.onExpelMember(F[L].AID, F[L].characterName);
         });
       }
     }
     function h() {
-      0 > F ||
+      0 > L ||
         M.lock ||
         (M.friend
-          ? O.ui.find(".username").val(z[F].Name)
-          : O.ui.find(".username").val(G[F].characterName),
-        O.ui.find(".message").select());
-    }
-    function t() {
-      M.lock ||
-        (N.remove(),
-        N.append(),
-        M.friend
-          ? (N.addElement(q.getMessage(360), h),
-            z[F].GID !== B.GID && N.addElement(q.getMessage(351), m))
-          : (N.addElement(q.getMessage(129), r),
-            G[F].GID === B.GID
-              ? N.addElement(q.getMessage(2055), n)
-              : (N.addElement(q.getMessage(360), h),
-                B.isPartyLeader &&
-                  (N.addElement(q.getMessage(97), m),
-                  N.addElement(q.getMessage(1532), g)))));
+          ? N.ui.find(".username").val(y[L].Name)
+          : N.ui.find(".username").val(F[L].characterName),
+        N.ui.find(".message").select());
     }
     function r() {
-      M.lock || D.showMessageBox(q.getMessage(191), "ok");
+      M.lock ||
+        (P.remove(),
+        P.append(),
+        M.friend
+          ? (P.addElement(q.getMessage(360), h),
+            y[L].GID !== B.GID && P.addElement(q.getMessage(351), l))
+          : (P.addElement(q.getMessage(129), t),
+            F[L].GID === B.GID
+              ? P.addElement(q.getMessage(2055), n)
+              : (P.addElement(q.getMessage(360), h),
+                B.isPartyLeader &&
+                  (P.addElement(q.getMessage(97), l),
+                  P.addElement(q.getMessage(1532), g)))));
+    }
+    function t() {
+      M.lock || C.showMessageBox(q.getMessage(191), "ok");
     }
     function n() {
       M.lock ||
-        D.showPromptBox(q.getMessage(357), "ok", "cancel", function () {
+        C.showPromptBox(q.getMessage(357), "ok", "cancel", function () {
           E.onRequestLeave();
         });
     }
     function g() {
       M.lock ||
-        D.showPromptBox(q.getMessage(1532), "ok", "cancel", function () {
-          E.onRequestChangeLeader(G[F].AID);
+        C.showPromptBox(q.getMessage(1532), "ok", "cancel", function () {
+          E.onRequestChangeLeader(F[L].AID);
         });
     }
     function p(a) {
       E.ui.find(".content .name").removeClass("selection");
       this.classList.add("selection");
-      F = E.ui.find(this.parentNode.parentNode).find(".name").index(this);
-      var b = K("UI/Components/SkillTargetSelection/SkillTargetSelection");
+      L = E.ui.find(this.parentNode.parentNode).find(".name").index(this);
+      var b = J("UI/Components/SkillTargetSelection/SkillTargetSelection");
       if (b.__active && !M.friend) {
-        var c = G[F];
+        var c = F[L];
         0 === c.state && b.intersectEntityId(c.AID);
         b.remove();
         a.stopImmediatePropagation();
         return !1;
       }
     }
-    function l() {
-      H.__active && H.getType() === H.Type.CREATE
-        ? H.remove()
-        : (H.append(), H.setType(H.Type.CREATE));
+    function k() {
+      G.__active && G.getType() === G.Type.CREATE
+        ? G.remove()
+        : (G.append(), G.setType(G.Type.CREATE));
     }
     function f() {
-      H.__active && H.getType() === H.Type.INVITE
-        ? H.remove()
-        : (H.append(), H.setType(H.Type.INVITE));
+      G.__active && G.getType() === G.Type.INVITE
+        ? G.remove()
+        : (G.append(), G.setType(G.Type.INVITE));
     }
-    function k() {
+    function m() {
       M.friend ||
-        (H.__active && H.getType() === H.Type.SETUP
-          ? H.remove()
-          : (H.append(),
-            H.setType(H.Type.SETUP),
-            H.setOptions(L, B.isPartyLeader)));
+        (G.__active && G.getType() === G.Type.SETUP
+          ? G.remove()
+          : (G.append(),
+            G.setType(G.Type.SETUP),
+            G.setOptions(K, B.isPartyLeader)));
     }
     var q = a("DB/DBManager"),
-      u = a("Utils/jquery"),
-      v = a("Core/Preferences"),
+      v = a("Utils/jquery"),
+      u = a("Core/Preferences"),
       A = a("Core/Client"),
-      C = a("Renderer/Renderer"),
+      D = a("Renderer/Renderer"),
       B = a("Engine/SessionStorage"),
-      J = a("Controls/MouseEventHandler"),
-      D = a("UI/UIManager"),
-      y = a("UI/UIComponent"),
-      H = a("UI/Components/PartyFriends/PartyHelper"),
-      N = a("UI/Components/ContextMenu/ContextMenu"),
-      O = a("UI/Components/ChatBox/ChatBox"),
+      H = a("Controls/MouseEventHandler"),
+      C = a("UI/UIManager"),
+      z = a("UI/UIComponent"),
+      G = a("UI/Components/PartyFriends/PartyHelper"),
+      P = a("UI/Components/ContextMenu/ContextMenu"),
+      N = a("UI/Components/ChatBox/ChatBox"),
       I = a("text!./PartyFriends.html"),
       x = a("text!./PartyFriends.css"),
-      K = a,
-      E = new y("PartyFriends", I, x),
-      F = -1,
-      z = [],
-      G = [],
-      L = { exp_share: 0, item_share: 0, item_sharing_type: 0 },
-      M = v.get(
+      J = a,
+      E = new z("PartyFriends", I, x),
+      L = -1,
+      y = [],
+      F = [],
+      K = { exp_share: 0, item_share: 0, item_sharing_type: 0 },
+      M = u.get(
         "PartyFriends",
         {
           x: 200,
@@ -159,7 +159,7 @@ define(
         1.2,
       );
     E.init = function () {
-      H.prepare();
+      G.prepare();
       this.ui.find(".base").mousedown(function (a) {
         a.stopImmediatePropagation();
         return !1;
@@ -167,16 +167,16 @@ define(
       this.ui.find(".close").click(c);
       this.ui.find(".lock").mousedown(d);
       this.ui.find(".switchtab.off").mousedown(e);
-      this.ui.find(".remove").mousedown(m);
+      this.ui.find(".remove").mousedown(l);
       this.ui.find(".privatemessage").mousedown(h);
       this.ui.find(".leave").mousedown(n);
       this.ui.find(".resize").mousedown(b);
-      this.ui.find(".party.create").mousedown(l);
+      this.ui.find(".party.create").mousedown(k);
       this.ui.find(".party.add").mousedown(f);
-      this.ui.find(".info").mousedown(k);
+      this.ui.find(".info").mousedown(m);
       this.ui
         .find(".content")
-        .on("contextmenu", ".name", t)
+        .on("contextmenu", ".name", r)
         .on("mousedown", ".name", p);
       this.draggable(this.ui.find(".titlebar"));
     };
@@ -188,18 +188,18 @@ define(
         : (this.ui.find(".lock.on").hide(), this.ui.find(".lock.off").show());
       this.resize(M.width, M.height);
       this.ui.css({
-        top: Math.min(Math.max(0, M.y), C.height - this.ui.height()),
-        left: Math.min(Math.max(0, M.x), C.width - this.ui.width()),
+        top: Math.min(Math.max(0, M.y), D.height - this.ui.height()),
+        left: Math.min(Math.max(0, M.x), D.width - this.ui.width()),
       });
       this.ui.hide();
     };
     E.clean = function () {
-      G.length = 0;
-      z.length = 0;
-      F = -1;
-      L.exp_share = 0;
-      L.item_share = 0;
-      L.item_sharing_type = 0;
+      F.length = 0;
+      y.length = 0;
+      L = -1;
+      K.exp_share = 0;
+      K.item_share = 0;
+      K.item_sharing_type = 0;
       this.ui.find(".partyname").text("");
       this.ui.find(".friendcount").text("0");
       this.ui.find(".content .party, .content .friend").empty();
@@ -231,26 +231,26 @@ define(
       var b,
         c = a.length,
         d = this.ui.find(".content .friend");
-      z.length = a.length;
+      y.length = a.length;
       d.empty();
       for (b = 0; b < c; b++)
-        ((z[b] = a[b]),
+        ((y[b] = a[b]),
           d.append(
             '\x3cdiv class\x3d"node' +
               (0 === a[b].State ? " online" : "") +
               '"\x3e\x3cspan class\x3d"name"\x3e' +
-              u.escape(a[b].Name) +
+              v.escape(a[b].Name) +
               "\x3c/span\x3e\x3c/div\x3e",
           ));
       this.ui.find(".friendcount").text(c);
-      F = -1;
+      L = -1;
     };
     E.updateFriendState = function (a, b) {
       var c = this.ui.find(".content .friend .node:eq(" + a + ")");
-      (z[a].State = b)
+      (y[a].State = b)
         ? (c.css("backgroundImage", ""),
-          O.addText(q.getMessage(1042).replace("%s", z[a].Name), O.TYPE.BLUE))
-        : (O.addText(q.getMessage(1041).replace("%s", z[a].Name), O.TYPE.BLUE),
+          N.addText(q.getMessage(1042).replace("%s", y[a].Name), N.TYPE.BLUE))
+        : (N.addText(q.getMessage(1041).replace("%s", y[a].Name), N.TYPE.BLUE),
           A.loadFile(
             q.INTERFACE_PATH + "basic_interface/grp_online.bmp",
             function (a) {
@@ -259,18 +259,18 @@ define(
           ));
     };
     E.updateFriend = function (a, b) {
-      z[a] ||
-        ((z[a] = {}),
+      y[a] ||
+        ((y[a] = {}),
         this.ui
           .find(".content .friend")
           .append(
             '\x3cdiv class\x3d"node"\x3e\x3cspan class\x3d"name"\x3e\x3c/span\x3e\x3c/div\x3e',
           ),
-        this.ui.find(".friendcount").text(z.length));
-      z[a].Name = b.Name;
-      z[a].GID = b.GID;
-      z[a].AID = b.AID;
-      z[a].State = b.State || 0;
+        this.ui.find(".friendcount").text(y.length));
+      y[a].Name = b.Name;
+      y[a].GID = b.GID;
+      y[a].AID = b.AID;
+      y[a].State = b.State || 0;
       var c = this.ui.find(".content .friend .node:eq(" + a + ")");
       c.find(".name").text(b.Name);
       A.loadFile(
@@ -281,10 +281,10 @@ define(
       );
     };
     E.removeFriend = function (a) {
-      z.splice(a, 1);
+      y.splice(a, 1);
       this.ui.find(".content .friend .node:eq(" + a + ")").remove();
-      this.ui.find(".friendcount").text(z.length);
-      F === a && (F = -1);
+      this.ui.find(".friendcount").text(y.length);
+      L === a && (L = -1);
     };
     E.setParty = function (a, b) {
       this.ui.find(".curnum").text(b.length);
@@ -294,13 +294,13 @@ define(
       this.ui.find(".party.create").hide();
       this.ui.find(".party.leave").show();
       var c = b.length;
-      for (a = G.length = 0; a < c; a++) E.addPartyMember(b[a]);
-      F = -1;
+      for (a = F.length = 0; a < c; a++) E.addPartyMember(b[a]);
+      L = -1;
     };
     E.addPartyMember = function (a) {
       var b = a.role || a.Role || 0,
         c,
-        d = G.length,
+        d = F.length,
         e;
       a.AID === B.AID &&
         ((B.isPartyLeader = 0 === b),
@@ -309,7 +309,7 @@ define(
           : this.ui.find(".party.add").hide());
       for (
         c = 0;
-        c < d && (G[c].AID !== a.AID || G[c].characterName !== a.characterName);
+        c < d && (F[c].AID !== a.AID || F[c].characterName !== a.characterName);
         ++c
       );
       c < d
@@ -320,8 +320,8 @@ define(
           e.css("backgroundImage", ""),
           e.find(".name").text(a.characterName),
           e.find(".map").text("(" + q.getMapName(a.mapName) + ")"))
-        : ((a = u.extend({}, a)),
-          G.push(a),
+        : ((a = v.extend({}, a)),
+          F.push(a),
           this.ui
             .find(".content .party")
             .append(
@@ -329,9 +329,9 @@ define(
                 (0 === b ? " leader" : "") +
                 (0 === a.state ? " online" : "") +
                 '"\x3e\x3cspan class\x3d"name"\x3e' +
-                u.escape(a.characterName) +
+                v.escape(a.characterName) +
                 '\x3c/span\x3e\x3cspan class\x3d"map"\x3e(' +
-                u.escape(q.getMapName(a.mapName)) +
+                v.escape(q.getMapName(a.mapName)) +
                 ')\x3c/span\x3e\x3ccanvas class\x3d"life" width\x3d"60" height\x3d"5"\x3e\x3c/canvas\x3e \x3cspan class\x3d"hp"\x3e\x3c/span\x3e\x3c/div\x3e',
             ),
           (e = this.ui.find(".content .party .node:eq(" + c + ")")));
@@ -354,23 +354,23 @@ define(
     };
     E.removePartyMember = function (a, b) {
       if (a === B.AID)
-        ((G.length = 0),
+        ((F.length = 0),
           this.ui.find(".curnum").text(0),
           this.ui.find(".content .party").empty(),
           this.ui.find(".partyname").text(""),
           this.ui.find(".party.create").show(),
           this.ui.find(".party.leave, .party.add").hide(),
-          O.addText(q.getMessage(84), O.TYPE.BLUE));
+          N.addText(q.getMessage(84), N.TYPE.BLUE));
       else {
         var c,
-          d = G.length;
+          d = F.length;
         for (c = 0; c < d; ++c)
-          if (G[c].AID === a && G[c].characterName === b) {
-            G.splice(c, 1);
+          if (F[c].AID === a && F[c].characterName === b) {
+            F.splice(c, 1);
             this.ui.find(".content .party .node:eq(" + c + ")").remove();
             break;
           }
-        this.ui.find(".curnum").text(G.length);
+        this.ui.find(".curnum").text(F.length);
       }
     };
     E.resize = function (a, b) {
@@ -383,9 +383,9 @@ define(
     };
     E.updateMemberLife = function (a, b, c, d) {
       var e,
-        f = G.length;
+        f = F.length;
       for (e = 0; e < f; ++e)
-        if (G[e].AID === a && 0 === G[e].state) {
+        if (F[e].AID === a && 0 === F[e].state) {
           a = this.ui.find(".content .party .node:eq(" + e + ")");
           e = a.find("canvas").get(0).getContext("2d");
           e.drawImage(b, 0, 0, 60, 5, 0, 0, 60, 5);
@@ -394,9 +394,9 @@ define(
         }
     };
     E.setOptions = function (a, b, c) {
-      L.exp_share = a;
-      L.item_share = b;
-      L.item_sharing_type = c;
+      K.exp_share = a;
+      K.item_share = b;
+      K.item_sharing_type = c;
     };
     E.onRemoveFriend = function () {};
     E.onRequestLeave = function () {};
@@ -405,6 +405,6 @@ define(
     E.onRequestAddingMember = function () {};
     E.onRequestPartyCreation = function () {};
     E.onRequestSettingUpdate = function () {};
-    return D.addComponent(E);
+    return C.addComponent(E);
   },
 );

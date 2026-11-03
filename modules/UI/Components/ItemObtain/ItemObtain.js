@@ -9,33 +9,33 @@ define(
       d = a("Core/Client"),
       e = a("Core/Events");
     a("Renderer/Renderer");
-    var m = a("UI/UIManager"),
+    var l = a("UI/UIManager"),
       h = a("UI/UIComponent"),
-      t = a("text!./ItemObtain.html");
+      r = a("text!./ItemObtain.html");
     a = a("text!./ItemObtain.css");
-    var r = new h("ItemObtain", t, a);
-    r.mouseMode = h.MouseMode.CROSS;
-    r.needFocus = !1;
+    var t = new h("ItemObtain", r, a);
+    t.mouseMode = h.MouseMode.CROSS;
+    t.needFocus = !1;
     var n = 0,
       g = 0;
-    r.ready = 0;
-    r.parReady = 0;
-    r.init = function () {
+    t.ready = 0;
+    t.parReady = 0;
+    t.init = function () {
       this.ui.css("zIndex", 38);
     };
-    r.onAppend = function () {};
-    r.onRemove = function () {
+    t.onAppend = function () {};
+    t.onRemove = function () {
       n && (e.clearTimeout(n), (n = 0));
     };
-    r.clean = function () {
-      r.ready = 0;
-      r.parReady = 0;
+    t.clean = function () {
+      t.ready = 0;
+      t.parReady = 0;
     };
-    r.timeEnd = function () {
+    t.timeEnd = function () {
       this.remove();
     };
-    r.set = function (a) {
-      if (r.ready) {
+    t.set = function (a) {
+      if (t.ready) {
         this.ui.is(":visible") || this.append();
         this.ui.css("zIndex", 99);
         g += 1;
@@ -44,7 +44,7 @@ define(
           h = a.IsIdentified
             ? h.identifiedResourceName
             : h.unidentifiedResourceName,
-          k = c(
+          m = c(
             '\x3cdiv class\x3d"msg item show"\x3e\x3cimg src\x3d"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw\x3d\x3d" class\x3d"' +
               a.ITID +
               '" width\x3d"21" height\x3d"21" /\x3e ' +
@@ -56,28 +56,28 @@ define(
         d.loadFile(
           b.INTERFACE_PATH + "item/" + h + ".bmp",
           function (b) {
-            k.find("img." + a.ITID).attr("src", b);
+            m.find("img." + a.ITID).attr("src", b);
           }.bind(this),
         );
-        this.ui.find(".content").append(k);
+        this.ui.find(".content").append(m);
         e.setTimeout(
           function () {
-            k.removeClass("show").addClass("out");
+            m.removeClass("show").addClass("out");
           },
           2e3 + 300 * g,
         );
         e.setTimeout(
           function () {
-            k.remove();
+            m.remove();
             --g;
-            0 == g && (r.ui.css("zIndex", 40), r.remove());
+            0 == g && (t.ui.css("zIndex", 40), t.remove());
           },
           2500 + 300 * g,
         );
       }
     };
-    r.setZeny = function (a) {
-      if (r.ready) {
+    t.setZeny = function (a) {
+      if (t.ready) {
         this.ui.is(":visible") || this.append();
         this.ui.css("zIndex", 99);
         var b;
@@ -105,14 +105,14 @@ define(
           function () {
             b.remove();
             --g;
-            0 == g && (r.ui.css("zIndex", 40), r.remove());
+            0 == g && (t.ui.css("zIndex", 40), t.remove());
           },
           2500 + 300 * g,
         );
       }
     };
-    r.setExp = function (a, b, d, h) {
-      if (r.ready) {
+    t.setExp = function (a, b, d, h) {
+      if (t.ready) {
         this.ui.is(":visible") || this.append();
         var f;
         b = ((100 * a) / b).toFixed(2);
@@ -165,14 +165,14 @@ define(
           function () {
             f.remove();
             --g;
-            0 == g && r.remove();
+            0 == g && t.remove();
           },
           2500 + 300 * g,
         );
       }
     };
-    r.setMsg = function (a) {
-      if (r.ready) {
+    t.setMsg = function (a) {
+      if (t.ready) {
         this.ui.is(":visible") || this.append();
         this.ui.css("zIndex", 99);
         g += 1;
@@ -190,14 +190,14 @@ define(
           function () {
             b.remove();
             --g;
-            0 == g && (r.ui.css("zIndex", 40), r.remove());
+            0 == g && (t.ui.css("zIndex", 40), t.remove());
           },
           2500 + 300 * g,
         );
       }
     };
-    r.setMapname = function (a) {
-      if (r.ready) {
+    t.setMapname = function (a) {
+      if (t.ready) {
         this.ui.is(":visible") || this.append();
         this.ui.css("zIndex", 99);
         g += 1;
@@ -217,14 +217,14 @@ define(
           function () {
             b.remove();
             --g;
-            0 == g && r.remove();
+            0 == g && t.remove();
           },
           3500 + 300 * g,
         );
       }
     };
-    r.setParMsg = function (a, b) {
-      if (r.parReady) {
+    t.setParMsg = function (a, b) {
+      if (t.parReady) {
         this.ui.is(":visible") || this.append();
         this.ui.css("zIndex", 99);
         g += 1;
@@ -326,14 +326,14 @@ define(
           function () {
             h.remove();
             --g;
-            0 == g && (r.ui.css("zIndex", 40), r.remove());
+            0 == g && (t.ui.css("zIndex", 40), t.remove());
           },
           2500 + 300 * g,
         );
       }
     };
-    r.setNavigate = function (a) {
-      if (r.ready) {
+    t.setNavigate = function (a) {
+      if (t.ready) {
         this.ui.is(":visible") || this.append();
         this.ui.css("zIndex", 99);
         g += 1;
@@ -351,14 +351,14 @@ define(
           function () {
             b.remove();
             --g;
-            0 == g && (r.ui.css("zIndex", 40), r.remove());
+            0 == g && (t.ui.css("zIndex", 40), t.remove());
           },
           2500 + 300 * g,
         );
       }
     };
-    r.setOfflineMsg = function (a) {
-      if (r.ready) {
+    t.setOfflineMsg = function (a) {
+      if (t.ready) {
         this.ui.is(":visible") || this.append();
         this.ui.css("zIndex", 99);
         g += 1;
@@ -376,12 +376,12 @@ define(
           function () {
             b.remove();
             --g;
-            0 == g && r.remove();
+            0 == g && t.remove();
           },
           3500 + 300 * g,
         );
       }
     };
-    return m.addComponent(r);
+    return l.addComponent(t);
   },
 );

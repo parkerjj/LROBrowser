@@ -19,7 +19,7 @@ define("Utils/WebGL", ["Utils/Texture"], function (a) {
       var c = null,
         d = ["webgl2", "webgl"],
         e,
-        r = d.length;
+        t = d.length;
       b ||
         (b = {
           alpha: !1,
@@ -30,7 +30,7 @@ define("Utils/WebGL", ["Utils/Texture"], function (a) {
           preserveDrawingBuffer: !0,
         });
       if (a.getContext && window.WebGLRenderingContext)
-        for (e = 0; e < r; ++e)
+        for (e = 0; e < t; ++e)
           try {
             if ((c = a.getContext(d[e], b))) break;
           } catch (n) {}
@@ -40,36 +40,36 @@ define("Utils/WebGL", ["Utils/Texture"], function (a) {
         );
       return c;
     },
-    createShaderProgram: function (a, c, m) {
+    createShaderProgram: function (a, c, l) {
       var d, e;
       d = a.createProgram();
       c = b(a, c, a.VERTEX_SHADER);
-      m = b(a, m, a.FRAGMENT_SHADER);
+      l = b(a, l, a.FRAGMENT_SHADER);
       a.attachShader(d, c);
-      a.attachShader(d, m);
+      a.attachShader(d, l);
       a.linkProgram(d);
       if (!a.getProgramParameter(d, a.LINK_STATUS))
         throw (
           (e = a.getProgramInfoLog(d)),
           a.deleteProgram(d),
           a.deleteShader(c),
-          a.deleteShader(m),
+          a.deleteShader(l),
           Error("WebGL::CreateShaderProgram() - Fail to link shaders : " + e)
         );
-      m = a.getProgramParameter(d, a.ACTIVE_ATTRIBUTES);
+      l = a.getProgramParameter(d, a.ACTIVE_ATTRIBUTES);
       d.attribute = {};
-      for (c = 0; c < m; c++)
+      for (c = 0; c < l; c++)
         ((e = a.getActiveAttrib(d, c)),
           (d.attribute[e.name] = a.getAttribLocation(d, e.name)));
-      m = a.getProgramParameter(d, a.ACTIVE_UNIFORMS);
+      l = a.getProgramParameter(d, a.ACTIVE_UNIFORMS);
       d.uniform = {};
-      for (c = 0; c < m; c++)
+      for (c = 0; c < l; c++)
         ((e = a.getActiveUniform(d, c)),
           (d.uniform[e.name] = a.getUniformLocation(d, e.name)));
       return d;
     },
     toPowerOfTwo: c,
-    texture: function (b, e, m) {
+    texture: function (b, e, l) {
       var d = Array.prototype.slice.call(arguments, 3);
       a.load(e, function (a) {
         if (a) {
@@ -91,7 +91,7 @@ define("Utils/WebGL", ["Utils/Texture"], function (a) {
           );
           b.generateMipmap(b.TEXTURE_2D);
           d.unshift(e);
-          m.apply(null, d);
+          l.apply(null, d);
         }
       });
     },

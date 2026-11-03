@@ -84,97 +84,97 @@ define(
           "CLIENT_INIT",
           {
             files: f,
-            grfList: m.get("grfList") || "DATA.INI",
-            save: !!m.get("saveFiles"),
+            grfList: l.get("grfList") || "DATA.INI",
+            save: !!l.get("saveFiles"),
             quota: a,
           },
-          l.onFilesLoaded,
+          k.onFilesLoaded,
         );
       });
     }
     var c = a("Utils/Executable"),
       d = a("Utils/Texture"),
       e = a("Utils/WebGL"),
-      m = a("./Configs"),
+      l = a("./Configs"),
       h = a("./Thread"),
-      t = a("./MemoryManager"),
-      r = a("Network/PacketVerManager"),
+      r = a("./MemoryManager"),
+      t = a("Network/PacketVerManager"),
       n = a("Vendors/text-encoding"),
       g = (function () {
         function a(a, b, c) {
-          t.set(c.filename, a, b);
+          r.set(c.filename, a, b);
         }
         var b = { filename: "", args: null };
-        return function (c, d, f, k) {
+        return function (c, d, f, m) {
           c = n.decodeString(c);
-          t.exist(c) ||
-            ((b.filename = c), (b.args = k || null), h.send("GET_FILE", b, a));
-          return t.get(c, d, f);
+          r.exist(c) ||
+            ((b.filename = c), (b.args = m || null), h.send("GET_FILE", b, a));
+          return r.get(c, d, f);
         };
       })(),
       p = (function () {
         function b(b, c, f) {
-          var k, q, g, p, u, n;
+          var m, q, g, p, n, v;
           if (b && !c)
             switch (f.filename.substr(-3)) {
               case "bmp":
                 d.load(b, function () {
-                  t.set(f.filename, this.toDataURL(), c);
+                  r.set(f.filename, this.toDataURL(), c);
                 });
                 return;
               case "str":
                 p = a("Renderer/Renderer").getContext();
                 q = b.layers;
-                k = f.filename.split("/");
-                k.pop();
-                u = k.join("/");
-                for (k = 0; k < b.layernum; ++k)
+                m = f.filename.split("/");
+                m.pop();
+                n = m.join("/");
+                for (m = 0; m < b.layernum; ++m)
                   for (
-                    q[k].materials = Array(q[k].texcnt), g = 0;
-                    g < q[k].texcnt;
+                    q[m].materials = Array(q[m].texcnt), g = 0;
+                    g < q[m].texcnt;
                     ++g
                   ) {
-                    n = "";
-                    if ("data/texture/effect" == u) n = q[k].texname[g];
+                    v = "";
+                    if ("data/texture/effect" == n) v = q[m].texname[g];
                     else {
-                      n = q[k].texname[g].split("\\");
-                      var v = n.pop();
-                      n.join("/");
-                      n = u + "/" + v;
+                      v = q[m].texname[g].split("\\");
+                      var u = v.pop();
+                      v.join("/");
+                      v = n + "/" + u;
                     }
                     (function (a, b, c) {
-                      l.loadFile(a, function (a) {
+                      k.loadFile(a, function (a) {
                         e.texture(p, a, function (a) {
                           b[c] = a;
                         });
                       });
-                    })(n, q[k].materials, g);
+                    })(v, q[m].materials, g);
                   }
-                t.set(f.filename, b, c);
+                r.set(f.filename, b, c);
                 return;
               case "spr":
                 p = a("Renderer/Renderer").getContext();
-                u = b.frames;
-                q = u.length;
-                for (k = 0; k < q; k++)
-                  ((u[k].texture = p.createTexture()),
-                    (n = u[k].type ? p.LINEAR : p.NEAREST),
-                    (g = u[k].type ? p.RGBA : p.LUMINANCE),
+                n = b.frames;
+                q = n.length;
+                for (m = 0; m < q; m++)
+                  ((n[m].texture = p.createTexture()),
+                    (v = n[m].type ? p.LINEAR : p.NEAREST),
+                    (g = n[m].type ? p.RGBA : p.LUMINANCE),
                     p.pixelStorei(p.UNPACK_ALIGNMENT, 1),
-                    p.bindTexture(p.TEXTURE_2D, u[k].texture),
+                    p.bindTexture(p.TEXTURE_2D, n[m].texture),
                     p.texImage2D(
                       p.TEXTURE_2D,
                       0,
                       g,
-                      u[k].width,
-                      u[k].height,
+                      n[m].width,
+                      n[m].height,
                       0,
                       g,
                       p.UNSIGNED_BYTE,
-                      u[k].data,
+                      n[m].data,
                     ),
-                    p.texParameteri(p.TEXTURE_2D, p.TEXTURE_MAG_FILTER, n),
-                    p.texParameteri(p.TEXTURE_2D, p.TEXTURE_MIN_FILTER, n),
+                    p.texParameteri(p.TEXTURE_2D, p.TEXTURE_MAG_FILTER, v),
+                    p.texParameteri(p.TEXTURE_2D, p.TEXTURE_MIN_FILTER, v),
                     p.texParameteri(
                       p.TEXTURE_2D,
                       p.TEXTURE_WRAP_S,
@@ -209,13 +209,13 @@ define(
                     p.TEXTURE_MIN_FILTER,
                     p.NEAREST,
                   ));
-                t.set(f.filename, b, c);
+                r.set(f.filename, b, c);
                 return;
               case "pal":
                 p = a("Renderer/Renderer").getContext();
-                k = p.createTexture();
+                m = p.createTexture();
                 b = new Uint8Array(b);
-                p.bindTexture(p.TEXTURE_2D, k);
+                p.bindTexture(p.TEXTURE_2D, m);
                 p.texImage2D(
                   p.TEXTURE_2D,
                   0,
@@ -229,28 +229,28 @@ define(
                 );
                 p.texParameteri(p.TEXTURE_2D, p.TEXTURE_MAG_FILTER, p.NEAREST);
                 p.texParameteri(p.TEXTURE_2D, p.TEXTURE_MIN_FILTER, p.NEAREST);
-                t.set(f.filename, { palette: b, texture: k }, c);
+                r.set(f.filename, { palette: b, texture: m }, c);
                 return;
             }
-          t.set(f.filename, b, c);
+          r.set(f.filename, b, c);
         }
         var c = { filename: "", args: null };
-        return function (a, d, f, k) {
+        return function (a, d, f, m) {
           a = n.decodeString(a);
-          t.exist(a) ||
-            ((c.filename = a), (c.args = k || null), h.send("LOAD_FILE", c, b));
-          return t.get(a, d, f);
+          r.exist(a) ||
+            ((c.filename = a), (c.args = m || null), h.send("LOAD_FILE", c, b));
+          return r.get(a, d, f);
         };
       })(),
-      l = {
+      k = {
         init: function (a) {
           function d(a) {
-            2e7 < a && (r.value = a);
+            2e7 < a && (t.value = a);
           }
           var f,
             e,
-            g = m.get("remoteClient");
-          m.get("ClientVer");
+            g = l.get("remoteClient");
+          l.get("ClientVer");
           if ("20211103".match(/^executable$/i))
             for (f = 0, e = a.length; f < e; ++f) {
               if (c.isROExec(a[f])) {
@@ -258,31 +258,31 @@ define(
                 break;
               }
             }
-          else r.value = 20211103;
+          else t.value = 20211103;
           g && h.send("SET_HOST", g);
           b(a);
         },
         getFile: g,
         getFiles: function (a, b) {
           function c(e) {
-            k[f++] = e;
-            f === d ? b && b.apply(null, k) : g(a[f], c);
+            m[f++] = e;
+            f === d ? b && b.apply(null, m) : g(a[f], c);
           }
-          var d, f, k;
+          var d, f, m;
           d = a.length;
-          k = Array(d);
+          m = Array(d);
           f = 0;
           g(a[f], c);
         },
         loadFile: p,
         loadFiles: function (a, b) {
           function c(e) {
-            k[f++] = e;
-            f === d ? b && b.apply(null, k) : p(a[f], c);
+            m[f++] = e;
+            f === d ? b && b.apply(null, m) : p(a[f], c);
           }
-          var d, f, k;
+          var d, f, m;
           d = a.length;
-          k = Array(d);
+          m = Array(d);
           f = 0;
           p(a[f], c);
         },
@@ -291,6 +291,6 @@ define(
         },
         onFilesLoaded: function () {},
       };
-    return l;
+    return k;
   },
 );

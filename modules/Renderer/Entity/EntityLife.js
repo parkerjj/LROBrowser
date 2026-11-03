@@ -13,7 +13,7 @@ define("Renderer/Entity/EntityLife", [
   }
   var d = a.vec4,
     e = new Float32Array(4),
-    m = new Float32Array(2);
+    l = new Float32Array(2);
   c.prototype.remove = function () {
     this.display = !1;
     this.canvas.parentNode && document.body.removeChild(this.canvas);
@@ -31,10 +31,10 @@ define("Renderer/Entity/EntityLife", [
         d = this.hp / this.hp_max,
         e = -1 < this.sp && -1 < this.sp_max,
         p = this.sp / this.sp_max,
-        l = -1 < this.nFullness,
+        k = -1 < this.nFullness,
         f = this.nFullness / 100;
       e && (a += 4);
-      l && (a += 4);
+      k && (a += 4);
       c.canvas.width = 60;
       c.canvas.height = a;
       c.fillStyle = "#222";
@@ -59,7 +59,7 @@ define("Renderer/Entity/EntityLife", [
         c.fillRect(0, 4, 60, 1),
         (c.fillStyle = "#369AD9"),
         c.fillRect(1, 5, Math.round(58 * p), 3));
-      l &&
+      k &&
         ((c.fillStyle = "#43301D"),
         c.fillRect(0, 8, 60, 1),
         (c.fillStyle = 0.25 > f ? "#FF0000" : "#FFE6E6"),
@@ -72,12 +72,12 @@ define("Renderer/Entity/EntityLife", [
     e[1] = -0.5;
     e[2] = 0;
     e[3] = 1;
-    m[0] = b.width / 2;
-    m[1] = b.height / 2;
+    l[0] = b.width / 2;
+    l[1] = b.height / 2;
     d.transformMat4(e, e, a);
     a = 0 === e[3] ? 1 : 1 / e[3];
-    e[0] = m[0] + Math.round(m[0] * e[0] * a);
-    e[1] = m[1] - Math.round(m[1] * e[1] * a);
+    e[0] = l[0] + Math.round(l[0] * e[0] * a);
+    e[1] = l[1] - Math.round(l[1] * e[1] * a);
     c.style.top = (e[1] | 0) + "px";
     c.style.left = ((e[0] - c.width / 2) | 0) + "px";
     c.parentNode || document.body.appendChild(c);

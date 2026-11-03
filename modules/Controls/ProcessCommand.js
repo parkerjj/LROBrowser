@@ -8,17 +8,17 @@ define(
       c = a("DB/Emotions"),
       d = a("Audio/BGM"),
       e = a("Audio/SoundManager"),
-      m = a("Engine/SessionStorage"),
+      l = a("Engine/SessionStorage"),
       h = a("Network/PacketStructure"),
-      t = a("Network/NetworkManager"),
-      r = a("Preferences/Controls"),
+      r = a("Network/NetworkManager"),
+      t = a("Preferences/Controls"),
       n = a("Preferences/Audio"),
       g = a("Preferences/Map"),
       p = a("Preferences/Camera");
-    return function (l) {
+    return function (k) {
       var f,
-        k = l.split(" ")[0];
-      switch (k) {
+        m = k.split(" ")[0];
+      switch (m) {
         case "sound":
           this.addText(b.getMessage(27 + n.Sound.play), this.TYPE.INFO);
           n.Sound.play = !n.Sound.play;
@@ -62,42 +62,42 @@ define(
           return;
         case "noctrl":
         case "nc":
-          this.addText(b.getMessage(717 + r.noctrl), this.TYPE.INFO);
-          r.noctrl = !r.noctrl;
-          r.save();
+          this.addText(b.getMessage(717 + t.noctrl), this.TYPE.INFO);
+          t.noctrl = !t.noctrl;
+          t.save();
           return;
         case "noshift":
         case "ns":
-          this.addText(b.getMessage(701 + r.noshift), this.TYPE.INFO);
-          r.noshift = !r.noshift;
-          r.save();
+          this.addText(b.getMessage(701 + t.noshift), this.TYPE.INFO);
+          t.noshift = !t.noshift;
+          t.save();
           return;
         case "sit":
         case "stand":
-          l = new h.CZ.REQUEST_ACT();
-          l.action = m.Entity.action === m.Entity.ACTION.SIT ? 3 : 2;
-          t.sendPacket(l);
+          k = new h.CZ.REQUEST_ACT();
+          k.action = l.Entity.action === l.Entity.ACTION.SIT ? 3 : 2;
+          r.sendPacket(k);
           return;
         case "doridori":
-          m.Entity.headDir = 1 === m.Entity.headDir ? 2 : 1;
-          l = new h.CZ.CHANGE_DIRECTION();
-          l.headDir = m.Entity.headDir;
-          l.dir = m.Entity.direction;
-          t.sendPacket(l);
+          l.Entity.headDir = 1 === l.Entity.headDir ? 2 : 1;
+          k = new h.CZ.CHANGE_DIRECTION();
+          k.headDir = l.Entity.headDir;
+          k.dir = l.Entity.direction;
+          r.sendPacket(k);
           return;
         case "bangbang":
-          m.Entity.direction = (m.Entity.direction + 1) % 8;
-          l = new h.CZ.CHANGE_DIRECTION();
-          l.headDir = m.Entity.headDir;
-          l.dir = m.Entity.direction;
-          t.sendPacket(l);
+          l.Entity.direction = (l.Entity.direction + 1) % 8;
+          k = new h.CZ.CHANGE_DIRECTION();
+          k.headDir = l.Entity.headDir;
+          k.dir = l.Entity.direction;
+          r.sendPacket(k);
           return;
         case "bingbing":
-          m.Entity.direction = (m.Entity.direction + 7) % 8;
-          l = new h.CZ.CHANGE_DIRECTION();
-          l.headDir = m.Entity.headDir;
-          l.dir = m.Entity.direction;
-          t.sendPacket(l);
+          l.Entity.direction = (l.Entity.direction + 7) % 8;
+          k = new h.CZ.CHANGE_DIRECTION();
+          k.headDir = l.Entity.headDir;
+          k.dir = l.Entity.direction;
+          r.sendPacket(k);
           return;
         case "where":
           f = a("Renderer/MapRenderer").currentMap;
@@ -106,50 +106,50 @@ define(
               "(" +
               f +
               ") : " +
-              Math.floor(m.Entity.position[0]) +
+              Math.floor(l.Entity.position[0]) +
               ", " +
-              Math.floor(m.Entity.position[1]),
+              Math.floor(l.Entity.position[1]),
             this.TYPE.INFO,
           );
           return;
         case "exall":
-          l = new h.CZ.SETTING_WHISPER_STATE();
-          l.type = 0;
-          t.sendPacket(l);
+          k = new h.CZ.SETTING_WHISPER_STATE();
+          k.type = 0;
+          r.sendPacket(k);
           return;
         case "inall":
-          l = new h.CZ.SETTING_WHISPER_STATE();
-          l.type = 1;
-          t.sendPacket(l);
+          k = new h.CZ.SETTING_WHISPER_STATE();
+          k.type = 1;
+          r.sendPacket(k);
           return;
         case "who":
         case "w":
-          l = new h.CZ.REQ_USER_COUNT();
-          t.sendPacket(l);
+          k = new h.CZ.REQ_USER_COUNT();
+          r.sendPacket(k);
           return;
         case "blacksmith":
-          l = new h.CZ.REQ_RANKING();
-          l.Type = 0;
-          t.sendPacket(l);
+          k = new h.CZ.REQ_RANKING();
+          k.Type = 0;
+          r.sendPacket(k);
           return;
         case "alchemist":
-          l = new h.CZ.REQ_RANKING();
-          l.Type = 1;
-          t.sendPacket(l);
+          k = new h.CZ.REQ_RANKING();
+          k.Type = 1;
+          r.sendPacket(k);
           return;
         case "taekwon":
-          l = new h.CZ.REQ_RANKING();
-          l.Type = 2;
-          t.sendPacket(l);
+          k = new h.CZ.REQ_RANKING();
+          k.Type = 2;
+          r.sendPacket(k);
           return;
         case "pk":
-          l = new h.CZ.REQ_RANKING();
-          l.Type = 3;
-          t.sendPacket(l);
+          k = new h.CZ.REQ_RANKING();
+          k.Type = 3;
+          r.sendPacket(k);
           return;
         case "memo":
-          l = new h.CZ.REMEMBER_WARPPOINT();
-          t.sendPacket(l);
+          k = new h.CZ.REMEMBER_WARPPOINT();
+          r.sendPacket(k);
           return;
         case "chat":
           a("UI/Components/ChatRoomCreate/ChatRoomCreate").show();
@@ -161,13 +161,13 @@ define(
           a("Engine/MapEngine/Group").onRequestLeave();
           return;
         case "invite":
-          if ((f = l.match(/^invite\s+(")?([^"]+)(")?/)) && f[2]) {
+          if ((f = k.match(/^invite\s+(")?([^"]+)(")?/)) && f[2]) {
             a("Engine/MapEngine/Group").onRequestInvitation(0, f[2]);
             return;
           }
           break;
         case "organize":
-          if ((f = l.match(/^organize\s+(")?([^"]+)(")?/)) && f[2]) {
+          if ((f = k.match(/^organize\s+(")?([^"]+)(")?/)) && f[2]) {
             a("Engine/MapEngine/Group").onRequestCreationEasy(f[2]);
             return;
           }
@@ -176,31 +176,31 @@ define(
           a("Engine/MapEngine/Friends").sayHi();
           return;
         case "guild":
-          if ((f = l.match(/^guild\s+(")?([^"]+)(")?/)) && f[2]) {
+          if ((f = k.match(/^guild\s+(")?([^"]+)(")?/)) && f[2]) {
             a("Engine/MapEngine/Guild").createGuild(f[2]);
             return;
           }
           break;
         case "breakguild":
-          if ((f = l.match(/^breakguild\s+(")?([^"]+)(")?/)) && f[2]) {
+          if ((f = k.match(/^breakguild\s+(")?([^"]+)(")?/)) && f[2]) {
             a("Engine/MapEngine/Guild").breakGuild(f[2]);
             return;
           }
       }
-      if ((f = l.match(/^(\w{3})\+ (\d+)$/))) {
+      if ((f = k.match(/^(\w{3})\+ (\d+)$/))) {
         var q = "str agi vit int dex luk".split(" ").indexOf(f[1]);
         if (-1 < q && 0 !== f[2]) {
-          l = new h.CZ.STATUS_CHANGE();
-          l.statusID = q + 13;
-          l.changeAmount = parseInt(f[2], 10);
-          t.sendPacket(l);
+          k = new h.CZ.STATUS_CHANGE();
+          k.statusID = q + 13;
+          k.changeAmount = parseInt(f[2], 10);
+          r.sendPacket(k);
           return;
         }
       }
-      k in c.commands
-        ? ((l = new h.CZ.REQ_EMOTION()),
-          (l.type = c.commands[k]),
-          t.sendPacket(l))
+      m in c.commands
+        ? ((k = new h.CZ.REQ_EMOTION()),
+          (k.type = c.commands[m]),
+          r.sendPacket(k))
         : this.addText(b.getMessage(95), this.TYPE.INFO);
     };
   },

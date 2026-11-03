@@ -8,57 +8,57 @@ define(
       c = a("Controls/KeyEventHandler"),
       d = a("Controls/MouseEventHandler"),
       e = a("Core/Events"),
-      m = a("Core/Configs"),
+      l = a("Core/Configs"),
       h = a("Preferences/Camera"),
-      t = a("Utils/gl-matrix"),
-      r = t.mat4,
-      n = t.mat3,
-      g = t.vec2,
-      t = t.vec3,
-      p = t.create(),
-      l = {};
-    l.projection = r.create();
-    l.modelView = r.create();
-    l.normalMat = n.create();
-    l.zoom = h.zoom;
-    l.zoomFinal = h.zoom;
-    l.angle = g.create();
-    l.angleFinal = g.create();
-    l.position = t.create();
-    l.target = null;
-    l.lastTick = 0;
-    l.MAX_ZOOM = 15;
-    l.quakes = [];
-    l.direction = 0;
-    l.altitudeFrom = -70;
-    l.altitudeTo = -80;
-    l.rotationFrom = -360;
-    l.rotationTo = 360;
-    l.range = 220;
-    l.zoomFrom = 190;
-    l.zoomTo = 270;
-    l.currentMap = "";
-    l.MAX_ZOOM_INDOOR = 8;
-    l.inRotationFrom = -60;
-    l.inRotationTo = -25;
-    l.inRange = 240;
-    l.inZoomFrom = 220;
-    l.inZoomTo = 240;
-    l.TOUCHTYPE = { NOTHING: 0, ZOOM: 1, ROTATE: 2, INCLINE: 3 };
-    l.action = {
+      r = a("Utils/gl-matrix"),
+      t = r.mat4,
+      n = r.mat3,
+      g = r.vec2,
+      r = r.vec3,
+      p = r.create(),
+      k = {};
+    k.projection = t.create();
+    k.modelView = t.create();
+    k.normalMat = n.create();
+    k.zoom = h.zoom;
+    k.zoomFinal = h.zoom;
+    k.angle = g.create();
+    k.angleFinal = g.create();
+    k.position = r.create();
+    k.target = null;
+    k.lastTick = 0;
+    k.MAX_ZOOM = 15;
+    k.quakes = [];
+    k.direction = 0;
+    k.altitudeFrom = -70;
+    k.altitudeTo = -80;
+    k.rotationFrom = -360;
+    k.rotationTo = 360;
+    k.range = 220;
+    k.zoomFrom = 190;
+    k.zoomTo = 270;
+    k.currentMap = "";
+    k.MAX_ZOOM_INDOOR = 8;
+    k.inRotationFrom = -60;
+    k.inRotationTo = -25;
+    k.inRange = 240;
+    k.inZoomFrom = 220;
+    k.inZoomTo = 240;
+    k.TOUCHTYPE = { NOTHING: 0, ZOOM: 1, ROTATE: 2, INCLINE: 3 };
+    k.action = {
       active: !1,
-      touchType: l.TOUCHTYPE.NOTHING,
+      touchType: k.TOUCHTYPE.NOTHING,
       tick: 0,
       x: 0,
       y: 0,
     };
-    l.setTarget = function (a) {
+    k.setTarget = function (a) {
       this.target = a;
     };
-    l.getLatitude = function () {
+    k.getLatitude = function () {
       return this.angle[0] - 180;
     };
-    l.init = function () {
+    k.init = function () {
       this.lastTick = Date.now();
       this.angle[0] = 220;
       this.angle[1] = this.rotationFrom % 360;
@@ -69,22 +69,22 @@ define(
       this.position[2] = this.target.position[2];
       this.currentMap = a("Renderer/MapRenderer").currentMap;
       b.isIndoor(this.currentMap)
-        ? (l.setZoom(1), (l.angleFinal[0] = 230), (l.angleFinal[1] = -40))
-        : ((l.zoomFinal = h.zoom),
-          (l.angleFinal[0] = h.height),
-          (l.angleFinal[1] = h.rotation));
+        ? (k.setZoom(1), (k.angleFinal[0] = 230), (k.angleFinal[1] = -40))
+        : ((k.zoomFinal = h.zoom),
+          (k.angleFinal[0] = h.height),
+          (k.angleFinal[1] = h.rotation));
     };
-    l.save = (function () {
+    k.save = (function () {
       function a() {
-        b.isIndoor(l.currentMap) ||
-          ((c = !1), (h.zoom = l.zoomFinal), h.save());
+        b.isIndoor(k.currentMap) ||
+          ((c = !1), (h.zoom = k.zoomFinal), h.save());
       }
       var c = !1;
       return function () {
         c || (e.setTimeout(a, 3e3), (c = !0));
       };
     })();
-    l.rotate = function (a) {
+    k.rotate = function (a) {
       var f = this.action,
         e = Date.now();
       a
@@ -106,7 +106,7 @@ define(
           (f.active = !0))
         : (f.active = !1);
     };
-    l.processMouseAction = function () {
+    k.processMouseAction = function () {
       c.SHIFT
         ? ((this.angleFinal[0] +=
             ((d.screen.y - this.action.y) / d.screen.height) * 300),
@@ -132,13 +132,13 @@ define(
                   this.zoomFinal,
                   Math.abs(this.altitudeTo - this.altitudeFrom) *
                     this.MAX_ZOOM_INDOOR *
-                    (m.get("mobile") ? 1.45 : 1),
+                    (l.get("mobile") ? 1.45 : 1),
                 ))
               : (this.zoomFinal = Math.min(
                   this.zoomFinal,
                   Math.abs(this.altitudeTo - this.altitudeFrom) *
                     this.MAX_ZOOM *
-                    (m.get("mobile") ? 1.45 : 1),
+                    (l.get("mobile") ? 1.45 : 1),
                 )),
             (this.zoomFinal = Math.trunc(Math.max(this.zoomFinal, 10))))
           : ((this.angleFinal[1] -=
@@ -169,25 +169,25 @@ define(
       this.action.y = +d.screen.y;
       this.save();
     };
-    l.setZoom = function (a) {
+    k.setZoom = function (a) {
       this.zoomFinal += 15 * a;
       b.isIndoor(this.currentMap)
         ? (this.zoomFinal = Math.min(
             this.zoomFinal,
             Math.abs(this.altitudeTo - this.altitudeFrom) *
               this.MAX_ZOOM_INDOOR *
-              (m.get("mobile") ? 1.45 : 1),
+              (l.get("mobile") ? 1.45 : 1),
           ))
         : (this.zoomFinal = Math.min(
             this.zoomFinal,
             Math.abs(this.altitudeTo - this.altitudeFrom) *
               this.MAX_ZOOM *
-              (m.get("mobile") ? 1.45 : 1),
+              (l.get("mobile") ? 1.45 : 1),
           ));
       this.zoomFinal = Math.trunc(Math.max(this.zoomFinal, 10));
       this.save();
     };
-    l.setQuake = function (a, b, c, d, e) {
+    k.setQuake = function (a, b, c, d, e) {
       var f = {};
       f.startTick = a;
       f.duration = b || 650;
@@ -197,7 +197,7 @@ define(
       f.active = !0;
       this.quakes.push(f);
     };
-    l.processQuake = function (a) {
+    k.processQuake = function (a) {
       for (var b = 0; b < this.quakes.length; b++)
         this.quakes[b].active
           ? this.quakes[b].startTick <= a &&
@@ -223,7 +223,7 @@ define(
               : (this.quakes[b].active = !1))
           : this.quakes.splice(b, 1);
     };
-    l.update = function (a) {
+    k.update = function (a) {
       var b = Math.min(0.006 * (a - this.lastTick), 1);
       this.lastTick = a;
       -1 !== this.action.x &&
@@ -248,17 +248,17 @@ define(
       this.angle[1] %= 360;
       this.direction = Math.floor((this.angle[1] + 22.5) / 45) % 8;
       a = this.modelView;
-      r.identity(a);
-      r.translateZ(a, (this.altitudeFrom - this.zoom) / 2);
-      r.rotateX(a, a, (this.angle[0] / 180) * Math.PI);
-      r.rotateY(a, a, (this.angle[1] / 180) * Math.PI);
+      t.identity(a);
+      t.translateZ(a, (this.altitudeFrom - this.zoom) / 2);
+      t.rotateX(a, a, (this.angle[0] / 180) * Math.PI);
+      t.rotateY(a, a, (this.angle[1] / 180) * Math.PI);
       p[0] = this.position[0] - 0.5;
       p[1] = this.position[2];
       p[2] = this.position[1] - 0.5;
-      r.translate(a, a, p);
-      r.toInverseMat3(a, this.normalMat);
+      t.translate(a, a, p);
+      t.toInverseMat3(a, this.normalMat);
       n.transpose(this.normalMat, this.normalMat);
     };
-    return l;
+    return k;
   },
 );

@@ -12,30 +12,30 @@ define(
     }
     function c(a, b, c, d) {
       var e,
-        g = l.get("socketProxy", null);
+        g = k.get("socketProxy", null);
       e = new (
-        f.Is.APP ? C : D.isSupported() ? D : y.isSupported() ? y : g ? J : B
+        f.Is.APP ? D : C.isSupported() ? C : z.isSupported() ? z : g ? H : B
       )(a, b, g);
       e.isZone = !!d;
-      e.onClose = r;
+      e.onClose = t;
       e.onComplete = function (a) {
         a &&
-          (O && O.ping && clearInterval(O.ping),
-          (e.onMessage = t),
-          N.push((O = e)),
+          (N && N.ping && clearInterval(N.ping),
+          (e.onMessage = r),
+          P.push((N = e)),
           d && A.init());
         c.call(this, a);
       };
     }
     function d(a) {
       a = a.build();
-      O && O.isZone && A.process(a.view);
+      N && N.isZone && A.process(a.view);
       e(a.buffer);
     }
     function e(a) {
-      O && O.send(a);
+      N && N.send(a);
     }
-    function m(a, c) {
+    function l(a, c) {
       if (!a.id)
         throw Error(
           'NetworkManager::HookPacket() - Packet not yet register "' +
@@ -47,7 +47,7 @@ define(
     function h(a) {
       h.callback = a;
     }
-    function t(a) {
+    function r(a) {
       var c, d, f, e;
       I
         ? ((f = new Uint8Array(I.length + a.byteLength)),
@@ -55,7 +55,7 @@ define(
           f.set(new Uint8Array(a), I.length),
           (e = f.buffer))
         : (e = a);
-      a = new k(e);
+      a = new m(e);
       h.callback && (h.callback(a), (h.callback = null));
       for (; a.tell() < a.length;) {
         f = a.tell();
@@ -96,35 +96,35 @@ define(
       }
       I = null;
     }
-    function r() {
-      var a = N.indexOf(this);
-      this === O &&
+    function t() {
+      var a = P.indexOf(this);
+      this === N &&
         (console.warn(
           "[Network] \u4e0e\u670d\u52a1\u5668\u65ad\u5f00\u8fde\u63a5",
         ),
-        O.ping && clearInterval(O.ping),
-        H("UI/UIManager").showErrorBox(
+        N.ping && clearInterval(N.ping),
+        G("UI/UIManager").showErrorBox(
           "\u4e0e\u670d\u52a1\u5668\u65ad\u5f00\u8fde\u63a5",
         ));
-      -1 !== a && N.splice(a, 1);
+      -1 !== a && P.splice(a, 1);
     }
     function n() {
       var a;
-      O &&
-        (O.close(),
-        O.izZone && A.reset(),
-        O.ping && clearInterval(O.ping),
-        (a = N.indexOf(O)),
-        (O = null),
-        -1 !== a && N.splice(a, 1));
+      N &&
+        (N.close(),
+        N.izZone && A.reset(),
+        N.ping && clearInterval(N.ping),
+        (a = P.indexOf(N)),
+        (N = null),
+        -1 !== a && P.splice(a, 1));
     }
     function g(a) {
-      if (O)
+      if (N)
         for (
-          O.ping && clearInterval(O.ping), O.ping = setInterval(a, 15e3);
-          1 < N.length;
+          N.ping && clearInterval(N.ping), N.ping = setInterval(a, 15e3);
+          1 < P.length;
         )
-          O !== N[0] && (N[0].close(), N.splice(0, 1));
+          N !== P[0] && (P[0].close(), P.splice(0, 1));
     }
     function p(a) {
       var b = new ArrayBuffer(4),
@@ -132,43 +132,43 @@ define(
       new Uint32Array(b)[0] = a;
       return Array.prototype.join.call(c, ".");
     }
-    var l = a("Core/Configs"),
+    var k = a("Core/Configs"),
       f = a("Core/Context"),
-      k = a("Utils/BinaryReader"),
+      m = a("Utils/BinaryReader"),
       q = a("./PacketVerManager"),
-      u = a("./PacketVersions"),
-      v = a("./PacketRegister"),
+      v = a("./PacketVersions"),
+      u = a("./PacketRegister"),
       A = a("./PacketCrypt"),
-      C = a("./SocketHelpers/ChromeSocket"),
+      D = a("./SocketHelpers/ChromeSocket"),
       B = a("./SocketHelpers/JavaSocket"),
-      J = a("./SocketHelpers/WebSocket"),
-      D = a("./SocketHelpers/TCPSocket"),
-      y = a("./SocketHelpers/NodeSocket"),
-      H = a,
-      N = [],
-      O = null,
+      H = a("./SocketHelpers/WebSocket"),
+      C = a("./SocketHelpers/TCPSocket"),
+      z = a("./SocketHelpers/NodeSocket"),
+      G = a,
+      P = [],
+      N = null,
       I = null;
     b.list = [];
     h.callback = null;
     return (function () {
       var a, f, k;
-      a = Object.keys(u);
-      k = a.length;
-      for (f = 0; f < k; ++f) q.addSupport(a[f], u[a[f]]);
       a = Object.keys(v);
       k = a.length;
+      for (f = 0; f < k; ++f) q.addSupport(a[f], v[a[f]]);
+      a = Object.keys(u);
+      k = a.length;
       for (f = 0; f < k; ++f) {
-        var l = a[f],
-          C = v[a[f]];
-        C.id = l;
-        b.list[l] = new b(C.name, C, C.size);
+        var m = a[f],
+          B = u[a[f]];
+        B.id = m;
+        b.list[m] = new b(B.name, B, B.size);
       }
       return {
         sendPacket: d,
         send: e,
         setPing: g,
         connect: c,
-        hookPacket: m,
+        hookPacket: l,
         close: n,
         read: h,
         utils: { longToIP: p },

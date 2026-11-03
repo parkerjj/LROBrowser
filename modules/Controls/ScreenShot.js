@@ -8,7 +8,7 @@ define(
       c = a("Utils/jquery"),
       d = a("Utils/html2canvas"),
       e = a("Controls/KeyEventHandler"),
-      m = a("UI/Components/ChatBox/ChatBox");
+      l = a("UI/Components/ChatBox/ChatBox");
     c(window).keydown(function (a) {
       return e.ALT && a.which === e.P
         ? (h.take(), a.stopImmediatePropagation(), !1)
@@ -16,10 +16,10 @@ define(
     });
     var h = {
       take: function () {
-        m.ui && d([document.body], { onrendered: this.process });
+        l.ui && d([document.body], { onrendered: this.process });
       },
       process: function (a) {
-        var c, d, e, p, l;
+        var c, d, e, p, k;
         d = new Date();
         e = d.getTimezoneOffset() / 60;
         d = d.toLocaleString() + " (GMT " + (0 < e ? "-" : "+") + e + ")";
@@ -27,10 +27,10 @@ define(
         c.fillStyle = "white";
         c.strokeStyle = "black";
         p = 20;
-        l = a.height - 5;
+        k = a.height - 5;
         c.font = "bold 16px serif";
-        c.fillText(d, p, l);
-        c.strokeText(d, p, l);
+        c.fillText(d, p, k);
+        c.strokeText(d, p, k);
         c.fill();
         c.stroke();
         b.loadFile(
@@ -39,8 +39,8 @@ define(
             var e = new Image();
             e.src = b;
             p = a.width - e.width - 20;
-            l = a.height - e.height - 5;
-            c.drawImage(e, p, l);
+            k = a.height - e.height - 5;
+            c.drawImage(e, p, k);
             h.display(a, d);
           },
           function () {
@@ -55,7 +55,7 @@ define(
         c = new Uint8Array(e);
         for (d = 0; d < e; ++d) c[d] = a.charCodeAt(d);
         a = window.URL.createObjectURL(new Blob([c], { type: "image/png" }));
-        m.addText(
+        l.addText(
           "Screenshot " +
             b +
             ' can be saved by \x3ca style\x3d"color:#F88" download\x3d"ScreenShot (' +
@@ -63,7 +63,7 @@ define(
             ').png" href\x3d"' +
             a +
             '" target\x3d"_blank"\x3eclicking here\x3c/a\x3e.',
-          m.TYPE.PUBLIC,
+          l.TYPE.PUBLIC,
           null,
           !0,
         );

@@ -5,23 +5,23 @@ define("Utils/Texture", ["Loaders/Targa"], function (a) {
       if (c)
         if (c instanceof ArrayBuffer)
           try {
-            var m = new a();
-            m.load(new Uint8Array(c));
+            var l = new a();
+            l.load(new Uint8Array(c));
             e.unshift(!0);
-            d.apply(m.getCanvas(), e);
+            d.apply(l.getCanvas(), e);
           } catch (h) {
             (console.error(h.message), e.unshift(!1), d.apply(null, e));
           }
         else
-          ((m = new Image()),
-            (m.src = c),
-            (m.onload = function () {
+          ((l = new Image()),
+            (l.src = c),
+            (l.onload = function () {
               c.match(/^blob\:/) && URL.revokeObjectURL(c);
               var a = document.createElement("canvas"),
-                m = a.getContext("2d", { willReadFrequently: !0 });
+                l = a.getContext("2d", { willReadFrequently: !0 });
               a.width = this.width;
               a.height = this.height;
-              m.drawImage(this, 0, 0, this.width, this.height);
+              l.drawImage(this, 0, 0, this.width, this.height);
               b.removeMagenta(a);
               e.unshift(!0);
               d.apply(a, e);
@@ -29,12 +29,12 @@ define("Utils/Texture", ["Loaders/Targa"], function (a) {
       else (e.unshift(!1), d.apply(null, e));
     },
     removeMagenta: function (a) {
-      var b, c, m, h;
+      var b, c, l, h;
       b = a.getContext("2d");
       a = b.getImageData(0, 0, a.width, a.height);
       c = a.data;
-      m = c.length;
-      for (h = 0; h < m; h += 4)
+      l = c.length;
+      for (h = 0; h < l; h += 4)
         230 < c[h + 0] &&
           20 > c[h + 1] &&
           230 < c[h + 2] &&

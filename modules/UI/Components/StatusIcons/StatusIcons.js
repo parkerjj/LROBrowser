@@ -10,10 +10,10 @@ define(
         c,
         d,
         e,
-        f = k.ui.find(".state");
+        f = m.ui.find(".state");
       c = f.length;
       for (b = e = d = 0; b < c; ++b, e += 36)
-        (e >= 36 * u && ((e = 0), (d += 36)),
+        (e >= 36 * v && ((e = 0), (d += 36)),
           (a = f[b]),
           (a.style.top = e + "px"),
           (a.style.right = d + "px"));
@@ -37,7 +37,7 @@ define(
       q[a].element = c;
       q[a].ctx = d.getContext("2d");
       q[a].type = 2e3 == a ? 1 : 0;
-      0 < Object.keys(q).length && p.render(m);
+      0 < Object.keys(q).length && p.render(l);
       if (h[a].length) {
         if (h[a][b].descript) {
           var e, f;
@@ -80,14 +80,14 @@ define(
     }
     function e(a) {
       var b, c;
-      b = k.ui.find(".state").length;
-      c = (b % u) * 36;
-      b = 36 * ((b / u) | 0);
+      b = m.ui.find(".state").length;
+      c = (b % v) * 36;
+      b = 36 * ((b / v) | 0);
       a.style.top = c + "px";
       a.style.right = b + "px";
-      k.ui.append(a);
+      m.ui.append(a);
     }
-    function m(a) {
+    function l(a) {
       var b, c, d;
       d = Object.keys(q);
       c = d.length;
@@ -96,90 +96,90 @@ define(
           f = a,
           g,
           h,
-          l,
-          k;
+          k,
+          m;
         e.img &&
-          ((k = e.ctx),
+          ((m = e.ctx),
           1 == e.type
             ? 1 == e.refresh &&
               ((e.refresh = 0),
               (f = e.val),
-              (l = "rgba(0,255,8,0.5)"),
+              (k = "rgba(0,255,8,0.5)"),
               (g = 1 - f / 100),
-              k.clearRect(0, 0, 32, 32),
-              k.drawImage(e.img, 0, 0),
-              (k.fillStyle = l),
-              k.fillRect(0, 32 * g, 32, 32),
+              m.clearRect(0, 0, 32, 32),
+              m.drawImage(e.img, 0, 0),
+              (m.fillStyle = k),
+              m.fillRect(0, 32 * g, 32, 32),
               e.time && (e.time.textContent = f + "%"))
             : ((g = e.start),
               (h = e.end),
               f > h && (h = f),
               h < f + 6e4
-                ? ((l = "rgba(255,150,50,0.65)"), (g = 1 - (h - f) / 6e4))
-                : ((l = "rgba(255,255,255,0.65)"),
+                ? ((k = "rgba(255,150,50,0.65)"), (g = 1 - (h - f) / 6e4))
+                : ((k = "rgba(255,255,255,0.65)"),
                   (g = (f - g) / (h - 6e4 - g))),
-              k.clearRect(0, 0, 32, 32),
-              k.drawImage(e.img, 0, 0),
-              (k.fillStyle = l),
-              k.beginPath(),
-              k.arc(16, 16, 24, 1.5 * Math.PI, ((1.5 + 2 * g) % 2) * Math.PI),
-              k.lineTo(16, 16),
-              k.fill(),
+              m.clearRect(0, 0, 32, 32),
+              m.drawImage(e.img, 0, 0),
+              (m.fillStyle = k),
+              m.beginPath(),
+              m.arc(16, 16, 24, 1.5 * Math.PI, ((1.5 + 2 * g) % 2) * Math.PI),
+              m.lineTo(16, 16),
+              m.fill(),
               e.time &&
                 e.timeTick + 1e3 < f &&
                 ((e.timeTick = f),
-                (k = ((h - f) / 1e3) | 0),
-                (l = k % 60),
-                (k = (k / 60) | 0),
+                (m = ((h - f) / 1e3) | 0),
+                (k = m % 60),
+                (m = (m / 60) | 0),
                 (e.time.textContent =
                   f >= h || Infinity === h
                     ? ""
-                    : (k ? k + " " + t.getMessage(1807, "\u5206") + " " : "") +
-                      l +
+                    : (m ? m + " " + r.getMessage(1807, "\u5206") + " " : "") +
+                      k +
                       " " +
-                      t.getMessage(1808, "\u79d2")))));
+                      r.getMessage(1808, "\u79d2")))));
       }
     }
     var h = a("DB/Status/StatusInfo"),
-      t = a("DB/DBManager"),
-      r = a("Utils/jquery"),
+      r = a("DB/DBManager"),
+      t = a("Utils/jquery"),
       n = a("Utils/Texture"),
       g = a("Core/Client"),
       p = a("Renderer/Renderer"),
-      l = a("UI/UIManager"),
+      k = a("UI/UIManager"),
       f = a("UI/UIComponent");
     a = a("text!./StatusIcons.css");
-    var k = new f("StatusIcons", null, a);
-    k.mouseMode = f.MouseMode.CROSS;
-    k.needFocus = !1;
+    var m = new f("StatusIcons", null, a);
+    m.mouseMode = f.MouseMode.CROSS;
+    m.needFocus = !1;
     var q = {};
-    k.init = function () {
-      this.ui = r("\x3cdiv/\x3e").attr("id", "StatusIcons");
+    m.init = function () {
+      this.ui = t("\x3cdiv/\x3e").attr("id", "StatusIcons");
     };
-    k.onAppend = function () {
-      p.render(m);
+    m.onAppend = function () {
+      p.render(l);
     };
-    k.onRemove = function () {
-      p.stop(m);
+    m.onRemove = function () {
+      p.stop(l);
     };
-    k.clean = function () {
+    m.clean = function () {
       this.ui.empty();
       q = {};
     };
-    k.update = function (a, f, l, k) {
+    m.update = function (a, f, k, m) {
       if (a in h) {
         if (h[a].length) {
-          if (f && !h[a][l].icon) return;
+          if (f && !h[a][k].icon) return;
         } else if (!h[a].icon) return;
         f
-          ? (a in q || d(a, l),
+          ? (a in q || d(a, k),
             (q[a].start = p.tick),
-            (q[a].end = p.tick + k),
-            9999 === k && (q[a].end = Infinity),
+            (q[a].end = p.tick + m),
+            9999 === m && (q[a].end = Infinity),
             q.img ||
               g.loadFile(
                 "data/texture/effect/" +
-                  (h[a].length ? h[a][l].icon : h[a].icon),
+                  (h[a].length ? h[a][k].icon : h[a].icon),
                 function (b) {
                   n.load(b, function () {
                     q[a] && !q[a].img && ((q[a].img = this), e(q[a].element));
@@ -189,19 +189,19 @@ define(
           : (c(a), b());
       }
     };
-    k.update2 = function (a, f, l, k) {
+    m.update2 = function (a, f, k, m) {
       if (a in h) {
         if (h[a].length) {
-          if (f && (!h[a][l] || !h[a][l].icon)) return;
+          if (f && (!h[a][k] || !h[a][k].icon)) return;
         } else if (!h[a].icon) return;
         f
-          ? (a in q || d(a, l),
-            (q[a].val = k),
+          ? (a in q || d(a, k),
+            (q[a].val = m),
             (q[a].refresh = 1),
             q.img ||
               g.loadFile(
                 "data/texture/effect/" +
-                  (h[a].length ? h[a][l].icon : h[a].icon),
+                  (h[a].length ? h[a][k].icon : h[a].icon),
                 function (b) {
                   n.load(b, function () {
                     q[a] && !q[a].img && ((q[a].img = this), e(q[a].element));
@@ -211,7 +211,7 @@ define(
           : (c(a), b());
       }
     };
-    var u = 5;
-    return l.addComponent(k);
+    var v = 5;
+    return k.addComponent(m);
   },
 );

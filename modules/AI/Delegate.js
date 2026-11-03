@@ -8,10 +8,10 @@ define(
       c = a("DB/logsTable"),
       d = a("Renderer/MapRenderer"),
       e = a("Network/PacketStructure"),
-      m = a("Network/NetworkManager"),
+      l = a("Network/NetworkManager"),
       h = a("Engine/SessionStorage"),
-      t = a("UI/UIManager"),
-      r = a("UI/Components/MiniMap/MiniMap");
+      r = a("UI/UIManager"),
+      t = a("UI/Components/MiniMap/MiniMap");
     a("UI/Components/ChatBox/ChatBox");
     var n = a("UI/Components/WorldMap/WorldMap"),
       g = a("UI/Components/Inventory/Inventory");
@@ -25,7 +25,7 @@ define(
         var b = new e.CZ.WHISPER();
         b.receiver = a.cname;
         b.msg = a.msg;
-        m.sendPacket(b);
+        l.sendPacket(b);
       },
       SearchMob: function (a) {
         n.select();
@@ -61,15 +61,15 @@ define(
         var c = d.currentMap.replace(/\.gat$/i, "");
         a.ename
           ? c == a.ename && 0 < a.x && 0 < a.y
-            ? t.showPromptBox(
+            ? r.showPromptBox(
                 "\u524d\u5f80\u5750\u6807(" + a.x + "," + a.y + ")\u5417?",
                 "ok",
                 "cancel",
                 function () {
-                  r.moving(1, c, a.x, a.y);
+                  t.moving(1, c, a.x, a.y);
                 },
               )
-            : t.showPromptBox(
+            : r.showPromptBox(
                 "\u5feb\u901f\u524d\u5f80" +
                   b.getMapName(a.ename + ".gat") +
                   "\u5730\u56fe\u5417?",
@@ -82,18 +82,18 @@ define(
                   b.y = a.y || 0;
                   b.type = 1;
                   b.itemid = 14527;
-                  m.sendPacket(b);
+                  l.sendPacket(b);
                 },
                 null,
               )
           : 0 < a.x &&
             0 < a.y &&
-            t.showPromptBox(
+            r.showPromptBox(
               "\u524d\u5f80\u5750\u6807(" + a.x + "," + a.y + ")\u5417?",
               "ok",
               "cancel",
               function () {
-                r.moving(1, c, a.x, a.y);
+                t.moving(1, c, a.x, a.y);
               },
             );
       },
@@ -158,7 +158,7 @@ define(
       reqPetFeed: function (a) {
         a = new e.CZ.COMMAND_PET();
         a.cSub = 1;
-        m.sendPacket(a);
+        l.sendPacket(a);
       },
       reqCounterAttack: function (a) {
         h.counterAttack = !h.counterAttack;
@@ -169,21 +169,21 @@ define(
       SearchNpcByFunc: function (a) {
         if (a.cname) {
           for (
-            var d = 0, e = "", g = c[b.nid].guide, h = Object.keys(g), m = 0;
-            m < h.length;
-            m++
+            var d = 0, e = "", g = c[b.nid].guide, h = Object.keys(g), l = 0;
+            l < h.length;
+            l++
           )
-            g[h[m]].desc.includes(a.cname) &&
+            g[h[l]].desc.includes(a.cname) &&
               ((d = 1),
               (e =
                 "NPC\u540d\u5b57\u53eb" +
-                g[h[m]].npc +
+                g[h[l]].npc +
                 "\uff0c\u4f4d\u4e8e\u5730\u56fe" +
-                g[h[m]].path[0][0] +
+                g[h[l]].path[0][0] +
                 "\uff0cX\u5750\u6807" +
-                g[h[m]].path[0][1] +
+                g[h[l]].path[0][1] +
                 "\uff0cY\u5750\u6807" +
-                g[h[m]].path[0][2] +
+                g[h[l]].path[0][2] +
                 "\u662f\u8981\u524d\u5f80\u5417\uff1f"));
           if (1 == d) return e;
         }
@@ -192,7 +192,7 @@ define(
         if (a.cname && ((a = b.searchMob(a.cname)), 0 < a.length)) {
           var c = new e.CZ.REQUEST_CHAT();
           c.msg = h.Entity.display.name + " : @mi " + a[0].ID;
-          m.sendPacket(c);
+          l.sendPacket(c);
         }
       },
     };

@@ -2,8 +2,8 @@ define("Network/PacketVerManager", ["Core/Configs"], function (a) {
   function b() {
     var a = this.versions,
       b,
-      m = a.length;
-    for (b = 0; b < m - 1 && !(c < a[b + 1][0]); ++b);
+      l = a.length;
+    for (b = 0; b < l - 1 && !(c < a[b + 1][0]); ++b);
     return a[b];
   }
   var c = 0;
@@ -17,14 +17,14 @@ define("Network/PacketVerManager", ["Core/Configs"], function (a) {
     addSupport: function (a, c) {
       var d,
         e,
-        t,
-        r = c.length;
-      for (t = 0; t < r; ++t)
-        ((e = c[t]),
+        r,
+        t = c.length;
+      for (r = 0; r < t; ++r)
+        ((e = c[r]),
           (d = e[0]),
           (e[0] = a),
           d.prototype.versions || (d.prototype.versions = []),
-          d.prototype.versions.push(c[t]),
+          d.prototype.versions.push(c[r]),
           (d.prototype.getPacketVersion = b));
     },
     parseCharInfo: function (d, b) {
@@ -32,15 +32,15 @@ define("Network/PacketVerManager", ["Core/Configs"], function (a) {
       var c,
         e = [];
       a.get("ClientVer");
-      var t = 175,
-        r = b - d.tell();
-      if (0 >= r) return e;
-      if (!t || r % t) {
+      var r = 175,
+        t = b - d.tell();
+      if (0 >= t) return e;
+      if (!r || t % r) {
         console.error(
           'CHARACTER_INFO size error!! blockSize : "' +
-            t +
-            '", list length: ' +
             r +
+            '", list length: ' +
+            t +
             ", auto-detect...",
         );
         var n = [
@@ -49,27 +49,27 @@ define("Network/PacketVerManager", ["Core/Configs"], function (a) {
           ],
           g = [];
         b = 0;
-        for (c = n.length; b < c; ++b) 0 === r % n[b] && g.push(n[b]);
+        for (c = n.length; b < c; ++b) 0 === t % n[b] && g.push(n[b]);
         if (1 !== g.length)
           return (
             require("UI/UIManager").showErrorBox(
               'CHARACTER_INFO size error!! blockSize : "' +
-                t +
-                '", list length: ' +
                 r +
+                '", list length: ' +
+                t +
                 ", auto-detect...",
             ),
             e
           );
-        t = g[0];
+        r = g[0];
       }
       b = 0;
-      for (c = r / t; b < c; ++b)
+      for (c = t / r; b < c; ++b)
         ((e[b] = {}),
           (e[b].GID = d.readULong()),
-          (e[b].exp = 155 > t ? d.readLong() : d.getUint64()),
+          (e[b].exp = 155 > r ? d.readLong() : d.getUint64()),
           (e[b].money = d.readLong()),
-          (e[b].jobexp = 155 > t ? d.readLong() : d.getUint64()),
+          (e[b].jobexp = 155 > r ? d.readLong() : d.getUint64()),
           (e[b].joblevel = d.readLong()),
           (e[b].bodyState = d.readLong()),
           (e[b].healthState = d.readLong()),
@@ -77,18 +77,18 @@ define("Network/PacketVerManager", ["Core/Configs"], function (a) {
           (e[b].virtue = d.readLong()),
           (e[b].honor = d.readLong()),
           (e[b].jobpoint = d.readShort()),
-          112 > t
+          112 > r
             ? ((e[b].hp = d.readShort()), (e[b].maxhp = d.readShort()))
-            : 175 > t
+            : 175 > r
               ? ((e[b].hp = d.readLong()), (e[b].maxhp = d.readLong()))
               : ((e[b].hp = d.getUint64()), (e[b].maxhp = d.getUint64())),
-          175 > t
+          175 > r
             ? ((e[b].sp = d.readShort()), (e[b].maxsp = d.readShort()))
             : ((e[b].sp = d.getUint64()), (e[b].maxsp = d.getUint64())),
           (e[b].speed = d.readShort()),
           (e[b].job = d.readShort()),
           (e[b].head = d.readShort()),
-          147 <= t && (e[b].body = d.readShort()),
+          147 <= r && (e[b].body = d.readShort()),
           (e[b].weapon = d.readShort()),
           (e[b].level = d.readShort()),
           (e[b].sppoint = d.readShort()),
@@ -105,22 +105,22 @@ define("Network/PacketVerManager", ["Core/Configs"], function (a) {
           (e[b].Int = d.readUChar()),
           (e[b].Dex = d.readUChar()),
           (e[b].Luk = d.readUChar()),
-          108 > t
+          108 > r
             ? (e[b].CharNum = d.readUShort())
-            : 124 > t
+            : 124 > r
               ? ((e[b].CharNum = d.readUShort()),
                 (e[b].haircolor = d.readUShort()))
               : ((e[b].CharNum = d.readUChar()),
                 (e[b].haircolor = d.readUChar())),
-          116 === t && d.seek(4, SEEK_CUR),
-          124 <= t &&
+          116 === r && d.seek(4, SEEK_CUR),
+          124 <= r &&
             ((e[b].bIsChangedCharName = d.readShort()),
-            (e[b].lastMap = d.readBinaryString(124 === t ? 12 : 16))),
-          132 <= t && (e[b].DeleteDate = d.readLong()),
-          136 <= t && (e[b].Robe = d.readLong()),
-          140 <= t && (e[b].SlotAddon = d.readLong()),
-          144 <= t && (e[b].RenameAddon = d.readLong()),
-          145 <= t && (e[b].sex = d.readUChar()));
+            (e[b].lastMap = d.readBinaryString(124 === r ? 12 : 16))),
+          132 <= r && (e[b].DeleteDate = d.readLong()),
+          136 <= r && (e[b].Robe = d.readLong()),
+          140 <= r && (e[b].SlotAddon = d.readLong()),
+          144 <= r && (e[b].RenameAddon = d.readLong()),
+          145 <= r && (e[b].sex = d.readUChar()));
       return e;
     },
   };

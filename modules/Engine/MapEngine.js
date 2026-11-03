@@ -19,9 +19,9 @@ define(
     function e(a) {
       S.Character.GID = a.AID;
     }
-    function m(a) {
+    function l(a) {
       S.Entity = new oa(S.Character);
-      S.Entity.onWalkEnd = N;
+      S.Entity.onWalkEnd = P;
       "sex" in a && 2 > a.sex && (S.Entity.sex = a.sex);
       rolename = S.Character.name;
       S.petId = 0;
@@ -38,42 +38,42 @@ define(
       h({ xPos: a.PosDir[0], yPos: a.PosDir[1], mapName: mb });
     }
     function h(a) {
-      z(window).off("keydown.map");
-      z("#header").hide();
+      y(window).off("keydown.map");
+      y("#header").hide();
       ia.empty();
-      Oa.remove();
-      Ma.remove();
-      Xa.remove();
+      Na.remove();
       Ya.remove();
+      Za.remove();
+      $a.remove();
       na.remove();
-      xa.remove();
+      wa.remove();
       Ga.reReady = 1;
       S.hasAttackTarget = null;
-      S.Entity.cart && la.remove(S.Entity.GID);
+      S.Entity.cart && ka.remove(S.Entity.GID);
       S.Entity.falcon && ha.remove(S.Entity.GID);
       S.Entity.wolf && X.remove(S.Entity.GID);
       ea.onLoad = function () {
-        z(window).on("keydown.map", function (a) {
+        y(window).on("keydown.map", function (a) {
           var b;
           if (
             (b =
               a.which ===
-              (P.situp.Custom_settings
-                ? P.situp.Custom_settings
-                : P.situp.init))
+              (O.situp.Custom_settings
+                ? O.situp.Custom_settings
+                : O.situp.init))
           )
             b =
-              (P.situp.Custom_settings ? P.situp.Custom_alt : P.situp.alt) ==
+              (O.situp.Custom_settings ? O.situp.Custom_alt : O.situp.alt) ==
               pa.ALT;
           b &&
             (b =
-              (P.situp.Custom_settings ? P.situp.Custom_ctrl : P.situp.ctrl) ==
+              (O.situp.Custom_settings ? O.situp.Custom_ctrl : O.situp.ctrl) ==
               pa.CTRL);
           b &&
             (b =
-              (P.situp.Custom_settings
-                ? P.situp.Custom_shift
-                : P.situp.shift) == pa.SHIFT);
+              (O.situp.Custom_settings
+                ? O.situp.Custom_shift
+                : O.situp.shift) == pa.SHIFT);
           if (b)
             return (
               (b = new da.CZ.REQUEST_ACT()),
@@ -83,7 +83,7 @@ define(
               !1
             );
         });
-        z("html").addClass("gray");
+        y("html").addClass("gray");
         ca.autoattack = !1;
         ca.autofollow = !1;
         ca.autopick = !1;
@@ -98,28 +98,28 @@ define(
         if (
           !(
             S.Entity.effectState &
-            (L.EffectState.INVISIBLE |
-              L.EffectState.HIDE |
-              L.EffectState.CLOAK |
-              L.EffectState.CHASEWALK)
+            (K.EffectState.INVISIBLE |
+              K.EffectState.HIDE |
+              K.EffectState.CLOAK |
+              K.EffectState.CHASEWALK)
           )
         ) {
           var b = { ownerAID: S.Entity.GID, position: S.Entity.position };
           b.effectId = M.EF_ENTRY2;
-          ka.spam(b);
+          la.spam(b);
           if (99 == S.Character.level || 200 == S.Character.level)
             ((b = {
               effectId: M.EF_LEVEL99_3,
               ownerAID: S.Entity.GID,
               position: S.Entity.position,
             }),
-              ka.spam(b));
+              la.spam(b));
           S.Entity.falcon && ha.add(S.Entity);
           S.Entity.wolf && X.add(S.Entity);
-          S.Entity.effectState & L.EffectState.RUWACH &&
-            ka.spam(33, 1, S.Entity.GID);
-          S.Entity.effectState & L.EffectState.SIGHT &&
-            ka.spam(22, 1, S.Entity.GID);
+          S.Entity.effectState & K.EffectState.RUWACH &&
+            la.spam(33, 1, S.Entity.GID);
+          S.Entity.effectState & K.EffectState.SIGHT &&
+            la.spam(22, 1, S.Entity.GID);
         }
         fa.setTarget(S.Entity);
         fa.init();
@@ -132,41 +132,41 @@ define(
         ia.append();
         Ba.append();
         ja.append();
+        xa.append();
         ya.append();
-        wa.append();
         Aa.append();
         za.append();
         Ka.append();
-        Ha.append();
-        Ca.append();
-        Da.append();
-        Ea.append();
-        bb.append();
         Ia.append();
+        Ca.append();
+        Ea.append();
+        Da.append();
+        bb.append();
+        La.append();
         Fa.append();
         Ga.append();
         na.append();
         ua.append();
         lb.append();
         sb.append();
-        Na.append();
+        Ma.append();
         T.sendPacket(new da.CZ.NOTIFY_ACTORINIT());
         3 == ba.get("ClientVer") &&
           0 == Ga.ready &&
           T.sendPacket(new da.CZ.NOTIFY_LOADINFO());
         Ga.reReady = 0;
-        Va.ready = 1;
+        Wa.ready = 1;
         Ga.noMapsame &&
-          ((Ga.noMapsame = 0), Va.setMapname(G.getMapName(ea.currentMap)));
+          ((Ga.noMapsame = 0), Wa.setMapname(F.getMapName(ea.currentMap)));
       };
       ea.currentMap !== a.mapName && (Ga.noMapsame = 1);
       ea.setMap(a.mapName);
     }
-    function t(a) {
-      z(window).off("keydown.map");
-      $a.init(a.addr.ip, a.addr.port, a.mapName);
+    function r(a) {
+      y(window).off("keydown.map");
+      Oa.init(a.addr.ip, a.addr.port, a.mapName);
     }
-    function r() {
+    function t() {
       var b = new da.CZ.REQUEST_QUIT();
       T.sendPacket(b);
       Y.removeComponents();
@@ -174,14 +174,14 @@ define(
       R.stop();
       ea.free();
       Q.stop();
-      V.stop();
+      W.stop();
       ra.remove(function () {
         window.close();
         a("Engine/GameEngine").init();
       });
     }
     function n(a) {
-      aa.addText(G.getMessage(502), aa.TYPE.ERROR);
+      aa.addText(F.getMessage(502), aa.TYPE.ERROR);
     }
     function g() {
       Y.removeComponents();
@@ -189,7 +189,7 @@ define(
       R.stop();
       ea.free();
       Q.stop();
-      V.stop();
+      W.stop();
       ra.remove(function () {
         window.close();
         a("Engine/GameEngine").init();
@@ -203,7 +203,7 @@ define(
         }
       U.ui.find(".resurection").hide();
     }
-    function l() {
+    function k() {
       if (1 == ca.writemail) aa.addText("\u5199\u4fe1\u4e2d", aa.TYPE.ERROR);
       else if (sessionStorage.getItem("offline"))
         aa.addText("\u79bb\u7ebf\u72b6\u6001\u4e2d", aa.TYPE.ERROR);
@@ -226,7 +226,7 @@ define(
         U.ui.hide();
       }
     }
-    function k() {
+    function m() {
       if (1 == ca.writemail) aa.addText("\u5199\u4fe1\u4e2d", aa.TYPE.ERROR);
       else if (sessionStorage.getItem("offline"))
         aa.addText("\u79bb\u7ebf\u72b6\u6001\u4e2d", aa.TYPE.ERROR);
@@ -241,26 +241,26 @@ define(
       a.type = 0;
       T.sendPacket(a);
     }
-    function u() {
+    function v() {
       if (1 != ca.writemail) {
         var a = new da.CZ.STANDING_RESURRECTION();
         T.sendPacket(a);
       }
     }
-    function v(b) {
+    function u(b) {
       b.type
         ? ((b = document.getElementById("blind")) &&
             document.body.removeChild(b),
           (S.Character = null),
           (S.moveAction = null),
-          S.Entity.cart && (la.remove(S.Entity.GID), (S.Entity.cart = !1)),
+          S.Entity.cart && (ka.remove(S.Entity.GID), (S.Entity.cart = !1)),
           S.Entity.falcon && (ha.remove(S.Entity.GID), (S.Entity.falcon = !1)),
           S.Entity.wolf && (X.remove(S.Entity.GID), (S.Entity.wolf = !1)),
+          La.clean(),
+          Wa.clean(),
+          Da.clean(),
           Ia.clean(),
-          Va.clean(),
-          Ea.clean(),
-          Ha.clean(),
-          wa.clean(),
+          ya.clean(),
           aa.clean(),
           Aa.clean(),
           Ba.clean(),
@@ -269,16 +269,16 @@ define(
           R.stop(),
           sa.clearWalk(),
           Fa.clearWalk(),
-          Ea.clearWalk(),
+          Da.clearWalk(),
           a("Engine/CharEngine").reload())
-        : aa.addText(G.getMessage(502), aa.TYPE.ERROR);
+        : aa.addText(F.getMessage(502), aa.TYPE.ERROR);
     }
     function A(a) {
       switch (a.result) {
         case 0:
           S.moveAction = null;
-          Ea.clean();
-          wa.clean();
+          Da.clean();
+          ya.clean();
           aa.clean();
           Aa.clean();
           Ba.clean();
@@ -286,14 +286,14 @@ define(
           R.stop();
           sa.clearWalk();
           Fa.clearWalk();
-          Ea.clearWalk();
+          Da.clearWalk();
           g();
           break;
         case 1:
-          aa.addText(G.getMessage(502), aa.TYPE.ERROR);
+          aa.addText(F.getMessage(502), aa.TYPE.ERROR);
       }
     }
-    function C(a, b, c) {
+    function D(a, b, c) {
       var d = "%" === b[0] || pa.CTRL,
         e = "$" === b[0] || pa.ALT;
       b = b.replace(/^(\$|\%)/, "");
@@ -316,21 +316,21 @@ define(
       var a = new da.CZ.REQ_CARTOFF();
       T.sendPacket(a);
     }
-    function J() {
-      W.clearTimeout(Ta);
+    function H() {
+      V.clearTimeout(Ua);
       if (S.Entity.action === S.Entity.ACTION.SIT) {
         S.Entity.lookTo(qa.world.x, qa.world.y);
         var a = new da.CZ.CHANGE_DIRECTION();
         a.headDir = S.Entity.headDir;
         a.dir = S.Entity.direction;
         T.sendPacket(a);
-      } else y();
+      } else z();
     }
-    function D() {
+    function C() {
       sa.clearWalk();
-      W.clearTimeout(Ta);
+      V.clearTimeout(Ua);
     }
-    function y() {
+    function z() {
       if (!(fb + 450 > R.tick || S.Entity.canmove > R.tick)) {
         var a =
           Math.round(S.Entity.position[0]) === qa.world.x &&
@@ -350,7 +350,7 @@ define(
             for (g = 0; 1 >= g; ++g)
               for (e = -g; e <= g; ++e)
                 for (f = -g; f <= g; ++f)
-                  if (H(b + e * h, c + f * k)) {
+                  if (G(b + e * h, c + f * k)) {
                     d[0] = b + e * h;
                     d[1] = c + f * k;
                     b = !0;
@@ -361,12 +361,12 @@ define(
           b || ((a.dest[0] = qa.world.x), (a.dest[1] = qa.world.y));
           T.sendPacket(a);
         }
-        W.clearTimeout(Ta);
-        Ta = W.setTimeout(y, 500);
+        V.clearTimeout(Ua);
+        Ua = V.setTimeout(z, 500);
         fb = +R.tick;
       }
     }
-    function H(a, b) {
+    function G(a, b) {
       if (!(ga.getCellType(a, b) & ga.TYPE.WALKABLE)) return !1;
       var c = !0;
       ta.forEach(function (d) {
@@ -377,9 +377,9 @@ define(
       });
       return c;
     }
-    function N() {
+    function P() {
       S.moveAction &&
-        W.setTimeout(function () {
+        V.setTimeout(function () {
           S.moveAction &&
             (T.sendPacket(S.moveAction),
             null == ta.getFocusEntity() &&
@@ -387,7 +387,7 @@ define(
             (S.moveAction = null));
         }, 50);
     }
-    function O(a, b) {
+    function N(a, b) {
       var c = new da.CZ.STATUS_CHANGE();
       c.statusID = a;
       c.changeAmount = b;
@@ -407,7 +407,7 @@ define(
       b.AID = S.Entity.GID;
       T.sendPacket(b);
     }
-    function K(a, b) {
+    function J(a, b) {
       var c = new da.CZ.REQ_WEAR_EQUIP();
       c.index = a;
       c.wearLocation = b;
@@ -418,19 +418,19 @@ define(
       b.index = a;
       T.sendPacket(b);
     }
-    function F(a, b) {
+    function L(a, b) {
       var c = new da.CZ.CONFIG();
       c.Config = a;
       c.Value = b;
       T.sendPacket(c);
     }
-    var z = a("Utils/jquery"),
-      G = a("DB/DBManager"),
-      L = a("DB/Status/StatusState"),
+    var y = a("Utils/jquery"),
+      F = a("DB/DBManager"),
+      K = a("DB/Status/StatusState"),
       M = a("DB/Effects/EffectConst"),
       Q = a("Audio/SoundManager"),
-      V = a("Audio/BGM"),
-      W = a("Core/Events"),
+      W = a("Audio/BGM"),
+      V = a("Core/Events"),
       ba = a("Core/Configs"),
       S = a("Engine/SessionStorage"),
       T = a("Network/NetworkManager"),
@@ -440,9 +440,9 @@ define(
       ea = a("Renderer/MapRenderer"),
       ta = a("Renderer/EntityManager"),
       oa = a("Renderer/Entity/Entity"),
-      ka = a("Renderer/EffectManager"),
+      la = a("Renderer/EffectManager"),
       ga = a("Renderer/Map/Altitude"),
-      la = a("Renderer/CartObject"),
+      ka = a("Renderer/CartObject"),
       ha = a("Renderer/FalconObject"),
       X = a("Renderer/WolfObject"),
       Z = a("Controls/MapControl"),
@@ -450,7 +450,7 @@ define(
       pa = a("Controls/KeyEventHandler"),
       w = a("Controls/BattleMode"),
       ca = a("Preferences/Controls"),
-      P = a("Preferences/ShortCutControls"),
+      O = a("Preferences/ShortCutControls"),
       Y = a("UI/UIManager"),
       ra = a("UI/Background"),
       U = a("UI/Components/Escape/Escape"),
@@ -461,46 +461,46 @@ define(
       ia = a("UI/Components/Inventory/Inventory");
     a("UI/Components/Mail/Mail");
     var na = a("UI/Components/Mail/Rodex"),
-      xa = a("UI/Components/Mail/RodexSend"),
+      wa = a("UI/Components/Mail/RodexSend"),
       ua = a("UI/Components/Shop/CashShop"),
       Ba = a("UI/Components/OnPushCart/OnPushCart"),
       Aa = a("UI/Components/ShortCut/ShortCut"),
-      ya = a("UI/Components/Equipment/Equipment"),
-      wa = a("UI/Components/StatusIcons/StatusIcons"),
+      xa = a("UI/Components/Equipment/Equipment"),
+      ya = a("UI/Components/StatusIcons/StatusIcons"),
       za = a("UI/Components/ChatRoomCreate/ChatRoomCreate"),
       Ka = a("UI/Components/Emoticons/Emoticons"),
       va = a("UI/Components/RankFont/RankFont"),
-      Ha = a("UI/Components/SkillList/SkillList"),
+      Ia = a("UI/Components/SkillList/SkillList"),
       Ca = a("UI/Components/PartyFriends/PartyFriends"),
-      Ea = a("UI/Components/Quest/Quest"),
-      Ia = a("UI/Components/Achievement/Achievement"),
-      Na = a("UI/Components/PartyBooking/PartyBooking"),
-      La = a("UI/Components/PartyBookingReg/PartyBookingReg"),
-      Da = a("UI/Components/Guild/Guild"),
+      Da = a("UI/Components/Quest/Quest"),
+      La = a("UI/Components/Achievement/Achievement"),
+      Ma = a("UI/Components/PartyBooking/PartyBooking"),
+      Ha = a("UI/Components/PartyBookingReg/PartyBookingReg"),
+      Ea = a("UI/Components/Guild/Guild"),
       Fa = a("UI/Components/WorldMap/WorldMap"),
-      Ma = a("UI/Components/NpcBox/NpcBox"),
-      Xa = a("UI/Components/NpcMenu/NpcMenu"),
-      Oa = a("UI/Components/Announce/Announce"),
-      Ya = a("UI/Components/InputBox/InputBox"),
+      Ya = a("UI/Components/NpcBox/NpcBox"),
+      Za = a("UI/Components/NpcMenu/NpcMenu"),
+      Na = a("UI/Components/Announce/Announce"),
+      $a = a("UI/Components/InputBox/InputBox"),
       Ga = a("UI/Components/vbk/vbk"),
-      Za = a("UI/Components/Intro/Particle"),
-      Va = a("UI/Components/ItemObtain/ItemObtain"),
+      Ta = a("UI/Components/Intro/Particle"),
+      Wa = a("UI/Components/ItemObtain/ItemObtain"),
       lb = a("UI/Components/Attendance/Attendance"),
       sb = a("UI/Components/CardConnection/CardConnection2"),
       bb = a("UI/Components/miniQuest/miniQuest"),
       mb = "",
       eb = !1,
-      $a = {
-        init: function (y, R, w) {
-          Za.stop();
-          mb = w;
+      Oa = {
+        init: function (R, z, V) {
+          Ta.stop();
+          mb = V;
           T.connect(
-            T.utils.longToIP(y),
-            R,
+            T.utils.longToIP(R),
+            z,
             function (a) {
               ea.currentMap = "";
               if (a) {
-                S.Port = R;
+                S.Port = z;
                 aid = S.AID;
                 gid = S.GID;
                 a = new da.CZ.ENTER();
@@ -519,25 +519,25 @@ define(
                   b.clientTime = Date.now() - c;
                   T.sendPacket(b);
                 });
-              } else Y.showErrorBox(G.getMessage(1));
+              } else Y.showErrorBox(F.getMessage(1));
             },
             !0,
           );
           eb ||
             ((eb = !0),
             Z.init(),
-            (Z.onRequestWalk = J),
-            (Z.onRequestStopWalk = D),
+            (Z.onRequestWalk = H),
+            (Z.onRequestStopWalk = C),
             (Z.onRequestDropItem = I),
             T.hookPacket(da.ZC.AID, e),
-            T.hookPacket(da.ZC.ACCEPT_ENTER, m),
-            T.hookPacket(da.ZC.ACCEPT_ENTER2, m),
-            T.hookPacket(da.ZC.ACCEPT_ENTER3, m),
+            T.hookPacket(da.ZC.ACCEPT_ENTER, l),
+            T.hookPacket(da.ZC.ACCEPT_ENTER2, l),
+            T.hookPacket(da.ZC.ACCEPT_ENTER3, l),
             T.hookPacket(da.ZC.NPCACK_MAPMOVE, h),
-            T.hookPacket(da.ZC.NPCACK_SERVERMOVE, t),
+            T.hookPacket(da.ZC.NPCACK_SERVERMOVE, r),
             T.hookPacket(da.ZC.ACCEPT_QUIT, g),
             T.hookPacket(da.ZC.REFUSE_QUIT, n),
-            T.hookPacket(da.ZC.RESTART_ACK, v),
+            T.hookPacket(da.ZC.RESTART_ACK, u),
             T.hookPacket(da.ZC.ACK_REQ_DISCONNECT, A),
             T.hookPacket(da.ZC.NOTIFY_TIME, b),
             T.hookPacket(da.ZC.NOTIFY_MAPPROPERTY2, c),
@@ -565,43 +565,43 @@ define(
             ia.prepare(),
             Ba.prepare(),
             ja.prepare(),
-            ya.prepare(),
+            xa.prepare(),
             Aa.prepare(),
             za.prepare(),
             Ka.prepare(),
             va.prepare(),
-            Ha.prepare(),
+            Ia.prepare(),
             Ca.prepare(),
-            wa.prepare(),
+            ya.prepare(),
             ma.prepare(),
             aa.prepare(),
-            Da.prepare(),
-            Fa.prepare(),
             Ea.prepare(),
+            Fa.prepare(),
+            Da.prepare(),
             bb.prepare(),
             Ga.prepare(),
-            Va.prepare(),
-            Na.prepare(),
-            La.prepare(),
-            (ja.onRequestUpdate = O),
-            (ya.onUnEquip = E),
-            (ya.onConfigUpdate = F),
-            (ya.onEquipItem = K),
-            (ya.onRemoveOption = B),
+            Wa.prepare(),
+            Ma.prepare(),
+            Ha.prepare(),
+            (ja.onRequestUpdate = N),
+            (xa.onUnEquip = E),
+            (xa.onConfigUpdate = L),
+            (xa.onEquipItem = J),
+            (xa.onRemoveOption = B),
             (ia.onUseItem = x),
-            (ia.onEquipItem = K),
-            (U.onExitRequest = r),
-            (U.onCharSelectionRequest = k),
+            (ia.onEquipItem = J),
+            (U.onExitRequest = t),
+            (U.onCharSelectionRequest = m),
             (U.onReturnSavePointRequest = q),
-            (U.onResurectionRequest = u),
-            (U.onBackhomeRequest = l),
+            (U.onResurectionRequest = v),
+            (U.onBackhomeRequest = k),
             (U.onSetofflineRequest = f),
             (U.onCheakResurection = p),
-            (aa.onRequestTalk = C));
+            (aa.onRequestTalk = D));
         },
       },
-      Ta = null,
+      Ua = null,
       fb = 0;
-    return $a;
+    return Oa;
   },
 );

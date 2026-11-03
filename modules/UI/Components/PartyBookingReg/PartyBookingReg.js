@@ -5,18 +5,18 @@ define(
   ),
   function (a) {
     function b() {
-      var a = v.ui.find(".container .itype option:selected").data("index"),
-        b = v.ui.find(".container .iid"),
-        c = Object.keys(m[e.nid][a].nav);
+      var a = u.ui.find(".container .itype option:selected").data("index"),
+        b = u.ui.find(".container .iid"),
+        c = Object.keys(l[e.nid][a].nav);
       b.empty();
       for (var d = 0; d < c.length; d++)
         b.append(
           "\x3coption data-index\x3d" +
             d +
             " data-id\x3d" +
-            m[e.nid][a].nav[d].id +
+            l[e.nid][a].nav[d].id +
             "\x3e" +
-            m[e.nid][a].nav[d].name +
+            l[e.nid][a].nav[d].name +
             "\x3c/option\x3e",
         );
     }
@@ -25,7 +25,7 @@ define(
       return !1;
     }
     function d() {
-      if ("" == v.ui.find(".container .memo").val())
+      if ("" == u.ui.find(".container .memo").val())
         return (f.setMsg("\u5907\u6ce8\u5185\u5bb9\u4e0d\u4e3a\u7a7a"), !1);
       if (0 == this.type) {
         var a = new FormData();
@@ -35,11 +35,11 @@ define(
         a.append("GID", n.GID);
         a.append(
           "WorldName",
-          UrlTools.encode(v.ui.find(".container .mapname").text()),
+          UrlTools.encode(u.ui.find(".container .mapname").text()),
         );
         a.append(
           "CharName",
-          UrlTools.encode(v.ui.find(".container .name").text()),
+          UrlTools.encode(u.ui.find(".container .name").text()),
         );
         a.append("IID", 0);
         a.append("Type", 0);
@@ -47,9 +47,9 @@ define(
         a.append("Dealer", 1);
         a.append("Healer", 1);
         a.append("Tanker", 1);
-        a.append("MinLV", v.ui.find(".container .minlvl").val());
-        a.append("MaxLV", v.ui.find(".container .maxlvl").val());
-        a.append("Memo", UrlTools.encode(v.ui.find(".container .memo").val()));
+        a.append("MinLV", u.ui.find(".container .minlvl").val());
+        a.append("MaxLV", u.ui.find(".container .maxlvl").val());
+        a.append("Memo", UrlTools.encode(u.ui.find(".container .memo").val()));
         a.append("ISTATE", 0);
         $.ajax({
           url: "https://game.lastro.cn/" + e.webpath + "/party/add",
@@ -62,7 +62,7 @@ define(
           .done(function (a) {
             1 == a.Type
               ? (f.setMsg("\u62db\u52df\u4fe1\u606f\u6dfb\u52a0\u6210\u529f"),
-                u("UI/Components/PartyBooking/PartyBooking").reload())
+                v("UI/Components/PartyBooking/PartyBooking").reload())
               : f.setMsg("\u62db\u52df\u4fe1\u606f\u6dfb\u52a0\u5931\u8d25");
           })
           .fail(function (a) {
@@ -70,48 +70,48 @@ define(
           });
         this.remove();
       } else {
-        var a = v.ui.find(".container .iid").val(),
+        var a = u.ui.find(".container .iid").val(),
           b = new h.CZ.REQ_CREATE_INSTANCE();
         b.instanceName = a;
-        t.sendPacket(b);
+        r.sendPacket(b);
         return !1;
       }
     }
     a("Utils/jquery");
     var e = a("DB/DBManager"),
-      m = a("DB/AgencyTable"),
+      l = a("DB/AgencyTable"),
       h = a("Network/PacketStructure"),
-      t = a("Network/NetworkManager"),
-      r = a("Renderer/MapRenderer"),
+      r = a("Network/NetworkManager"),
+      t = a("Renderer/MapRenderer"),
       n = a("Engine/SessionStorage");
     a("Controls/KeyEventHandler");
     a("Renderer/Renderer");
     var g = a("Core/Preferences"),
       p = a("UI/UIManager"),
-      l = a("UI/UIComponent"),
+      k = a("UI/UIComponent"),
       f = a("UI/Components/ItemObtain/ItemObtain"),
-      k = a("text!./PartyBookingReg.html"),
+      m = a("text!./PartyBookingReg.html"),
       q = a("text!./PartyBookingReg.css"),
-      u = a,
-      v = new l("PartyBookingReg", k, q);
-    v.title = "";
-    v.limit = 20;
-    v.type = 0;
-    v.password = "";
+      v = a,
+      u = new k("PartyBookingReg", m, q);
+    u.title = "";
+    u.limit = 20;
+    u.type = 0;
+    u.password = "";
     var A = g.get("PartyBookingReg", { x: 480, y: 260, show: !1 }, 1);
-    v.init = function () {
+    u.init = function () {
       this.ui
         .find(".close, .cancel")
         .mousedown(c)
         .click(this.remove.bind(this));
       this.ui.find(".ok").on("click", d.bind(this));
       this.ui.find(".update").on("click", function () {
-        v.onUpdateBookingLog();
+        u.onUpdateBookingLog();
       });
       this.ui.find(".container .itype").change(b);
       this.draggable(this.ui.find(".titlebar"));
       this.ui.find(".del").on("click", function () {
-        0 == v.type
+        0 == u.type
           ? p.showPromptBox(
               "\u786e\u5b9a\u5220\u9664\u62db\u52df\u4fe1\u606f\u5417?",
               "ok",
@@ -131,11 +131,11 @@ define(
                   contentType: !1,
                 })
                   .done(function (a) {
-                    v.remove();
+                    u.remove();
                     f.setMsg(
                       "\u62db\u52df\u4fe1\u606f\u5220\u9664\u6210\u529f",
                     );
-                    u("UI/Components/PartyBooking/PartyBooking").reload();
+                    v("UI/Components/PartyBooking/PartyBooking").reload();
                   })
                   .fail(function (a) {
                     p.showMessageBox(
@@ -152,27 +152,27 @@ define(
               "cancel",
               function () {
                 var a = new h.CZ.REQ_DEL_INSTANCE();
-                t.sendPacket(a);
+                r.sendPacket(a);
               },
               null,
             );
       });
     };
-    v.setType = function (a) {
+    u.setType = function (a) {
       this.type = a;
     };
-    v.onAppend = function () {
+    u.onAppend = function () {
       var a = n.Entity;
-      v.ui.find(".container .name").text(a.display.name);
+      u.ui.find(".container .name").text(a.display.name);
       a = "";
-      v.ui.find(".container .memo").val(a);
+      u.ui.find(".container .memo").val(a);
       if (0 == this.type)
         (this.ui
           .find(".titlebar p")
           .text("\u521b\u5efa\u5192\u9669\u5bb6\u52df\u96c6"),
-          v.ui.find(".container .mapinfo").show(),
-          v.ui.find(".container .instance").hide(),
-          (a = r.currentMap),
+          u.ui.find(".container .mapinfo").show(),
+          u.ui.find(".container .instance").hide(),
+          (a = t.currentMap),
           this.ui.find(".mapinfo .mapname").text(a),
           (a = "[ " + e.getMapName(a) + " ] "),
           this.ui.find(".container .memo").val(a));
@@ -180,30 +180,30 @@ define(
         this.ui
           .find(".titlebar p")
           .text("\u521b\u5efa\u6e38\u620f\u526f\u672c");
-        v.ui.find(".container .mapinfo").hide();
-        v.ui.find(".container .instance").show();
-        var b = Object.keys(m[e.nid]),
-          c = v.ui.find(".container .itype"),
-          a = v.ui.find(".container .iid");
+        u.ui.find(".container .mapinfo").hide();
+        u.ui.find(".container .instance").show();
+        var b = Object.keys(l[e.nid]),
+          c = u.ui.find(".container .itype"),
+          a = u.ui.find(".container .iid");
         c.empty();
         for (var d = 0; d < b.length; d++)
           c.append(
             "\x3coption data-index\x3d" +
               d +
               "\x3e" +
-              m[e.nid][d].name +
+              l[e.nid][d].name +
               "\x3c/option\x3e",
           );
-        b = Object.keys(m[e.nid][0].nav);
+        b = Object.keys(l[e.nid][0].nav);
         a.empty();
         for (d = 0; d < b.length; d++)
           a.append(
             "\x3coption data-index\x3d" +
               d +
               " data-id\x3d" +
-              m[e.nid][0].nav[d].id +
+              l[e.nid][0].nav[d].id +
               "\x3e" +
-              m[e.nid][0].nav[d].name +
+              l[e.nid][0].nav[d].name +
               "\x3c/option\x3e",
           );
         this.ui.find(".container .memo").val("\u65e0");
@@ -214,7 +214,7 @@ define(
       this.ui.find(".btns .upbtn").hide();
       this.ui.find(".btns .delbtn").removeClass("alive");
     };
-    v.onRemove = function () {
+    u.onRemove = function () {
       this.ui.find(".titlebar p").text("\u521b\u5efa\u6e38\u620f\u526f\u672c");
       this.ui.find(".btns .delbtn").removeClass("alive");
       this.ui.find(".container .name").text("");
@@ -223,31 +223,31 @@ define(
       this.ui.find(".container .mapname").text("");
       this.ui.find(".container .memo").text("");
     };
-    v.show = function () {
+    u.show = function () {
       this.ui.show();
       this.ui.find(".title").focus();
       A.show = !0;
     };
-    v.hide = function () {
+    u.hide = function () {
       this.ui.hide();
       A.show = !1;
     };
-    v.toggle = function () {
+    u.toggle = function () {
       this.ui.is(":visible")
         ? (this.remove(), (A.show = !1))
         : (this.append(), this.focus(), (A.show = !0));
     };
-    v.resetpos = function () {
+    u.resetpos = function () {
       this.ui.css("top", "");
       this.ui.css("left", "");
     };
-    v.onShortCut = function (a) {
+    u.onShortCut = function (a) {
       switch (a.cmd) {
         case "TOGGLE":
           this.toggle();
       }
     };
-    v.onUpdate = function (a) {
+    u.onUpdate = function (a) {
       if (0 == a.Type)
         (this.ui.find(".btns .okbtn").hide(),
           this.ui.find(".btns .upbtn").show(),
@@ -262,12 +262,12 @@ define(
             .text(UrlTools.decode(a.WorldName.replaceAll("%20", " "))));
       else {
         for (
-          var b = 0, c = 0, d = Object.keys(m[e.nid]), f = 0;
+          var b = 0, c = 0, d = Object.keys(l[e.nid]), f = 0;
           f < d.length;
           f++
         )
-          for (var g = Object.keys(m[e.nid][f].nav), h = 0; h < g.length; h++)
-            if (a.IID == m[e.nid][f].nav[h].id) {
+          for (var g = Object.keys(l[e.nid][f].nav), h = 0; h < g.length; h++)
+            if (a.IID == l[e.nid][f].nav[h].id) {
               b = f;
               c = h;
               break;
@@ -275,17 +275,17 @@ define(
         this.ui
           .find(".container .itype option[data-index\x3d" + b + "]")
           .prop("selected", "selected");
-        g = Object.keys(m[e.nid][b].nav);
-        d = v.ui.find(".container .iid");
+        g = Object.keys(l[e.nid][b].nav);
+        d = u.ui.find(".container .iid");
         d.empty();
         for (f = 0; f < g.length; f++)
           d.append(
             "\x3coption data-index\x3d" +
               f +
               " data-id\x3d" +
-              m[e.nid][b].nav[f].id +
+              l[e.nid][b].nav[f].id +
               "\x3e" +
-              m[e.nid][b].nav[f].name +
+              l[e.nid][b].nav[f].name +
               "\x3c/option\x3e",
           );
         this.ui
@@ -308,7 +308,7 @@ define(
         .find(".container .memo")
         .val(UrlTools.decode(a.Memo.replaceAll("%20", " ")));
     };
-    v.onCreateBookingLog = function (a) {
+    u.onCreateBookingLog = function (a) {
       1 == a.rs &&
         ((a = new FormData()),
         a.append("AuthToken", n.AuthToken),
@@ -318,20 +318,20 @@ define(
         a.append("WorldName", "lastro"),
         a.append(
           "CharName",
-          UrlTools.encode(v.ui.find(".container .name").text()),
+          UrlTools.encode(u.ui.find(".container .name").text()),
         ),
         a.append(
           "IID",
-          v.ui.find(".container .iid option:selected").data("id"),
+          u.ui.find(".container .iid option:selected").data("id"),
         ),
         a.append("Type", 1),
         a.append("Assist", 1),
         a.append("Dealer", 1),
         a.append("Healer", 1),
         a.append("Tanker", 1),
-        a.append("MinLV", v.ui.find(".container .minlvl").val()),
-        a.append("MaxLV", v.ui.find(".container .maxlvl").val()),
-        a.append("Memo", UrlTools.encode(v.ui.find(".container .memo").val())),
+        a.append("MinLV", u.ui.find(".container .minlvl").val()),
+        a.append("MaxLV", u.ui.find(".container .maxlvl").val()),
+        a.append("Memo", UrlTools.encode(u.ui.find(".container .memo").val())),
         a.append("ISTATE", 0),
         $.ajax({
           url: "https://game.lastro.cn/" + e.webpath + "/party/add",
@@ -344,7 +344,7 @@ define(
           .done(function (a) {
             1 == a.Type
               ? (f.setMsg("\u526f\u672c\u6570\u636e\u6dfb\u52a0\u6210\u529f"),
-                u("UI/Components/PartyBooking/PartyBooking").reload())
+                v("UI/Components/PartyBooking/PartyBooking").reload())
               : f.setMsg("\u526f\u672c\u6570\u636e\u6dfb\u52a0\u5931\u8d25");
           })
           .fail(function (a) {
@@ -352,7 +352,7 @@ define(
           }),
         this.remove());
     };
-    v.onDelBookingLog = function (a) {
+    u.onDelBookingLog = function (a) {
       1 == a.rs
         ? ((a = new FormData()),
           a.append("AuthToken", n.AuthToken),
@@ -369,20 +369,20 @@ define(
           })
             .done(function (a) {
               1 == a.Type &&
-                (v.remove(),
+                (u.remove(),
                 f.setMsg("\u526f\u672c\u6570\u636e\u5220\u9664\u6210\u529f"),
-                u("UI/Components/PartyBooking/PartyBooking").reload());
+                v("UI/Components/PartyBooking/PartyBooking").reload());
             })
             .fail(function (a) {
               p.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
             }))
         : 2 == a.rs &&
-          (v.remove(),
+          (u.remove(),
           f.setMsg("\u526f\u672c\u6570\u636e\u5220\u9664\u6210\u529f"),
-          u("UI/Components/PartyBooking/PartyBooking").reload());
+          v("UI/Components/PartyBooking/PartyBooking").reload());
     };
-    v.onUpdateBookingLog = function () {
-      if ("" == v.ui.find(".container .memo").val())
+    u.onUpdateBookingLog = function () {
+      if ("" == u.ui.find(".container .memo").val())
         return (f.setMsg("\u5907\u6ce8\u5185\u5bb9\u4e0d\u4e3a\u7a7a"), !1);
       if (0 == this.type) {
         var a = new FormData();
@@ -392,11 +392,11 @@ define(
         a.append("GID", n.GID);
         a.append(
           "WorldName",
-          UrlTools.encode(v.ui.find(".container .mapname").text()),
+          UrlTools.encode(u.ui.find(".container .mapname").text()),
         );
         a.append(
           "CharName",
-          UrlTools.encode(v.ui.find(".container .name").text()),
+          UrlTools.encode(u.ui.find(".container .name").text()),
         );
         a.append("IID", 0);
         a.append("Type", 0);
@@ -404,9 +404,9 @@ define(
         a.append("Dealer", 1);
         a.append("Healer", 1);
         a.append("Tanker", 1);
-        a.append("MinLV", v.ui.find(".container .minlvl").val());
-        a.append("MaxLV", v.ui.find(".container .maxlvl").val());
-        a.append("Memo", UrlTools.encode(v.ui.find(".container .memo").val()));
+        a.append("MinLV", u.ui.find(".container .minlvl").val());
+        a.append("MaxLV", u.ui.find(".container .maxlvl").val());
+        a.append("Memo", UrlTools.encode(u.ui.find(".container .memo").val()));
         a.append("ISTATE", 0);
         $.ajax({
           url: "https://game.lastro.cn/" + e.webpath + "/party/add",
@@ -419,7 +419,7 @@ define(
           .done(function (a) {
             1 == a.Type
               ? (f.setMsg("\u62db\u52df\u4fe1\u606f\u4fee\u6539\u6210\u529f"),
-                u("UI/Components/PartyBooking/PartyBooking").reload())
+                v("UI/Components/PartyBooking/PartyBooking").reload())
               : f.setMsg("\u62db\u52df\u4fe1\u606f\u4fee\u6539\u5931\u8d25");
           })
           .fail(function (a) {
@@ -434,24 +434,24 @@ define(
           a.append("WorldName", "lastro"),
           a.append(
             "CharName",
-            UrlTools.encode(v.ui.find(".container .name").text()),
+            UrlTools.encode(u.ui.find(".container .name").text()),
           ),
           a.append(
             "IID",
-            v.ui.find(".container .iid option:selected").data("id"),
+            u.ui.find(".container .iid option:selected").data("id"),
           ),
           a.append("Type", 1),
           a.append("Assist", 1),
           a.append("Dealer", 1),
           a.append("Healer", 1),
           a.append("Tanker", 1),
-          a.append("MinLV", v.ui.find(".container .minlvl").val()),
-          a.append("MaxLV", v.ui.find(".container .maxlvl").val()),
+          a.append("MinLV", u.ui.find(".container .minlvl").val()),
+          a.append("MaxLV", u.ui.find(".container .maxlvl").val()),
           a.append(
             "Memo",
-            UrlTools.encode(v.ui.find(".container .memo").val()),
+            UrlTools.encode(u.ui.find(".container .memo").val()),
           ),
-          a.append("ISTATE", v.ui.find(".container .istate").val()),
+          a.append("ISTATE", u.ui.find(".container .istate").val()),
           $.ajax({
             url: "https://game.lastro.cn/" + e.webpath + "/party/add",
             type: "POST",
@@ -463,7 +463,7 @@ define(
             .done(function (a) {
               1 == a.Type
                 ? (f.setMsg("\u526f\u672c\u6570\u636e\u4fee\u6539\u6210\u529f"),
-                  u("UI/Components/PartyBooking/PartyBooking").reload())
+                  v("UI/Components/PartyBooking/PartyBooking").reload())
                 : f.setMsg("\u526f\u672c\u6570\u636e\u4fee\u6539\u5931\u8d25");
             })
             .fail(function (a) {
@@ -471,6 +471,6 @@ define(
             }));
       this.remove();
     };
-    return p.addComponent(v);
+    return p.addComponent(u);
   },
 );

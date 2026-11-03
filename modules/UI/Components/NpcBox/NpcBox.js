@@ -8,12 +8,12 @@ define(
       c = a("Controls/KeyEventHandler"),
       d = a("Renderer/Renderer"),
       e = a("UI/UIManager"),
-      m = a("UI/UIComponent"),
+      l = a("UI/UIComponent"),
       h = a("Preferences/Controls"),
-      t = a("UI/Components/WorldMap/WorldMap"),
-      r = a("text!./NpcBox.html");
+      r = a("UI/Components/WorldMap/WorldMap"),
+      t = a("text!./NpcBox.html");
     a = a("text!./NpcBox.css");
-    var n = new m("NpcBox", r, a),
+    var n = new l("NpcBox", t, a),
       g = !1,
       p = 0;
     n.needFocus = !1;
@@ -29,8 +29,8 @@ define(
         a.stopImmediatePropagation();
       });
       this.ui.on("click", ".smap", function (a) {
-        t.select();
-        t.selectMap(b(this).text());
+        r.select();
+        r.selectMap(b(this).text());
         n.close();
         a.stopImmediatePropagation();
         return !1;

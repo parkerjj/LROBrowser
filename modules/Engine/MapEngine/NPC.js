@@ -5,31 +5,31 @@ define(
   ),
   function (a) {
     function b(a) {
-      N.append();
-      N.setText(a.msg, a.NAID);
+      P.append();
+      P.setText(a.msg, a.NAID);
     }
     function c(a) {
-      N.append();
-      N.addNext(a.NAID);
+      P.append();
+      P.addNext(a.NAID);
     }
     function d(a) {
       setTimeout(function () {
-        N.ui && N.ui.is(":visible") && N.addClose(a.NAID);
+        P.ui && P.ui.is(":visible") && P.addClose(a.NAID);
       }, 20);
     }
     function e(a) {
-      N.ownerID === a.NAID &&
-        (N.remove(),
+      P.ownerID === a.NAID &&
+        (P.remove(),
         I.remove(),
         (a = document.getElementById("cutin")) &&
           a.parentNode &&
           document.body.removeChild(a));
     }
-    function m(a) {
+    function l(a) {
       0 == a.infoType
-        ? E.addText(u.getMessage(1223), E.TYPE.ERROR)
+        ? E.addText(v.getMessage(1223), E.TYPE.ERROR)
         : 1 == a.infoType
-          ? K.addBossMark(a.xPos, a.yPos)
+          ? J.addBossMark(a.xPos, a.yPos)
           : 3 == a.infoType &&
             E.addText(
               "Boss\u7ea7\u9b54\u7269 '" +
@@ -47,45 +47,45 @@ define(
       I.setMenu(a.msg, a.NAID);
       I.onSelectMenu = function (a, b) {
         I.remove();
-        255 === b && N.remove();
-        var c = new D.CZ.CHOOSE_MENU();
+        255 === b && P.remove();
+        var c = new C.CZ.CHOOSE_MENU();
         c.NAID = a;
         c.num = b;
-        J.sendPacket(c);
+        H.sendPacket(c);
       };
     }
-    function t(a) {
-      var b = a instanceof D.ZC.OPEN_EDITDLGSTR ? "text" : "number",
+    function r(a) {
+      var b = a instanceof C.ZC.OPEN_EDITDLGSTR ? "text" : "number",
         c = a.NAID;
-      O.onAppend = function () {
-        O.setType(b, !0);
+      N.onAppend = function () {
+        N.setType(b, !0);
       };
-      O.onSubmitRequest = function (a) {
-        O.remove();
+      N.onSubmitRequest = function (a) {
+        N.remove();
         var d;
         switch (b) {
           case "text":
-            d = new D.CZ.INPUT_EDITDLGSTR();
+            d = new C.CZ.INPUT_EDITDLGSTR();
             d.msg = a;
             break;
           default:
           case "number":
-            ((d = new D.CZ.INPUT_EDITDLG()), (d.value = a));
+            ((d = new C.CZ.INPUT_EDITDLG()), (d.value = a));
         }
         d.NAID = c;
-        J.sendPacket(d);
+        H.sendPacket(d);
       };
-      O.append();
+      N.append();
     }
-    function r(a) {
+    function t(a) {
       var b = x.clone("WinDeal"),
         c = a.NAID;
       b.init = function () {
         this.draggable();
-        this.ui.find(".text").text(u.getMessage(92));
+        this.ui.find(".text").text(v.getMessage(92));
         this.ui.css({
-          top: y.height / 1.5,
-          left: (y.width - 280) / 2,
+          top: z.height / 1.5,
+          left: (z.width - 280) / 2,
           zIndex: 100,
         });
         this.ui.find(".btns").append(
@@ -96,10 +96,10 @@ define(
             .data("down", "btn_buy_b.bmp")
             .one("click", function () {
               b.remove();
-              var a = new D.CZ.ACK_SELECT_DEALTYPE();
+              var a = new C.CZ.ACK_SELECT_DEALTYPE();
               a.type = 0;
               a.NAID = c;
-              J.sendPacket(a);
+              H.sendPacket(a);
             })
             .each(this.parseHTML),
           q("\x3cbutton/\x3e")
@@ -109,10 +109,10 @@ define(
             .data("down", "btn_sell_b.bmp")
             .one("click", function () {
               b.remove();
-              var a = new D.CZ.ACK_SELECT_DEALTYPE();
+              var a = new C.CZ.ACK_SELECT_DEALTYPE();
               a.type = 1;
               a.NAID = c;
-              J.sendPacket(a);
+              H.sendPacket(a);
             })
             .each(this.parseHTML),
           q("\x3cbutton/\x3e")
@@ -127,10 +127,10 @@ define(
         );
       };
       b.onAppend = function () {
-        H.talk = !0;
+        G.talk = !0;
       };
       b.onRemove = function () {
-        H.talk = !1;
+        G.talk = !1;
       };
       b.append();
     }
@@ -145,8 +145,8 @@ define(
         (b.id = "cutin"),
         (b.draggable = !1),
         document.body.appendChild(b),
-        C.loadFile(u.INTERFACE_PATH + "illust/" + a.imageName, function (b) {
-          if (N.ui || N.ui.is(":visible")) {
+        D.loadFile(v.INTERFACE_PATH + "illust/" + a.imageName, function (b) {
+          if (P.ui || P.ui.is(":visible")) {
             var c = document.getElementById("cutin");
             c.src = b;
             c.style.display = "none";
@@ -177,19 +177,19 @@ define(
     function g(a) {
       switch (a.type) {
         case 0:
-          K.addNpcMark(a.id, a.xPos, a.yPos, a.color, 15e3);
+          J.addNpcMark(a.id, a.xPos, a.yPos, a.color, 15e3);
           break;
         case 1:
-          K.addNpcMark(a.id, a.xPos, a.yPos, a.color, Infinity);
+          J.addNpcMark(a.id, a.xPos, a.yPos, a.color, Infinity);
           break;
         case 2:
-          K.removeNpcMark(a.id);
+          J.removeNpcMark(a.id);
       }
     }
     function p(a) {
       B.Entity.cast.onComplete = function () {
-        var a = new D.CZ.PROGRESS();
-        J.sendPacket(a);
+        var a = new C.CZ.PROGRESS();
+        H.sendPacket(a);
       };
       var b =
         "rgb(" +
@@ -201,69 +201,69 @@ define(
         ")";
       B.Entity.cast.set(1e3 * a.time, a.color ? b : null);
     }
-    function l() {
+    function k() {
       B.Entity.cast.remove();
-      var a = new D.CZ.PROGRESS();
-      J.sendPacket(a);
+      var a = new C.CZ.PROGRESS();
+      H.sendPacket(a);
     }
     function f(a) {
       switch (a.act) {
         case 0:
         case 1:
-          v.play(a.fileName);
+          u.play(a.fileName);
           break;
         case 2:
-          v.stop(a.fileName);
+          u.stop(a.fileName);
       }
     }
-    function k(a) {
+    function m(a) {
       a.Bgm.match(/\.mp3$/i) || (a.Bgm += ".mp3");
       A.play(a.Bgm);
     }
     var q = a("Utils/jquery"),
-      u = a("DB/DBManager"),
-      v = a("Audio/SoundManager"),
+      v = a("DB/DBManager"),
+      u = a("Audio/SoundManager"),
       A = a("Audio/BGM"),
-      C = a("Core/Client"),
+      D = a("Core/Client"),
       B = a("Engine/SessionStorage"),
-      J = a("Network/NetworkManager"),
-      D = a("Network/PacketStructure"),
-      y = a("Renderer/Renderer"),
-      H = a("Preferences/Controls"),
-      N = a("UI/Components/NpcBox/NpcBox"),
-      O = a("UI/Components/InputBox/InputBox"),
+      H = a("Network/NetworkManager"),
+      C = a("Network/PacketStructure"),
+      z = a("Renderer/Renderer"),
+      G = a("Preferences/Controls"),
+      P = a("UI/Components/NpcBox/NpcBox"),
+      N = a("UI/Components/InputBox/InputBox"),
       I = a("UI/Components/NpcMenu/NpcMenu"),
       x = a("UI/Components/WinPopup/WinPopup"),
-      K = a("UI/Components/MiniMap/MiniMap"),
+      J = a("UI/Components/MiniMap/MiniMap"),
       E = a("UI/Components/ChatBox/ChatBox");
-    N.onNextPressed = function (a) {
-      var b = new D.CZ.REQ_NEXT_SCRIPT();
+    P.onNextPressed = function (a) {
+      var b = new C.CZ.REQ_NEXT_SCRIPT();
       b.NAID = a;
-      J.sendPacket(b);
+      H.sendPacket(b);
     };
-    N.onClosePressed = function (a) {
-      var b = new D.CZ.CLOSE_DIALOG();
+    P.onClosePressed = function (a) {
+      var b = new C.CZ.CLOSE_DIALOG();
       b.NAID = a;
-      J.sendPacket(b);
-      N.remove();
+      H.sendPacket(b);
+      P.remove();
     };
     return function () {
-      J.hookPacket(D.ZC.SAY_DIALOG, b);
-      J.hookPacket(D.ZC.WAIT_DIALOG, c);
-      J.hookPacket(D.ZC.CLOSE_DIALOG, d);
-      J.hookPacket(D.ZC.OPEN_EDITDLG, t);
-      J.hookPacket(D.ZC.OPEN_EDITDLGSTR, t);
-      J.hookPacket(D.ZC.MENU_LIST, h);
-      J.hookPacket(D.ZC.SELECT_DEALTYPE, r);
-      J.hookPacket(D.ZC.SHOW_IMAGE, n);
-      J.hookPacket(D.ZC.SHOW_IMAGE2, n);
-      J.hookPacket(D.ZC.COMPASS, g);
-      J.hookPacket(D.ZC.PROGRESS, p);
-      J.hookPacket(D.ZC.PROGRESS_CANCEL, l);
-      J.hookPacket(D.ZC.SOUND, f);
-      J.hookPacket(D.ZC.PLAY_NPC_BGM, k);
-      J.hookPacket(D.ZC.CLOSE_SCRIPT, e);
-      J.hookPacket(D.ZC.BOSS_INFO, m);
+      H.hookPacket(C.ZC.SAY_DIALOG, b);
+      H.hookPacket(C.ZC.WAIT_DIALOG, c);
+      H.hookPacket(C.ZC.CLOSE_DIALOG, d);
+      H.hookPacket(C.ZC.OPEN_EDITDLG, r);
+      H.hookPacket(C.ZC.OPEN_EDITDLGSTR, r);
+      H.hookPacket(C.ZC.MENU_LIST, h);
+      H.hookPacket(C.ZC.SELECT_DEALTYPE, t);
+      H.hookPacket(C.ZC.SHOW_IMAGE, n);
+      H.hookPacket(C.ZC.SHOW_IMAGE2, n);
+      H.hookPacket(C.ZC.COMPASS, g);
+      H.hookPacket(C.ZC.PROGRESS, p);
+      H.hookPacket(C.ZC.PROGRESS_CANCEL, k);
+      H.hookPacket(C.ZC.SOUND, f);
+      H.hookPacket(C.ZC.PLAY_NPC_BGM, m);
+      H.hookPacket(C.ZC.CLOSE_SCRIPT, e);
+      H.hookPacket(C.ZC.BOSS_INFO, l);
     };
   },
 );

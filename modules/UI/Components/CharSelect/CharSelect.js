@@ -6,14 +6,14 @@ define(
   function (a) {
     function b(a) {
       return function (b) {
-        t((I + 12 + a) % 12);
+        r((I + 12 + a) % 12);
         b.stopImmediatePropagation();
         return !1;
       };
     }
     function c(a) {
       return function (b) {
-        t(3 * Math.floor(I / 3) + a);
+        r(3 * Math.floor(I / 3) + a);
         b.stopImmediatePropagation();
         return !1;
       };
@@ -24,26 +24,26 @@ define(
         "ok",
         "cancel",
         function () {
-          D.onExitRequest();
+          C.onExitRequest();
         },
         null,
       );
     }
     function e() {
       if (!B.ready) return !1;
-      D.onCreateRequest(I);
+      C.onCreateRequest(I);
     }
-    function m() {
+    function l() {
       if (!B.ready) return !1;
-      N[I] && ((y.index = I), y.save(), D.onConnectRequest(N[I]));
+      P[I] && ((z.index = I), z.save(), C.onConnectRequest(P[I]));
     }
     function h() {
-      N[I] && (D.off("keydown"), D.onDeleteRequest(N[I].GID));
+      P[I] && (C.off("keydown"), C.onDeleteRequest(P[I].GID));
     }
-    function t(a) {
-      var b = D.ui,
+    function r(a) {
+      var b = C.ui,
         c = b.find(".charinfo"),
-        d = O[I];
+        d = N[I];
       d &&
         d.setAction({ action: d.ACTION.IDLE, frame: 0, play: !0, repeat: !0 });
       I = (a + 12) % 12;
@@ -51,11 +51,11 @@ define(
         .removeClass("slot1 slot2 slot3")
         .addClass("slot" + ((I % 3) + 1));
       a = Math.floor(I / 3) + 1;
-      N[3 * a - 3] ? b.find(".add_slot1").hide() : b.find(".add_slot1").show();
-      N[3 * a - 2] ? b.find(".add_slot2").hide() : b.find(".add_slot2").show();
-      N[3 * a - 1] ? b.find(".add_slot3").hide() : b.find(".add_slot3").show();
+      P[3 * a - 3] ? b.find(".add_slot1").hide() : b.find(".add_slot1").show();
+      P[3 * a - 2] ? b.find(".add_slot2").hide() : b.find(".add_slot2").show();
+      P[3 * a - 1] ? b.find(".add_slot3").hide() : b.find(".add_slot3").show();
       b.find(".pageinfo .current").text(Math.floor(I / 3) + 1);
-      (d = O[I])
+      (d = N[I])
         ? (d.setAction({
             action: d.ACTION.READYFIGHT,
             frame: 0,
@@ -65,7 +65,7 @@ define(
           b.find(".make").hide(),
           b.find(".delete").show(),
           b.find(".ok").show(),
-          (b = N[I]),
+          (b = P[I]),
           c.find(".name").text(b.name),
           c.find(".job").text(g[b.job] || ""),
           c.find(".lvl").text(b.level),
@@ -84,42 +84,42 @@ define(
           b.find(".delete").hide(),
           b.find(".ok").hide());
     }
-    function r() {
+    function t() {
       var a, b, c;
-      v.direction = 4;
+      u.direction = 4;
       c = 3 * Math.floor(I / 3);
       b = x.length;
       for (a = 0; a < b; ++a)
         (x[a].clearRect(0, 0, x[a].canvas.width, x[a].canvas.height),
-          O[c + a] &&
-            (u.bind2DContext(x[a], 67, 134), O[c + a].renderEntity()));
+          N[c + a] &&
+            (v.bind2DContext(x[a], 67, 134), N[c + a].renderEntity()));
     }
     var n = a("DB/DBManager"),
       g = a("DB/Monsters/MonsterTable"),
       p = a("Core/Configs"),
-      l = a("Core/Preferences"),
+      k = a("Core/Preferences"),
       f = a("Controls/KeyEventHandler"),
-      k = a("Renderer/Renderer"),
+      m = a("Renderer/Renderer"),
       q = a("Renderer/Entity/Entity"),
-      u = a("Renderer/SpriteRenderer"),
-      v = a("Renderer/Camera"),
+      v = a("Renderer/SpriteRenderer"),
+      u = a("Renderer/Camera"),
       A = a("UI/UIManager"),
-      C = a("UI/UIComponent"),
+      D = a("UI/UIComponent"),
       B = a("UI/Components/PincodeBox/PincodeBox"),
-      J = a("text!./CharSelect.html");
+      H = a("text!./CharSelect.html");
     a = a("text!./CharSelect.css");
-    var D = new C("CharSelect", J, a),
-      y = l.get("CharSelect", { index: 0 }, 1),
-      H = [],
+    var C = new D("CharSelect", H, a),
+      z = k.get("CharSelect", { index: 0 }, 1),
+      G = [],
+      P = [],
       N = [],
-      O = [],
       I = 0,
       x = [],
-      K = 0;
-    D.init = function () {
+      J = 0;
+    C.init = function () {
       var a = this.ui;
-      a.css({ top: (k.height - 342) / 2, left: (k.width - 576) / 2 });
-      a.find(".ok").click(m);
+      a.css({ top: (m.height - 342) / 2, left: (m.width - 576) / 2 });
+      a.find(".ok").click(l);
       a.find(".cancel").click(d);
       a.find(".make").click(e);
       a.find(".delete").click(h);
@@ -133,42 +133,42 @@ define(
       a.find(".slot3").mousedown(c(2));
       a.find("canvas")
         .dblclick(function () {
-          N[I] ? m() : e();
+          P[I] ? l() : e();
         })
         .each(function () {
           x.push(this.getContext("2d"));
         });
       this.draggable();
     };
-    D.onAppend = function () {
-      I = y.index;
-      this.ui.find(".slotinfo .number").text(H.length + " / 12");
+    C.onAppend = function () {
+      I = z.index;
+      this.ui.find(".slotinfo .number").text(G.length + " / 12");
       this.ui.find(".pageinfo .count").text(4);
-      t(I);
-      k.render(r);
+      r(I);
+      m.render(t);
     };
-    D.onRemove = function () {
-      y.index = I;
-      y.save();
-      k.stop();
+    C.onRemove = function () {
+      z.index = I;
+      z.save();
+      m.stop();
     };
-    D.onKeyDown = function (a) {
+    C.onKeyDown = function (a) {
       switch (a.which) {
         case f.ESCAPE:
           d();
           break;
         case f.LEFT:
-          t(I - 1);
+          r(I - 1);
           break;
         case f.RIGHT:
-          t(I + 1);
+          r(I + 1);
           break;
         case f.SUPR:
-          N[I] && h();
+          P[I] && h();
           break;
         case f.ENTER:
           if (!B.ready) return !1;
-          N[I] ? m() : e();
+          P[I] ? l() : e();
           break;
         default:
           return !0;
@@ -176,53 +176,53 @@ define(
       a.stopImmediatePropagation();
       return !1;
     };
-    D.setInfo = function (a) {
-      K = a.sex;
+    C.setInfo = function (a) {
+      J = a.sex;
+      P.length = 0;
       N.length = 0;
-      O.length = 0;
-      H.length = 0;
+      G.length = 0;
       if (a.charInfo) {
         var b,
           c = a.charInfo.length;
-        for (b = 0; b < c; ++b) D.addCharacter(a.charInfo[b]);
+        for (b = 0; b < c; ++b) C.addCharacter(a.charInfo[b]);
       }
-      this.ui.find(".slotinfo .number").text(H.length + " / 12");
+      this.ui.find(".slotinfo .number").text(G.length + " / 12");
       this.ui.find(".pageinfo .count").text(4);
-      t(I);
+      r(I);
       3 != p.get("ClientVer") &&
         0 <= a.code &&
-        ((b = N[a.code]), (b.CharNum = a.code), D.onConnectRequest(b));
+        ((b = P[a.code]), (b.CharNum = a.code), C.onConnectRequest(b));
     };
-    D.deleteAnswer = function (a) {
+    C.deleteAnswer = function (a) {
       this.on("keydown");
       switch (a) {
         case -2:
           break;
         case -1:
+          delete P[I];
           delete N[I];
-          delete O[I];
           a = 0;
-          for (var b = H.length; a < b;)
-            H[a].CharNum === I ? (H.splice(a, 1), --b) : a++;
-          t(I);
-          this.ui.find(".slotinfo .number").text(H.length + " / 12");
+          for (var b = G.length; a < b;)
+            G[a].CharNum === I ? (G.splice(a, 1), --b) : a++;
+          r(I);
+          this.ui.find(".slotinfo .number").text(G.length + " / 12");
           break;
         default:
         case 0:
           A.showMessageBox(n.getMessage(301), "ok");
       }
     };
-    D.addCharacter = function (a) {
-      ("sex" in a && 99 !== a.sex) || (a.sex = K);
-      H.push(a);
-      N[a.CharNum] = a;
-      O[a.CharNum] = new q();
-      O[a.CharNum].set(a);
+    C.addCharacter = function (a) {
+      ("sex" in a && 99 !== a.sex) || (a.sex = J);
+      G.push(a);
+      P[a.CharNum] = a;
+      N[a.CharNum] = new q();
+      N[a.CharNum].set(a);
     };
-    D.onExitRequest = function () {};
-    D.onDeleteRequest = function () {};
-    D.onCreateRequest = function () {};
-    D.onConnectRequest = function () {};
-    return A.addComponent(D);
+    C.onExitRequest = function () {};
+    C.onDeleteRequest = function () {};
+    C.onCreateRequest = function () {};
+    C.onConnectRequest = function () {};
+    return A.addComponent(C);
   },
 );

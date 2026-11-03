@@ -7,19 +7,19 @@ define("Core/Thread", ["require", "Core/Configs"], function (a, b) {
   }
   var d = {},
     e = {},
-    m = 0,
+    l = 0,
     h = [],
-    t = null;
+    r = null;
   return {
     send: (function () {
       var a = { type: "", data: null, uid: 0 };
       return function (b, c, e) {
         var g = 0;
-        e && ((g = ++m), (d[g] = e));
+        e && ((g = ++l), (d[g] = e));
         a.type = b;
         a.data = c;
         a.uid = g;
-        t.postMessage(a, h);
+        r.postMessage(a, h);
       };
     })(),
     hook: function (a, d) {
@@ -31,18 +31,18 @@ define("Core/Thread", ["require", "Core/Configs"], function (a, b) {
       "game" == d[0] &&
         "lastro" == d[1] &&
         "cn" == d[2] &&
-        (t ||
+        (r ||
           ((d = b.get("development")
             ? "./ThreadEventHandler.js"
             : "/ro/ThreadEventHandler.js"),
-          (t = new Worker(a.toUrl(d) + "?" + b.get("version", "")))),
-        t instanceof Worker
-          ? t.addEventListener("message", c, !1)
+          (r = new Worker(a.toUrl(d) + "?" + b.get("version", "")))),
+        r instanceof Worker
+          ? r.addEventListener("message", c, !1)
           : (window.addEventListener("message", c, !1),
-            t.postMessage({ type: "SYNC" }, h)));
+            r.postMessage({ type: "SYNC" }, h)));
     },
     delegate: function (a, d) {
-      t = a;
+      r = a;
       h = d;
     },
   };

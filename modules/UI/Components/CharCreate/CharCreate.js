@@ -13,10 +13,10 @@ define(
         1,
         1,
         1,
-        v.entity.head,
-        v.entity.headpalette,
-        v.entity.sex,
-        v.entity.job,
+        u.entity.head,
+        u.entity.headpalette,
+        u.entity.sex,
+        u.entity.job,
       );
     }
     function c() {
@@ -26,32 +26,32 @@ define(
     function d(a, b) {
       switch (a) {
         case "head":
-          a = v.entity.head + b;
-          b = v.entity.job ? 6 : 29;
+          a = u.entity.head + b;
+          b = u.entity.job ? 6 : 29;
           a = (a + b - 1) % b;
-          v.entity.head = a + 1;
+          u.entity.head = a + 1;
           B.entity.head = a + 1;
           break;
         case "headpalette":
-          a = v.entity.headpalette += b;
+          a = u.entity.headpalette += b;
           1 > a && (a = 8);
           8 < a && (a = 1);
-          v.entity.headpalette = a;
-          B.entity.headpalette = v.entity.headpalette;
+          u.entity.headpalette = a;
+          B.entity.headpalette = u.entity.headpalette;
           break;
         case "direction":
-          v.entity.direction += b;
+          u.entity.direction += b;
           break;
         case "sex":
-          v.entity.sex = b;
+          u.entity.sex = b;
           break;
         case "class":
           B.entity.setAction({ action: 0 });
-          B = b ? C : A;
-          v.entity.job = b ? 4218 : 0;
-          v.entity.head = ((v.entity.head - 1) % 6) + 1;
-          B.entity.headpalette = v.entity.headpalette;
-          B.entity.head = v.entity.head;
+          B = b ? D : A;
+          u.entity.job = b ? 4218 : 0;
+          u.entity.head = ((u.entity.head - 1) % 6) + 1;
+          B.entity.headpalette = u.entity.headpalette;
+          B.entity.head = u.entity.head;
           q.ui
             .find(".box_select")
             .removeClass("slot1 slot2 slot3")
@@ -59,50 +59,50 @@ define(
           B.entity.setAction({ action: 1, repeat: !0 });
           break;
         case "gender":
-          ((v.entity.sex = b),
+          ((u.entity.sex = b),
             (A.entity.sex = b),
-            (C.entity.sex = b),
+            (D.entity.sex = b),
             q.changeBackground(".chargen .male", b ? 1 : 0),
             q.changeBackground(".chargen .female", b ? 0 : 1));
       }
       e();
     }
     function e(a) {
-      v.tick + 500 < a &&
-        (v.entity.direction++, (v.entity.direction %= 8), (v.tick = a));
-      g.bind2DContext(v.ctx, 32, 115);
-      v.ctx.clearRect(0, 0, v.ctx.canvas.width, v.ctx.canvas.height);
-      v.entity.renderEntity();
+      u.tick + 500 < a &&
+        (u.entity.direction++, (u.entity.direction %= 8), (u.tick = a));
+      g.bind2DContext(u.ctx, 32, 115);
+      u.ctx.clearRect(0, 0, u.ctx.canvas.width, u.ctx.canvas.height);
+      u.entity.renderEntity();
       g.bind2DContext(A.ctx, 32, 115);
       A.ctx.clearRect(0, 0, A.ctx.canvas.width, A.ctx.canvas.height);
       A.entity.renderEntity();
-      g.bind2DContext(C.ctx, 32, 115);
-      C.ctx.clearRect(0, 0, C.ctx.canvas.width, C.ctx.canvas.height);
-      C.entity.renderEntity();
+      g.bind2DContext(D.ctx, 32, 115);
+      D.ctx.clearRect(0, 0, D.ctx.canvas.width, D.ctx.canvas.height);
+      D.entity.renderEntity();
     }
-    var m = a("DB/DBManager"),
+    var l = a("DB/DBManager"),
       h = a("Core/Configs"),
-      t = a("Renderer/Renderer"),
-      r = a("Controls/KeyEventHandler"),
+      r = a("Renderer/Renderer"),
+      t = a("Controls/KeyEventHandler"),
       n = a("Renderer/Entity/Entity"),
       g = a("Renderer/SpriteRenderer"),
       p = a("Renderer/Camera"),
-      l = a("UI/UIManager"),
+      k = a("UI/UIManager"),
       f = a("UI/UIComponent"),
-      k = a("text!./CharCreate.html");
+      m = a("text!./CharCreate.html");
     a = a("text!./CharCreate.css");
-    var q = new f("CharCreate", k, a),
-      u = 0,
-      v = { entity: new n(), ctx: null, render: !1, tick: 0 },
+    var q = new f("CharCreate", m, a),
+      v = 0,
+      u = { entity: new n(), ctx: null, render: !1, tick: 0 },
       A = { entity: new n(), ctx: null, render: !1, tick: 0 },
-      C = { entity: new n(), ctx: null, render: !1, tick: 0 },
+      D = { entity: new n(), ctx: null, render: !1, tick: 0 },
       B = A;
     h.get("ClientVer");
     q.init = function () {
-      v.ctx = this.ui.find(".chargen canvas")[0].getContext("2d");
+      u.ctx = this.ui.find(".chargen canvas")[0].getContext("2d");
       A.ctx = this.ui.find(".human canvas")[0].getContext("2d");
-      C.ctx = this.ui.find(".doram canvas")[0].getContext("2d");
-      this.ui.css({ top: (t.height - 358) / 2, left: (t.width - 576) / 2 });
+      D.ctx = this.ui.find(".doram canvas")[0].getContext("2d");
+      this.ui.css({ top: (r.height - 358) / 2, left: (r.width - 576) / 2 });
       this.draggable();
       this.ui.find(".chargen .male").on("click", function () {
         d("gender", 1);
@@ -137,23 +137,23 @@ define(
       h.get("doram") || this.ui.find(".doram").hide();
     };
     q.setAccountSex = function (a) {
-      u = a;
+      v = a;
     };
     q.onAppend = function () {
-      v.render = !0;
-      v.entity.set({ sex: u, job: 0, head: 2, action: 0 });
+      u.render = !0;
+      u.entity.set({ sex: v, job: 0, head: 2, action: 0 });
       A.render = !0;
       A.entity.set({
-        sex: u,
+        sex: v,
         job: 0,
         head: 2,
         speed: 200,
         direction: 1,
         action: 0,
       });
-      C.render = !0;
-      C.entity.set({
-        sex: u,
+      D.render = !0;
+      D.entity.set({
+        sex: v,
         job: 4218,
         head: 2,
         speed: 200,
@@ -162,23 +162,23 @@ define(
       });
       p.direction = 0;
       d("class", 0);
-      d("gender", u);
-      this.ui.find(".human .name").text(m.getMessage(3016));
-      this.ui.find(".human .desc").text(m.getMessage(3020));
-      this.ui.find(".human .jobs").text(m.getMessage(3017));
-      this.ui.find(".doram .name").text(m.getMessage(3018));
-      this.ui.find(".doram .desc").text(m.getMessage(3021));
-      this.ui.find(".doram .jobs").text(m.getMessage(3019));
+      d("gender", v);
+      this.ui.find(".human .name").text(l.getMessage(3016));
+      this.ui.find(".human .desc").text(l.getMessage(3020));
+      this.ui.find(".human .jobs").text(l.getMessage(3017));
+      this.ui.find(".doram .name").text(l.getMessage(3018));
+      this.ui.find(".doram .desc").text(l.getMessage(3021));
+      this.ui.find(".doram .jobs").text(l.getMessage(3019));
       this.ui.find("input").val("").focus();
-      t.render(e);
+      r.render(e);
     };
     q.onRemove = function () {
-      t.stop(e);
+      r.stop(e);
     };
     q.onKeyDown = function (a) {
-      return a.which === r.ESCAPE
+      return a.which === t.ESCAPE
         ? (a.stopImmediatePropagation(), c(), !1)
-        : a.which === r.ENTER
+        : a.which === t.ENTER
           ? (a.stopImmediatePropagation(), b(), !1)
           : !0;
     };
@@ -189,6 +189,6 @@ define(
     };
     q.onExitRequest = function () {};
     q.onCharCreationRequest = function () {};
-    return l.addComponent(q);
+    return k.addComponent(q);
   },
 );

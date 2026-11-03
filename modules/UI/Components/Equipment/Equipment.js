@@ -13,7 +13,7 @@ define(
         b = x.ui.find(".view_status"),
         c = a.is(":visible") ? "on" : "off";
       a.toggle();
-      v.loadFile(
+      u.loadFile(
         f.INTERFACE_PATH + "basic_interface/view" + c + ".bmp",
         function (a) {
           b.css("backgroundImage", "url(" + a + ")");
@@ -25,30 +25,30 @@ define(
     }
     function e(a) {
       var b = [];
-      a & k.HEAD_TOP && b.push(".head_top");
-      a & k.HEAD_MID && b.push(".head_mid");
-      a & k.HEAD_BOTTOM && b.push(".head_bottom");
-      a & k.ARMOR && b.push(".armor");
-      a & k.WEAPON && b.push(".weapon");
-      a & k.SHIELD && b.push(".shield");
-      a & k.GARMENT && b.push(".garment");
-      a & k.SHOES && b.push(".shoes");
-      a & k.ACCESSORY1 && b.push(".accessory1");
-      a & k.ACCESSORY2 && b.push(".accessory2");
-      a & k.AMMO && b.push(".ammo");
-      a & k.HEAD_TOP_F && b.push(".head_top_f");
-      a & k.HEAD_MID_F && b.push(".head_mid_f");
-      a & k.HEAD_BOTTOM_F && b.push(".head_bottom_f");
-      a & k.ARMOR_F && b.push(".armor_f");
-      a & k.WEAPON_F && b.push(".weapon_f");
-      a & k.SHIELD_F && b.push(".shield_f");
-      a & k.GARMENT_F && b.push(".garment_f");
-      a & k.SHOES_F && b.push(".shoes_f");
-      a & k.ACC_R_F && b.push(".accessory1_f");
-      a & k.ACC_L_F && b.push(".accessory2_f");
+      a & m.HEAD_TOP && b.push(".head_top");
+      a & m.HEAD_MID && b.push(".head_mid");
+      a & m.HEAD_BOTTOM && b.push(".head_bottom");
+      a & m.ARMOR && b.push(".armor");
+      a & m.WEAPON && b.push(".weapon");
+      a & m.SHIELD && b.push(".shield");
+      a & m.GARMENT && b.push(".garment");
+      a & m.SHOES && b.push(".shoes");
+      a & m.ACCESSORY1 && b.push(".accessory1");
+      a & m.ACCESSORY2 && b.push(".accessory2");
+      a & m.AMMO && b.push(".ammo");
+      a & m.HEAD_TOP_F && b.push(".head_top_f");
+      a & m.HEAD_MID_F && b.push(".head_mid_f");
+      a & m.HEAD_BOTTOM_F && b.push(".head_bottom_f");
+      a & m.ARMOR_F && b.push(".armor_f");
+      a & m.WEAPON_F && b.push(".weapon_f");
+      a & m.SHIELD_F && b.push(".shield_f");
+      a & m.GARMENT_F && b.push(".garment_f");
+      a & m.SHOES_F && b.push(".shoes_f");
+      a & m.ACC_R_F && b.push(".accessory1_f");
+      a & m.ACC_L_F && b.push(".accessory2_f");
       return b.join(", ");
     }
-    function m(a) {
+    function l(a) {
       if (window._OBJ_DRAG_) {
         var b = window._OBJ_DRAG_,
           c;
@@ -59,7 +59,7 @@ define(
             b.IsDamaged ||
             ((b = e("location" in b ? b.location : b.WearLocation)),
             (c = x.ui.find(b)),
-            v.loadFile(
+            u.loadFile(
               f.INTERFACE_PATH + "basic_interface/item_invert.bmp",
               function (a) {
                 c.css("backgroundImage", "url(" + a + ")");
@@ -74,7 +74,7 @@ define(
       a.stopImmediatePropagation();
       return !1;
     }
-    function t(a) {
+    function r(a) {
       var b;
       try {
         b = JSON.parse(a.originalEvent.dataTransfer.getData("Text"));
@@ -90,32 +90,32 @@ define(
       a.stopImmediatePropagation();
       return !1;
     }
-    function r(a) {
+    function t(a) {
       var b = parseInt(this.getAttribute("data-index"), 10);
-      if ((b = F[b]))
-        N.uid === b.ITID
-          ? N.remove()
-          : (N.append(), (N.uid = b.ITID), N.setItem(b));
+      if ((b = L[b]))
+        P.uid === b.ITID
+          ? P.remove()
+          : (P.append(), (P.uid = b.ITID), P.setItem(b));
       a.stopImmediatePropagation();
       return !1;
     }
     function n(a) {
       for (
         var b = parseInt(this.getAttribute("data-index"), 10), c, d = 0;
-        d < z.length;
+        d < y.length;
         d++
       )
-        if (z[d].index == b) {
-          c = z[d];
+        if (y[d].index == b) {
+          c = y[d];
           break;
         }
       if (c) {
-        if (N.uid === c.ITID) return (N.remove(), !1);
-        N.append();
-        N.uid = c.ITID;
-        N.item_ = c;
-        N.type = "Equipment_";
-        N.setItem(c);
+        if (P.uid === c.ITID) return (P.remove(), !1);
+        P.append();
+        P.uid = c.ITID;
+        P.item_ = c;
+        P.type = "Equipment_";
+        P.setItem(c);
       }
       a.stopImmediatePropagation();
       return !1;
@@ -127,60 +127,60 @@ define(
     }
     function p() {
       var a = parseInt(this.parentNode.getAttribute("data-index"), 10);
-      if ((a = F[a])) {
+      if ((a = L[a])) {
         var b = x.ui.find(".overlay"),
-          c = u(this).position();
+          c = v(this).position();
         if (c.top || c.left)
           (b.show(),
             b.css({ top: c.top - 22, left: c.left - 22 }),
             b.text(f.getItemName(a)));
       }
     }
-    function l() {
+    function k() {
       x.ui.find(".overlay").hide();
     }
     var f = a("DB/DBManager");
     a("DB/Status/StatusState");
-    var k = a("DB/Items/EquipmentLocation"),
+    var m = a("DB/Items/EquipmentLocation"),
       q = a("DB/Items/ItemType"),
-      u = a("Utils/jquery"),
-      v = a("Core/Client"),
+      v = a("Utils/jquery"),
+      u = a("Core/Client"),
       A = a("Core/Preferences"),
-      C = a("Engine/SessionStorage"),
+      D = a("Engine/SessionStorage"),
       B = a("Renderer/Renderer"),
-      J = a("Renderer/Camera"),
-      D = a("Renderer/SpriteRenderer"),
-      y = a("UI/UIManager"),
-      H = a("UI/UIComponent"),
-      N = a("UI/Components/ItemInfo/ItemInfo"),
-      O = a("UI/Components/OnPushCart/OnPushCart"),
+      H = a("Renderer/Camera"),
+      C = a("Renderer/SpriteRenderer"),
+      z = a("UI/UIManager"),
+      G = a("UI/UIComponent"),
+      P = a("UI/Components/ItemInfo/ItemInfo"),
+      N = a("UI/Components/OnPushCart/OnPushCart"),
       I = a("text!./Equipment.html");
     a = a("text!./Equipment.css");
-    var x = new H("Equipment", I, a),
-      K = x.clone("Equipment_");
-    y.addComponent(K);
+    var x = new G("Equipment", I, a),
+      J = x.clone("Equipment_");
+    z.addComponent(J);
     var E = A.get(
         "Equipment",
         { x: 480, y: 200, show: !1, reduce: !1, stats: !0 },
         1,
       ),
-      F = {},
-      z = {},
-      G,
-      L,
+      L = {},
+      y = {},
+      F,
+      K,
       M = !1,
       Q,
-      V;
+      W;
     x.init = function () {
-      G = this.ui.find("canvas")[0].getContext("2d");
-      Q = u("#lvlup_base")
+      F = this.ui.find("canvas")[0].getContext("2d");
+      Q = v("#lvlup_base")
         .detach()
         .mousedown(b)
         .click(function () {
           Q.detach();
           x.ui.show();
           x.ui.parent().append(x.ui);
-          x.ui.is(":visible") && B.render(W);
+          x.ui.is(":visible") && B.render(V);
         });
       this.ui.find(".titlebar .base").mousedown(b);
       this.ui.find(".titlebar .mini").click(function () {
@@ -190,11 +190,11 @@ define(
         x.ui.hide();
       });
       this.ui.find(".OpenCart").click(function () {
-        O.ui.toggle();
-        O.focus();
+        N.ui.toggle();
+        N.focus();
       });
       this.ui.find(".removeOption").click(function () {
-        O.ui.hide();
+        N.ui.hide();
         x.onRemoveOption();
       });
       this.ui.find(".removeOption_").click(function () {
@@ -204,32 +204,32 @@ define(
       this.ui.find(".view_status").click(c);
       this.ui.find(".show_equip").click(d);
       this.ui.find(".tabs").on("click", "button", function () {
-        0 == u(this).data("index")
+        0 == v(this).data("index")
           ? x.ui.find(".panel").removeClass("fashion").addClass("unfashion")
           : x.ui.find(".panel").removeClass("unfashion").addClass("fashion");
       });
-      this.ui.on("dragover", m);
+      this.ui.on("dragover", l);
       this.ui.on("dragleave", h);
-      this.ui.on("drop", t);
+      this.ui.on("drop", r);
       this.ui
         .find(".content")
-        .on("contextmenu", ".item", r)
+        .on("contextmenu", ".item", t)
         .on("dblclick", ".item", g)
         .on("mouseover", "button", p)
-        .on("mouseout", "button", l);
+        .on("mouseout", "button", k);
       this.ui.mousedown(b);
       this.draggable(this.ui.find(".titlebar"));
     };
-    K.init = function () {
+    J.init = function () {
       this.ui.css({
         top: Math.min(Math.max(0, E.y), (B.height - this.ui.height()) / 2),
         left: Math.min(Math.max(0, E.x), (B.width - this.ui.width()) / 2),
       });
-      L = this.ui.find("canvas")[0].getContext("2d");
+      K = this.ui.find("canvas")[0].getContext("2d");
       this.ui.find(".footer .left,.footer .right,#lvlup_base").hide();
       this.ui.find(".titlebar .close").on("click", function () {
-        K.remove();
-        N.remove();
+        J.remove();
+        P.remove();
         event.stopImmediatePropagation();
       });
       this.ui.on("contextmenu", ".item", n);
@@ -244,7 +244,7 @@ define(
       E.reduce && this.ui.find(".panel").hide();
       E.stats ||
         (this.ui.find(".status_component").hide(),
-        v.loadFile(
+        u.loadFile(
           f.INTERFACE_PATH + "basic_interface/viewon.bmp",
           function (a) {
             this.ui
@@ -252,14 +252,14 @@ define(
               .css("backgroundImage", "url(" + a + ")");
           }.bind(this),
         ));
-      this.ui.find("canvas").is(":visible") && B.render(W);
+      this.ui.find("canvas").is(":visible") && B.render(V);
     };
     x.onRemove = function () {
       Q.detach();
       x.ui.find(".OpenCart").hide();
       x.ui.find(".removeOption").hide();
       x.ui.find(".removeOption_").hide();
-      F = {};
+      L = {};
       this.ui.find(".col1, .col3, .ammo").empty();
       this.ui.find(".item").remove();
       E.show = this.ui.is(":visible");
@@ -272,8 +272,8 @@ define(
     x.toggle = function () {
       this.ui.toggle();
       this.ui.is(":visible")
-        ? (B.render(W), Q.detach(), this.focus())
-        : B.stop(W);
+        ? (B.render(V), Q.detach(), this.focus())
+        : B.stop(V);
     };
     x.onShortCut = function (a) {
       switch (a.cmd) {
@@ -283,7 +283,7 @@ define(
     };
     x.setEquipConfig = function (a) {
       M = a;
-      v.loadFile(
+      u.loadFile(
         f.INTERFACE_PATH + "checkbox_" + (a ? "1" : "0") + ".bmp",
         function (a) {
           x.ui.find(".show_equip").css("backgroundImage", "url(" + a + ")");
@@ -292,7 +292,7 @@ define(
     };
     x.equip = function (a, b) {
       var c = f.getItemInfo(a.ITID);
-      F[a.index] = a;
+      L[a.index] = a;
       1 === arguments.length &&
         ("WearState" in a
           ? (b = a.WearState)
@@ -310,7 +310,7 @@ define(
                 '" data-gid\x3d"' +
                 d +
                 '"\x3e\x3cbutton\x3e\x3c/button\x3e\x3cspan\x3e' +
-                u.escape(f.getItemName(a)) +
+                v.escape(f.getItemName(a)) +
                 "\x3c/span\x3e\x3c/div\x3e",
             );
           break;
@@ -321,11 +321,11 @@ define(
               '\x3cdiv class\x3d"item" data-index\x3d"' +
                 a.index +
                 '"\x3e\x3cbutton\x3e\x3c/button\x3e\x3cspan\x3e' +
-                u.escape(f.getItemName(a)) +
+                v.escape(f.getItemName(a)) +
                 "\x3c/span\x3e\x3c/div\x3e",
             );
       }
-      v.loadFile(
+      u.loadFile(
         f.INTERFACE_PATH + "item/" + c.identifiedResourceName + ".bmp",
         function (b) {
           this.ui
@@ -334,7 +334,7 @@ define(
         }.bind(this),
       );
     };
-    K.equip = function (a, b) {
+    J.equip = function (a, b) {
       var c = f.getItemInfo(a.ITID);
       b = a.WearState;
       this.ui
@@ -343,10 +343,10 @@ define(
           '\x3cdiv class\x3d"item" data-index\x3d"' +
             a.index +
             '"\x3e\x3cbutton\x3e\x3c/button\x3e\x3cspan\x3e' +
-            u.escape(f.getItemName(a)) +
+            v.escape(f.getItemName(a)) +
             "\x3c/span\x3e\x3c/div\x3e",
         );
-      v.loadFile(
+      u.loadFile(
         f.INTERFACE_PATH + "item/" + c.identifiedResourceName + ".bmp",
         function (b) {
           this.ui
@@ -357,9 +357,9 @@ define(
     };
     x.unEquip = function (a, b) {
       b = e(b);
-      var c = F[a];
+      var c = L[a];
       this.ui.find(b).empty();
-      delete F[a];
+      delete L[a];
       return c;
     };
     x.setBound = function (a) {
@@ -367,34 +367,34 @@ define(
         a.bindOnEquipType = 0 < a.bindOnEquipType ? 0 : 2;
     };
     x.getItemByIndex = function (a) {
-      for (var b in F) if (F[b].index === a) return F[b];
+      for (var b in L) if (L[b].index === a) return L[b];
       return null;
     };
-    K.setEquip = function (a) {
-      z = a.ItemInfo;
+    J.setEquip = function (a) {
+      y = a.ItemInfo;
       this.ui
         .find(".titlebar .text")
         .html(a.characterName + " \u88c5\u5907\u680f");
-      for (a = 0; a < z.length; a++) z[a].WearState && K.equip(z[a]);
+      for (a = 0; a < y.length; a++) y[a].WearState && J.equip(y[a]);
     };
     x.ShowOEquip = function (a) {
-      K.append();
-      K.setEquip(a);
-      x.renderOCharacter(V);
+      J.append();
+      J.setEquip(a);
+      x.renderOCharacter(W);
     };
     x.updateInfos = function (a) {
       var b = this.ui
         .find('.item[data-gid\x3d"' + a.GID + '"]')
         .attr("data-index");
-      b && (F[b].makerInfo = a);
+      b && (L[b].makerInfo = a);
     };
     x.getAmount = function () {
-      return Object.keys(F).length;
+      return Object.keys(L).length;
     };
     x.onLevelUp = function () {
       Q.appendTo("body");
     };
-    var W = (function () {
+    var V = (function () {
       var a = 0,
         b = new Float32Array([1, 1, 1, 1]),
         c = new Float32Array(4),
@@ -410,7 +410,7 @@ define(
       return function (e) {
         if (!(e < a + 1e3)) {
           a = e;
-          e = C.Entity;
+          e = D.Entity;
           var f = e.direction,
             g = e.headDir,
             h = e.action,
@@ -429,15 +429,15 @@ define(
               4060 != e._job &&
               4066 != e._job) ||
             x.ui.find(".removeOption_").show();
-          J.direction = 4;
+          H.direction = 4;
           e.direction = 4;
           e.headDir = 0;
           e.action = e.ACTION.IDLE;
           e.animation = d;
           c.set(e.effectColor);
           e.effectColor.set(b);
-          D.bind2DContext(G, 30, 130);
-          G.clearRect(0, 0, G.canvas.width, G.canvas.height);
+          C.bind2DContext(F, 30, 130);
+          F.clearRect(0, 0, F.canvas.width, F.canvas.height);
           e.renderEntity();
           e.direction = f;
           e.headDir = g;
@@ -448,7 +448,7 @@ define(
       };
     })();
     x.setCharacter = function (a) {
-      V = a;
+      W = a;
     };
     x.renderOCharacter = function (a) {
       var b = new Float32Array([1, 1, 1, 1]),
@@ -457,7 +457,7 @@ define(
         e = a.headDir,
         f = a.action,
         g = a.animation;
-      J.direction = 4;
+      H.direction = 4;
       a.direction = 4;
       a.headDir = 0;
       a.action = a.ACTION.IDLE;
@@ -472,8 +472,8 @@ define(
       };
       c.set(a.effectColor);
       a.effectColor.set(b);
-      D.bind2DContext(L, 30, 130);
-      L.clearRect(0, 0, L.canvas.width, L.canvas.height);
+      C.bind2DContext(K, 30, 130);
+      K.clearRect(0, 0, K.canvas.width, K.canvas.height);
       a.renderEntity();
       a.direction = d;
       a.headDir = e;
@@ -485,6 +485,6 @@ define(
     x.onConfigUpdate = function () {};
     x.onEquipItem = function () {};
     x.onRemoveCart = function () {};
-    return y.addComponent(x);
+    return z.addComponent(x);
   },
 );

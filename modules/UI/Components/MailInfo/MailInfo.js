@@ -7,25 +7,25 @@ define(
     function b() {
       var a = new h.CZ.MAIL_GET_ITEM();
       a.MailID = f.ui.attr("data-mailid");
-      m.sendPacket(a);
+      l.sendPacket(a);
     }
     function c() {
       var a = new h.CZ.REQ_MAIL_RETURN();
       a.MailID = f.ui.attr("data-mailid");
       a.ReceiveName = f.ui.find(".content .head span").html();
-      m.sendPacket(a);
+      l.sendPacket(a);
     }
     function d() {
       var a = new h.CZ.MAIL_DELETE();
       a.MailID = f.ui.attr("data-mailid");
-      m.sendPacket(a);
+      l.sendPacket(a);
     }
     var e = a("DB/DBManager"),
-      m = a("Network/NetworkManager"),
+      l = a("Network/NetworkManager"),
       h = a("Network/PacketStructure");
     a("DB/Items/ItemType");
-    var t = a("Utils/jquery"),
-      r = a("Core/Client"),
+    var r = a("Utils/jquery"),
+      t = a("Core/Client"),
       n = a("Core/Preferences");
     a("Renderer/Renderer");
     a("Controls/MouseEventHandler");
@@ -34,9 +34,9 @@ define(
     a("UI/Components/InputBox/InputBox");
     a("UI/Components/ItemInfo/ItemInfo");
     a("UI/Components/ChatBox/ChatBox");
-    var l = a("text!./MailInfo.html");
+    var k = a("text!./MailInfo.html");
     a = a("text!./MailInfo.css");
-    var f = new p("MailInfo", l, a);
+    var f = new p("MailInfo", k, a);
     f.list = [];
     n.get(
       "MailInfo",
@@ -58,7 +58,7 @@ define(
       if (a.ITID) {
         var b = e.getItemInfo(a.ITID),
           c = this.ui.find(".content .bottom");
-        r.loadFile(
+        t.loadFile(
           e.INTERFACE_PATH + "item/" + b.identifiedResourceName + ".bmp",
           function (b) {
             c.append(
@@ -85,7 +85,7 @@ define(
         )
         .empty();
       this.ui.find(".content .bottom .item").remove();
-      t(".ItemInfo").remove();
+      r(".ItemInfo").remove();
     };
     f.remailMail = function () {};
     return g.addComponent(f);

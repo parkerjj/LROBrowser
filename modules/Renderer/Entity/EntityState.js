@@ -32,7 +32,7 @@ define(
     }
     function c(a, b) {
       if (0 !== a) {
-        var c = u[a];
+        var c = v[a];
         void 0 === c
           ? console.log("toggleState: unknown state", a)
           : (this.virtue = b ? this.virtue | c : this.virtue ^ c);
@@ -40,7 +40,7 @@ define(
     }
     function d(a) {
       if (0 === a) return !1;
-      var b = u[a];
+      var b = v[a];
       return void 0 === b
         ? (console.log("toggleState: unknown state", a), !1)
         : 0 !== (this.virtue & b);
@@ -87,7 +87,7 @@ define(
       b.call(this);
       this._virtue = a;
     }
-    function m(a) {
+    function l(a) {
       if (a !== this._bodyState) {
         this._bodyStateColor[0] = 1;
         this._bodyStateColor[1] = 1;
@@ -204,7 +204,7 @@ define(
           ? this._healthState & g.HealthState.SILENCE ||
             (n.playPosition("_silence.wav", this.position),
             this.attachments.add({
-              frame: k.indexes[9],
+              frame: m.indexes[9],
               file: "emotion",
               uid: "status-silence",
               play: !0,
@@ -217,7 +217,7 @@ define(
         (this._healthState = a),
         b.call(this));
     }
-    function t(a) {
+    function r(a) {
       var c = 0;
       this._allRidingState && (c = this.costume);
       this._effectStateColor[0] = 1;
@@ -317,7 +317,7 @@ define(
       this._effectState = a;
       b.call(this);
     }
-    function r(a) {
+    function t(a) {
       var c = 0,
         d =
           g.EffectState.RIDING |
@@ -331,7 +331,7 @@ define(
           g.EffectState.WEDDING |
           g.EffectState.XMAS |
           g.EffectState.SUMMER;
-      !a || this._effectState & d || (this._job in l && (c = l[this._job]));
+      !a || this._effectState & d || (this._job in k && (c = k[this._job]));
       c !== this.costume && ((this.costume = c), (this.job = this._job));
       this._allRidingState = a;
       b.call(this);
@@ -339,39 +339,39 @@ define(
     var n = a("Audio/SoundManager"),
       g = a("DB/Status/StatusState"),
       p = a("DB/Jobs/MountTable"),
-      l = a("DB/Jobs/MountTable2"),
+      k = a("DB/Jobs/MountTable2"),
       f = a("Engine/SessionStorage"),
-      k = a("DB/Emotions"),
+      m = a("DB/Emotions"),
       q = a,
-      u = {};
-    u[g.Status.TWOHANDQUICKEN] = g.OPT3.QUICKEN;
-    u[g.Status.SPEARQUICKEN] = g.OPT3.QUICKEN;
-    u[g.Status.LKCONCENTRATION] = g.OPT3.QUICKEN;
-    u[g.Status.ONEHANDQUICKEN] = g.OPT3.QUICKEN;
-    u[g.Status.EXPLOSIONSPIRITS] = g.OPT3.EXPLOSIONSPIRITS;
-    u[g.Status.STEELBODY] = g.OPT3.STEELBODY;
-    u[g.Status.AURABLADE] = g.OPT3.AURABLADE;
-    u[g.Status.BLADESTOP] = g.OPT3.BLADESTOP;
-    u[g.Status.OVERTHRUST] = g.OPT3.OVERTHRUST;
-    u[g.Status.OVERTHRUSTMAX] = g.OPT3.OVERTHRUST;
-    u[g.Status.SWOO] = g.OPT3.OVERTHRUST;
-    u[g.Status.ENERGYCOAT] = g.OPT3.ENERGYCOAT;
-    u[g.Status.SKE] = g.OPT3.ENERGYCOAT;
-    u[g.Status.BERSERK] = g.OPT3.BERSERK;
-    u[g.Status.MARIONETTE] = g.OPT3.MARIONETTE;
-    u[g.Status.MARIONETTE_MASTER] = g.OPT3.MARIONETTE;
-    u[g.Status.ASSUMPTIO] = g.OPT3.ASSUMPTIO;
-    u[g.Status.ASSUMPTIO2] = g.OPT3.ASSUMPTIO;
-    u[g.Status.SG_WARM] = g.OPT3.WARM;
-    u[g.Status.SG_SUN_WARM] = g.OPT3.WARM;
-    u[g.Status.SG_MOON_WARM] = g.OPT3.WARM;
-    u[g.Status.SG_STAR_WARM] = g.OPT3.WARM;
-    u[g.Status.KAITE] = g.OPT3.KAITE;
-    u[g.Status.NJ_BUNSINJYUTSU] = g.OPT3.BUNSIN;
-    u[g.Status.SOULLINK] = g.OPT3.SOULLINK;
-    u[g.Status.PROPERTYUNDEAD] = g.OPT3.UNDEAD;
-    u[g.Status.DA_CONTRACT] = g.OPT3.CONTRACT;
-    u[g.Status.HALLUCINATIONWALK] = g.OPT3.HALLUCINATIONWALK;
+      v = {};
+    v[g.Status.TWOHANDQUICKEN] = g.OPT3.QUICKEN;
+    v[g.Status.SPEARQUICKEN] = g.OPT3.QUICKEN;
+    v[g.Status.LKCONCENTRATION] = g.OPT3.QUICKEN;
+    v[g.Status.ONEHANDQUICKEN] = g.OPT3.QUICKEN;
+    v[g.Status.EXPLOSIONSPIRITS] = g.OPT3.EXPLOSIONSPIRITS;
+    v[g.Status.STEELBODY] = g.OPT3.STEELBODY;
+    v[g.Status.AURABLADE] = g.OPT3.AURABLADE;
+    v[g.Status.BLADESTOP] = g.OPT3.BLADESTOP;
+    v[g.Status.OVERTHRUST] = g.OPT3.OVERTHRUST;
+    v[g.Status.OVERTHRUSTMAX] = g.OPT3.OVERTHRUST;
+    v[g.Status.SWOO] = g.OPT3.OVERTHRUST;
+    v[g.Status.ENERGYCOAT] = g.OPT3.ENERGYCOAT;
+    v[g.Status.SKE] = g.OPT3.ENERGYCOAT;
+    v[g.Status.BERSERK] = g.OPT3.BERSERK;
+    v[g.Status.MARIONETTE] = g.OPT3.MARIONETTE;
+    v[g.Status.MARIONETTE_MASTER] = g.OPT3.MARIONETTE;
+    v[g.Status.ASSUMPTIO] = g.OPT3.ASSUMPTIO;
+    v[g.Status.ASSUMPTIO2] = g.OPT3.ASSUMPTIO;
+    v[g.Status.SG_WARM] = g.OPT3.WARM;
+    v[g.Status.SG_SUN_WARM] = g.OPT3.WARM;
+    v[g.Status.SG_MOON_WARM] = g.OPT3.WARM;
+    v[g.Status.SG_STAR_WARM] = g.OPT3.WARM;
+    v[g.Status.KAITE] = g.OPT3.KAITE;
+    v[g.Status.NJ_BUNSINJYUTSU] = g.OPT3.BUNSIN;
+    v[g.Status.SOULLINK] = g.OPT3.SOULLINK;
+    v[g.Status.PROPERTYUNDEAD] = g.OPT3.UNDEAD;
+    v[g.Status.DA_CONTRACT] = g.OPT3.CONTRACT;
+    v[g.Status.HALLUCINATIONWALK] = g.OPT3.HALLUCINATIONWALK;
     return function () {
       this._bodyStateColor = new Float32Array([1, 1, 1, 1]);
       this._healthStateColor = new Float32Array([1, 1, 1, 1]);
@@ -383,7 +383,7 @@ define(
         get: function () {
           return this._bodyState;
         },
-        set: m,
+        set: l,
       });
       Object.defineProperty(this, "healthState", {
         get: function () {
@@ -395,13 +395,13 @@ define(
         get: function () {
           return this._effectState;
         },
-        set: t,
+        set: r,
       });
       Object.defineProperty(this, "allRidingState", {
         get: function () {
           return this._allRidingState;
         },
-        set: r,
+        set: t,
       });
       Object.defineProperty(this, "virtue", {
         get: function () {

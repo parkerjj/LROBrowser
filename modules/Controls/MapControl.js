@@ -6,42 +6,42 @@ define(
   function (a) {
     function b(a) {
       a = (a && a.which) || 1;
-      C.moveAction = null;
+      D.moveAction = null;
       if (f.intersect && !f.padOn)
-        switch (((N = Date.now()), a)) {
+        switch (((P = Date.now()), a)) {
           case 1:
-            if (k.SHIFT) {
-              C.Entity.lookTo(f.world.x, f.world.y);
-              a = new J.CZ.CHANGE_DIRECTION();
-              a.headDir = C.Entity.headDir;
-              a.dir = C.Entity.direction;
-              D.sendPacket(a);
+            if (m.SHIFT) {
+              D.Entity.lookTo(f.world.x, f.world.y);
+              a = new H.CZ.CHANGE_DIRECTION();
+              a.headDir = D.Entity.headDir;
+              a.dir = D.Entity.direction;
+              C.sendPacket(a);
               break;
             }
             a = A.getFocusEntity();
             var b = A.getOverEntity(),
-              c = A.get(C.mercGID),
+              c = A.get(D.mercGID),
               d = !1;
             a && a != b && (a.onFocusEnd(), A.setFocusEntity(null));
-            if (k.ALT && c) {
+            if (m.ALT && c) {
               if (
                 b &&
-                b != C.Entity &&
+                b != D.Entity &&
                 b != c &&
                 ((d = (d = d || b.onMouseDown()) || b.onMercFocus()),
                 A.setFocusEntity(b),
                 d)
               )
                 break;
-              a = new J.CZ.REQUEST_MOVENPC();
-              a.GID = C.mercGID;
+              a = new H.CZ.REQUEST_MOVENPC();
+              a.GID = D.mercGID;
               a.dest[0] = f.world.x;
               a.dest[1] = f.world.y;
-              D.sendPacket(a);
+              C.sendPacket(a);
             } else {
               if (
                 b &&
-                b != C.Entity &&
+                b != D.Entity &&
                 ((d = (d = d || b.onMouseDown()) || b.onFocus()),
                 A.setFocusEntity(b),
                 d)
@@ -51,10 +51,10 @@ define(
             }
             break;
           case 3:
-            ((y[0] = f.screen.x),
-              (y[1] = f.screen.y),
+            ((z[0] = f.screen.x),
+              (z[1] = f.screen.y),
               n.setType(n.ACTION.ROTATE),
-              v.rotate(!0));
+              u.rotate(!0));
         }
     }
     function c(a) {
@@ -66,11 +66,11 @@ define(
               b.onMouseUp();
               if ("touchend" == a.type)
                 if (
-                  N + 600 < Date.now() &&
-                  y[0] === f.screen.x &&
-                  y[1] === f.screen.y
+                  P + 600 < Date.now() &&
+                  z[0] === f.screen.x &&
+                  z[1] === f.screen.y
                 ) {
-                  if ((b = A.getOverEntity()) && b !== C.Entity)
+                  if ((b = A.getOverEntity()) && b !== D.Entity)
                     b.onContextMenu();
                   break;
                 } else if (this.onRequestWalk) this.onRequestWalk();
@@ -82,11 +82,11 @@ define(
           case 3:
             if (
               (n.setType(n.ACTION.DEFAULT),
-              v.rotate(!1),
-              y[0] === f.screen.x &&
-                y[1] === f.screen.y &&
+              u.rotate(!1),
+              z[0] === f.screen.x &&
+                z[1] === f.screen.y &&
                 (b = A.getOverEntity()) &&
-                b !== C.Entity)
+                b !== D.Entity)
             )
               b.onContextMenu();
         }
@@ -96,70 +96,70 @@ define(
       a.originalEvent.wheelDelta
         ? ((b = a.originalEvent.wheelDelta / 120), window.opera && (b = -b))
         : a.originalEvent.detail && (b = -a.originalEvent.detail);
-      v.setZoom(b);
+      u.setZoom(b);
     }
     function e(a) {
       a.stopImmediatePropagation();
       return !1;
     }
-    function m(a) {
+    function l(a) {
       var b, c;
       try {
         c = JSON.parse(a.originalEvent.dataTransfer.getData("Text"));
-      } catch (K) {}
+      } catch (J) {}
       a.stopImmediatePropagation();
       if (!c) return !1;
-      c.from && r.getComponent(c.from).ui.trigger("mouseleave");
+      c.from && t.getComponent(c.from).ui.trigger("mouseleave");
       if ("item" !== c.type || "Inventory" !== c.from) return !1;
-      if (l.ui.is(":visible"))
-        return (p.addText(t.getMessage(189), p.TYPE.ERROR), !1);
+      if (k.ui.is(":visible"))
+        return (p.addText(r.getMessage(189), p.TYPE.ERROR), !1);
       b = c.data;
       if (1 < b.count)
         (g.append(),
           g.setType("number", !1, b.count),
           (g.onSubmitRequest = function (a) {
             g.remove();
-            H.onRequestDropItem(b.index, parseInt(a, 10));
+            G.onRequestDropItem(b.index, parseInt(a, 10));
           }));
-      else H.onRequestDropItem(b.index, 1);
+      else G.onRequestDropItem(b.index, 1);
       return !1;
     }
     var h = a("Utils/jquery"),
-      t = a("DB/DBManager"),
-      r = a("UI/UIManager"),
+      r = a("DB/DBManager"),
+      t = a("UI/UIManager"),
       n = a("UI/CursorManager"),
       g = a("UI/Components/InputBox/InputBox"),
       p = a("UI/Components/ChatBox/ChatBox"),
-      l = a("UI/Components/Equipment/Equipment"),
+      k = a("UI/Components/Equipment/Equipment"),
       f = a("Controls/MouseEventHandler"),
-      k = a("Controls/KeyEventHandler"),
+      m = a("Controls/KeyEventHandler"),
       q = a("Core/Mobile"),
-      u = a("Renderer/Renderer"),
-      v = a("Renderer/Camera"),
+      v = a("Renderer/Renderer"),
+      u = a("Renderer/Camera"),
       A = a("Renderer/EntityManager"),
-      C = a("Engine/SessionStorage"),
+      D = a("Engine/SessionStorage"),
       B = a("Preferences/Controls"),
-      J = a("Network/PacketStructure"),
-      D = a("Network/NetworkManager");
+      H = a("Network/PacketStructure"),
+      C = a("Network/NetworkManager");
     a("Controls/ScreenShot");
-    var y = new Int16Array(2),
-      H = {},
-      N = 0;
-    H.onRequestWalk = function () {};
-    H.onRequestStopWalk = function () {};
-    H.onRequestDropItem = function () {};
-    H.init = function () {
+    var z = new Int16Array(2),
+      G = {},
+      P = 0;
+    G.onRequestWalk = function () {};
+    G.onRequestStopWalk = function () {};
+    G.onRequestDropItem = function () {};
+    G.init = function () {
       q.init();
       q.onTouchStart = b.bind(this);
       q.onTouchEnd = c.bind(this);
-      h(u.canvas)
+      h(v.canvas)
         .on("mousewheel DOMMouseScroll", d)
         .on("dragover", e)
-        .on("drop", m.bind(this));
+        .on("drop", l.bind(this));
       h(window)
         .on("mousedown.map", b.bind(this))
         .on("mouseup.map", c.bind(this));
     };
-    return H;
+    return G;
   },
 );

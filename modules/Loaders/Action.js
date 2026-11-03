@@ -38,20 +38,20 @@ define("Loaders/Action", ["Utils/BinaryReader"], function (a) {
     var a = this.fp,
       d,
       b = a.readULong(),
-      m = Array(b);
-    for (d = 0; d < b; ++d) (a.seek(32, SEEK_CUR), (m[d] = this.readLayers()));
-    return m;
+      l = Array(b);
+    for (d = 0; d < b; ++d) (a.seek(32, SEEK_CUR), (l[d] = this.readLayers()));
+    return l;
   };
   b.prototype.readLayers = function () {
     var a = this.fp,
       d = a.readULong(),
       b = Array(d),
-      m,
+      l,
       h = this.version,
-      t,
-      r;
-    for (t = 0; t < d; ++t)
-      ((m = b[t] =
+      r,
+      t;
+    for (r = 0; r < d; ++r)
+      ((l = b[r] =
         {
           pos: [a.readLong(), a.readLong()],
           index: a.readLong(),
@@ -64,23 +64,23 @@ define("Loaders/Action", ["Utils/BinaryReader"], function (a) {
           height: 0,
         }),
         2 <= h &&
-          ((m.color[0] = a.readUByte() / 255),
-          (m.color[1] = a.readUByte() / 255),
-          (m.color[2] = a.readUByte() / 255),
-          (m.color[3] = a.readUByte() / 255),
-          (m.scale[0] = a.readFloat()),
-          (m.scale[1] = 2.3 >= h ? m.scale[0] : a.readFloat()),
-          (m.angle = a.readLong()),
-          (m.spr_type = a.readLong()),
-          2.5 <= h && ((m.width = a.readLong()), (m.height = a.readLong()))));
-    m = 2 <= h ? a.readLong() : -1;
-    r = [];
+          ((l.color[0] = a.readUByte() / 255),
+          (l.color[1] = a.readUByte() / 255),
+          (l.color[2] = a.readUByte() / 255),
+          (l.color[3] = a.readUByte() / 255),
+          (l.scale[0] = a.readFloat()),
+          (l.scale[1] = 2.3 >= h ? l.scale[0] : a.readFloat()),
+          (l.angle = a.readLong()),
+          (l.spr_type = a.readLong()),
+          2.5 <= h && ((l.width = a.readLong()), (l.height = a.readLong()))));
+    l = 2 <= h ? a.readLong() : -1;
+    t = [];
     if (2.3 <= h)
-      for (d = a.readLong(), r.length = d, t = 0; t < d; ++t)
+      for (d = a.readLong(), t.length = d, r = 0; r < d; ++r)
         (a.seek(4, SEEK_CUR),
-          (r[t] = { x: a.readLong(), y: a.readLong() }),
+          (t[r] = { x: a.readLong(), y: a.readLong() }),
           a.seek(4, SEEK_CUR));
-    return { layers: b, sound: m, pos: r };
+    return { layers: b, sound: l, pos: t };
   };
   b.prototype.compile = function () {
     return { actions: this.actions, sounds: this.sounds };

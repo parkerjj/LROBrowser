@@ -15,17 +15,17 @@ define(
     }
     var e = a("Core/Configs");
     a("Engine/SessionStorage");
-    var m = a("Controls/KeyEventHandler"),
+    var l = a("Controls/KeyEventHandler"),
       h = a("Renderer/Renderer"),
-      t = a("UI/UIManager"),
-      r = a("UI/UIComponent"),
+      r = a("UI/UIManager"),
+      t = a("UI/UIComponent"),
       n = a("UI/Components/SoundOption/SoundOption"),
       g = a("UI/Components/GraphicsOption/GraphicsOption"),
       p = a("UI/Components/ShortCutOption/ShortCutOption"),
-      l = a("text!./Escape.html");
+      k = a("text!./Escape.html");
     a = a("text!./Escape.css");
-    var f = new r("Escape", l, a),
-      k = e.get("ClientVer");
+    var f = new t("Escape", k, a),
+      m = e.get("ClientVer");
     f.init = function () {
       this.draggable(this.ui.find(".top"));
       this.ui.find(".node").mousedown(function (a) {
@@ -58,7 +58,7 @@ define(
         localStorage.setItem("gid", gid);
         localStorage.setItem("rolename", rolename);
         localStorage.setItem("account", account);
-        window.open("http://game.lastro.cn/?r\x3dpay/index\x26nid\x3d" + k);
+        window.open("http://game.lastro.cn/?r\x3dpay/index\x26nid\x3d" + m);
       });
     };
     f.onAppend = function () {
@@ -76,7 +76,7 @@ define(
       this.ui.find(".setting, .hotkey, .setoffline, .charselect").show();
     };
     f.onKeyDown = function (a) {
-      return a.which === m.ESCAPE
+      return a.which === l.ESCAPE
         ? (this.ui.toggle(),
           this.ui.is(":visible") && this.focus(),
           a.stopImmediatePropagation(),
@@ -90,6 +90,6 @@ define(
     f.onCharSelectionRequest = function () {};
     f.onBackhomeRequest = function () {};
     f.onSetofflineRequest = function () {};
-    return t.addComponent(f);
+    return r.addComponent(f);
   },
 );

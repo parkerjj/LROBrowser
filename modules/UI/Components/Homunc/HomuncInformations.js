@@ -5,8 +5,8 @@ define(
   ),
   function (a) {
     function b() {
-      var a = l.ui.find(".name");
-      l.reqNameEdit(a.val());
+      var a = k.ui.find(".name");
+      k.reqNameEdit(a.val());
     }
     function c(a) {
       var b, c, d, e;
@@ -22,43 +22,43 @@ define(
       return b + c + d + e;
     }
     function d() {
-      l.ui.hide();
+      k.ui.hide();
     }
     var e = a("DB/DBManager"),
-      m = a("Core/Preferences"),
+      l = a("Core/Preferences"),
       h = a("Engine/SessionStorage"),
-      t = a("Renderer/EntityManager"),
-      r = a("UI/UIManager"),
+      r = a("Renderer/EntityManager"),
+      t = a("UI/UIManager"),
       n = a("UI/UIComponent"),
       g = a("UI/Components/Homunc/HomuncskillList"),
       p = a("text!./HomuncInformations.html");
     a = a("text!./HomuncInformations.css");
-    var l = new n("HomuncInformations", p, a);
-    m.get("HomuncInformations", { x: 100, y: 200, show: !1 }, 1);
-    l.init = function () {
+    var k = new n("HomuncInformations", p, a);
+    l.get("HomuncInformations", { x: 100, y: 200, show: !1 }, 1);
+    k.init = function () {
       this.draggable(this.ui.find(".titlebar"));
       this.ui.find(".close").click(d);
       this.ui.find(".modify").click(b);
-      this.ui.find(".fired").click(l.reqFired);
-      this.ui.find(".feed").click(l.reqPetFeed);
+      this.ui.find(".fired").click(k.reqFired);
+      this.ui.find(".feed").click(k.reqPetFeed);
       this.ui.find(".skill").click(function () {
         g.ui.toggle();
         g.focus();
       });
       this.ui.hide();
     };
-    l.onRemove = function () {
+    k.onRemove = function () {
       h.homGID = null;
-      l.info = null;
+      k.info = null;
     };
-    l.onShortCut = function (a) {
+    k.onShortCut = function (a) {
       if (this.ui)
         switch (a.cmd) {
           case "TOGGLE":
             (this.ui.toggle(), this.ui.is(":visible") && this.focus());
         }
     };
-    l.update = function (a, b) {
+    k.update = function (a, b) {
       if (this.ui)
         switch (a) {
           case "aspd":
@@ -71,13 +71,13 @@ define(
             this.ui.find("." + a).text(b);
         }
     };
-    l.initData = function (a) {
-      var b = t.get(a.GID);
+    k.initData = function (a) {
+      var b = r.get(a.GID);
       if (b)
         switch (a.state) {
           case 0:
             h.homGID = a.GID;
-            h.homGID && l.append();
+            h.homGID && k.append();
             break;
           case 1:
             this.ui
@@ -105,11 +105,11 @@ define(
             this.ui.find(".accessory").text(e.getMessage(a.data ? 598 : 600));
         }
     };
-    l.setInformations = function (a) {
-      var b = t.get(h.homGID);
+    k.setInformations = function (a) {
+      var b = r.get(h.homGID);
       b &&
         (a &&
-          ((l.info = a),
+          ((k.info = a),
           this.ui.find(".atak").text(a.atk),
           this.ui.find(".matak").text(a.Matk),
           this.ui.find(".hit").text(a.Matk),
@@ -166,11 +166,11 @@ define(
         -1 < b.life.hp &&
           -1 < b.life.hp_max &&
           (b.life.update(), (b.life.display = !0)),
-        l.WalkEnd());
+        k.WalkEnd());
     };
-    l.resetHom = function () {
-      var a = t.get(h.homGID),
-        b = l.info;
+    k.resetHom = function () {
+      var a = r.get(h.homGID),
+        b = k.info;
       a &&
         ((a.attack_range = b.ATKRange),
         (a.life.hp = b.hp),
@@ -180,12 +180,12 @@ define(
         -1 < a.life.hp &&
           -1 < a.life.hp_max &&
           (a.life.update(), (a.life.display = !0)),
-        l.WalkEnd());
+        k.WalkEnd());
     };
-    l.reqNameEdit = function () {};
-    l.reqFired = function () {};
-    l.reqPetFeed = function () {};
-    l.WalkEnd = function () {};
-    return r.addComponent(l);
+    k.reqNameEdit = function () {};
+    k.reqFired = function () {};
+    k.reqPetFeed = function () {};
+    k.WalkEnd = function () {};
+    return t.addComponent(k);
   },
 );

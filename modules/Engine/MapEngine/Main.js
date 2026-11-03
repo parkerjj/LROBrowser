@@ -32,11 +32,11 @@ define(
             "\u5df2\u5173\u95ed\u81ea\u52a8\u6218\u6597" == a.msg ||
             "@autoattack \u6267\u884c\u5931\u8d25" == a.msg
           )
-            P.autoattack = !1;
+            O.autoattack = !1;
           "[ \u79ef\u5206 ]" == a.msg
-            ? xa.setType_(1)
+            ? wa.setType_(1)
             : "[ \u5546\u57ce ]" == a.msg
-              ? xa.setType_(2)
+              ? wa.setType_(2)
               : a.msg == "[ " + ha.Entity.GID + "\u5145\u503c ]"
                 ? ((a = navigator.userAgent.toLowerCase()),
                   /micromessenger/.test(a)
@@ -63,13 +63,13 @@ define(
       var b = qa.get(a.targetAID);
       b && b.dialog.set(a.msg);
     }
-    function m(a) {
+    function l(a) {
       if ((a = qa.get(a.targetAID))) a.onFocus();
     }
     function h(a) {
       ha.Entity.attack_range = a.currentAttRange;
     }
-    function t(a) {
+    function r(a) {
       aa.update("str", a.str);
       aa.update("agi", a.agi);
       aa.update("vit", a.vit);
@@ -97,7 +97,7 @@ define(
       aa.update("mdef2", a.plusmdefPower);
       aa.update("statuspoint", a.point);
     }
-    function r(a) {
+    function t(a) {
       if (a.result)
         switch (a.statusID) {
           case ga.STR:
@@ -421,7 +421,7 @@ define(
       a = a.msg.replace(/<[^>]*>/g, "");
       sa.set(a, b);
     }
-    function l(a) {
+    function k(a) {
       var b = oa.getItemInfo(a.itemID);
       a =
         0 < a.status
@@ -447,7 +447,7 @@ define(
     function f(a) {
       Y.addText(oa.getMessage(178).replace("%d", a.count), Y.TYPE.INFO);
     }
-    function k(a) {
+    function m(a) {
       switch (a.Config) {
         case 0:
           (ma.setEquipConfig(a.Value),
@@ -469,14 +469,14 @@ define(
           Y.addText(oa.getMessage(245), Y.TYPE.BLUE);
       }
     }
-    function u(a) {
+    function v(a) {
       Y.addText(oa.getMessage(a.msg), Y.TYPE.PUBLIC);
     }
-    function v(a) {
+    function u(a) {
       switch (a.varID) {
         case ga.HP:
           ca.add(a.amount, ha.Entity, w.tick, null, ca.TYPE.HEAL);
-          var b = { effectId: la.EF_HPTIME, ownerAID: ha.Entity.GID };
+          var b = { effectId: ka.EF_HPTIME, ownerAID: ha.Entity.GID };
           pa.spam(b);
           ha.Entity.life.hp += a.amount;
           ha.Entity.life.update();
@@ -485,7 +485,7 @@ define(
           break;
         case ga.SP:
           (ca.add(a.amount, ha.Entity, w.tick, null, ca.TYPE.HEAL | ca.TYPE.SP),
-            (b = { effectId: la.EF_SPTIME, ownerAID: ha.Entity.GID }),
+            (b = { effectId: ka.EF_SPTIME, ownerAID: ha.Entity.GID }),
             pa.spam(b),
             (ha.Entity.life.sp += a.amount),
             ha.Entity.life.update(),
@@ -494,9 +494,9 @@ define(
       }
     }
     function A(a) {
-      na.addItem(ka.extend({}, a));
+      na.addItem(la.extend({}, a));
     }
-    function C(a) {
+    function D(a) {
       na.removeItem(a.index, a.count);
     }
     function B(a) {
@@ -524,7 +524,7 @@ define(
       Y.addText("MyPoint   " + a.myPoint + " \u70b9", Y.TYPE.SELF);
       Y.addText("-----------------------------------", Y.TYPE.SELF);
     }
-    function J(a) {
+    function H(a) {
       Y.addText(
         "\u592a\u62f3\u4efb\u52a1\uff1a\u51fb\u6740" +
           a.mapName +
@@ -536,7 +536,7 @@ define(
         Y.TYPE.SELF,
       );
     }
-    function D(a) {
+    function C(a) {
       if (0 == a.DestroyDate && a.EnterTimeOutDate) {
         var b, c, d, e, f;
         b = new Date(1e3 * a.EnterTimeOutDate);
@@ -586,7 +586,7 @@ define(
           Y.TYPE.SELF,
         ));
     }
-    function y(a) {
+    function z(a) {
       for (
         var b = ha.AID.toString().slice(-4),
           c = a.pincode,
@@ -609,13 +609,13 @@ define(
       d.pinCode = b;
       X.sendPacket(d);
     }
-    function H(a) {
+    function G(a) {
       Aa.setloadInfo(a);
     }
-    function N(a) {
+    function P(a) {
       Aa.setReloadInfo(a);
     }
-    function O(a) {
+    function N(a) {
       Aa.setTarget(a);
     }
     function I(a) {
@@ -733,23 +733,23 @@ define(
       0 < e && (c = c + e + "\u79d2");
       return c;
     }
-    function K(a) {
+    function J(a) {
       switch (a.ui_type) {
         case 7:
-          ya.setData(a.data);
+          xa.setData(a.data);
       }
     }
     function E(a) {
-      ya.getreward(a.data);
+      xa.getreward(a.data);
+    }
+    function L(a) {
+      ya.append();
+      ya.toggle();
+    }
+    function y(a) {
+      ya.setData(a);
     }
     function F(a) {
-      wa.append();
-      wa.toggle();
-    }
-    function z(a) {
-      wa.setData(a);
-    }
-    function G(a) {
       switch (a.response) {
         case 2:
           va.setMsg(
@@ -774,7 +774,7 @@ define(
             Y.addText("\u672a\u77e5\u5730\u56fe", Y.TYPE.SELF));
       }
     }
-    function L(a) {
+    function K(a) {
       za.rechargeList(a);
     }
     function M(a) {
@@ -783,10 +783,10 @@ define(
     function Q(a) {
       za.setActivate(a);
     }
-    function V(a) {
+    function W(a) {
       za.setEnable(a);
     }
-    function W(a) {
+    function V(a) {
       za.removeCard(a);
     }
     function ba(a) {
@@ -799,11 +799,11 @@ define(
       X.sendPacket(a);
     }
     function T(a) {
-      Ha.append();
-      Ha.setData(a.ITID);
+      Ia.append();
+      Ia.setData(a.ITID);
     }
     function da(a) {
-      Ha.remove();
+      Ia.remove();
     }
     function R(a) {
       Ca.append();
@@ -824,18 +824,18 @@ define(
       }
     }
     function ea(a) {
-      Ea.append();
-      Ea.setData(a.ITID);
+      Da.append();
+      Da.setData(a.ITID);
     }
     function ta(a) {
       a = new Z.CZ.RANDOM_UPGRADE_ITEM_UI_CLOSE();
       X.sendPacket(a);
-      Ea.remove();
+      Da.remove();
     }
     var oa = a("DB/DBManager"),
-      ka = a("Utils/jquery"),
+      la = a("Utils/jquery"),
       ga = a("DB/Status/StatusProperty"),
-      la = a("DB/Effects/EffectConst"),
+      ka = a("DB/Effects/EffectConst"),
       ha = a("Engine/SessionStorage"),
       X = a("Network/NetworkManager"),
       Z = a("Network/PacketStructure"),
@@ -843,7 +843,7 @@ define(
       pa = a("Renderer/EffectManager"),
       w = a("Renderer/Renderer"),
       ca = a("Renderer/Effects/Damage"),
-      P = a("Preferences/Controls");
+      O = a("Preferences/Controls");
     a("UI/UIManager");
     var Y = a("UI/Components/ChatBox/ChatBox"),
       ra = a("UI/Components/ChatRoom/ChatRoom"),
@@ -854,27 +854,27 @@ define(
       ja = a("UI/Components/SkillList/SkillList"),
       ia = a("UI/Components/PartyFriends/PartyFriends"),
       na = a("UI/Components/OnPushCart/OnPushCart"),
-      xa = a("UI/Components/NpcStore/NpcStore"),
+      wa = a("UI/Components/NpcStore/NpcStore"),
       ua = a("UI/Components/Mercenary/MercenaryInformations"),
       Ba = a("UI/Components/MiniMap/MiniMap"),
       Aa = a("UI/Components/vbk/vbk"),
-      ya = a("UI/Components/Attendance/Attendance"),
-      wa = a("UI/Components/RefineUI/RefineUI"),
+      xa = a("UI/Components/Attendance/Attendance"),
+      ya = a("UI/Components/RefineUI/RefineUI"),
       za = a("UI/Components/CardConnection/CardConnection2");
     a("UI/Components/PartyBooking/PartyBooking");
     var Ka = a("UI/Components/StatusIcons/StatusIcons"),
       va = a("UI/Components/ItemObtain/ItemObtain"),
-      Ha = a("UI/Components/ItemReform/ItemReform"),
+      Ia = a("UI/Components/ItemReform/ItemReform"),
       Ca = a("UI/Components/LaphineSynthesis/LaphineSynthesis"),
-      Ea = a("UI/Components/LaphineUpgrade/LaphineUpgrade");
+      Da = a("UI/Components/LaphineUpgrade/LaphineUpgrade");
     return function () {
       X.hookPacket(Z.ZC.ACK_RANKING, B);
-      X.hookPacket(Z.ZC.STARSKILL, J);
+      X.hookPacket(Z.ZC.STARSKILL, H);
       X.hookPacket(Z.ZC.ADD_ITEM_TO_CART, A);
       X.hookPacket(Z.ZC.ADD_ITEM_TO_CART2, A);
       X.hookPacket(Z.ZC.ADD_ITEM_TO_CART3, A);
       X.hookPacket(Z.ZC.ADD_ITEM_TO_CART4, A);
-      X.hookPacket(Z.ZC.DELETE_ITEM_FROM_CART, C);
+      X.hookPacket(Z.ZC.DELETE_ITEM_FROM_CART, D);
       X.hookPacket(Z.ZC.NOTIFY_PLAYERMOVE, b);
       X.hookPacket(Z.ZC.PAR_CHANGE, n);
       X.hookPacket(Z.ZC.LONGPAR_CHANGE, n);
@@ -884,39 +884,39 @@ define(
       X.hookPacket(Z.ZC.COUPLESTATUS, n);
       X.hookPacket(Z.ZC.UPDATE_EXP, n);
       X.hookPacket(Z.ZC.NOTIFY_EXP, n);
-      X.hookPacket(Z.ZC.STATUS, t);
-      X.hookPacket(Z.ZC.STATUS_CHANGE_ACK, r);
+      X.hookPacket(Z.ZC.STATUS, r);
+      X.hookPacket(Z.ZC.STATUS_CHANGE_ACK, t);
       X.hookPacket(Z.ZC.ATTACK_RANGE, h);
       X.hookPacket(Z.ZC.BROADCAST, p);
       X.hookPacket(Z.ZC.BROADCAST2, p);
-      X.hookPacket(Z.ZC.BROADCAST_ITEMREFINING_RESULT, l);
+      X.hookPacket(Z.ZC.BROADCAST_ITEMREFINING_RESULT, k);
       X.hookPacket(Z.ZC.USER_COUNT, f);
       X.hookPacket(Z.ZC.NOTIFY_PLAYERCHAT, c);
       X.hookPacket(Z.ZC.MSG_VALUE, d);
       X.hookPacket(Z.ZC.SHOWSCRIPT, e);
-      X.hookPacket(Z.ZC.ATTACK_FAILURE_FOR_DISTANCE, m);
-      X.hookPacket(Z.ZC.CONFIG, k);
+      X.hookPacket(Z.ZC.ATTACK_FAILURE_FOR_DISTANCE, l);
+      X.hookPacket(Z.ZC.CONFIG, m);
       X.hookPacket(Z.ZC.ACTION_FAILURE, q);
-      X.hookPacket(Z.ZC.MSG, u);
-      X.hookPacket(Z.ZC.MSG_COLOR, u);
-      X.hookPacket(Z.ZC.RECOVERY, v);
-      X.hookPacket(Z.ZC.RECOVERY2, v);
-      X.hookPacket(Z.ZC.MEMORIALDUNGEON_INFO, D);
-      X.hookPacket(Z.ZC.SECOND_CHECK, y);
-      X.hookPacket(Z.ZC.NOTIFY_LOADINFO, H);
+      X.hookPacket(Z.ZC.MSG, v);
+      X.hookPacket(Z.ZC.MSG_COLOR, v);
+      X.hookPacket(Z.ZC.RECOVERY, u);
+      X.hookPacket(Z.ZC.RECOVERY2, u);
+      X.hookPacket(Z.ZC.MEMORIALDUNGEON_INFO, C);
+      X.hookPacket(Z.ZC.SECOND_CHECK, z);
+      X.hookPacket(Z.ZC.NOTIFY_LOADINFO, G);
       X.hookPacket(Z.ZC.NOTIFY_OFFLINEMSG, I);
-      X.hookPacket(Z.ZC.NOTIFY_RELOADINFOS, N);
-      X.hookPacket(Z.ZC.NOTIFY_SETTARGET, O);
-      X.hookPacket(Z.ZC.UI_OPEN, K);
+      X.hookPacket(Z.ZC.NOTIFY_RELOADINFOS, P);
+      X.hookPacket(Z.ZC.NOTIFY_SETTARGET, N);
+      X.hookPacket(Z.ZC.UI_OPEN, J);
       X.hookPacket(Z.ZC.NOTIFY_ATTENDANCE, E);
-      X.hookPacket(Z.ZC.REFINE_OPEN_WINDOW, F);
-      X.hookPacket(Z.ZC.REFINE_ADD_ITEM, z);
-      X.hookPacket(Z.ZC.PRIVATE_AIRSHIP_RESPONSE, G);
-      X.hookPacket(Z.ZC.CARDCONNECTION_RECHARGE_LIST, L);
+      X.hookPacket(Z.ZC.REFINE_OPEN_WINDOW, L);
+      X.hookPacket(Z.ZC.REFINE_ADD_ITEM, y);
+      X.hookPacket(Z.ZC.PRIVATE_AIRSHIP_RESPONSE, F);
+      X.hookPacket(Z.ZC.CARDCONNECTION_RECHARGE_LIST, K);
       X.hookPacket(Z.ZC.CARDCONNECTION_RECHARGE_UPDATE, M);
       X.hookPacket(Z.ZC.CARDCONNECTION_ACTIVATE_UPDATE, Q);
-      X.hookPacket(Z.ZC.CARDCONNECTION_ENABLE_UPDATE, V);
-      X.hookPacket(Z.ZC.CARDCONNECTION_CANCEL_UPDATE, W);
+      X.hookPacket(Z.ZC.CARDCONNECTION_ENABLE_UPDATE, W);
+      X.hookPacket(Z.ZC.CARDCONNECTION_CANCEL_UPDATE, V);
       X.hookPacket(Z.ZC.GOLDPCCAFE_POINT, ba);
       X.hookPacket(Z.ZC.DYNAMICNPC_CREATE_RESULT, S);
       X.hookPacket(Z.ZC.OPEN_REFORM_UI, T);

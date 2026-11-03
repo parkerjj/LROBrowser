@@ -9,31 +9,31 @@ define("Renderer/Effects/QuadHorn", [
     this.blendMode = a.blendMode || 1;
     this.height =
       (a.height && a.height instanceof Array
-        ? l(a.height[0], a.height[1])
+        ? k(a.height[0], a.height[1])
         : a.height) || 0;
     this.rotateY =
       (a.rotateY && a.rotateY instanceof Array
-        ? l(a.rotateY[0], a.rotateY[1])
+        ? k(a.rotateY[0], a.rotateY[1])
         : a.rotateY) || 0;
     this.rotateZ =
       (a.rotateZ && a.rotateZ instanceof Array
-        ? l(a.rotateZ[0], a.rotateZ[1])
+        ? k(a.rotateZ[0], a.rotateZ[1])
         : a.rotateZ) || 0;
     this.offsetX =
       (a.offsetX && a.offsetX instanceof Array
-        ? l(a.offsetX[0], a.offsetX[1])
+        ? k(a.offsetX[0], a.offsetX[1])
         : a.offsetX) || 0.5;
     this.offsetY =
       (a.offsetY && a.offsetY instanceof Array
-        ? l(a.offsetY[0], a.offsetY[1])
+        ? k(a.offsetY[0], a.offsetY[1])
         : a.offsetY) || 0.5;
     this.offsetZ =
       (a.offsetZ && a.offsetZ instanceof Array
-        ? l(a.offsetZ[0], a.offsetZ[1])
+        ? k(a.offsetZ[0], a.offsetZ[1])
         : a.offsetZ) || 0.5;
     this.bottomSize =
       (a.bottomSize && a.bottomSize instanceof Array
-        ? l(a.bottomSize[0], a.bottomSize[1])
+        ? k(a.bottomSize[0], a.bottomSize[1])
         : a.bottomSize) || 0;
     this.color = a.color || [1, 1, 1, 1];
     this.animation = a.animation || 0;
@@ -44,11 +44,11 @@ define("Renderer/Effects/QuadHorn", [
     this.endTick = b.endTick;
     this._endAnimation = 0 < a.animation ? !1 : !0;
   }
-  var m,
+  var l,
     h,
-    t,
-    r = c.mat4;
-  r.create();
+    r,
+    t = c.mat4;
+  t.create();
   var n = {},
     g = [
       0, 1, 0, -1, -1, 1, 1, -1, 1, 0, 1, 0, 1, -1, 1, 1, -1, -1, 0, 1, 0, 1,
@@ -57,11 +57,11 @@ define("Renderer/Effects/QuadHorn", [
     p = [
       0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0,
     ],
-    l = function (a, b) {
+    k = function (a, b) {
       return parseFloat(Math.min(a + Math.random() * (b - a), b).toFixed(3));
     },
-    f = r.create(),
-    k = r.create();
+    f = t.create(),
+    m = t.create();
   e.prototype.init = function (b) {
     var c = this;
     d.loadFile("data/texture/" + this.textureFile, function (d) {
@@ -75,8 +75,8 @@ define("Renderer/Effects/QuadHorn", [
     this.ready = !1;
   };
   e.prototype.render = function (a, b) {
-    var c = m.uniform,
-      d = m.attribute,
+    var c = l.uniform,
+      d = l.attribute,
       e = (b - this.startTick) / 1e3,
       g = (b - this.endTick) / 1e3;
     a.bindTexture(a.TEXTURE_2D, this.texture);
@@ -118,7 +118,7 @@ define("Renderer/Effects/QuadHorn", [
     a.bindBuffer(a.ARRAY_BUFFER, h);
     a.vertexAttribPointer(d.aPosition, 3, a.FLOAT, !1, 0, 0);
     a.bindBuffer(a.ARRAY_BUFFER, null);
-    a.bindBuffer(a.ARRAY_BUFFER, t);
+    a.bindBuffer(a.ARRAY_BUFFER, r);
     a.vertexAttribPointer(d.aTextureCoord, 2, a.FLOAT, !1, 0, 0);
     a.bindBuffer(a.ARRAY_BUFFER, null);
     a.uniform3fv(c.uPosition, this.position);
@@ -126,17 +126,17 @@ define("Renderer/Effects/QuadHorn", [
     a.uniform1f(c.uOffsetX, this.offsetX);
     a.uniform1f(c.uOffsetY, this.offsetY);
     a.uniform4fv(c.uColor, this.color);
-    r.identity(k);
-    r.rotate(k, k, (this.rotateY * Math.PI) / 180, [0, 1, 0]);
-    a.uniformMatrix4fv(c.uYRotationMat, !1, k);
-    r.identity(f);
-    r.rotate(f, f, ((180 + this.rotateZ) * Math.PI) / 180, [0, 0, 1]);
+    t.identity(m);
+    t.rotate(m, m, (this.rotateY * Math.PI) / 180, [0, 1, 0]);
+    a.uniformMatrix4fv(c.uYRotationMat, !1, m);
+    t.identity(f);
+    t.rotate(f, f, ((180 + this.rotateZ) * Math.PI) / 180, [0, 0, 1]);
     a.uniformMatrix4fv(c.uZRotationMat, !1, f);
     a.drawArrays(a.TRIANGLES, 0, 12);
     a.flush();
   };
   e.init = function (b) {
-    m = a.createShaderProgram(
+    l = a.createShaderProgram(
       b,
       "\n        #version 100\n        #pragma vscode_glsllint_stage : vert\n        precision highp float;\n\n\t\tattribute vec3 aPosition;\n\t\tattribute vec2 aTextureCoord;\n\t\tvarying vec2 vTextureCoord;\n\n        uniform vec3 uPosition;\n\t\tuniform float uHeight;\n\t\tuniform float uBottomSize;\n\t\tuniform float uOffsetX;\n\t\tuniform float uOffsetY;\n\t\tuniform float uOffsetZ;\n\n\t\tuniform mat4 uModelViewMat;\n\t\tuniform mat4 uProjectionMat;\n\t\tuniform mat4 uYRotationMat;\n\t\tuniform mat4 uZRotationMat;\n\t\tvoid main(void) {\n\t\t\tvec4 position       \x3d vec4(uPosition.x + uOffsetX, -uPosition.z - ((uHeight * 0.9) + uOffsetZ), uPosition.y + uOffsetY, 1.0);\n\t\t\tposition            +\x3d vec4(aPosition.x * uBottomSize, aPosition.y * uHeight, aPosition.z * uBottomSize, 0.0) * uYRotationMat * uZRotationMat;\n            gl_Position         \x3d uProjectionMat * uModelViewMat * position;\n\n            vTextureCoord \x3d aTextureCoord;\n\t\t}\n\t",
       "\n        #version 100\n        #pragma vscode_glsllint_stage : frag\n        precision highp float;\n\n\t\tvarying vec2 vTextureCoord;\n        uniform vec4 uColor;\n\t\tuniform sampler2D uDiffuse;\n\t\tuniform bool  uFogUse;\n\t\tuniform float uFogNear;\n\t\tuniform float uFogFar;\n\t\tuniform vec3  uFogColor;\n\t\t\n\t\tvoid main(void) {\n\t\t\t\n\t\t\tvec4 texture \x3d texture2D( uDiffuse,  vTextureCoord.st );\n\t\t\t\n\t\t\tif (texture.a \x3d\x3d 0.0 ) { discard; }\n            if (texture.r \x3c 0.01 \x26\x26 texture.g \x3c 0.01 \x26\x26 texture.b \x3c 0.01) {\n                discard;\n             }\n\t\t\t\n\t\t\tgl_FragColor \x3d texture * uColor;\n\n\t\t\tif (uFogUse) {\n\t\t\t\tfloat depth     \x3d gl_FragCoord.z / gl_FragCoord.w;\n\t\t\t\tfloat fogFactor \x3d smoothstep( uFogNear, uFogFar, depth );\n\t\t\t\tgl_FragColor    \x3d mix( gl_FragColor, vec4( uFogColor, gl_FragColor.w ), fogFactor );\n\t\t\t}\n\t\t}\n\t",
@@ -159,21 +159,21 @@ define("Renderer/Effects/QuadHorn", [
     h = b.createBuffer();
     b.bindBuffer(b.ARRAY_BUFFER, h);
     b.bufferData(b.ARRAY_BUFFER, new Float32Array(g), b.STATIC_DRAW);
-    t = b.createBuffer();
-    b.bindBuffer(b.ARRAY_BUFFER, t);
+    r = b.createBuffer();
+    b.bindBuffer(b.ARRAY_BUFFER, r);
     b.bufferData(b.ARRAY_BUFFER, new Float32Array(p), b.STATIC_DRAW);
     this.ready = !0;
     this.renderBeforeEntities = !1;
   };
   e.free = function (a) {
-    m && (a.deleteProgram(m), (m = null));
+    l && (a.deleteProgram(l), (l = null));
     h && a.deleteBuffer(h);
-    t && a.deleteBuffer(t);
+    r && a.deleteBuffer(r);
     this.ready = !1;
   };
   e.beforeRender = function (a, b, c, d, e) {
-    e = m.uniform;
-    a.useProgram(m);
+    e = l.uniform;
+    a.useProgram(l);
     a.uniformMatrix4fv(e.uModelViewMat, !1, b);
     a.uniformMatrix4fv(e.uProjectionMat, !1, c);
     a.uniform1i(e.uFogUse, d.use && d.exist);
@@ -184,9 +184,9 @@ define("Renderer/Effects/QuadHorn", [
     a.uniform1i(e.uDiffuse, 0);
   };
   e.afterRender = function (a) {
-    a.disableVertexAttribArray(m.attribute.aPosition);
-    a.disableVertexAttribArray(m.attribute.aTextureCoord);
-    a.disableVertexAttribArray(m.attribute.aColor);
+    a.disableVertexAttribArray(l.attribute.aPosition);
+    a.disableVertexAttribArray(l.attribute.aTextureCoord);
+    a.disableVertexAttribArray(l.attribute.aColor);
     a.blendFunc(a.SRC_ALPHA, a.ONE_MINUS_SRC_ALPHA);
   };
   return e;

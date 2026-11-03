@@ -5,16 +5,16 @@ define(
   ),
   function (a) {
     function b() {
-      J.removeComponents();
-      H.append();
-      v.close();
+      H.removeComponents();
+      G.append();
+      u.close();
     }
     function c(a, b) {
-      l.play("\u00b9\u00f6\u00c6\u00b0\u00bc\u00d2\u00b8\u00ae.wav");
-      H.remove();
-      O.append();
-      K = a;
-      v.connect(I.address, I.port, function (c) {
+      k.play("\u00b9\u00f6\u00c6\u00b0\u00bc\u00d2\u00b8\u00ae.wav");
+      G.remove();
+      N.append();
+      J = a;
+      u.connect(I.address, I.port, function (c) {
         if (c) {
           account = a;
           var d;
@@ -29,13 +29,13 @@ define(
           }
           d = new A.CA.EXE_HASHCHECK();
           d.HashValue = c;
-          v.sendPacket(d);
+          u.sendPacket(d);
           d = new A.CA.LOGIN();
           d.ID = a;
           d.Passwd = b;
           d.Version = parseInt(I.version, 10);
           d.clienttype = parseInt(I.langtype, 10);
-          v.sendPacket(d);
+          u.sendPacket(d);
           c = jQuery("#_csrf").val();
           d = f.get("ClientVer");
           var k;
@@ -67,24 +67,24 @@ define(
             data: k,
             success: function (a) {},
           });
-        } else J.showErrorBox(g.getMessage(1));
+        } else H.showErrorBox(g.getMessage(1));
       });
     }
     function d() {
-      N("Engine/GameEngine").reload();
+      P("Engine/GameEngine").reload();
     }
     function e(a) {
-      l.play("\u00b9\u00f6\u00c6\u00b0\u00bc\u00d2\u00b8\u00ae.wav");
-      D.remove();
-      O.append();
-      u.onExitRequest = b;
-      u.init(x[a]);
+      k.play("\u00b9\u00f6\u00c6\u00b0\u00bc\u00d2\u00b8\u00ae.wav");
+      C.remove();
+      N.append();
+      v.onExitRequest = b;
+      v.init(x[a]);
     }
-    function m(a) {
-      l.play("\u00b9\u00f6\u00c6\u00b0\u00bc\u00d2\u00b8\u00ae.wav");
-      D.remove();
-      O.append();
-      u.onExitRequest = b;
+    function l(a) {
+      k.play("\u00b9\u00f6\u00c6\u00b0\u00bc\u00d2\u00b8\u00ae.wav");
+      C.remove();
+      N.append();
+      v.onExitRequest = b;
       var c = x[0];
       switch (a) {
         case "zgv4":
@@ -93,10 +93,10 @@ define(
         case "avv6":
           c.port = 24323;
       }
-      u.init(c);
+      v.init(c);
     }
     function h(a) {
-      J.removeComponents();
+      H.removeComponents();
       q.AuthCode = a.AuthCode;
       q.AuthToken = a.AuthToken;
       q.AID = a.AID;
@@ -112,26 +112,26 @@ define(
             ? g.getMessage(484)
             : " " + g.getMessage(483).replace("%d", x[a].usercount)));
       1 === c
-        ? (O.append(), (u.onExitRequest = b), u.init(x[0]))
-        : (O.remove(),
-          D.append(),
-          D.ui.find("h1").text("\u6570\u636e\u4e92\u901a\u7ebf\u8def"),
-          (D.onIndexSelected = e),
-          (D.onInterCode = m),
-          (D.onExitRequest = function () {
-            v.close();
-            J.removeComponents();
-            D.remove();
-            H.append();
+        ? (N.append(), (v.onExitRequest = b), v.init(x[0]))
+        : (N.remove(),
+          C.append(),
+          C.ui.find("h1").text("\u6570\u636e\u4e92\u901a\u7ebf\u8def"),
+          (C.onIndexSelected = e),
+          (C.onInterCode = l),
+          (C.onExitRequest = function () {
+            u.close();
+            H.removeComponents();
+            C.remove();
+            G.append();
           }),
-          D.setList(x, 1));
+          C.setList(x, 1));
       var f = new A.CA.CONNECT_INFO_CHANGED();
-      f.ID = K;
-      v.setPing(function () {
-        v.sendPacket(f);
+      f.ID = J;
+      u.setPing(function () {
+        u.sendPacket(f);
       });
     }
-    function t(a) {
+    function r(a) {
       var b = 9;
       switch (a.ErrorCode) {
         case 0:
@@ -200,17 +200,17 @@ define(
         case 104:
           b = 860;
       }
-      J.showMessageBox(
+      H.showMessageBox(
         g.getMessage(b).replace("%s", a.blockDate),
         "ok",
         function () {
-          J.removeComponents();
-          H.append();
+          H.removeComponents();
+          G.append();
         },
       );
-      v.close();
+      u.close();
     }
-    function r(a) {
+    function t(a) {
       var b;
       switch (a.ErrorCode) {
         default:
@@ -259,44 +259,44 @@ define(
         case 2:
         case 3:
         case 15:
-          J.showErrorBox(g.getMessage(b));
+          H.showErrorBox(g.getMessage(b));
           break;
         default:
-          J.showEventBox(g.getMessage(b));
+          H.showEventBox(g.getMessage(b));
       }
-      v.close();
+      u.close();
     }
     var n = a("Vendors/text-encoding"),
       g = a("DB/DBManager"),
       p = a("Audio/BGM"),
-      l = a("Audio/SoundManager"),
+      k = a("Audio/SoundManager"),
       f = a("Core/Configs"),
-      k = a("Core/Thread"),
+      m = a("Core/Thread"),
       q = a("Engine/SessionStorage"),
-      u = a("Engine/CharEngine"),
-      v = a("Network/NetworkManager"),
+      v = a("Engine/CharEngine"),
+      u = a("Network/NetworkManager"),
       A = a("Network/PacketStructure"),
-      C = a("Network/PacketVerManager"),
+      D = a("Network/PacketVerManager"),
       B = a("Renderer/Renderer"),
-      J = a("UI/UIManager"),
-      D = a("UI/Components/WinList/WinList"),
-      y = a("UI/Components/WinPopup/WinPopup"),
-      H = a("UI/Components/WinLogin/WinLogin"),
-      N = a,
-      O = y.clone("WinLoading");
-    O.init = function () {
+      H = a("UI/UIManager"),
+      C = a("UI/Components/WinList/WinList"),
+      z = a("UI/Components/WinPopup/WinPopup"),
+      G = a("UI/Components/WinLogin/WinLogin"),
+      P = a,
+      N = z.clone("WinLoading");
+    N.init = function () {
       this.ui.css({ top: (B.height - 120) / 1.5, left: (B.width - 280) / 2 });
       this.ui.find(".text").text(g.getMessage(121));
     };
-    J.addComponent(O);
+    H.addComponent(N);
     var I = null,
       x = [],
-      K = "";
+      J = "";
     return {
       init: function (a) {
         var b;
         f.setServer(a);
-        J.removeComponents();
+        H.removeComponents();
         q.LangType = "langtype" in a ? parseInt(a.langtype, 10) : 1;
         switch (q.LangType) {
           case 0:
@@ -342,22 +342,22 @@ define(
         f.get("ClientVer");
         var e = f.get("autoLogin"),
           g = f.get("BGMFileExtension");
-        "20211103".match(/^\d+$/) && (C.value = 20211103);
-        C.value
-          ? (b && k.send("SET_HOST", b),
+        "20211103".match(/^\d+$/) && (D.value = 20211103);
+        D.value
+          ? (b && m.send("SET_HOST", b),
             g && p.setAvailableExtensions(g),
             (q.AdminList = a.adminList || []),
-            (H.onConnectionRequest = c),
-            (H.onExitRequest = d),
+            (G.onConnectionRequest = c),
+            (G.onExitRequest = d),
             e instanceof Array && e[0] && e[1]
               ? (c.apply(null, e), f.set("autoLogin", null))
-              : H.append(),
-            v.hookPacket(A.AC.ACCEPT_LOGIN, h),
-            v.hookPacket(A.AC.ACCEPT_LOGIN3, h),
-            v.hookPacket(A.AC.REFUSE_LOGIN, t),
-            v.hookPacket(A.AC.REFUSE_LOGIN_R2, t),
-            v.hookPacket(A.SC.NOTIFY_BAN, r))
-          : J.showErrorBox("Sorry, no PACKETVER configs found.");
+              : G.append(),
+            u.hookPacket(A.AC.ACCEPT_LOGIN, h),
+            u.hookPacket(A.AC.ACCEPT_LOGIN3, h),
+            u.hookPacket(A.AC.REFUSE_LOGIN, r),
+            u.hookPacket(A.AC.REFUSE_LOGIN_R2, r),
+            u.hookPacket(A.SC.NOTIFY_BAN, t))
+          : H.showErrorBox("Sorry, no PACKETVER configs found.");
       },
       reload: b,
     };

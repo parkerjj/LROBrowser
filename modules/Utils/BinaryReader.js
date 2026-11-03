@@ -5,11 +5,11 @@ define("Utils/BinaryReader", ["./Struct", "Vendors/text-encoding"], function (
   function c(a, d, b) {
     var c;
     if ("string" === typeof a) {
-      var e, h, l;
-      l = a.length;
-      c = new ArrayBuffer(l);
+      var e, h, k;
+      k = a.length;
+      c = new ArrayBuffer(k);
       e = new Uint8Array(c);
-      for (h = 0; h < l; ++h) e[h] = a.charCodeAt(h) & 255;
+      for (h = 0; h < k; ++h) e[h] = a.charCodeAt(h) & 255;
     } else if (a instanceof ArrayBuffer) c = a;
     else if (a instanceof Uint8Array) c = a.buffer;
     else throw Error("BinaryReader() - Undefined buffer type");
@@ -104,15 +104,15 @@ define("Utils/BinaryReader", ["./Struct", "Vendors/text-encoding"], function (
       c = {},
       e,
       h,
-      m,
       l,
+      k,
       f;
     h = Object.keys(d);
     f = h.length;
-    for (l = 0; l < f; ++l)
-      if (((b = h[l]), (e = d[b]), 1 < e.count))
-        for (c[b] = Array(e.count), m = 0; m < e.count; ++m)
-          c[b][m] = this[e.func]();
+    for (k = 0; k < f; ++k)
+      if (((b = h[k]), (e = d[b]), 1 < e.count))
+        for (c[b] = Array(e.count), l = 0; l < e.count; ++l)
+          c[b][l] = this[e.func]();
       else c[b] = this[e.func]();
     return c;
   };
@@ -123,14 +123,14 @@ define("Utils/BinaryReader", ["./Struct", "Vendors/text-encoding"], function (
   };
   var d = new ArrayBuffer(4),
     e = new Int8Array(d),
-    m = new Int32Array(d);
+    l = new Int32Array(d);
   c.prototype.getPos = c.prototype.readPos = function () {
     var a, d;
     e[2] = this.getUint8();
     e[1] = this.getUint8();
     e[0] = this.getUint8();
     e[3] = 0;
-    a = 0 + m[0];
+    a = 0 + l[0];
     d = a & 15;
     a >>= 4;
     return [(a >> 10) & 1023, a & 1023, d];

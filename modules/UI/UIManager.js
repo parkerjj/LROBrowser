@@ -23,13 +23,13 @@ define(
     var c = a("DB/DBManager"),
       d = a("Utils/jquery"),
       e = a("./UIComponent"),
-      m = a("Core/Client");
+      l = a("Core/Client");
     a("Engine/SessionStorage");
     a("Network/NetworkManager");
     a("Network/PacketStructure");
     var h = a("Controls/KeyEventHandler"),
-      t = a("Renderer/Renderer"),
-      r = {
+      r = a("Renderer/Renderer"),
+      t = {
         components: {},
         addComponent: function (a) {
           if (!(a instanceof e))
@@ -60,14 +60,14 @@ define(
             p,
             h,
             n,
-            m;
+            l;
           for (d = 0; d < e; ++d)
             if ((g = this.components[c[d]].ui))
               ((p = parseInt(g.css("left"), 10)),
                 (h = parseInt(g.css("top"), 10)),
                 (n = parseInt(g.css("width"), 10)),
-                (m = parseInt(g.css("height"), 10)),
-                h + m > b && b > m && g.css("top", b - m),
+                (l = parseInt(g.css("height"), 10)),
+                h + l > b && b > l && g.css("top", b - l),
                 p + n > a && a > n && g.css("left", a - n));
         },
         showEventBox: function (a) {
@@ -78,8 +78,8 @@ define(
           b.init = function () {
             this.ui.find(".text").text(a);
             this.ui.css({
-              top: (t.height - this.ui.height()) / 2,
-              left: (t.width - this.ui.width()) / 2,
+              top: (r.height - this.ui.height()) / 2,
+              left: (r.width - this.ui.width()) / 2,
               marginTop: "-60px",
               zIndex: 100,
             });
@@ -112,7 +112,7 @@ define(
             });
           g.appendTo("body");
           b.onAppend = function () {
-            m.loadFile(
+            l.loadFile(
               c.INTERFACE_PATH + "login_interface/btn_ok.bmp",
               function (a) {
                 b.ui.find(".btn").css("backgroundImage", "url(" + a + ")");
@@ -130,8 +130,8 @@ define(
           e.init = function () {
             this.ui.find(".text").text(b);
             this.ui.css({
-              top: (t.height - 120) / 1.5 - 120,
-              left: (t.width - 280) / 2,
+              top: (r.height - 120) / 1.5 - 120,
+              left: (r.width - 280) / 2,
               zIndex: 100,
             });
             this.draggable();
@@ -157,7 +157,7 @@ define(
           g = d("\x3cdiv/\x3e").addClass("win_popup_overlay");
           g.appendTo("body");
           e.onAppend = function () {
-            m.loadFile(
+            l.loadFile(
               c.INTERFACE_PATH + "login_interface/btn_exit.bmp",
               function (a) {
                 e.ui.find(".btn").css("backgroundImage", "url(" + a + ")");
@@ -176,8 +176,8 @@ define(
             this.draggable();
             this.ui.find(".text").text(a);
             this.ui.css({
-              top: (t.height - 120) / 1.5 - 125,
-              left: (t.width - 280) / 2,
+              top: (r.height - 120) / 1.5 - 125,
+              left: (r.width - 280) / 2,
               zIndex: 100,
             });
             b &&
@@ -212,15 +212,15 @@ define(
         },
       },
       n;
-    r.showPromptBox = function (a, b, c, e, k) {
+    t.showPromptBox = function (a, b, c, e, m) {
       n && n.remove();
       n = this.getComponent("WinPopup").clone("WinPrompt");
       n.init = function () {
         this.draggable();
         this.ui.find(".text").text(a);
         this.ui.css({
-          top: (t.height - 120) / 1.5 - 120,
-          left: (t.width - 280) / 2,
+          top: (r.height - 120) / 1.5 - 120,
+          left: (r.width - 280) / 2,
           zIndex: 100,
         });
         this.ui.find(".btns").append(
@@ -241,7 +241,7 @@ define(
             .data("down", "btn_" + c + "_b.bmp")
             .one("click", function () {
               n.remove();
-              k && k();
+              m && m();
             })
             .each(this.parseHTML),
         );
@@ -249,7 +249,7 @@ define(
       n.append();
       return n;
     };
-    r.showOfflineMsgBox = function (a) {
+    t.showOfflineMsgBox = function (a) {
       var c,
         e = "";
       c = this.getComponent("WinPopup").clone("WinOfflineMsg");
@@ -375,6 +375,6 @@ define(
       c.append();
       return c;
     };
-    return r;
+    return t;
   },
 );

@@ -2,9 +2,9 @@
   var d = { function: !0, object: !0 },
     e = d[typeof exports] && exports && !exports.nodeType && exports,
     d = d[typeof module] && module && !module.nodeType && module,
-    m = e && d && "object" === typeof global && global,
+    l = e && d && "object" === typeof global && global,
     h = d && d.exports === e && e;
-  !m || (m.global !== m && m.window !== m && m.self !== m) || (a = m);
+  !l || (l.global !== l && l.window !== l && l.self !== l) || (a = l);
   "function" === typeof define && "object" === typeof define.amd && define.amd
     ? (define("Vendors/luaparse", ["exports"], c), e && h && c(d.exports))
     : e && d
@@ -14,8 +14,8 @@
       : c((a[b] = {}));
 })(this, "luaparse", function (a) {
   function b(a) {
-    if (wa) {
-      var d = ya.pop();
+    if (ya) {
+      var d = xa.pop();
       d.complete();
       d.bless(a);
     }
@@ -46,7 +46,7 @@
         })
       : a;
   }
-  function m(a) {
+  function l(a) {
     var d = c.apply(null, Y.call(arguments, 1)),
       b;
     "undefined" !== typeof a.line
@@ -54,7 +54,7 @@
         (d = e(new SyntaxError(c("[%1:%2] %3", a.line, b, d)))),
         (d.line = a.line),
         (d.index = a.range[0]))
-      : ((b = U - xa + 1),
+      : ((b = U - wa + 1),
         (d = e(new SyntaxError(c("[%1:%2] %3", na, b, d)))),
         (d.index = U),
         (d.line = na));
@@ -62,9 +62,9 @@
     throw d;
   }
   function h(a, d) {
-    m(d, ca.expectedToken, a, d.value);
+    l(d, ca.expectedToken, a, d.value);
   }
-  function t(a) {
+  function r(a) {
     var d = ma.value;
     if ("undefined" !== typeof a.type) {
       var b;
@@ -88,13 +88,13 @@
           b = "boolean";
           break;
         case 128:
-          return m(a, ca.unexpected, "symbol", "nil", d);
+          return l(a, ca.unexpected, "symbol", "nil", d);
       }
-      return m(a, ca.unexpected, b, a.value, d);
+      return l(a, ca.unexpected, b, a.value, d);
     }
-    return m(a, ca.unexpected, "symbol", a, d);
+    return l(a, ca.unexpected, "symbol", a, d);
   }
-  function r() {
+  function t() {
     for (g(); 45 === X.charCodeAt(U) && 45 === X.charCodeAt(U + 1);) {
       ia = U;
       U += 2;
@@ -102,19 +102,19 @@
         d = "",
         b = !1,
         c = U,
-        e = xa,
+        e = wa,
         h = na;
-      "[" === a && ((d = u(!0)), !1 === d ? (d = a) : (b = !0));
+      "[" === a && ((d = v(!0)), !1 === d ? (d = a) : (b = !0));
       if (!b) {
         for (; U < qa && !B(X.charCodeAt(U));) ++U;
         Z.comments && (d = X.slice(c, U));
       }
       if (Z.comments) {
-        a = P.comment(d, X.slice(ia, U));
+        a = O.comment(d, X.slice(ia, U));
         Z.locations &&
           (a.loc = {
             start: { line: h, column: ia - e },
-            end: { line: na, column: U - xa },
+            end: { line: na, column: U - wa },
           });
         Z.ranges && (a.range = [ia, U]);
         if (Z.onCreateNode) Z.onCreateNode(a);
@@ -127,7 +127,7 @@
         type: 1,
         value: "\x3ceof\x3e",
         line: na,
-        lineStart: xa,
+        lineStart: wa,
         range: [U, U],
       };
     e = X.charCodeAt(U);
@@ -140,40 +140,40 @@
           ? !0
           : !1;
     if (a) {
-      for (; y(X.charCodeAt(++U)););
-      e = l(X.slice(ia, U));
-      H(e)
+      for (; z(X.charCodeAt(++U)););
+      e = k(X.slice(ia, U));
+      G(e)
         ? (h = 4)
         : "true" === e || "false" === e
           ? ((h = 64), (e = "true" === e))
           : "nil" === e
             ? ((h = 128), (e = null))
             : (h = 8);
-      return { type: h, value: e, line: na, lineStart: xa, range: [ia, U] };
+      return { type: h, value: e, line: na, lineStart: wa, range: [ia, U] };
     }
     switch (e) {
       case 39:
       case 34:
         e = X.charCodeAt(U++);
         h = na;
-        a = xa;
+        a = wa;
         d = U;
         for (b = ""; U < qa;) {
           c = X.charCodeAt(U++);
           if (e === c) break;
-          if (92 === c) ((b += l(X.slice(d, U - 1)) + q()), (d = U));
+          if (92 === c) ((b += k(X.slice(d, U - 1)) + q()), (d = U));
           else if (U >= qa || B(c))
             ((b += X.slice(d, U - 1)),
-              m({}, ca.unfinishedString, b + String.fromCharCode(c)));
+              l({}, ca.unfinishedString, b + String.fromCharCode(c)));
         }
-        b += l(X.slice(d, U - 1));
+        b += k(X.slice(d, U - 1));
         return {
           type: 2,
           value: b,
           line: h,
           lineStart: a,
           lastLine: na,
-          lastLineStart: xa,
+          lastLineStart: wa,
           range: [ia, U],
         };
       case 48:
@@ -186,10 +186,10 @@
       case 55:
       case 56:
       case 57:
-        return k();
+        return m();
       case 46:
-        return J(h)
-          ? k()
+        return H(h)
+          ? m()
           : 46 === h
             ? 46 === X.charCodeAt(U + 2)
               ? ((U += 3),
@@ -197,7 +197,7 @@
                   type: 256,
                   value: "...",
                   line: na,
-                  lineStart: xa,
+                  lineStart: wa,
                   range: [ia, U],
                 })
               : f("..")
@@ -225,16 +225,16 @@
       case 91:
         return 91 === h || 61 === h
           ? ((e = na),
-            (h = xa),
-            (a = u(!1)),
-            !1 === a && m(aa, ca.expected, "[", aa.value),
+            (h = wa),
+            (a = v(!1)),
+            !1 === a && l(aa, ca.expected, "[", aa.value),
             {
               type: 2,
-              value: l(a),
+              value: k(a),
               line: e,
               lineStart: h,
               lastLine: na,
-              lastLineStart: xa,
+              lastLineStart: wa,
               range: [ia, U],
             })
           : f("[");
@@ -258,7 +258,7 @@
       case 43:
         return f(X.charAt(U));
     }
-    return t(X.charAt(U));
+    return r(X.charAt(U));
   }
   function n() {
     var a = X.charCodeAt(U),
@@ -267,7 +267,7 @@
       ? (10 === a && 13 === d && ++U,
         13 === a && 10 === d && ++U,
         ++na,
-        (xa = ++U),
+        (wa = ++U),
         !0)
       : !1;
   }
@@ -298,7 +298,7 @@
               )
             : null;
   }
-  function l(a) {
+  function k(a) {
     return a.replace(
       /[\ud800-\udbff][\udc00-\udfff]|[^\x00-\x7f]/g,
       function (a) {
@@ -313,9 +313,9 @@
   }
   function f(a) {
     U += a.length;
-    return { type: 32, value: a, line: na, lineStart: xa, range: [ia, U] };
+    return { type: 32, value: a, line: na, lineStart: wa, range: [ia, U] };
   }
-  function k() {
+  function m() {
     var a = X.charAt(U),
       d = X.charAt(U + 1);
     if ("0" === a && 0 <= "xX".indexOf(d || null)) {
@@ -326,13 +326,13 @@
         e;
       c = U += 2;
       for (
-        D(X.charCodeAt(U)) || m({}, ca.malformedNumber, X.slice(ia, U));
-        D(X.charCodeAt(U));
+        C(X.charCodeAt(U)) || l({}, ca.malformedNumber, X.slice(ia, U));
+        C(X.charCodeAt(U));
       )
         ++U;
       c = parseInt(X.slice(c, U), 16);
       if ("." === X.charAt(U)) {
-        for (e = ++U; D(X.charCodeAt(U));) ++U;
+        for (e = ++U; C(X.charCodeAt(U));) ++U;
         a = X.slice(e, U);
         a = e === U ? 0 : parseInt(a, 16) / Math.pow(16, U - e);
       }
@@ -342,8 +342,8 @@
           (d = "+" === X.charAt(U++) ? 1 : -1);
         b = U;
         for (
-          J(X.charCodeAt(U)) || m({}, ca.malformedNumber, X.slice(ia, U));
-          J(X.charCodeAt(U));
+          H(X.charCodeAt(U)) || l({}, ca.malformedNumber, X.slice(ia, U));
+          H(X.charCodeAt(U));
         )
           ++U;
         b = X.slice(b, U);
@@ -351,19 +351,19 @@
       }
       a = (c + a) * b;
     } else {
-      for (; J(X.charCodeAt(U));) ++U;
-      if ("." === X.charAt(U)) for (++U; J(X.charCodeAt(U));) ++U;
+      for (; H(X.charCodeAt(U));) ++U;
+      if ("." === X.charAt(U)) for (++U; H(X.charCodeAt(U));) ++U;
       if (0 <= "eE".indexOf(X.charAt(U) || null))
         for (
           ++U,
             0 <= "+-".indexOf(X.charAt(U) || null) && ++U,
-            J(X.charCodeAt(U)) || m({}, ca.malformedNumber, X.slice(ia, U));
-          J(X.charCodeAt(U));
+            H(X.charCodeAt(U)) || l({}, ca.malformedNumber, X.slice(ia, U));
+          H(X.charCodeAt(U));
         )
           ++U;
       a = parseFloat(X.slice(ia, U));
     }
-    return { type: 16, value: a, line: na, lineStart: xa, range: [ia, U] };
+    return { type: 16, value: a, line: na, lineStart: wa, range: [ia, U] };
   }
   function q() {
     var a = U;
@@ -395,54 +395,54 @@
       case "7":
       case "8":
       case "9":
-        for (; J(X.charCodeAt(U)) && 3 > U - a;) ++U;
+        for (; H(X.charCodeAt(U)) && 3 > U - a;) ++U;
         a = parseInt(X.slice(a, U), 10);
-        255 < a && m({}, ca.decimalEscapeTooLarge, "\\" + a);
+        255 < a && l({}, ca.decimalEscapeTooLarge, "\\" + a);
         return String.fromCharCode(a);
       case "z":
         if (pa.skipWhitespaceEscape) return (++U, g(), "");
       case "x":
         if (pa.hexEscapes) {
-          if (D(X.charCodeAt(U + 1)) && D(X.charCodeAt(U + 2)))
+          if (C(X.charCodeAt(U + 1)) && C(X.charCodeAt(U + 2)))
             return (
               (U += 3),
               String.fromCharCode(parseInt(X.slice(a + 1, U), 16))
             );
-          m({}, ca.hexadecimalDigitExpected, "\\" + X.slice(a, U + 2));
+          l({}, ca.hexadecimalDigitExpected, "\\" + X.slice(a, U + 2));
         }
       case "u":
         if (pa.unicodeEscapes) {
           a = U++;
           "{" !== X.charAt(U++) &&
-            m({}, ca.braceExpected, "{", "\\" + X.slice(a, U));
+            l({}, ca.braceExpected, "{", "\\" + X.slice(a, U));
           for (
-            D(X.charCodeAt(U)) ||
-            m({}, ca.hexadecimalDigitExpected, "\\" + X.slice(a, U));
+            C(X.charCodeAt(U)) ||
+            l({}, ca.hexadecimalDigitExpected, "\\" + X.slice(a, U));
             48 === X.charCodeAt(U);
           )
             ++U;
-          for (var d = U; D(X.charCodeAt(U));)
+          for (var d = U; C(X.charCodeAt(U));)
             (++U,
-              6 < U - d && m({}, ca.tooLargeCodepoint, "\\" + X.slice(a, U)));
+              6 < U - d && l({}, ca.tooLargeCodepoint, "\\" + X.slice(a, U)));
           var b = X.charAt(U++);
           "}" !== b &&
             ('"' === b || "'" === b
-              ? m({}, ca.braceExpected, "}", "\\" + X.slice(a, U--))
-              : m({}, ca.hexadecimalDigitExpected, "\\" + X.slice(a, U)));
+              ? l({}, ca.braceExpected, "}", "\\" + X.slice(a, U--))
+              : l({}, ca.hexadecimalDigitExpected, "\\" + X.slice(a, U)));
           d = parseInt(X.slice(d, U - 1), 16);
           d = p(d);
-          null === d && m({}, ca.tooLargeCodepoint, "\\" + X.slice(a, U));
+          null === d && l({}, ca.tooLargeCodepoint, "\\" + X.slice(a, U));
           return d;
         }
       default:
-        pa.strictEscapes && m({}, ca.invalidEscape, "\\" + X.slice(a, U + 1));
+        pa.strictEscapes && l({}, ca.invalidEscape, "\\" + X.slice(a, U + 1));
       case "\\":
       case '"':
       case "'":
         return X.charAt(U++);
     }
   }
-  function u(a) {
+  function v(a) {
     var d = 0,
       b = "",
       c = !1,
@@ -463,36 +463,36 @@
       }
       if (c) return ((b += X.slice(f, U - 1)), (U += d + 1), b);
     }
-    m(
+    l(
       {},
       a ? ca.unfinishedLongComment : ca.unfinishedLongString,
       h,
       "\x3ceof\x3e",
     );
   }
-  function v() {
+  function u() {
     sa = aa;
     aa = ma;
-    ma = r();
+    ma = t();
   }
   function A(a) {
-    return a === aa.value ? (v(), !0) : !1;
+    return a === aa.value ? (u(), !0) : !1;
   }
-  function C(a) {
-    a === aa.value ? v() : m(aa, ca.expected, a, aa.value);
+  function D(a) {
+    a === aa.value ? u() : l(aa, ca.expected, a, aa.value);
   }
   function B(a) {
     return 10 === a || 13 === a;
   }
-  function J(a) {
+  function H(a) {
     return 48 <= a && 57 >= a;
   }
-  function D(a) {
+  function C(a) {
     return (
       (48 <= a && 57 >= a) || (97 <= a && 102 >= a) || (65 <= a && 70 >= a)
     );
   }
-  function y(a) {
+  function z(a) {
     return (65 <= a && 90 >= a) ||
       (97 <= a && 122 >= a) ||
       95 === a ||
@@ -501,7 +501,7 @@
       ? !0
       : !1;
   }
-  function H(a) {
+  function G(a) {
     switch (a.length) {
       case 2:
         return "do" === a || "if" === a || "in" === a || "or" === a;
@@ -520,7 +520,7 @@
     }
     return !1;
   }
-  function N(a) {
+  function P(a) {
     if (1 === a.type) return !0;
     if (4 !== a.type) return !1;
     switch (a.value) {
@@ -533,7 +533,7 @@
         return !1;
     }
   }
-  function O() {
+  function N() {
     var a = Array.apply(null, ua[Ba++]);
     ua.push(a);
     if (Z.onCreateScope) Z.onCreateScope();
@@ -547,7 +547,7 @@
     if (Z.onLocalDeclaration) Z.onLocalDeclaration(a);
     -1 === ra(ua[Ba], a) && ua[Ba].push(a);
   }
-  function K(a) {
+  function J(a) {
     x(a.name);
     E(a, !0);
   }
@@ -564,10 +564,10 @@
     b && Aa.push(a);
     a.isLocal = d;
   }
-  function F() {
-    return new z(aa);
+  function L() {
+    return new y(aa);
   }
-  function z(a) {
+  function y(a) {
     Z.locations &&
       (this.loc = {
         start: { line: a.line, column: a.range[0] - a.lineStart },
@@ -575,41 +575,41 @@
       });
     Z.ranges && (this.range = [a.range[0], 0]);
   }
-  function G() {
-    wa && ya.push(F());
+  function F() {
+    ya && xa.push(L());
   }
-  function L(a) {
-    wa && ya.push(a);
+  function K(a) {
+    ya && xa.push(a);
   }
   function M() {
-    v();
-    G();
-    Z.scope && O();
+    u();
+    F();
+    Z.scope && N();
     var a = Q();
     Z.scope && I();
-    1 !== aa.type && t(aa);
-    wa && !a.length && (sa = aa);
-    return b(P.chunk(a));
+    1 !== aa.type && r(aa);
+    ya && !a.length && (sa = aa);
+    return b(O.chunk(a));
   }
   function Q(a) {
     a = [];
-    for (var d; !N(aa);) {
+    for (var d; !P(aa);) {
       if ("return" === aa.value) {
-        a.push(V());
+        a.push(W());
         break;
       }
-      d = V();
+      d = W();
       A(";");
       d && a.push(d);
     }
     return a;
   }
-  function V() {
-    G();
+  function W() {
+    F();
     if (4 === aa.type)
       switch (aa.value) {
         case "local":
-          v();
+          u();
           var a;
           var d;
           if (8 === aa.type) {
@@ -623,124 +623,124 @@
             }
             if (Z.scope) {
               d = 0;
-              for (var e = a.length; d < e; ++d) K(a[d]);
+              for (var e = a.length; d < e; ++d) J(a[d]);
             }
-            a = b(P.localStatement(a, c));
+            a = b(O.localStatement(a, c));
           } else
             A("function")
-              ? ((d = T()), Z.scope && (K(d), O()), (a = da(d, !0)))
+              ? ((d = T()), Z.scope && (J(d), N()), (a = da(d, !0)))
               : (h("\x3cname\x3e", aa), (a = void 0));
           return a;
         case "if":
-          v();
+          u();
           c = [];
-          wa && ((a = ya[ya.length - 1]), ya.push(a));
+          ya && ((a = xa[xa.length - 1]), xa.push(a));
           d = fa();
-          C("then");
-          Z.scope && O();
+          D("then");
+          Z.scope && N();
           e = Q();
           Z.scope && I();
-          c.push(b(P.ifClause(d, e)));
-          for (wa && (a = F()); A("elseif");)
-            (L(a),
+          c.push(b(O.ifClause(d, e)));
+          for (ya && (a = L()); A("elseif");)
+            (K(a),
               (d = fa()),
-              C("then"),
-              Z.scope && O(),
+              D("then"),
+              Z.scope && N(),
               (e = Q()),
               Z.scope && I(),
-              c.push(b(P.elseifClause(d, e))),
-              wa && (a = F()));
+              c.push(b(O.elseifClause(d, e))),
+              ya && (a = L()));
           A("else") &&
-            (wa && ((a = new z(sa)), ya.push(a)),
-            Z.scope && O(),
+            (ya && ((a = new y(sa)), xa.push(a)),
+            Z.scope && N(),
             (e = Q()),
             Z.scope && I(),
-            c.push(b(P.elseClause(e))));
-          C("end");
-          return b(P.ifStatement(c));
+            c.push(b(O.elseClause(e))));
+          D("end");
+          return b(O.ifStatement(c));
         case "return":
-          v();
+          u();
           a = [];
           if ("end" !== aa.value) {
             c = ta(0);
             for (null != c && a.push(c); A(",");) ((c = fa()), a.push(c));
             A(";");
           }
-          return b(P.returnStatement(a));
+          return b(O.returnStatement(a));
         case "function":
-          v();
-          wa && (c = F());
+          u();
+          ya && (c = L());
           a = T();
-          Z.scope && (E(a, -1 !== ra(ua[Ba], a.name)), O());
+          Z.scope && (E(a, -1 !== ra(ua[Ba], a.name)), N());
           for (; A(".");)
-            (L(c), (d = T()), (a = b(P.memberExpression(a, ".", d))));
+            (K(c), (d = T()), (a = b(O.memberExpression(a, ".", d))));
           A(":") &&
-            (L(c),
+            (K(c),
             (d = T()),
-            (a = b(P.memberExpression(a, ":", d))),
+            (a = b(O.memberExpression(a, ":", d))),
             Z.scope && x("self"));
           return da(a);
         case "while":
           return (
-            v(),
+            u(),
             (a = fa()),
-            C("do"),
-            Z.scope && O(),
+            D("do"),
+            Z.scope && N(),
             (c = Q()),
             Z.scope && I(),
-            C("end"),
-            b(P.whileStatement(a, c))
+            D("end"),
+            b(O.whileStatement(a, c))
           );
         case "for":
-          v();
+          u();
           c = T();
-          Z.scope && (O(), K(c));
+          Z.scope && (N(), J(c));
           if (A("\x3d")) {
             d = fa();
-            C(",");
+            D(",");
             var e = fa(),
               f = A(",") ? fa() : null;
-            C("do");
+            D("do");
             a = Q();
-            C("end");
+            D("end");
             Z.scope && I();
-            a = b(P.forNumericStatement(c, d, e, f, a));
+            a = b(O.forNumericStatement(c, d, e, f, a));
           } else {
-            for (d = [c]; A(",");) ((c = T()), Z.scope && K(c), d.push(c));
-            C("in");
+            for (d = [c]; A(",");) ((c = T()), Z.scope && J(c), d.push(c));
+            D("in");
             c = [];
             do ((a = fa()), c.push(a));
             while (A(","));
-            C("do");
+            D("do");
             a = Q();
-            C("end");
+            D("end");
             Z.scope && I();
-            a = b(P.forGenericStatement(d, c, a));
+            a = b(O.forGenericStatement(d, c, a));
           }
           return a;
         case "repeat":
           return (
-            v(),
-            Z.scope && O(),
+            u(),
+            Z.scope && N(),
             (a = Q()),
-            C("until"),
+            D("until"),
             (c = fa()),
             Z.scope && I(),
-            b(P.repeatStatement(c, a))
+            b(O.repeatStatement(c, a))
           );
         case "break":
-          return (v(), b(P.breakStatement()));
+          return (u(), b(O.breakStatement()));
         case "do":
           return (
-            v(),
-            Z.scope && O(),
+            u(),
+            Z.scope && N(),
             (a = Q()),
             Z.scope && I(),
-            C("end"),
-            b(P.doStatement(a))
+            D("end"),
+            b(O.doStatement(a))
           );
         case "goto":
-          return (v(), W());
+          return (u(), V());
       }
     if (
       pa.contextualGoto &&
@@ -749,21 +749,21 @@
       8 === ma.type &&
       "goto" !== ma.value
     )
-      return (v(), W());
+      return (u(), V());
     if (32 === aa.type && A("::"))
       return (
         (a = aa.value),
         (c = T()),
         Z.scope && (x("::" + a + "::"), E(c, !0)),
-        C("::"),
-        b(P.labelStatement(c))
+        D("::"),
+        b(O.labelStatement(c))
       );
-    wa && ya.pop();
+    ya && xa.pop();
     if (!pa.emptyStatement || !A(";")) return S();
   }
-  function W() {
+  function V() {
     var a = T();
-    return b(P.gotoStatement(a));
+    return b(O.gotoStatement(a));
   }
   function ba(a) {
     (a.inParens ||
@@ -771,15 +771,15 @@
         ["Identifier", "MemberExpression", "IndexExpression"].indexOf(
           a.type,
         )) &&
-      m(aa, ca.invalidVar, aa.value);
+      l(aa, ca.invalidVar, aa.value);
   }
   function S() {
     var a = aa,
       d,
       c;
-    wa && (c = F());
+    ya && (c = L());
     d = oa();
-    if (null == d) return t(aa);
+    if (null == d) return r(aa);
     if (0 <= ",\x3d".indexOf(aa.value)) {
       var a = [d],
         e = [];
@@ -788,11 +788,11 @@
           null == d && h("\x3cexpression\x3e", aa),
           ba(d),
           a.push(d));
-      C("\x3d");
+      D("\x3d");
       do ((d = fa()), e.push(d));
       while (A(","));
-      L(c);
-      return b(P.assignmentStatement(a, e));
+      K(c);
+      return b(O.assignmentStatement(a, e));
     }
     a: {
       switch (d.type) {
@@ -804,59 +804,59 @@
       }
       e = !1;
     }
-    return e ? (L(c), b(P.callStatement(d))) : t(a);
+    return e ? (K(c), b(O.callStatement(d))) : r(a);
   }
   function T() {
-    G();
+    F();
     var a = aa.value;
     8 !== aa.type && h("\x3cname\x3e", aa);
-    v();
-    return b(P.identifier(a));
+    u();
+    return b(O.identifier(a));
   }
   function da(a, d) {
     var c = [];
-    C("(");
+    D("(");
     if (!A(")"))
       for (;;) {
         if (8 === aa.type) {
           var e = T();
-          Z.scope && K(e);
+          Z.scope && J(e);
           c.push(e);
           if (A(",")) continue;
         } else 256 === aa.type ? c.push(ga()) : h("\x3cname\x3e or '...'", aa);
-        C(")");
+        D(")");
         break;
       }
     e = Q();
-    C("end");
+    D("end");
     Z.scope && I();
-    return b(P.functionStatement(a, c, d || !1, e));
+    return b(O.functionStatement(a, c, d || !1, e));
   }
   function R() {
     for (var a = [], d, c; ;) {
-      G();
+      F();
       if (32 === aa.type && A("["))
         ((d = fa()),
-          C("]"),
-          C("\x3d"),
+          D("]"),
+          D("\x3d"),
           (c = fa()),
-          a.push(b(P.tableKey(d, c))));
+          a.push(b(O.tableKey(d, c))));
       else if (8 === aa.type)
         "\x3d" === ma.value
-          ? ((d = T()), v(), (c = fa()), a.push(b(P.tableKeyString(d, c))))
-          : ((c = fa()), a.push(b(P.tableValue(c))));
+          ? ((d = T()), u(), (c = fa()), a.push(b(O.tableKeyString(d, c))))
+          : ((c = fa()), a.push(b(O.tableValue(c))));
       else {
         if (null == (c = ta(0))) {
-          ya.pop();
+          xa.pop();
           break;
         }
-        a.push(b(P.tableValue(c)));
+        a.push(b(O.tableValue(c)));
       }
-      if (0 <= ",;".indexOf(aa.value)) v();
+      if (0 <= ",;".indexOf(aa.value)) u();
       else break;
     }
-    C("}");
-    return b(P.tableConstructorExpression(a));
+    D("}");
+    return b(O.tableConstructorExpression(a));
   }
   function fa() {
     var a = ta(0);
@@ -909,7 +909,7 @@
     var d = aa.value,
       c,
       e;
-    wa && (e = F());
+    ya && (e = L());
     var f;
     f = aa;
     f =
@@ -919,11 +919,11 @@
           ? "not" === f.value
           : !1;
     f &&
-      (G(),
-      v(),
+      (F(),
+      u(),
       (c = ta(10)),
       null == c && h("\x3cexpression\x3e", aa),
-      (c = b(P.unaryExpression(d, c))));
+      (c = b(O.unaryExpression(d, c))));
     null == c && ((c = ga()), null == c && (c = oa()));
     if (null == c) return null;
     for (;;) {
@@ -931,110 +931,110 @@
       f = 32 === aa.type || 4 === aa.type ? ea(d) : 0;
       if (0 === f || f <= a) break;
       ("^" !== d && ".." !== d) || f--;
-      v();
+      u();
       f = ta(f);
       null == f && h("\x3cexpression\x3e", aa);
-      wa && ya.push(e);
-      c = b(P.binaryExpression(d, c, f));
+      ya && xa.push(e);
+      c = b(O.binaryExpression(d, c, f));
     }
     return c;
   }
   function oa() {
     var a, d, c;
-    wa && (c = F());
+    ya && (c = L());
     if (8 === aa.type)
       ((d = aa.value), (a = T()), Z.scope && E(a, -1 !== ra(ua[Ba], d)));
-    else if (A("(")) ((a = fa()), C(")"), (a.inParens = !0));
+    else if (A("(")) ((a = fa()), D(")"), (a.inParens = !0));
     else return null;
     for (;;)
       if (32 === aa.type)
         switch (aa.value) {
           case "[":
-            L(c);
-            v();
+            K(c);
+            u();
             d = fa();
-            C("]");
-            a = b(P.indexExpression(a, d));
+            D("]");
+            a = b(O.indexExpression(a, d));
             break;
           case ".":
-            L(c);
-            v();
+            K(c);
+            u();
             d = T();
-            a = b(P.memberExpression(a, ".", d));
+            a = b(O.memberExpression(a, ".", d));
             break;
           case ":":
-            L(c);
-            v();
+            K(c);
+            u();
             d = T();
-            a = b(P.memberExpression(a, ":", d));
-            L(c);
-            a = ka(a);
+            a = b(O.memberExpression(a, ":", d));
+            K(c);
+            a = la(a);
             break;
           case "(":
           case "{":
-            L(c);
-            a = ka(a);
+            K(c);
+            a = la(a);
             break;
           default:
             return a;
         }
-      else if (2 === aa.type) (L(c), (a = ka(a)));
+      else if (2 === aa.type) (K(c), (a = la(a)));
       else break;
     return a;
   }
-  function ka(a) {
+  function la(a) {
     if (32 === aa.type)
       switch (aa.value) {
         case "(":
           pa.emptyStatement ||
-            (aa.line !== sa.line && m({}, ca.ambiguousSyntax, aa.value));
-          v();
+            (aa.line !== sa.line && l({}, ca.ambiguousSyntax, aa.value));
+          u();
           var d = [],
             c = ta(0);
           for (null != c && d.push(c); A(",");) ((c = fa()), d.push(c));
-          C(")");
-          return b(P.callExpression(a, d));
+          D(")");
+          return b(O.callExpression(a, d));
         case "{":
-          return (G(), v(), (d = R()), b(P.tableCallExpression(a, d)));
+          return (F(), u(), (d = R()), b(O.tableCallExpression(a, d)));
       }
-    else if (2 === aa.type) return b(P.stringCallExpression(a, ga()));
+    else if (2 === aa.type) return b(O.stringCallExpression(a, ga()));
     h("function arguments", aa);
   }
   function ga() {
     var a = aa.value,
       d = aa.type,
       c;
-    wa && (c = F());
+    ya && (c = L());
     if (d & 466)
       return (
-        L(c),
+        K(c),
         (c = X.slice(aa.range[0], aa.range[1])),
-        v(),
-        b(P.literal(d, a, c))
+        u(),
+        b(O.literal(d, a, c))
       );
     if (4 === d && "function" === a)
-      return (L(c), v(), Z.scope && O(), da(null));
-    if (A("{")) return (L(c), R());
+      return (K(c), u(), Z.scope && N(), da(null));
+    if (A("{")) return (K(c), R());
   }
-  function la(d) {
+  function ka(d) {
     X += String(d);
     qa = X.length;
     return a;
   }
   function ha(a) {
-    "undefined" !== typeof a && la(a);
+    "undefined" !== typeof a && ka(a);
     X &&
       "#!" === X.substr(0, 2) &&
       (X = X.replace(/^.*/, function (a) {
         return a.replace(/./g, " ");
       }));
     qa = X.length;
-    wa = Z.locations || Z.ranges;
-    ma = r();
+    ya = Z.locations || Z.ranges;
+    ma = t();
     a = M();
     Z.comments && (a.comments = ja);
     Z.scope && (a.globals = Aa);
-    if (0 < ya.length)
+    if (0 < xa.length)
       throw Error(
         "Location tracking failed. This is most likely a bug in luaparse",
       );
@@ -1088,7 +1088,7 @@
       ambiguousSyntax:
         "ambiguous syntax (function call x new statement) near '%1'",
     }),
-    P = (a.ast = {
+    O = (a.ast = {
       labelStatement: function (a) {
         return { type: "LabelStatement", label: a };
       },
@@ -1237,20 +1237,20 @@
     ja,
     ia,
     na,
-    xa;
-  a.lex = r;
+    wa;
+  a.lex = t;
   var ua,
     Ba,
     Aa,
-    ya = [],
-    wa;
-  z.prototype.complete = function () {
+    xa = [],
+    ya;
+  y.prototype.complete = function () {
     Z.locations &&
       ((this.loc.end.line = sa.lastLine || sa.line),
       (this.loc.end.column = sa.range[1] - (sa.lastLineStart || sa.lineStart)));
     Z.ranges && (this.range[1] = sa.range[1]);
   };
-  z.prototype.bless = function (a) {
+  y.prototype.bless = function (a) {
     if (this.loc) {
       var d = this.loc;
       a.loc = {
@@ -1269,12 +1269,12 @@
     Z = d(w, e);
     U = 0;
     na = 1;
-    xa = 0;
+    wa = 0;
     qa = X.length;
     ua = [[]];
     Ba = 0;
     Aa = [];
-    ya = [];
+    xa = [];
     if (!(pa = za[Z.luaVersion]))
       throw Error(c("Lua version '%1' not supported", Z.luaVersion));
     Z.comments && (ja = []);
@@ -1308,6 +1308,6 @@
       unicodeEscapes: !0,
     },
   };
-  a.write = la;
+  a.write = ka;
   a.end = ha;
 });

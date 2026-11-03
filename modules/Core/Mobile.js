@@ -30,64 +30,64 @@ define(
         ? (c + a) >> 1
         : 0;
     }
-    var m = a("Utils/jquery"),
+    var l = a("Utils/jquery"),
       h = a("Core/Context"),
-      t = a("Core/Events"),
-      r = a("Renderer/Camera"),
+      r = a("Core/Events"),
+      t = a("Renderer/Camera"),
       n = a("Controls/MouseEventHandler"),
       g = a("Controls/KeyEventHandler"),
       p = {},
-      l = !1,
+      k = !1,
       f,
-      k,
+      m,
       q,
-      u,
       v,
+      u,
       A = -1;
     p.init = function () {};
-    var C = (function () {
+    var D = (function () {
       var a = !1;
       return function () {
         a ||
-          ((m.fn.focus = function () {}),
-          (m.fn.select = function () {}),
+          ((l.fn.focus = function () {}),
+          (l.fn.select = function () {}),
           (a = !0));
       };
     })();
     a = (function () {
       function a() {
-        if (!l) {
+        if (!k) {
           A = -1;
           if (p.onTouchStart) p.onTouchStart();
-          if (!v && p.onTouchEnd) p.onTouchEnd();
-          n.intersect = v;
+          if (!u && p.onTouchEnd) p.onTouchEnd();
+          n.intersect = u;
         }
       }
       return function (d) {
-        C();
-        u = d.originalEvent.touches;
+        D();
+        v = d.originalEvent.touches;
         d.stopImmediatePropagation();
-        -1 < A && (t.clearTimeout(A), (A = -1));
-        if (1 < u.length)
-          return ((f = b(u)), (k = c(u)), (q = r.angle[1]), (l = !0), !1);
-        n.screen.x = u[0].pageX;
-        n.screen.y = u[0].pageY;
-        v = n.intersect = !0;
-        A = t.setTimeout(a, 200);
+        -1 < A && (r.clearTimeout(A), (A = -1));
+        if (1 < v.length)
+          return ((f = b(v)), (m = c(v)), (q = t.angle[1]), (k = !0), !1);
+        n.screen.x = v[0].pageX;
+        n.screen.y = v[0].pageY;
+        u = n.intersect = !0;
+        A = r.setTimeout(a, 200);
         return !1;
       };
     })();
     if (800 >= Math.max(screen.availHeight, screen.availWidth))
       if (h.Is.APP) h.requestFullScreen();
       else
-        m(window).on("click", function () {
+        l(window).on("click", function () {
           h.isFullScreen() || h.requestFullScreen();
         });
-    m(window)
+    l(window)
       .on("touchstart", a)
       .on("touchend", function (a) {
-        if (l) ((l = !1), (g.SHIFT = !1), r.rotate(!1), r.save());
-        else if (-1 < A) v = !1;
+        if (k) ((k = !1), (g.SHIFT = !1), t.rotate(!1), t.save());
+        else if (-1 < A) u = !1;
         else {
           if (p.onTouchEnd) p.onTouchEnd();
           n.intersect = !1;
@@ -98,21 +98,21 @@ define(
         var p = a.originalEvent.touches;
         n.screen.x = p[0].pageX;
         n.screen.y = p[0].pageY;
-        if (l) {
+        if (k) {
           a = b(p) - f;
-          var h = c(p) - k + q,
-            m = Math.abs(d(u, p)),
-            p = Math.abs(e(u, p));
-          !r.action.active && (10 < m || 10 < p)
-            ? ((g.SHIFT = p > m), r.rotate(!0))
+          var h = c(p) - m + q,
+            l = Math.abs(d(v, p)),
+            p = Math.abs(e(v, p));
+          !t.action.active && (10 < l || 10 < p)
+            ? ((g.SHIFT = p > l), t.rotate(!0))
             : (10 < Math.abs(a) &&
-                ((r.zoomFinal += 0.1 * a),
-                (r.zoomFinal = Math.min(
-                  r.zoomFinal,
-                  Math.abs(r.altitudeTo - r.altitudeFrom) * r.MAX_ZOOM,
+                ((t.zoomFinal += 0.1 * a),
+                (t.zoomFinal = Math.min(
+                  t.zoomFinal,
+                  Math.abs(t.altitudeTo - t.altitudeFrom) * t.MAX_ZOOM,
                 )),
-                (r.zoomFinal = Math.max(r.zoomFinal, 2))),
-              h && (r.angleFinal[1] = h));
+                (t.zoomFinal = Math.max(t.zoomFinal, 2))),
+              h && (t.angleFinal[1] = h));
         }
       });
     return p;

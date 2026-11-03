@@ -21,19 +21,19 @@ define(
       a("./EntityAnimations").call(this);
       this.boundingRect = { x1: 0, y1: 0, x2: 0, y2: 0 };
       this.matrix = n.create();
-      this.position = r.create();
-      this._position = r.create();
+      this.position = t.create();
+      this._position = t.create();
       b && (this.clean(), this.set(b));
     }
     var c = a("Renderer/Renderer"),
       d = a("Renderer/Map/Altitude"),
       e = a("Engine/SessionStorage"),
-      m = a("Core/Configs"),
+      l = a("Core/Configs"),
       h = a("Core/Client"),
-      t = a("Utils/gl-matrix"),
-      r = t.vec3,
-      n = t.mat4;
-    m.get("ClientVer");
+      r = a("Utils/gl-matrix"),
+      t = r.vec3,
+      n = r.mat4;
+    l.get("ClientVer");
     b.TYPE_EFFECT = -3;
     b.TYPE_UNKNOWN = -2;
     b.TYPE_WARP = -1;
@@ -149,7 +149,7 @@ define(
     b.prototype.ghost = { xSize: 1, ySize: 1 };
     b.prototype.set = function (g) {
       if ("GoldpointManager" == g.name) return ((e.goldpcid = g.GID), !1);
-      var p, l, f;
+      var p, k, f;
       this.direction = 4;
       this.setAction({
         action: this.ACTION.IDLE,
@@ -165,8 +165,8 @@ define(
       this.clothes = 0;
       p = Object.keys(g);
       f = p.length;
-      for (l = 0; l < f; ++l)
-        switch (p[l]) {
+      for (k = 0; k < f; ++k)
+        switch (p[k]) {
           case "objecttype":
             this.objecttype = 45 === g.job ? b.TYPE_WARP : g.objecttype;
             a("./EntityAction").call(this);
@@ -262,10 +262,10 @@ define(
                   (this.effectColor[2] = 1));
             break;
           default:
-            (b.prototype.hasOwnProperty(p[l]) ||
-              b.prototype.hasOwnProperty("_" + p[l])) &&
-              this[p[l]] != g[p[l]] &&
-              (this[p[l]] = g[p[l]]);
+            (b.prototype.hasOwnProperty(p[k]) ||
+              b.prototype.hasOwnProperty("_" + p[k])) &&
+              this[p[k]] != g[p[k]] &&
+              (this[p[k]] = g[p[k]]);
         }
       -1 < this.life.hp &&
         -1 < this.life.hp_max &&

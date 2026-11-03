@@ -9,71 +9,71 @@ define(
       return !1;
     }
     function c() {
-      r.ui.hide();
+      t.ui.hide();
     }
     var d = a("UI/UIManager"),
       e = a("UI/UIComponent"),
-      m = a("Core/Preferences");
+      l = a("Core/Preferences");
     a("Renderer/Renderer");
     var h = a("text!./WinStats.html");
     a = a("text!./WinStats.css");
-    var t = m.get("WinStats", { x: 50, y: 200, show: !1, reduce: !1 }, 1),
-      r = new e("WinStats", h, a);
-    r.init = function () {
+    var r = l.get("WinStats", { x: 50, y: 200, show: !1, reduce: !1 }, 1),
+      t = new e("WinStats", h, a);
+    t.init = function () {
       this.statuspoint = 0;
       this.ui.find(".titlebar .base").mousedown(b);
       this.ui.find(".titlebar .mini").click(function () {
-        r.ui.find(".panel").toggle();
+        t.ui.find(".panel").toggle();
       });
       this.ui.find(".titlebar .close").click(c);
       this.ui.find(".up button").mousedown(function () {
         switch (this.className) {
           case "str":
-            r.onRequestUpdate(13, 1);
+            t.onRequestUpdate(13, 1);
             break;
           case "agi":
-            r.onRequestUpdate(14, 1);
+            t.onRequestUpdate(14, 1);
             break;
           case "vit":
-            r.onRequestUpdate(15, 1);
+            t.onRequestUpdate(15, 1);
             break;
           case "int":
-            r.onRequestUpdate(16, 1);
+            t.onRequestUpdate(16, 1);
             break;
           case "dex":
-            r.onRequestUpdate(17, 1);
+            t.onRequestUpdate(17, 1);
             break;
           case "luk":
-            r.onRequestUpdate(18, 1);
+            t.onRequestUpdate(18, 1);
         }
       });
       this.draggable(this.ui.find(".titlebar"));
     };
-    r.stack = [];
-    r.onAppend = function () {
+    t.stack = [];
+    t.onAppend = function () {
       var a, b;
-      t.show || this.ui.hide();
-      t.reduce && this.ui.find(".panel").hide();
+      r.show || this.ui.hide();
+      r.reduce && this.ui.find(".panel").hide();
       a = 0;
       for (b = this.stack.length; a < b; ++a)
         this.update.apply(this, this.stack[a]);
       this.stack.length = 0;
     };
-    r.onRemove = function () {
-      t.show = this.ui.is(":visible");
-      t.reduce = "none" === this.ui.find(".panel").css("display");
-      t.y = parseInt(this.ui.css("top"), 10);
-      t.x = parseInt(this.ui.css("left"), 10);
-      t.save();
+    t.onRemove = function () {
+      r.show = this.ui.is(":visible");
+      r.reduce = "none" === this.ui.find(".panel").css("display");
+      r.y = parseInt(this.ui.css("top"), 10);
+      r.x = parseInt(this.ui.css("left"), 10);
+      r.save();
     };
-    r.update = function (a, b) {
+    t.update = function (a, b) {
       var c;
       if (this.__loaded)
         switch (a) {
           case "statuspoint":
             this.statuspoint = b;
             this.ui.find(".requirements div").each(function () {
-              r.ui
+              t.ui
                 .find(".up ." + this.className)
                 .css("opacity", parseInt(this.textContent, 10) <= b ? 1 : 0);
             });
@@ -133,13 +133,13 @@ define(
         }
       else this.stack.push(arguments);
     };
-    r.onShortCut = function (a) {
+    t.onShortCut = function (a) {
       switch (a.cmd) {
         case "TOGGLE":
-          (r.ui.toggle(), r.focus());
+          (t.ui.toggle(), t.focus());
       }
     };
-    r.onRequestUpdate = function () {};
-    return d.addComponent(r);
+    t.onRequestUpdate = function () {};
+    return d.addComponent(t);
   },
 );

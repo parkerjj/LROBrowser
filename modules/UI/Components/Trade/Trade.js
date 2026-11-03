@@ -13,11 +13,11 @@ define(
       return d;
     }
     function c(a, b) {
-      a in H
-        ? J.addText(p.getMessage(51), J.TYPE.ERROR)
-        : 10 < N.length
-          ? J.addText(p.getMessage(297), J.TYPE.ERROR)
-          : ((H[a] = b), y.reqAddItem(a, b));
+      a in G
+        ? H.addText(p.getMessage(51), H.TYPE.ERROR)
+        : 10 < P.length
+          ? H.addText(p.getMessage(297), H.TYPE.ERROR)
+          : ((G[a] = b), z.reqAddItem(a, b));
     }
     function d(a) {
       a.stopImmediatePropagation();
@@ -25,20 +25,20 @@ define(
     }
     function e() {
       this.remove();
-      y.onCancel();
+      z.onCancel();
     }
-    function m() {
-      var a = parseInt(y.ui.find(".zeny.send").val(), 10) || 0,
-        a = Math.min(Math.max(0, a), k.zeny);
+    function l() {
+      var a = parseInt(z.ui.find(".zeny.send").val(), 10) || 0,
+        a = Math.min(Math.max(0, a), m.zeny);
       c(0, a);
-      y.onConclude();
+      z.onConclude();
     }
     function h() {
-      y.onTradeSubmit();
+      z.onTradeSubmit();
       this.ui.find(".trade.enabled").hide();
       this.ui.find(".trade.disabled").show();
     }
-    function t(a) {
+    function r(a) {
       var b, d;
       try {
         d = JSON.parse(a.originalEvent.dataTransfer.getData("Text"));
@@ -61,12 +61,12 @@ define(
       c(b.index, 1);
       return !1;
     }
-    function r() {
+    function t() {
       var a = parseInt(this.getAttribute("data-index"), 10);
-      if ((a = this.parentNode.className.match(/send/i) ? N[a] : O[a])) {
-        var b = l(this),
+      if ((a = this.parentNode.className.match(/send/i) ? P[a] : N[a])) {
+        var b = k(this),
           c = b.parent().position(),
-          d = y.ui.find(".overlay");
+          d = z.ui.find(".overlay");
         c.left += b.position().left;
         c.top += b.position().top;
         d.show();
@@ -76,52 +76,52 @@ define(
       }
     }
     function n() {
-      y.ui.find(".overlay").hide();
+      z.ui.find(".overlay").hide();
     }
     function g(a) {
       var b = parseInt(this.getAttribute("data-index"), 10),
-        b = this.parentNode.className.match(/send/i) ? N[b] : O[b];
+        b = this.parentNode.className.match(/send/i) ? P[b] : N[b];
       if (!b) return d(a);
-      if (C.uid === b.ITID) return (C.remove(), !1);
-      C.append();
-      C.uid = b.ITID;
-      C.setItem(b);
+      if (D.uid === b.ITID) return (D.remove(), !1);
+      D.append();
+      D.uid = b.ITID;
+      D.setItem(b);
       return d(a);
     }
     var p = a("DB/DBManager"),
-      l = a("Utils/jquery"),
+      k = a("Utils/jquery"),
       f = a("Core/Client"),
-      k = a("Engine/SessionStorage"),
+      m = a("Engine/SessionStorage"),
       q = a("Renderer/Renderer"),
-      u = a("UI/UIManager"),
-      v = a("UI/UIComponent"),
+      v = a("UI/UIManager"),
+      u = a("UI/UIComponent"),
       A = a("UI/Components/InputBox/InputBox"),
-      C = a("UI/Components/ItemInfo/ItemInfo"),
+      D = a("UI/Components/ItemInfo/ItemInfo"),
       B = a("UI/Components/Inventory/Inventory"),
-      J = a("UI/Components/ChatBox/ChatBox"),
-      D = a("text!./Trade.html");
+      H = a("UI/Components/ChatBox/ChatBox"),
+      C = a("text!./Trade.html");
     a = a("text!./Trade.css");
-    var y = new v("Trade", D, a),
-      H = {},
-      N = [],
-      O = [];
-    y.title = "";
-    y.init = function () {
-      this.ui.find(".ok.enabled").click(m);
+    var z = new u("Trade", C, a),
+      G = {},
+      P = [],
+      N = [];
+    z.title = "";
+    z.init = function () {
+      this.ui.find(".ok.enabled").click(l);
       this.ui.find(".trade.enabled").click(h.bind(this));
       this.ui.find(".cancel").click(e.bind(this));
-      this.ui.on("mousedown", ".disabled", d).on("drop", t).on("dragover", d);
+      this.ui.on("mousedown", ".disabled", d).on("drop", r).on("dragover", d);
       this.ui.find(".zeny.send").mousedown(function () {
         this.select();
       });
       this.ui
         .find(".box")
-        .on("mouseover", ".item", r)
+        .on("mouseover", ".item", t)
         .on("mouseout", ".item", n)
         .on("contextmenu", ".item", g);
       this.draggable(this.ui.find(".titlebar"));
     };
-    y.onAppend = function () {
+    z.onAppend = function () {
       this.onRemove();
       this.ui.find(".titlebar .title").text(this.title);
       this.ui.css({
@@ -129,10 +129,10 @@ define(
         left: (q.width - this.ui.width()) / 2,
       });
     };
-    y.onRemove = function () {
-      H = {};
-      O.length = 0;
+    z.onRemove = function () {
+      G = {};
       N.length = 0;
+      P.length = 0;
       this.ui.find(".overlay").hide();
       this.ui.find(".ok.disabled, .trade.enabled").hide();
       this.ui.find(".ok.enabled, .trade.disabled").show();
@@ -144,22 +144,22 @@ define(
         .attr("disabled", !1);
       this.ui.find(".zeny.recv").text("0");
     };
-    y.addItemFromInventory = function (a, c) {
+    z.addItemFromInventory = function (a, c) {
       if (c)
-        if (0 === a) 0 < H[a] && this.ui.find(".zeny.send").val(b(H[a]));
+        if (0 === a) 0 < G[a] && this.ui.find(".zeny.send").val(b(G[a]));
         else {
-          c = l.extend({}, B.removeItem(a, H[a]));
+          c = k.extend({}, B.removeItem(a, G[a]));
           var d = p.getItemInfo(c.ITID),
-            e = N.push(c) - 1,
+            e = P.push(c) - 1,
             g = this.ui.find(".box.send");
-          c.count = H[a];
+          c.count = G[a];
           g.append(
             '\x3cdiv class\x3d"item" data-index\x3d"' +
               e +
               '"\x3e\x3cdiv class\x3d"icon"\x3e\x3c/div\x3e\x3cdiv class\x3d"amount"\x3e\x3cspan class\x3d"count"\x3e' +
-              (H[a] || 1) +
+              (G[a] || 1) +
               '\x3c/span\x3e\x3c/div\x3e\x3cspan class\x3d"name"\x3e' +
-              l.escape(p.getItemName(c)) +
+              k.escape(p.getItemName(c)) +
               "\x3c/span\x3e\x3c/div\x3e",
           );
           f.loadFile(
@@ -177,13 +177,13 @@ define(
             }.bind(this),
           );
         }
-      else delete H[a];
+      else delete G[a];
     };
-    y.addItem = function (a) {
+    z.addItem = function (a) {
       if (0 === a.ITID) this.ui.find(".zeny.recv").text(b(a.count));
       else {
         var c = p.getItemInfo(a.ITID),
-          d = O.push(a) - 1,
+          d = N.push(a) - 1,
           e = this.ui.find(".box.recv");
         e.append(
           '\x3cdiv class\x3d"item" data-index\x3d"' +
@@ -191,7 +191,7 @@ define(
             '"\x3e\x3cdiv class\x3d"icon"\x3e\x3c/div\x3e\x3cdiv class\x3d"amount"\x3e' +
             a.count +
             '\x3c/div\x3e\x3cspan class\x3d"name"\x3e' +
-            l.escape(p.getItemName(a)) +
+            k.escape(p.getItemName(a)) +
             "\x3c/span\x3e\x3c/div\x3e",
         );
         f.loadFile(
@@ -210,7 +210,7 @@ define(
         );
       }
     };
-    y.conclude = function (a) {
+    z.conclude = function (a) {
       this.ui.find(".box." + a).addClass("disabled");
       "send" === a &&
         (this.ui.find(".ok.disabled").show(),
@@ -221,10 +221,10 @@ define(
         (this.ui.find(".trade.enabled").show(),
         this.ui.find(".trade.disabled").hide());
     };
-    y.onConclude = function () {};
-    y.onTradeSubmit = function () {};
-    y.reqAddItem = function () {};
-    y.onCancel = function () {};
-    return u.addComponent(y);
+    z.onConclude = function () {};
+    z.onTradeSubmit = function () {};
+    z.reqAddItem = function () {};
+    z.onCancel = function () {};
+    return v.addComponent(z);
   },
 );

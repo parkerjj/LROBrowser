@@ -5,18 +5,18 @@ define(
   ),
   function (a) {
     function b() {
-      u.ui && u.ui[0].parentNode ? u.remove() : u.append();
+      v.ui && v.ui[0].parentNode ? v.remove() : v.append();
     }
     function c() {
-      for (var a = u.ui.find("td[data-button]"), b = 0; b < a.length; b++)
+      for (var a = v.ui.find("td[data-button]"), b = 0; b < a.length; b++)
         d(a.eq(b).data("button"))
           ? a
               .eq(b)
               .text(
                 (e(a.eq(b).data("button")) ? "ALT + " : "") +
-                  (m(a.eq(b).data("button")) ? "CTRL + " : "") +
+                  (l(a.eq(b).data("button")) ? "CTRL + " : "") +
                   (h(a.eq(b).data("button")) ? "SHIFT + " : "") +
-                  r.toReadableKey(parseInt(d(a.eq(b).data("button")), 10)),
+                  t.toReadableKey(parseInt(d(a.eq(b).data("button")), 10)),
               )
           : a.eq(b).text("\u672a\u8bbe\u7f6e");
     }
@@ -26,62 +26,62 @@ define(
     function e(a) {
       return f[a].Custom_settings ? f[a].Custom_alt : f[a].alt;
     }
-    function m(a) {
+    function l(a) {
       return f[a].Custom_settings ? f[a].Custom_ctrl : f[a].ctrl;
     }
     function h(a) {
       return f[a].Custom_settings ? f[a].Custom_shift : f[a].shift;
     }
-    var t = a("Utils/jquery"),
-      r = a("Controls/KeyEventHandler");
+    var r = a("Utils/jquery"),
+      t = a("Controls/KeyEventHandler");
     a("Core/Configs");
     a("Core/Context");
     var n = a("Core/Preferences"),
       g = a("Renderer/Renderer"),
       p = a("UI/UIManager"),
-      l = a("UI/UIComponent"),
+      k = a("UI/UIComponent"),
       f = a("Preferences/ShortCutControls"),
-      k = a("Controls/BattleMode"),
+      m = a("Controls/BattleMode"),
       q = a("text!./ShortCutOption.html");
     a = a("text!./ShortCutOption.css");
-    var u = new l("ShortCutOption", q, a),
-      v = n.get("ShortCutOption", { x: 300, y: 300 }, 1.1),
-      A = (u.needFocus = !1);
-    u.init = function () {
+    var v = new k("ShortCutOption", q, a),
+      u = n.get("ShortCutOption", { x: 300, y: 300 }, 1.1),
+      A = (v.needFocus = !1);
+    v.init = function () {
       this.ui.find(".close").on("click", b);
       this.ui.find(".tabs").on("click", "button", function () {
-        0 == t(this).data("index")
-          ? u.ui.find(".border").hasClass("ui") &&
-            u.ui.find(".border").removeClass("ui").addClass("ShortCut")
-          : u.ui.find(".border").hasClass("ShortCut") &&
-            u.ui.find(".border").removeClass("ShortCut").addClass("ui");
+        0 == r(this).data("index")
+          ? v.ui.find(".border").hasClass("ui") &&
+            v.ui.find(".border").removeClass("ui").addClass("ShortCut")
+          : v.ui.find(".border").hasClass("ShortCut") &&
+            v.ui.find(".border").removeClass("ShortCut").addClass("ui");
       });
       this.ui.find("td").on("click", function () {
-        t(this).hasClass("customize")
+        r(this).hasClass("customize")
           ? ((A = !0),
-            t("#ShortCutOption td.sd").removeClass("sd"),
-            t(this).addClass("sd"))
-          : ((A = !1), t("#ShortCutOption td.sd").removeClass("sd"));
+            r("#ShortCutOption td.sd").removeClass("sd"),
+            r(this).addClass("sd"))
+          : ((A = !1), r("#ShortCutOption td.sd").removeClass("sd"));
       });
       c();
       this.draggable(this.ui.find(".titlebar"));
     };
-    u.onAppend = function () {
+    v.onAppend = function () {
       this.ui.css({
         top: 0.5 * (g.height - this.ui.height()),
         left: 0.5 * (g.width - this.ui.width()),
         zIndex: 100,
       });
     };
-    u.onRemove = function () {
-      v.x = parseInt(this.ui.css("left"), 10);
-      v.y = parseInt(this.ui.css("top"), 10);
-      v.save();
+    v.onRemove = function () {
+      u.x = parseInt(this.ui.css("left"), 10);
+      u.y = parseInt(this.ui.css("top"), 10);
+      u.save();
     };
-    u.onKeyDown = function (a) {
+    v.onKeyDown = function (a) {
       if (A) {
-        var b = u.ui.find("td.sd");
-        if (k.match(a.which, r.ALT, r.CTRL, r.SHIFT))
+        var b = v.ui.find("td.sd");
+        if (m.match(a.which, t.ALT, t.CTRL, t.SHIFT))
           return (
             alert("\u4e0e\u5176\u5b83\u5feb\u6377\u952e\u51b2\u7a81"),
             !1
@@ -90,20 +90,20 @@ define(
           17 != a.which &&
           18 != a.which &&
           ((f[b.data("button")].Custom_settings = a.which),
-          (f[b.data("button")].Custom_alt = r.ALT),
-          (f[b.data("button")].Custom_ctrl = r.CTRL),
-          (f[b.data("button")].Custom_shift = r.SHIFT),
+          (f[b.data("button")].Custom_alt = t.ALT),
+          (f[b.data("button")].Custom_ctrl = t.CTRL),
+          (f[b.data("button")].Custom_shift = t.SHIFT),
           f.save());
-        k.reload();
+        m.reload();
         b.text(
           (e(b.data("button")) ? "ALT + " : "") +
-            (m(b.data("button")) ? "CTRL + " : "") +
+            (l(b.data("button")) ? "CTRL + " : "") +
             (h(b.data("button")) ? "SHIFT + " : "") +
-            r.toReadableKey(d(b.data("button")), 10),
+            t.toReadableKey(d(b.data("button")), 10),
         );
       }
       return !1;
     };
-    return p.addComponent(u);
+    return p.addComponent(v);
   },
 );

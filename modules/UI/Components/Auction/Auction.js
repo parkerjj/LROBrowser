@@ -14,46 +14,46 @@ define(
             : parseInt(a) + "\u79d2\u540e";
     }
     function c(a) {
-      var b = k(a);
+      var b = m(a);
       if (b) {
         var c = q.getItemName(b),
           d = b.MaxPrice;
-        y.showPromptBox(
+        z.showPromptBox(
           "\u7269\u54c1\u540d\u79f0\uff1a" +
             c +
             "\uff0c\u4ef7\u683c\uff1a" +
             d +
-            F +
+            L +
             "\uff0c\u9053\u5177\u8d2d\u4e70\u540e\u5c06\u53d1\u9001\u5230\u90ae\u7bb1",
           "ok",
           "cancel",
           function () {
-            if (b.SellerName == D.Entity.display.name)
-              y.showMessageBox("\u8d2d\u4e70\u5931\u8d25", "ok");
+            if (b.SellerName == C.Entity.display.name)
+              z.showMessageBox("\u8d2d\u4e70\u5931\u8d25", "ok");
             else {
-              var c = new v.CZ.AUCTION_BUY();
+              var c = new u.CZ.AUCTION_BUY();
               c.AuctionID = a;
               c.Money = d;
-              u.sendPacket(c);
+              v.sendPacket(c);
             }
           },
         );
       }
     }
     function d(a) {
-      var b = k(a);
+      var b = m(a);
       b &&
         ((b = q.getItemName(b)),
-        y.showPromptBox(
+        z.showPromptBox(
           "\u7269\u54c1\u540d\u79f0\uff1a" +
             b +
             "\uff0c\u9053\u5177\u4e0b\u67b6\u540e\u5c06\u53d1\u9001\u5230\u90ae\u7bb1",
           "ok",
           "cancel",
           function () {
-            var b = new v.CZ.AUCTION_ADD_CANCEL();
+            var b = new u.CZ.AUCTION_ADD_CANCEL();
             b.AuctionID = a;
-            u.sendPacket(b);
+            v.sendPacket(b);
           },
         ));
     }
@@ -61,7 +61,7 @@ define(
       E.ui.find(".tabsbar .btns button").removeClass("sd");
       E.ui.find(".tabsbar .btns button").eq(a).addClass("sd");
       E.ui.find(".content").empty();
-      G = a;
+      F = a;
       switch (a) {
         case 0:
           E.ui.find(".seachbar").show();
@@ -70,7 +70,7 @@ define(
           E.ui.find(".nav2").hide();
           E.ui.find(".footer .pages").show();
           E.ui.find(".footer .btns").hide();
-          m(4);
+          l(4);
           break;
         case 1:
           E.ui.find(".seachbar").hide();
@@ -79,9 +79,9 @@ define(
           E.ui.find(".nav2").hide();
           E.ui.find(".footer .pages").hide();
           E.ui.find(".footer .btns").hide();
-          a = new v.CZ.AUCTION_REQ_MY_INFO();
+          a = new u.CZ.AUCTION_REQ_MY_INFO();
           a.Type = 0;
-          u.sendPacket(a);
+          v.sendPacket(a);
           break;
         case 2:
           (E.ui.find(".seachbar").hide(),
@@ -97,18 +97,18 @@ define(
             ));
       }
     }
-    function m(a) {
+    function l(a) {
       E.ui.find(".search input").val("");
       E.ui
         .find(".search .sort option[value \x3d " + a + "]")
         .prop("selected", "selected");
-      L = 1;
-      var b = new v.CZ.AUCTION_ITEM_SEARCH();
+      K = 1;
+      var b = new u.CZ.AUCTION_ITEM_SEARCH();
       b.Type = a;
       b.AuctionID = 0;
       b.Name = E.ui.find(".search input").val() || "";
-      b.Page = L;
-      u.sendPacket(b);
+      b.Page = K;
+      v.sendPacket(b);
       return !1;
     }
     function h(a) {
@@ -120,55 +120,55 @@ define(
       }
       a.stopImmediatePropagation();
       if (("item" == b.type) & ("Inventory" == b.from) && (b = b.data)) {
-        var c = new v.CZ.AUCTION_CREATE();
+        var c = new u.CZ.AUCTION_CREATE();
         c.type = 1;
-        u.sendPacket(c);
-        c = new v.CZ.AUCTION_ADD_ITEM();
+        v.sendPacket(c);
+        c = new u.CZ.AUCTION_ADD_ITEM();
         c.index = b.index;
         c.count = 1;
-        u.sendPacket(c);
-        N.auctionItem(b.index, 1);
+        v.sendPacket(c);
+        P.auctionItem(b.index, 1);
       }
       a.stopImmediatePropagation();
       return !1;
     }
-    function t(a) {
+    function r(a) {
       a.stopImmediatePropagation();
       return !1;
     }
-    function r() {
-      1 < L && (--L, E.ui.find(".currentPage").text(L), g());
+    function t() {
+      1 < K && (--K, E.ui.find(".currentPage").text(K), g());
     }
     function n() {
-      L < M && ((L += 1), E.ui.find(".currentPage").text(L), g());
+      K < M && ((K += 1), E.ui.find(".currentPage").text(K), g());
     }
     function g() {
       var a = E.ui.find(".search .sort").val(),
-        b = new v.CZ.AUCTION_ITEM_SEARCH();
+        b = new u.CZ.AUCTION_ITEM_SEARCH();
       b.Type = a;
       b.AuctionID = 0;
       b.Name = E.ui.find(".search input").val();
-      b.Page = L;
-      u.sendPacket(b);
+      b.Page = K;
+      v.sendPacket(b);
     }
     function p(a) {
       E.ui
         .find(".search .sort option[value \x3d 4]")
         .prop("selected", "selected");
-      var b = new v.CZ.AUCTION_ITEM_SEARCH();
+      var b = new u.CZ.AUCTION_ITEM_SEARCH();
       b.Type = 4;
       b.AuctionID = a | 0;
       b.Name = E.ui.find(".search input").val();
-      b.Page = L;
-      u.sendPacket(b);
+      b.Page = K;
+      v.sendPacket(b);
     }
-    function l() {
+    function k() {
       var a = E.ui.find(".content");
-      if (V) {
-        var b = new v.CZ.AUCTION_CREATE();
+      if (W) {
+        var b = new u.CZ.AUCTION_CREATE();
         b.type = 1;
-        u.sendPacket(b);
-        V = null;
+        v.sendPacket(b);
+        W = null;
       }
       a.empty();
       a.append(
@@ -176,35 +176,35 @@ define(
       );
     }
     function f() {
-      if (V) {
+      if (W) {
         var a = E.ui.find(".itemSub .name").html(),
           b = E.ui.find(".itemSub .price input").val(),
           c = E.ui.find(".itemSub .datetime input").val();
         a
           ? b
             ? 1 > b
-              ? y.showMessageBox(
+              ? z.showMessageBox(
                   "\u51fa\u552e\u4ef7\u683c\u5927\u4e8e\u7b49\u4e8e1",
                   "ok",
                 )
               : c
                 ? 1 > c
-                  ? y.showMessageBox(
+                  ? z.showMessageBox(
                       "\u6302\u552e\u65f6\u95f4\u81f3\u5c111\u5c0f\u65f6",
                       "ok",
                     )
                   : 168 < c
-                    ? y.showMessageBox(
+                    ? z.showMessageBox(
                         "\u6302\u552e\u65f6\u95f4\u4e0d\u80fd\u8d85\u8fc7168\u5c0f\u65f6",
                         "ok",
                       )
                     : ((b = parseInt(b)),
-                      y.showPromptBox(
+                      z.showPromptBox(
                         "\u7269\u54c1\u540d\u79f0\uff1a" +
                           a +
                           "\uff0c\u4ef7\u683c\uff1a" +
                           b +
-                          F +
+                          L +
                           "\uff0c\u624b\u7eed\u8d39\uff1a" +
                           b +
                           "Z\uff0c\u6302\u552e\u65f6\u95f4\uff1a" +
@@ -216,25 +216,25 @@ define(
                         "ok",
                         "cancel",
                         function () {
-                          var a = new v.CZ.AUCTION_ADD();
+                          var a = new u.CZ.AUCTION_ADD();
                           a.NowMoney = b;
                           a.MaxMoney = b;
                           a.DeleteHour = c;
-                          u.sendPacket(a);
+                          v.sendPacket(a);
                         },
                       ))
-                : y.showMessageBox(
+                : z.showMessageBox(
                     "\u8bf7\u586b\u5199\u6302\u552e\u65f6\u95f4",
                     "ok",
                   )
-            : y.showMessageBox(
+            : z.showMessageBox(
                 "\u8bf7\u586b\u5199\u51fa\u552e\u4ef7\u683c",
                 "ok",
               )
-          : y.showMessageBox("\u8bf7\u6dfb\u52a0\u7269\u54c1", "ok");
-      } else y.showMessageBox("\u8bf7\u6dfb\u52a0\u7269\u54c1", "ok");
+          : z.showMessageBox("\u8bf7\u6dfb\u52a0\u7269\u54c1", "ok");
+      } else z.showMessageBox("\u8bf7\u6dfb\u52a0\u7269\u54c1", "ok");
     }
-    function k(a) {
+    function m(a) {
       for (var b, c = 0; c < E.list.length; c++)
         if (E.list[c].AuctionID == a) {
           b = E.list[c];
@@ -243,49 +243,49 @@ define(
       return b;
     }
     var q = a("DB/DBManager"),
-      u = a("Network/NetworkManager"),
-      v = a("Network/PacketStructure"),
+      v = a("Network/NetworkManager"),
+      u = a("Network/PacketStructure"),
       A = a("Utils/jquery"),
-      C = a("Core/Preferences"),
+      D = a("Core/Preferences"),
       B = a("Core/Client"),
-      J = a("Core/Configs");
+      H = a("Core/Configs");
     a("Renderer/Renderer");
-    var D = a("Engine/SessionStorage");
+    var C = a("Engine/SessionStorage");
     a("Controls/MouseEventHandler");
-    var y = a("UI/UIManager"),
-      H = a("UI/UIComponent");
+    var z = a("UI/UIManager"),
+      G = a("UI/UIComponent");
     a("UI/Components/ContextMenu/ContextMenu");
     a("UI/Components/ChatBox/ChatBox");
-    var N = a("UI/Components/Inventory/Inventory"),
-      O = a("UI/Components/OnPushCart/OnPushCart"),
+    var P = a("UI/Components/Inventory/Inventory"),
+      N = a("UI/Components/OnPushCart/OnPushCart"),
       I = a("UI/Components/ItemInfo/ItemInfo"),
       x = a("UI/Components/ItemObtain/ItemObtain"),
-      K = a("text!./Auction.html");
+      J = a("text!./Auction.html");
     a = a("text!./Auction.css");
-    var E = new H("Auction", K, a),
-      F = "Z";
-    3 == J.get("ClientVer") && (F = "C");
+    var E = new G("Auction", J, a),
+      L = "Z";
+    3 == H.get("ClientVer") && (L = "C");
     E.list = [];
     E.TAB = { ITEM: 0, SELLING: 1, MNSELL: 2 };
-    var z = C.get(
+    var y = D.get(
         "Auction",
         { x: 200, y: 260, width: 6, height: 6, show: !1, tab: E.TAB.ITEM },
         1,
       ),
-      G = 0,
-      L = 1,
+      F = 0,
+      K = 1,
       M = 1,
       Q = !1,
-      V = null;
+      W = null;
     E.init = function () {
       this.ui.find(".titlebar").on("click", ".close", function () {
-        var a = new v.CZ.AUCTION_CLOSE();
-        u.sendPacket(a);
+        var a = new u.CZ.AUCTION_CLOSE();
+        v.sendPacket(a);
       });
       this.ui.find(".content").on("contextmenu", ".item .left", function () {
         if (!Q) {
           var a = A(this).parent().attr("data-auctionid");
-          if ((a = k(a)))
+          if ((a = m(a)))
             I.AuctionID != a.AuctionID
               ? (I.append(),
                 (I.AuctionID = a.AuctionID),
@@ -300,7 +300,7 @@ define(
         .on("contextmenu", ".itemSub .left,.itemSub .name", function () {
           if (!Q) {
             A(this).parent().attr("data-index");
-            var a = V;
+            var a = W;
             a &&
               (I.uid != a.ITID
                 ? (I.append(),
@@ -322,20 +322,20 @@ define(
         Q || d(A(this).attr("data-auctionid"));
       });
       this.ui.find(".search .sort").on("change", function () {
-        m(A(this).val());
+        l(A(this).val());
       });
       this.ui.find(".search input").on("change", p);
-      this.ui.find(".footer").on("click", ".prev", r);
+      this.ui.find(".footer").on("click", ".prev", t);
       this.ui.find(".footer").on("click", ".next", n);
       this.ui.find(".openInventory").click(function () {
-        N.toggle();
+        P.toggle();
       });
       this.ui.find(".openpushcart").click(function () {
-        D.Entity.cart
-          ? O.toggle()
+        C.Entity.cart
+          ? N.toggle()
           : x.setMsg("\u627e\u4e0d\u5230\u624b\u63a8\u8f66");
       });
-      this.ui.find(".sellbar").on("click", ".reset", l);
+      this.ui.find(".sellbar").on("click", ".reset", k);
       this.ui.find(".sellbar").on("click", ".release", f);
       var a, b;
       this.ui
@@ -351,25 +351,25 @@ define(
               c.stopImmediatePropagation());
         });
       this.draggable(this.ui.find(".titlebar"));
-      this.ui.on("drop", h).on("dragover", t);
-      z.tab = 0;
+      this.ui.on("drop", h).on("dragover", r);
+      y.tab = 0;
     };
     E.onAppend = function () {
       e(0);
     };
     E.onRemove = function () {
       I.ui && I.ui.is(":visible") && I.remove();
-      G = 0;
-      M = L = 1;
-      V = null;
+      F = 0;
+      M = K = 1;
+      W = null;
       E.ui.find(".search input").val("");
     };
     E.addItemSub = function (a, b) {
-      var c = N.getItemByIndex(a);
+      var c = P.getItemByIndex(a);
       a = q.getItemInfo(c.ITID);
       b = q.getItemName(c);
       var d = this.ui.find(".content");
-      V = c;
+      W = c;
       d.empty();
       d.append(
         '\x3cdiv class\x3d"itemSub" data-index\x3d"' +
@@ -396,7 +396,7 @@ define(
         g = E.ui.find(".tabsbar .btns button.sd").index(),
         h = !1;
       c = a.DeleteTime - parseInt(Date.now() / 1e3);
-      a.SellerName == D.Entity.display.name && (h = !0);
+      a.SellerName == C.Entity.display.name && (h = !0);
       c = h
         ? A(
             '\x3cdiv class\x3d"item" draggable\x3d"true" data-AuctionID\x3d"' +
@@ -448,7 +448,7 @@ define(
       );
     };
     E.getSellitem = function () {
-      return V;
+      return W;
     };
     E.update = function (a) {
       e(a);
@@ -463,10 +463,10 @@ define(
       c.empty();
       b = 0;
       for (a = a.Number; b < a; b++)
-        if ((E.addItem(this.list[b]), 0 == G && b == a - 1)) {
+        if ((E.addItem(this.list[b]), 0 == F && b == a - 1)) {
           var d = A(
             '\x3cbutton class\x3d"prev"\x3e\x3c\x3c/button\x3e\x3cspan class\x3d"currentPage"\x3e' +
-              L +
+              K +
               '\x3c/span\x3e / \x3cspan class\x3d"totalPages"\x3e' +
               M +
               '\x3c/span\x3e\x3cbutton class\x3d"next"\x3e\x3e\x3c/button\x3e',
@@ -477,6 +477,6 @@ define(
     E.updatePage = function () {
       g();
     };
-    return y.addComponent(E);
+    return z.addComponent(E);
   },
 );

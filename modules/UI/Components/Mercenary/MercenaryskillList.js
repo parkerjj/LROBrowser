@@ -11,8 +11,8 @@ define(
     }
     function c(a) {
       var b,
-        c = u.length;
-      for (b = 0; b < c; ++b) if (u[b].SKID === a) return u[b];
+        c = v.length;
+      for (b = 0; b < c; ++b) if (v[b].SKID === a) return v[b];
       return null;
     }
     function d() {
@@ -23,7 +23,7 @@ define(
     function e() {
       q.ui.hide();
     }
-    function m(a) {
+    function l(a) {
       var b = parseInt(this.getAttribute("data-index"), 10),
         b = c(b),
         d = h(this).find(".current").text();
@@ -44,19 +44,19 @@ define(
       );
     }
     var h = a("Utils/jquery"),
-      t = a("DB/DBManager"),
-      r = a("Core/Client"),
+      r = a("DB/DBManager"),
+      t = a("Core/Client"),
       n = a("Core/Preferences");
     a("Renderer/Renderer");
     var g = a("UI/UIManager"),
       p = a("UI/UIComponent"),
-      l = a("UI/Components/SkillTargetSelection/SkillTargetSelection"),
+      k = a("UI/Components/SkillTargetSelection/SkillTargetSelection"),
       f = a("UI/Components/SkillDescription/SkillDescription"),
-      k = a("text!./MercenaryskillList.html");
+      m = a("text!./MercenaryskillList.html");
     a = a("text!./MercenaryskillList.css");
-    var q = new p("MercenaryskillList", k, a);
+    var q = new p("MercenaryskillList", m, a);
     n.get("MercenaryskillList", { x: 100, y: 200, show: !1 }, 1);
-    var u = [];
+    var v = [];
     q.init = function () {
       this.draggable(this.ui.find(".titlebar"));
       this.ui.find(".close").click(e);
@@ -64,7 +64,7 @@ define(
         .on("dblclick", ".skill.active .icon", b)
         .find(".content")
         .on("contextmenu", ".skill", d)
-        .on("dragstart", ".skill", m)
+        .on("dragstart", ".skill", l)
         .on("dragend", ".skill", function () {
           delete window._OBJ_DRAG_;
         });
@@ -80,17 +80,17 @@ define(
     };
     q.setskill = function (a) {
       var b, c;
-      u.length = 0;
+      v.length = 0;
       this.ui.find(".content table").empty();
       b = 0;
       for (c = a.length; b < c; ++b) this.addSkill(a[b]);
     };
     q.addSkill = function (a) {
-      if (a.SKID in t.getAllSkillInfo())
+      if (a.SKID in r.getAllSkillInfo())
         if (this.ui.find(".skill.id" + a.SKID + ":first").length)
           this.updateSkill(a);
         else {
-          var b = t.getSkillInfo(a.SKID),
+          var b = r.getSkillInfo(a.SKID),
             c = h(
               '\x3ctr class\x3d"skill id' +
                 a.SKID +
@@ -120,8 +120,8 @@ define(
                   : "\u88ab\u52a8") +
                 "\x3c/td\x3e\x3c/tr\x3e",
             );
-          r.loadFile(
-            t.INTERFACE_PATH + "basic_interface/arw_left.bmp",
+          t.loadFile(
+            r.INTERFACE_PATH + "basic_interface/arw_left.bmp",
             function (a) {
               c.find(".arw_left").attr(
                 "style",
@@ -131,8 +131,8 @@ define(
               );
             },
           );
-          r.loadFile(
-            t.INTERFACE_PATH + "basic_interface/arw_right.bmp",
+          t.loadFile(
+            r.INTERFACE_PATH + "basic_interface/arw_right.bmp",
             function (a) {
               c.find(".arw_right").attr(
                 "style",
@@ -143,13 +143,13 @@ define(
             },
           );
           this.ui.find(".content table").append(c);
-          r.loadFile(
-            t.INTERFACE_PATH + "item/" + b.Name + ".bmp",
+          t.loadFile(
+            r.INTERFACE_PATH + "item/" + b.Name + ".bmp",
             function (a) {
               c.find(".icon img").attr("src", a);
             },
           );
-          u.push(a);
+          v.push(a);
         }
     };
     q.useSkillID = function (a, b) {
@@ -161,12 +161,12 @@ define(
         var d = Date.now();
         if (!(200 > d - a)) {
           a = d;
-          if (b.type & l.TYPE.SELF) this.onUseSkill(b.SKID, c);
-          b.type & l.TYPE.TARGET &&
-            (l.append(),
+          if (b.type & k.TYPE.SELF) this.onUseSkill(b.SKID, c);
+          b.type & k.TYPE.TARGET &&
+            (k.append(),
             (b.useLevel = c),
-            l.set(b, b.type),
-            (l.onUseSkillToId = q.onUseSkill));
+            k.set(b, b.type),
+            (k.onUseSkillToId = q.onUseSkill));
         }
       };
     })();

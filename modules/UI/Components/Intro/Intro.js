@@ -15,76 +15,76 @@ define(
           ? (++k,
             a.file(function (d) {
               d.fullPath = a.fullPath.substr(c);
-              m.push(d);
-              ++l === k && h === g && b(m);
+              n.push(d);
+              ++m === k && h === g && b(n);
             }))
           : a.isDirectory &&
             (++g,
             a.createReader().readEntries(function (a) {
               for (var e = 0, f = a.length; e < f; ++e) d(a[e], c);
-              ++h === g && l === k && b(m);
+              ++h === g && m === k && b(n);
             }));
       }
       var e,
         g = 0,
         h = 0,
         k = 0,
-        l = 0,
-        m = [];
+        m = 0,
+        n = [];
       a.stopImmediatePropagation();
       c(this).removeClass("over");
       if ("files" in this) {
         if (this.files.length) {
-          var p =
+          var l =
             "webkitRelativePath" in this.files[0]
               ? "webkitRelativePath"
               : "relativePath" in this.files[0]
                 ? "relativePath"
                 : null;
-          if (p) {
+          if (l) {
             e = this.files.length;
-            var n = /^[^(\/|\\)]+(\/|\\)/;
+            var p = /^[^(\/|\\)]+(\/|\\)/;
             for (a = 0; a < e; ++a)
-              this.files[a].fullPath = this.files[a][p].replace(n, "");
+              this.files[a].fullPath = this.files[a][l].replace(p, "");
           }
         }
         b(this.files);
         return !1;
       }
       if (a.originalEvent.dataTransfer) {
-        p = a.originalEvent.dataTransfer;
-        if (p.items && p.items.length && p.items[0].webkitGetAsEntry) {
-          n = 1;
-          a = p.items[0].webkitGetAsEntry();
-          1 === p.items.length &&
+        l = a.originalEvent.dataTransfer;
+        if (l.items && l.items.length && l.items[0].webkitGetAsEntry) {
+          p = 1;
+          a = l.items[0].webkitGetAsEntry();
+          1 === l.items.length &&
             a.isDirectory &&
-            (n = a.fullPath.split("/")[1].length + 2);
+            (p = a.fullPath.split("/")[1].length + 2);
           a = 0;
-          for (e = p.items.length; a < e; ++a)
-            d(p.items[a].webkitGetAsEntry(), n);
+          for (e = l.items.length; a < e; ++a)
+            d(l.items[a].webkitGetAsEntry(), p);
           return !1;
         }
-        if (p.files) return (b(p.files), !1);
+        if (l.files) return (b(l.files), !1);
       }
-      b(m);
+      b(n);
       return !1;
     }
     var c = a("Utils/jquery"),
       d = a("Controls/KeyEventHandler"),
       e = a("UI/UIManager"),
-      m = a("UI/UIComponent"),
+      l = a("UI/UIComponent"),
       h = a("text!./Intro.html"),
-      t = a("text!./Intro.css"),
-      r = a("Core/Context"),
+      r = a("text!./Intro.css"),
+      t = a("Core/Context"),
       n = a("Core/Configs"),
       g = a("./Particle"),
       p = a("./Preferences"),
-      l = a("./FileSystem"),
-      f = new m("Intro", h, t);
+      k = a("./FileSystem"),
+      f = new l("Intro", h, r);
     f.files = [];
     f.onKeyDown = function (a) {
       return a.which === d.ESCAPE
-        ? (r.isFullScreen() && r.cancelFullScreen(),
+        ? (t.isFullScreen() && t.cancelFullScreen(),
           a.stopImmediatePropagation(),
           !1)
         : !0;
@@ -170,7 +170,7 @@ define(
             a.toUrl("./images/loading.gif") +
             '"/\x3e \x3ci\x3eCleaning cache...\x3c/i\x3e\x3c/span\x3e',
         );
-        l.cleanup(function () {
+        k.cleanup(function () {
           b.find("span").remove();
           f.ui.find(".msg").text("");
         });
@@ -215,9 +215,9 @@ define(
       });
     };
     f.onAppend = function () {
-      r.Is.POPUP || this.ui.find(".resolution").hide();
+      t.Is.POPUP || this.ui.find(".resolution").hide();
       this.ui.find(".clean").hide();
-      l.getSize(
+      k.getSize(
         function (a) {
           a &&
             ((a =

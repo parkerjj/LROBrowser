@@ -5,10 +5,10 @@ define(
   ),
   function (a) {
     function b(a) {
-      if (!(1e3 > a - W)) {
-        W = a;
-        V++;
-        var b = 3600 - V;
+      if (!(1e3 > a - V)) {
+        V = a;
+        W++;
+        var b = 3600 - W;
         0 > b && (b = 0);
         a = parseInt(b / 60);
         b %= 60;
@@ -16,58 +16,58 @@ define(
           (0 == parseInt(a / 10) ? "0" + a : a) +
           ":" +
           (0 == parseInt(b / 10) ? "0" + b : b);
-        L.ui.find("#goldpcButton .timer").text(a);
+        K.ui.find("#goldpcButton .timer").text(a);
       }
     }
     var c = a("DB/DBManager"),
       d = a("DB/Monsters/MonsterTable"),
       e = a("Core/Client"),
-      m = a("Core/Preferences"),
+      l = a("Core/Preferences"),
       h = a("Core/Configs"),
-      t = a("Preferences/Controls"),
-      r = a("Network/NetworkManager"),
+      r = a("Preferences/Controls"),
+      t = a("Network/NetworkManager"),
       n = a("Network/PacketStructure"),
       g = a("Renderer/Renderer"),
       p = a("Engine/SessionStorage"),
-      l = a("UI/UIManager"),
+      k = a("UI/UIManager"),
       f = a("UI/UIComponent"),
-      k = a("UI/Components/Inventory/Inventory");
+      m = a("UI/Components/Inventory/Inventory");
     a("UI/Components/OnPushCart/OnPushCart");
     var q = a("UI/Components/WinStats/WinStats"),
-      u = a("UI/Components/Equipment/Equipment"),
-      v = a("UI/Components/SkillList/SkillList"),
+      v = a("UI/Components/Equipment/Equipment"),
+      u = a("UI/Components/SkillList/SkillList"),
       A = a("UI/Components/PartyFriends/PartyFriends"),
-      C = a("UI/Components/ChatBox/ChatBox"),
+      D = a("UI/Components/ChatBox/ChatBox"),
       B = a("UI/Components/Guild/Guild"),
-      J = a("UI/Components/Emoticons/Emoticons"),
-      D = a("UI/Components/Escape/Escape"),
-      y = a("UI/Components/Quest/Quest"),
-      H = a("UI/Components/Mail/Rodex"),
-      N = a("UI/Components/WorldMap/WorldMap"),
-      O = a("UI/Components/Achievement/Achievement"),
+      H = a("UI/Components/Emoticons/Emoticons"),
+      C = a("UI/Components/Escape/Escape"),
+      z = a("UI/Components/Quest/Quest"),
+      G = a("UI/Components/Mail/Rodex"),
+      P = a("UI/Components/WorldMap/WorldMap"),
+      N = a("UI/Components/Achievement/Achievement"),
       I = a("UI/Components/Attendance/Attendance"),
       x = a("UI/Components/CardConnection/CardConnection2"),
-      K = a("UI/Components/ShortCut/ShortCut"),
+      J = a("UI/Components/ShortCut/ShortCut"),
       E = a("UI/Components/Shop/CashShop"),
-      F = a("UI/Components/PartyBooking/PartyBooking"),
-      z = a("text!./BasicInfo.html"),
-      G = a("text!./BasicInfo.css"),
-      L = new f("BasicInfo", z, G);
-    L.base_exp = 0;
-    L.base_exp_next = 1;
-    L.job_exp = 0;
-    L.job_exp_next = -1;
-    L.weight = 0;
-    L.weight_max = 1;
-    var M = m.get("BasicInfo", { x: 0, y: 0, reduce: !0, buttons: !0 }, 1),
+      L = a("UI/Components/PartyBooking/PartyBooking"),
+      y = a("text!./BasicInfo.html"),
+      F = a("text!./BasicInfo.css"),
+      K = new f("BasicInfo", y, F);
+    K.base_exp = 0;
+    K.base_exp_next = 1;
+    K.job_exp = 0;
+    K.job_exp_next = -1;
+    K.weight = 0;
+    K.weight_max = 1;
+    var M = l.get("BasicInfo", { x: 0, y: 0, reduce: !0, buttons: !0 }, 1),
       Q = h.get("ClientVer");
-    L.init = function () {
+    K.init = function () {
       this.ui.find(".topbar button").mousedown(function (a) {
         a.stopImmediatePropagation();
       });
-      this.ui.find(".topbar .right").click(L.toggleMode.bind(this));
-      this.ui.find(".toggle_btns_show").mousedown(L.toggleButtons.bind(this));
-      this.ui.find(".toggle_btns_hide").mousedown(L.toggleButtons.bind(this));
+      this.ui.find(".topbar .right").click(K.toggleMode.bind(this));
+      this.ui.find(".toggle_btns_show").mousedown(K.toggleButtons.bind(this));
+      this.ui.find(".toggle_btns_hide").mousedown(K.toggleButtons.bind(this));
       this.ui.find(".buttons button").mousedown(function () {
         switch (this.className) {
           case "status":
@@ -75,21 +75,21 @@ define(
             q.focus();
             break;
           case "equip":
-            u.toggle();
-            break;
-          case "item":
-            k.ui.toggle();
-            k.focus();
-            break;
-          case "info":
-            u.toggle();
-            break;
-          case "skill":
             v.toggle();
             break;
+          case "item":
+            m.ui.toggle();
+            m.focus();
+            break;
+          case "info":
+            v.toggle();
+            break;
+          case "skill":
+            u.toggle();
+            break;
           case "option":
-            D.ui.toggle();
-            D.focus();
+            C.ui.toggle();
+            C.focus();
             break;
           case "party":
             A.toggle();
@@ -101,40 +101,40 @@ define(
             if (E.ui && E.ui.is(":visible")) break;
             E.ui.show();
             var b = new n.CZ.REQ_CASHSHOP_OPEN();
-            r.sendPacket(b);
+            t.sendPacket(b);
             break;
           case "sit":
             b = new n.CZ.REQUEST_ACT();
             b.action = p.Entity.action === p.Entity.ACTION.SIT ? 3 : 2;
-            r.sendPacket(b);
+            t.sendPacket(b);
             break;
           case "quest":
-            y.toggle();
-            y.focus();
+            z.toggle();
+            z.focus();
             break;
           case "emo":
-            J.ui.toggle();
-            J.focus();
+            H.ui.toggle();
+            H.focus();
             break;
           case "map":
-            N.select();
+            P.select();
             break;
           case "mail":
-            if (H.ui && H.ui.is(":visible")) break;
-            H.ui.show();
+            if (G.ui && G.ui.is(":visible")) break;
+            G.ui.show();
             b = new n.CZ.OPEN_MAILBOX();
             b.MailTAB = 0;
             b.MailID = 0;
-            r.sendPacket(b);
-            H.focus();
+            t.sendPacket(b);
+            G.focus();
             break;
           case "shortcut":
-            K.setCustom();
+            J.setCustom();
             break;
           case "achievement":
             3 == Q || 4 == Q || 5 == Q
-              ? O.toggle()
-              : l.showMessageBox(
+              ? N.toggle()
+              : k.showMessageBox(
                   "\u7248\u672c\u5347\u7ea7\u540e\u5f00\u653e",
                   "ok",
                 );
@@ -142,7 +142,7 @@ define(
           case "attendance":
             3 == Q || 4 == Q || 5 == Q
               ? I.toggle()
-              : l.showMessageBox(
+              : k.showMessageBox(
                   "\u7248\u672c\u5347\u7ea7\u540e\u5f00\u653e",
                   "ok",
                 );
@@ -150,7 +150,7 @@ define(
           case "CardConnection":
             3 == Q || 4 == Q || 5 == Q
               ? (x.ui.is(":visible") && x.ui.hide(), x.ui.show(), x.focus())
-              : l.showMessageBox(
+              : k.showMessageBox(
                   "\u7248\u672c\u5347\u7ea7\u540e\u5f00\u653e",
                   "ok",
                 );
@@ -172,39 +172,39 @@ define(
                   contentType: !1,
                 })
                   .done(function (a) {
-                    F.setList(a);
+                    L.setList(a);
                   })
                   .fail(function (a) {
-                    l.showMessageBox(
+                    k.showMessageBox(
                       "\u6570\u636e\u52a0\u8f7d\u5931\u8d25",
                       "ok",
                     );
                   }))
-              : l.showMessageBox(
+              : k.showMessageBox(
                   "\u7248\u672c\u5347\u7ea7\u540e\u5f00\u653e",
                   "ok",
                 );
         }
       });
       this.ui.find("#goldpcButton").on("click", function () {
-        if (!t.talk) {
+        if (!r.talk) {
           var a = new n.CZ.DYNAMICNPC_CREATE_REQUEST();
           a.name = "GOLDPCCAFE";
-          r.sendPacket(a);
+          t.sendPacket(a);
         }
       });
     };
-    var V = 0;
-    L.setGoldPccafe = function (a) {
+    var W = 0;
+    K.setGoldPccafe = function (a) {
       a.isActive
-        ? ((V = a.playedTime),
+        ? ((W = a.playedTime),
           this.ui.find("#goldpcButton .points").text(a.point),
           g.stop(b),
-          0 < 3600 - V && g.render(b))
+          0 < 3600 - W && g.render(b))
         : g.stop(b);
     };
-    var W = 0;
-    L.onAppend = function () {
+    var V = 0;
+    K.onAppend = function () {
       this.ui.css({
         top: Math.min(Math.max(0, M.y), g.height - this.ui.height()),
         left: Math.min(Math.max(0, M.x), g.width - this.ui.width()),
@@ -221,24 +221,24 @@ define(
               this.ui.find(".toggle_btns_show").show()))
         : this.ui.addClass("large");
     };
-    L.onRemove = function () {
+    K.onRemove = function () {
       g.stop(b);
-      L.ui &&
-        (L.ui.find("#goldpcButton .timer").text("00:00"),
-        L.ui.find("#goldpcButton .points").text("0"));
+      K.ui &&
+        (K.ui.find("#goldpcButton .timer").text("00:00"),
+        K.ui.find("#goldpcButton .points").text("0"));
       M.x = parseInt(this.ui.css("left"), 10);
       M.y = parseInt(this.ui.css("top"), 10);
       M.reduce = this.ui.hasClass("small");
       M.buttons = this.ui.find(".buttons").is(":visible");
       M.save();
     };
-    L.onShortCut = function (a) {
+    K.onShortCut = function (a) {
       switch (a.cmd) {
         case "EXTEND":
           this.toggleMode();
       }
     };
-    L.toggleMode = function () {
+    K.toggleMode = function () {
       var a;
       this.ui.toggleClass("small large");
       this.ui.hasClass("large")
@@ -255,7 +255,7 @@ define(
             }.bind(this),
           ));
     };
-    L.toggleButtons = function (a) {
+    K.toggleButtons = function (a) {
       var b = this.ui.find(".buttons");
       M.buttons = !b.is(":visible");
       M.buttons
@@ -267,7 +267,7 @@ define(
           this.ui.find(".toggle_btns_show").show());
       a.stopImmediatePropagation();
     };
-    L.update = function (a, b, f) {
+    K.update = function (a, b, f) {
       switch (a) {
         case "name":
         case "blvl":
@@ -282,7 +282,7 @@ define(
           for (f = 0; f < g; f++)
             h = b[g - f - 1] + (f && 0 === f % 3 ? "," : "") + h;
           this.ui.find("." + a + "_value").text(h);
-          k.ui.find(".curzeny").text(h);
+          m.ui.find(".curzeny").text(h);
           break;
         case "job":
           this.ui.find(".job_value").text(d[b]);
@@ -307,19 +307,19 @@ define(
           this.ui.find(".weight_value").text((b / 10) | 0);
           this.ui.find(".weight_total").text((f / 10) | 0);
           this.ui.find(".weight").css("color", b < 0.7 * f ? "" : "red");
-          k.ui.find(".curweight").text((b / 10) | 0);
-          k.ui.find(".maxweight").text((f / 10) | 0);
-          k.ui.find(".curweight").css("color", b < 0.7 * f ? "#FFB850" : "red");
-          b > 0.9 * f && C.addText(c.getMessage(243), C.TYPE.ERROR);
+          m.ui.find(".curweight").text((b / 10) | 0);
+          m.ui.find(".maxweight").text((f / 10) | 0);
+          m.ui.find(".curweight").css("color", b < 0.7 * f ? "#FFB850" : "red");
+          b > 0.9 * f && D.addText(c.getMessage(243), D.TYPE.ERROR);
           break;
         case "hp":
         case "sp":
-          var l = Math.floor((100 * b) / f),
-            g = 25 > l ? "red" : "blue";
+          var k = Math.floor((100 * b) / f),
+            g = 25 > k ? "red" : "blue";
           this.ui.find("." + a + "_value").text(b);
           this.ui.find("." + a + "_max_value").text(f);
-          this.ui.find("." + a + "_perc").text(l + "%");
-          0 >= l
+          this.ui.find("." + a + "_perc").text(k + "%");
+          0 >= k
             ? this.ui.find("." + a + "_bar div").css("backgroundImage", "none")
             : (e.loadFile(
                 c.INTERFACE_PATH + "basic_interface/gze" + g + "_left.bmp",
@@ -336,7 +336,7 @@ define(
                     .find("." + a + "_bar_middle")
                     .css({
                       backgroundImage: "url(" + b + ")",
-                      width: Math.floor(1.27 * Math.min(l, 100)) + "px",
+                      width: Math.floor(1.27 * Math.min(k, 100)) + "px",
                     });
                 }.bind(this),
               ),
@@ -347,12 +347,12 @@ define(
                     .find("." + a + "_bar_right")
                     .css({
                       backgroundImage: "url(" + b + ")",
-                      left: Math.floor(1.27 * Math.min(l, 100)) + "px",
+                      left: Math.floor(1.27 * Math.min(k, 100)) + "px",
                     });
                 }.bind(this),
               ));
       }
     };
-    return l.addComponent(L);
+    return k.addComponent(K);
   },
 );

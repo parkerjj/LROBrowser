@@ -7,7 +7,7 @@ define("Loaders/Model", ["Utils/BinaryReader", "Utils/gl-matrix"], function (
   }
   var d = b.vec3,
     e = b.mat3,
-    m = b.mat4;
+    l = b.mat4;
   c.SHADING = { NONE: 0, FLAT: 1, SMOOTH: 2 };
   c.Box = function () {
     this.max = d.fromValues(-Infinity, -Infinity, -Infinity);
@@ -17,7 +17,7 @@ define("Loaders/Model", ["Utils/BinaryReader", "Utils/gl-matrix"], function (
     this.center = d.create();
   };
   c.prototype.load = function (d) {
-    var b, e, h, g, m;
+    var b, e, h, g, l;
     d = new a(d);
     b = d.readBinaryString(4);
     if ("GRSM" !== b)
@@ -33,11 +33,11 @@ define("Loaders/Model", ["Utils/BinaryReader", "Utils/gl-matrix"], function (
     for (b = 0; b < h; ++b) g[b] = d.readBinaryString(40);
     e = d.readBinaryString(40);
     h = d.readLong();
-    m = Array(h);
+    l = Array(h);
     for (b = 0; b < h; ++b)
-      ((m[b] = new c.Node(this, d, 1 === h)),
-        m[b].name === e && (this.main_node = m[b]));
-    null === this.main_node && (this.main_node = m[0]);
+      ((l[b] = new c.Node(this, d, 1 === h)),
+        l[b].name === e && (this.main_node = l[b]));
+    null === this.main_node && (this.main_node = l[0]);
     if (1.5 > this.version) {
       h = d.readLong();
       e = Array(h);
@@ -62,18 +62,18 @@ define("Loaders/Model", ["Utils/BinaryReader", "Utils/gl-matrix"], function (
     this.instances = [];
     this.box = new c.Box();
     this.textures = g;
-    this.nodes = m;
+    this.nodes = l;
     this.volumebox = e;
     this.calcBoundingBox();
   };
   c.prototype.createInstance = function (a, d, b) {
-    var c = m.create();
-    m.identity(c);
-    m.translate(c, c, [a.position[0] + d, a.position[1], a.position[2] + b]);
-    m.rotateZ(c, c, (a.rotation[2] / 180) * Math.PI);
-    m.rotateX(c, c, (a.rotation[0] / 180) * Math.PI);
-    m.rotateY(c, c, (a.rotation[1] / 180) * Math.PI);
-    m.scale(c, c, a.scale);
+    var c = l.create();
+    l.identity(c);
+    l.translate(c, c, [a.position[0] + d, a.position[1], a.position[2] + b]);
+    l.rotateZ(c, c, (a.rotation[2] / 180) * Math.PI);
+    l.rotateX(c, c, (a.rotation[0] / 180) * Math.PI);
+    l.rotateY(c, c, (a.rotation[1] / 180) * Math.PI);
+    l.scale(c, c, a.scale);
     this.instances.push(c);
   };
   c.prototype.calcBoundingBox = function () {
@@ -81,16 +81,16 @@ define("Loaders/Model", ["Utils/BinaryReader", "Utils/gl-matrix"], function (
       d,
       b,
       c = this.box;
-    a = m.create();
+    a = l.create();
     var e = this.nodes,
       p = Math.min,
-      l = Math.max;
+      k = Math.max;
     b = e.length;
-    m.identity(a);
+    l.identity(a);
     this.main_node.calcBoundingBox(a);
     for (a = 0; 3 > a; ++a) {
       for (d = 0; d < b; ++d)
-        ((c.max[a] = l(c.max[a], e[d].box.max[a])),
+        ((c.max[a] = k(c.max[a], e[d].box.max[a])),
           (c.min[a] = p(c.min[a], e[d].box.min[a])));
       c.offset[a] = (c.max[a] + c.min[a]) / 2;
       c.range[a] = (c.max[a] - c.min[a]) / 2;
@@ -103,20 +103,20 @@ define("Loaders/Model", ["Utils/BinaryReader", "Utils/gl-matrix"], function (
       b = a.length,
       c = d.length,
       e,
-      m,
       l,
+      k,
       f = Array(b * c);
-    for (l = e = 0; e < b; ++e)
-      for (m = 0; m < c; ++m, l++) f[l] = a[e].compile(d[m]);
+    for (k = e = 0; e < b; ++e)
+      for (l = 0; l < c; ++l, k++) f[k] = a[e].compile(d[l]);
     return { meshes: f, textures: this.textures };
   };
   c.Node = function (a, d, b) {
     var e,
       h = a.version,
       p,
-      l,
+      k,
       f,
-      k;
+      m;
     this.main = a;
     this.is_only = b;
     this.name = d.readBinaryString(40);
@@ -141,9 +141,9 @@ define("Loaders/Model", ["Utils/BinaryReader", "Utils/gl-matrix"], function (
     this.rotaxis = [d.readFloat(), d.readFloat(), d.readFloat()];
     this.scale = [d.readFloat(), d.readFloat(), d.readFloat()];
     b = d.readLong();
-    l = Array(b);
+    k = Array(b);
     for (a = 0; a < b; ++a)
-      l[a] = [d.readFloat(), d.readFloat(), d.readFloat()];
+      k[a] = [d.readFloat(), d.readFloat(), d.readFloat()];
     b = d.readLong();
     f = new Float32Array(6 * b);
     for (e = a = 0; a < b; ++a, e += 6)
@@ -166,8 +166,8 @@ define("Loaders/Model", ["Utils/BinaryReader", "Utils/gl-matrix"], function (
         smoothGroup: 1.2 <= h ? d.readLong() : 0,
       };
     if (1.5 <= h)
-      for (b = d.readLong(), k = Array(b), a = 0; a < b; ++a)
-        k[a] = {
+      for (b = d.readLong(), m = Array(b), a = 0; a < b; ++a)
+        m[a] = {
           frame: d.readLong(),
           px: d.readFloat(),
           py: d.readFloat(),
@@ -181,13 +181,13 @@ define("Loaders/Model", ["Utils/BinaryReader", "Utils/gl-matrix"], function (
         q: [d.readFloat(), d.readFloat(), d.readFloat(), d.readFloat()],
       };
     this.box = new c.Box();
-    this.matrix = m.create();
+    this.matrix = l.create();
     this.textures = p;
-    this.vertices = l;
+    this.vertices = k;
     this.tvertices = f;
     this.faces = e;
     this.rotKeyframes = h;
-    this.posKeyframes = k;
+    this.posKeyframes = m;
   };
   c.Node.prototype.calcBoundingBox = function (a) {
     var b,
@@ -195,35 +195,35 @@ define("Loaders/Model", ["Utils/BinaryReader", "Utils/gl-matrix"], function (
       h = d.create(),
       g = this.box,
       p = this.main.nodes,
-      l = m.create(),
+      k = l.create(),
       f = this.vertices,
-      k = Math.max,
+      m = Math.max,
       q = Math.min,
-      u,
-      v;
-    m.copy(this.matrix, a);
-    m.translate(this.matrix, this.matrix, this.pos);
+      v,
+      u;
+    l.copy(this.matrix, a);
+    l.translate(this.matrix, this.matrix, this.pos);
     this.rotKeyframes.length
-      ? m.rotateQuat(this.matrix, this.matrix, this.rotKeyframes[0].q)
-      : m.rotate(this.matrix, this.matrix, this.rotangle, this.rotaxis);
-    m.scale(this.matrix, this.matrix, this.scale);
-    m.copy(l, this.matrix);
-    this.is_only || m.translate(l, l, this.offset);
-    m.multiply(l, l, e.toMat4(this.mat3));
+      ? l.rotateQuat(this.matrix, this.matrix, this.rotKeyframes[0].q)
+      : l.rotate(this.matrix, this.matrix, this.rotangle, this.rotaxis);
+    l.scale(this.matrix, this.matrix, this.scale);
+    l.copy(k, this.matrix);
+    this.is_only || l.translate(k, k, this.offset);
+    l.multiply(k, k, e.toMat4(this.mat3));
     a = 0;
     for (c = f.length; a < c; ++a)
       for (
         b = f[a][0],
-          u = f[a][1],
-          v = f[a][2],
-          h[0] = l[0] * b + l[4] * u + l[8] * v + l[12],
-          h[1] = l[1] * b + l[5] * u + l[9] * v + l[13],
-          h[2] = l[2] * b + l[6] * u + l[10] * v + l[14],
+          v = f[a][1],
+          u = f[a][2],
+          h[0] = k[0] * b + k[4] * v + k[8] * u + k[12],
+          h[1] = k[1] * b + k[5] * v + k[9] * u + k[13],
+          h[2] = k[2] * b + k[6] * v + k[10] * u + k[14],
           b = 0;
         3 > b;
         b++
       )
-        ((g.min[b] = q(h[b], g.min[b])), (g.max[b] = k(h[b], g.max[b])));
+        ((g.min[b] = q(h[b], g.min[b])), (g.max[b] = m(h[b], g.max[b])));
     for (a = 0; 3 > a; a++)
       ((g.offset[a] = (g.max[a] + g.min[a]) / 2),
         (g.range[a] = (g.max[a] - g.min[a]) / 2),
@@ -236,47 +236,47 @@ define("Loaders/Model", ["Utils/BinaryReader", "Utils/gl-matrix"], function (
   };
   c.Node.prototype.compile = function (a) {
     var d,
-      b = m.create(),
-      h = m.create(),
+      b = l.create(),
+      h = l.create(),
       g = this.textures,
       p = this.faces,
-      l = this.vertices,
+      k = this.vertices,
       f = {},
-      k = [],
+      m = [],
       q = Array(32),
-      u = Array(32),
-      v,
+      v = Array(32),
+      u,
       A,
-      C,
+      D,
       B;
-    d = m.create();
-    m.identity(d);
-    m.translate(d, d, [
+    d = l.create();
+    l.identity(d);
+    l.translate(d, d, [
       -this.main.box.center[0],
       -this.main.box.max[1],
       -this.main.box.center[2],
     ]);
-    m.multiply(d, d, this.matrix);
-    this.is_only || m.translate(d, d, this.offset);
-    m.multiply(d, d, e.toMat4(this.mat3));
-    m.multiply(b, a, d);
-    m.extractRotation(h, b);
-    B = l.length;
+    l.multiply(d, d, this.matrix);
+    this.is_only || l.translate(d, d, this.offset);
+    l.multiply(d, d, e.toMat4(this.mat3));
+    l.multiply(b, a, d);
+    l.extractRotation(h, b);
+    B = k.length;
     a = new Float32Array(3 * B);
     for (d = 0; d < B; ++d)
-      ((v = l[d][0]),
-        (A = l[d][1]),
-        (C = l[d][2]),
-        (a[3 * d + 0] = b[0] * v + b[4] * A + b[8] * C + b[12]),
-        (a[3 * d + 1] = b[1] * v + b[5] * A + b[9] * C + b[13]),
-        (a[3 * d + 2] = b[2] * v + b[6] * A + b[10] * C + b[14]));
+      ((u = k[d][0]),
+        (A = k[d][1]),
+        (D = k[d][2]),
+        (a[3 * d + 0] = b[0] * u + b[4] * A + b[8] * D + b[12]),
+        (a[3 * d + 1] = b[1] * u + b[5] * A + b[9] * D + b[13]),
+        (a[3 * d + 2] = b[2] * u + b[6] * A + b[10] * D + b[14]));
     b = new Float32Array(3 * p.length);
     d = 0;
-    for (B = g.length; d < B; ++d) k[g[d]] = 0;
+    for (B = g.length; d < B; ++d) m[g[d]] = 0;
     d = 0;
-    for (B = p.length; d < B; ++d) k[g[p[d].texid]]++;
+    for (B = p.length; d < B; ++d) m[g[p[d].texid]]++;
     d = 0;
-    for (B = g.length; d < B; ++d) f[g[d]] = new Float32Array(27 * k[g[d]]);
+    for (B = g.length; d < B; ++d) f[g[d]] = new Float32Array(27 * m[g[d]]);
     switch (this.main.shadeType) {
       default:
       case c.SHADING.NONE:
@@ -284,12 +284,12 @@ define("Loaders/Model", ["Utils/BinaryReader", "Utils/gl-matrix"], function (
         this.generate_mesh_FLAT(a, b, f);
         break;
       case c.SHADING.FLAT:
-        this.calcNormal_FLAT(b, h, u);
+        this.calcNormal_FLAT(b, h, v);
         this.generate_mesh_FLAT(a, b, f);
         break;
       case c.SHADING.SMOOTH:
-        (this.calcNormal_FLAT(b, h, u),
-          this.calcNormal_SMOOTH(b, u, q),
+        (this.calcNormal_FLAT(b, h, v),
+          this.calcNormal_SMOOTH(b, v, q),
           this.generate_mesh_SMOOTH(a, q, f));
     }
     return f;
@@ -302,137 +302,137 @@ define("Loaders/Model", ["Utils/BinaryReader", "Utils/gl-matrix"], function (
   c.Node.prototype.calcNormal_FLAT = function (a, b, c) {
     var e,
       h,
-      m,
       l,
+      k,
       f = d.create(),
-      k = this.faces,
+      m = this.faces,
       q = this.vertices;
     h = e = 0;
-    for (m = k.length; e < m; ++e, h += 3)
-      ((l = k[e]),
-        d.calcNormal(q[l.vertidx[0]], q[l.vertidx[1]], q[l.vertidx[2]], f),
+    for (l = m.length; e < l; ++e, h += 3)
+      ((k = m[e]),
+        d.calcNormal(q[k.vertidx[0]], q[k.vertidx[1]], q[k.vertidx[2]], f),
         (a[h] = b[0] * f[0] + b[4] * f[1] + b[8] * f[2] + b[12]),
         (a[h + 1] = b[1] * f[0] + b[5] * f[1] + b[9] * f[2] + b[13]),
         (a[h + 2] = b[2] * f[0] + b[6] * f[1] + b[10] * f[2] + b[14]),
-        (c[l.smoothGroup] = !0));
+        (c[k.smoothGroup] = !0));
   };
   c.Node.prototype.calcNormal_SMOOTH = function (a, d, b) {
     var c,
       e,
       h,
-      l,
-      f,
       k,
-      q,
+      f,
       m,
-      v = this.vertices.length,
-      t = this.faces,
-      C,
+      q,
+      l,
+      u = this.vertices.length,
+      r = this.faces,
+      D,
       B,
-      r = t.length;
+      H = r.length;
     for (e = 0; 32 > e; ++e)
       if (d[e])
         for (
-          b[e] = new Float32Array(3 * v), B = b[e], l = f = 0;
-          f < v;
-          ++f, l += 3
+          b[e] = new Float32Array(3 * u), B = b[e], k = f = 0;
+          f < u;
+          ++f, k += 3
         ) {
-          for (h = c = m = q = k = 0; c < r; ++c, h += 3)
-            ((C = t[c]),
-              C.smoothGroup !== e ||
-                (C.vertidx[0] !== f &&
-                  C.vertidx[1] !== f &&
-                  C.vertidx[2] !== f) ||
-                ((k += a[h]), (q += a[h + 1]), (m += a[h + 2])));
-          c = 1 / Math.sqrt(k * k + q * q + m * m);
-          B[l] = k * c;
-          B[l + 1] = q * c;
-          B[l + 2] = m * c;
+          for (h = c = l = q = m = 0; c < H; ++c, h += 3)
+            ((D = r[c]),
+              D.smoothGroup !== e ||
+                (D.vertidx[0] !== f &&
+                  D.vertidx[1] !== f &&
+                  D.vertidx[2] !== f) ||
+                ((m += a[h]), (q += a[h + 1]), (l += a[h + 2])));
+          c = 1 / Math.sqrt(m * m + q * q + l * l);
+          B[k] = m * c;
+          B[k + 1] = q * c;
+          B[k + 2] = l * c;
         }
   };
   c.Node.prototype.generate_mesh_FLAT = function (a, d, b) {
     var c,
       e,
       h,
-      m,
-      f,
       k,
+      f,
+      m,
       q,
-      u,
-      v = this.faces,
-      t = this.textures,
-      C = this.tvertices,
+      l,
+      u = this.faces,
+      r = this.textures,
+      D = this.tvertices,
       B = this.main.alpha,
-      r = [],
-      D,
-      y,
-      H;
-    m = 0;
-    for (u = t.length; m < u; ++m) r[t[m]] = 0;
-    k = m = 0;
-    for (u = v.length; m < u; ++m, k += 3) {
-      c = v[m];
-      D = c.vertidx;
-      y = c.tvertidx;
-      q = t[c.texid];
-      H = b[q];
-      h = r[q];
+      H = [],
+      t,
+      z,
+      G;
+    k = 0;
+    for (l = r.length; k < l; ++k) H[r[k]] = 0;
+    m = k = 0;
+    for (l = u.length; k < l; ++k, m += 3) {
+      c = u[k];
+      t = c.vertidx;
+      z = c.tvertidx;
+      q = r[c.texid];
+      G = b[q];
+      h = H[q];
       for (f = 0; 3 > f; f++, h += 9)
-        ((c = 3 * D[f]),
-          (e = 6 * y[f]),
-          (H[h + 0] = a[c + 0]),
-          (H[h + 1] = a[c + 1]),
-          (H[h + 2] = a[c + 2]),
-          (H[h + 3] = d[k + 0]),
-          (H[h + 4] = d[k + 1]),
-          (H[h + 5] = d[k + 2]),
-          (H[h + 6] = C[e + 4]),
-          (H[h + 7] = C[e + 5]),
-          (H[h + 8] = B));
-      r[q] = h;
+        ((c = 3 * t[f]),
+          (e = 6 * z[f]),
+          (G[h + 0] = a[c + 0]),
+          (G[h + 1] = a[c + 1]),
+          (G[h + 2] = a[c + 2]),
+          (G[h + 3] = d[m + 0]),
+          (G[h + 4] = d[m + 1]),
+          (G[h + 5] = d[m + 2]),
+          (G[h + 6] = D[e + 4]),
+          (G[h + 7] = D[e + 5]),
+          (G[h + 8] = B));
+      H[q] = h;
     }
   };
   c.Node.prototype.generate_mesh_SMOOTH = function (a, d, b) {
     var c,
       e,
       h,
-      m,
-      f,
       k,
+      f,
+      m,
       q,
-      u = this.faces,
-      v = this.textures,
-      t = this.tvertices,
-      C = this.main.alpha,
+      l = this.faces,
+      u = this.textures,
+      r = this.tvertices,
+      D = this.main.alpha,
       B = [],
-      r,
-      D,
-      y,
-      H;
-    m = 0;
-    for (q = v.length; m < q; ++m) B[v[m]] = 0;
-    m = 0;
-    for (q = u.length; m < q; ++m) {
-      c = u[m];
-      r = d[c.smoothGroup];
-      D = c.vertidx;
-      y = c.tvertidx;
-      k = v[c.texid];
-      H = b[k];
-      h = B[k];
+      H,
+      t,
+      z,
+      G;
+    k = 0;
+    for (q = u.length; k < q; ++k) B[u[k]] = 0;
+    k = 0;
+    for (q = l.length; k < q; ++k) {
+      c = l[k];
+      H = d[c.smoothGroup];
+      t = c.vertidx;
+      z = c.tvertidx;
+      m = u[c.texid];
+      G = b[m];
+      h = B[m];
       for (f = 0; 3 > f; f++, h += 9)
-        ((c = 3 * D[f]),
-          (e = 6 * y[f]),
-          (H[h + 0] = a[c + 0]),
-          (H[h + 1] = a[c + 1]),
-          (H[h + 2] = a[c + 2]),
-          (H[h + 3] = r[c + 0]),
-          (H[h + 4] = r[c + 1]),
-          (H[h + 5] = r[c + 2]),
-          (H[h + 6] = t[e + 4]),
-          (H[h + 7] = t[e + 5]),
-          (H[h + 8] = C));
-      B[k] = h;
+        ((c = 3 * t[f]),
+          (e = 6 * z[f]),
+          (G[h + 0] = a[c + 0]),
+          (G[h + 1] = a[c + 1]),
+          (G[h + 2] = a[c + 2]),
+          (G[h + 3] = H[c + 0]),
+          (G[h + 4] = H[c + 1]),
+          (G[h + 5] = H[c + 2]),
+          (G[h + 6] = r[e + 4]),
+          (G[h + 7] = r[e + 5]),
+          (G[h + 8] = D));
+      B[m] = h;
     }
   };
   return c;

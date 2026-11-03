@@ -31,9 +31,9 @@ define("Renderer/Entity/EntityDisplay", [
     this.entity = null;
   }
   var e = a.vec4,
-    m = new Float32Array(4),
+    l = new Float32Array(4),
     h = new Float32Array(2),
-    t = window.devicePixelRatio;
+    r = window.devicePixelRatio;
   "undefined" !== typeof CanvasRenderingContext2D &&
     (CanvasRenderingContext2D.prototype.outlineText = function (a, b, c) {
       this.fillText(a, b - 1, c);
@@ -41,7 +41,7 @@ define("Renderer/Entity/EntityDisplay", [
       this.fillText(a, b + 1, c);
       this.fillText(a, b, c + 1);
     });
-  var r = (function () {
+  var t = (function () {
     var a = document.createElement("canvas").getContext("2d"),
       b;
     a.font = "12px Arial";
@@ -77,10 +77,10 @@ define("Renderer/Entity/EntityDisplay", [
   d.prototype.update = function (a) {
     this.guild_name.length || (this.emblem = 0);
     var b = Array(2),
-      d = 11 * t,
+      d = 11 * r,
       e = this.ctx,
       f = (this.emblem ? 26 : 0) + 5,
-      k,
+      m,
       q;
     b[0] = this.name.split("#")[0];
     b[1] = "";
@@ -90,15 +90,15 @@ define("Renderer/Entity/EntityDisplay", [
       ((b[1] = this.guild_name),
       this.guild_rank.length && (b[1] += " [" + this.guild_rank + "]"));
     e.font = "bold " + d + "px Arial";
-    k = Math.max(e.measureText(b[0]).width, e.measureText(b[1]).width) + f + 5;
+    m = Math.max(e.measureText(b[0]).width, e.measureText(b[1]).width) + f + 5;
     q = 3 * d * (b[1].length ? 2 : 1);
-    e.canvas.width = k;
+    e.canvas.width = m;
     e.canvas.height = q;
     this.emblem && e.drawImage(this.emblem, 0, 0);
     a = a || "white";
     e.font = "bold " + d + "px Arial";
     e.textBaseline = "top";
-    r
+    t
       ? (e.translate(0.5, 0.5),
         (e.fillStyle = "black"),
         e.outlineText(b[0], f, 0),
@@ -123,21 +123,21 @@ define("Renderer/Entity/EntityDisplay", [
   d.prototype.render = function (a) {
     var c = this.canvas,
       d = 0;
-    m[0] = 0;
-    m[1] = -0.5;
-    m[2] = 0;
-    m[3] = 1;
+    l[0] = 0;
+    l[1] = -0.5;
+    l[2] = 0;
+    l[3] = 1;
     h[0] = b.width / 2;
     h[1] = b.height / 2;
-    e.transformMat4(m, m, a);
-    a = 0 === m[3] ? 1 : 1 / m[3];
-    m[0] = h[0] + Math.round(h[0] * m[0] * a);
-    m[1] = h[1] - Math.round(h[1] * m[1] * a);
+    e.transformMat4(l, l, a);
+    a = 0 === l[3] ? 1 : 1 / l[3];
+    l[0] = h[0] + Math.round(h[0] * l[0] * a);
+    l[1] = h[1] - Math.round(h[1] * l[1] * a);
     this.entity.life.display && (d = 10);
-    c.style.top = ((m[1] + 5 + d) | 0) + "px";
-    c.style.left = ((m[0] - c.width / t / 2) | 0) + "px";
-    c.style.width = c.width / t + "px";
-    c.style.height = c.height / t + "px";
+    c.style.top = ((l[1] + 5 + d) | 0) + "px";
+    c.style.left = ((l[0] - c.width / r / 2) | 0) + "px";
+    c.style.width = c.width / r + "px";
+    c.style.height = c.height / r + "px";
     c.parentNode || document.body.appendChild(c);
   };
   return function () {

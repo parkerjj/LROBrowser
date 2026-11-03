@@ -5,84 +5,84 @@ define(
   ),
   function (a) {
     function b() {
-      var a = f.get(l.homGID);
+      var a = f.get(k.homGID);
       a
         ? (a.action == a.ACTION.IDLE &&
-            (3 < Math.abs(l.Entity.position[0] - a.position[0]) ||
-              3 < Math.abs(l.Entity.position[1] - a.position[1])) &&
+            (3 < Math.abs(k.Entity.position[0] - a.position[0]) ||
+              3 < Math.abs(k.Entity.position[1] - a.position[1])) &&
             ((a = new g.CZ.REQUEST_MOVETOOWNER()),
-            (a.GID = l.homGID),
+            (a.GID = k.homGID),
             n.sendPacket(a)),
-          p.clearTimeout(C),
-          (C = p.setTimeout(b, 200)))
-        : p.clearTimeout(C);
+          p.clearTimeout(D),
+          (D = p.setTimeout(b, 200)))
+        : p.clearTimeout(D);
     }
     function c(a) {
-      v.initData(a);
+      u.initData(a);
     }
     function d(a) {
       0 < a.nRelationship
-        ? v.setInformations(a)
-        : ((l.homGID = 0), (v.info = null));
+        ? u.setInformations(a)
+        : ((k.homGID = 0), (u.info = null));
     }
     function e(a) {
       A.append();
       A.setskill(a.skillList);
     }
-    function m() {
-      l.moveAction &&
+    function l() {
+      k.moveAction &&
         p.setTimeout(function () {
-          l.moveAction &&
-            (n.sendPacket(l.moveAction),
+          k.moveAction &&
+            (n.sendPacket(k.moveAction),
             null == f.getFocusEntity() &&
               n.sendPacket(new g.CZ.CANCEL_LOCKON()),
-            (l.moveAction = null));
+            (k.moveAction = null));
         }, 50);
     }
     function h(a) {
       a.cRet ||
-        u.addText(
-          t
+        v.addText(
+          r
             .getMessage(591)
-            .replace("%s", t.getItemInfo(a.ITID).identifiedDiSPlayName),
-          u.TYPE.ERROR,
+            .replace("%s", r.getItemInfo(a.ITID).identifiedDiSPlayName),
+          v.TYPE.ERROR,
         );
     }
-    var t = a("DB/DBManager"),
-      r = a("Utils/PathFinding"),
+    var r = a("DB/DBManager"),
+      t = a("Utils/PathFinding"),
       n = a("Network/NetworkManager"),
       g = a("Network/PacketStructure");
     a("Core/Client");
     var p = a("Core/Events"),
-      l = a("Engine/SessionStorage"),
+      k = a("Engine/SessionStorage"),
       f = a("Renderer/EntityManager"),
-      k = a("Renderer/Map/Altitude"),
+      m = a("Renderer/Map/Altitude"),
       q = a("UI/UIManager");
     a("UI/Components/SlotMachine/SlotMachine");
     a("UI/Components/SkillTargetSelection/SkillTargetSelection");
     a("UI/Components/ItemSelection/ItemSelection");
-    var u = a("UI/Components/ChatBox/ChatBox"),
-      v = a("UI/Components/Homunc/HomuncInformations"),
+    var v = a("UI/Components/ChatBox/ChatBox"),
+      u = a("UI/Components/Homunc/HomuncInformations"),
       A = a("UI/Components/Homunc/HomuncskillList"),
-      C = null;
-    v.reqPetFeed = function (a) {
-      q.showPromptBox(t.getMessage(601), "ok", "cancel", function () {
+      D = null;
+    u.reqPetFeed = function (a) {
+      q.showPromptBox(r.getMessage(601), "ok", "cancel", function () {
         var a = new g.CZ.COMMAND_MER();
         a.type = 0;
         a.command = 1;
         n.sendPacket(a);
       });
     };
-    v.reqNameEdit = function (a) {
-      q.showPromptBox(t.getMessage(683), "ok", "cancel", function () {
+    u.reqNameEdit = function (a) {
+      q.showPromptBox(r.getMessage(683), "ok", "cancel", function () {
         var b = new g.CZ.RENAME_MER();
         b.name = a;
         n.sendPacket(b);
       });
     };
-    v.reqFired = function () {
-      q.showPromptBox(t.getMessage(955), "ok", "cancel", function () {
-        v.remove();
+    u.reqFired = function () {
+      q.showPromptBox(r.getMessage(955), "ok", "cancel", function () {
+        u.remove();
         A.remove();
         var a = new g.CZ.COMMAND_MER();
         a.type = 0;
@@ -96,40 +96,40 @@ define(
       n.sendPacket(b);
     };
     A.onUseSkill = function (a, b, c) {
-      var d, e, h, m, p;
-      d = f.get(l.homGID);
+      var d, e, h, l, p;
+      d = f.get(k.homGID);
       h = f.get(c) || d;
       e = A.getSkillById(a);
-      m = [];
+      l = [];
       if (h != d || !e || 1 != e.type)
         if (
           ((e = e ? e.attackRange : d.attack_range),
-          (p = r.searchLong(
+          (p = t.searchLong(
             d.position[0] | 0,
             d.position[1] | 0,
             h.position[0] | 0,
             h.position[1] | 0,
             e,
-            m,
-            k.TYPE.WALKABLE,
+            l,
+            m.TYPE.WALKABLE,
           )))
         )
           ((e = new g.CZ.USE_SKILL()),
             (e.SKID = a),
             (e.selectedLevel = b),
-            (e.targetID = c || l.Entity.GID),
+            (e.targetID = c || k.Entity.GID),
             2 > p ||
               h === d ||
-              ((l.moveAction = e),
+              ((k.moveAction = e),
               (e = new g.CZ.REQUEST_MOVE()),
-              (e.dest[0] = m[2 * (p - 1) + 0]),
-              (e.dest[1] = m[2 * (p - 1) + 1])),
+              (e.dest[0] = l[2 * (p - 1) + 0]),
+              (e.dest[1] = l[2 * (p - 1) + 1])),
             n.sendPacket(e));
     };
-    v.WalkEnd = function () {
-      var a = f.get(l.homGID);
-      C = p.setTimeout(b, 200);
-      a.onWalkEnd = m;
+    u.WalkEnd = function () {
+      var a = f.get(k.homGID);
+      D = p.setTimeout(b, 200);
+      a.onWalkEnd = l;
     };
     return function () {
       n.hookPacket(g.ZC.CHANGESTATE_MER, c);

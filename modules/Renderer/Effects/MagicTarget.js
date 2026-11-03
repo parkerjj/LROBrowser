@@ -9,104 +9,104 @@ define(
       this.id = b;
       this.pos = c;
       this.offset = d;
-      this.size = k[b] || 3;
+      this.size = m[b] || 3;
       this.range = e;
       this.endLifeTime = f;
     }
     var c = a("Utils/WebGL"),
       d = a("Utils/Texture"),
       e = a("Utils/gl-matrix"),
-      m = a("DB/Skills/SkillConst"),
+      l = a("DB/Skills/SkillConst"),
       h = a("Core/Client"),
-      t = a("Renderer/Map/Altitude"),
-      r = a("Engine/SessionStorage"),
+      r = a("Renderer/Map/Altitude"),
+      t = a("Engine/SessionStorage"),
       n,
       g,
       p,
-      l = e.mat4,
-      f = l.create(),
-      k = {};
-    k[m.MG_SAFETYWALL] = [3];
-    k[m.CR_SLIMPITCHER] = [7];
-    k[m.SO_ARRULLO] = [3, 3, 5, 5, 7];
-    k[m.AC_SHOWER] = [3, 3, 3, 3, 3, 5, 5, 5, 5, 5];
-    k[m.NC_ARMSCANNON] = [7, 5, 3];
-    k[m.AM_DEMONSTRATION] = [3];
-    k[m.SC_BLOODYLUST] = [7];
-    k[m.PF_FOGWALL] = [3];
-    k[m.PR_BENEDICTIO] = [3];
-    k[m.KO_ZENKAI] = [5];
-    k[m.WL_CRIMSONROCK] = [7];
-    k[m.GN_CRAZYWEED] = [9];
-    k[m.NPC_COMET] = [3];
-    k[m.WL_COMET] = [19];
-    k[m.HT_CLAYMORETRAP] = [5];
-    k[m.SC_CHAOSPANIC] = [5];
-    k[m.RK_DRAGONBREATH_WATER] = [9];
-    k[m.RK_DRAGONBREATH] = [9];
-    k[m.SC_DIMENSIONDOOR] = [1];
-    k[m.SO_DIAMONDDUST] = [9];
-    k[m.HT_DETECTING] = [3];
-    k[m.GN_DEMONIC_FIRE] = [5];
-    k[m.SA_DELUGE] = [7];
-    k[m.SO_VACUUM_EXTREME] = [3, 3, 5, 5, 7];
-    k[m.NPC_EVILLAND] = [11];
-    k[m.AB_EPICLESIS] = [5];
-    k[m.SO_EARTH_INSIGNIA] = [3];
-    k[m.SO_EARTHGRAVE] = [9];
-    k[m.HT_FLASHER] = [3];
-    k[m.MG_FIREWALL] = [3];
-    k[m.RA_FIRINGTRAP] = [5];
-    k[m.SO_FIRE_INSIGNIA] = [3];
-    k[m.GN_FIRE_EXPANSION] = [5];
-    k[m.GN_HELLS_PLANT] = [3];
-    k[m.WZ_HEAVENDRIVE] = [5];
-    k[m.HW_GRAVITATION] = [5];
-    k[m.RL_HAMMER_OF_GOD] = [5];
-    k[m.NPC_RAYOFGENESIS] = [3];
-    k[m.LG_RAYOFGENESIS] = [11];
-    k[m.HW_GANBANTEIN] = [3];
-    k[m.NC_COLDSLOWER] = [5, 7, 9];
-    k[m.WZ_VERMILION] = [11];
-    k[m.SR_RIDEINLIGHTNING] = [3, 3, 5, 5, 7];
-    k[m.NJ_RAIGEKISAI] = [3, 3, 5, 5, 7];
-    k[m.MH_LAVA_SLIDE] = [3, 3, 3, 5, 5, 5, 7, 7, 7, 9];
-    k[m.NPC_MAGMA_ERUPTION] = [3];
-    k[m.NC_MAGMA_ERUPTION] = [7];
-    k[m.KO_BAKURETSU] = [3];
-    k[m.NPC_CLOUD_KILL] = [3];
-    k[m.SO_CLOUD_KILL] = [7];
-    k[m.WZ_METEOR] = [7];
-    k[m.SC_MANHOLE] = [3];
-    k[m.PR_MAGNUS] = [7];
-    k[m.SA_LANDPROTECTOR] = [9];
-    k[m.SC_MAELSTROM] = [5];
-    k[m.KO_MUCHANAGE] = [3, 3, 3, 3, 3, 3, 3, 3, 5];
-    k[m.WZ_QUAGMIRE] = [5];
-    k[m.NPC_PSYCHIC_WAVE] = [3];
-    k[m.SO_PSYCHIC_WAVE] = [7, 7, 9, 9, 11];
-    k[m.GC_POISONSMOKE] = [5];
-    k[m.MH_POISON_MIST] = [7];
-    k[m.AL_PNEUMA] = [3];
-    k[m.LG_OVERBRAND] = [3];
-    k[m.WM_SEVERE_RAINSTORM] = [11];
-    k[m.RG_GRAFFITI] = [5];
-    k[m.PR_SANCTUARY] = [5];
-    k[m.MG_THUNDERSTORM] = [5];
-    k[m.WZ_STORMGUST] = [11];
-    k[m.WM_SOUND_OF_DESTRUCTION] = [9, 9, 11, 13, 15];
-    k[m.WM_POEMOFNETHERWORLD] = [3];
-    k[m.MH_XENO_SLASHER] = [3, 3, 3, 5, 5, 5, 7, 7, 7, 9];
-    k[m.SO_WIND_INSIGNIA] = [3];
-    k[m.SA_VIOLENTGALE] = [7];
-    k[m.NJ_SUITON] = [3, 3, 3, 5, 5, 5, 7, 7, 7, 9];
-    k[m.SO_WATER_INSIGNIA] = [3];
-    k[m.SO_WARMER] = [7];
-    k[m.SA_VOLCANO] = [7];
-    k[m.MH_VOLCANIC_ASH] = [3];
-    k[m.AS_VENOMDUST] = [2];
-    k[m.KO_HUUMARANKA] = [7];
-    k[m.WL_COMET] = [26];
+      k = e.mat4,
+      f = k.create(),
+      m = {};
+    m[l.MG_SAFETYWALL] = [3];
+    m[l.CR_SLIMPITCHER] = [7];
+    m[l.SO_ARRULLO] = [3, 3, 5, 5, 7];
+    m[l.AC_SHOWER] = [3, 3, 3, 3, 3, 5, 5, 5, 5, 5];
+    m[l.NC_ARMSCANNON] = [7, 5, 3];
+    m[l.AM_DEMONSTRATION] = [3];
+    m[l.SC_BLOODYLUST] = [7];
+    m[l.PF_FOGWALL] = [3];
+    m[l.PR_BENEDICTIO] = [3];
+    m[l.KO_ZENKAI] = [5];
+    m[l.WL_CRIMSONROCK] = [7];
+    m[l.GN_CRAZYWEED] = [9];
+    m[l.NPC_COMET] = [3];
+    m[l.WL_COMET] = [19];
+    m[l.HT_CLAYMORETRAP] = [5];
+    m[l.SC_CHAOSPANIC] = [5];
+    m[l.RK_DRAGONBREATH_WATER] = [9];
+    m[l.RK_DRAGONBREATH] = [9];
+    m[l.SC_DIMENSIONDOOR] = [1];
+    m[l.SO_DIAMONDDUST] = [9];
+    m[l.HT_DETECTING] = [3];
+    m[l.GN_DEMONIC_FIRE] = [5];
+    m[l.SA_DELUGE] = [7];
+    m[l.SO_VACUUM_EXTREME] = [3, 3, 5, 5, 7];
+    m[l.NPC_EVILLAND] = [11];
+    m[l.AB_EPICLESIS] = [5];
+    m[l.SO_EARTH_INSIGNIA] = [3];
+    m[l.SO_EARTHGRAVE] = [9];
+    m[l.HT_FLASHER] = [3];
+    m[l.MG_FIREWALL] = [3];
+    m[l.RA_FIRINGTRAP] = [5];
+    m[l.SO_FIRE_INSIGNIA] = [3];
+    m[l.GN_FIRE_EXPANSION] = [5];
+    m[l.GN_HELLS_PLANT] = [3];
+    m[l.WZ_HEAVENDRIVE] = [5];
+    m[l.HW_GRAVITATION] = [5];
+    m[l.RL_HAMMER_OF_GOD] = [5];
+    m[l.NPC_RAYOFGENESIS] = [3];
+    m[l.LG_RAYOFGENESIS] = [11];
+    m[l.HW_GANBANTEIN] = [3];
+    m[l.NC_COLDSLOWER] = [5, 7, 9];
+    m[l.WZ_VERMILION] = [11];
+    m[l.SR_RIDEINLIGHTNING] = [3, 3, 5, 5, 7];
+    m[l.NJ_RAIGEKISAI] = [3, 3, 5, 5, 7];
+    m[l.MH_LAVA_SLIDE] = [3, 3, 3, 5, 5, 5, 7, 7, 7, 9];
+    m[l.NPC_MAGMA_ERUPTION] = [3];
+    m[l.NC_MAGMA_ERUPTION] = [7];
+    m[l.KO_BAKURETSU] = [3];
+    m[l.NPC_CLOUD_KILL] = [3];
+    m[l.SO_CLOUD_KILL] = [7];
+    m[l.WZ_METEOR] = [7];
+    m[l.SC_MANHOLE] = [3];
+    m[l.PR_MAGNUS] = [7];
+    m[l.SA_LANDPROTECTOR] = [9];
+    m[l.SC_MAELSTROM] = [5];
+    m[l.KO_MUCHANAGE] = [3, 3, 3, 3, 3, 3, 3, 3, 5];
+    m[l.WZ_QUAGMIRE] = [5];
+    m[l.NPC_PSYCHIC_WAVE] = [3];
+    m[l.SO_PSYCHIC_WAVE] = [7, 7, 9, 9, 11];
+    m[l.GC_POISONSMOKE] = [5];
+    m[l.MH_POISON_MIST] = [7];
+    m[l.AL_PNEUMA] = [3];
+    m[l.LG_OVERBRAND] = [3];
+    m[l.WM_SEVERE_RAINSTORM] = [11];
+    m[l.RG_GRAFFITI] = [5];
+    m[l.PR_SANCTUARY] = [5];
+    m[l.MG_THUNDERSTORM] = [5];
+    m[l.WZ_STORMGUST] = [11];
+    m[l.WM_SOUND_OF_DESTRUCTION] = [9, 9, 11, 13, 15];
+    m[l.WM_POEMOFNETHERWORLD] = [3];
+    m[l.MH_XENO_SLASHER] = [3, 3, 3, 5, 5, 5, 7, 7, 7, 9];
+    m[l.SO_WIND_INSIGNIA] = [3];
+    m[l.SA_VIOLENTGALE] = [7];
+    m[l.NJ_SUITON] = [3, 3, 3, 5, 5, 5, 7, 7, 7, 9];
+    m[l.SO_WATER_INSIGNIA] = [3];
+    m[l.SO_WARMER] = [7];
+    m[l.SA_VOLCANO] = [7];
+    m[l.MH_VOLCANIC_ASH] = [3];
+    m[l.AS_VENOMDUST] = [2];
+    m[l.KO_HUUMARANKA] = [7];
+    m[l.WL_COMET] = [26];
     b.prototype.init = function (a) {
       this.ready = !0;
     };
@@ -119,7 +119,7 @@ define(
         var d = new Float32Array(3);
         d[0] = this.pos[0];
         d[1] = this.pos[1];
-        d[2] = t.getCellHeight(d[0], d[1]);
+        d[2] = r.getCellHeight(d[0], d[1]);
         a.uniform3fv(g.uniform.uPosition, d);
         a.uniform1f(g.uniform.uSize, this.size);
         a.uniform1f(g.uniform.uColor, c);
@@ -129,10 +129,10 @@ define(
         d = new Float32Array(3);
         d[0] = this.pos[0] + this.offset[0];
         d[1] = this.pos[1] + this.offset[1];
-        d[2] = t.getCellHeight(d[0], d[1]);
+        d[2] = r.getCellHeight(d[0], d[1]);
         b = this.range + 1;
-        var e = r.Entity.position[0] - d[0],
-          f = r.Entity.position[1] - d[1];
+        var e = t.Entity.position[0] - d[0],
+          f = t.Entity.position[1] - d[1];
         b * b <= e * e + f * f && (c = 0.2);
         a.uniform3fv(g.uniform.uPosition, d);
         a.uniform1f(g.uniform.uSize, this.size);
@@ -184,9 +184,9 @@ define(
     };
     b.beforeRender = function (a, b, c, d, e) {
       var h = g.uniform,
-        k = g.attribute;
-      l.identity(f);
-      l.rotateY(f, f, (((e / 1e3) * 100) / 180) * Math.PI);
+        m = g.attribute;
+      k.identity(f);
+      k.rotateY(f, f, (((e / 1e3) * 100) / 180) * Math.PI);
       a.useProgram(g);
       a.uniformMatrix4fv(h.uModelViewMat, !1, b);
       a.uniformMatrix4fv(h.uProjectionMat, !1, c);
@@ -198,11 +198,11 @@ define(
       a.activeTexture(a.TEXTURE0);
       a.bindTexture(a.TEXTURE_2D, n);
       a.uniform1i(h.uDiffuse, 0);
-      a.enableVertexAttribArray(k.aPosition);
-      a.enableVertexAttribArray(k.aTextureCoord);
+      a.enableVertexAttribArray(m.aPosition);
+      a.enableVertexAttribArray(m.aTextureCoord);
       a.bindBuffer(a.ARRAY_BUFFER, p);
-      a.vertexAttribPointer(k.aPosition, 2, a.FLOAT, !1, 16, 0);
-      a.vertexAttribPointer(k.aTextureCoord, 2, a.FLOAT, !1, 16, 8);
+      a.vertexAttribPointer(m.aPosition, 2, a.FLOAT, !1, 16, 0);
+      a.vertexAttribPointer(m.aTextureCoord, 2, a.FLOAT, !1, 16, 8);
     };
     b.afterRender = function (a) {
       a.disableVertexAttribArray(g.attribute.aPosition);

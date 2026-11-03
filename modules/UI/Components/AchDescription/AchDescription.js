@@ -9,15 +9,15 @@ define(
     var c = a("Network/NetworkManager"),
       d = a("Network/PacketStructure"),
       e = a("DB/Status/StatusInfo"),
-      m = a("DB/DBManager");
+      l = a("DB/DBManager");
     a("Renderer/Renderer");
     var h = a("UI/UIManager"),
-      t = a("UI/UIComponent"),
-      r = a("UI/Components/WorldMap/WorldMap"),
+      r = a("UI/UIComponent"),
+      t = a("UI/Components/WorldMap/WorldMap"),
       n = a("UI/Components/ItemInfo/ItemInfo"),
       g = a("text!./AchDescription.html");
     a = a("text!./AchDescription.css");
-    var p = new t("AchDescription", g, a);
+    var p = new r("AchDescription", g, a);
     p.uid = -1;
     p.needFocus = !0;
     p.onAppend = function () {};
@@ -45,26 +45,26 @@ define(
         p.remove();
       });
       this.ui.find(".border").on("click", ".goto", function () {
-        r.select();
-        r.selectMap(b(this).text());
+        t.select();
+        t.selectMap(b(this).text());
         event.stopImmediatePropagation();
         return !1;
       });
       this.ui.find(".border").on("click", ".smob", function () {
-        r.select();
-        r.selectMob(b(this).text());
+        t.select();
+        t.selectMob(b(this).text());
         event.stopImmediatePropagation();
         return !1;
       });
       this.ui.find(".border").on("click", ".sitem", function () {
-        r.select();
-        r.selectItem(b(this).text());
+        t.select();
+        t.selectItem(b(this).text());
         event.stopImmediatePropagation();
         return !1;
       });
       this.ui.find(".border").on("click", ".item", function () {
         var a = parseInt(this.getAttribute("data-itid"), 10),
-          b = m.getItemInfo(a);
+          b = l.getItemInfo(a);
         b &&
           (n.uid != a
             ? (n.append(),
@@ -115,7 +115,7 @@ define(
           )),
           p.ui.find(".containers .content ul").append(g)),
         a.reward[0].item &&
-          (c = m.getItemInfo(a.reward[0].item)) &&
+          (c = l.getItemInfo(a.reward[0].item)) &&
           "Unknown Item" != c.identifiedDiSPlayName &&
           ((g = b(
             '\x3cli\x3e\u9053\u5177\uff1a\x3cspan class\x3d"item" data-itid\x3d"' +

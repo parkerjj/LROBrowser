@@ -15,14 +15,14 @@ define(
     var c = a("Utils/WebGL"),
       d = a("Utils/Texture"),
       e = a("Utils/gl-matrix"),
-      m = a("Core/Client"),
+      l = a("Core/Client"),
       h = a("Renderer/Map/Altitude"),
-      t = a("Engine/SessionStorage"),
-      r,
+      r = a("Engine/SessionStorage"),
+      t,
       n,
       g,
       p = e.mat4,
-      l = p.create();
+      k = p.create();
     b.prototype.init = function (a) {
       this.ready = !0;
     };
@@ -48,8 +48,8 @@ define(
         b[1] = this.src[1] + this.target[1];
         b[2] = h.getCellHeight(b[0], b[1]);
         var d = this.range + 1,
-          e = t.Entity.position[0] - b[0],
-          f = t.Entity.position[1] - b[1];
+          e = r.Entity.position[0] - b[0],
+          f = r.Entity.position[1] - b[1];
         d * d <= e * e + f * f && (c = 0.2);
         a.uniform3fv(n.uniform.uPosition, b);
         a.uniform1f(n.uniform.uSize, 3);
@@ -74,7 +74,7 @@ define(
         ]),
         a.STATIC_DRAW,
       );
-      m.loadFile("data/texture/effect/lockon128.tga", function (c) {
+      l.loadFile("data/texture/effect/lockon128.tga", function (c) {
         d.load(c, function () {
           var c = this.getContext("2d");
           c.save();
@@ -83,8 +83,8 @@ define(
           c.translate(-this.width / 2, -this.height / 2);
           c.drawImage(this, 0, 0);
           c.restore();
-          r = a.createTexture();
-          a.bindTexture(a.TEXTURE_2D, r);
+          t = a.createTexture();
+          a.bindTexture(a.TEXTURE_2D, t);
           a.texImage2D(a.TEXTURE_2D, 0, a.RGBA, a.RGBA, a.UNSIGNED_BYTE, this);
           a.texParameteri(a.TEXTURE_2D, a.TEXTURE_MAG_FILTER, a.LINEAR);
           a.texParameteri(a.TEXTURE_2D, a.TEXTURE_MIN_FILTER, a.LINEAR);
@@ -94,7 +94,7 @@ define(
     };
     b.renderBeforeEntities = !0;
     b.free = function (a) {
-      r && (a.deleteTexture(r), (r = null));
+      t && (a.deleteTexture(t), (t = null));
       n && (a.deleteProgram(n), (n = null));
       g && a.deleteBuffer(g);
       this.ready = !1;
@@ -102,18 +102,18 @@ define(
     b.beforeRender = function (a, b, c, d, e) {
       var f = n.uniform,
         h = n.attribute;
-      p.identity(l);
-      p.rotateY(l, l, (e / 4 / 180) * Math.PI);
+      p.identity(k);
+      p.rotateY(k, k, (e / 4 / 180) * Math.PI);
       a.useProgram(n);
       a.uniformMatrix4fv(f.uModelViewMat, !1, b);
       a.uniformMatrix4fv(f.uProjectionMat, !1, c);
-      a.uniformMatrix4fv(f.uRotationMat, !1, l);
+      a.uniformMatrix4fv(f.uRotationMat, !1, k);
       a.uniform1i(f.uFogUse, d.use && d.exist);
       a.uniform1f(f.uFogNear, d.near);
       a.uniform1f(f.uFogFar, d.far);
       a.uniform3fv(f.uFogColor, d.color);
       a.activeTexture(a.TEXTURE0);
-      a.bindTexture(a.TEXTURE_2D, r);
+      a.bindTexture(a.TEXTURE_2D, t);
       a.uniform1i(f.uDiffuse, 0);
       a.enableVertexAttribArray(h.aPosition);
       a.enableVertexAttribArray(h.aTextureCoord);

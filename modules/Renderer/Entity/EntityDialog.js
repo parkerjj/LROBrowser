@@ -26,29 +26,29 @@ define("Renderer/Entity/EntityDialog", [
     this.canvas.style.position = "absolute";
     this.canvas.style.zIndex = 1;
   }
-  var m = a.vec4,
+  var l = a.vec4,
     h = new Float32Array(4),
-    t = new Float32Array(2);
+    r = new Float32Array(2);
   e.prototype.set = function (a, e) {
     this.text = a;
     this.tick = c.tick;
     this.display = !0;
     var g = this.ctx,
       p = [],
-      l = 0,
+      k = 0,
       f,
-      k,
+      m,
       q = e || "white";
     for (g.font = "12px serif"; a.length;) {
       for (e = a.length; 250 < g.measureText(a.substr(0, e)).width;) e--;
-      k = a.substr(0, e);
+      m = a.substr(0, e);
       if (e !== a.length)
-        for (f = 0; -1 !== k.indexOf(" ", f);) f = k.indexOf(" ", f) + 1;
-      p.push(k.substr(0, f || k.length));
-      l = Math.max(l, g.measureText(p[p.length - 1]).width);
+        for (f = 0; -1 !== m.indexOf(" ", f);) f = m.indexOf(" ", f) + 1;
+      p.push(m.substr(0, f || m.length));
+      k = Math.max(k, g.measureText(p[p.length - 1]).width);
       a = a.substr(p[p.length - 1].length, a.length);
     }
-    g.canvas.width = 14 + l;
+    g.canvas.width = 14 + k;
     g.canvas.height = 8 + 17 * p.length;
     g.font = "12px serif";
     g.fillStyle = "rgba(0,0,0,0.4)";
@@ -86,12 +86,12 @@ define("Renderer/Entity/EntityDialog", [
     h[1] = 90 / 35;
     h[2] = 0;
     h[3] = 1;
-    t[0] = c.width / 2;
-    t[1] = c.height / 2;
-    m.transformMat4(h, h, a);
+    r[0] = c.width / 2;
+    r[1] = c.height / 2;
+    l.transformMat4(h, h, a);
     a = 0 === h[3] ? 1 : 1 / h[3];
-    h[0] = t[0] + Math.round(t[0] * h[0] * a);
-    h[1] = t[1] - Math.round(t[1] * h[1] * a);
+    h[0] = r[0] + Math.round(r[0] * h[0] * a);
+    h[1] = r[1] - Math.round(r[1] * h[1] * a);
     b.style.zIndex = c.canvas.style.zIndex + 1;
     b.style.top = ((h[1] - b.height - 2) | 0) + "px";
     b.style.left = ((h[0] - b.width / 2) | 0) + "px";

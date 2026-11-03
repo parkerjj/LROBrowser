@@ -5,25 +5,25 @@ define(
   ),
   function (a) {
     function b() {
-      t.remove();
-      t.append();
-      t.setType("text", !1, "");
-      t.ui.find(".text").text("\u8bf7\u8f93\u5165\u53e3\u4ee4");
-      t.onSubmitRequest = function (a) {
-        t.remove();
+      r.remove();
+      r.append();
+      r.setType("text", !1, "");
+      r.ui.find(".text").text("\u8bf7\u8f93\u5165\u53e3\u4ee4");
+      r.onSubmitRequest = function (a) {
+        r.remove();
         if ("avv6" == a) n.onInterCode(a);
-        else m.showMessageBox("\u65e0\u6548\u53e3\u4ee4", "ok");
+        else l.showMessageBox("\u65e0\u6548\u53e3\u4ee4", "ok");
       };
     }
     var c = a("Utils/jquery"),
       d = a("Renderer/Renderer"),
       e = a("Controls/KeyEventHandler"),
-      m = a("UI/UIManager"),
+      l = a("UI/UIManager"),
       h = a("UI/UIComponent"),
-      t = a("UI/Components/InputBox/InputBox"),
-      r = a("text!./WinList.html");
+      r = a("UI/Components/InputBox/InputBox"),
+      t = a("text!./WinList.html");
     a = a("text!./WinList.css");
-    var n = new h("WinList", r, a);
+    var n = new h("WinList", t, a);
     n.init = function () {
       this.ui.css({ top: (d.height - 280) / 1.5, left: (d.width - 280) / 2 });
       this.draggable();
@@ -129,6 +129,6 @@ define(
       this.list = null;
       this.index = 0;
     };
-    return m.addComponent(n);
+    return l.addComponent(n);
   },
 );

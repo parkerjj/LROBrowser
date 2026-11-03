@@ -13,14 +13,14 @@ define(
     var c = a("Utils/jquery"),
       d = a("Renderer/Renderer"),
       e = a("Controls/KeyEventHandler"),
-      m = a("DB/DBManager"),
+      l = a("DB/DBManager"),
       h = a("UI/UIManager"),
-      t = a("UI/UIComponent"),
-      r = a("text!./InputBox.html");
+      r = a("UI/UIComponent"),
+      t = a("text!./InputBox.html");
     a = a("text!./InputBox.css");
-    t = new t("InputBox", r, a);
-    t.needFocus = !1;
-    t.init = function () {
+    r = new r("InputBox", t, a);
+    r.needFocus = !1;
+    r.init = function () {
       this.ui.css("zIndex", 99);
       this.draggable();
       this.ui.css({ top: "60%", left: (d.width - 280) / 2 + 1 });
@@ -37,24 +37,24 @@ define(
           }.bind(this),
         );
     };
-    t.onAppend = function () {
+    r.onAppend = function () {
       this.ui.find("input").select();
     };
-    t.onRemove = function () {
+    r.onRemove = function () {
       this.ui.find("input").val("");
       this.ui.find(".text").text("");
       this.overlay.detach();
     };
-    t.onKeyDown = function (a) {
+    r.onKeyDown = function (a) {
       return this.isPersistent || a.which !== e.ENTER
         ? !0
         : (b.call(this), a.stopImmediatePropagation(), !1);
     };
-    t.setType = function (a, b, c) {
+    r.setType = function (a, b, c) {
       switch (a) {
         case "number":
           this.ui.addClass("number");
-          this.ui.find(".text").text(m.getMessage(1259));
+          this.ui.find(".text").text(l.getMessage(1259));
           this.ui.find("input").attr("type", "text");
           c = c || "";
           break;
@@ -70,12 +70,12 @@ define(
           break;
         case "mail":
           (this.ui.removeClass("number"),
-            this.ui.find(".text").text(m.getMessage(300)),
+            this.ui.find(".text").text(l.getMessage(300)),
             this.ui.find("input").attr("type", "password"));
       }
       "undefined" !== typeof c && this.ui.find("input").val(c).select();
     };
-    t.onSubmitRequest = function () {};
-    return h.addComponent(t);
+    r.onSubmitRequest = function () {};
+    return h.addComponent(r);
   },
 );

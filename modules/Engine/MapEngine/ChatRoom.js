@@ -7,20 +7,20 @@ define(
     function b(a) {
       switch (a.result) {
         case 0:
-          f.title = l.title;
-          f.limit = l.limit;
-          f.type = l.type;
+          f.title = k.title;
+          f.limit = k.limit;
+          f.type = k.type;
           f.count = 1;
           f.members = [q.Entity.display.name];
           f.owner = q.Entity.display.name;
           f.append();
-          k.addText(r.getMessage(64), k.TYPE.BLUE);
+          m.addText(t.getMessage(64), m.TYPE.BLUE);
           break;
         case 1:
-          k.addText(r.getMessage(65), k.TYPE.ERROR);
+          m.addText(t.getMessage(65), m.TYPE.ERROR);
           break;
         case 2:
-          k.addText(r.getMessage(66), k.TYPE.ERROR);
+          m.addText(t.getMessage(66), m.TYPE.ERROR);
       }
     }
     function c(a) {
@@ -49,25 +49,25 @@ define(
         case 7:
           b = 434;
       }
-      k.addText(r.getMessage(b), k.TYPE.ERROR);
+      m.addText(t.getMessage(b), m.TYPE.ERROR);
     }
     function d(a) {
       f.count = a.curcount;
       f.members.push(a.name);
       f.updateChat();
-      f.message(r.getMessage(179).replace("%s", a.name), "join");
+      f.message(t.getMessage(179).replace("%s", a.name), "join");
     }
     function e(a) {
       1 === a.role && ((f.owner = a.name), f.updateChat());
     }
-    function m(a) {
+    function l(a) {
       f.isOpen &&
         ((f.count = a.curcount),
         f.removeMember(a.name),
         f.updateChat(),
         0 === a.type
-          ? f.message(r.getMessage(180).replace("%s", a.name), "leave")
-          : f.message(r.getMessage(181).replace("%s", a.name), "leave"));
+          ? f.message(t.getMessage(180).replace("%s", a.name), "leave")
+          : f.message(t.getMessage(181).replace("%s", a.name), "leave"));
     }
     function h(a) {
       f.limit = a.maxcount;
@@ -76,7 +76,7 @@ define(
       f.title = a.title;
       f.updateChat();
     }
-    function t(a) {
+    function r(a) {
       var b,
         c = a.memberList.length;
       f.members = Array(c);
@@ -89,15 +89,15 @@ define(
       f.count = c;
       f.append();
     }
-    var r = a("DB/DBManager"),
+    var t = a("DB/DBManager"),
       n = a("Network/NetworkManager"),
       g = a("Network/PacketStructure"),
       p = a("Renderer/EntityManager"),
-      l = a("UI/Components/ChatRoomCreate/ChatRoomCreate"),
+      k = a("UI/Components/ChatRoomCreate/ChatRoomCreate"),
       f = a("UI/Components/ChatRoom/ChatRoom"),
-      k = a("UI/Components/ChatBox/ChatBox"),
+      m = a("UI/Components/ChatBox/ChatBox"),
       q = a("Engine/SessionStorage");
-    l.requestRoom = function () {
+    k.requestRoom = function () {
       var a = new g.CZ.CREATE_CHATROOM();
       a.size = this.limit;
       a.type = this.type;
@@ -124,10 +124,10 @@ define(
     return function () {
       n.hookPacket(g.ZC.ACK_CREATE_CHATROOM, b);
       n.hookPacket(g.ZC.CHANGE_CHATROOM, h);
-      n.hookPacket(g.ZC.ENTER_ROOM, t);
+      n.hookPacket(g.ZC.ENTER_ROOM, r);
       n.hookPacket(g.ZC.MEMBER_NEWENTRY, d);
       n.hookPacket(g.ZC.ROLE_CHANGE, e);
-      n.hookPacket(g.ZC.MEMBER_EXIT, m);
+      n.hookPacket(g.ZC.MEMBER_EXIT, l);
       n.hookPacket(g.ZC.REFUSE_ENTER_ROOM, c);
     };
   },

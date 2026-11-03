@@ -11,24 +11,24 @@ define("Network/SocketHelpers/WebSocket", [], function () {
     )
       return;
     var b = "ws://" + a + ":" + c + "/",
-      m = this;
+      l = this;
     this.connected = !1;
     d && ((b = d), b.match(/\/$/) || (b += "/"), (b += a + ":" + c));
     this.ws = new WebSocket(b);
     this.ws.binaryType = "arraybuffer";
     this.ws.onopen = function () {
-      m.connected = !0;
-      if (m.onComplete) m.onComplete(!0);
+      l.connected = !0;
+      if (l.onComplete) l.onComplete(!0);
     };
     this.ws.onerror = function () {
-      if (!m.connected && m.onComplete) m.onComplete(!1);
+      if (!l.connected && l.onComplete) l.onComplete(!1);
     };
     this.ws.onmessage = function (a) {
-      if (m.onMessage) m.onMessage(a.data);
+      if (l.onMessage) l.onMessage(a.data);
     };
     this.ws.onclose = function () {
-      m.connected = !1;
-      if (m.onClose) m.onClose();
+      l.connected = !1;
+      if (l.onClose) l.onClose();
     };
   }
   a.prototype.send = function (a) {

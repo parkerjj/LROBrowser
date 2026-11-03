@@ -79,16 +79,16 @@ define("Renderer/Entity/EntityAttachments", [
   })();
   e.prototype.renderAttachment = (function () {
     var b = new Int16Array(2);
-    return function (e, m) {
-      if (!(e.startTick > m)) {
+    return function (e, l) {
+      if (!(e.startTick > l)) {
         var h,
           n,
           g,
           p,
-          l = !1;
+          k = !1;
         n = a.loadFile(e.spr);
         g = a.loadFile(e.act);
-        if (!n || !g) return l;
+        if (!n || !g) return k;
         this.entity.effectColor[3] = e.opacity;
         e.position
           ? e.position && (b = e.position)
@@ -101,23 +101,23 @@ define("Renderer/Entity/EntityAttachments", [
         g = e.delay || g.actions[p].delay;
         c.depth = e.depth;
         "animationId" in e
-          ? (m = h[e.animationId].layers)
+          ? (l = h[e.animationId].layers)
           : e.repeat
-            ? (m = h[Math.floor((m - e.startTick) / g) % h.length].layers)
+            ? (l = h[Math.floor((l - e.startTick) / g) % h.length].layers)
             : 0 < e.duplicate
-              ? ((g = Math.floor((m - e.startTick) / g) % h.length),
-                (m = h[g].layers),
+              ? ((g = Math.floor((l - e.startTick) / g) % h.length),
+                (l = h[g].layers),
                 g == h.length - 1 && e.duplicate--)
               : ((g = Math.min(
-                  Math.floor((m - e.startTick) / g),
+                  Math.floor((l - e.startTick) / g),
                   h.length - 1,
                 )),
-                (m = h[g].layers),
-                g !== h.length - 1 || e.stopAtEnd || (l = !0));
+                (l = h[g].layers),
+                g !== h.length - 1 || e.stopAtEnd || (k = !0));
         e = 0;
-        for (h = m.length; e < h; ++e)
-          this.entity.renderLayer(m[e], n, n, 1, b, !1);
-        return l;
+        for (h = l.length; e < h; ++e)
+          this.entity.renderLayer(l[e], n, n, 1, b, !1);
+        return k;
       }
     };
   })();

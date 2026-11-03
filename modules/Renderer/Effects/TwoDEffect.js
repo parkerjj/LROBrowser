@@ -3,13 +3,13 @@ define(
   "Utils/WebGL Utils/Texture Utils/gl-matrix Core/Client Renderer/SpriteRenderer Renderer/EntityManager Renderer/Camera".split(
     " ",
   ),
-  function (a, b, c, d, e, m, h) {
-    function t(a, b) {
+  function (a, b, c, d, e, l, h) {
+    function r(a, b) {
       a = Math.ceil(a);
       b = Math.floor(b);
       return Math.floor(Math.random() * (b - a + 1) + a);
     }
-    function r(a, b, c) {
+    function t(a, b, c) {
       var d = b.position,
         e = b.startTick;
       b = b.endTick;
@@ -32,84 +32,84 @@ define(
       this.posxEnd = a.posxEnd ? a.posxEnd : 0;
       a.posx && (this.posxEnd = this.posxStart = a.posx);
       a.posxRand &&
-        (this.posxEnd = this.posxStart = t(-a.posxRand, a.posxRand));
+        (this.posxEnd = this.posxStart = r(-a.posxRand, a.posxRand));
       a.posxRandDiff &&
-        ((this.posxStart = t(-a.posxRandDiff, a.posxRandDiff)),
-        (this.posxEnd = t(-a.posxRandDiff, a.posxRandDiff)));
+        ((this.posxStart = r(-a.posxRandDiff, a.posxRandDiff)),
+        (this.posxEnd = r(-a.posxRandDiff, a.posxRandDiff)));
       a.posxStartRand &&
         ((c = a.posxStartRandMiddle ? a.posxStartRandMiddle : 0),
-        (this.posxStart = t(c - a.posxStartRand, c + a.posxStartRand)));
+        (this.posxStart = r(c - a.posxStartRand, c + a.posxStartRand)));
       a.posxEndRand &&
         ((c = a.posxEndRandMiddle ? a.posxEndRandMiddle : 0),
-        (this.posxEnd = t(c - a.posxEndRand, c + a.posxEndRand)));
+        (this.posxEnd = r(c - a.posxEndRand, c + a.posxEndRand)));
       this.posxSmooth = a.posxSmooth ? !0 : !1;
       this.posyStart = a.posyStart ? a.posyStart : 0;
       this.posyEnd = a.posyEnd ? a.posyEnd : 0;
       a.posy && (this.posyEnd = this.posyStart = a.posy);
       a.posyRand &&
-        (this.posyEnd = this.posyStart = t(-a.posyRand, a.posyRand));
+        (this.posyEnd = this.posyStart = r(-a.posyRand, a.posyRand));
       a.posyRandDiff &&
-        ((this.posyStart = t(-a.posyRandDiff, a.posyRandDiff)),
-        (this.posyEnd = t(-a.posyRandDiff, a.posyRandDiff)));
+        ((this.posyStart = r(-a.posyRandDiff, a.posyRandDiff)),
+        (this.posyEnd = r(-a.posyRandDiff, a.posyRandDiff)));
       a.posyStartRand &&
         ((c = a.posyStartRandMiddle ? a.posyStartRandMiddle : 0),
-        (this.posyStart = t(c - a.posyStartRand, c + a.posyStartRand)));
+        (this.posyStart = r(c - a.posyStartRand, c + a.posyStartRand)));
       a.posyEndRand &&
         ((c = a.posyEndRandMiddle ? a.posyEndRandMiddle : 0),
-        (this.posyEnd = t(c - a.posyEndRand, c + a.posyEndRand)));
+        (this.posyEnd = r(c - a.posyEndRand, c + a.posyEndRand)));
       this.posySmooth = a.posySmooth ? !0 : !1;
       this.poszStart = a.poszStart ? a.poszStart : 0;
       this.poszEnd = a.poszEnd ? a.poszEnd : 0;
       a.posz && (this.poszEnd = this.poszStart = a.posz);
       a.poszRand &&
-        (this.poszEnd = this.poszStart = t(-a.poszRand, a.poszRand));
+        (this.poszEnd = this.poszStart = r(-a.poszRand, a.poszRand));
       a.poszRandDiff &&
-        ((this.poszStart = t(-a.poszRandDiff, a.poszRandDiff)),
-        (this.poszEnd = t(-a.poszRandDiff, a.poszRandDiff)));
+        ((this.poszStart = r(-a.poszRandDiff, a.poszRandDiff)),
+        (this.poszEnd = r(-a.poszRandDiff, a.poszRandDiff)));
       a.poszStartRand &&
         ((c = a.poszStartRandMiddle ? a.poszStartRandMiddle : 0),
-        (this.poszStart = t(c - a.poszStartRand, c + a.poszStartRand)));
+        (this.poszStart = r(c - a.poszStartRand, c + a.poszStartRand)));
       a.poszEndRand &&
         ((c = a.poszEndRandMiddle ? a.poszEndRandMiddle : 0),
-        (this.poszEnd = t(c - a.poszEndRand, c + a.poszEndRand)));
+        (this.poszEnd = r(c - a.poszEndRand, c + a.poszEndRand)));
       this.poszSmooth = a.poszSmooth ? !0 : !1;
       this.offsetxStart = a.offsetxStart ? a.offsetxStart : 0;
       this.offsetxEnd = a.offsetxEnd ? a.offsetxEnd : 0;
       a.offsetx && (this.offsetxEnd = this.offsetxStart = a.offsetx);
       a.offsetxRand &&
         (this.offsetxEnd = this.offsetxStart =
-          t(-a.offsetxRand, a.offsetxRand));
+          r(-a.offsetxRand, a.offsetxRand));
       a.offsetxRandDiff &&
-        ((this.offsetxStart = t(-a.offsetxRandDiff, a.offsetxRandDiff)),
-        (this.offsetxEnd = t(-a.offsetxRandDiff, a.offsetxRandDiff)));
+        ((this.offsetxStart = r(-a.offsetxRandDiff, a.offsetxRandDiff)),
+        (this.offsetxEnd = r(-a.offsetxRandDiff, a.offsetxRandDiff)));
       a.offsetxStartRand &&
         ((c = a.offsetxStartRandMiddle ? a.offsetxStartRandMiddle : 0),
-        (this.offsetxStart = t(
+        (this.offsetxStart = r(
           c - a.offsetxStartRand,
           c + a.offsetxStartRand,
         )));
       a.offsetxEndRand &&
         ((c = a.offsetxEndRandMiddle ? a.offsetxEndRandMiddle : 0),
-        (this.offsetxEnd = t(c - a.offsetxEndRand, c + a.offsetxEndRand)));
+        (this.offsetxEnd = r(c - a.offsetxEndRand, c + a.offsetxEndRand)));
       this.offsetxSmooth = a.offsetxSmooth ? !0 : !1;
       this.offsetyStart = a.offsetyStart ? a.offsetyStart : 0;
       this.offsetyEnd = a.offsetyEnd ? a.offsetyEnd : 0;
       a.offsety && (this.offsetyEnd = this.offsetyStart = a.offsety);
       a.offsetyRand &&
         (this.offsetyEnd = this.offsetyStart =
-          t(-a.offsetyRand, a.offsetyRand));
+          r(-a.offsetyRand, a.offsetyRand));
       a.offsetyRandDiff &&
-        ((this.offsetyStart = t(-a.offsetyRandDiff, a.offsetyRandDiff)),
-        (this.offsetyEnd = t(-a.offsetyRandDiff, a.offsetyRandDiff)));
+        ((this.offsetyStart = r(-a.offsetyRandDiff, a.offsetyRandDiff)),
+        (this.offsetyEnd = r(-a.offsetyRandDiff, a.offsetyRandDiff)));
       a.offsetyStartRand &&
         ((c = a.offsetyStartRandMiddle ? a.offsetyStartRandMiddle : 0),
-        (this.offsetyStart = t(
+        (this.offsetyStart = r(
           c - a.offsetyStartRand,
           c + a.offsetyStartRand,
         )));
       a.offsetyEndRand &&
         ((c = a.offsetyEndRandMiddle ? a.offsetyEndRandMiddle : 0),
-        (this.offsetyEnd = t(c - a.offsetyEndRand, c + a.offsetyEndRand)));
+        (this.offsetyEnd = r(c - a.offsetyEndRand, c + a.offsetyEndRand)));
       this.offsetySmooth = a.offsetySmooth ? !0 : !1;
       a.size &&
         (this.sizeEndY =
@@ -130,15 +130,15 @@ define(
           this.sizeEndX =
           this.sizeStartY =
           this.sizeStartX =
-            t(-a.sizeRand, a.sizeRand) + 100);
+            r(-a.sizeRand, a.sizeRand) + 100);
       a.sizeRandX &&
         ((c = a.sizeRandXMiddle ? a.sizeRandXMiddle : 100),
         (this.sizeEndX = this.sizeStartX =
-          t(c - a.sizeRandX, c + a.sizeRandX)));
+          r(c - a.sizeRandX, c + a.sizeRandX)));
       a.sizeRandY &&
         ((c = a.sizeRandYMiddle ? a.sizeRandYMiddle : 100),
         (this.sizeEndY = this.sizeStartY =
-          t(c - a.sizeRandY, c + a.sizeRandY)));
+          r(c - a.sizeRandY, c + a.sizeRandY)));
       this.sizeSmooth = a.sizeSmooth ? !0 : !1;
       this.angle = a.angle ? a.angle : 0;
       this.rotate = a.rotate ? !0 : !1;
@@ -155,9 +155,9 @@ define(
               this.posyEnd - this.posyStart,
               this.posxEnd - this.posxStart,
             )));
-      a.angleRand && (this.angle = t(a.angleRand[0], a.angleRand[1]));
+      a.angleRand && (this.angle = r(a.angleRand[0], a.angleRand[1]));
       a.circlePattern &&
-        ((c = t(a.circleOuterSizeRand[0], a.circleOuterSizeRand[1])),
+        ((c = r(a.circleOuterSizeRand[0], a.circleOuterSizeRand[1])),
         (this.posxEnd = Math.sin(((2 * Math.PI) / 360) * this.angle) * c),
         (this.posyEnd = Math.cos(((2 * Math.PI) / 360) * this.angle) * c),
         (this.posxStart =
@@ -165,14 +165,14 @@ define(
         (this.posyStart =
           Math.cos(((2 * Math.PI) / 360) * this.angle) * a.circleInnerSize));
       a.sizeRandStartX &&
-        (this.sizeStartX = t(a.sizeRandStartX[0], a.sizeRandStartX[1]));
+        (this.sizeStartX = r(a.sizeRandStartX[0], a.sizeRandStartX[1]));
       a.sizeRandStartY &&
-        (this.sizeStartY = t(a.sizeRandStartY[0], a.sizeRandStartY[1]));
+        (this.sizeStartY = r(a.sizeRandStartY[0], a.sizeRandStartY[1]));
       a.sizeRandEndY &&
-        (this.sizeEndY = t(a.sizeRandEndY[0], a.sizeRandEndY[1]));
+        (this.sizeEndY = r(a.sizeRandEndY[0], a.sizeRandEndY[1]));
       a.sizeRandEndX &&
-        (this.sizeEndX = t(a.sizeRandEndX[0], a.sizeRandEndX[1]));
-      a.durationRand && (a.duration = t(a.durationRand[0], a.durationRand[1]));
+        (this.sizeEndX = r(a.sizeRandEndX[0], a.sizeRandEndX[1]));
+      a.durationRand && (a.duration = r(a.durationRand[0], a.durationRand[1]));
       this.ownerEntity &&
         this.shadowTexture &&
         this.ownerEntity.attachments.add({
@@ -189,7 +189,7 @@ define(
     }
     c.mat4.create();
     var n = {};
-    r.prototype.init = function (b) {
+    t.prototype.init = function (b) {
       var c = this;
       d.loadFile("data/texture/" + this.textureName, function (d) {
         a.texture(b, d, function (a) {
@@ -198,10 +198,10 @@ define(
         });
       });
     };
-    r.prototype.free = function (a) {
+    t.prototype.free = function (a) {
       this.ready = !1;
     };
-    r.prototype.render = function (a, b) {
+    t.prototype.render = function (a, b) {
       if (!(this.startTick > b)) {
         var c = b - this.startTick,
           d = this.endTick - this.startTick,
@@ -213,70 +213,70 @@ define(
         e.image.texture = this.texture;
         e.zIndex = this.zIndex;
         var p = (h.angle[1] * Math.PI) / 180,
-          m;
+          l;
         if (this.posxSmooth)
           if (this.posxStart != this.posxEnd) {
             a = Math.log10(0.09 * g + 1);
-            var r = this.posxEnd - this.posxStart,
+            var t = this.posxEnd - this.posxStart,
               c = this.posxStart;
-            m = a * r + c;
-          } else m = this.posxStart;
+            l = a * t + c;
+          } else l = this.posxStart;
         else
           this.posxStart != this.posxEnd
-            ? ((r = (this.posxEnd - this.posxStart) / 100),
+            ? ((t = (this.posxEnd - this.posxStart) / 100),
               (c = this.posxStart),
-              (m = g * r + c))
-            : (m = this.posxStart);
+              (l = g * t + c))
+            : (l = this.posxStart);
         this.posySmooth
           ? this.posyStart != this.posyEnd
             ? ((a = Math.log10(0.09 * g + 1)),
-              (r = this.posyEnd - this.posyStart),
+              (t = this.posyEnd - this.posyStart),
               (c = this.posyStart),
-              (a = a * r + c))
+              (a = a * t + c))
             : (a = this.posyStart)
           : this.posyStart != this.posyEnd
-            ? ((r = (this.posyEnd - this.posyStart) / 100),
+            ? ((t = (this.posyEnd - this.posyStart) / 100),
               (c = this.posyStart),
-              (a = g * r + c))
+              (a = g * t + c))
             : (a = this.posyStart);
-        e.position[0] = this.position[0] + (m * Math.cos(p) - a * Math.sin(p));
-        e.position[1] = this.position[1] + (a * Math.cos(p) + m * Math.sin(p));
+        e.position[0] = this.position[0] + (l * Math.cos(p) - a * Math.sin(p));
+        e.position[1] = this.position[1] + (a * Math.cos(p) + l * Math.sin(p));
         this.poszSmooth
           ? this.poszStart != this.poszEnd
             ? ((a = Math.log10(0.09 * g + 1)),
-              (r = this.poszEnd - this.poszStart),
+              (t = this.poszEnd - this.poszStart),
               (c = this.poszStart),
-              (a = a * r + c))
+              (a = a * t + c))
             : (a = this.poszStart)
           : this.poszStart != this.poszEnd
-            ? ((r = (this.poszEnd - this.poszStart) / 100),
+            ? ((t = (this.poszEnd - this.poszStart) / 100),
               (c = this.poszStart),
-              (a = g * r + c))
+              (a = g * t + c))
             : (a = this.poszStart);
         e.position[2] = this.position[2] + a;
         this.offsetxSmooth
           ? this.offsetxStart != this.offsetxEnd
             ? ((a = Math.log10(0.09 * g + 1)),
-              (r = this.offsetxEnd - this.offsetxStart),
+              (t = this.offsetxEnd - this.offsetxStart),
               (c = this.offsetxStart),
-              (p = a * r + c))
+              (p = a * t + c))
             : (p = this.offsetxStart)
           : this.offsetxStart != this.offsetxEnd
-            ? ((r = (this.offsetxEnd - this.offsetxStart) / 100),
+            ? ((t = (this.offsetxEnd - this.offsetxStart) / 100),
               (c = this.offsetxStart),
-              (p = g * r + c))
+              (p = g * t + c))
             : (p = this.offsetxStart);
         this.offsetySmooth
           ? this.offsetyStart != this.offsetyEnd
             ? ((a = Math.log10(0.09 * g + 1)),
-              (r = this.offsetyEnd - this.offsetyStart),
+              (t = this.offsetyEnd - this.offsetyStart),
               (c = this.offsetyStart),
-              (a = a * r + c))
+              (a = a * t + c))
             : (a = this.offsetyStart)
           : this.offsetyStart != this.offsetyEnd
-            ? ((r = (this.offsetyEnd - this.offsetyStart) / 100),
+            ? ((t = (this.offsetyEnd - this.offsetyStart) / 100),
               (c = this.offsetyStart),
-              (a = g * r + c))
+              (a = g * t + c))
             : (a = this.offsetyStart);
         e.offset[0] = p;
         e.offset[1] = a;
@@ -335,7 +335,7 @@ define(
         this.needCleanUp = this.endTick < b;
       }
     };
-    r.init = function (a) {
+    t.init = function (a) {
       n[1] = a.ZERO;
       n[2] = a.ONE;
       n[3] = a.SRC_COLOR;
@@ -354,10 +354,10 @@ define(
       this.ready = !0;
       this.renderBeforeEntities = !1;
     };
-    r.free = function (a) {
+    t.free = function (a) {
       this.ready = !1;
     };
-    r.beforeRender = function (a, b, c, d, h) {
+    t.beforeRender = function (a, b, c, d, h) {
       e.bind3DContext(a, b, c, d);
       e.shadow = 1;
       e.angle = 0;
@@ -373,10 +373,10 @@ define(
       e.depth = 10;
       e.zIndex = 0;
     };
-    r.afterRender = function (a) {
+    t.afterRender = function (a) {
       a.blendFunc(a.SRC_ALPHA, a.ONE_MINUS_SRC_ALPHA);
       e.unbind(a);
     };
-    return r;
+    return t;
   },
 );

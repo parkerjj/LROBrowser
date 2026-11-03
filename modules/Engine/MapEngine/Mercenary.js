@@ -11,17 +11,17 @@ define(
           ? (a.action == a.ACTION.IDLE &&
               (3 < Math.abs(g.Entity.position[0] - a.position[0]) ||
                 3 < Math.abs(g.Entity.position[1] - a.position[1])) &&
-              ((a = new r.CZ.REQUEST_MOVETOOWNER()),
+              ((a = new t.CZ.REQUEST_MOVETOOWNER()),
               (a.GID = g.mercGID),
-              t.sendPacket(a)),
-            n.clearTimeout(u),
-            (u = n.setTimeout(b, 200)))
-          : ((g.mercGID = 0), n.clearTimeout(u));
+              r.sendPacket(a)),
+            n.clearTimeout(v),
+            (v = n.setTimeout(b, 200)))
+          : ((g.mercGID = 0), n.clearTimeout(v));
       }
     }
     function c(a) {
-      k.append();
-      k.setInformations(a);
+      m.append();
+      m.setInformations(a);
     }
     function d(a) {
       q.append();
@@ -31,77 +31,77 @@ define(
       g.moveAction &&
         n.setTimeout(function () {
           g.moveAction &&
-            (t.sendPacket(g.moveAction),
+            (r.sendPacket(g.moveAction),
             null == p.getFocusEntity() &&
-              t.sendPacket(new r.CZ.CANCEL_LOCKON()),
+              r.sendPacket(new t.CZ.CANCEL_LOCKON()),
             (g.moveAction = null));
         }, 50);
     }
-    var m = a("DB/DBManager"),
+    var l = a("DB/DBManager"),
       h = a("Utils/PathFinding"),
-      t = a("Network/NetworkManager"),
-      r = a("Network/PacketStructure");
+      r = a("Network/NetworkManager"),
+      t = a("Network/PacketStructure");
     a("Core/Client");
     var n = a("Core/Events"),
       g = a("Engine/SessionStorage"),
       p = a("Renderer/EntityManager"),
-      l = a("Renderer/Map/Altitude"),
+      k = a("Renderer/Map/Altitude"),
       f = a("UI/UIManager");
     a("UI/Components/SlotMachine/SlotMachine");
     a("UI/Components/SkillTargetSelection/SkillTargetSelection");
     a("UI/Components/ItemSelection/ItemSelection");
     a("UI/Components/ChatBox/ChatBox");
-    var k = a("UI/Components/Mercenary/MercenaryInformations"),
+    var m = a("UI/Components/Mercenary/MercenaryInformations"),
       q = a("UI/Components/Mercenary/MercenaryskillList"),
-      u = null;
-    k.reqFired = function () {
-      f.showPromptBox(m.getMessage(1370), "ok", "cancel", function () {
-        k.remove();
+      v = null;
+    m.reqFired = function () {
+      f.showPromptBox(l.getMessage(1370), "ok", "cancel", function () {
+        m.remove();
         q.remove();
-        var a = new r.CZ.MER_COMMAND();
+        var a = new t.CZ.MER_COMMAND();
         a.command = 2;
-        t.sendPacket(a);
+        r.sendPacket(a);
       });
     };
     q.onUseSkill = function (a, b, c) {
-      var d, e, f, k, m;
+      var d, e, f, m, n;
       d = p.get(g.mercGID);
       f = p.get(c) || d;
       e = q.getSkillById(a);
-      k = [];
+      m = [];
       if (f != d || !e || 1 != e.type)
         if (
           ((e = e ? e.attackRange : d.attack_range),
-          (m = h.searchLong(
+          (n = h.searchLong(
             d.position[0] | 0,
             d.position[1] | 0,
             f.position[0] | 0,
             f.position[1] | 0,
             e,
-            k,
-            l.TYPE.WALKABLE,
+            m,
+            k.TYPE.WALKABLE,
           )))
         )
-          ((e = new r.CZ.USE_SKILL()),
+          ((e = new t.CZ.USE_SKILL()),
             (e.SKID = a),
             (e.selectedLevel = b),
             (e.targetID = c || d),
-            2 > m ||
+            2 > n ||
               f === d ||
               ((g.moveAction = e),
-              (e = new r.CZ.REQUEST_MOVE()),
-              (e.dest[0] = k[2 * (m - 1) + 0]),
-              (e.dest[1] = k[2 * (m - 1) + 1])),
-            t.sendPacket(e));
+              (e = new t.CZ.REQUEST_MOVE()),
+              (e.dest[0] = m[2 * (n - 1) + 0]),
+              (e.dest[1] = m[2 * (n - 1) + 1])),
+            r.sendPacket(e));
     };
-    k.WalkEnd = function () {
+    m.WalkEnd = function () {
       var a = p.get(g.mercGID);
-      u = n.setTimeout(b, 200);
+      v = n.setTimeout(b, 200);
       a.onWalkEnd = e;
     };
     return function () {
-      t.hookPacket(r.ZC.MER_INIT, c);
-      t.hookPacket(r.ZC.MER_SKILLINFO_LIST, d);
+      r.hookPacket(t.ZC.MER_INIT, c);
+      r.hookPacket(t.ZC.MER_SKILLINFO_LIST, d);
     };
   },
 );

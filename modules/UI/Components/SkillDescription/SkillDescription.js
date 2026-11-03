@@ -9,11 +9,11 @@ define(
     a("Renderer/Renderer");
     var d = a("Controls/KeyEventHandler"),
       e = a("Controls/MouseEventHandler"),
-      m = a("UI/UIManager"),
+      l = a("UI/UIManager"),
       h = a("UI/UIComponent"),
-      t = a("text!./SkillDescription.html");
+      r = a("text!./SkillDescription.html");
     a = a("text!./SkillDescription.css");
-    h = new h("SkillDescription", t, a);
+    h = new h("SkillDescription", r, a);
     h.uid = -1;
     h.onKeyDown = function (a) {
       return a.which === d.ESCAPE
@@ -40,6 +40,6 @@ define(
       this.ui.find(".content").text(b.getSkillDesc(a) || "...");
       this.ui.css({ top: e.screen.y + 10, left: e.screen.x + 10 });
     };
-    return m.addComponent(h);
+    return l.addComponent(h);
   },
 );

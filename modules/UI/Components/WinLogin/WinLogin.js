@@ -5,13 +5,13 @@ define(
   ),
   function (a) {
     function b() {
-      l.onExitRequest();
+      k.onExitRequest();
       return !1;
     }
     function c() {
       if (B) return !1;
       B = !0;
-      var a = k.val(),
+      var a = m.val(),
         b = q.val();
       if (!a || !b) return (B = !1);
       f.saveID
@@ -25,7 +25,7 @@ define(
         e("#body-cover").removeClass("input");
       d.Character = null;
       var c = e("#_csrf").val(),
-        g = t.get("ClientVer"),
+        g = r.get("ClientVer"),
         h;
       switch (g) {
         case 3:
@@ -56,7 +56,7 @@ define(
               "ok",
               null,
             );
-          else l.onConnectionRequest(a, b);
+          else k.onConnectionRequest(a, b);
           B = !1;
         },
       });
@@ -64,22 +64,22 @@ define(
     }
     var d = a("Engine/SessionStorage"),
       e = a("Utils/jquery"),
-      m = a("DB/DBManager");
+      l = a("DB/DBManager");
     a("Core/Client");
     var h = a("Core/Preferences"),
-      t = a("Core/Configs");
+      r = a("Core/Configs");
     a("Renderer/Renderer");
-    var r = a("Controls/KeyEventHandler"),
+    var t = a("Controls/KeyEventHandler"),
       n = a("UI/UIManager"),
       g = a("UI/UIComponent"),
       p = a("text!./WinLogin.html");
     a = a("text!./WinLogin.css");
-    var l = new g("WinLogin", p, a),
+    var k = new g("WinLogin", p, a),
       f = h.get("WinLogin", { saveID: !0, ID: "", PD: "" }, 1),
-      k,
+      m,
       q,
-      u = t.get("ClientVer"),
-      v = !1,
+      v = r.get("ClientVer"),
+      u = !1,
       A = {
         0: "\u521d\u5b66\u8005",
         1: "\u5251\u58eb",
@@ -216,12 +216,12 @@ define(
         4215: "Rebellion",
         4218: "\u53ec\u5524\u5e08",
       };
-    l.init = function () {
+    k.init = function () {
       var a = this.ui,
         d = 0;
-      k = a.find(".user");
+      m = a.find(".user");
       q = a.find(".pass");
-      k.on("focus", function () {
+      m.on("focus", function () {
         window.scrollTo(0, 0);
       });
       q.on("focus", function () {
@@ -240,7 +240,7 @@ define(
           : e(this).parent().parent().removeClass("field--non-empty");
       });
       a.find(".register").on("click", function () {
-        3 == u
+        3 == v
           ? window.open(
               "http://game.lastro.cn/?r\x3dpc/reg\x26nid\x3d3",
               "_blank",
@@ -258,7 +258,7 @@ define(
         });
       });
       a.find(".ck .close").on("click", function () {
-        v = !1;
+        u = !1;
         var b = a.find(".overlay.ck");
         b.animate({ opacity: 0 }, 200, function () {
           b.hide();
@@ -276,11 +276,11 @@ define(
       });
       a.find(".reg .submit").on("click", function () {
         var b = $("#_csrf").val();
-        if (!v) {
-          v = !0;
+        if (!u) {
+          u = !0;
           a.find(".reg .submit").addClass("processing").attr("disabled", !0);
           var c;
-          switch (u) {
+          switch (v) {
             case 3:
               c = {
                 _csrf: b,
@@ -304,7 +304,7 @@ define(
               };
           }
           $.ajax({
-            url: "/?r\x3dmn/register\x26nid\x3d" + u,
+            url: "/?r\x3dmn/register\x26nid\x3d" + v,
             type: "post",
             data: c,
             success: function (b) {
@@ -324,7 +324,7 @@ define(
                     });
                     a.find(".user").val(f.ID);
                     a.find(".pass").val(f.PD);
-                    v = !1;
+                    u = !1;
                   }, 500),
                   setTimeout(function () {
                     a.find(".reg .name input").empty();
@@ -344,7 +344,7 @@ define(
                   (b = a.find("#captchaimg").attr("src")),
                   a.find("#captchaimg").attr("src", ""),
                   a.find("#captchaimg").attr("src", b + "?" + Math.random()));
-              v = !1;
+              u = !1;
             },
           });
         }
@@ -353,10 +353,10 @@ define(
         var b = $("#_csrf").val();
         if ("" == a.find(".user").val()) a.find(".user").focus();
         else if ("" == a.find(".pass").val()) a.find(".pass").focus();
-        else if (!v) {
-          v = !0;
+        else if (!u) {
+          u = !0;
           var c;
-          switch (u) {
+          switch (v) {
             case 3:
               c = {
                 _csrf: b,
@@ -380,7 +380,7 @@ define(
           }
           a.find(".cheak button").addClass("processing");
           $.ajax({
-            url: "/?r\x3dmn/search\x26nid\x3d" + u,
+            url: "/?r\x3dmn/search\x26nid\x3d" + v,
             type: "post",
             dataType: "json",
             data: c,
@@ -396,7 +396,7 @@ define(
                 a.find(".ssres_job").text(A[b.class]);
                 a.find(".ssres_base_level").text(b.base_level);
                 a.find(".ssres_job_level").text(b.job_level);
-                a.find(".ssres_map").text(m.getMapName(b.last_map + ".gat"));
+                a.find(".ssres_map").text(l.getMapName(b.last_map + ".gat"));
                 a.find(".ssres_hp #hp").text(b.hp);
                 a.find(".ssres_hp #max_hp").text(b.max_hp);
                 a.find(".ssres_sp #sp").text(b.sp);
@@ -439,20 +439,20 @@ define(
                   var c = { ITID: b.hppotion, amount: b.hpamount },
                     e = { ITID: b.hppotion2, amount: b.hpamount2 },
                     g = { ITID: b.hppotion3, amount: b.hpamount3 };
-                  a.find(".ssres_hpname").text(m.getItemName(c));
+                  a.find(".ssres_hpname").text(l.getItemName(c));
                   a.find(".ssres_hpamount").text("x " + c.amount);
-                  a.find(".ssres_hpname2").text(m.getItemName(e));
+                  a.find(".ssres_hpname2").text(l.getItemName(e));
                   a.find(".ssres_hpamount2").text("x " + e.amount);
-                  a.find(".ssres_hpname3").text(m.getItemName(g));
+                  a.find(".ssres_hpname3").text(l.getItemName(g));
                   a.find(".ssres_hpamount3").text("x " + g.amount);
                   c = { ITID: b.sppotion, amount: b.spamount };
                   e = { ITID: b.sppotion2, amount: b.spamount2 };
                   g = { ITID: b.sppotion3, amount: b.spamount3 };
-                  a.find(".ssres_spname").text(m.getItemName(c));
+                  a.find(".ssres_spname").text(l.getItemName(c));
                   a.find(".ssres_spamount").text("x " + c.amount);
-                  a.find(".ssres_spname2").text(m.getItemName(e));
+                  a.find(".ssres_spname2").text(l.getItemName(e));
                   a.find(".ssres_spamount2").text("x " + e.amount);
-                  a.find(".ssres_spname3").text(m.getItemName(g));
+                  a.find(".ssres_spname3").text(l.getItemName(g));
                   a.find(".ssres_spamount3").text("x " + g.amount);
                 }
                 a.find(".ssres_cyamount").text(b.cyamount);
@@ -515,7 +515,7 @@ define(
                     case 1:
                     case 4:
                       a.find(".ssres_sj_mob").text(
-                        m.getmobData(b.sjlr_mob).kName,
+                        l.getmobData(b.sjlr_mob).kName,
                       );
                       a.find(".ssres_sl_mob").text(b.sjlr_sl_mob);
                       a.find(".ssres_sj_num_mob").text(b.sjlr_num_mob);
@@ -526,7 +526,7 @@ define(
                       break;
                     case 2:
                       c = { ITID: b.sjlr_item, IsIdentified: 1 };
-                      a.find(".ssres_sj_item").text(m.getItemName(c));
+                      a.find(".ssres_sj_item").text(l.getItemName(c));
                       a.find(".ssres_sl_num_has_item").text(
                         b.sjlr_num_has_item,
                       );
@@ -539,11 +539,11 @@ define(
                     case 3:
                       (a
                         .find(".ssres_sj_mob")
-                        .text(m.getmobData(b.sjlr_mob).kName),
+                        .text(l.getmobData(b.sjlr_mob).kName),
                         a.find(".ssres_sl_mob").text(b.sjlr_sl_mob),
                         a.find(".ssres_sj_num_mob").text(b.sjlr_num_mob),
                         (c = { ITID: b.sjlr_item, IsIdentified: 1 }),
-                        a.find(".ssres_sj_item").text(m.getItemName(c)),
+                        a.find(".ssres_sj_item").text(l.getItemName(c)),
                         a
                           .find(".ssres_sl_num_has_item")
                           .text(b.sjlr_num_has_item),
@@ -560,14 +560,14 @@ define(
                 a.find(".overlay.ck").show().animate({ opacity: 1 }, 200);
               } else
                 1 == b
-                  ? ((v = !1),
+                  ? ((u = !1),
                     n.showMessageBox(
                       "\u7528\u6237\u540d\u6216\u5bc6\u7801\u9519\u8bef",
                       "ok",
                       null,
                     ))
                   : 2 == b &&
-                    ((v = !1),
+                    ((u = !1),
                     n.showMessageBox(
                       "\u8be5\u8d26\u53f7\u6ca1\u6709\u89d2\u8272\u5728\u7ebf",
                       "ok",
@@ -611,36 +611,36 @@ define(
             e(this).removeClass("input");
           }));
     };
-    l.onAppend = function () {
+    k.onAppend = function () {
       B = !1;
-      k.val(f.saveID ? f.ID : "");
+      m.val(f.saveID ? f.ID : "");
       q.val(f.saveID ? f.PD : "");
-      k.val() && k.parent().parent().addClass("field--non-empty");
+      m.val() && m.parent().parent().addClass("field--non-empty");
       q.val() && q.parent().parent().addClass("field--non-empty");
     };
-    l.onRemove = function () {
+    k.onRemove = function () {
       this.ui.find(".btn button").removeClass("processing");
     };
-    var C = !1;
-    l.onKeyDown = function (a) {
+    var D = !1;
+    k.onKeyDown = function (a) {
       switch (a.which) {
-        case r.ENTER:
-          if (!C)
+        case t.ENTER:
+          if (!D)
             return (
-              (C = !0),
+              (D = !0),
               c(),
               a.stopImmediatePropagation(),
               setTimeout(function () {
-                C = !1;
+                D = !1;
               }, 1e3),
               !1
             );
           break;
-        case r.ESCAPE:
+        case t.ESCAPE:
           return (b(), a.stopImmediatePropagation(), !1);
-        case r.TAB:
+        case t.TAB:
           return (
-            (document.activeElement === k[0] ? q : k).focus().select(),
+            (document.activeElement === m[0] ? q : m).focus().select(),
             a.stopImmediatePropagation(),
             !1
           );
@@ -648,8 +648,8 @@ define(
       return !0;
     };
     var B = !1;
-    l.onConnectionRequest = function () {};
-    l.onExitRequest = function () {};
-    return n.addComponent(l);
+    k.onConnectionRequest = function () {};
+    k.onExitRequest = function () {};
+    return n.addComponent(k);
   },
 );

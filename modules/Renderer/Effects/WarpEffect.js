@@ -14,17 +14,17 @@ define(
       d = a("Utils/gl-matrix");
     a("DB/Skills/SkillConst");
     var e = a("Core/Client"),
-      m = a("Renderer/Map/Altitude"),
+      l = a("Renderer/Map/Altitude"),
       h,
-      t,
-      r = d.mat4,
-      n = r.create(),
+      r,
+      t = d.mat4,
+      n = t.create(),
       g =
         "attribute vec3 aPosition;\nattribute vec2 aTextureCoord;\nvarying vec2 vTextureCoord;\nuniform mat4 uModelViewMat;\nuniform mat4 uProjectionMat;\nuniform mat4 uRotationMat;\nvoid main(void) {\ngl_Position    \x3d uProjectionMat * uModelViewMat * vec4( aPosition.x, aPosition.y - 0.5, aPosition.z, 1.0);\ngl_Position.z -\x3d 0.01;\nvTextureCoord  \x3d (uRotationMat * vec4( aTextureCoord - 0.5, 1.0, 1.0)).xy + 0.5;\n}",
       p =
         "varying vec2 vTextureCoord;\nuniform sampler2D uDiffuse;\nuniform vec4 uSpriteRendererColor;\nuniform bool  uFogUse;\nuniform float uFogNear;\nuniform float uFogFar;\nuniform vec3  uFogColor;\nvoid main(void) {\nif (uSpriteRendererColor.a \x3d\x3d 0.0) {\ndiscard;\n}\nvec4 texture \x3d texture2D( uDiffuse,  vTextureCoord.st );\nif (texture.a \x3d\x3d 0.0) {\n\tdiscard;\n}\ngl_FragColor \x3d texture * uSpriteRendererColor;\nif (uFogUse) {\nfloat depth     \x3d gl_FragCoord.z / gl_FragCoord.w;\nfloat fogFactor \x3d smoothstep( uFogNear, uFogFar, depth );\ngl_FragColor    \x3d mix( gl_FragColor, vec4( uFogColor, gl_FragColor.w ), fogFactor );\n}\n}";
     b.prototype.init = function (a) {
-      var b = m.generatePlane(this.x, this.y, this.size);
+      var b = l.generatePlane(this.x, this.y, this.size);
       this.buffer = a.createBuffer();
       this.vertCount = b.length / 5;
       a.bindBuffer(a.ARRAY_BUFFER, this.buffer);
@@ -36,14 +36,14 @@ define(
       this.ready = !1;
     };
     b.prototype.render = function (a, b) {
-      b = t.attribute;
+      b = r.attribute;
       a.bindBuffer(a.ARRAY_BUFFER, this.buffer);
       a.vertexAttribPointer(b.aPosition, 3, a.FLOAT, !1, 20, 0);
       a.vertexAttribPointer(b.aTextureCoord, 2, a.FLOAT, !1, 20, 12);
       a.drawArrays(a.TRIANGLES, 0, this.vertCount);
     };
     b.init = function (a) {
-      t = c.createShaderProgram(a, g, p);
+      r = c.createShaderProgram(a, g, p);
       e.loadFile("data/texture/effect/pok2.tga", function (d) {
         c.texture(a, d, function (a) {
           h = a;
@@ -59,15 +59,15 @@ define(
     b.renderBeforeEntities = !0;
     b.free = function (a) {
       h && (a.deleteTexture(h), (h = null));
-      t && (a.deleteProgram(t), (t = null));
+      r && (a.deleteProgram(r), (r = null));
       this.ready = !1;
     };
     b.beforeRender = function (a, b, c, d, e) {
-      e = t.uniform;
-      var f = t.attribute;
+      e = r.uniform;
+      var f = r.attribute;
       a.depthMask(!1);
-      r.identity(n);
-      a.useProgram(t);
+      t.identity(n);
+      a.useProgram(r);
       a.uniformMatrix4fv(e.uModelViewMat, !1, b);
       a.uniformMatrix4fv(e.uProjectionMat, !1, c);
       a.uniformMatrix4fv(e.uRotationMat, !1, n);
@@ -85,8 +85,8 @@ define(
     };
     b.afterRender = function (a) {
       a.depthMask(!0);
-      a.disableVertexAttribArray(t.attribute.aPosition);
-      a.disableVertexAttribArray(t.attribute.aTextureCoord);
+      a.disableVertexAttribArray(r.attribute.aPosition);
+      a.disableVertexAttribArray(r.attribute.aTextureCoord);
       a.blendFunc(a.SRC_ALPHA, a.ONE_MINUS_SRC_ALPHA);
     };
     return b;

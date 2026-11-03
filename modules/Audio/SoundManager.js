@@ -5,13 +5,13 @@ define("Audio/SoundManager", [
   "Utils/gl-matrix",
   "Engine/SessionStorage",
 ], function (a, b, c, d, e) {
-  function m() {
+  function l() {
     if (n[this.filename]) {
       var a = n[this.filename].instances.indexOf(this);
       -1 !== a &&
         (n[this.filename].instances.splice(a, 1),
         0 == n[this.filename].instances.length && delete n[this.filename]);
-      t(this);
+      r(this);
     }
   }
   function h() {
@@ -22,7 +22,7 @@ define("Audio/SoundManager", [
     this.remove();
     p--;
   }
-  function t(a) {
+  function r(a) {
     a.filename &&
       (a.filename in g ||
         ((g[a.filename] = {}), (g[a.filename].instances = [])),
@@ -42,7 +42,7 @@ define("Audio/SoundManager", [
           g[a.filename].instances.push(a))
         : (a.remove(), p--));
   }
-  function r(a) {
+  function t(a) {
     var b = null;
     a in g &&
       0 < g[a].instances.length &&
@@ -53,15 +53,15 @@ define("Audio/SoundManager", [
   var n = {},
     g = {},
     p = 0,
-    l = {};
-  l.volume = b.Sound.volume;
-  l.play = function (c, d) {
+    k = {};
+  k.volume = b.Sound.volume;
+  k.play = function (c, d) {
     var f;
     f = d ? d * this.volume : this.volume;
     0 >= f ||
       !b.Sound.play ||
       (c in n || ((n[c] = {}), (n[c].instances = []), (n[c].lastTick = 0)),
-      (d = r(c))
+      (d = t(c))
         ? ((d.volume = Math.min(f, 1)),
           (d._volume = f),
           d.play(),
@@ -79,17 +79,17 @@ define("Audio/SoundManager", [
               (b.volume = Math.min(f, 1)),
               (b._volume = f),
               b.addEventListener("error", h, !1),
-              b.addEventListener("ended", m, !1),
+              b.addEventListener("ended", l, !1),
               b.play(),
               n[c].instances.push(b),
               (n[c].lastTick = Date.now()));
           }));
   };
-  l.playPosition = function (a, b) {
+  k.playPosition = function (a, b) {
     b = Math.floor(d.vec2.dist(b, e.Entity.position));
-    l.play(a, Math.max(1 - Math.abs((0.99 * (b - 1)) / 24 + 0.01), 0.1));
+    k.play(a, Math.max(1 - Math.abs((0.99 * (b - 1)) / 24 + 0.01), 0.1));
   };
-  l.stop = function (a) {
+  k.stop = function (a) {
     var b, d;
     if (a) {
       if (a in n) {
@@ -116,7 +116,7 @@ define("Audio/SoundManager", [
       )
         c.remove(d[a]);
   };
-  l.setVolume = function (a) {
+  k.setVolume = function (a) {
     this.volume = Math.min(a, 1);
     b.Sound.volume = this.volume;
     b.save();
@@ -126,5 +126,5 @@ define("Audio/SoundManager", [
       });
     });
   };
-  return l;
+  return k;
 });

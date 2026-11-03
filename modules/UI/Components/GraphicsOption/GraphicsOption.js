@@ -5,25 +5,25 @@ define(
   ),
   function (a) {
     function b() {
-      t.quality = parseInt(this.value, 10);
-      t.save();
-      e.set("quality", t.quality);
-      r.resize();
+      r.quality = parseInt(this.value, 10);
+      r.save();
+      e.set("quality", r.quality);
+      t.resize();
     }
     function c() {
-      t.cursor = !!this.checked;
-      t.save();
-      t.cursor || (document.body.style.cursor = "default");
+      r.cursor = !!this.checked;
+      r.save();
+      r.cursor || (document.body.style.cursor = "default");
     }
     function d() {
-      var a = m.isFullScreen();
-      t.screensize = this.value;
-      t.save();
-      "full" === t.screensize
-        ? a || m.requestFullScreen()
-        : (a && m.cancelFullScreen(),
-          m.Is.POPUP &&
-            ((a = t.screensize.split("x")),
+      var a = l.isFullScreen();
+      r.screensize = this.value;
+      r.save();
+      "full" === r.screensize
+        ? a || l.requestFullScreen()
+        : (a && l.cancelFullScreen(),
+          l.Is.POPUP &&
+            ((a = r.screensize.split("x")),
             a[0] != window.innerWidth &&
               a[1] != window.innerHeight &&
               (window.resizeTo(a[0], a[1]),
@@ -33,16 +33,16 @@ define(
               ))));
     }
     var e = a("Core/Configs"),
-      m = a("Core/Context"),
+      l = a("Core/Context"),
       h = a("Core/Preferences"),
-      t = a("Preferences/Graphics"),
-      r = a("Renderer/Renderer"),
+      r = a("Preferences/Graphics"),
+      t = a("Renderer/Renderer"),
       n = a("UI/UIManager"),
       g = a("UI/UIComponent"),
       p = a("text!./GraphicsOption.html");
     a = a("text!./GraphicsOption.css");
     var g = new g("GraphicsOption", p, a),
-      l = h.get("GraphicsOption", { x: 300, y: 300 }, 1.1);
+      k = h.get("GraphicsOption", { x: 300, y: 300 }, 1.1);
     g.init = function () {
       this.ui.find(".base").mousedown(function (a) {
         a.stopImmediatePropagation();
@@ -55,15 +55,15 @@ define(
       this.draggable(this.ui.find(".titlebar"));
     };
     g.onAppend = function () {
-      this.ui.css({ top: l.y, left: l.x });
-      this.ui.find(".details").val(t.quality);
-      this.ui.find(".screensize").val(t.screensize);
-      this.ui.find(".cursor").attr("checked", t.cursor);
+      this.ui.css({ top: k.y, left: k.x });
+      this.ui.find(".details").val(r.quality);
+      this.ui.find(".screensize").val(r.screensize);
+      this.ui.find(".cursor").attr("checked", r.cursor);
     };
     g.onRemove = function () {
-      l.x = parseInt(this.ui.css("left"), 10);
-      l.y = parseInt(this.ui.css("top"), 10);
-      l.save();
+      k.x = parseInt(this.ui.css("left"), 10);
+      k.y = parseInt(this.ui.css("top"), 10);
+      k.save();
     };
     return n.addComponent(g);
   },

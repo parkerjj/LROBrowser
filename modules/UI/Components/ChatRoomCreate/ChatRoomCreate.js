@@ -20,7 +20,7 @@ define(
         var a = document.createElement("div");
         a.className = "win_popup_overlay";
         document.body.appendChild(a);
-        r.showMessageBox(
+        t.showMessageBox(
           e.getMessage(13),
           "ok",
           function () {
@@ -35,10 +35,10 @@ define(
     }
     var d = a("Utils/jquery"),
       e = a("DB/DBManager"),
-      m = a("Controls/KeyEventHandler"),
+      l = a("Controls/KeyEventHandler"),
       h = a("Renderer/Renderer"),
-      t = a("Core/Preferences"),
-      r = a("UI/UIManager"),
+      r = a("Core/Preferences"),
+      t = a("UI/UIManager"),
       n = a("UI/UIComponent"),
       g = a("text!./ChatRoomCreate.html");
     a = a("text!./ChatRoomCreate.css");
@@ -47,7 +47,7 @@ define(
     n.limit = 20;
     n.type = 1;
     n.password = "";
-    var p = t.get("ChatRoomCreate", { x: 480, y: 200, show: !1 }, 1);
+    var p = r.get("ChatRoomCreate", { x: 480, y: 200, show: !1 }, 1);
     n.init = function () {
       this.ui.find(".close, .cancel").mousedown(b).click(this.hide.bind(this));
       this.ui.find(".ok").on("click", c.bind(this));
@@ -87,9 +87,9 @@ define(
     };
     n.onKeyDown = function (a) {
       if (this.ui.is(":visible")) {
-        if (a.which === m.ENTER)
+        if (a.which === l.ENTER)
           return (c.call(this), a.stopImmediatePropagation(), !1);
-        if (a.which === m.ESCAPE)
+        if (a.which === l.ESCAPE)
           return (this.hide(), a.stopImmediatePropagation(), !1);
       }
       return !0;
@@ -101,6 +101,6 @@ define(
       }
     };
     n.requestRoom = function () {};
-    return r.addComponent(n);
+    return t.addComponent(n);
   },
 );

@@ -2670,18 +2670,18 @@ define(
               var c = (b.Inst.position[0] - b.Inst.otherPosition[0]) / 5,
                 d = (b.Inst.position[1] - b.Inst.otherPosition[1]) / 5,
                 e = new Uint16Array(3),
-                m = 0;
-              6 > m;
-              m++
+                l = 0;
+              6 > l;
+              l++
             ) {
-              e[0] = Math.round(b.Inst.otherPosition[0] + c * m);
-              e[1] = Math.round(b.Inst.otherPosition[1] + d * m);
+              e[0] = Math.round(b.Inst.otherPosition[0] + c * l);
+              e[1] = Math.round(b.Inst.otherPosition[1] + d * l);
               e[2] = b.Inst.otherPosition[2];
               var h = {
                 effectId: "123_groundeffect",
                 ownerAID: b.Init.otherAID,
                 position: e,
-                startTick: b.Inst.startTick + 20 * m,
+                startTick: b.Inst.startTick + 20 * l,
               };
               a("Renderer/EffectManager").spam(h);
             }

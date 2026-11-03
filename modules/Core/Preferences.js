@@ -30,7 +30,7 @@ define("Core/Preferences", ["./Context"], function (a) {
         },
       };
   return {
-    get: function (a, m, h) {
+    get: function (a, l, h) {
       d.get(a, function (d) {
         var e, n, g;
         h = h || 0;
@@ -46,13 +46,13 @@ define("Core/Preferences", ["./Context"], function (a) {
             n < g;
             ++n
           )
-            m[e[n]] = d[e[n]];
-        else b(m);
+            l[e[n]] = d[e[n]];
+        else b(l);
       });
-      m._key = a;
-      m._version = h;
-      m.save = c;
-      return m;
+      l._key = a;
+      l._version = h;
+      l.save = c;
+      return l;
     },
     save: b,
   };

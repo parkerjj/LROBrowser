@@ -23,20 +23,20 @@ define(
     a("DB/DBManager");
     var d = a("Core/Preferences"),
       e = a("Engine/SessionStorage"),
-      m = a("Renderer/EntityManager"),
+      l = a("Renderer/EntityManager"),
       h = a("UI/UIManager"),
-      t = a("UI/UIComponent"),
-      r = a("UI/Components/Mercenary/MercenaryskillList"),
+      r = a("UI/UIComponent"),
+      t = a("UI/Components/Mercenary/MercenaryskillList"),
       n = a("text!./MercenaryInformations.html");
     a = a("text!./MercenaryInformations.css");
-    var g = new t("MercenaryInformations", n, a);
+    var g = new r("MercenaryInformations", n, a);
     d.get("MercenaryInformations", { x: 100, y: 200, show: !0 }, 1);
     g.init = function () {
       this.draggable(this.ui.find(".titlebar"));
       this.ui.find(".close").click(c);
       this.ui.find(".skill").click(function () {
-        r.ui.toggle();
-        r.focus();
+        t.ui.toggle();
+        t.focus();
       });
       this.ui.find(".fired").click(g.reqFired);
       this.ui.hide();
@@ -63,7 +63,7 @@ define(
         }
     };
     g.setInformations = function (a) {
-      var c = m.get(a.AID);
+      var c = l.get(a.AID);
       e.mercGID = a.AID;
       this.ui.find(".atak").text(a.atk);
       this.ui.find(".matak").text(a.Matk);

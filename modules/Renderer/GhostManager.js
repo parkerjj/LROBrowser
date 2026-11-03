@@ -18,19 +18,19 @@ define(
       var c = a.depth + (a.GID % 100) / 1e3,
         d = b.depth + (b.GID % 100) / 1e3;
       a.objecttype !== b.objecttype &&
-        ((c -= 100 * m.PickingPriority[a.objecttype]),
-        (d -= 100 * m.PickingPriority[b.objecttype]));
+        ((c -= 100 * l.PickingPriority[a.objecttype]),
+        (d -= 100 * l.PickingPriority[b.objecttype]));
       return c - d;
     }
     var e = a("Engine/SessionStorage"),
-      m = a("./Entity/Entity"),
+      l = a("./Entity/Entity"),
       h = a("./SpriteRenderer"),
-      t = a("Controls/MouseEventHandler"),
-      r = a("Controls/KeyEventHandler"),
+      r = a("Controls/MouseEventHandler"),
+      t = a("Controls/KeyEventHandler"),
       n = a("Preferences/Map"),
       g = [],
       p = null,
-      l = !1,
+      k = !1,
       f = null;
     a = {
       free: function () {
@@ -63,8 +63,8 @@ define(
       },
       setOverEntity: function (a) {
         var b = p;
-        if (a !== b || l !== r.SHIFT) {
-          l = r.SHIFT;
+        if (a !== b || k !== t.SHIFT) {
+          k = t.SHIFT;
           if (b) b.onMouseOut();
           a ? ((p = a), a.onMouseOver()) : (p = null);
         }
@@ -77,13 +77,13 @@ define(
       },
       render: function (a, b, d, e) {
         var f,
-          l = Date.now();
+          k = Date.now();
         if (g.length) {
           g.sort(c);
           h.bind3DContext(a, b, d, e, n.lightmap);
           e = 0;
           for (f = g.length; e < f; ++e)
-            g[e].remove_tick && g[e].remove_tick + g[e].remove_delay < l
+            g[e].remove_tick && g[e].remove_tick + g[e].remove_delay < k
               ? (g[e].clean(), g.splice(e, 1), e--, f--)
               : (a.depthMask(!1), g[e].render(b, d), a.depthMask(!0));
           h.unbind(a);
@@ -93,13 +93,13 @@ define(
         var a, b, c;
         if (g.length) {
           g.sort(d);
-          var e = t.screen.x,
-            f = t.screen.y;
+          var e = r.screen.x,
+            f = r.screen.y;
           a = 0;
           for (b = g.length; a < b; ++a)
             if (
               ((c = g[a]),
-              (c.action !== c.ACTION.DIE || c.objecttype === m.TYPE_PC) &&
+              (c.action !== c.ACTION.DIE || c.objecttype === l.TYPE_PC) &&
                 0 === c.remove_tick &&
                 e > c.boundingRect.x1 &&
                 e < c.boundingRect.x2 &&
@@ -111,6 +111,6 @@ define(
         }
       },
     };
-    return (m.Manager = a);
+    return (l.Manager = a);
   },
 );

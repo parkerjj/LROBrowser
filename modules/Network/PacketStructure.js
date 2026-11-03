@@ -432,9 +432,9 @@ define("Network/PacketStructure", [
         c = new a(d);
       c.writeShort(200);
       c.writeShort(d);
-      var m,
+      var l,
         d = 0;
-      for (m = this.itemList.length; d < m; ++d)
+      for (l = this.itemList.length; d < l; ++d)
         (c.writeShort(this.itemList[d].count),
           c.writeULong(this.itemList[d].ITID));
     } else
@@ -444,8 +444,8 @@ define("Network/PacketStructure", [
           c.writeShort(200),
           c.writeShort(d),
           d = 0,
-          m = this.itemList.length;
-        d < m;
+          l = this.itemList.length;
+        d < l;
         ++d
       )
         (c.writeShort(this.itemList[d].count),
@@ -3112,7 +3112,7 @@ define("Network/PacketStructure", [
   };
   c.CZ.REQ_OPEN_BUYING_STORE.prototype.build = function () {
     if (20180704 <= b.value) {
-      var d, c, m;
+      var d, c, l;
       d = this.getPacketVersion();
       var h = 89 + 10 * this.ItemList.length,
         h = new a(h);
@@ -3121,15 +3121,15 @@ define("Network/PacketStructure", [
       h.view.setUint32(d[4], this.LimitZeny, !0);
       h.view.setUint8(d[5], this.result, !0);
       h.view.setString(d[6], this.storeName, 80);
-      m = d[7];
+      l = d[7];
       d = 0;
       for (c = this.ItemList.length; d < c; ++d)
-        (h.view.setUint32(m, this.ItemList[d]._id, !0),
-          (m += 4),
-          h.view.setInt16(m, this.ItemList[d]._count, !0),
-          (m += 2),
-          h.view.setInt32(m, this.ItemList[d]._price, !0),
-          (m += 4));
+        (h.view.setUint32(l, this.ItemList[d]._id, !0),
+          (l += 4),
+          h.view.setInt16(l, this.ItemList[d]._count, !0),
+          (l += 2),
+          h.view.setInt32(l, this.ItemList[d]._price, !0),
+          (l += 4));
     } else
       for (
         d = this.getPacketVersion(),
@@ -3140,18 +3140,18 @@ define("Network/PacketStructure", [
           h.view.setUint32(d[4], this.LimitZeny, !0),
           h.view.setUint8(d[5], this.result, !0),
           h.view.setString(d[6], this.storeName, 80),
-          m = d[7],
+          l = d[7],
           d = 0,
           c = this.ItemList.length;
         d < c;
         ++d
       )
-        (h.view.setUint16(m, this.ItemList[d]._id, !0),
-          (m += 2),
-          h.view.setInt16(m, this.ItemList[d]._count, !0),
-          (m += 2),
-          h.view.setInt32(m, this.ItemList[d]._price, !0),
-          (m += 4));
+        (h.view.setUint16(l, this.ItemList[d]._id, !0),
+          (l += 2),
+          h.view.setInt16(l, this.ItemList[d]._count, !0),
+          (l += 2),
+          h.view.setInt32(l, this.ItemList[d]._price, !0),
+          (l += 4));
     return h;
   };
   c.CZ.REQ_CLOSE_BUYING_STORE = function () {};
@@ -3177,7 +3177,7 @@ define("Network/PacketStructure", [
   };
   c.CZ.REQ_TRADE_BUYING_STORE.prototype.build = function () {
     if (20180704 <= b.value) {
-      var d, c, m;
+      var d, c, l;
       d = this.getPacketVersion();
       var h = 12 + 8 * this.ItemList.length,
         h = new a(h);
@@ -3185,15 +3185,15 @@ define("Network/PacketStructure", [
       h.view.setInt16(d[3], 12 + 8 * this.ItemList.length, !0);
       h.view.setUint32(d[4], this.makerAID, !0);
       h.view.setUint32(d[5], this.StoreID, !0);
-      m = d[6];
+      l = d[6];
       d = 0;
       for (c = this.ItemList.length; d < c; ++d)
-        (h.view.setUint16(m, this.ItemList[d].index, !0),
-          (m += 2),
-          h.view.setUint32(m, this.ItemList[d].id, !0),
-          (m += 4),
-          h.view.setInt16(m, this.ItemList[d].count, !0),
-          (m += 2));
+        (h.view.setUint16(l, this.ItemList[d].index, !0),
+          (l += 2),
+          h.view.setUint32(l, this.ItemList[d].id, !0),
+          (l += 4),
+          h.view.setInt16(l, this.ItemList[d].count, !0),
+          (l += 2));
     } else
       for (
         d = this.getPacketVersion(),
@@ -3203,18 +3203,18 @@ define("Network/PacketStructure", [
           h.view.setInt16(d[3], 12 + 6 * this.ItemList.length, !0),
           h.view.setUint32(d[4], this.makerAID, !0),
           h.view.setUint32(d[5], this.StoreID, !0),
-          m = d[6],
+          l = d[6],
           d = 0,
           c = this.ItemList.length;
         d < c;
         ++d
       )
-        (h.view.setUint16(m, this.ItemList[d].index, !0),
-          (m += 2),
-          h.view.setUint16(m, this.ItemList[d].id, !0),
-          (m += 2),
-          h.view.setInt16(m, this.ItemList[d].count, !0),
-          (m += 2));
+        (h.view.setUint16(l, this.ItemList[d].index, !0),
+          (l += 2),
+          h.view.setUint16(l, this.ItemList[d].id, !0),
+          (l += 2),
+          h.view.setInt16(l, this.ItemList[d].count, !0),
+          (l += 2));
     return h;
   };
   c.CA.OTP_AUTH_REQ = function () {
@@ -3702,10 +3702,10 @@ define("Network/PacketStructure", [
       c[d].location = a.readULong();
       c[d].currency_count = a.readULong();
       var e = c[d],
-        r = c[d].currency_count,
+        t = c[d].currency_count,
         n,
-        g = Array(r);
-      for (n = 0; n < r; ++n)
+        g = Array(t);
+      for (n = 0; n < t; ++n)
         ((g[n] = {}),
           (g[n].ITID = a.readULong()),
           (g[n].refine_level = a.readUShort()),
@@ -7499,8 +7499,8 @@ define("Network/PacketStructure", [
       c[d] = {};
       c[d].AID = a.readULong();
       c[d].Completed = a.readChar();
-      for (var e = c[d], r = Array(10), n = 0; 10 > n; ++n) r[n] = a.readLong();
-      e.Objectives = r;
+      for (var e = c[d], t = Array(10), n = 0; 10 > n; ++n) t[n] = a.readLong();
+      e.Objectives = t;
       c[d].endtime = a.readULong();
       c[d].rewarded = a.readChar();
     }
@@ -7518,8 +7518,8 @@ define("Network/PacketStructure", [
       c[b] = {};
       c[b].AID = a.readULong();
       c[b].Completed = a.readChar();
-      for (var e = c[b], r = Array(10), n = 0; 10 > n; ++n) r[n] = a.readLong();
-      e.Objectives = r;
+      for (var e = c[b], t = Array(10), n = 0; 10 > n; ++n) t[n] = a.readLong();
+      e.Objectives = t;
       c[b].endtime = a.readULong();
       c[b].rewarded = a.readChar();
     }
@@ -8211,13 +8211,13 @@ define("Network/PacketStructure", [
       c[b].quest_endTime = a.readLong();
       c[b].count = a.readShort();
       var e = c[b],
-        r,
+        t,
         n = Array(3);
-      for (r = 0; 3 > r; ++r)
-        ((n[r] = {}),
-          (n[r].mobGID = a.readULong()),
-          (n[r].huntCount = a.readShort()),
-          (n[r].mobName = a.readString(24)));
+      for (t = 0; 3 > t; ++t)
+        ((n[t] = {}),
+          (n[t].mobGID = a.readULong()),
+          (n[t].huntCount = a.readShort()),
+          (n[t].mobName = a.readString(24)));
       e.hunt = n;
     }
     this.QuestMissionList = c;
@@ -9359,9 +9359,9 @@ define("Network/PacketStructure", [
       c[b].Detail = {};
       c[b].Detail.Level = a.readShort();
       c[b].Detail.MapID = a.readShort();
-      for (var e = c[b].Detail, r = Array(6), n = 0; 6 > n; ++n)
-        r[n] = a.readShort();
-      e.Job = r;
+      for (var e = c[b].Detail, t = Array(6), n = 0; 6 > n; ++n)
+        t[n] = a.readShort();
+      e.Job = t;
     }
     this.Info = c;
   };
@@ -10085,10 +10085,10 @@ define("Network/PacketStructure", [
       d[c].quest_endTime = a.readLong();
       d[c].count = a.readShort();
       var e = d[c],
-        r = d[c].count,
+        t = d[c].count,
         n,
-        g = Array(r);
-      for (n = 0; n < r; ++n)
+        g = Array(t);
+      for (n = 0; n < t; ++n)
         ((g[n] = {}),
           (g[n].QID = a.readULong()),
           (g[n].mobType = a.readULong()),

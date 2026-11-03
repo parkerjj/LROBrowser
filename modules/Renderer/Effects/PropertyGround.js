@@ -12,13 +12,13 @@ define("Renderer/Effects/PropertyGround", [
     this.height = d;
     this.tick = h;
     this.sizeRandomize = 0 + 10 * Math.random();
-    this.ix = g++ % r.length;
+    this.ix = g++ % t.length;
   }
-  var m,
+  var l,
     h,
-    t = c.mat4,
-    r = (function () {
-      for (var a = [], b = 0; 16 > b; b++) a.push(t.create());
+    r = c.mat4,
+    t = (function () {
+      for (var a = [], b = 0; 16 > b; b++) a.push(r.create());
       return a;
     })(),
     n = 0,
@@ -39,11 +39,11 @@ define("Renderer/Effects/PropertyGround", [
     this.ready = !1;
   };
   e.prototype.render = function (a, b) {
-    var c = m.uniform,
-      d = m.attribute;
+    var c = l.uniform,
+      d = l.attribute;
     b = Math.sin(b / (360 * Math.PI) + this.sizeRandomize);
     0.5 > b && (b = 0.5);
-    a.uniformMatrix4fv(c.uRotationMat, !1, r[this.ix]);
+    a.uniformMatrix4fv(c.uRotationMat, !1, t[this.ix]);
     a.bindTexture(a.TEXTURE_2D, this.texture);
     a.enableVertexAttribArray(d.aPosition);
     a.enableVertexAttribArray(d.aTextureCoord);
@@ -62,7 +62,7 @@ define("Renderer/Effects/PropertyGround", [
       e,
       g = [],
       p = [],
-      r = [];
+      t = [];
     for (c = 0; 20 >= c; c++)
       ((d = (c + 0) / 20),
         (e = (c + 0.5) / 20),
@@ -81,15 +81,15 @@ define("Renderer/Effects/PropertyGround", [
           0,
         ]));
     for (c = 0; 20 >= c; c++)
-      (r.push.apply(r, g[c + 0]),
-        r.push.apply(r, p[c + 0]),
-        r.push.apply(r, g[c + 1]),
-        r.push.apply(r, p[c + 0]),
-        r.push.apply(r, g[c + 1]),
-        r.push.apply(r, p[c + 1]));
-    c = new Float32Array(r);
+      (t.push.apply(t, g[c + 0]),
+        t.push.apply(t, p[c + 0]),
+        t.push.apply(t, g[c + 1]),
+        t.push.apply(t, p[c + 0]),
+        t.push.apply(t, g[c + 1]),
+        t.push.apply(t, p[c + 1]));
+    c = new Float32Array(t);
     n = c.length / 5;
-    m = a.createShaderProgram(
+    l = a.createShaderProgram(
       b,
       "\n\t\t#version 100\n\t\t#pragma vscode_glsllint_stage : vert\n\t\tprecision highp float;\n\n\t\tattribute vec3 aPosition;\n\t\tattribute vec2 aTextureCoord;\n\n\t\tvarying vec2 vTextureCoord;\n\n\t\tuniform mat4 uModelViewMat;\n\t\tuniform mat4 uProjectionMat;\n\t\tuniform mat4 uRotationMat;\n\n\t\tuniform vec3 uPosition;\n\t\tuniform float uTopSize;\n\t\tuniform float uBottomSize;\n\t\tuniform float uHeight;\n\n\t\tvoid main(void) {\n\t\t\tfloat size, height;\n\n\t\t\tif (aPosition.z \x3d\x3d 1.0) {\n\t\t\t\tsize   \x3d uTopSize;\n\t\t\t\theight \x3d uHeight;\n\t\t\t}\n\t\t\telse {\n\t\t\t\tsize   \x3d uBottomSize;\n\t\t\t\theight \x3d 0.0;\n\t\t\t}\n\n\t\t\tvec4 position  \x3d vec4(uPosition.x + 0.5, -uPosition.z - height, uPosition.y + 0.5, 1.0);\n\t\t\tposition      +\x3d vec4(aPosition.x * size, 0.0, aPosition.y * size, 0.0) * uRotationMat;\n\n\t\t\tgl_Position    \x3d uProjectionMat * uModelViewMat * position;\n\t\t\tvTextureCoord  \x3d aTextureCoord;\n\t\t}\n\t",
       "\n\t\t#version 100\n\t\t#pragma vscode_glsllint_stage : frag\n\t\tprecision highp float;\n\n\t\tvarying vec2 vTextureCoord;\n\n\t\tuniform sampler2D uDiffuse;\n\n\t\tuniform bool  uFogUse;\n\t\tuniform float uFogNear;\n\t\tuniform float uFogFar;\n\t\tuniform vec3  uFogColor;\n\n\t\tvoid main(void) {\n\t\t\tvec4 texture \x3d texture2D( uDiffuse,  vTextureCoord.st );\n\n\t\t\tif (texture.a \x3d\x3d 0.0) {\n\t\t\t\tdiscard;\n\t\t\t}\n\n            if (texture.r \x3c 0.5 || texture.g \x3c 0.5 || texture.b \x3c 0.5) {\n               discard;\n            }\n\t\t\ttexture.a \x3d 0.42;\n\t\t\tgl_FragColor \x3d texture;\n\n\t\t\tif (uFogUse) {\n\t\t\t\tfloat depth     \x3d gl_FragCoord.z / gl_FragCoord.w;\n\t\t\t\tfloat fogFactor \x3d smoothstep( uFogNear, uFogFar, depth );\n\t\t\t\tgl_FragColor    \x3d mix( gl_FragColor, vec4( uFogColor, gl_FragColor.w ), fogFactor );\n\t\t\t}\n\t\t}\n\t",
@@ -101,17 +101,17 @@ define("Renderer/Effects/PropertyGround", [
     b.bufferData(b.ARRAY_BUFFER, c, b.STATIC_DRAW);
   };
   e.free = function (a) {
-    m && (a.deleteProgram(m), (m = null));
+    l && (a.deleteProgram(l), (l = null));
     h && a.deleteBuffer(h);
     this.ready = !1;
   };
   e.beforeRender = function (a, b, c, d, e) {
-    for (var f = m.uniform, g, l, h = 0, k = r.length; h < k; h++)
-      ((g = r[h]),
-        t.identity(g),
-        (l = (2 * h * Math.PI) / r.length),
-        t.rotateY(g, g, l + (e / 8 / 180) * Math.PI));
-    a.useProgram(m);
+    for (var f = l.uniform, g, k, h = 0, m = t.length; h < m; h++)
+      ((g = t[h]),
+        r.identity(g),
+        (k = (2 * h * Math.PI) / t.length),
+        r.rotateY(g, g, k + (e / 8 / 180) * Math.PI));
+    a.useProgram(l);
     a.uniformMatrix4fv(f.uModelViewMat, !1, b);
     a.uniformMatrix4fv(f.uProjectionMat, !1, c);
     a.uniform1i(f.uFogUse, d.use && d.exist);
@@ -122,8 +122,8 @@ define("Renderer/Effects/PropertyGround", [
     a.uniform1i(f.uDiffuse, 0);
   };
   e.afterRender = function (a) {
-    a.disableVertexAttribArray(m.attribute.aPosition);
-    a.disableVertexAttribArray(m.attribute.aTextureCoord);
+    a.disableVertexAttribArray(l.attribute.aPosition);
+    a.disableVertexAttribArray(l.attribute.aTextureCoord);
   };
   return e;
 });

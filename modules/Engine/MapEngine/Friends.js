@@ -10,29 +10,29 @@ define(
       f.setFriends(q);
     }
     function d(a) {
-      var b = t(a.AID, a.GID);
+      var b = r(a.AID, a.GID);
       -1 < b && ((q[b].State = a.State), f.updateFriendState(b, a.State));
     }
     function e(a) {
       function b(b) {
         return function () {
-          k.answerFriendRequest(a.ReqAID, a.ReqGID, b);
+          m.answerFriendRequest(a.ReqAID, a.ReqGID, b);
         };
       }
       p.showPromptBox(
-        r.getMessage(818).replace("%s", a.Name),
+        t.getMessage(818).replace("%s", a.Name),
         "ok",
         "cancel",
         b(1),
         b(0),
       );
     }
-    function m(a) {
+    function l(a) {
       var b;
       switch (a.Result) {
         case 0:
-          l.addText(r.getMessage(821).replace("%s", a.Name), l.TYPE.BLUE);
-          b = t(a.AID, a.GID);
+          k.addText(t.getMessage(821).replace("%s", a.Name), k.TYPE.BLUE);
+          b = r(a.AID, a.GID);
           0 > b && ((b = q.length), (q[b] = {}));
           q[b].AID = a.AID;
           q[b].GID = a.GID;
@@ -41,80 +41,80 @@ define(
           f.updateFriend(b, q[b]);
           break;
         case 1:
-          l.addText(r.getMessage(822).replace("%s", a.Name), l.TYPE.ERROR);
+          k.addText(t.getMessage(822).replace("%s", a.Name), k.TYPE.ERROR);
           break;
         case 2:
-          l.addText(r.getMessage(819), l.TYPE.ERROR);
+          k.addText(t.getMessage(819), k.TYPE.ERROR);
           break;
         case 3:
-          l.addText(r.getMessage(820).replace("%s", a.Name), l.TYPE.ERROR);
+          k.addText(t.getMessage(820).replace("%s", a.Name), k.TYPE.ERROR);
       }
     }
     function h(a) {
-      a = t(a.AID, a.GID);
+      a = r(a.AID, a.GID);
       -1 < a && (q.splice(a, 1), f.removeFriend(a));
     }
-    function t(a, b) {
+    function r(a, b) {
       var c, d;
       c = 0;
       for (d = q.length; c < d; ++c)
         if (q[c].AID === a && q[c].GID === b) return c;
       return -1;
     }
-    var r = a("DB/DBManager"),
+    var t = a("DB/DBManager"),
       n = a("Network/NetworkManager"),
       g = a("Network/PacketStructure"),
       p = a("UI/UIManager"),
-      l = a("UI/Components/ChatBox/ChatBox"),
+      k = a("UI/Components/ChatBox/ChatBox"),
       f = a("UI/Components/PartyFriends/PartyFriends"),
-      k = {},
+      m = {},
       q = [];
-    k.init = function () {
+    m.init = function () {
       n.hookPacket(g.ZC.FRIENDS_LIST, c);
       n.hookPacket(g.ZC.FRIENDS_STATE, d);
       n.hookPacket(g.ZC.REQ_ADD_FRIENDS, e);
-      n.hookPacket(g.ZC.ADD_FRIENDS_LIST, m);
+      n.hookPacket(g.ZC.ADD_FRIENDS_LIST, l);
       n.hookPacket(g.ZC.DELETE_FRIENDS, h);
       n.hookPacket(g.ZC.SETTING_WHISPER_STATE, b);
-      f.onRequestNewFriend = k.addFriend;
-      f.onRemoveFriend = k.removeFriend;
+      f.onRequestNewFriend = m.addFriend;
+      f.onRemoveFriend = m.removeFriend;
     };
-    k.free = function () {
+    m.free = function () {
       q.length = 0;
     };
-    k.addFriend = function (a) {
+    m.addFriend = function (a) {
       var b = new g.CZ.ADD_FRIENDS();
       b.name = a;
       n.sendPacket(b);
     };
-    k.removeFriend = function (a) {
+    m.removeFriend = function (a) {
       var b = new g.CZ.DELETE_FRIENDS();
       b.AID = q[a].AID;
       b.GID = q[a].GID;
       n.sendPacket(b);
     };
-    k.answerFriendRequest = function (a, b, c) {
+    m.answerFriendRequest = function (a, b, c) {
       var d = new g.CZ.ACK_REQ_ADD_FRIENDS();
       d.ReqAID = a;
       d.ReqGID = b;
       d.Result = c;
       n.sendPacket(d);
     };
-    k.isFriend = function (a) {
+    m.isFriend = function (a) {
       var b,
         c = q.length;
       for (b = 0; b < c; ++b) if (a === q[b].Name) return !0;
       return !1;
     };
-    k.sayHi = function () {
+    m.sayHi = function () {
       var a,
         b = q.length,
         c = new g.CZ.WHISPER();
       c.msg = "(Hi) *^_^*";
       for (a = 0; a < b; ++a)
         0 === q[a].State && ((c.receiver = q[a].Name), n.sendPacket(c));
-      l.addText("[ To Friends ] : " + c.msg, l.TYPE.PRIVATE);
+      k.addText("[ To Friends ] : " + c.msg, k.TYPE.PRIVATE);
     };
-    return k;
+    return m;
   },
 );

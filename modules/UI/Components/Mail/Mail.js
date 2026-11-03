@@ -6,12 +6,12 @@ define(
   function (a) {
     function b(a) {
       var b, c, d, e;
-      D.ui.find(".inbox .currentpage").html(H);
-      D.ui.find(".inbox .totaltpage").html(N);
-      D.ui.find(".inbox .content ul").empty();
+      C.ui.find(".inbox .currentpage").html(G);
+      C.ui.find(".inbox .totaltpage").html(P);
+      C.ui.find(".inbox .content ul").empty();
       for (var f = 7 * a - 7; f < 7 * a; f++)
-        D.list[f] &&
-          ((b = new Date(1e3 * D.list[f].DeleteTime)),
+        C.list[f] &&
+          ((b = new Date(1e3 * C.list[f].DeleteTime)),
           b.getFullYear(),
           (c =
             (10 > b.getMonth() + 1
@@ -21,35 +21,35 @@ define(
           (e = b.getHours() + "\u65f6"),
           b.getMinutes(),
           b.getSeconds(),
-          D.ui
+          C.ui
             .find(".inbox .content ul")
             .append(
               '\x3cli data-MailID\x3d"' +
-                D.list[f].MailID +
+                C.list[f].MailID +
                 '" class\x3d"' +
-                (0 == D.list[f].isOpen ? "new" : "") +
+                (0 == C.list[f].isOpen ? "new" : "") +
                 '"\x3e\x3cdiv class\x3d"head"\x3e\x3ch1\x3e' +
-                D.list[f].FromName +
+                C.list[f].FromName +
                 "\x3c/h1\x3e\x3cp\x3e" +
                 c +
                 d +
                 e +
                 '\x3c/p\x3e\x3c/div\x3e\x3cdiv class\x3d"bottom"\x3e\x3cp\x3e' +
-                D.list[f].HEADER +
+                C.list[f].HEADER +
                 "\x3c/p\x3e\x3c/div\x3e\x3c/li\x3e",
             ));
-      l.loadFile(
-        r.INTERFACE_PATH + "basic_interface/envelop.bmp",
+      k.loadFile(
+        t.INTERFACE_PATH + "basic_interface/envelop.bmp",
         function (a) {
-          D.ui.find(".new").css("backgroundImage", "url(" + a + ")");
+          C.ui.find(".new").css("backgroundImage", "url(" + a + ")");
         },
       );
     }
     function c() {
-      1 < H && (--H, b(H));
+      1 < G && (--G, b(G));
     }
     function d() {
-      H < N && ((H += 1), b(H));
+      G < P && ((G += 1), b(G));
     }
     function e() {
       event.stopImmediatePropagation();
@@ -59,19 +59,19 @@ define(
       a.MailID = p(this).attr("data-mailid");
       n.sendPacket(a);
     }
-    function m() {
+    function l() {
       if (
         "" == p(".Mailbox .head .name input").val() ||
         "" == p(".Mailbox .head .title input").val() ||
         "" == p(".Mailbox .center textarea").val()
       )
-        C.addText("\u4e0d\u80fd\u7559\u7a7a", C.TYPE.ERROR);
+        D.addText("\u4e0d\u80fd\u7559\u7a7a", D.TYPE.ERROR);
       else {
         var a = new g.CZ.MAIL_SEND();
-        a.ReceiveName = D.ui.find(".Mailbox .head .name input").val();
-        a.Header = D.ui.find(".Mailbox .head .title input").val();
-        a.msg_len = D.ui.find(".Mailbox .center textarea").val().length;
-        a.msg = D.ui.find(".Mailbox .center textarea").val();
+        a.ReceiveName = C.ui.find(".Mailbox .head .name input").val();
+        a.Header = C.ui.find(".Mailbox .head .title input").val();
+        a.msg_len = C.ui.find(".Mailbox .center textarea").val().length;
+        a.msg = C.ui.find(".Mailbox .center textarea").val();
         n.sendPacket(a);
       }
     }
@@ -86,19 +86,19 @@ define(
       A.setItem(a, "Mail");
       return !1;
     }
-    function t(a) {
+    function r(a) {
       var b, c;
       try {
         c = JSON.parse(a.originalEvent.dataTransfer.getData("Text"));
-      } catch (K) {}
+      } catch (J) {}
       c &&
         "item" === c.type &&
         ((b = c.data),
         1 < b.count
-          ? (v.append(),
-            v.setType("number", !1, b.count),
-            (v.onSubmitRequest = function (a) {
-              v.remove();
+          ? (u.append(),
+            u.setType("number", !1, b.count),
+            (u.onSubmitRequest = function (a) {
+              u.remove();
               var c = new g.CZ.MAIL_ADD_ITEM();
               c.index = b.index;
               c.count = a || 1;
@@ -113,28 +113,28 @@ define(
       a.stopImmediatePropagation();
       return !1;
     }
-    var r = a("DB/DBManager"),
+    var t = a("DB/DBManager"),
       n = a("Network/NetworkManager"),
       g = a("Network/PacketStructure");
     a("DB/Items/ItemType");
     var p = a("Utils/jquery"),
-      l = a("Core/Client"),
+      k = a("Core/Client"),
       f = a("Core/Preferences"),
-      k = a("Renderer/Renderer");
+      m = a("Renderer/Renderer");
     a("Controls/MouseEventHandler");
     var q = a("UI/UIManager"),
-      u = a("UI/UIComponent"),
-      v = a("UI/Components/InputBox/InputBox"),
+      v = a("UI/UIComponent"),
+      u = a("UI/Components/InputBox/InputBox"),
       A = a("UI/Components/ItemInfo/ItemInfo"),
-      C = a("UI/Components/ChatBox/ChatBox");
+      D = a("UI/Components/ChatBox/ChatBox");
     a("UI/Components/MailInfo/MailInfo");
     var B = a("UI/Components/Inventory/Inventory"),
-      J = a("text!./Mail.html");
+      H = a("text!./Mail.html");
     a = a("text!./Mail.css");
-    var D = new u("Mail", J, a);
-    D.TAB = { Inbox: 0, Mailbox: 1 };
-    D.list = [];
-    var y = f.get(
+    var C = new v("Mail", H, a);
+    C.TAB = { Inbox: 0, Mailbox: 1 };
+    C.list = [];
+    var z = f.get(
         "Mail",
         {
           x: 200,
@@ -143,57 +143,57 @@ define(
           height: 9,
           show: !0,
           reduce: !1,
-          tab: D.TAB.Inbox,
+          tab: C.TAB.Inbox,
         },
         1.1,
       ),
-      H = 1,
-      N;
-    D.init = function () {
+      G = 1,
+      P;
+    C.init = function () {
       this.ui.find(".tabs button").on("click", function () {
-        D.SwitchTab(p(this).index());
+        C.SwitchTab(p(this).index());
         event.stopImmediatePropagation();
       });
       this.ui.find(".titlebar .close").on("click", function () {
-        D.remove();
+        C.remove();
         event.stopImmediatePropagation();
       });
-      this.ui.find(".Mailbox").on("click", ".send", m);
+      this.ui.find(".Mailbox").on("click", ".send", l);
       this.ui.find(".Mailbox .cancel").on("click", function () {
-        D.remove();
+        C.remove();
         event.stopImmediatePropagation();
       });
       this.ui.find(".item").on("contextmenu", ".item", h);
       this.ui.find(".inbox").on("click", "li", e);
       this.ui.find(".inbox").on("click", ".lastpage", c);
       this.ui.find(".inbox").on("click", ".nextpage", d);
-      this.ui.find(".Mailbox").on("drop", t);
-      y.tab = 0;
+      this.ui.find(".Mailbox").on("drop", r);
+      z.tab = 0;
       this.draggable(this.ui.find(".titlebar"));
     };
-    D.onAppend = function () {
+    C.onAppend = function () {
       this.ui.css({
-        top: Math.min(Math.max(0, y.y), 0.5 * (k.height - this.ui.height())),
-        left: Math.min(Math.max(0, y.x), 0.5 * (k.width - this.ui.width())),
+        top: Math.min(Math.max(0, z.y), 0.5 * (m.height - this.ui.height())),
+        left: Math.min(Math.max(0, z.x), 0.5 * (m.width - this.ui.width())),
       });
       this.SwitchTab(0);
     };
-    D.onRemove = function () {
+    C.onRemove = function () {
       this.ui.find(".Mailbox .head input,.Mailbox .center textarea").empty();
-      D.ui.find(".Mailbox .zeny span input").val("0");
+      C.ui.find(".Mailbox .zeny span input").val("0");
       this.ui.find(".Mailbox .bottom .item").remove();
-      D.ui.find(".inbox .content ul").empty();
+      C.ui.find(".inbox .content ul").empty();
       p(".ItemInfo").remove();
       this.list.length = 0;
-      N = H = 1;
+      P = G = 1;
     };
-    D.setList = function (a) {
+    C.setList = function (a) {
       for (var c = (this.list.length = 0); c < a.mailList.length; c++)
         this.list.push(a.mailList[c]);
-      N = Math.ceil(D.list.length / 7);
-      b(H);
+      P = Math.ceil(C.list.length / 7);
+      b(G);
     };
-    D.addItem = function (a, b) {
+    C.addItem = function (a, b) {
       this.ui.find(".Mailbox .item").remove();
       this.ui.find(".Mailbox .bottom").append(
         p("#Inventory")
@@ -202,22 +202,22 @@ define(
       );
       this.ui.find(".Mailbox .bottom .item .count").html(b);
     };
-    D.SwitchTab = function (a) {
-      y.tab = parseInt(a, 10);
+    C.SwitchTab = function (a) {
+      z.tab = parseInt(a, 10);
       0 == a &&
-        (D.ui.find(".Mailbox .head input,.Mailbox .center textarea").val(""),
-        D.ui.find(".Mailbox .zeny span input").val("0"),
-        D.ui.find(".Mailbox .bottom .item").remove());
-      l.loadFile(
-        r.INTERFACE_PATH + "basic_interface/maillist" + (a + 1) + "_bg.bmp",
+        (C.ui.find(".Mailbox .head input,.Mailbox .center textarea").val(""),
+        C.ui.find(".Mailbox .zeny span input").val("0"),
+        C.ui.find(".Mailbox .bottom .item").remove());
+      k.loadFile(
+        t.INTERFACE_PATH + "basic_interface/maillist" + (a + 1) + "_bg.bmp",
         function (b) {
           p("#Mail .tabs button.sd").removeClass("sd");
           p("#Mail .tabs button").eq(a).addClass("sd");
-          D.ui.css("background-image", "url(" + b + ")");
+          C.ui.css("background-image", "url(" + b + ")");
           p("#Mail .container").hide().eq(a).show();
         },
       );
     };
-    return q.addComponent(D);
+    return q.addComponent(C);
   },
 );

@@ -5,10 +5,10 @@ define(
   ),
   function (a) {
     function b() {
-      this.onSelectMenu(l, p + 1);
+      this.onSelectMenu(k, p + 1);
     }
     function c() {
-      this.onSelectMenu(l, 255);
+      this.onSelectMenu(k, 255);
     }
     function d(a) {
       this.ui.find(".content div").removeClass("selected");
@@ -23,22 +23,22 @@ define(
       this.scrollTop = 20 * Math.floor(this.scrollTop / 20) - 20 * b;
       return !1;
     }
-    var m = a("Utils/jquery"),
+    var l = a("Utils/jquery"),
       h = a("Controls/KeyEventHandler"),
-      t = a("Renderer/Renderer"),
-      r = a("UI/UIManager"),
+      r = a("Renderer/Renderer"),
+      t = a("UI/UIManager"),
       n = a("UI/UIComponent"),
       g = a("text!./WarpList.html");
     a = a("text!./WarpList.css");
     var n = new n("WarpList", g, a),
       p = 0,
-      l = 0;
+      k = 0;
     n.init = function () {
       this.ui.find(".ok").click(b.bind(this));
       this.ui.find(".cancel").click(c.bind(this));
       this.ui.css({
-        top: Math.max(300, t.height / 2 + 60),
-        left: Math.max(t.width / 3, 20),
+        top: Math.max(300, r.height / 2 + 60),
+        left: Math.max(r.width / 3, 20),
       });
       this.draggable();
       var a = this;
@@ -46,7 +46,7 @@ define(
         .find(".content")
         .on("mousewheel DOMMouseScroll", e)
         .on("mousedown", "div", function (b) {
-          d.call(a, m(this));
+          d.call(a, l(this));
         })
         .on("dblclick", "div", b.bind(this))
         .mousedown(function (a) {
@@ -64,7 +64,7 @@ define(
           b.call(this);
           break;
         case h.ESCAPE:
-          this.onSelectMenu(l, 255);
+          this.onSelectMenu(k, 255);
           break;
         case h.UP:
           this.ui.find(".content div");
@@ -94,16 +94,16 @@ define(
       var c, d, e;
       c = this.ui.find(".content");
       a = a.split(":");
-      l = b;
+      k = b;
       p = 0;
       c.empty();
       d = b = 0;
       for (e = a.length; b < e; ++b)
         a[b].length &&
-          m("\x3cdiv/\x3e").text(a[b]).data("index", d++).appendTo(c);
+          l("\x3cdiv/\x3e").text(a[b]).data("index", d++).appendTo(c);
       c.find("div:first").addClass("selected");
     };
     n.onSelectMenu = function () {};
-    return r.addComponent(n);
+    return t.addComponent(n);
   },
 );

@@ -25,23 +25,23 @@ define("Renderer/Map/Effects", [
         }
     },
     spam: function (a, h) {
-      var m,
-        r,
+      var l,
+        t,
         n = e.length;
-      for (r = 0; r < n; ++r)
-        ((m = e[r]),
-          !m.isVisible && 25 > d.dist(m.pos, a)
+      for (t = 0; t < n; ++t)
+        ((l = e[t]),
+          !l.isVisible && 25 > d.dist(l.pos, a)
             ? (b.spam({
-                effectId: m.id,
-                ownerAID: m.name,
-                position: m.pos,
+                effectId: l.id,
+                ownerAID: l.name,
+                position: l.pos,
                 startTick: h,
                 persistent: !0,
               }),
-              (m.isVisible = !0))
-            : m.isVisible &&
-              25 <= d.dist(m.pos, a) &&
-              (c.remove(m.name), (m.isVisible = !1)));
+              (l.isVisible = !0))
+            : l.isVisible &&
+              25 <= d.dist(l.pos, a) &&
+              (c.remove(l.name), (l.isVisible = !1)));
     },
   };
 });

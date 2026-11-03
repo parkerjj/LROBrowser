@@ -10,17 +10,17 @@ define(
       e = a("Loaders/Sprite");
     a("Renderer/Renderer");
     a("Renderer/SpriteRenderer");
-    var m = a("Renderer/Entity/Entity"),
+    var l = a("Renderer/Entity/Entity"),
       h = a("UI/UIManager"),
-      t = a("UI/UIComponent");
+      r = a("UI/UIComponent");
     a("UI/Components/ChatBox/ChatBox");
-    var r = a("text!./RankFont.html");
+    var t = a("text!./RankFont.html");
     a = a("text!./RankFont.css");
-    var n = new t("RankFont", r, a);
+    var n = new r("RankFont", t, a);
     n.needFocus = !1;
     var g = Array(11),
       p = 0;
-    new m();
+    new l();
     d.get("RankFont", { x: 600, y: 200, show: !0 }, 1.1);
     n.init = function () {
       this.ui.css("zIndex", 30);
@@ -31,8 +31,8 @@ define(
             var b;
             try {
               b = new e(a);
-            } catch (k) {
-              console.error("Sprite::init() - " + k.message);
+            } catch (m) {
+              console.error("Sprite::init() - " + m.message);
               return;
             }
             for (a = 0; 11 > a; ++a) g[a] = b.getCanvasFromFrame(a);
@@ -55,41 +55,41 @@ define(
         d,
         e,
         h,
-        m = n.ui.find(".content");
+        l = n.ui.find(".content");
       if (0 != p) {
-        m.find(".row").empty();
-        var r = document.createElement("canvas"),
-          t = r.getContext("2d"),
+        l.find(".row").empty();
+        var t = document.createElement("canvas"),
+          r = t.getContext("2d"),
           B = p.toString().split(""),
-          J,
-          D;
+          H,
+          C;
         h = g[1];
-        J = 0 + (h.width + 2.8);
-        D = Math.max(0, h.height);
+        H = 0 + (h.width + 2.8);
+        C = Math.max(0, h.height);
         h = g[10];
-        J += h.width + 2.8;
-        D = Math.max(D, h.height);
+        H += h.width + 2.8;
+        C = Math.max(C, h.height);
         a = 0;
         for (c = B.length; a < c; ++a)
-          ((h = g[B[a]]), (J += h.width + 2.8), (D = Math.max(D, h.height)));
-        t.canvas.width = b.toPowerOfTwo(J);
-        t.canvas.height = b.toPowerOfTwo(D);
-        r.style.width = t.canvas.width / 2 + "px";
-        d = (t.canvas.width - J + 4) >> 1;
-        e = (t.canvas.height - D + 25) >> 1;
-        J = 0;
+          ((h = g[B[a]]), (H += h.width + 2.8), (C = Math.max(C, h.height)));
+        r.canvas.width = b.toPowerOfTwo(H);
+        r.canvas.height = b.toPowerOfTwo(C);
+        t.style.width = r.canvas.width / 2 + "px";
+        d = (r.canvas.width - H + 4) >> 1;
+        e = (r.canvas.height - C + 25) >> 1;
+        H = 0;
         h = g[1];
-        t.drawImage(h, d + J, (e + (D - h.height)) >> 1);
-        J += h.width + 2.8;
+        r.drawImage(h, d + H, (e + (C - h.height)) >> 1);
+        H += h.width + 2.8;
         h = g[10];
-        t.drawImage(h, d + J, (e + (D - h.height)) >> 1);
-        J += h.width + 2.8;
+        r.drawImage(h, d + H, (e + (C - h.height)) >> 1);
+        H += h.width + 2.8;
         a = 0;
         for (c = B.length; a < c; ++a)
           ((h = g[B[a]]),
-            t.drawImage(h, d + J, (e + (D - h.height)) >> 1),
-            (J += h.width + 2.8));
-        m.find(".row").append(r);
+            r.drawImage(h, d + H, (e + (C - h.height)) >> 1),
+            (H += h.width + 2.8));
+        l.find(".row").append(t);
       }
     };
     return h.addComponent(n);

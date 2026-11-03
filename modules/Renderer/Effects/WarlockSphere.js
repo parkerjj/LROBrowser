@@ -7,16 +7,16 @@ define(
     function b(a, b) {
       this.position = a.position;
       this.spheres = b ? b : [];
-      this.file = l[a.lastSKID];
+      this.file = k[a.lastSKID];
       this.initialAlpha = 0;
     }
     var c = a("Utils/WebGL"),
       d = a("Utils/Texture"),
       e = a("Utils/gl-matrix"),
-      m = a("Core/Client"),
+      l = a("Core/Client"),
       h = a("Renderer/Camera"),
-      t,
       r,
+      t,
       n,
       g = e.mat4,
       p = (function () {
@@ -25,14 +25,14 @@ define(
         return a;
       })();
     g.create();
-    var l = [];
-    l[2222] = "fireorb.bmp";
-    l[2223] = "lightningorb.bmp";
-    l[2224] = "waterorb.bmp";
-    l[2229] = "stoneorb.bmp";
+    var k = [];
+    k[2222] = "fireorb.bmp";
+    k[2223] = "lightningorb.bmp";
+    k[2224] = "waterorb.bmp";
+    k[2229] = "stoneorb.bmp";
     b.prototype.init = function (a) {
       var b = this;
-      m.loadFile("data/texture/effect/" + this.file, function (c) {
+      l.loadFile("data/texture/effect/" + this.file, function (c) {
         d.load(c, function () {
           var c = this.getContext("2d");
           c.save();
@@ -40,8 +40,8 @@ define(
           c.translate(-this.width / 2, -this.height / 2);
           c.drawImage(this, 0, 0);
           c.restore();
-          t = a.createTexture();
-          a.bindTexture(a.TEXTURE_2D, t);
+          r = a.createTexture();
+          a.bindTexture(a.TEXTURE_2D, r);
           a.texImage2D(a.TEXTURE_2D, 0, a.RGBA, a.RGBA, a.UNSIGNED_BYTE, this);
           a.texParameteri(a.TEXTURE_2D, a.TEXTURE_MAG_FILTER, a.LINEAR);
           a.texParameteri(a.TEXTURE_2D, a.TEXTURE_MIN_FILTER, a.LINEAR);
@@ -55,7 +55,7 @@ define(
     };
     b.renderBeforeEntities = !1;
     b.init = function (a) {
-      r = c.createShaderProgram(
+      t = c.createShaderProgram(
         a,
         "\n        #version 100\n        #pragma vscode_glsllint_stage : vert\n        precision highp float;\n\n        attribute vec2 aPosition;\n        attribute vec2 aTextureCoord;\n\n        varying vec2 vTextureCoord;\n\n        uniform mat4 uModelViewMat;\n        uniform mat4 uProjectionMat;\n        uniform mat4 uTextureRotMat;\n        uniform mat4 uRotationMat;\n\n        uniform float uCameraZoom;\n\n        uniform vec3 uPosition;\n        uniform float uSize;\n        uniform float uZIndex;\n\n        void main(void) {\n\n            vec4 position  \x3d vec4(uPosition.x + 0.5, -uPosition.z - 2.0, uPosition.y + 0.5, 1.0);\n            \n            vec4 pos2      \x3d vec4(aPosition.x * uSize, 0.0, aPosition.y * uSize, 0.0) * uTextureRotMat;\n            pos2.x        +\x3d 1.0;\n            position      +\x3d pos2 * uRotationMat;\n\n            gl_Position    \x3d uProjectionMat * uModelViewMat * position;\n            gl_Position.z -\x3d uZIndex / max(uCameraZoom, 1.0);\n\n            vTextureCoord  \x3d aTextureCoord;\n        }",
         "\n        #version 100\n        #pragma vscode_glsllint_stage : frag\n        precision highp float;\n\n        varying vec2 vTextureCoord;\n\n        uniform vec4 uColor;\n        uniform sampler2D uDiffuse;\n        float tmp;\n\n        void main(void) {\n            vec4 texture \x3d texture2D( uDiffuse,  vTextureCoord.st );\n            \n            texture *\x3d uColor;\n            \n            /*if (texture.r \x3c 0.1 \x26\x26 texture.g \x3c 0.1 \x26\x26 texture.b \x3c 0.1) {\n               discard;\n            }*/\n            \n            gl_FragColor \x3d texture;\n\n        }",
@@ -70,7 +70,7 @@ define(
         ]),
         a.STATIC_DRAW,
       );
-      m.loadFile("data/texture/effect/thunder_center.bmp", function (c) {
+      l.loadFile("data/texture/effect/thunder_center.bmp", function (c) {
         d.load(c, function () {
           var c = this.getContext("2d");
           c.save();
@@ -78,8 +78,8 @@ define(
           c.translate(-this.width / 2, -this.height / 2);
           c.drawImage(this, 0, 0);
           c.restore();
-          t = a.createTexture();
-          a.bindTexture(a.TEXTURE_2D, t);
+          r = a.createTexture();
+          a.bindTexture(a.TEXTURE_2D, r);
           a.texImage2D(a.TEXTURE_2D, 0, a.RGBA, a.RGBA, a.UNSIGNED_BYTE, this);
           a.texParameteri(a.TEXTURE_2D, a.TEXTURE_MAG_FILTER, a.LINEAR);
           a.texParameteri(a.TEXTURE_2D, a.TEXTURE_MIN_FILTER, a.LINEAR);
@@ -88,31 +88,31 @@ define(
       });
     };
     b.free = function (a) {
-      t && (a.deleteTexture(t), (t = null));
-      r && (a.deleteProgram(r), (r = null));
+      r && (a.deleteTexture(r), (r = null));
+      t && (a.deleteProgram(t), (t = null));
       n && a.deleteBuffer(n);
       this.ready = !1;
     };
     b.beforeRender = function (a, b, c, d, e) {
-      d = r.uniform;
-      var f = r.attribute;
-      a.useProgram(r);
-      for (var l, k, q = 0, m = p.length; q < m; q++) {
-        l = ((h.angle[0] - 90) * Math.PI) / 180;
-        var u = (h.angle[1] * Math.PI) / 180;
-        k = (2 * q * Math.PI) / p.length;
-        k -= (e / 64 / 180) * Math.PI;
-        var v = g.create();
-        g.rotateX(p[q].texMat, v, l);
-        g.rotateY(p[q].texMat, p[q].texMat, u - k);
-        l = p[q].posMat;
-        g.identity(l);
-        g.rotateY(l, l, k);
+      d = t.uniform;
+      var f = t.attribute;
+      a.useProgram(t);
+      for (var k, m, q = 0, l = p.length; q < l; q++) {
+        k = ((h.angle[0] - 90) * Math.PI) / 180;
+        var v = (h.angle[1] * Math.PI) / 180;
+        m = (2 * q * Math.PI) / p.length;
+        m -= (e / 64 / 180) * Math.PI;
+        var u = g.create();
+        g.rotateX(p[q].texMat, u, k);
+        g.rotateY(p[q].texMat, p[q].texMat, v - m);
+        k = p[q].posMat;
+        g.identity(k);
+        g.rotateY(k, k, m);
       }
       a.uniformMatrix4fv(d.uModelViewMat, !1, b);
       a.uniformMatrix4fv(d.uProjectionMat, !1, c);
       a.activeTexture(a.TEXTURE0);
-      a.bindTexture(a.TEXTURE_2D, t);
+      a.bindTexture(a.TEXTURE_2D, r);
       a.uniform1i(d.uDiffuse, 0);
       a.enableVertexAttribArray(f.aPosition);
       a.enableVertexAttribArray(f.aTextureCoord);
@@ -122,7 +122,7 @@ define(
       a.depthMask(!0);
     };
     b.prototype.render = function (a, b) {
-      b = r.uniform;
+      b = t.uniform;
       a.uniform3fv(b.uPosition, this.position);
       a.bindBuffer(a.ARRAY_BUFFER, n);
       a.blendFunc(a.SRC_ALPHA, a.ONE);
@@ -184,8 +184,8 @@ define(
     };
     b.afterRender = function (a) {
       a.blendFunc(a.SRC_ALPHA, a.ONE_MINUS_SRC_ALPHA);
-      a.disableVertexAttribArray(r.attribute.aPosition);
-      a.disableVertexAttribArray(r.attribute.aTextureCoord);
+      a.disableVertexAttribArray(t.attribute.aPosition);
+      a.disableVertexAttribArray(t.attribute.aTextureCoord);
     };
     return b;
   },

@@ -12,7 +12,7 @@ define(
           c.escape(d) +
           "\x3c/span\x3e\x3c/div\x3e",
       );
-      m.loadFile(a, function (a) {
+      l.loadFile(a, function (a) {
         p.list
           .find("div[data-index\x3d" + b + "] .icon")
           .css("backgroundImage", "url(" + a + ")");
@@ -23,15 +23,15 @@ define(
     a("DB/Items/Makablelist");
     a("DB/Items/Makablelist_dg");
     var e = a("Controls/KeyEventHandler"),
-      m = a("Core/Client"),
+      l = a("Core/Client"),
       h = a("Renderer/Renderer"),
-      t = a("UI/UIManager"),
-      r = a("UI/UIComponent"),
+      r = a("UI/UIManager"),
+      t = a("UI/UIComponent"),
       n = a("UI/Components/Inventory/Inventory");
     a("UI/Components/SkillList/SkillList");
     var g = a("text!./ItemSelection.html");
     a = a("text!./ItemSelection.css");
-    var p = new r("ItemSelection", g, a);
+    var p = new t("ItemSelection", g, a);
     p.init = function () {
       this.ui.css({ top: (h.height - 200) / 2, left: (h.width - 200) / 2 });
       this.list = this.ui.find(".list:first");
@@ -51,23 +51,23 @@ define(
         });
     };
     p.setList = function (a, c) {
-      var e, f, g, h, l;
+      var e, f, g, h, k;
       p.list.empty();
       e = 0;
       for (f = a.length; e < f; ++e)
         if (0 < a[e]) {
           if (c) {
-            if ((g = d.getSkillInfo(a[e]))) ((l = g.Name), (h = g.SkillName));
+            if ((g = d.getSkillInfo(a[e]))) ((k = g.Name), (h = g.SkillName));
           } else if ((g = n.getItemByIndex(a[e])))
             ((h = d.getItemInfo(g.ITID)),
-              (l = g.IsIdentified
+              (k = g.IsIdentified
                 ? h.identifiedResourceName
                 : h.unidentifiedResourceName),
               (h = g.IsIdentified
                 ? h.identifiedDiSPlayName +
                   (0 < h.slotCount ? "[" + h.slotCount + "]" : "")
                 : h.unidentifiedDiSPlayName));
-          b(d.INTERFACE_PATH + "item/" + l + ".bmp", a[e], h);
+          b(d.INTERFACE_PATH + "item/" + k + ".bmp", a[e], h);
         }
       this.setIndex(a[0]);
     };
@@ -122,25 +122,25 @@ define(
         e,
         g,
         h,
-        l = [];
+        k = [];
       p.list.empty();
       switch (a) {
         case 1:
-          l = [994, 995, 996, 997];
+          k = [994, 995, 996, 997];
           break;
         case 2:
-          l = [990, 991, 992, 993];
+          k = [990, 991, 992, 993];
       }
       a = 0;
-      for (c = l.length; a < c; ++a)
-        if ((e = n.getItemById(l[a])))
+      for (c = k.length; a < c; ++a)
+        if ((e = n.getItemById(k[a])))
           ((g = d.getItemInfo(e.ITID)),
             (h = e.IsIdentified
               ? g.identifiedResourceName
               : g.unidentifiedResourceName),
             (e = e.IsIdentified ? d.getItemName(e) : g.unidentifiedDiSPlayName),
-            b(d.INTERFACE_PATH + "item/" + h + ".bmp", l[a], e));
-      this.setIndex(l[0]);
+            b(d.INTERFACE_PATH + "item/" + h + ".bmp", k[a], e));
+      this.setIndex(k[0]);
     };
     p.setListPushCart = function () {
       this.list.empty();
@@ -184,6 +184,6 @@ define(
       return !1;
     };
     p.onIndexSelected = function () {};
-    return t.addComponent(p);
+    return r.addComponent(p);
   },
 );

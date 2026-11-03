@@ -10,7 +10,7 @@ define("Renderer/Map/Altitude", [
       MAX_INTERSECT_COUNT: 150,
     },
     e = null,
-    m = null;
+    l = null;
   d.init = function (a) {
     var c = a.cells,
       h,
@@ -18,13 +18,13 @@ define("Renderer/Map/Altitude", [
       g = new Uint8Array(n);
     for (h = 0; h < n; ++h) g[h] = c[5 * h + 4];
     e = a.cells;
-    m = g;
+    l = g;
     d.width = a.width;
     d.height = a.height;
     b.setGat({ width: d.width, height: d.height, cells: g, types: d.TYPE });
   };
   d.getGat = function () {
-    return { width: d.width, height: d.height, cells: m, types: d.TYPE };
+    return { width: d.width, height: d.height, cells: l, types: d.TYPE };
   };
   d.getCell = (function () {
     var a = new Float32Array(5);
@@ -45,65 +45,65 @@ define("Renderer/Map/Altitude", [
       d,
       e,
       p,
-      l,
+      k,
       f,
-      k;
+      m;
     if (0 >= this.width || 0 >= this.height) return null;
     a.width = this.width;
     a.height = this.height;
     c = b.createImageData(this.width, this.height);
     f = this.width;
-    k = this.height;
-    for (l = e = 0; e < k; ++e)
+    m = this.height;
+    for (k = e = 0; e < m; ++e)
       for (d = 0; d < f; ++d)
-        ((p = 4 * (d + (k - e - 1) * f)),
-          10 == m[l]
+        ((p = 4 * (d + (m - e - 1) * f)),
+          10 == l[k]
             ? ((c.data[p + 0] = 25), (c.data[p + 1] = 25), (c.data[p + 2] = 25))
             : ((c.data[p + 0] = 153),
               (c.data[p + 1] = 153),
               (c.data[p + 2] = 153)),
           (c.data[p + 3] = 255),
-          l++);
+          k++);
     b.putImageData(c, 0, 0);
     return a;
   };
   d.getCellType = function (a, b) {
-    return m[a + b * d.width];
+    return l[a + b * d.width];
   };
   d.setCellType = function (a, b, c) {
-    m[a + b * d.width] = 0 == c ? 10 : c;
+    l[a + b * d.width] = 0 == c ? 10 : c;
   };
   d.getCellHeight = function (a, b) {
     if (!e) return 0;
-    var c, h;
+    var c, n;
     a += 0.5;
     b += 0.5;
     c = 5 * (Math.floor(a) + Math.floor(b) * d.width);
     a %= 1;
-    h = e[c + 0] + (e[c + 1] - e[c + 0]) * a;
-    return -(h + (b % 1) * (e[c + 2] + (e[c + 3] - e[c + 2]) * a - h));
+    n = e[c + 0] + (e[c + 1] - e[c + 0]) * a;
+    return -(n + (b % 1) * (e[c + 2] + (e[c + 3] - e[c + 2]) * a - n));
   };
   d.intersect = (function () {
     var b = a.mat4,
       e = a.vec3,
-      m = a.vec4,
+      l = a.vec4,
       n = e.create(),
-      g = m.create(),
+      g = l.create(),
       p = e.create(),
-      l = b.create();
-    return function (a, k, q) {
+      k = b.create();
+    return function (a, m, q) {
       var f = d.MAX_INTERSECT_COUNT;
-      b.invert(l, a);
-      n[0] = l[12];
-      n[1] = l[13];
-      n[2] = l[14];
+      b.invert(k, a);
+      n[0] = k[12];
+      n[1] = k[13];
+      n[2] = k[14];
       g[0] = (c.screen.x / c.screen.width) * 2 - 1;
       g[1] = 2 * -(c.screen.y / c.screen.height) + 1;
       g[2] = 1;
       g[3] = 1;
-      b.multiply(l, k, a);
-      b.invert(l, l);
-      m.transformMat4(g, g, l);
+      b.multiply(k, m, a);
+      b.invert(k, k);
+      l.transformMat4(g, g, k);
       g[0] /= g[3];
       g[1] /= g[3];
       g[2] /= g[3];
@@ -125,67 +125,67 @@ define("Renderer/Map/Altitude", [
       b = new Float32Array(750),
       c = new Float32Array(1470),
       n = new Float32Array(5070);
-    return function (g, p, l) {
+    return function (g, p, k) {
       if (!e) return null;
       var f,
-        k,
+        m,
         q,
         h,
-        m,
-        r = Math.floor(l / 2);
+        l,
+        t = Math.floor(k / 2);
       g = Math.floor(g);
       p = Math.floor(p);
       h = 0;
-      switch (l) {
+      switch (k) {
         case 1:
-          m = a;
+          l = a;
           break;
         case 5:
-          m = b;
+          l = b;
           break;
         case 7:
-          m = c;
+          l = c;
           break;
         case 13:
-          m = n;
+          l = n;
           break;
         default:
-          m = new Float32Array(l * l * 30);
+          l = new Float32Array(k * k * 30);
       }
-      for (f = -r; f <= r; ++f)
-        for (k = -r; k <= r; ++k, h += 30)
-          ((q = 5 * (g + f + (p + k) * d.width)),
-            (m[h + 0] = g + f + 0),
-            (m[h + 1] = e[q + 0]),
-            (m[h + 2] = p + k + 0),
-            (m[h + 3] = (f + 0 + r) / l),
-            (m[h + 4] = (k + 0 + r) / l),
-            (m[h + 5] = g + f + 1),
-            (m[h + 6] = e[q + 1]),
-            (m[h + 7] = p + k + 0),
-            (m[h + 8] = (f + 1 + r) / l),
-            (m[h + 9] = (k + 0 + r) / l),
-            (m[h + 10] = g + f + 1),
-            (m[h + 11] = e[q + 3]),
-            (m[h + 12] = p + k + 1),
-            (m[h + 13] = (f + 1 + r) / l),
-            (m[h + 14] = (k + 1 + r) / l),
-            (m[h + 15] = g + f + 1),
-            (m[h + 16] = e[q + 3]),
-            (m[h + 17] = p + k + 1),
-            (m[h + 18] = (f + 1 + r) / l),
-            (m[h + 19] = (k + 1 + r) / l),
-            (m[h + 20] = g + f + 0),
-            (m[h + 21] = e[q + 2]),
-            (m[h + 22] = p + k + 1),
-            (m[h + 23] = (f + 0 + r) / l),
-            (m[h + 24] = (k + 1 + r) / l),
-            (m[h + 25] = g + f + 0),
-            (m[h + 26] = e[q + 0]),
-            (m[h + 27] = p + k + 0),
-            (m[h + 28] = (f + 0 + r) / l),
-            (m[h + 29] = (k + 0 + r) / l));
-      return m;
+      for (f = -t; f <= t; ++f)
+        for (m = -t; m <= t; ++m, h += 30)
+          ((q = 5 * (g + f + (p + m) * d.width)),
+            (l[h + 0] = g + f + 0),
+            (l[h + 1] = e[q + 0]),
+            (l[h + 2] = p + m + 0),
+            (l[h + 3] = (f + 0 + t) / k),
+            (l[h + 4] = (m + 0 + t) / k),
+            (l[h + 5] = g + f + 1),
+            (l[h + 6] = e[q + 1]),
+            (l[h + 7] = p + m + 0),
+            (l[h + 8] = (f + 1 + t) / k),
+            (l[h + 9] = (m + 0 + t) / k),
+            (l[h + 10] = g + f + 1),
+            (l[h + 11] = e[q + 3]),
+            (l[h + 12] = p + m + 1),
+            (l[h + 13] = (f + 1 + t) / k),
+            (l[h + 14] = (m + 1 + t) / k),
+            (l[h + 15] = g + f + 1),
+            (l[h + 16] = e[q + 3]),
+            (l[h + 17] = p + m + 1),
+            (l[h + 18] = (f + 1 + t) / k),
+            (l[h + 19] = (m + 1 + t) / k),
+            (l[h + 20] = g + f + 0),
+            (l[h + 21] = e[q + 2]),
+            (l[h + 22] = p + m + 1),
+            (l[h + 23] = (f + 0 + t) / k),
+            (l[h + 24] = (m + 1 + t) / k),
+            (l[h + 25] = g + f + 0),
+            (l[h + 26] = e[q + 0]),
+            (l[h + 27] = p + m + 0),
+            (l[h + 28] = (f + 0 + t) / k),
+            (l[h + 29] = (m + 0 + t) / k));
+      return l;
     };
   })();
   return d;

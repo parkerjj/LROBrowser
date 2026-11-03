@@ -15,7 +15,7 @@ define(
     function c(a) {
       function c(a) {
         return function () {
-          var b = new l.CZ.ACK_EXCHANGE_ITEM();
+          var b = new k.CZ.ACK_EXCHANGE_ITEM();
           b.result = a;
           p.sendPacket(b);
         };
@@ -31,13 +31,13 @@ define(
     function d(a) {
       switch (a.result) {
         case 0:
-          k.addText(g.getMessage(70), k.TYPE.ERROR);
+          m.addText(g.getMessage(70), m.TYPE.ERROR);
           break;
         case 1:
-          k.addText(g.getMessage(71), k.TYPE.ERROR);
+          m.addText(g.getMessage(71), m.TYPE.ERROR);
           break;
         case 2:
-          k.addText(g.getMessage(72), k.TYPE.ERROR);
+          m.addText(g.getMessage(72), m.TYPE.ERROR);
           break;
         case 3:
           "level" in a &&
@@ -46,31 +46,31 @@ define(
           f.append();
           break;
         case 4:
-          k.addText(g.getMessage(74), k.TYPE.ERROR);
+          m.addText(g.getMessage(74), m.TYPE.ERROR);
       }
     }
     function e(a) {
       switch (a.result) {
         case 1:
-          k.addText(g.getMessage(73), k.TYPE.ERROR);
+          m.addText(g.getMessage(73), m.TYPE.ERROR);
           break;
         case 2:
-          k.addText(g.getMessage(74), k.TYPE.ERROR);
+          m.addText(g.getMessage(74), m.TYPE.ERROR);
       }
       f.addItemFromInventory(a.Index, 0 === a.result);
     }
-    function m() {
-      m.ITID = 0;
-      m.IsDamaged = 0;
-      m.IsIdentified = 0;
-      m.RefiningLevel = 0;
-      m.count = 0;
-      m.slot = 0;
-      m.type = 0;
-      m.options = 0;
+    function l() {
+      l.ITID = 0;
+      l.IsDamaged = 0;
+      l.IsIdentified = 0;
+      l.RefiningLevel = 0;
+      l.count = 0;
+      l.slot = 0;
+      l.type = 0;
+      l.options = 0;
     }
     function h(a) {
-      var b = new m();
+      var b = new l();
       b.ITID = a.ITID;
       b.IsDamaged = a.IsDamaged;
       b.IsIdentified = a.IsIdentified;
@@ -81,62 +81,62 @@ define(
       b.options = a.options;
       f.addItem(b);
     }
-    function t(a) {
-      k.addText(g.getMessage(74), k.TYPE.ERROR);
+    function r(a) {
+      m.addText(g.getMessage(74), m.TYPE.ERROR);
       f.remove();
     }
-    function r(a) {
+    function t(a) {
       f.conclude(a.who ? "recv" : "send");
     }
     function n(a) {
       1 === a.result
-        ? k.addText(g.getMessage(76), k.TYPE.ERROR)
-        : k.addText(g.getMessage(75), k.TYPE.BLUE);
+        ? m.addText(g.getMessage(76), m.TYPE.ERROR)
+        : m.addText(g.getMessage(75), m.TYPE.BLUE);
       f.remove();
     }
     var g = a("DB/DBManager"),
       p = a("Network/NetworkManager"),
-      l = a("Network/PacketStructure"),
+      k = a("Network/PacketStructure"),
       f = a("UI/Components/Trade/Trade"),
-      k = a("UI/Components/ChatBox/ChatBox"),
+      m = a("UI/Components/ChatBox/ChatBox"),
       q = a("UI/UIManager");
     f.reqAddItem = function (a, b) {
-      var c = new l.CZ.ADD_EXCHANGE_ITEM();
+      var c = new k.CZ.ADD_EXCHANGE_ITEM();
       c.index = a;
       c.count = b;
       p.sendPacket(c);
     };
     f.onCancel = function () {
-      var a = new l.CZ.CANCEL_EXCHANGE_ITEM();
+      var a = new k.CZ.CANCEL_EXCHANGE_ITEM();
       p.sendPacket(a);
     };
     f.onConclude = function () {
-      var a = new l.CZ.CONCLUDE_EXCHANGE_ITEM();
+      var a = new k.CZ.CONCLUDE_EXCHANGE_ITEM();
       p.sendPacket(a);
     };
     f.onTradeSubmit = function () {
-      var a = new l.CZ.EXEC_EXCHANGE_ITEM();
+      var a = new k.CZ.EXEC_EXCHANGE_ITEM();
       p.sendPacket(a);
     };
     f.reqExchange = function (a, b) {
-      var c = new l.CZ.REQ_EXCHANGE_ITEM();
+      var c = new k.CZ.REQ_EXCHANGE_ITEM();
       c.AID = a;
       p.sendPacket(c);
       f.title = b;
     };
     return function () {
-      p.hookPacket(l.ZC.REQ_EXCHANGE_ITEM, c);
-      p.hookPacket(l.ZC.REQ_EXCHANGE_ITEM2, c);
-      p.hookPacket(l.ZC.ACK_EXCHANGE_ITEM, d);
-      p.hookPacket(l.ZC.ACK_EXCHANGE_ITEM2, d);
-      p.hookPacket(l.ZC.ACK_ADD_EXCHANGE_ITEM, e);
-      p.hookPacket(l.ZC.ADD_EXCHANGE_ITEM, h);
-      p.hookPacket(l.ZC.ADD_EXCHANGE_ITEM2, h);
-      p.hookPacket(l.ZC.ADD_EXCHANGE_ITEM3, h);
-      p.hookPacket(l.ZC.ADD_EXCHANGE_ITEM4, h);
-      p.hookPacket(l.ZC.CANCEL_EXCHANGE_ITEM, t);
-      p.hookPacket(l.ZC.CONCLUDE_EXCHANGE_ITEM, r);
-      p.hookPacket(l.ZC.EXEC_EXCHANGE_ITEM, n);
+      p.hookPacket(k.ZC.REQ_EXCHANGE_ITEM, c);
+      p.hookPacket(k.ZC.REQ_EXCHANGE_ITEM2, c);
+      p.hookPacket(k.ZC.ACK_EXCHANGE_ITEM, d);
+      p.hookPacket(k.ZC.ACK_EXCHANGE_ITEM2, d);
+      p.hookPacket(k.ZC.ACK_ADD_EXCHANGE_ITEM, e);
+      p.hookPacket(k.ZC.ADD_EXCHANGE_ITEM, h);
+      p.hookPacket(k.ZC.ADD_EXCHANGE_ITEM2, h);
+      p.hookPacket(k.ZC.ADD_EXCHANGE_ITEM3, h);
+      p.hookPacket(k.ZC.ADD_EXCHANGE_ITEM4, h);
+      p.hookPacket(k.ZC.CANCEL_EXCHANGE_ITEM, r);
+      p.hookPacket(k.ZC.CONCLUDE_EXCHANGE_ITEM, t);
+      p.hookPacket(k.ZC.EXEC_EXCHANGE_ITEM, n);
     };
   },
 );

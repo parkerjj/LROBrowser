@@ -9,61 +9,61 @@ define(
       return !1;
     }
     function c() {
-      k.remove();
+      m.remove();
     }
     function d() {
-      r.Sound.volume = parseInt(this.value, 10) / 100;
-      r.save();
-      g.setVolume(r.Sound.volume);
+      t.Sound.volume = parseInt(this.value, 10) / 100;
+      t.save();
+      g.setVolume(t.Sound.volume);
     }
     function e() {
-      var a = r.Sound.volume;
-      r.Sound.play = this.checked;
-      r.Sound.play ? g.setVolume(r.Sound.volume) : (g.setVolume(0), g.stop());
-      r.Sound.volume = a;
-      r.save();
+      var a = t.Sound.volume;
+      t.Sound.play = this.checked;
+      t.Sound.play ? g.setVolume(t.Sound.volume) : (g.setVolume(0), g.stop());
+      t.Sound.volume = a;
+      t.save();
     }
-    function m() {
-      r.BGM.volume = parseInt(this.value, 10) / 100;
-      r.save();
-      n.setVolume(r.BGM.volume);
+    function l() {
+      t.BGM.volume = parseInt(this.value, 10) / 100;
+      t.save();
+      n.setVolume(t.BGM.volume);
     }
     function h() {
-      r.BGM.play = this.checked;
-      r.save();
-      r.BGM.play ? n.play(n.filename) : n.stop();
+      t.BGM.play = this.checked;
+      t.save();
+      t.BGM.play ? n.play(n.filename) : n.stop();
     }
-    var t = a("Core/Preferences"),
-      r = a("Preferences/Audio"),
+    var r = a("Core/Preferences"),
+      t = a("Preferences/Audio"),
       n = a("Audio/BGM"),
       g = a("Audio/SoundManager"),
       p = a("UI/UIManager"),
-      l = a("UI/UIComponent"),
+      k = a("UI/UIComponent"),
       f = a("text!./SoundOption.html");
     a = a("text!./SoundOption.css");
-    var k = new l("SoundOption", f, a),
-      q = t.get("SoundOption", { x: 300, y: 300 }, 1);
-    k.init = function () {
+    var m = new k("SoundOption", f, a),
+      q = r.get("SoundOption", { x: 300, y: 300 }, 1);
+    m.init = function () {
       this.ui.find(".base").mousedown(b);
       this.ui.find(".close").click(c);
       this.ui.find(".sound").change(d);
-      this.ui.find(".bgm").change(m);
+      this.ui.find(".bgm").change(l);
       this.ui.find(".sound_state").change(e);
       this.ui.find(".bgm_state").change(h);
       this.draggable(this.ui.find(".titlebar"));
     };
-    k.onAppend = function () {
+    m.onAppend = function () {
       this.ui.css({ top: q.y, left: q.x });
-      this.ui.find(".sound").val(100 * r.Sound.volume);
-      this.ui.find(".bgm").val(100 * r.BGM.volume);
-      this.ui.find(".sound_state")[0].checked = r.Sound.play;
-      this.ui.find(".bgm_state")[0].checked = r.BGM.play;
+      this.ui.find(".sound").val(100 * t.Sound.volume);
+      this.ui.find(".bgm").val(100 * t.BGM.volume);
+      this.ui.find(".sound_state")[0].checked = t.Sound.play;
+      this.ui.find(".bgm_state")[0].checked = t.BGM.play;
     };
-    k.onRemove = function () {
+    m.onRemove = function () {
       q.x = parseInt(this.ui.css("left"), 10);
       q.y = parseInt(this.ui.css("top"), 10);
       q.save();
     };
-    return p.addComponent(k);
+    return p.addComponent(m);
   },
 );

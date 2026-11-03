@@ -3,14 +3,14 @@ define(
   "Utils/jquery Core/Configs Core/Context Core/Preferences Preferences/Audio Preferences/Graphics".split(
     " ",
   ),
-  function (a, b, c, d, e, m) {
+  function (a, b, c, d, e, l) {
     function h() {
       var a = c.isFullScreen();
-      "full" === m.screensize
+      "full" === l.screensize
         ? a || c.requestFullScreen()
         : (a && c.cancelFullScreen(),
           c.Is.POPUP &&
-            ((a = m.screensize.split("x")),
+            ((a = l.screensize.split("x")),
             a[0] != window.innerWidth &&
               a[1] != window.innerHeight &&
               (window.resizeTo(a[0], a[1]),
@@ -19,13 +19,13 @@ define(
                 (screen.availHeight - a[1]) / 2,
               ))));
       b.get("_serverEditMode") &&
-        ("serverlist" === t.serverdef
-          ? b.set("servers", t.serverlist)
-          : b.set("servers", "data/" + t.serverfile));
-      b.set("saveFiles", t.saveFiles);
-      b.set("quality", m.quality);
+        ("serverlist" === r.serverdef
+          ? b.set("servers", r.serverlist)
+          : b.set("servers", "data/" + r.serverfile));
+      b.set("saveFiles", r.saveFiles);
+      b.set("quality", l.quality);
     }
-    var t = d.get(
+    var r = d.get(
       "Window",
       {
         serverfile: "clientinfo.xml",
@@ -37,53 +37,53 @@ define(
     );
     return {
       save: function (a) {
-        m.screensize = a.find(".screensize").val();
-        m.quality = a.find(".quality").val();
-        m.cursor = a.find(".cursor:checked").length ? !0 : !1;
-        t.saveFiles = a.find(".save:checked").length ? !0 : !1;
+        l.screensize = a.find(".screensize").val();
+        l.quality = a.find(".quality").val();
+        l.cursor = a.find(".cursor:checked").length ? !0 : !1;
+        r.saveFiles = a.find(".save:checked").length ? !0 : !1;
         var c = a.find(".servers"),
           d,
           p = c.find("tr").length,
-          l;
+          k;
         if (b.get("_serverEditMode"))
           for (
-            t.serverdef = a.find(".serverdef:checked").val(),
-              t.serverfile = a.find(".clientinfo").val(),
-              t.serverlist = [],
+            r.serverdef = a.find(".serverdef:checked").val(),
+              r.serverfile = a.find(".clientinfo").val(),
+              r.serverlist = [],
               d = 0;
             d < p;
             ++d
           )
-            ((l = c.find("tr:eq(" + d + ")")),
-              t.serverlist.push({
-                display: l.find(".display").val(),
-                address: l.find(".address").val().split(":")[0],
-                port: parseInt(l.find(".address").val().split(":")[1], 10),
-                version: l.find(".version").val(),
-                langtype: l.find(".langtype").val(),
-                packetver: l.find(".packetver").val(),
+            ((k = c.find("tr:eq(" + d + ")")),
+              r.serverlist.push({
+                display: k.find(".display").val(),
+                address: k.find(".address").val().split(":")[0],
+                port: parseInt(k.find(".address").val().split(":")[1], 10),
+                version: k.find(".version").val(),
+                langtype: k.find(".langtype").val(),
+                packetver: k.find(".packetver").val(),
               }));
         e.BGM.volume = a.find(".bgmvol").val() / 100;
         e.BGM.play = 0 < e.BGM.volume ? !0 : !1;
         e.Sound.volume = a.find(".soundvol").val() / 100;
         e.Sound.play = 0 < e.Sound.volume ? !0 : !1;
         e.save();
-        m.save();
-        t.save();
+        l.save();
+        r.save();
         h();
       },
       load: function (d) {
-        "full" !== m.screensize ||
+        "full" !== l.screensize ||
           c.isFullScreen() ||
-          (m.screensize = "800x600");
-        d.find(".screensize").val(m.screensize);
-        d.find(".quality").val(m.quality).trigger("change");
+          (l.screensize = "800x600");
+        d.find(".screensize").val(l.screensize);
+        d.find(".quality").val(l.quality).trigger("change");
         d.find(".serverdef").attr("checked", !1);
-        d.find(".cursor").attr("checked", m.cursor);
-        d.find('.serverdef[value\x3d"' + t.serverdef + '"]')
+        d.find(".cursor").attr("checked", l.cursor);
+        d.find('.serverdef[value\x3d"' + r.serverdef + '"]')
           .attr("checked", "true")
           .trigger("click");
-        d.find(".clientinfo").val(t.serverfile);
+        d.find(".clientinfo").val(r.serverfile);
         d.find(".bgmvol")
           .val(100 * e.BGM.volume)
           .trigger("change");
@@ -92,19 +92,19 @@ define(
           .trigger("change");
         window.requestFileSystem || window.webkitRequestFileSystem
           ? b.get("saveFiles")
-            ? d.find(".save").attr("checked", t.saveFiles ? "checked" : !1)
+            ? d.find(".save").attr("checked", r.saveFiles ? "checked" : !1)
             : d.find(".save").attr("disabled", "disabled")
           : (b.set("saveFiles", !1),
             d.find(".save").attr("disabled", "disabled"));
         var n,
-          g = t.serverlist,
+          g = r.serverlist,
           p = d.find(".servers").empty(),
-          l = a(
+          k = a(
             '\x3ctr\x3e\t\x3ctd\x3e\x3cinput type\x3d"text" class\x3d"display"/\x3e\x3c/td\x3e\t\x3ctd\x3e\x3cinput type\x3d"text" class\x3d"address"/\x3e\x3c/td\x3e\t\x3ctd\x3e\x3cinput type\x3d"text" class\x3d"version"/\x3e\x3c/td\x3e\t\x3ctd\x3e\x3cinput type\x3d"text" class\x3d"langtype"/\x3e\x3c/td\x3e\t\x3ctd\x3e\x3cinput type\x3d"text" class\x3d"packetver"/\x3e\x3c/td\x3e\t\x3ctd\x3e\x3cbutton class\x3d"btn_delete"\x3e\x3c/button\x3e\x3c/td\x3e\x3c/tr\x3e',
           );
         d = 0;
         for (n = g.length; d < n; ++d) {
-          var f = l.clone();
+          var f = k.clone();
           f.find(".display").val(g[d].display);
           f.find(".address").val(g[d].address + ":" + g[d].port);
           f.find(".version").val(g[d].version);

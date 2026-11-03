@@ -85,7 +85,7 @@ define("Utils/BinaryWriter", ["Vendors/text-encoding"], function (a) {
   b.prototype.setString = b.prototype.writeString = function (b, d) {
     d && (b = String(b).substr(0, d));
     var c = a.encode(b),
-      m = d || c.length;
+      l = d || c.length;
     !d &&
       c.length > b.length &&
       ((b = new Uint8Array(this.buffer.byteLength + (c.length - b.length))),
@@ -93,8 +93,8 @@ define("Utils/BinaryWriter", ["Vendors/text-encoding"], function (a) {
       (this.buffer = b.buffer),
       (this.view = new DataView(this.buffer)),
       this.view.setInt16(2, b.length, !0));
-    for (b = 0; b < m; ++b) this.view.setUint8(this.offset + b, c[b]);
-    this.offset += d || m;
+    for (b = 0; b < l; ++b) this.view.setUint8(this.offset + b, c[b]);
+    this.offset += d || l;
     return this;
   };
   b.prototype.setBinaryString = b.prototype.writeBinaryString = function (

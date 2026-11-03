@@ -6,12 +6,12 @@ define(
   function (a) {
     function b(a, b, e, g) {
       var k = "",
-        l = d.getItemInfo(b);
-      b && l
-        ? ((g = "item/" + l.identifiedResourceName + ".bmp"),
+        m = d.getItemInfo(b);
+      b && m
+        ? ((g = "item/" + m.identifiedResourceName + ".bmp"),
           (k =
             '\x3cdiv class\x3d"name"\x3e' +
-            c.escape(l.identifiedDiSPlayName) +
+            c.escape(m.identifiedDiSPlayName) +
             "\x3c/div\x3e"))
         : (g = e < g ? "empty_card_slot.bmp" : "disable_card_slot.bmp");
       a.append(
@@ -24,7 +24,7 @@ define(
       h.loadFile(d.INTERFACE_PATH + g, function (c) {
         var d = a.find('.item[data-index\x3d"' + e + '"] .icon');
         d.css("backgroundImage", "url(" + c + ")");
-        if (b && l)
+        if (b && m)
           d.on("contextmenu", function () {
             f.setItem({ ITID: b, IsIdentified: !0, type: 6 });
             return !1;
@@ -34,21 +34,21 @@ define(
     var c = a("Utils/jquery"),
       d = a("DB/DBManager"),
       e = a("DB/Items/Randomoption"),
-      m = a("DB/Items/ItemType"),
+      l = a("DB/Items/ItemType"),
       h = a("Core/Client"),
-      t = a("Core/Configs"),
-      r = a("Controls/KeyEventHandler"),
+      r = a("Core/Configs"),
+      t = a("Controls/KeyEventHandler"),
       n = a("UI/Components/CardIllustration/CardIllustration"),
       g = a("UI/UIManager"),
       p = a("UI/UIComponent"),
-      l = a("text!./ItemInfo.html");
+      k = a("text!./ItemInfo.html");
     a = a("text!./ItemInfo.css");
-    var f = new p("ItemInfo", l, a);
+    var f = new p("ItemInfo", k, a);
     f.uid = -1;
     f.index = -1;
-    var k = t.get("ClientVer");
+    var m = r.get("ClientVer");
     f.onKeyDown = function (a) {
-      return a.which === r.ESCAPE
+      return a.which === t.ESCAPE
         ? (f.remove(), a.stopImmediatePropagation(), !1)
         : !0;
     };
@@ -80,7 +80,7 @@ define(
       var c = d.getItemInfo(a.ITID),
         f = this.ui,
         g = f.find(".cardlist .border"),
-        l = f.find(".effectlist");
+        k = f.find(".effectlist");
       this.item = c;
       h.loadFile(
         d.INTERFACE_PATH +
@@ -109,7 +109,7 @@ define(
           .append(
             '[\x3cspan style\x3d"color:red"\x3e\u5df2\u635f\u574f\x3c/span\x3e]',
           );
-      5 != k ||
+      5 != m ||
         (4 != a.type && 5 != a.type) ||
         (0 < a.bindOnEquipType
           ? f
@@ -136,7 +136,7 @@ define(
               "\x3c/span\x3e\x3cbr\x3e",
           );
       if (a.HireExpireDate) {
-        var n, p, q, r;
+        var n, p, q, t;
         n = new Date(1e3 * a.HireExpireDate);
         n.getFullYear();
         p =
@@ -144,29 +144,29 @@ define(
             ? "0" + (n.getMonth() + 1)
             : n.getMonth() + 1) + "\u6708 ";
         q = n.getDate() + "\u65e5 ";
-        r = n.getHours() + "\u65f6";
+        t = n.getHours() + "\u65f6";
         n.getMinutes();
         n.getSeconds();
         f.find(".description").prepend(
           '\x3cp style\x3d"color:red;margin:0;"\x3e\u6d88\u5931\u65f6\u95f4\uff1a' +
             p +
             q +
-            r +
+            t +
             "\x3c/p\x3e",
         );
       }
-      a.type === m.CARD ? f.find(".view").show() : f.find(".view").hide();
+      a.type === l.CARD ? f.find(".view").show() : f.find(".view").hide();
       switch (a.type) {
         default:
           g.parent().hide();
-          l.hide();
+          k.hide();
           break;
-        case m.WEAPON:
-        case m.EQUIP:
-        case m.FASHION:
+        case l.WEAPON:
+        case l.EQUIP:
+        case l.FASHION:
           if (!a.IsIdentified) {
             g.parent().hide();
-            l.hide();
+            k.hide();
             return;
           }
           n = c.slotCount || 0;
@@ -179,9 +179,9 @@ define(
       g = 0;
       if (a.options) for (c = 0; 5 > c; c++) a.options["Index" + c] && g++;
       if (0 < g)
-        for (l.show(), l.empty(), c = 0; 5 > c; c++)
+        for (k.show(), k.empty(), c = 0; 5 > c; c++)
           a.options["Index" + c] &&
-            l.append(
+            k.append(
               "\x3cdiv class\x3d'border'\x3e\x3cp\x3e" +
                 e[a.options["Index" + c]].replace(
                   "%d",
@@ -189,7 +189,7 @@ define(
                 ) +
                 "\x3c/p\x3e\x3c/div\x3e",
             );
-      else (l.hide(), l.empty());
+      else (k.hide(), k.empty());
     };
     return g.addComponent(f);
   },

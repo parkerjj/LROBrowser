@@ -8,10 +8,10 @@ define(
       c = a("Utils/jquery"),
       d = a("Utils/gl-matrix"),
       e = a("Core/Configs"),
-      m = a("Preferences/Graphics"),
+      l = a("Preferences/Graphics"),
       h = a("Core/Events"),
-      t = a("UI/Background"),
-      r = a("UI/CursorManager"),
+      r = a("UI/Background"),
+      t = a("UI/CursorManager"),
       n = a("Controls/MouseEventHandler"),
       g = a("Renderer/Camera"),
       p = d.mat4,
@@ -22,11 +22,11 @@ define(
     d.height = 0;
     d.resizeTimeOut = 0;
     d.updateId = 0;
-    d.frameLimit = m.fpslimit;
+    d.frameLimit = l.fpslimit;
     d.tick = 0;
     d.vFov = 15;
     d.renderCallbacks = [];
-    var l =
+    var k =
         window.requestAnimationFrame ||
         window.webkitRequestAnimationFrame ||
         window.mozRequestAnimationFrame ||
@@ -85,7 +85,7 @@ define(
       c = window.innerHeight || document.body.offsetHeight;
       n.screen.width = this.width = b;
       n.screen.height = this.height = c;
-      d = e.get("quality", m.quality) / 100;
+      d = e.get("quality", l.quality) / 100;
       b *= d;
       c *= d;
       this.canvas.width = 1.5 * b;
@@ -94,7 +94,7 @@ define(
       this.canvas.style.height = this.height + "px";
       this.gl.viewport(0, 0, 1.5 * b, 1.5 * c);
       p.perspective(this.vFov, b / c, 1, 1e3, g.projection);
-      t.resize(this.width, this.height);
+      r.resize(this.width, this.height);
       a("UI/UIManager").fixResizeOverflow(this.width, this.height);
     };
     d.rendering = !1;
@@ -108,14 +108,14 @@ define(
           return;
       } else
         ("undefined" === typeof a && clearInterval(this.updateId),
-          (this.updateId = l(this._render.bind(this), this.canvas)));
+          (this.updateId = k(this._render.bind(this), this.canvas)));
       this.tick = b;
       h.process(this.tick);
       a = 0;
       for (b = this.renderCallbacks.length; a < b; ++a)
         if (this.renderCallbacks[a])
           this.renderCallbacks[a](this.tick, this.gl);
-      r.render(this.tick);
+      t.render(this.tick);
     };
     d.render = function (a) {
       a && this.renderCallbacks.push(a);

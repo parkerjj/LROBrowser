@@ -17,10 +17,10 @@ define(
     var c = a("Utils/gl-matrix"),
       d = a("Renderer/Renderer"),
       e = a("Core/Client"),
-      m = a("DB/DBManager"),
+      l = a("DB/DBManager"),
       h = a("UI/Components/EntityRoom/EntityRoom"),
-      t = c.vec4,
-      r = new Float32Array(4),
+      r = c.vec4,
+      t = new Float32Array(4),
       n = new Float32Array(2);
     b.Type = { SELL_SHOP: 0, BUY_SHOP: 1, PUBLIC_CHAT: 2, PRIVATE_CHAT: 3 };
     b.prototype.create = function (a, c, d, f) {
@@ -39,15 +39,15 @@ define(
           case b.Type.PRIVATE_CHAT:
             g = "chat_close";
         }
-        l.type = d;
-        l.id = c;
-        l.node.onEnter = f ? l.owner.onRoomEnter.bind(l.owner) : null;
-        e.loadFile(m.INTERFACE_PATH + g + ".bmp", function (b) {
-          l.display = !0;
-          l.node && l.node.setTitle(a, b);
+        k.type = d;
+        k.id = c;
+        k.node.onEnter = f ? k.owner.onRoomEnter.bind(k.owner) : null;
+        e.loadFile(l.INTERFACE_PATH + g + ".bmp", function (b) {
+          k.display = !0;
+          k.node && k.node.setTitle(a, b);
         });
       }
-      var l = this;
+      var k = this;
       this.node
         ? g()
         : ((this.node = h.clone("EntityRoom", !0)), (this.node.init = g));
@@ -63,18 +63,18 @@ define(
     };
     b.prototype.render = function (a) {
       var b = this.node.ui[0];
-      r[0] = 0;
-      r[1] = 4;
-      r[2] = 0;
-      r[3] = 1;
+      t[0] = 0;
+      t[1] = 4;
+      t[2] = 0;
+      t[3] = 1;
       n[0] = d.width / 2;
       n[1] = d.height / 2;
-      t.transformMat4(r, r, a);
-      a = 0 === r[3] ? 1 : 1 / r[3];
-      r[0] = n[0] + n[0] * r[0] * a;
-      r[1] = n[1] - n[1] * r[1] * a;
-      b.style.top = (r[1] | 0) + "px";
-      b.style.left = ((r[0] - 70) | 0) + "px";
+      r.transformMat4(t, t, a);
+      a = 0 === t[3] ? 1 : 1 / t[3];
+      t[0] = n[0] + n[0] * t[0] * a;
+      t[1] = n[1] - n[1] * t[1] * a;
+      b.style.top = (t[1] | 0) + "px";
+      b.style.left = ((t[0] - 70) | 0) + "px";
     };
     return function () {
       this.room = new b(this);
