@@ -65,6 +65,8 @@ function runtime(source = patched) {
   const transports: FakeTcpSocket[] = [], sockets: DirectTcpSocket[] = [];
   const receiveTimers: Array<() => void> = [], timerErrors: unknown[] = [];
   const decoded: Array<{ source: string; value: number }> = [];
+  const clock = { now: 1_000_000 };
+  const sent: unknown[] = [];
   const charInit = vi.fn(() => timeline.push('character.init'));
   const background = vi.fn((callback: () => void) => { timeline.push('background'); callback(); });
   const packetCrypt = { init: vi.fn(), reset: vi.fn() };
@@ -96,9 +98,10 @@ function runtime(source = patched) {
   const context = vm.createContext({
     ...cardProtocol,
     ArrayBuffer, Uint8Array, DataView, Int8Array, Int32Array, Float32Array, Math, Number,
+    Date: { now: () => clock.now },
     window: {}, SEEK_SET: 2, SEEK_CUR: 1,
     console: {
-      log: vi.fn(), error: vi.fn(),
+      log: vi.fn(), error: vi.fn(), info: vi.fn(),
       warn: vi.fn(() => timeline.push('network.disconnect')),
     },
     __esmMin: (initialize: () => void) => initialize,
@@ -111,8 +114,8 @@ function runtime(source = patched) {
     PacketVerManager_default: { value: 20211103 },
     PacketCrypt_default: packetCrypt,
     PacketLength_default: { getPacketLength: (id: number) => id === 0x00b3 ? 3 : 4 },
-    PACKET: { ZC: {} }, Packets: { list: {} }, packetDump: false,
-    _socket: null, _sockets: [], _receiveStates: new WeakMap(), _onDisconnect: undefined,
+    PACKET: { ZC: {}, CZ: { RESTART: class { type = 0; } } }, Packets: { list: {} }, packetDump: false,
+    _socket: null, _sockets: [], _receiveStates: new WeakMap(), _onDisconnect: undefined, _zoneCloseExpectedUntil: 0,
     _save_buffer: null, _receive_yield_pending: false,
     setTimeout: (callback: () => void) => receiveTimers.push(callback),
     setInterval: () => 1, clearInterval: vi.fn(),
@@ -125,7 +128,7 @@ function runtime(source = patched) {
     init_CharEngine: () => timeline.push('character.module'), init_UIManager() {},
     UIManager_exports: { default: { showErrorBox: (message: string) => messages.push(message) } },
     UIManager: { removeComponents: vi.fn() }, Background: { setLoginBackground: background },
-    _server$1: { name: 'fixture' }, fixtureCharacterInit: charInit,
+    _server$1: { name: 'fixture' }, fixtureCharacterInit: charInit, fixtureSent: sent,
     __vitePreload: (loader: () => Promise<unknown>) => loader(),
     _socketFactory: () => {
       const socket = new DirectTcpSocket('fixture.invalid', 1, {
@@ -141,12 +144,13 @@ function runtime(source = patched) {
     declarations(region('src/Renderer/Entity/EntityWalk.js'), ['lastroCancelMovement']),
     declarations(region('src/Network/NetworkManager.js', source), [
       'connect', 'createReceiveState', 'getReceiveState', 'clearReceiveState',
-      'receive', 'read$1', 'onClose$9', 'close', 'setPing',
+      'receive', 'read$1', 'onClose$9', 'close', 'setPing', 'expectZoneClose', 'cancelExpectedZoneClose',
     ]),
-    declarations(region('src/Engine/MapEngine.js', source), ['onRestartAnswer', 'onRestart']),
+    declarations(region('src/Engine/MapEngine.js', source), ['onRestartAnswer', 'onRestart', 'onRestartRequest']),
     `class CharEngine { static init() { fixtureCharacterInit(); } ${nativeReload} }
       var CharEngine_exports = { default: CharEngine };
-      var Network = { connect, close, read: read$1 };`,
+      var Network = { connect, close, read: read$1, expectZoneClose, cancelExpectedZoneClose,
+        sendPacket: pkt => fixtureSent.push(pkt) };`,
     restartDecoder,
   ].join('\n').replaceAll('import.meta.url', '"file:///native.js"'), context);
   vm.runInContext(`Packets.list[0x00b3] = { Struct: PACKET.ZC.RESTART_ACK, callback: onRestartAnswer };`, context);
@@ -177,7 +181,7 @@ function runtime(source = patched) {
     return count;
   }
   return {
-    context, timeline, transports, sockets, reported, messages, decoded, charInit, background, packetCrypt,
+    context, timeline, transports, sockets, reported, messages, decoded, charInit, background, packetCrypt, clock, sent,
     receiveTimers, timerErrors, connect, flushReceiveTimers,
     cleanup() { for (const socket of sockets) socket.close(); },
   };
@@ -381,6 +385,79 @@ describe('character switch with the real native network lifecycle', () => {
     expect(h.context._socket).toBe(replacement.socket);
     expect(replacement.state.closed).toBe(false);
     expect(h.reported).toEqual([]);
+  });
+});
+
+describe('map socket close racing the return-to-character-select ACK', () => {
+  // `closed` can settle before the queued ACK chunk is read; the stream is then
+  // cancelled and the ACK is lost, leaving only a bare close of the map socket.
+  async function closeOvertakesAck(old: Awaited<ReturnType<ReturnType<typeof fixture>['connect']>>) {
+    old.transport.closeGate.resolve();
+    old.transport.push(accepted);
+    await microtasks();
+  }
+
+  it('reproduces a lost ACK reporting a disconnect when no switch was requested', async () => {
+    const h = fixture(), old = await h.connect();
+    await closeOvertakesAck(old);
+    expect(h.messages).toEqual(['Disconnected from Server.']);
+    expect(h.charInit).not.toHaveBeenCalled();
+  });
+
+  it('treats a map close after requesting the switch as the switch itself', async () => {
+    const h = fixture(), old = await h.connect();
+    h.context.onRestartRequest();
+    expect(h.sent).toHaveLength(1);
+    await closeOvertakesAck(old);
+    expect(h.messages).toEqual([]);
+    expect(h.context.console.warn).not.toHaveBeenCalled();
+    expect(h.timeline.indexOf('game.cleanup')).toBeGreaterThanOrEqual(0);
+    expect(h.charInit).toHaveBeenCalledOnce();
+    expect(h.background).toHaveBeenCalledOnce();
+    expect(h.context._socket).toBeNull();
+    expect(h.packetCrypt.reset).toHaveBeenCalledOnce();
+    expect(h.reported).toEqual([]);
+  });
+
+  it('switches exactly once when the ACK is read before the close', async () => {
+    const h = fixture(), old = await h.connect();
+    h.context.onRestartRequest();
+    old.transport.push(accepted); old.transport.eof(); old.transport.closeGate.resolve();
+    await microtasks();
+    expect(h.messages).toEqual([]);
+    expect(h.charInit).toHaveBeenCalledOnce();
+    expect(h.background).toHaveBeenCalledOnce();
+  });
+
+  it('keeps reporting a real disconnect after the server refused the switch', async () => {
+    const h = fixture(), old = await h.connect();
+    h.context.onRestartRequest();
+    old.transport.push(refused);
+    await microtasks();
+    old.transport.closeGate.resolve();
+    await microtasks();
+    expect(h.messages).toEqual(['Disconnected from Server.']);
+    expect(h.charInit).not.toHaveBeenCalled();
+  });
+
+  it('stops expecting the close once the request window has passed', async () => {
+    const h = fixture(), old = await h.connect();
+    h.context.onRestartRequest();
+    h.clock.now += 10_001;
+    await closeOvertakesAck(old);
+    expect(h.messages).toEqual(['Disconnected from Server.']);
+    expect(h.charInit).not.toHaveBeenCalled();
+  });
+
+  it('does not leak the expectation into a later map session', async () => {
+    const h = fixture(), old = await h.connect();
+    h.context.onRestartRequest();
+    old.transport.push(accepted);
+    await microtasks();
+    expect(h.context._zoneCloseExpectedUntil).toBe(0);
+    const next = await h.connect();
+    await closeOvertakesAck(next);
+    expect(h.messages).toEqual(['Disconnected from Server.']);
   });
 });
 

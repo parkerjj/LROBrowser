@@ -162,7 +162,7 @@ describe('game IWA page debug access', () => {
     const item = { index: 7, ITID: 1201, count: 2 }, append = vi.fn(), setItem = vi.fn(), transfer = vi.fn();
     const context = vm.createContext({
       Component: { getItemByIndex: () => item, transferItemToOtherUI: transfer },
-      favoriteTab: false, ItemInfo_default: { uid: 0, append, setItem, remove: vi.fn() },
+      favoriteTab: false, ItemInfo_default: { uid: 0, append, setItem, remove: vi.fn(), isShowing(shown: { ITID: number }) { return this.uid === shown.ITID; } },
       transferItemToOtherUI: transfer, _list: [item], getItemIndexById: () => 0,
     });
     vm.runInContext(nativeFunction(`src/UI/Components/${kind}/${kind}Common.js`, 'onItemInfo'), context);

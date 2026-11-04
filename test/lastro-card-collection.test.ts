@@ -269,7 +269,7 @@ describe('card preset teardown and character isolation in emitted native code', 
       SessionStorage_default: { Entity: { walk: null, action: 0, ACTION: { WALK: 1 } }, moveAction: { pending: true } },
       CardConnection2: { _lastroCardDeck: { invalidate } },
       MapControl: { _lastroMovementInput: { cancel: cancelInput } },
-      clearReceiveState: receive, console: { warn: warning },
+      clearReceiveState: receive, console: { warn: warning }, _zoneCloseExpectedUntil: 0,
       isObserverMode: () => true, Configs: {}, clearInterval: vi.fn(),
     });
     vm.runInContext(cancelMovement, context);

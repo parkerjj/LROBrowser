@@ -79149,6 +79149,8 @@ var init_Preferences$1 = __esmMin(() => {
      */
     static get(key, def, version = 0) {
         def._key = key; def._version = version; def.save = selfSave;
+        // Remember the built-in defaults so window positions can be reset later.
+        try { Preferences.registry[key] = { pref: def, defaults: JSON.parse(JSON.stringify(def)) }; } catch { /* Non-serializable defaults cannot be reset. */ }
         let valid = false;
         try { Storage.get(key, value => {
           const data = JSON.parse(value[key]);
@@ -79172,7 +79174,52 @@ var init_Preferences$1 = __esmMin(() => {
         for (const key of Object.keys(data)) if (key !== "_key" && key !== "save") value[key] = data[key];
         const store = {}; store[data._key] = JSON.stringify(value); Storage.set(store);
       }
+    /**
+     * Put every window back at its default position (sizes are kept).
+     * Live preference objects, saved records of windows not created yet and the
+     * windows currently on screen are all reset.
+     *
+     * @return {number} how many saved records changed
+     */
+    static resetWindowPositions() {
+        let changed = 0;
+        const isPlain = (value) => value && typeof value === "object" && !Array.isArray(value);
+        const restoreXY = (target, defaults) => {
+          let touched = false;
+          for (const field of ["x", "y"])
+            if (field in defaults && target[field] !== defaults[field]) { target[field] = defaults[field]; touched = true; }
+          return touched;
+        };
+        for (const key of Object.keys(Preferences.registry)) {
+          const { pref, defaults } = Preferences.registry[key];
+          let touched = restoreXY(pref, defaults);
+          for (const field of Object.keys(defaults))
+            if (isPlain(defaults[field]) && isPlain(pref[field]) && restoreXY(pref[field], defaults[field])) touched = true;
+          if (isPlain(pref._lastroWindow) && ("left" in pref._lastroWindow || "top" in pref._lastroWindow)) {
+            delete pref._lastroWindow.left; delete pref._lastroWindow.top; touched = true;
+          }
+          if (touched) { Preferences.save(pref); ++changed; }
+        }
+        // Records of windows that were never created in this session.
+        try {
+          for (let index = localStorage.length - 1; index >= 0; --index) {
+            const key = localStorage.key(index);
+            if (!key || key in Preferences.registry) continue;
+            let record;
+            try { record = JSON.parse(localStorage.getItem(key)); } catch { continue; }
+            if (!isPlain(record) || record._version === undefined) continue;
+            let touched = false;
+            for (const field of ["x", "y"]) if (field in record) { delete record[field]; touched = true; }
+            if (isPlain(record._lastroWindow)) for (const field of ["left", "top"]) if (field in record._lastroWindow) { delete record._lastroWindow[field]; touched = true; }
+            for (const field of Object.keys(record))
+              if (isPlain(record[field]) && field !== "_lastroWindow") for (const axis of ["x", "y"]) if (axis in record[field]) { delete record[field][axis]; touched = true; }
+            if (touched) { localStorage.setItem(key, JSON.stringify(record)); ++changed; }
+          }
+        } catch { /* Storage may be unavailable; live windows are still reset below. */ }
+        return changed;
+      }
   };
+  Preferences.registry = Object.create(null);
 });
 //#endregion
 //#region src/Preferences/UI.js
@@ -167623,6 +167670,21 @@ function onClose$9(event) {
     return;
   }
 
+  if (
+    this === _socket &&
+    this.isZone &&
+    !this.handoffPending &&
+    Date.now() < _zoneCloseExpectedUntil &&
+    typeof onRestartAnswer === "function"
+  ) {
+    // Requested "return to character select": finish the switch the ACK would
+    // have started instead of reporting a disconnect.
+    _zoneCloseExpectedUntil = 0;
+    console.info("[Network] Map socket closed while returning to character select.");
+    onRestartAnswer({ type: 1 });
+    return;
+  }
+
   if (this === _socket && this.isZone && !this.handoffPending) {
     try { globalThis.KoreEngine?.degradeConnection?.("map-socket-closed", { code: event?.code, reason: event?.reason, wasClean: event?.wasClean }); }
     catch { /* Optional KE failures must not change the native disconnect path. */ }
@@ -167638,7 +167700,7 @@ function onClose$9(event) {
     const wasClean =
       event && typeof event.wasClean === "boolean" ? event.wasClean : "unknown";
     console.warn(
-      `[Network] Disconnect from server (code=${code}, reason=${JSON.stringify(reason)}, wasClean=${wasClean})`,
+      `[Network] Disconnect from server (zone=${!!this.isZone}, code=${code}, reason=${JSON.stringify(reason)}, wasClean=${wasClean}${event instanceof Error ? `, error=${event.name}: ${event.message}` : ""})`,
     );
     if (_socket.ping) clearInterval(_socket.ping);
     if (!isObserverMode(Configs)) {
@@ -167659,6 +167721,21 @@ function onClose$9(event) {
   if (idx !== -1) _sockets.splice(idx, 1);
 }
 /**
+ * The map server closes its socket right after accepting "return to character
+ * select". Depending on the transport, that close can be observed before the
+ * RESTART_ACK that announces it is read, so a close inside this window is part
+ * of the switch and must not be reported as a lost connection.
+ *
+ * @param {number} [windowMs] how long a map-socket close stays expected
+ */
+function expectZoneClose(windowMs = 10000) {
+  _zoneCloseExpectedUntil = Date.now() + windowMs;
+}
+/** The server refused the switch: a later close is a real disconnect again. */
+function cancelExpectedZoneClose() {
+  _zoneCloseExpectedUntil = 0;
+}
+/**
  * Close connection with server
  * Is this needed ?
  */
@@ -167669,7 +167746,10 @@ function close() {
     _socket = null;
     clearReceiveState(s);
     s.close();
-    if (s.isZone) PacketCrypt_default.reset();
+    if (s.isZone) {
+      PacketCrypt_default.reset();
+      _zoneCloseExpectedUntil = 0;
+    }
     if (s.ping) clearInterval(s.ping);
     idx = _sockets.indexOf(s);
     if (idx !== -1) _sockets.splice(idx, 1);
@@ -167734,6 +167814,7 @@ var _sockets,
   _receive_yield_pending,
   _receiveStates,
   _onDisconnect,
+  _zoneCloseExpectedUntil,
   packetDump,
   Network;
 var init_NetworkManager = __esmMin(() => {
@@ -167754,6 +167835,7 @@ var init_NetworkManager = __esmMin(() => {
   _receive_yield_pending = false;
   _receiveStates = new WeakMap();
   _onDisconnect = null;
+  _zoneCloseExpectedUntil = 0;
   packetDump = Configs.get("packetDump", false);
   /**
    * List of supported packets
@@ -167786,6 +167868,8 @@ var init_NetworkManager = __esmMin(() => {
       connect,
       hookPacket,
       close,
+      expectZoneClose,
+      cancelExpectedZoneClose,
       read: read$1,
       set onDisconnect(callback) {
         _onDisconnect = callback;
@@ -184829,7 +184913,7 @@ function onSwitchEquipInfo(event) {
   const index = parseInt(this.getAttribute("data-index"), 10);
   const item = SwitchEquip._list[index];
   if (item) {
-    if (ItemInfo_default.uid === item.ITID) ItemInfo_default.remove();
+    if (ItemInfo_default.isShowing(item)) ItemInfo_default.remove();
     else {
       ItemInfo_default.append();
       ItemInfo_default.uid = item.ITID;
@@ -191065,7 +191149,7 @@ function onItemInfo$17(event) {
   const index = parseInt(this.getAttribute("data-index"), 10);
   const item = Mail.getItemByIndex(index);
   if (!item) return;
-  if (ItemInfo_default.uid === item.ITID) {
+  if (ItemInfo_default.isShowing(item)) {
     ItemInfo_default.remove();
     return;
   }
@@ -195797,14 +195881,14 @@ var init_Context = __esmMin(() => {
 var GraphicsOption_default$2;
 var init_GraphicsOption$2 = __esmMin(() => {
   GraphicsOption_default$2 =
-    '<div id="GraphicsOption">\r\n\t<div class="titlebar" data-background="basic_interface/titlebar_mid.bmp">\r\n\t\t<div class="left">\r\n\t\t\t<button\r\n\t\t\t\tclass="base"\r\n\t\t\t\tdata-background="basic_interface/sys_base_off.bmp"\r\n\t\t\t\tdata-hover="basic_interface/sys_base_on.bmp"\r\n\t\t\t></button>\r\n\t\t\t<span class="text" data-text="1484">Graphics Settings</span>\r\n\t\t</div>\r\n\t\t<div class="right">\r\n\t\t\t<button\r\n\t\t\t\tclass="base close"\r\n\t\t\t\tdata-background="basic_interface/sys_close_off.bmp"\r\n\t\t\t\tdata-hover="basic_interface/sys_close_on.bmp"\r\n\t\t\t></button>\r\n\t\t</div>\r\n\t\t<div class="clear"></div>\r\n\t</div>\r\n\r\n\t<div class="tabs-container">\r\n\t\t<div class="tabs">\r\n\t\t\t<button class="tab-button selected" data-tab="basic">Basic</button>\r\n\t\t\t<button class="tab-button" data-tab="advanced">Advanced</button>\r\n\t\t</div>\r\n\t</div>\r\n\r\n\t<div class="panel">\r\n\t\t<div class="tab-content selected" id="basic">\r\n\t\t\t<table>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td>Details</td>\r\n\t\t\t\t\t<td style="display: inline-block; width: 260px">\r\n\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\tclass="details"\r\n\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\tvalue="100"\r\n\t\t\t\t\t\t\tmax="100"\r\n\t\t\t\t\t\t\tmin="25"\r\n\t\t\t\t\t\t\tstep="5"\r\n\t\t\t\t\t\t\tstyle="width: 90%"\r\n\t\t\t\t\t\t/>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr class="resolution">\r\n\t\t\t\t\t<td>Resolution</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<select class="screensize">\r\n\t\t\t\t\t\t\t<option value="650x480">640 x 480</option>\r\n\t\t\t\t\t\t\t<option value="800x600">800 x 600</option>\r\n\t\t\t\t\t\t\t<option value="1024x768">1024 x 768</option>\r\n\t\t\t\t\t\t\t<option value="1280x800">1280 x 800</option>\r\n\t\t\t\t\t\t\t<option value="1400x900">1400 x 900</option>\r\n\t\t\t\t\t\t\t<option value="1680x1050">1680 x 1050</option>\r\n\t\t\t\t\t\t\t<option value="full">Full Screen</option>\r\n\t\t\t\t\t\t</select>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td>Cursor</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label>\r\n\t\t\t\t\t\t\t<input class="cursor-option" type="checkbox" />\r\n\t\t\t\t\t\t\tShow system cursor\r\n\t\t\t\t\t\t</label>\r\n<label style="display:block" title="仅游戏鼠标指针生效"><input class="monster-snap" type="checkbox" /> Monster cursor snap</label>\r\n<label style="display:block" title="仅游戏鼠标指针生效"><input class="item-snap" type="checkbox" /> Item cursor snap</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td>FPS Limit</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<select class="fpslimit">\r\n\t\t\t\t\t\t\t<option value="-1">Unlimited</option>\r\n\t\t\t\t\t\t\t<option value="30">30</option>\r\n\t\t\t\t\t\t\t<option value="60">60</option>\r\n\t\t\t\t\t\t\t<option value="90">90</option>\r\n\t\t\t\t\t\t\t<option value="120">120</option>\r\n\t\t\t\t\t\t</select>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td>FPS Display</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label>\r\n\t\t\t\t\t\t\t<input class="fps" type="checkbox" />\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t</table>\r\n\t\t</div>\r\n\r\n\t\t<div class="tab-content" id="advanced">\r\n\t\t\t<table>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td title="Force nearest neighbor filtering for pixel-perfect sprite rendering">\r\n\t\t\t\t\t\tPixel Perfect Sprites\r\n\t\t\t\t\t</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label>\r\n\t\t\t\t\t\t\t<input class="pixel-perfect" type="checkbox" />\r\n\t\t\t\t\t\t\tForce nearest neighbor filtering\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td title="Add a glowing bloom effect to bright areas">Bloom</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label style="display: inline-block; margin-right: 20px">\r\n\t\t\t\t\t\t\t<input class="bloom" type="checkbox" />\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 200px">\r\n\t\t\t\t\t\t\tIntensity:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="bloom-intensity"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="0.5"\r\n\t\t\t\t\t\t\t\tmin="0.1"\r\n\t\t\t\t\t\t\t\tmax="3.0"\r\n\t\t\t\t\t\t\t\tstep="0.05"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td title="Apply a blur effect to the screen">Blur</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label style="display: inline-block; margin-right: 20px">\r\n\t\t\t\t\t\t\t<input class="blur" type="checkbox" />\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 90px">\r\n\t\t\t\t\t\t\tIntensity:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="blur-intensity"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="3.0"\r\n\t\t\t\t\t\t\t\tmin="2.0"\r\n\t\t\t\t\t\t\t\tmax="10.0"\r\n\t\t\t\t\t\t\t\tstep="0.1"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 90px">\r\n\t\t\t\t\t\t\tArea:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="blur-area"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="14.0"\r\n\t\t\t\t\t\t\t\tmin="3.0"\r\n\t\t\t\t\t\t\t\tmax="20.0"\r\n\t\t\t\t\t\t\t\tstep="1.0"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td title="Contrast Adaptive Sharpening for enhanced details">Contr. Adapt. Sharp. (CAS)</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label style="display: inline-block; margin-right: 20px">\r\n\t\t\t\t\t\t\t<input class="casEnabled" type="checkbox" />\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 90px">\r\n\t\t\t\t\t\t\tContrast:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="casContrast"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="0.0"\r\n\t\t\t\t\t\t\t\tmin="0.0"\r\n\t\t\t\t\t\t\t\tmax="1.0"\r\n\t\t\t\t\t\t\t\tstep="0.05"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 90px">\r\n\t\t\t\t\t\t\tSharpening:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="casSharpening"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="1.0"\r\n\t\t\t\t\t\t\t\tmin="0.0"\r\n\t\t\t\t\t\t\t\tmax="1.0"\r\n\t\t\t\t\t\t\t\tstep="0.05"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td title="Fast Approximate Anti-Aliasing for smoother edges">FXAA</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label style="display: inline-block; margin-right: 20px">\r\n\t\t\t\t\t\t\t<input class="fxaaEnabled" type="checkbox" />\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 90px">\r\n\t\t\t\t\t\t\tSubpix:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="fxaaSubpix"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="0.25"\r\n\t\t\t\t\t\t\t\tmin="0.0"\r\n\t\t\t\t\t\t\t\tmax="1.0"\r\n\t\t\t\t\t\t\t\tstep="0.05"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 90px">\r\n\t\t\t\t\t\t\tEdge Threshold:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="fxaaEdgeThreshold"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="0.125"\r\n\t\t\t\t\t\t\t\tmin="0.063"\r\n\t\t\t\t\t\t\t\tmax="0.333"\r\n\t\t\t\t\t\t\t\tstep="0.03"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td title="Cartoon rendering effect for stylized visuals">Cartoon</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label style="display: inline-block; margin-right: 20px">\r\n\t\t\t\t\t\t\t<input class="cartoonEnabled" type="checkbox" />\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 90px">\r\n\t\t\t\t\t\t\tPower:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="cartoonPower"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="1.5"\r\n\t\t\t\t\t\t\t\tmin="0.1"\r\n\t\t\t\t\t\t\t\tmax="9.9"\r\n\t\t\t\t\t\t\t\tstep="0.1"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 90px">\r\n\t\t\t\t\t\t\tEdge Slope:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="cartoonEdgeSlope"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="1.5"\r\n\t\t\t\t\t\t\t\tmin="1.5"\r\n\t\t\t\t\t\t\t\tmax="5.9"\r\n\t\t\t\t\t\t\t\tstep="0.1"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td title="Increase color intensity and saturation">Vibrance</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label style="display: inline-block; margin-right: 20px">\r\n\t\t\t\t\t\t\t<input class="vibranceEnabled" type="checkbox" />\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 200px">\r\n\t\t\t\t\t\t\tIntensity:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="vibrance"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="0.15"\r\n\t\t\t\t\t\t\t\tmin="-0.9"\r\n\t\t\t\t\t\t\t\tmax="0.9"\r\n\t\t\t\t\t\t\t\tstep="0.1"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td\r\n\t\t\t\t\t\ttitle="Hide objects outside the viewing area, enable downsampling rendering and others to improve performance"\r\n\t\t\t\t\t>\r\n\t\t\t\t\t\tPerformance Mode\r\n\t\t\t\t\t</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label style="display: inline-block; margin-right: 20px">\r\n\t\t\t\t\t\t\t<input class="performanceMode" type="checkbox" />\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 200px">\r\n\t\t\t\t\t\t\tCulling Area:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="view-area"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="14.0"\r\n\t\t\t\t\t\t\t\tmin="4.0"\r\n\t\t\t\t\t\t\t\tmax="20.0"\r\n\t\t\t\t\t\t\t\tstep="1.0"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t</table>\r\n\r\n\t\t\t<div class="reset-section">\r\n\t\t\t\t<button class="reset-button">Reset to Default Values</button>\r\n\t\t\t</div>\r\n\t\t</div>\r\n\t</div>\r\n</div>\r\n';
+    '<div id="GraphicsOption">\r\n\t<div class="titlebar" data-background="basic_interface/titlebar_mid.bmp">\r\n\t\t<div class="left">\r\n\t\t\t<button\r\n\t\t\t\tclass="base"\r\n\t\t\t\tdata-background="basic_interface/sys_base_off.bmp"\r\n\t\t\t\tdata-hover="basic_interface/sys_base_on.bmp"\r\n\t\t\t></button>\r\n\t\t\t<span class="text" data-text="1484">Graphics Settings</span>\r\n\t\t</div>\r\n\t\t<div class="right">\r\n\t\t\t<button\r\n\t\t\t\tclass="base close"\r\n\t\t\t\tdata-background="basic_interface/sys_close_off.bmp"\r\n\t\t\t\tdata-hover="basic_interface/sys_close_on.bmp"\r\n\t\t\t></button>\r\n\t\t</div>\r\n\t\t<div class="clear"></div>\r\n\t</div>\r\n\r\n\t<div class="tabs-container">\r\n\t\t<div class="tabs">\r\n\t\t\t<button class="tab-button selected" data-tab="basic">Basic</button>\r\n\t\t\t<button class="tab-button" data-tab="advanced">Advanced</button>\r\n\t\t</div>\r\n\t</div>\r\n\r\n\t<div class="panel">\r\n\t\t<div class="tab-content selected" id="basic">\r\n\t\t\t<table>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td>Details</td>\r\n\t\t\t\t\t<td style="display: inline-block; width: 260px">\r\n\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\tclass="details"\r\n\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\tvalue="100"\r\n\t\t\t\t\t\t\tmax="100"\r\n\t\t\t\t\t\t\tmin="25"\r\n\t\t\t\t\t\t\tstep="5"\r\n\t\t\t\t\t\t\tstyle="width: 90%"\r\n\t\t\t\t\t\t/>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr class="resolution">\r\n\t\t\t\t\t<td>Resolution</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<select class="screensize">\r\n\t\t\t\t\t\t\t<option value="650x480">640 x 480</option>\r\n\t\t\t\t\t\t\t<option value="800x600">800 x 600</option>\r\n\t\t\t\t\t\t\t<option value="1024x768">1024 x 768</option>\r\n\t\t\t\t\t\t\t<option value="1280x800">1280 x 800</option>\r\n\t\t\t\t\t\t\t<option value="1400x900">1400 x 900</option>\r\n\t\t\t\t\t\t\t<option value="1680x1050">1680 x 1050</option>\r\n\t\t\t\t\t\t\t<option value="full">Full Screen</option>\r\n\t\t\t\t\t\t</select>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td>Cursor</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label>\r\n\t\t\t\t\t\t\t<input class="cursor-option" type="checkbox" />\r\n\t\t\t\t\t\t\tShow system cursor\r\n\t\t\t\t\t\t</label>\r\n<label style="display:block" title="仅游戏鼠标指针生效"><input class="monster-snap" type="checkbox" /> Monster cursor snap</label>\r\n<label style="display:block" title="仅游戏鼠标指针生效"><input class="item-snap" type="checkbox" /> Item cursor snap</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td>FPS Limit</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<select class="fpslimit">\r\n\t\t\t\t\t\t\t<option value="-1">Unlimited</option>\r\n\t\t\t\t\t\t\t<option value="30">30</option>\r\n\t\t\t\t\t\t\t<option value="60">60</option>\r\n\t\t\t\t\t\t\t<option value="90">90</option>\r\n\t\t\t\t\t\t\t<option value="120">120</option>\r\n\t\t\t\t\t\t</select>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td>FPS Display</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label>\r\n\t\t\t\t\t\t\t<input class="fps" type="checkbox" />\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t</table>\r\n\t\t\t<div class="reset-section">\r\n\t\t\t\t<button class="reset-windows-button" title="把所有小窗口恢复到默认位置（窗口大小不变）">重置窗口位置</button>\r\n\t\t\t</div>\r\n\t\t</div>\r\n\r\n\t\t<div class="tab-content" id="advanced">\r\n\t\t\t<table>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td title="Force nearest neighbor filtering for pixel-perfect sprite rendering">\r\n\t\t\t\t\t\tPixel Perfect Sprites\r\n\t\t\t\t\t</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label>\r\n\t\t\t\t\t\t\t<input class="pixel-perfect" type="checkbox" />\r\n\t\t\t\t\t\t\tForce nearest neighbor filtering\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td title="Add a glowing bloom effect to bright areas">Bloom</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label style="display: inline-block; margin-right: 20px">\r\n\t\t\t\t\t\t\t<input class="bloom" type="checkbox" />\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 200px">\r\n\t\t\t\t\t\t\tIntensity:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="bloom-intensity"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="0.5"\r\n\t\t\t\t\t\t\t\tmin="0.1"\r\n\t\t\t\t\t\t\t\tmax="3.0"\r\n\t\t\t\t\t\t\t\tstep="0.05"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td title="Apply a blur effect to the screen">Blur</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label style="display: inline-block; margin-right: 20px">\r\n\t\t\t\t\t\t\t<input class="blur" type="checkbox" />\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 90px">\r\n\t\t\t\t\t\t\tIntensity:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="blur-intensity"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="3.0"\r\n\t\t\t\t\t\t\t\tmin="2.0"\r\n\t\t\t\t\t\t\t\tmax="10.0"\r\n\t\t\t\t\t\t\t\tstep="0.1"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 90px">\r\n\t\t\t\t\t\t\tArea:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="blur-area"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="14.0"\r\n\t\t\t\t\t\t\t\tmin="3.0"\r\n\t\t\t\t\t\t\t\tmax="20.0"\r\n\t\t\t\t\t\t\t\tstep="1.0"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td title="Contrast Adaptive Sharpening for enhanced details">Contr. Adapt. Sharp. (CAS)</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label style="display: inline-block; margin-right: 20px">\r\n\t\t\t\t\t\t\t<input class="casEnabled" type="checkbox" />\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 90px">\r\n\t\t\t\t\t\t\tContrast:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="casContrast"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="0.0"\r\n\t\t\t\t\t\t\t\tmin="0.0"\r\n\t\t\t\t\t\t\t\tmax="1.0"\r\n\t\t\t\t\t\t\t\tstep="0.05"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 90px">\r\n\t\t\t\t\t\t\tSharpening:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="casSharpening"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="1.0"\r\n\t\t\t\t\t\t\t\tmin="0.0"\r\n\t\t\t\t\t\t\t\tmax="1.0"\r\n\t\t\t\t\t\t\t\tstep="0.05"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td title="Fast Approximate Anti-Aliasing for smoother edges">FXAA</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label style="display: inline-block; margin-right: 20px">\r\n\t\t\t\t\t\t\t<input class="fxaaEnabled" type="checkbox" />\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 90px">\r\n\t\t\t\t\t\t\tSubpix:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="fxaaSubpix"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="0.25"\r\n\t\t\t\t\t\t\t\tmin="0.0"\r\n\t\t\t\t\t\t\t\tmax="1.0"\r\n\t\t\t\t\t\t\t\tstep="0.05"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 90px">\r\n\t\t\t\t\t\t\tEdge Threshold:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="fxaaEdgeThreshold"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="0.125"\r\n\t\t\t\t\t\t\t\tmin="0.063"\r\n\t\t\t\t\t\t\t\tmax="0.333"\r\n\t\t\t\t\t\t\t\tstep="0.03"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td title="Cartoon rendering effect for stylized visuals">Cartoon</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label style="display: inline-block; margin-right: 20px">\r\n\t\t\t\t\t\t\t<input class="cartoonEnabled" type="checkbox" />\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 90px">\r\n\t\t\t\t\t\t\tPower:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="cartoonPower"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="1.5"\r\n\t\t\t\t\t\t\t\tmin="0.1"\r\n\t\t\t\t\t\t\t\tmax="9.9"\r\n\t\t\t\t\t\t\t\tstep="0.1"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 90px">\r\n\t\t\t\t\t\t\tEdge Slope:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="cartoonEdgeSlope"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="1.5"\r\n\t\t\t\t\t\t\t\tmin="1.5"\r\n\t\t\t\t\t\t\t\tmax="5.9"\r\n\t\t\t\t\t\t\t\tstep="0.1"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td title="Increase color intensity and saturation">Vibrance</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label style="display: inline-block; margin-right: 20px">\r\n\t\t\t\t\t\t\t<input class="vibranceEnabled" type="checkbox" />\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 200px">\r\n\t\t\t\t\t\t\tIntensity:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="vibrance"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="0.15"\r\n\t\t\t\t\t\t\t\tmin="-0.9"\r\n\t\t\t\t\t\t\t\tmax="0.9"\r\n\t\t\t\t\t\t\t\tstep="0.1"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t\t<tr>\r\n\t\t\t\t\t<td\r\n\t\t\t\t\t\ttitle="Hide objects outside the viewing area, enable downsampling rendering and others to improve performance"\r\n\t\t\t\t\t>\r\n\t\t\t\t\t\tPerformance Mode\r\n\t\t\t\t\t</td>\r\n\t\t\t\t\t<td>\r\n\t\t\t\t\t\t<label style="display: inline-block; margin-right: 20px">\r\n\t\t\t\t\t\t\t<input class="performanceMode" type="checkbox" />\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t\t<label style="display: inline-block; width: 200px">\r\n\t\t\t\t\t\t\tCulling Area:\r\n\t\t\t\t\t\t\t<input\r\n\t\t\t\t\t\t\t\tclass="view-area"\r\n\t\t\t\t\t\t\t\ttype="range"\r\n\t\t\t\t\t\t\t\tvalue="14.0"\r\n\t\t\t\t\t\t\t\tmin="4.0"\r\n\t\t\t\t\t\t\t\tmax="20.0"\r\n\t\t\t\t\t\t\t\tstep="1.0"\r\n\t\t\t\t\t\t\t\tstyle="width: 90%; vertical-align: middle"\r\n\t\t\t\t\t\t\t/>\r\n\t\t\t\t\t\t</label>\r\n\t\t\t\t\t</td>\r\n\t\t\t\t</tr>\r\n\t\t\t</table>\r\n\r\n\t\t\t<div class="reset-section">\r\n\t\t\t\t<button class="reset-button">Reset to Default Values</button>\r\n\t\t\t</div>\r\n\t\t</div>\r\n\t</div>\r\n</div>\r\n';
 });
 //#endregion
 //#region src/UI/Components/GraphicsOption/GraphicsOption.css?raw
 var GraphicsOption_default$1;
 var init_GraphicsOption$1 = __esmMin(() => {
   GraphicsOption_default$1 =
-    ":host {\r\n	top: 100px;\r\n	left: 100px;\r\n	width: auto;\r\n	height: auto;\r\n}\r\n\r\n#GraphicsOption {\r\n	width: auto;\r\n	height: auto;\r\n	background: white;\r\n	border-radius: 2px;\r\n}\r\n\r\n#GraphicsOption .titlebar {\r\n	width: 100%;\r\n	height: 17px;\r\n	background-color: white;\r\n	background-repeat: repeat-x;\r\n	border-radius: 3px 3px 0px 0px;\r\n}\r\n#GraphicsOption .titlebar .base {\r\n	width: 11px;\r\n	height: 11px;\r\n	border: none;\r\n	background-color: transparent;\r\n	background-repeat: no-repeat;\r\n	vertical-align: middle;\r\n}\r\n#GraphicsOption .titlebar .text {\r\n	text-shadow: 1px 1px white;\r\n	vertical-align: -2px;\r\n	white-space: nowrap;\r\n	/* chrome bug */\r\n	display: inline-block;\r\n	white-space: nowrap;\r\n	height: 13px;\r\n}\r\n\r\n#GraphicsOption .titlebar .left {\r\n	margin-left: 3px;\r\n	float: left;\r\n}\r\n#GraphicsOption .titlebar .right {\r\n	float: right;\r\n	margin-right: 3px;\r\n}\r\n#GraphicsOption .titlebar .clear {\r\n	clear: both;\r\n}\r\n\r\n#GraphicsOption .panel {\r\n	padding-left: 5px;\r\n	padding-right: 5px;\r\n}\r\n\r\n#GraphicsOption .tab-button {\r\n	width: 80px;\r\n	height: 100%;\r\n	color: #42454a;\r\n	border: 1px solid #c9c3ba;\r\n	border-bottom: none;\r\n	text-decoration: none;\r\n	display: inline-block;\r\n	vertical-align: bottom;\r\n	border-radius: 3px 3px 0 0;\r\n	text-align: center;\r\n	background: #f0f0f0;\r\n	cursor: pointer;\r\n}\r\n\r\n#GraphicsOption .tab-button.selected {\r\n	color: #000;\r\n	font-weight: bold;\r\n	border-bottom: 1px solid white;\r\n	position: relative;\r\n	z-index: 100;\r\n	background-color: white;\r\n}\r\n\r\n#GraphicsOption .tab-content {\r\n	display: none;\r\n}\r\n\r\n#GraphicsOption .tab-content.selected {\r\n	display: block;\r\n}\r\n\r\n#GraphicsOption .content {\r\n	display: none;\r\n}\r\n\r\n#GraphicsOption .content.selected {\r\n	display: block;\r\n}\r\n\r\n#GraphicsOption .reset-button {\r\n	background: #8b0000;\r\n	border: 1px solid #a52a2a;\r\n	color: white;\r\n	padding: 4px 8px;\r\n	cursor: pointer;\r\n	margin: 10px;\r\n}\r\n";
+    ":host {\r\n	top: 100px;\r\n	left: 100px;\r\n	width: auto;\r\n	height: auto;\r\n}\r\n\r\n#GraphicsOption {\r\n	width: auto;\r\n	height: auto;\r\n	background: white;\r\n	border-radius: 2px;\r\n}\r\n\r\n#GraphicsOption .titlebar {\r\n	width: 100%;\r\n	height: 17px;\r\n	background-color: white;\r\n	background-repeat: repeat-x;\r\n	border-radius: 3px 3px 0px 0px;\r\n}\r\n#GraphicsOption .titlebar .base {\r\n	width: 11px;\r\n	height: 11px;\r\n	border: none;\r\n	background-color: transparent;\r\n	background-repeat: no-repeat;\r\n	vertical-align: middle;\r\n}\r\n#GraphicsOption .titlebar .text {\r\n	text-shadow: 1px 1px white;\r\n	vertical-align: -2px;\r\n	white-space: nowrap;\r\n	/* chrome bug */\r\n	display: inline-block;\r\n	white-space: nowrap;\r\n	height: 13px;\r\n}\r\n\r\n#GraphicsOption .titlebar .left {\r\n	margin-left: 3px;\r\n	float: left;\r\n}\r\n#GraphicsOption .titlebar .right {\r\n	float: right;\r\n	margin-right: 3px;\r\n}\r\n#GraphicsOption .titlebar .clear {\r\n	clear: both;\r\n}\r\n\r\n#GraphicsOption .panel {\r\n	padding-left: 5px;\r\n	padding-right: 5px;\r\n}\r\n\r\n#GraphicsOption .tab-button {\r\n	width: 80px;\r\n	height: 100%;\r\n	color: #42454a;\r\n	border: 1px solid #c9c3ba;\r\n	border-bottom: none;\r\n	text-decoration: none;\r\n	display: inline-block;\r\n	vertical-align: bottom;\r\n	border-radius: 3px 3px 0 0;\r\n	text-align: center;\r\n	background: #f0f0f0;\r\n	cursor: pointer;\r\n}\r\n\r\n#GraphicsOption .tab-button.selected {\r\n	color: #000;\r\n	font-weight: bold;\r\n	border-bottom: 1px solid white;\r\n	position: relative;\r\n	z-index: 100;\r\n	background-color: white;\r\n}\r\n\r\n#GraphicsOption .tab-content {\r\n	display: none;\r\n}\r\n\r\n#GraphicsOption .tab-content.selected {\r\n	display: block;\r\n}\r\n\r\n#GraphicsOption .content {\r\n	display: none;\r\n}\r\n\r\n#GraphicsOption .content.selected {\r\n	display: block;\r\n}\r\n\r\n#GraphicsOption .reset-windows-button {\r\n	background: #2f5d9e;\r\n	border: 1px solid #1f3f70;\r\n	color: white;\r\n	padding: 4px 8px;\r\n	cursor: pointer;\r\n	margin: 10px;\r\n}\r\n#GraphicsOption .reset-button {\r\n	background: #8b0000;\r\n	border: 1px solid #a52a2a;\r\n	color: white;\r\n	padding: 4px 8px;\r\n	cursor: pointer;\r\n	margin: 10px;\r\n}\r\n";
 });
 //#endregion
 //#region src/UI/Components/GraphicsOption/GraphicsOption.js
@@ -195986,6 +196070,22 @@ function onTabSwitch(event) {
   const targetTab = root.querySelector("#" + tabName);
   if (targetTab) targetTab.classList.add("selected");
 }
+function onResetWindowPositions() {
+  Preferences.resetWindowPositions();
+  for (const component of Object.values(UIManager.components)) {
+    const state = component._lastroWindowState;
+    if (state) state.resetPosition();
+    else {
+      const defaults = Preferences.registry[component.name]?.defaults;
+      const host = component._host;
+      if (host && host.isConnected && defaults && Number.isFinite(defaults.x) && Number.isFinite(defaults.y)) {
+        host.style.left = defaults.x + "px";
+        host.style.top = defaults.y + "px";
+      }
+    }
+  }
+  ChatBox_default.addText("窗口位置已重置。", ChatBox_default.TYPE.BLUE, ChatBox_default.FILTER.PUBLIC_LOG);
+}
 function onResetToDefaults() {
   const defaultSettings = GraphicsSettings.defaults;
   Object.keys(defaultSettings).forEach((key) => {
@@ -196049,6 +196149,9 @@ var init_GraphicsOption = __esmMin(() => {
     const resetBtn = root.querySelector(".reset-button");
     if (resetBtn)
       resetBtn.addEventListener("click", onResetToDefaults.bind(this));
+    const resetWindowsBtn = root.querySelector(".reset-windows-button");
+    if (resetWindowsBtn)
+      resetWindowsBtn.addEventListener("click", onResetWindowPositions);
     const bindChange = (selector, handler) => {
       const el = root.querySelector(selector);
       if (el) el.addEventListener("change", handler);
@@ -202574,7 +202677,7 @@ function onItemInfo$16(event) {
     : InventoryController.getUI().getItemByIndex(ITID);
   if (!item) return;
   if (ItemCompare_default.ui) ItemCompare_default.remove();
-  if (ItemInfo_default.uid === item.ITID) {
+  if (ItemInfo_default.isShowing(item)) {
     ItemInfo_default.remove();
     if (ItemCompare_default.ui) ItemCompare_default.remove();
     return;
@@ -203568,7 +203671,7 @@ function onItemInfo$15(event) {
     : InventoryController.getUI().getItemByIndex(ITID);
   if (!item) return false;
   if (ItemCompare_default.ui) ItemCompare_default.remove();
-  if (ItemInfo_default.uid === item.ITID) {
+  if (ItemInfo_default.isShowing(item)) {
     ItemInfo_default.remove();
     if (ItemCompare_default.ui) ItemCompare_default.remove();
     return false;
@@ -204453,7 +204556,7 @@ function hideHoverOverlay() {
 }
 function showItemInfo(item) {
   if (!item) return false;
-  if (ItemInfo_default.uid === item.ITID) {
+  if (ItemInfo_default.isShowing(item)) {
     ItemInfo_default.remove();
     return false;
   }
@@ -205633,7 +205736,7 @@ function onEnchantResult(pkt) {
     if (
       ItemInfo_default.ui &&
       ItemInfo_default.ui.is(":visible") &&
-      ItemInfo_default.uid === EnchantState.pending.item.ITID
+      ItemInfo_default.isShowing(EnchantState.pending.item)
     )
       ItemInfo_default.setItem(EnchantState.pending.item);
   }
@@ -206233,7 +206336,7 @@ function onItemInfo$14(event) {
   const index = parseInt(el.getAttribute("data-index"), 10);
   const item = WriteRodex.getItemByIndex(index);
   if (!item) return;
-  if (ItemInfo_default.uid === item.ITID) {
+  if (ItemInfo_default.isShowing(item)) {
     ItemInfo_default.remove();
     return;
   }
@@ -207469,7 +207572,7 @@ _preferences.magnet_right = this.magnet.RIGHT;
       transferItemToOtherUI(item);
       return false;
     }
-    if (ItemInfo_default.uid === item.ITID) {
+    if (ItemInfo_default.isShowing(item)) {
       ItemInfo_default.remove();
       if (favoriteTab && ItemCompare_default.ui) ItemCompare_default.remove();
       return false;
@@ -208584,7 +208687,7 @@ return;
       Component.transferItemToOtherUI(_list[i]);
       return false;
     }
-    if (ItemInfo_default.uid === _list[i].ITID) ItemInfo_default.remove();
+    if (ItemInfo_default.isShowing(_list[i])) ItemInfo_default.remove();
     ItemInfo_default.append();
     ItemInfo_default.uid = _list[i].ITID;
     ItemInfo_default.setItem(_list[i]);
@@ -208894,7 +208997,7 @@ var init_StorageFilter = __esmMin(() => {
         this.onTransferItemToOtherUI(item);
       return false;
     }
-    if (ItemInfo_default.uid === item.ITID) ItemInfo_default.remove();
+    if (ItemInfo_default.isShowing(item)) ItemInfo_default.remove();
     ItemInfo_default.append();
     ItemInfo_default.uid = item.ITID;
     ItemInfo_default.setItem(item);
@@ -209237,7 +209340,7 @@ function onItemInfo$13(event) {
     transferItemToOtherUI(item);
     return false;
   }
-  if (ItemInfo_default.uid === item.ITID) {
+  if (ItemInfo_default.isShowing(item)) {
     ItemInfo_default.remove();
     if (ItemCompare_default.ui) ItemCompare_default.remove();
     return false;
@@ -210448,7 +210551,7 @@ _preferences.x = parseInt(this._host.style.left, 10);
     const index = parseInt(this.getAttribute("data-index"), 10);
     const item = _list[index];
     if (item) {
-      if (ItemInfo_default.uid === item.ITID) ItemInfo_default.remove();
+      if (ItemInfo_default.isShowing(item)) ItemInfo_default.remove();
       else {
         ItemInfo_default.append();
         ItemInfo_default.uid = item.ITID;
@@ -210855,6 +210958,49 @@ var ItemInfo_exports = /* @__PURE__ */ __exportAll({
   default: () => ItemInfo_default,
 });
 /**
+ * Identify one concrete item instance. Two pieces of equipment can share an ITID
+ * while differing in refine, cards or options, so ITID alone cannot tell
+ * "showing this item again" from "showing another copy".
+ *
+ * @param {object} item
+ * @return {string}
+ */
+function lastroItemInfoSignature(item) {
+  const slot = item.slot
+    ? [item.slot.card1, item.slot.card2, item.slot.card3, item.slot.card4].join(",")
+    : "";
+  const options = Array.isArray(item.Options)
+    ? item.Options.map((option) => (option ? `${option.index}:${option.value}` : "")).join(",")
+    : "";
+  return [
+    item.ITID,
+    item.index ?? "",
+    item.RefiningLevel ?? "",
+    slot,
+    options,
+    item.IsIdentified ? 1 : 0,
+    item.enchantgrade ?? "",
+  ].join("|");
+}
+/**
+ * Right-click on an item: open its details, or close them when that exact item
+ * is already shown.
+ *
+ * @param {object} item
+ * @return {boolean} whether an item was given
+ */
+function lastroToggleItemInfo(item) {
+  if (!item || !item.ITID) return false;
+  if (ItemInfo_default.isShowing(item)) {
+    ItemInfo_default.remove();
+    return true;
+  }
+  ItemInfo_default.append();
+  ItemInfo_default.uid = item.ITID;
+  ItemInfo_default.setItem(item);
+  return true;
+}
+/**
  * Helper: escape HTML keeping whitelisted tags
  */
 function _escapeHTML$1(text) {
@@ -211133,7 +211279,7 @@ function onItemPreview(pkt) {
     const item = InventoryController.getUI().getItemByIndex(pkt.index);
     if (!item) return false;
     if (ItemCompare_default.ui) ItemCompare_default.remove();
-    if (ItemInfo.uid === item.ITID) {
+    if (ItemInfo.isShowing(item)) {
       ItemInfo.remove();
       if (ItemCompare_default.ui) ItemCompare_default.remove();
       return false;
@@ -211206,6 +211352,15 @@ var init_ItemInfo = __esmMin(() => {
    * @let {number} ItemInfo unique id
    */
   ItemInfo.uid = -1;
+  /**
+   * Whether this exact item instance is the one currently displayed.
+   */
+  ItemInfo.isShowing = function isShowing(item) {
+    return (
+      this.uid === item.ITID &&
+      this._lastroSig === lastroItemInfoSignature(item)
+    );
+  };
   MOVE_INFO_MESSAGES = [
     {
       key: "Drop",
@@ -211262,6 +211417,7 @@ var init_ItemInfo = __esmMin(() => {
    */
   ItemInfo.onRemove = function onRemove() {
     this.uid = -1;
+    this._lastroSig = null;
     ItemInfo.hideMoveInfoTooltip();
     if (ItemCompare_default.ui) ItemCompare_default.remove();
     if (ItemPreview_default.ui) ItemPreview_default.remove();
@@ -211299,6 +211455,7 @@ var init_ItemInfo = __esmMin(() => {
    * @param {object} item
    */
   ItemInfo.setItem = function setItem(item) {
+    this._lastroSig = lastroItemInfoSignature(item);
     const it = DB.getItemInfo(item.ITID);
     const root = ItemInfo.getRoot();
     const cardList = root.querySelector(".cardlist .border");
@@ -276017,7 +276174,7 @@ function onItemInfo$12(event, itemEl) {
     event.preventDefault();
     return;
   }
-  if (ItemInfo_default.uid === item.ITID) ItemInfo_default.remove();
+  if (ItemInfo_default.isShowing(item)) ItemInfo_default.remove();
   ItemInfo_default.append();
   ItemInfo_default.uid = item.ITID;
   ItemInfo_default.setItem(item);
@@ -283871,7 +284028,8 @@ function installLastroItemDrag({ document: doc, mouse, cursor, isEnabled }) {
   function pulse(time) {
     frame = undefined;
     if (!gesture?.started) return;
-    if (!gesture.source.isConnected || doc.hidden || !isEnabled()) { cancel(); return; }
+    // The payload was captured at dragstart; a redrawn source row must not end the drag.
+    if (doc.hidden || !isEnabled()) { cancel(); return; }
     if (time - lastOver >= 50) { lastOver = time; hover(gesture); }
     if (gesture?.started) frame = win.requestAnimationFrame(pulse);
   }
@@ -283895,7 +284053,7 @@ function installLastroItemDrag({ document: doc, mouse, cursor, isEnabled }) {
     if (!state) return;
     try {
       if (state.started) {
-        if (drop && state.source.isConnected && state.target?.isConnected && state.accepted)
+        if (drop && state.target?.isConnected && state.accepted)
           emit(state.target, 'drop', state, state.at);
         else state.transfer.dropEffect = 'none';
         if (state.target) emit(state.target, 'dragleave', state, state.at);
@@ -283975,7 +284133,7 @@ function installLastroItemDrag({ document: doc, mouse, cursor, isEnabled }) {
   });
   listen(win, 'mousemove', event => {
     if (!gesture) return;
-    if (event.buttons !== 1 || !gesture.source.isConnected || !isEnabled()) { cancel(); return; }
+    if (event.buttons !== 1 || !isEnabled()) { cancel(); return; }
     gesture.at = point(event);
     if (!gesture.started && Math.hypot(gesture.at.x - gesture.start.x, gesture.at.y - gesture.start.y) >= 5) begin(gesture);
     if (gesture?.started) {
@@ -284029,7 +284187,9 @@ function installLastroItemDrag({ document: doc, mouse, cursor, isEnabled }) {
   listen(win, 'pointercancel', cancel);
   listen(doc, 'visibilitychange', () => { if (doc.hidden) cancel(); });
   const observer = new win.MutationObserver(() => {
-    if (gesture && !gesture.source.isConnected) cancel();
+    // Before dragstart the source row is still the thing being pressed; once the
+    // drag runs it carries its own data and may be redrawn freely.
+    if (gesture && !gesture.started && !gesture.source.isConnected) cancel();
   });
   observer.observe(doc.body, { childList: true, subtree: true });
   const api = { cancel, active: () => !!gesture?.started,
@@ -285081,6 +285241,21 @@ function lastroUiWindowAppend(component, preferences, append, snapshot, options 
         fit();
       },
       save, fit,
+      /** Drop the saved position and return to the window's default one. */
+      resetPosition() {
+        delete geometry.left; delete geometry.top;
+        const defaults = Preferences.registry?.[preferences._key]?.defaults;
+        applying = true;
+        if (defaults && Number.isFinite(defaults.x) && Number.isFinite(defaults.y)) {
+          host.style.left = defaults.x + 'px'; host.style.top = defaults.y + 'px';
+          preferences.x = defaults.x; preferences.y = defaults.y;
+        } else {
+          host.style.removeProperty('left'); host.style.removeProperty('top');
+        }
+        applying = false; observer.takeRecords(); applied = {};
+        if (host.isConnected && host.style.display !== 'none') { save(); fit(); }
+        else persist();
+      },
       dispose() {
         win.clearTimeout(timer); observer.disconnect(); ancestors.disconnect();
         host.removeEventListener('mouseup', interactionEnd);
@@ -285813,6 +285988,10 @@ var init_GUIComponent = __esmMin(() => {
     _setupMouseMode() {
       const element = this.__mouseStopBlock || this._host;
       if (this.mouseMode === GUIComponent.MouseMode.STOP) {
+        // Lets the world click handlers ask "is the pointer on a window?" from
+        // the event itself instead of the enter/leave counter below, which falls
+        // out of step when a window appears or moves under a still cursor.
+        element.setAttribute("data-lastro-stop", "");
         let _intersect;
         let _enter = 0;
         element.addEventListener("mouseenter", () => {
@@ -290932,6 +291111,9 @@ function onMouseUpCapture(event) {
  * What to do when clicking on the map ?
  */
 function onMouseDown(event) {
+  // A click that went through a window belongs to that window and must never
+  // move the character, whatever the enter/leave bookkeeping currently says.
+  if (event?.composedPath?.().some((node) => node?.hasAttribute?.("data-lastro-stop"))) return false;
   if ((event.which || (event.button === 2 ? 3 : 1)) === 1 && lastroVendingShoppingActive()) return false;
   const action = (event && event.which) || 1;
   if (action === 1) MapControl._lastroMovementInput?.cancel();
@@ -291034,6 +291216,7 @@ function onMouseDown(event) {
 function onMouseUp(event) {
   let entity, ET;
   const action = (event && event.which) || 1;
+  if (event?.composedPath?.().some((node) => node?.hasAttribute?.("data-lastro-stop"))) return;
   if (!Mouse.intersect) return;
   switch (action) {
     case 1:
@@ -291526,16 +291709,9 @@ function onDrop$5(event) {
 function onItemInfo$11(event) {
   event.stopImmediatePropagation();
   event.preventDefault();
-  const index = parseInt(this.parentNode.getAttribute("data-index"), 10);
-  const item = _input$1[index];
-  if (!item) return;
-  if (ItemInfo_default.uid === item.ITID) {
-    ItemInfo_default.remove();
-    return;
-  }
-  ItemInfo_default.append();
-  ItemInfo_default.uid = item.ITID;
-  ItemInfo_default.setItem(item);
+  // `this` is the clicked .item row.
+  const index = parseInt(this.getAttribute("data-index"), 10);
+  lastroToggleItemInfo(_input$1[index]);
 }
 function onItemSelected$1() {
   if (_type$3 === Vending.Type.BUY || _type$3 === Vending.Type.VENDING_STORE)
@@ -291734,8 +291910,8 @@ var init_Vending = __esmMin(() => {
     if (extendBtn) extendBtn.addEventListener("mousedown", onResizeInput);
     root.querySelectorAll(".content").forEach((content) => {
       content.addEventListener("contextmenu", (e) => {
-        const icon = e.target.closest(".icon");
-        if (icon) onItemInfo$11.call(icon, e);
+        const itemEl = e.target.closest(".item");
+        if (itemEl) onItemInfo$11.call(itemEl, e);
       });
       content.addEventListener("wheel", (e) => {
         onScroll$4.call(content, e);
@@ -292145,7 +292321,7 @@ function onItemInfo$10(event, itemEl) {
   const index = parseInt(itemEl.getAttribute("data-index"), 10);
   const item = VendingShop.getItemByIndex(index);
   if (!item) return;
-  if (ItemInfo_default.uid === item.ITID) {
+  if (ItemInfo_default.isShowing(item)) {
     ItemInfo_default.remove();
     return;
   }
@@ -292617,7 +292793,7 @@ function onItemInfo$9(event) {
   const index = parseInt(this.getAttribute("data-id"), 10);
   const item = VendingReport.getItemByIndex(index);
   if (!item) return;
-  if (ItemInfo_default.uid === item.ITID) {
+  if (ItemInfo_default.isShowing(item)) {
     ItemInfo_default.remove();
     return;
   }
@@ -295605,7 +295781,7 @@ function onItemInfo$7(element) {
  */
 function showItemPreview(item) {
   if (ItemCompare_default.ui) ItemCompare_default.remove();
-  if (ItemInfo_default.uid === item.ITID) {
+  if (ItemInfo_default.isShowing(item)) {
     ItemInfo_default.remove();
     if (ItemCompare_default.ui) ItemCompare_default.remove();
     return;
@@ -296350,7 +296526,7 @@ function onItemInfo$6(event) {
   const item = InventoryController.getUI().getItemByIndex(idx);
   if (!item) return;
   if (ItemCompare_default.ui) ItemCompare_default.remove();
-  if (ItemInfo_default.uid === item.ITID) {
+  if (ItemInfo_default.isShowing(item)) {
     ItemInfo_default.remove();
     if (ItemCompare_default.ui) ItemCompare_default.remove();
     return;
@@ -297026,7 +297202,7 @@ function onItemInfo$5(event) {
   const item = InventoryController.getUI().getItemByIndex(idx);
   if (!item) return;
   if (ItemCompare_default.ui) ItemCompare_default.remove();
-  if (ItemInfo_default.uid === item.ITID) {
+  if (ItemInfo_default.isShowing(item)) {
     ItemInfo_default.remove();
     if (ItemCompare_default.ui) ItemCompare_default.remove();
     return;
@@ -298936,7 +299112,7 @@ function createPlayerViewEquip({
         const index = parseInt(itemEl.getAttribute("data-index"), 10);
         const item = _list[index];
         if (item) {
-          if (ItemInfo_default.uid === item.ITID) ItemInfo_default.remove();
+          if (ItemInfo_default.isShowing(item)) ItemInfo_default.remove();
           else {
             ItemInfo_default.append();
             ItemInfo_default.uid = item.ITID;
@@ -299402,9 +299578,10 @@ var init_LastROTools$1 = __esmMin(() => {
   LastROTools_default =
     ':host {\n right: 12px; bottom: 12px; width: 420px; max-width: calc(100vw - 24px);\n max-height: calc(100vh - 24px); box-sizing: border-box;\n font-family: \'MiSans\', Arial, \'Liberation Sans\', \'Microsoft YaHei\', sans-serif;\n font-size: 12px; color: #e6ecf4;\n}\n[hidden] { display: none !important; }\n.lastro-tools {\n box-sizing: border-box; width: 100%; padding: 11px;\n border: 1px solid rgba(148, 168, 196, 0.22); border-radius: 10px;\n background: #1a212d; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.42);\n}\n.lastro-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; padding-bottom: 9px; border-bottom: 1px solid rgba(148, 168, 196, 0.12); }\n.lastro-header-title { min-width: 0; }\n.lastro-header strong { display: block; font-size: 13.5px; line-height: 1.3; }\n.lastro-header-state { display: block; margin-top: 1px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #7d8ea3; font-size: 11px; }\n.lastro-header-actions { display: flex; gap: 5px; flex: 0 0 auto; }\n.lastro-icon-button {\n display: inline-grid; place-items: center; width: 27px; height: 25px; padding: 0;\n border: 1px solid rgba(148, 168, 196, 0.22); border-radius: 6px;\n background: #26313f; color: #c6d3e0; cursor: pointer; font-size: 13px; line-height: 1;\n}\n.lastro-icon-button:hover { background: #304050; border-color: rgba(232, 184, 75, 0.5); color: #fff; }\n.lastro-icon-close:hover { background: #432624; border-color: rgba(226, 106, 90, 0.6); color: #ffb4a8; }\n.lastro-icon-settings { font-size: 12px; }\n.lastro-button {\n min-height: 28px; padding: 4px 10px; border: 1px solid rgba(148, 168, 196, 0.22);\n border-radius: 6px; background: #26313f; color: #e6ecf4; cursor: pointer;\n font: inherit; font-size: 12px; white-space: nowrap;\n}\n.lastro-button:hover { background: #304050; border-color: rgba(232, 184, 75, 0.45); }\n.lastro-primary { background: #e8b84b; border-color: #c99a26; color: #241a06; font-weight: 700; }\n.lastro-primary:hover { background: #f2c457; }\n.lastro-button:focus-visible, .lastro-icon-button:focus-visible, .lastro-tab:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(232, 184, 75, 0.4); }\n.lastro-compact-status { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px; padding: 7px 9px; border: 1px solid rgba(148, 168, 196, 0.2); border-radius: 8px; background: #202a38; }\n.lastro-compact-status [data-compact-status-text] { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #c6d3e0; font-size: 11px; }\n.lastro-compact-status .lastro-button { min-height: 25px; padding: 3px 10px; }\n.lastro-tools.is-collapsed > *:not(.lastro-compact-status) { display: none !important; }\n.lastro-quick-toggles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-bottom: 8px; }\n.lastro-quick-toggles label { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 6px 8px; border: 1px solid rgba(148, 168, 196, 0.12); border-radius: 6px; background: #18202c; font-size: 11.5px; cursor: pointer; }\n.lastro-switch { appearance: none; -webkit-appearance: none; flex: 0 0 30px; width: 30px; height: 17px; margin: 0; border-radius: 999px; background: #3a4a60; cursor: pointer; position: relative; transition: background 0.15s; }\n.lastro-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: #cfd9e4; transition: transform 0.15s; }\n.lastro-switch:checked { background: #e8b84b; }\n.lastro-switch:checked::after { transform: translateX(13px); background: #241a06; }\n.lastro-card { padding: 9px 10px; border: 1px solid rgba(148, 168, 196, 0.12); border-radius: 8px; background: #202a38; }\n.lastro-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }\n.lastro-card-heading strong { font-size: 12.5px; }\n.lastro-card-heading span { display: block; margin-top: 1px; color: #7d8ea3; font-size: 10.5px; font-weight: 400; }\n.lastro-quick-controls { display: grid; grid-template-columns: 1fr 1.4fr auto; gap: 6px; align-items: end; margin-top: 8px; }\n.lastro-quick-controls label { display: grid; gap: 3px; color: #7d8ea3; font-size: 10.5px; }\n.lastro-quick:not(.expanded) .lastro-quick-controls, .lastro-quick:not(.expanded) .lastro-route-status { display: none; }\n.lastro-route-status { margin-top: 6px; min-height: 14px; color: #9db0c5; font-size: 10.5px; }\n.lastro-route-status::before { content: "\\00b7"; margin-right: 5px; color: #e8b84b; }\n.lastro-status { margin-top: 7px; min-height: 14px; color: #9db0c5; font-size: 10.5px; }\n.lastro-status:not(:empty)::before { content: "\\00b7"; margin-right: 5px; color: #63d68e; }\n.lastro-settings-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }\n.lastro-settings-bar strong { font-size: 13px; }\n.lastro-settings-bar span { display: block; margin-top: 1px; color: #7d8ea3; font-size: 10.5px; }\n.lastro-tabs { display: flex; gap: 2px; padding: 3px; margin-bottom: 9px; border: 1px solid rgba(148, 168, 196, 0.12); border-radius: 7px; background: #18202c; position: sticky; top: 0; z-index: 2; }\n.lastro-tab { flex: 1; min-width: 0; padding: 6px 2px; border: none; border-radius: 5px; background: transparent; color: #9db0c5; cursor: pointer; font: inherit; font-size: 12px; }\n.lastro-tab:hover { color: #e6ecf4; }\n.lastro-tab.is-active { background: #2c3a4e; color: #fff; font-weight: 600; box-shadow: inset 0 -2px 0 #e8b84b; }\n.lastro-settings-body { display: grid; gap: 8px; }\n.lastro-group { padding: 8px 10px; border: 1px solid rgba(148, 168, 196, 0.12); border-radius: 8px; background: #202a38; }\n.lastro-group-title { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; color: #e8b84b; font-size: 11.5px; font-weight: 600; }\n.lastro-group-title::after { content: ""; flex: 1; height: 1px; background: rgba(148, 168, 196, 0.12); }\n.lastro-line { display: flex; align-items: center; gap: 7px; min-height: 29px; min-width: 0; color: #cdd9e6; font-size: 12px; }\n.lastro-line .lt-controls { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 6px; }\n.lastro-line .lt-unit { color: #7d8ea3; font-size: 11px; flex: 0 0 auto; }\n.lastro-line > select { margin-left: auto; flex: 0 1 210px; min-width: 130px; }\n.lastro-line > input[type="checkbox"] { margin-left: auto; }\n.lastro-help { margin: 2px 0 4px; color: #7d8ea3; font-size: 10.5px; line-height: 1.45; }\n.lastro-assist-list { display: flex; flex-wrap: wrap; gap: 4px; min-height: 18px; margin-bottom: 4px; }\n.lastro-assist-chip { padding: 2px 8px; border: 1px solid rgba(232, 184, 75, 0.35); border-radius: 999px; background: rgba(232, 184, 75, 0.12); color: #f0d9a6; font-size: 10.5px; }\n.lastro-assist-submit { min-height: 26px; padding: 3px 10px; }\n.lastro-slot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }\n.only-targets { display: grid; gap: 5px; }\n.only-targets strong { font-size: 12px; }\n.only-targets > span { color: #7d8ea3; font-size: 10.5px; }\n.only-targets [data-targets] { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; max-height: 132px; overflow-y: auto; padding: 6px; border: 1px dashed rgba(148, 168, 196, 0.22); border-radius: 7px; }\n.only-targets [data-targets] label { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #cdd9e6; line-height: 18px; }\n.lastro-tools select, .lastro-tools input[type="text"], .lastro-tools input[type="number"] {\n box-sizing: border-box; width: 100%; min-width: 0; height: 27px; padding: 2px 7px;\n border: 1px solid #3a4a60; border-radius: 5px; background: #10161f; color: #e6ecf4;\n font: inherit; font-size: 12px;\n}\n.lastro-tools select:focus, .lastro-tools input:focus { outline: none; border-color: #e8b84b; box-shadow: 0 0 0 2px rgba(232, 184, 75, 0.2); }\n.lastro-tools input[type="checkbox"] { width: 15px; height: 15px; margin: 0; accent-color: #e8b84b; cursor: pointer; flex: 0 0 15px; }\n.lastro-tools input[type=checkbox].lastro-switch { width: 30px; height: 17px; flex: 0 0 30px; border-radius: 999px; }\n.lastro-line .lt-controls input[type="number"] { flex: 1 1 70px; width: auto; }\n.lastro-line .lt-controls input.lt-small { flex: 0 0 60px; width: 60px; }\n.lastro-line .lt-controls select { flex: 1 1 auto; }\n.lastro-line .lt-controls input[type="checkbox"] { flex: 0 0 15px; }\n[data-targets]::-webkit-scrollbar { width: 8px; }\n[data-targets]::-webkit-scrollbar-thumb { background: #33445c; border-radius: 99px; }\n@media (max-width: 480px) {\n :host { right: 8px !important; bottom: 8px !important; width: calc(100vw - 16px) !important; }\n .lastro-quick-toggles { grid-template-columns: repeat(2, minmax(0, 1fr)); }\n .lastro-quick-controls { grid-template-columns: 1fr 1fr; }\n .lastro-quick-controls .lastro-primary { grid-column: 1 / -1; }\n .lastro-slot-grid, .only-targets [data-targets] { grid-template-columns: 1fr; }\n}';
   LastROTools_default += `
-.lastro-quick-controls.is-custom { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, .65fr) minmax(0, .65fr); grid-template-areas: "category picker picker picker" "map map x y" "go go save save"; }
+.lastro-quick-controls.is-custom { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, .65fr) minmax(0, .65fr); grid-template-areas: "category picker picker picker" "name name name name" "map map x y" "go go save save"; }
 .lastro-quick-controls.is-custom .quick-category-field { grid-area: category; }
 .lastro-quick-controls.is-custom .quick-custom-picker { grid-area: picker; }
+.lastro-quick-controls.is-custom .quick-custom-name { grid-area: name; }
 .lastro-quick-controls.is-custom .quick-custom-map { grid-area: map; }
 .lastro-quick-controls.is-custom .quick-custom-x { grid-area: x; }
 .lastro-quick-controls.is-custom .quick-custom-y { grid-area: y; }
@@ -299419,6 +299596,8 @@ var init_LastROTools$1 = __esmMin(() => {
 .quick-place-picker-heading { padding: 3px 5px; color: #e8b84b; font-size: 10.5px; font-weight: 600; }
 .quick-place-picker-row { display: grid; grid-template-columns: minmax(0, 1fr) 30px; gap: 4px; margin-top: 3px; }
 .quick-place-picker-item { width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.quick-place-picker-item .quick-place-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.quick-place-picker-item .quick-place-coords { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #7d8ea3; font-size: 10px; }
 .quick-place-picker-delete { min-width: 30px; padding: 3px; color: #e89a8e; font-size: 14px; }
 .quick-place-picker-empty { padding: 4px 5px; color: #7d8ea3; font-size: 10.5px; }
 @media (max-width: 480px) {
@@ -299543,7 +299722,7 @@ function patchLastROToolsTemplate() {
 <label><span>补给</span><input type="checkbox" class="lastro-switch" data-option="autoPots"></label>
 <label><span>跟随</span><input type="checkbox" class="lastro-switch" data-option="autoFollow"></label>
 </div>
-<section class="lastro-quick lastro-card expanded"><div class="lastro-card-heading"><div><strong>快速传送</strong><span>选择分类和目标后直接前往</span></div><button type="button" class="lastro-icon-button" data-action="quick" aria-label="展开或收起快速传送">⌄</button></div><div class="lastro-quick-controls"><label class="quick-category-field">分类<select class="quick-category" aria-label="快速传送分类"></select></label><label class="quick-route-target">目标<select class="quick-route" aria-label="快速传送目标"></select></label><div class="quick-custom-field quick-custom-picker" hidden><label for="quick-place-picker-toggle">快捷点 / 最近传送</label><div class="quick-place-picker"><button id="quick-place-picker-toggle" type="button" class="lastro-button quick-place-picker-toggle" data-action="toggle-quick-place-picker" aria-expanded="false" aria-controls="quick-place-picker-menu"><span>选择快捷点或最近传送</span><span aria-hidden="true">⌄</span></button><div id="quick-place-picker-menu" class="quick-place-picker-menu" data-quick-place-menu role="group" aria-label="已保存快捷点和最近传送" hidden></div></div></div><label class="quick-custom-field quick-custom-map" hidden>地图名<input type="text" data-custom-route-map maxlength="16" placeholder="例如 prontera" autocomplete="off"></label><label class="quick-custom-field quick-custom-x" hidden>X 坐标<input type="number" data-custom-route-x min="0" max="65535" step="1" inputmode="numeric"></label><label class="quick-custom-field quick-custom-y" hidden>Y 坐标<input type="number" data-custom-route-y min="0" max="65535" step="1" inputmode="numeric"></label><button type="button" class="lastro-button lastro-primary" data-action="run-quick">前往</button><button type="button" class="lastro-button quick-save-place" data-action="save-quick-place" hidden>保存为快捷点</button></div><div class="lastro-route-status" data-route-status>尚未选择路线</div></section>
+<section class="lastro-quick lastro-card expanded"><div class="lastro-card-heading"><div><strong>快速传送</strong><span>选择分类和目标后直接前往</span></div><button type="button" class="lastro-icon-button" data-action="quick" aria-label="展开或收起快速传送">⌄</button></div><div class="lastro-quick-controls"><label class="quick-category-field">分类<select class="quick-category" aria-label="快速传送分类"></select></label><label class="quick-route-target">目标<select class="quick-route" aria-label="快速传送目标"></select></label><div class="quick-custom-field quick-custom-picker" hidden><label for="quick-place-picker-toggle">快捷点 / 最近传送</label><div class="quick-place-picker"><button id="quick-place-picker-toggle" type="button" class="lastro-button quick-place-picker-toggle" data-action="toggle-quick-place-picker" aria-expanded="false" aria-controls="quick-place-picker-menu"><span>选择快捷点或最近传送</span><span aria-hidden="true">⌄</span></button><div id="quick-place-picker-menu" class="quick-place-picker-menu" data-quick-place-menu role="group" aria-label="已保存快捷点和最近传送" hidden></div></div></div><label class="quick-custom-field quick-custom-name" hidden>名称/备注<input type="text" data-custom-route-name maxlength="40" placeholder="可选，给这个坐标起个名字" autocomplete="off"></label><label class="quick-custom-field quick-custom-map" hidden>地图名<input type="text" data-custom-route-map maxlength="16" placeholder="例如 prontera" autocomplete="off"></label><label class="quick-custom-field quick-custom-x" hidden>X 坐标<input type="number" data-custom-route-x min="0" max="65535" step="1" inputmode="numeric"></label><label class="quick-custom-field quick-custom-y" hidden>Y 坐标<input type="number" data-custom-route-y min="0" max="65535" step="1" inputmode="numeric"></label><button type="button" class="lastro-button lastro-primary" data-action="run-quick">前往</button><button type="button" class="lastro-button quick-save-place" data-action="save-quick-place" hidden>保存为快捷点</button></div><div class="lastro-route-status" data-route-status>尚未选择路线</div></section>
 <div class="lastro-status" role="status"></div>
 </div>
 <div class="lastro-settings-view" hidden>
@@ -300828,6 +301007,16 @@ var init_LastROTools = __esmMin(() => {
   const LASTRO_QUICK_PLACE_STORAGE_KEY = "LastROToolsQuickPlaces.v1";
   const LASTRO_QUICK_PLACE_LIMIT = 500;
   const LASTRO_RECENT_QUICK_PLACE_LIMIT = 5;
+  const LASTRO_QUICK_PLACE_NAME_LIMIT = 40;
+  function normalizeLastROQuickPlaceName(value) {
+    return typeof value === "string"
+      ? value.replace(/\s+/g, " ").trim().slice(0, LASTRO_QUICK_PLACE_NAME_LIMIT)
+      : "";
+  }
+  /** Name to show first: the player's own label, else the coordinates. */
+  function lastROQuickPlaceLabel(place) {
+    return place.name || `${place.map} ${place.x},${place.y}`;
+  }
   function normalizeLastROQuickPlace(raw) {
     if (!raw || typeof raw !== "object" || typeof raw.map !== "string") return null;
     if (!["number", "string"].includes(typeof raw.x) || !["number", "string"].includes(typeof raw.y)
@@ -300837,7 +301026,8 @@ var init_LastROTools = __esmMin(() => {
     const y = Number(raw.y);
     if (!/^[a-z0-9_@#-]{1,16}$/.test(map) || !Number.isInteger(x) || !Number.isInteger(y)
       || x < 0 || y < 0 || x > 65535 || y > 65535) return null;
-    return { map, x, y };
+    const name = normalizeLastROQuickPlaceName(raw.name);
+    return name ? { map, x, y, name } : { map, x, y };
   }
   function lastROQuickPlaceKey(place) {
     return `${place.map}:${place.x}:${place.y}`;
@@ -300885,10 +301075,12 @@ var init_LastROTools = __esmMin(() => {
       }
       return value;
     };
+    const name = normalizeLastROQuickPlaceName(root?.querySelector("input[data-custom-route-name]")?.value);
     return {
       map,
       x: coordinate("input[data-custom-route-x]", "X 坐标"),
       y: coordinate("input[data-custom-route-y]", "Y 坐标"),
+      ...(name ? { name } : {}),
     };
   }
   function lastROCustomQuickRoute(place) {
@@ -300911,6 +301103,8 @@ var init_LastROTools = __esmMin(() => {
     if (!menu) return;
     const doc = root.ownerDocument;
     const places = readLastROQuickPlaces();
+    // A recent teleport to a saved point shows the point's own name.
+    const savedNames = new Map(places.saved.map((entry) => [lastROQuickPlaceKey(entry), entry.name]));
     menu.replaceChildren();
     for (const [kind, title, entries, emptyText] of [
       ["saved", "保存的快捷点", places.saved, "暂无保存的快捷点"],
@@ -300941,8 +301135,18 @@ var init_LastROTools = __esmMin(() => {
         select.dataset.map = place.map;
         select.dataset.x = String(place.x);
         select.dataset.y = String(place.y);
-        select.textContent = `${place.map} ${place.x},${place.y}`;
-        select.setAttribute("aria-label", `填入${title}：${place.map} ${place.x},${place.y}`);
+        const placeName = place.name || savedNames.get(lastROQuickPlaceKey(place)) || "";
+        if (placeName) {
+          select.dataset.name = placeName;
+          const nameEl = doc.createElement("span");
+          nameEl.className = "quick-place-name";
+          nameEl.textContent = placeName;
+          const coordsEl = doc.createElement("span");
+          coordsEl.className = "quick-place-coords";
+          coordsEl.textContent = `${place.map} ${place.x},${place.y}`;
+          select.append(nameEl, coordsEl);
+        } else select.textContent = `${place.map} ${place.x},${place.y}`;
+        select.setAttribute("aria-label", `填入${title}：${placeName ? placeName + " " : ""}${place.map} ${place.x},${place.y}`);
         const remove = doc.createElement("button");
         remove.type = "button";
         remove.className = "lastro-button quick-place-picker-delete";
@@ -300953,7 +301157,7 @@ var init_LastROTools = __esmMin(() => {
         remove.dataset.y = String(place.y);
         remove.textContent = "🗑";
         remove.title = "删除此条目";
-        remove.setAttribute("aria-label", `删除${title}：${place.map} ${place.x},${place.y}`);
+        remove.setAttribute("aria-label", `删除${title}：${placeName ? placeName + " " : ""}${place.map} ${place.x},${place.y}`);
         row.append(select, remove);
         group.appendChild(row);
       }
@@ -300967,8 +301171,13 @@ var init_LastROTools = __esmMin(() => {
     root.querySelector("input[data-custom-route-map]").value = place.map;
     root.querySelector("input[data-custom-route-x]").value = String(place.x);
     root.querySelector("input[data-custom-route-y]").value = String(place.y);
+    const nameInput = root.querySelector("input[data-custom-route-name]");
+    if (nameInput) {
+      const saved = readLastROQuickPlaces().saved.find((entry) => lastROQuickPlaceKey(entry) === lastROQuickPlaceKey(place));
+      nameInput.value = place.name || saved?.name || "";
+    }
     closeLastROQuickPlacePicker(root);
-    this.setStatus(`已填入传送点：${place.map} ${place.x},${place.y}`);
+    this.setStatus(`已填入传送点：${lastROQuickPlaceLabel(place)}（${place.map} ${place.x},${place.y}）`);
   };
   LastROTools.deleteQuickPlace = function deleteQuickPlace(kind, raw) {
     const place = normalizeLastROQuickPlace(raw);
@@ -300988,15 +301197,24 @@ var init_LastROTools = __esmMin(() => {
     try {
       const place = readLastROCustomQuickPlace(root);
       const places = readLastROQuickPlaces(), key = lastROQuickPlaceKey(place);
-      if (places.saved.some(entry => lastROQuickPlaceKey(entry) === key)) {
-        this.setStatus(`快捷点已存在：${place.map} ${place.x},${place.y}`);
+      const existing = places.saved.findIndex(entry => lastROQuickPlaceKey(entry) === key);
+      if (existing >= 0) {
+        // Same coordinates: saving again with another name renames the point.
+        if ((places.saved[existing].name || "") === (place.name || "")) {
+          this.setStatus(`快捷点已存在：${lastROQuickPlaceLabel(place)}（${place.map} ${place.x},${place.y}）`);
+          return;
+        }
+        places.saved[existing] = place;
+        writeLastROQuickPlaces(places);
+        this.renderQuickPlaceMenu();
+        this.setStatus(`已更新快捷点名称：${lastROQuickPlaceLabel(place)}（${place.map} ${place.x},${place.y}）`);
         return;
       }
       if (places.saved.length >= LASTRO_QUICK_PLACE_LIMIT) throw new Error("最多保存 500 个快捷点");
       places.saved.push(place);
       writeLastROQuickPlaces(places);
       this.renderQuickPlaceMenu();
-      this.setStatus(`已保存为快捷点：${place.map} ${place.x},${place.y}`);
+      this.setStatus(`已保存为快捷点：${lastROQuickPlaceLabel(place)}（${place.map} ${place.x},${place.y}）`);
     } catch (error) {
       this.setStatus(`保存快捷点失败：${error.message || "本地存储不可用"}`);
     }
@@ -301060,6 +301278,7 @@ var init_LastROTools = __esmMin(() => {
     const customPicker = root.querySelector(".quick-custom-picker");
     const savePlaceButton = root.querySelector('[data-action="save-quick-place"]');
     const customFields = [
+      root.querySelector(".quick-custom-name"),
       root.querySelector(".quick-custom-map"),
       root.querySelector(".quick-custom-x"),
       root.querySelector(".quick-custom-y"),
@@ -304066,8 +304285,17 @@ function onEntitySpam(pkt) {
     pkt.GID === SessionStorage_default.mercId
   )
     MercenaryInformations_default.startAI();
-  if (entity.objecttype === Entity.TYPE_MOB && pkt.isBoss)
+  if (entity.objecttype === Entity.TYPE_MOB && pkt.isBoss) {
     entity.mobtype = pkt.isBoss;
+    // Enlarge mini-boss (1) / MVP (2) sprites so they can still be clicked
+    // when surrounded by their minions. xSize/ySize 5 is the base scale and
+    // also drives the picking rectangle. Only applied while at the base size
+    // so size-changing statuses and repeated entry packets are left alone.
+    const bossScale = LASTRO_BOSS_SIZE_SCALE[pkt.isBoss];
+    if (bossScale && entity.xSize === 5 && entity.ySize === 5) {
+      entity.xSize = entity.ySize = 5 * bossScale;
+    }
+  }
   if (entity.GID in clanEmblems) {
     const clanId = clanEmblems[entity.GID];
     DB.loadClanEmblem(clanId, (image) => {
@@ -304792,6 +305020,8 @@ function onEntityIdentity(pkt) {
     if (EntityManager.getOverEntity() === entity) entity.display.add();
   }
 }
+// Display scale by ZC.NOTIFY_*ENTRY isBoss value: 1 = mini-boss, 2 = MVP.
+const LASTRO_BOSS_SIZE_SCALE = { 1: 2, 2: 2.5 };
 function updateEntityStyle(entity) {
   entity.display.update(
     entity.objecttype === Entity.TYPE_MOB
@@ -306814,6 +307044,17 @@ var init_ItemSelection = __esmMin(() => {
     root.querySelector("#ItemSelection").addEventListener("dblclick", (e) => {
       if (e.target.closest(".item")) ItemSelection.selectIndex();
     });
+    root.querySelector("#ItemSelection").addEventListener("contextmenu", (e) => {
+      const itemEl = e.target.closest(".item");
+      if (!itemEl || ItemSelection._lastroIsSkill) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      lastroToggleItemInfo(
+        InventoryController.getUI().getItemByIndex(
+          Math.floor(itemEl.getAttribute("data-index")),
+        ),
+      );
+    });
     root.querySelector("#ItemSelection").addEventListener("mousedown", (e) => {
       const item = e.target.closest(".item");
       if (item)
@@ -306833,6 +307074,7 @@ var init_ItemSelection = __esmMin(() => {
    * @param {Array} list object to display
    */
   ItemSelection.setList = function setList(list, isSkill) {
+    ItemSelection._lastroIsSkill = !!isSkill;
     const listEl = ItemSelection.getRoot().querySelector(".list");
     listEl.innerHTML = "";
     for (let i = 0, count = list.length; i < count; ++i)
@@ -307045,6 +307287,18 @@ var init_MakeItemSelection = __esmMin(() => {
       MakeItemSelection.index = -1;
       MakeItemSelection.selectIndex();
     });
+    root
+      .querySelector("#MakeItemSelection")
+      .addEventListener("contextmenu", (e) => {
+        const itemEl = e.target.closest(".list .item");
+        if (!itemEl) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        lastroToggleItemInfo({
+          ITID: Math.floor(itemEl.getAttribute("data-index")),
+          IsIdentified: true,
+        });
+      });
     root
       .querySelector("#MakeItemSelection")
       .addEventListener("mousedown", (e) => {
@@ -307401,7 +307655,7 @@ function onItemInfo$4(event) {
   event.stopImmediatePropagation();
   const i = getItemIndexById$1(parseInt(this.getAttribute("data-index"), 10));
   if (i === -1) return false;
-  if (ItemInfo_default.uid === ConvertItems.material[i].ITID)
+  if (ItemInfo_default.isShowing(ConvertItems.material[i]))
     ItemInfo_default.remove();
   ItemInfo_default.append();
   ItemInfo_default.uid = ConvertItems.material[i].ITID;
@@ -307824,7 +308078,7 @@ function onItemInfo$3(event) {
   event.stopImmediatePropagation();
   const i = getItemIndexById(parseInt(this.getAttribute("data-index"), 10));
   if (i === -1) return false;
-  if (ItemInfo_default.uid === ItemListWindowSelection.list[i].ITID)
+  if (ItemInfo_default.isShowing(ItemListWindowSelection.list[i]))
     ItemInfo_default.remove();
   ItemInfo_default.append();
   ItemInfo_default.uid = ItemListWindowSelection.list[i].ITID;
@@ -309048,7 +309302,7 @@ function onItemInfo$2(event) {
   event.stopImmediatePropagation();
   const item = _preferences$4.item_add_email;
   if (!item) return;
-  if (ItemInfo_default.uid === item.ITID) {
+  if (ItemInfo_default.isShowing(item)) {
     ItemInfo_default.remove();
     return;
   }
@@ -309877,6 +310131,18 @@ var init_MakeArrowSelection = __esmMin(() => {
       });
     root
       .querySelector("#MakeArrowSelection")
+      .addEventListener("contextmenu", (e) => {
+        const itemEl = e.target.closest(".item");
+        if (!itemEl) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        lastroToggleItemInfo({
+          ITID: Math.floor(itemEl.getAttribute("data-index")),
+          IsIdentified: true,
+        });
+      });
+    root
+      .querySelector("#MakeArrowSelection")
       .addEventListener("mousedown", (e) => {
         const item = e.target.closest(".item");
         if (item)
@@ -310040,6 +310306,17 @@ var init_RefineWeaponSelection = __esmMin(() => {
       .querySelector("#RefineWeaponSelection")
       .addEventListener("dblclick", (e) => {
         if (e.target.closest(".item")) RefineWeaponSelection.selectIndex();
+      });
+    root
+      .querySelector("#RefineWeaponSelection")
+      .addEventListener("contextmenu", (e) => {
+        const itemEl = e.target.closest(".item");
+        if (!itemEl) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        lastroToggleItemInfo(
+          RefineWeaponSelection.getItemByIndex(itemEl.getAttribute("data-index")),
+        );
       });
     root
       .querySelector("#RefineWeaponSelection")
@@ -311559,7 +311836,7 @@ function onItemInfo$1(event) {
   if (!item) return;
   item.ITID = ITID;
   item.IsIdentified = 1;
-  if (ItemInfo_default.uid === item.ITID) {
+  if (ItemInfo_default.isShowing(item)) {
     ItemInfo_default.remove();
     return;
   }
@@ -312796,6 +313073,22 @@ function _showAll(root, selector) {
  * @param {boolean} use color
  * @return {string}
  */
+/**
+ * Barter packets report the remaining exchange quota in `amount`; 0 and the
+ * 32-bit -1 sentinel mean the entry is unlimited.
+ *
+ * @param {object} item - barter list entry
+ * @returns {number} remaining quota, or 0 when unlimited/unknown
+ */
+function getBarterRemaining(item) {
+  const amount = Number(item.amount);
+  return amount > 0 && amount < 0x7fffffff ? amount : 0;
+}
+function formatBarterTitle(item) {
+  const remaining = getBarterRemaining(item);
+  const name = formatStoreItemName(item);
+  return remaining ? `${name} (剩余额度 ${remaining})` : name;
+}
 function formatStoreItemName(item) {
   const name = DB.getItemName(item);
   return name.replace(/(\[\s*\d+\s+)Option(?=\s*\])/g, "$1词条");
@@ -312887,7 +313180,7 @@ function addItem(content, item) {
       `</div><div class="name" title="${_escapeHTML(formatStoreItemName(item))}">${_escapeHTML(formatStoreItemName(item))}</div><div class="price">${price}</div><div class="unity">Z</div></div>`;
     content.insertAdjacentHTML("beforeend", html);
   } else if (_type === NpcStore.Type.BARTER_MARKET) {
-    const html = `<div class="item" draggable="true" data-index="${item.index}" data-weight="${item.weight}" data-location="${item.location}" data-viewSprite="${item.viewSprite}"><div class="icon"></div><div class="amount">${isFinite(item.count) ? item.count : ""}</div><div class="name" title="${_escapeHTML(formatStoreItemName(item))}">${_escapeHTML(formatStoreItemName(item))}</div><div class="currency_icon" data-item="${item.currencyITID}"></div><div class="currency_amount">${item.currencyamount}</div><div class="currency_nameOverlay">${_escapeHTML(DB.getItemName(currency_item))} ${item.currencyamount}${getItemCountUnit()}</div></div>`;
+    const html = `<div class="item" draggable="true" data-index="${item.index}" data-weight="${item.weight}" data-location="${item.location}" data-viewSprite="${item.viewSprite}"><div class="icon"></div><div class="amount">${isFinite(item.count) ? item.count : ""}</div><div class="name" title="${_escapeHTML(formatBarterTitle(item))}">${_escapeHTML(formatStoreItemName(item))}</div><div class="currency_icon" data-item="${item.currencyITID}"></div><div class="currency_amount">${item.currencyamount}</div><div class="currency_nameOverlay">${_escapeHTML(DB.getItemName(currency_item))} ${item.currencyamount}${getItemCountUnit()}</div></div>`;
     content.insertAdjacentHTML("beforeend", html);
   } else if (_type === NpcStore.Type.BARTER_MARKET_EXTENDED) {
     let currencySlotsHTML = "";
@@ -312904,7 +313197,7 @@ function addItem(content, item) {
           `</div>`;
         currencyOverlay += `${_escapeHTML(currencyItem.identifiedDisplayName)} ${currency.amount}${getItemCountUnit()}<br>`;
       }
-    const html = `<div class="item expanded-barter" draggable="true" data-index="${item.index}" data-weight="${item.weight}" data-location="${item.location}" data-viewSprite="${item.viewSprite}"><div class="expanded_currency_holder"><div class="icon"></div></div><div class="amount">${isFinite(item.count) ? item.count : ""}</div><div class="name" title="${_escapeHTML(formatStoreItemName(item))}">${_escapeHTML(formatStoreItemName(item))}</div><div class="currency_section">${currencySlotsHTML}</div><div class="expanded_price">${item.price}z</div><div class="expanded_currency_nameOverlay">${currencyOverlay}</div></div>`;
+    const html = `<div class="item expanded-barter" draggable="true" data-index="${item.index}" data-weight="${item.weight}" data-location="${item.location}" data-viewSprite="${item.viewSprite}"><div class="expanded_currency_holder"><div class="icon"></div></div><div class="amount">${isFinite(item.count) ? item.count : ""}</div><div class="name" title="${_escapeHTML(formatBarterTitle(item))}">${_escapeHTML(formatStoreItemName(item))}</div><div class="currency_section">${currencySlotsHTML}</div><div class="expanded_price">${item.price}z</div><div class="expanded_currency_nameOverlay">${currencyOverlay}</div></div>`;
     content.insertAdjacentHTML("beforeend", html);
     if (item.currencyList && item.currencyList.length > 0)
       for (let i = 0; i < item.currencyList.length; i++) {
@@ -313099,7 +313392,8 @@ function onDrop(event) {
  * Get informations about an item
  */
 function onItemInfo(event) {
-  const index = parseInt(this.parentNode.getAttribute("data-index"), 10);
+  // `this` is the clicked .item row; the whole row answers, not only its icon.
+  const index = parseInt(this.getAttribute("data-index"), 10);
   const item = _input[index];
   event.stopImmediatePropagation();
   if (!item) return false;
@@ -313113,13 +313407,14 @@ function onItemInfo(event) {
     transferSellItemStack(index);
     return false;
   }
-  if (ItemInfo_default.uid === item.ITID) {
-    ItemInfo_default.remove();
+  // Barter rows also list the items to hand in; those icons carry data-item.
+  const currencyEl = event.target.closest?.("[data-item]");
+  if (currencyEl && currencyEl !== this && this.contains(currencyEl)) {
+    const currencyITID = parseInt(currencyEl.getAttribute("data-item"), 10);
+    if (currencyITID) lastroToggleItemInfo({ ITID: currencyITID, IsIdentified: true });
     return false;
   }
-  ItemInfo_default.append();
-  ItemInfo_default.uid = item.ITID;
-  ItemInfo_default.setItem(item);
+  lastroToggleItemInfo(item);
   return false;
 }
 /**
@@ -313371,11 +313666,11 @@ var init_NpcStore = __esmMin(() => {
         onScroll.call(this, event);
       });
       content.addEventListener("contextmenu", (e) => {
-        const icon = e.target.closest(".icon");
-        if (icon) {
+        const itemEl = e.target.closest(".item");
+        if (itemEl) {
           e.preventDefault();
           e.stopImmediatePropagation();
-          onItemInfo.call(icon, e);
+          onItemInfo.call(itemEl, e);
         }
       });
       content.addEventListener("dblclick", (e) => {
@@ -313657,7 +313952,8 @@ lastroBindNestedWindowState(this, _preferences$2, () => getCurrentPref());
       case NpcStore.Type.BARTER_MARKET_EXTENDED:
         for (i = 0, count = items.length; i < count; ++i) {
           if (!("index" in items[i])) items[i].index = i;
-          items[i].count = items[i].count || Infinity;
+          items[i].count =
+            items[i].count || getBarterRemaining(items[i]) || Infinity;
           items[i].IsIdentified = true;
           out = Object.assign({}, items[i]);
           out.count = 0;
@@ -315152,6 +315448,19 @@ var init_ReadRodex = __esmMin(() => {
     root.querySelector(".reply").addEventListener("click", onClickReply);
     const content = root.querySelector(".item-list");
     content.innerHTML = "";
+    ReadRodex._lastroItems = data.ItemList;
+    if (!content._lastroInfoBound) {
+      content._lastroInfoBound = true;
+      content.addEventListener("contextmenu", (e) => {
+        const itemEl = e.target.closest(".item");
+        if (!itemEl) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        lastroToggleItemInfo(
+          ReadRodex._lastroItems?.[parseInt(itemEl.getAttribute("data-index"), 10)],
+        );
+      });
+    }
     for (let i = 0; i < data.ItemList.length; i++) {
       const item = data.ItemList[i];
       const it = DB.getItemInfo(item.ITID);
@@ -317040,6 +317349,7 @@ function onExitSuccess() {
 function onRestartRequest() {
   const pkt = new PACKET.CZ.RESTART();
   pkt.type = 1;
+  Network.expectZoneClose();
   Network.sendPacket(pkt);
 }
 /**
@@ -317063,13 +317373,14 @@ function onResurectionRequest() {
  * @param {object} pkt - PACKET.ZC.RESTART_ACK
  */
 function onRestartAnswer(pkt) {
-  if (!pkt.type)
+  if (!pkt.type) {
+    Network.cancelExpectedZoneClose();
     ChatBox_default.addText(
       DB.getMessage(502),
       ChatBox_default.TYPE.ERROR,
       ChatBox_default.FILTER.PUBLIC_LOG,
     );
-  else {
+  } else {
     GuildEngine.guild_id = 0;
     cleanGameUI();
     SessionStorage_default.Achievement = null;
@@ -318532,6 +318843,63 @@ var init_CharSelect$2 = __esmMin(() => {
 });
 //#endregion
 //#region src/UI/Components/CharSelect/CharSelectCommon.js
+// Marks the character the server asked to log in (HC.ACCEPT_ENTER2, 0x06B2).
+// The mark is informational only: entering the game stays the player's action.
+const LASTRO_SERVER_PICK_CSS = `
+#CharSelectV4 .char_canvas.lastro-pick::before {
+	content: "";
+	position: absolute;
+	inset: 6px 4px;
+	border: 2px solid #f0b429;
+	border-radius: 4px;
+	pointer-events: none;
+	z-index: 3;
+	animation: lastro-pick-glow 2.4s ease-in-out infinite;
+}
+#CharSelectV4 .lastro-pick-ribbon {
+	position: absolute;
+	left: 4px;
+	top: 10px;
+	z-index: 4;
+	padding: 1px 8px 1px 6px;
+	border-radius: 3px 10px 10px 3px;
+	background: #c98a00;
+	color: #fff;
+	font-size: 11px;
+	font-weight: bold;
+	letter-spacing: 0.04em;
+	pointer-events: none;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+#CharSelectV4 .lastro-pick-note {
+	position: absolute;
+	left: 8px;
+	top: 300px;
+	width: 168px;
+	padding: 5px 7px;
+	box-sizing: border-box;
+	border: 1px solid #c98a00;
+	border-radius: 4px;
+	background: #fff3cf;
+	color: #5c3d00;
+	font-size: 11.5px;
+	line-height: 1.45;
+}
+#CharSelectV4 .ok.lastro-pick-ring {
+	box-shadow: 0 0 0 3px rgba(240, 180, 41, 0.75);
+	border-radius: 3px;
+}
+@keyframes lastro-pick-glow {
+	0%, 100% { box-shadow: 0 0 6px 1px rgba(240, 180, 41, 0.55); }
+	50% { box-shadow: 0 0 0 3px rgba(240, 180, 41, 0.25), 0 0 14px 4px rgba(240, 180, 41, 0.75); }
+}
+@media (prefers-reduced-motion: reduce) {
+	#CharSelectV4 .char_canvas.lastro-pick::before {
+		animation: none;
+		box-shadow: 0 0 10px 3px rgba(240, 180, 41, 0.65);
+	}
+}
+`;
 function createCharSelect(config) {
   const {
     name,
@@ -318544,7 +318912,10 @@ function createCharSelect(config) {
     packetverGatedDelete = false,
     pageBalls = false,
   } = config;
-  const Component = new GUIComponent(name, cssText);
+  const Component = new GUIComponent(
+    name,
+    gridLayout ? cssText + LASTRO_SERVER_PICK_CSS : cssText,
+  );
   Component.render = () => htmlText;
   /**
    * @var {Preferences} save where the cursor position is
@@ -318590,8 +318961,17 @@ function createCharSelect(config) {
   let shouldRunBackgroundChange = false;
   let countdownInterval;
   let _bgInterval = null;
+  /**
+   * Character the server asked to log in (HC.ACCEPT_ENTER2), if any
+   * @type {{GID: number, name: string, CharNum: number}|null}
+   */
+  let _serverPick = null;
+  let _serverPickSelected = false;
   const render = gridLayout ? renderGrid : renderPaginated;
-  const moveCursorTo = gridLayout ? moveCursorToGrid : moveCursorToPaginated;
+  const moveCursorTo = (index) => {
+    (gridLayout ? moveCursorToGrid : moveCursorToPaginated)(index);
+    refreshServerPickNote();
+  };
   /**
    * Initialize UI
    */
@@ -318712,6 +319092,8 @@ function createCharSelect(config) {
    * Stop rendering
    */
   Component.onRemove = function onRemove() {
+    _serverPick = null;
+    _serverPickSelected = false;
     if (gridLayout) {
       if (_bgInterval) {
         clearInterval(_bgInterval);
@@ -318785,6 +319167,7 @@ function createCharSelect(config) {
    * @param {object} pkt - packet structure
    */
   Component.setInfo = function setInfo(pkt) {
+    _serverPickSelected = false;
     if (gridLayout) {
       Component.clearAllSlots();
       _maxSlots = Math.floor(pkt.TotalSlotNum + pkt.PremiumStartSlot || 15);
@@ -318793,6 +319176,7 @@ function createCharSelect(config) {
         for (let i = 0, count = pkt.charInfo.length; i < count; ++i)
           Component.addCharacter(pkt.charInfo[i]);
       moveCursorTo(_index);
+      applyServerPick();
       return;
     }
     const root = this.getRoot();
@@ -318814,6 +319198,7 @@ function createCharSelect(config) {
     if (!pageBalls)
       root.querySelector(".pageinfo .count").textContent = _maxSlots / 3;
     moveCursorTo(_index);
+    applyServerPick();
   };
   /**
    * Answer from server to delete a character
@@ -318946,6 +319331,7 @@ function createCharSelect(config) {
         ~StatusState_default.EffectState.INVISIBLE;
       _entitySlots[character.CharNum].hideShadow = true;
       Component.updateCharSlot(character.CharNum);
+      applyServerPick();
       return;
     }
     if (deleteReservation && character.DeleteDate) {
@@ -318992,6 +319378,81 @@ function createCharSelect(config) {
       }
     }
   };
+  /**
+   * Highlight the character the server picked for automatic login. Only the
+   * display changes; the player still confirms entering the game.
+   *
+   * @param {object|null} character - HC.ACCEPT_ENTER2 entity, or null to clear
+   */
+  Component.markServerChoice = function markServerChoice(character) {
+    _serverPick = character
+      ? { GID: character.GID, name: character.name, CharNum: character.CharNum }
+      : null;
+    _serverPickSelected = false;
+    applyServerPick();
+  };
+  function findServerPickSlot() {
+    if (!_serverPick) return -1;
+    const { GID, name, CharNum } = _serverPick;
+    for (let i = 0; i < _slots.length; ++i)
+      if (_slots[i] && GID && _slots[i].GID === GID) return i;
+    for (let i = 0; i < _slots.length; ++i)
+      if (_slots[i] && name && _slots[i].name === name) return i;
+    return !GID && !name && _slots[CharNum] ? CharNum : -1;
+  }
+  function applyServerPick() {
+    const root = Component.getRoot();
+    if (!root) return;
+    const index = findServerPickSlot();
+    if (gridLayout) {
+      root
+        .querySelectorAll(".lastro-pick-ribbon")
+        .forEach((element) => element.remove());
+      root
+        .querySelectorAll(".lastro-pick")
+        .forEach((element) => element.classList.remove("lastro-pick"));
+      const card = index >= 0 ? root.querySelectorAll(".char_canvas")[index] : null;
+      if (card) {
+        card.classList.add("lastro-pick");
+        const ribbon = document.createElement("span");
+        ribbon.className = "lastro-pick-ribbon";
+        ribbon.textContent = "\u2605 指定登录";
+        card.appendChild(ribbon);
+      }
+      if (card && !_serverPickSelected) card.scrollIntoView?.({ block: "nearest" });
+    }
+    if (index >= 0 && !_serverPickSelected) {
+      _serverPickSelected = true;
+      moveCursorTo(index);
+      return;
+    }
+    refreshServerPickNote();
+  }
+  function refreshServerPickNote() {
+    if (!gridLayout) return;
+    const root = Component.getRoot();
+    if (!root) return;
+    const charinfo = root.querySelector(".charinfo");
+    const ok = root.querySelector(".ok");
+    let note = root.querySelector(".lastro-pick-note");
+    const index = findServerPickSlot();
+    if (index < 0 || !charinfo) {
+      if (note) note.remove();
+      if (ok) ok.classList.remove("lastro-pick-ring");
+      return;
+    }
+    if (!note) {
+      note = document.createElement("span");
+      note.className = "lastro-pick-note";
+      charinfo.appendChild(note);
+    }
+    const name = _slots[index].name;
+    note.textContent =
+      _index === index
+        ? `服务器指定登录:${name}。确认无误后点击「确定」进入游戏。`
+        : `服务器指定的角色是 ${name}。`;
+    if (ok) ok.classList.toggle("lastro-pick-ring", _index === index);
+  }
   /**
    * Disable or Enable the UI.
    *
@@ -321101,6 +321562,8 @@ function onConnectionAcceptedSingle(pkt) {
   // 与 onConnectRequest 选定角色时一样：之后的 NOTIFY_ZONESVR / 进图流程读取的是 Entity。
   if (pkt.entity) SessionStorage_default.Entity = new Player(pkt.entity);
   else console.warn("[CharEngine] HC.ACCEPT_ENTER2 carried no character block.");
+  // 若选角界面已显示，高亮这个角色；进图流程不受影响，仍由服务器随后下发的 NOTIFY_ZONESVR 驱动。
+  Controller$2.getUI()?.markServerChoice?.(pkt.entity);
 }
 /**
  * Server don't want the user to select a character
@@ -321693,6 +322156,8 @@ var init_CharEngine = __esmMin(() => {
       });
       Controller$2.selectUIVersion();
       Controller$1.selectUIVersion();
+      // 上一次字符服连接留下的"服务器指定角色"标记不能带到这一次。
+      Controller$2.getUI()?.markServerChoice?.(null);
       Network.hookPacket(
         PACKET.HC.ACCEPT_ENTER_NEO_UNION,
         onConnectionAccepted$1,
