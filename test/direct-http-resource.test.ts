@@ -308,6 +308,18 @@ function okResponse(body: string, extraHeaders: string[] = []): Uint8Array {
 describe('Direct HTTP keep-alive connection pool', () => {
   const url = (name: string) => `https://game.lastro.cn/ro/client_re/data/${name}`;
 
+  it('reports progress for every received chunk so slow but steady downloads are not stalls', async () => {
+    const body = new Uint8Array(30).fill(5);
+    const head = responseBytes('HTTP/1.1 200 OK', ['Content-Type: application/octet-stream', `Content-Length: ${body.length}`], new Uint8Array());
+    const h = poolHarness(() => [head, body.slice(0, 10), body.slice(10, 20), body.slice(20)]);
+    const onProgress = vi.fn();
+
+    const response = await h.fetch(url('big.gnd'), { onProgress } as RequestInit);
+
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(body);
+    expect(onProgress).toHaveBeenCalledTimes(4);
+  });
+
   it('serves sequential requests over one TLS connection', async () => {
     const h = poolHarness((_conn, nth) => [okResponse(`body-${nth}`)]);
 

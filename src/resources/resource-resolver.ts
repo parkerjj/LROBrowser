@@ -3,7 +3,10 @@ import { createResourceCache, type ResourceCache } from './resource-cache';
 import { validateMapBinary } from './map-binary-validation';
 
 export const RESOURCE_CACHE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
-export const MAP_RESOURCE_TIMEOUT_MS = 60_000;
+/** Map/model files may be >10MB: fail only after this long without any new byte... */
+export const MAP_RESOURCE_STALL_TIMEOUT_MS = 30_000;
+/** ...or when one download keeps trickling past this absolute ceiling. */
+export const MAP_RESOURCE_MAX_TOTAL_MS = 5 * 60 * 1000;
 export const RESOURCE_TIMEOUT_MS = 8_000;
 export const RESOURCE_HEDGE_DELAY_MS = 350;
 export const NEGATIVE_RESOURCE_CACHE_MS = 5 * 60 * 1000;
@@ -198,30 +201,74 @@ function header(response: Response, name: string): string | undefined {
   return value || undefined;
 }
 
-async function fetchResource(url: string, options: ResolvePassiveResourceOptions, signal?: AbortSignal): Promise<{ bytes: ArrayBuffer; response: Response }> {
+/**
+ * RequestInit plus a progress hook. Transports that deliver the whole body
+ * inside `fetch()` (Direct HTTP) call it per received chunk so a large but
+ * steady download is not mistaken for a stalled one.
+ */
+export interface ResourceFetchInit extends RequestInit {
+  onProgress?: () => void;
+}
+
+async function readBodyWithProgress(body: ReadableStream<Uint8Array>, onChunk: () => void): Promise<ArrayBuffer> {
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value?.byteLength) continue;
+    chunks.push(value);
+    size += value.byteLength;
+    onChunk();
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+  return bytes.buffer;
+}
+
+/**
+ * `options.timeoutMs` is the absolute deadline. With `stallTimeoutMs` the
+ * download additionally fails once no byte has arrived for that long.
+ */
+async function fetchResource(url: string, options: ResolvePassiveResourceOptions, signal?: AbortSignal, stallTimeoutMs?: number): Promise<{ bytes: ArrayBuffer; response: Response }> {
   const fetchImpl = options.fetch ?? globalThis.fetch;
   if (!fetchImpl) throw new Error('fetch-unavailable');
   const controller = new AbortController();
   const abort = () => controller.abort();
   signal?.addEventListener('abort', abort, { once: true });
   const timeoutMs = Math.max(1, options.timeoutMs ?? RESOURCE_TIMEOUT_MS);
-  let timedOut = false;
-  const timeout = setTimeout(() => { timedOut = true; abort(); }, timeoutMs);
+  let timeoutReason: string | undefined;
+  const timeout = setTimeout(() => { timeoutReason ??= `download-timeout-${timeoutMs}ms`; abort(); }, timeoutMs);
+  let stallTimer: ReturnType<typeof setTimeout> | undefined;
+  const touch = () => {
+    if (stallTimeoutMs === undefined) return;
+    clearTimeout(stallTimer);
+    stallTimer = setTimeout(() => { timeoutReason ??= `download-timeout-stalled-${stallTimeoutMs}ms`; abort(); }, stallTimeoutMs);
+  };
+  touch();
   try {
-    const response = await fetchImpl(url, { signal: controller.signal, redirect: 'error', credentials: 'omit' });
+    const init: ResourceFetchInit = { signal: controller.signal, redirect: 'error', credentials: 'omit' };
+    if (stallTimeoutMs !== undefined) init.onProgress = touch;
+    const response = await fetchImpl(url, init);
+    touch();
     if (!response.ok) throw new Error(`http-${response.status}`);
     const contentType = header(response, 'content-type')?.toLowerCase() ?? '';
     if (contentType.includes('text/html')) throw new Error('html-response');
-    const bytes = await response.arrayBuffer();
+    const bytes = stallTimeoutMs !== undefined && response.body
+      ? await readBodyWithProgress(response.body, touch)
+      : await response.arrayBuffer();
     if (!bytes.byteLength) throw new Error('empty-response');
     const sample = new TextDecoder().decode(bytes.slice(0, 64)).trimStart().toLowerCase();
     if (sample.startsWith('<!doctype html') || sample.startsWith('<html')) throw new Error('html-response');
     return { bytes, response };
   } catch (error) {
-    if (timedOut) throw new Error(`download-timeout-${timeoutMs}ms`);
+    if (timeoutReason) throw new Error(timeoutReason);
     throw error;
   } finally {
     clearTimeout(timeout);
+    clearTimeout(stallTimer);
     signal?.removeEventListener('abort', abort);
   }
 }
@@ -274,8 +321,11 @@ export async function resolvePassiveResource(resourcePath: string, options: Reso
       }
       if (negativeExpiry) options.notFoundUntil?.delete(url);
       try {
-        const timeoutMs = options.timeoutMs ?? (/\.(?:gat|gnd|rsw|rsm2?|str)$/i.test(normalizedPath) ? MAP_RESOURCE_TIMEOUT_MS : RESOURCE_TIMEOUT_MS);
-        const result = await fetchResource(url, { ...options, timeoutMs }, controller.signal);
+        const isMapFile = /\.(?:gat|gnd|rsw|rsm2?|str)$/i.test(normalizedPath);
+        // An explicit timeoutMs stays an absolute deadline; map files default to stall detection.
+        const stallOnly = options.timeoutMs === undefined && isMapFile;
+        const timeoutMs = options.timeoutMs ?? (isMapFile ? MAP_RESOURCE_MAX_TOTAL_MS : RESOURCE_TIMEOUT_MS);
+        const result = await fetchResource(url, { ...options, timeoutMs }, controller.signal, stallOnly ? MAP_RESOURCE_STALL_TIMEOUT_MS : undefined);
         validateMapBinary(normalizedPath, result.bytes);
         options.sourceHealth?.success(root, Date.now() - startedAt);
         return { url, ...result };

@@ -1,7 +1,7 @@
 import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { IndexedDbResourceCache, MemoryResourceCache } from '../src/resources/resource-cache';
-import { buildResourcePathCandidates, DEFAULT_RESOURCE_ROOTS, ResourceResolutionError, ResourceSourceHealth, resolvePassiveResource } from '../src/resources/resource-resolver';
+import { buildResourcePathCandidates, DEFAULT_RESOURCE_ROOTS, ResourceResolutionError, ResourceSourceHealth, resolvePassiveResource, type ResourceFetchInit } from '../src/resources/resource-resolver';
 import { mapBinaryFixture } from './map-binary-fixture';
 
 function response(status: number, bytes = new Uint8Array([1, 2]).buffer, contentType = 'application/octet-stream'): Response {
@@ -31,6 +31,23 @@ function streamingResponse(bytes: ArrayBuffer, signal: AbortSignal, chunks: numb
         } else timer = setTimeout(emit, 1_000);
       };
       timer = setTimeout(emit, 1_000);
+    },
+  });
+  return new Response(stream, { headers: { 'content-type': 'application/octet-stream' } });
+}
+
+/** Emits `firstChunk` bytes then (optionally) a 1-byte chunk every `intervalMs` until aborted; no interval = stalls forever. */
+function trickleResponse(signal: AbortSignal, onAbort: () => void, intervalMs?: number): Response {
+  let timer: ReturnType<typeof setInterval> | undefined;
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      signal.addEventListener('abort', () => {
+        clearInterval(timer);
+        onAbort();
+        controller.error(new DOMException('Aborted', 'AbortError'));
+      }, { once: true });
+      controller.enqueue(new Uint8Array([1]));
+      if (intervalMs !== undefined) timer = setInterval(() => controller.enqueue(new Uint8Array([1])), intervalMs);
     },
   });
   return new Response(stream, { headers: { 'content-type': 'application/octet-stream' } });
@@ -415,33 +432,86 @@ describe('resource download deadlines', () => {
     await expect(cache.match(path)).resolves.toMatchObject({ bytes, sourceUrl: DEFAULT_RESOURCE_ROOTS[0] + path });
   });
 
-  it.each(['rsw', 'gnd', 'gat', 'rsm', 'rsm2', 'str'])('stops both incomplete %s bodies at sixty seconds without caching partial bytes', async extension => {
+  it.each(['rsw', 'gnd', 'gat', 'rsm', 'rsm2', 'str'])('lets a steadily arriving %s body run past the old sixty-second limit', async extension => {
+    vi.useFakeTimers();
+    const cache = new MemoryResourceCache();
+    const bytes = downloadFixture(extension);
+    const path = `data/ein_fild04.${extension}`;
+    const aborted = vi.fn();
+    const fetch = vi.fn(async (url: string, init?: RequestInit) => url.startsWith(DEFAULT_RESOURCE_ROOTS[0])
+      ? streamingResponse(bytes, init!.signal!, 120, () => {}, aborted) : response(503));
+    const outcome = resolvePassiveResource(path, { cache, fetch: fetch as typeof globalThis.fetch })
+      .then(value => ({ value }), error => ({ error }));
+
+    await vi.advanceTimersByTimeAsync(119_000);
+    await expect(Promise.race([outcome, Promise.resolve('pending')])).resolves.toBe('pending');
+    await vi.advanceTimersByTimeAsync(1_000);
+    await expect(outcome).resolves.toEqual({ value: bytes });
+    expect(aborted).not.toHaveBeenCalled();
+    await expect(cache.match(path)).resolves.toMatchObject({ bytes });
+  });
+
+  it.each(['rsw', 'gnd', 'gat', 'rsm', 'rsm2', 'str'])('aborts a stalled %s body thirty seconds after its last byte without caching partial bytes', async extension => {
     vi.useFakeTimers();
     const cache = new MemoryResourceCache();
     const put = vi.spyOn(cache, 'put');
     const path = `data/ein_fild04.${extension}`;
-    let receivedBytes = 0;
     const aborted = vi.fn();
-    const fetch = vi.fn(async (_url: string, init?: RequestInit) => streamingResponse(
-      downloadFixture(extension), init!.signal!, 120, size => { receivedBytes += size; }, aborted,
-    ));
+    const fetch = vi.fn(async (_url: string, init?: RequestInit) => trickleResponse(init!.signal!, aborted));
     let settled = false;
     const outcome = resolvePassiveResource(path, { cache, fetch: fetch as typeof globalThis.fetch })
       .then(value => { settled = true; return value; }, error => { settled = true; return error; });
 
-    await vi.advanceTimersByTimeAsync(59_999);
-    expect(receivedBytes).toBeGreaterThan(0);
+    await vi.advanceTimersByTimeAsync(29_999);
     expect(settled).toBe(false);
     expect(aborted).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1);
 
     const error = await outcome as ResourceResolutionError;
     expect(error).toBeInstanceOf(ResourceResolutionError);
-    expect(error.attempts).toEqual(DEFAULT_RESOURCE_ROOTS.map(root => ({ url: root + path, reason: 'download-timeout-60000ms' })));
-    expect(error.message).toContain('download-timeout-60000ms');
+    expect(error.attempts).toEqual(DEFAULT_RESOURCE_ROOTS.map(root => ({ url: root + path, reason: 'download-timeout-stalled-30000ms' })));
+    expect(error.message).toContain('download-timeout');
     expect(aborted).toHaveBeenCalledTimes(2);
-    expect(fetch).toHaveBeenCalledTimes(2);
     expect(put).not.toHaveBeenCalled();
+    await expect(cache.match(path)).resolves.toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('counts progress reported by a transport that buffers the body inside fetch()', async () => {
+    vi.useFakeTimers();
+    const cache = new MemoryResourceCache();
+    const bytes = downloadFixture('gnd');
+    const fetch = vi.fn(async (_url: string, init?: ResourceFetchInit) => {
+      for (let step = 0; step < 9; step++) {
+        await new Promise<void>(resolve => setTimeout(resolve, 10_000));
+        init!.onProgress!();
+      }
+      return response(200, bytes);
+    });
+    const outcome = resolvePassiveResource('data/ein_fild04.gnd', { cache, fetch: fetch as typeof globalThis.fetch })
+      .then(value => ({ value }), error => ({ error }));
+
+    await vi.advanceTimersByTimeAsync(90_000);
+    await expect(outcome).resolves.toEqual({ value: bytes });
+  });
+
+  it('still stops a trickling map download at the five-minute absolute ceiling', async () => {
+    vi.useFakeTimers();
+    const cache = new MemoryResourceCache();
+    const path = 'data/ein_fild04.gnd';
+    const aborted = vi.fn();
+    const fetch = vi.fn(async (_url: string, init?: RequestInit) => trickleResponse(init!.signal!, aborted, 10_000));
+    let settled = false;
+    const outcome = resolvePassiveResource(path, { cache, fetch: fetch as typeof globalThis.fetch })
+      .then(value => { settled = true; return value; }, error => { settled = true; return error; });
+
+    await vi.advanceTimersByTimeAsync(299_999);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+
+    const error = await outcome as ResourceResolutionError;
+    expect(error.attempts).toEqual(DEFAULT_RESOURCE_ROOTS.map(root => ({ url: root + path, reason: 'download-timeout-300000ms' })));
+    expect(aborted).toHaveBeenCalledTimes(2);
     await expect(cache.match(path)).resolves.toBeNull();
     expect(vi.getTimerCount()).toBe(0);
   });
