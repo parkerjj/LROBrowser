@@ -273,12 +273,22 @@ describe('item dragging without the browser drag cursor', () => {
     expect(f.win._OBJ_DRAG_).toBeUndefined(); expect(f.source.getAttribute('draggable')).toBe('true');
   });
 
-  it('cancels a drag whose source UI is removed while the button remains held', async () => {
+  it('keeps a running drag alive when its source row is redrawn, and still drops its payload', async () => {
     const f = fixture(); f.start(); f.move(); f.sourceHost.remove();
     await new Promise(resolve => f.win.setTimeout(resolve, 0));
-    expect(f.bridge.active()).toBe(false); expect(f.drops).toEqual([]);
+    expect(f.bridge.active()).toBe(true); expect(f.drops).toEqual([]);
+    f.release();
+    expect(f.drops).toEqual([f.payload]);
+    expect(f.bridge.active()).toBe(false);
     expect(f.events.filter(event => event.type === 'dragend')).toHaveLength(1);
-    expect(f.win._OBJ_DRAG_).toBeUndefined(); expect(f.source.getAttribute('draggable')).toBe('true');
+    expect(f.win._OBJ_DRAG_).toBeUndefined();
+  });
+
+  it('still cancels a pressed candidate whose source UI is removed before the drag starts', async () => {
+    const f = fixture(); f.start(); f.sourceHost.remove();
+    await new Promise(resolve => f.win.setTimeout(resolve, 0));
+    f.move(); f.release();
+    expect(f.bridge.active()).toBe(false); expect(f.drops).toEqual([]);
   });
 
   it('cleans up a pending candidate without synthesizing a dragend before dragstart', () => {

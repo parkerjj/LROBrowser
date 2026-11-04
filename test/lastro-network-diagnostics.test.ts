@@ -50,7 +50,7 @@ function runtime(source = patched) {
     const id = Number(key); packetList[id] = { Struct, callback: () => decoded.push(id) };
   }
   Object.assign(context, {
-    _receiveStates: new WeakMap(), _socket: socket, _sockets: [socket], _onDisconnect: disconnect,
+    _receiveStates: new WeakMap(), _socket: socket, _sockets: [socket], _onDisconnect: disconnect, _zoneCloseExpectedUntil: 0,
     _save_buffer: null, _receive_yield_pending: false, clearInterval: vi.fn(),
     read$1: {}, packetDump: false, Packets: { list: packetList },
     PacketLength_default: { getPacketLength: context.getPacketLength }, setTimeout: (callback: () => void) => scheduled.push(callback),

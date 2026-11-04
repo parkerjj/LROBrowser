@@ -137,6 +137,7 @@ function loadCloseHarness() {
     const isObserverMode = () => true;
     const console = { warn() {} };
     let _onDisconnect = null;
+    let _zoneCloseExpectedUntil = 0;
     const __vitePreload = () => Promise.resolve();
     ${closeSource}
     onClose$9.call(socket, { code: 1006, reason: 'closed', wasClean: false });
