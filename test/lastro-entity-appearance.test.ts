@@ -87,6 +87,7 @@ function fixture(lastro = true, source = patched) {
     __esmMin: (init: () => void) => { let initialized = false; return () => { if (!initialized) { initialized = true; init(); } }; },
     init_Configs: vi.fn(), Configs: { get: (name: string, fallback: unknown) => name === 'lastroProtocol' ? lastro : fallback },
     MountTable: {}, AllMountTable: {}, ShadowTable_default: {}, BabyTable_default: [], SexTable: sexTable, JobNameTable: {}, JobConst_default: {},
+    getLastroBossScale: () => 0,
     PacketVerManager_default: { value: 20211103 }, Client: { loadFile }, refreshHeadState() {},
     EntityManager: { get: (id: number) => entries.get(id), add: (entity: AppearanceEntity) => entries.set(entity.GID, entity), getLife: () => null, pendingTransformations: {} }, SessionStorage_default: { Entity: { GID: 999 }, pet: {}, AdminList: [] },
     MAX_ATTACKMT: 2000, AVG_ATTACK_SPEED: 500, C_MULTIHIT_DELAY: 200, Renderer: { tick: 10000 },

@@ -393,6 +393,7 @@ function runtime({ pixelRatio = 1, ugly = false, showname = false } = {}) {
     Cursor: { ACTION: { DEFAULT: 0, ATTACK: 1, TALK: 2, WARP: 3, PICK: 4, ROTATE: 5 }, setType: vi.fn() },
     KEYS: { SHIFT: false }, SessionStorage_default: {}, clanEmblems: {}, EffectManager: {},
     PacketVerManager_default: { value: 20110101 },
+    getLastroBossScale: () => 0,
     StatusState_default: { EffectState: { FALCON: 1, WUG: 2, INVISIBLE: 4 } },
     DB: { getWeaponType: () => 0, getWeaponViewID: () => 0, isAssassin: () => false, isKatar: () => false },
     PACKET: { ZC: Object.fromEntries(['NOTIFY_NEWENTRY', 'NOTIFY_NEWENTRY2', 'NOTIFY_NEWENTRY3',
