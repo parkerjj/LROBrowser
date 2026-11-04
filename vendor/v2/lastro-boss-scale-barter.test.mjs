@@ -4,13 +4,19 @@ import { readFileSync } from 'node:fs';
 
 const bundle = readFileSync(new URL('./Online.js', import.meta.url), 'utf8');
 
-test('mini-boss and MVP monsters are drawn larger via the base xSize/ySize', () => {
-  assert.match(bundle, /const LASTRO_BOSS_SIZE_SCALE = \{ 1: 2, 2: 2\.5 \};/);
-  const handler = bundle.slice(bundle.indexOf('entity.objecttype === Entity.TYPE_MOB && pkt.isBoss'));
-  assert.match(
-    handler.slice(0, 900),
-    /entity\.mobtype = pkt\.isBoss;[\s\S]*LASTRO_BOSS_SIZE_SCALE\[pkt\.isBoss\][\s\S]*entity\.xSize === 5 && entity\.ySize === 5[\s\S]*entity\.xSize = entity\.ySize = 5 \* bossScale;/
-  );
+test('boss scaling uses a monster-id whitelist, not the server isBoss flag', () => {
+  const start = bundle.indexOf('// Boss whitelist by monster class id');
+  const end = bundle.indexOf('function updateEntityStyle(entity)', start);
+  assert.notEqual(start, -1);
+  const get = new Function(`${bundle.slice(start, end)}; return getLastroBossScale;`)();
+  assert.equal(get(1038), 2.5); // Osiris (MVP)
+  assert.equal(get(1039), 2.5); // Baphomet (MVP)
+  assert.equal(get(1096), 2); // Angeling (mini-boss)
+  assert.equal(get(1002), 0); // Poring
+  assert.equal(get(1865), 0); // minions are not scaled
+  const handler = bundle.slice(bundle.indexOf('getLastroBossScale(pkt.job)') - 400);
+  assert.doesNotMatch(handler.slice(0, 900), /LASTRO_BOSS_SIZE_SCALE\[pkt\.isBoss\]/);
+  assert.match(handler.slice(0, 900), /entity\.xSize === 5 && entity\.ySize === 5[\s\S]*entity\.xSize = entity\.ySize = 5 \* bossScale;/);
 });
 
 test('barter lists expose the packet quota as the remaining stock count', () => {
