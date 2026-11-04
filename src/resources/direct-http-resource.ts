@@ -1,5 +1,6 @@
 import { makeTLSClient, setCryptoImplementation } from '@reclaimprotocol/tls';
 import { webcryptoCrypto } from '@reclaimprotocol/tls/webcrypto';
+import type { ResourceFetchInit } from './resource-resolver';
 
 const RESOURCE_ROOTS = new Map([
   ['https://game.lastro.cn', 'game.lastro.cn'],
@@ -439,7 +440,7 @@ interface PooledConnection {
   served: number;
 }
 
-type ExchangeOptions = Required<Pick<DirectHttpOptions, 'readTimeoutMs' | 'maxHeaderBytes' | 'maxBodyBytes'>> & { signal?: AbortSignal };
+type ExchangeOptions = Required<Pick<DirectHttpOptions, 'readTimeoutMs' | 'maxHeaderBytes' | 'maxBodyBytes'>> & { signal?: AbortSignal; onProgress?: () => void };
 
 function endsWithCrlfCrlf(bytes: Uint8Array): boolean {
   const n = bytes.byteLength;
@@ -455,7 +456,7 @@ async function exchange(
   request: Uint8Array,
   options: ExchangeOptions,
 ): Promise<{ parts: DirectHttpResponseParts; reusable: boolean }> {
-  const { readTimeoutMs, maxHeaderBytes, maxBodyBytes, signal } = options;
+  const { readTimeoutMs, maxHeaderBytes, maxBodyBytes, signal, onProgress } = options;
   const rawLimit = maxHeaderBytes + maxBodyBytes;
   let received = 0;
   const readChunk = async () => {
@@ -465,6 +466,7 @@ async function exchange(
       if (result.value?.byteLength) {
         received += result.value.byteLength;
         if (received > rawLimit) throw new Error('Direct HTTP response is too large');
+        onProgress?.();
         return result.value.slice();
       }
     }
@@ -664,13 +666,13 @@ export function createDirectHttpFetch(options: DirectHttpOptions = {}): typeof g
     }
   };
   const pool = new ConnectionPool(maxConnections, idleTimeoutMs, openPooled);
-  const fetchPooled = async (pathname: string, signal: AbortSignal | undefined): Promise<DirectHttpResponseParts> => {
+  const fetchPooled = async (pathname: string, signal: AbortSignal | undefined, onProgress?: () => void): Promise<DirectHttpResponseParts> => {
     const request = buildRequest(pathname, 'game.lastro.cn');
     // Idle connections the server already closed are replayed on another one.
     for (let attempt = 0; ; attempt += 1) {
       const conn = await pool.acquire(signal);
       try {
-        const { parts, reusable } = await exchange(conn, request, { readTimeoutMs, maxHeaderBytes, maxBodyBytes, signal });
+        const { parts, reusable } = await exchange(conn, request, { readTimeoutMs, maxHeaderBytes, maxBodyBytes, signal, onProgress });
         conn.served += 1;
         pool.release(conn, reusable);
         return parts;
@@ -709,7 +711,7 @@ export function createDirectHttpFetch(options: DirectHttpOptions = {}): typeof g
     }
     if (!constructorForSocket) throw new Error('Direct TCP is unavailable');
     if (!officialProfileRequest) {
-      const parsed = await fetchPooled(url.pathname, signal);
+      const parsed = await fetchPooled(url.pathname, signal, (init as ResourceFetchInit | undefined)?.onProgress);
       const body = parsed.status === 204 || parsed.status === 205 || parsed.status === 304 ? null : parsed.body;
       return new Response(body, { status: parsed.status, statusText: parsed.statusText, headers: parsed.headers });
     }
