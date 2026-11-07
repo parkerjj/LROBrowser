@@ -35,8 +35,8 @@ define(
     function e(a) {
       var b, c;
       if (!(0 > a)) {
-        for (b in k)
-          if (k[b] === a) {
+        for (b in l)
+          if (l[b] === a) {
             this.costume = a;
             a = b;
             break;
@@ -44,7 +44,7 @@ define(
         this._job = a;
         this.costume && (a = this.costume);
         this.xSize = this.ySize = g.isBaby(a) ? 4 : 5;
-        this.files.shadow.size = a in p ? p[a] : 1;
+        this.files.shadow.size = a in t ? t[a] : 1;
         c = g.getBodyPath(a, this._sex);
         b = this.constructor;
         if (this.objecttype === b.TYPE_UNKNOWN) {
@@ -69,8 +69,8 @@ define(
         else {
           if (null === c || c.match(/\.gr2$/i))
             c = g.getBodyPath(1002, this._sex);
-          n.loadFile(c + ".act");
-          n.loadFile(
+          k.loadFile(c + ".act");
+          k.loadFile(
             c + ".spr",
             function () {
               this.files.body.spr = c + ".spr";
@@ -86,7 +86,7 @@ define(
         }
       }
     }
-    function l(a) {
+    function m(a) {
       this._bodypalette = a;
       -1 !== this._job &&
         (4e3 < this._job && 4008 > this._job && 2 > this._bodypalette
@@ -110,8 +110,8 @@ define(
       0 > a ||
         ((this._head = a),
         (b = g.getHeadPath(a, this._sex, this.job)),
-        n.loadFile(b + ".act"),
-        n.loadFile(
+        k.loadFile(b + ".act"),
+        k.loadFile(
           b + ".spr",
           function () {
             this.files.head.spr = b + ".spr";
@@ -133,62 +133,62 @@ define(
             this._job,
           ));
     }
-    function t(a, b, c) {
+    function q(a, b, c) {
       return function (d) {
-        function e(f, v) {
-          if ("robe" === a && !n.loadFile(f + ".spr")) {
-            var u = g.getRobePath2(d, q, p);
-            n.loadFile(f + ".act");
-            n.loadFile(
-              u + ".spr",
+        function e(f, u) {
+          if ("robe" === a && !k.loadFile(f + ".spr")) {
+            var v = g.getRobePath2(d, h, p);
+            k.loadFile(f + ".act");
+            k.loadFile(
+              v + ".spr",
               function (b) {
-                m["_" + a] = h;
-                m.files[a].spr = u + ".spr";
-                m.files[a].act = f + ".act";
+                n["_" + a] = t;
+                n.files[a].spr = v + ".spr";
+                n.files[a].act = f + ".act";
               },
               function () {
                 c &&
-                  !v &&
-                  ((h = g[c](d)), (f = g[b](h, m.job, m._sex)) && e(f, !0));
+                  !u &&
+                  ((t = g[c](d)), (f = g[b](t, n.job, n._sex)) && e(f, !0));
               },
               { to_rgba: !0 },
             );
             return !1;
           }
-          n.loadFile(f + ".act");
-          n.loadFile(
+          k.loadFile(f + ".act");
+          k.loadFile(
             f + ".spr",
             function (b) {
-              m["_" + a] = h;
-              m.files[a].spr = f + ".spr";
-              m.files[a].act = f + ".act";
+              n["_" + a] = t;
+              n.files[a].spr = f + ".spr";
+              n.files[a].act = f + ".act";
               "weapon" === a &&
-                ((m["_" + a + "effect"] = l),
-                (m.files[a + "effect"].spr = k + "_effect.spr"),
-                (m.files[a + "effect"].act = k + "_effect.act"),
-                (m.sound.attackFile = g.getWeaponSound(h)));
+                ((n["_" + a + "effect"] = m),
+                (n.files[a + "effect"].spr = l + "_effect.spr"),
+                (n.files[a + "effect"].act = l + "_effect.act"),
+                (n.sound.attackFile = g.getWeaponSound(t)));
             },
             function () {
               c &&
-                !v &&
-                ((h = g[c](d)), (f = g[b](h, m.job, m._sex)) && e(f, !0));
+                !u &&
+                ((t = g[c](d)), (f = g[b](t, n.job, n._sex)) && e(f, !0));
             },
             { to_rgba: !0 },
           );
         }
         var f,
-          k,
-          m = this,
-          q = this.job,
+          l,
+          n = this,
+          h = this.job,
           p = this._sex,
-          h = d;
-        if ("weapon" === a) var l = g[c](d);
+          t = d;
+        if ("weapon" === a) var m = g[c](d);
         if (0 >= d) this["_" + a] = 0;
         else {
           switch (a) {
             case "weapon":
               f = g[b](d, this.job, this._sex);
-              k = g[b](l, this.job, this._sex);
+              l = g[b](m, this.job, this._sex);
               break;
             case "shield":
               f = g[b](d, this.job, this._sex);
@@ -212,10 +212,10 @@ define(
         }
       };
     }
-    var n = a("Core/Client"),
+    var k = a("Core/Client"),
       g = a("DB/DBManager"),
-      p = a("DB/Monsters/ShadowTable"),
-      k = a("DB/Jobs/MountTable"),
+      t = a("DB/Monsters/ShadowTable"),
+      l = a("DB/Jobs/MountTable"),
       f = a("./EntityAction");
     return function () {
       this.files = new c();
@@ -235,7 +235,7 @@ define(
         get: function () {
           return this._bodypalette;
         },
-        set: l,
+        set: m,
       });
       Object.defineProperty(this, "head", {
         get: function () {
@@ -253,43 +253,43 @@ define(
         get: function () {
           return this._weapon;
         },
-        set: t("weapon", "getWeaponPath", "getWeaponViewID"),
+        set: q("weapon", "getWeaponPath", "getWeaponViewID"),
       });
       Object.defineProperty(this, "weaponeffect", {
         get: function () {
           return this._weaponeffect;
         },
-        set: t("weaponeffect", "getWeaponEffectPath", "getWeaponViewID"),
+        set: q("weaponeffect", "getWeaponEffectPath", "getWeaponViewID"),
       });
       Object.defineProperty(this, "shield", {
         get: function () {
           return this._shield;
         },
-        set: t("shield", "getShieldPath"),
+        set: q("shield", "getShieldPath"),
       });
       Object.defineProperty(this, "accessory", {
         get: function () {
           return this._accessory;
         },
-        set: t("accessory", "getHatPath"),
+        set: q("accessory", "getHatPath"),
       });
       Object.defineProperty(this, "accessory2", {
         get: function () {
           return this._accessory2;
         },
-        set: t("accessory2", "getHatPath"),
+        set: q("accessory2", "getHatPath"),
       });
       Object.defineProperty(this, "accessory3", {
         get: function () {
           return this._accessory3;
         },
-        set: t("accessory3", "getHatPath"),
+        set: q("accessory3", "getHatPath"),
       });
       Object.defineProperty(this, "robe", {
         get: function () {
           return this._robe;
         },
-        set: t("robe", "getRobePath"),
+        set: q("robe", "getRobePath"),
       });
     };
   },

@@ -87,7 +87,7 @@ define(
       b.call(this);
       this._virtue = a;
     }
-    function l(a) {
+    function m(a) {
       if (a !== this._bodyState) {
         this._bodyStateColor[0] = 1;
         this._bodyStateColor[1] = 1;
@@ -98,7 +98,7 @@ define(
             this.attachments.remove("status-sleep");
             break;
           case g.BodyState.FREEZE:
-            n.playPosition("_frozen_explosion.wav", this.position);
+            k.playPosition("_frozen_explosion.wav", this.position);
             this.attachments.add({
               frame: 1,
               uid: "status-freeze",
@@ -112,7 +112,7 @@ define(
             });
             break;
           case g.BodyState.STONE:
-            n.playPosition("_stone_explosion.wav", this.position);
+            k.playPosition("_stone_explosion.wav", this.position);
             this.animation.play = !0;
             break;
           case g.BodyState.STUN:
@@ -129,7 +129,7 @@ define(
             this._bodyStateColor[0] = 0.3;
             this._bodyStateColor[1] = 0.3;
             this._bodyStateColor[2] = 0.3;
-            n.playPosition("_stonecurse.wav", this.position);
+            k.playPosition("_stonecurse.wav", this.position);
             break;
           case g.BodyState.SLEEP:
             this.attachments.add({
@@ -158,7 +158,7 @@ define(
             });
             break;
           case g.BodyState.STUN:
-            (n.playPosition("_stun.wav", this.position),
+            (k.playPosition("_stun.wav", this.position),
               this.attachments.add({
                 repeat: !0,
                 frame: 0,
@@ -179,7 +179,7 @@ define(
         (this._healthStateColor[3] = 1),
         a & g.HealthState.CURSE
           ? (this._healthState & g.HealthState.CURSE ||
-              (n.playPosition("_curse.wav", this.position),
+              (k.playPosition("_curse.wav", this.position),
               this.attachments.add({
                 repeat: !0,
                 uid: "status-curse",
@@ -193,18 +193,18 @@ define(
           : a & g.HealthState.CURSE || this.attachments.remove("status-curse"),
         a & g.HealthState.POISON &&
           (this._healthState & g.HealthState.POISON ||
-            n.playPosition("_poison.wav", this.position),
+            k.playPosition("_poison.wav", this.position),
           (this._healthStateColor[0] *= 0.9),
           (this._healthStateColor[1] *= 0.4),
           (this._healthStateColor[2] *= 0.8)),
         a & g.HealthState.BLIND &&
           (this._healthState & g.HealthState.BLIND ||
-            n.playPosition("_blind.wav", this.position)),
+            k.playPosition("_blind.wav", this.position)),
         a & g.HealthState.SILENCE
           ? this._healthState & g.HealthState.SILENCE ||
-            (n.playPosition("_silence.wav", this.position),
+            (k.playPosition("_silence.wav", this.position),
             this.attachments.add({
-              frame: m.indexes[9],
+              frame: n.indexes[9],
               file: "emotion",
               uid: "status-silence",
               play: !0,
@@ -233,18 +233,18 @@ define(
           g.EffectState.DRAGON5 |
           g.EffectState.WUGRIDER |
           g.EffectState.MADOGEAR) &&
-        this._job in p &&
-        (c = p[this._job]);
+        this._job in t &&
+        (c = t[this._job]);
       a & g.EffectState.WEDDING && (c = 22);
       a & g.EffectState.XMAS && (c = 26);
       a & g.EffectState.SUMMER && (c = 27);
       a & g.EffectState.FALCON && (this.falcon = !0);
       a & g.EffectState.WUG &&
         0 == this.wolf &&
-        ((this.wolf = !0), q("Renderer/WolfObject").add(this));
+        ((this.wolf = !0), p("Renderer/WolfObject").add(this));
       0 == a &&
         1 == this.wolf &&
-        ((this.wolf = !1), q("Renderer/WolfObject").remove(this.GID));
+        ((this.wolf = !1), p("Renderer/WolfObject").remove(this.GID));
       1 == this.berserk &&
         ((this._effectStateColor[0] = 2),
         (this._effectStateColor[1] = 1.2),
@@ -265,21 +265,21 @@ define(
         ((this._effectStateColor[0] = 1),
         (this._effectStateColor[1] = 1),
         (this._effectStateColor[2] = 2));
-      q("Renderer/EffectManager").remove(null, this.GID);
+      p("Renderer/EffectManager").remove(null, this.GID);
       if (a & g.EffectState.RUWACH) {
         var d = { effectId: 33, ownerAID: this.GID, position: this.position };
-        q("Renderer/EffectManager").spam(d);
+        p("Renderer/EffectManager").spam(d);
       }
       a & g.EffectState.SIGHT &&
         ((d = { effectId: 22, ownerAID: this.GID, position: this.position }),
-        q("Renderer/EffectManager").spam(d));
+        p("Renderer/EffectManager").spam(d));
       this.isHide = !1;
       if (a & g.EffectState.INVISIBLE)
         ((this.isHide = !0),
           this.objecttype === this.constructor.TYPE_PC &&
             ((this.display.display = !1), this.display.remove()),
           (this._effectStateColor[3] = 0),
-          q("Renderer/EffectManager").remove(null, this.GID));
+          p("Renderer/EffectManager").remove(null, this.GID));
       else if (
         a &
         (g.EffectState.HIDE | g.EffectState.CLOAK | g.EffectState.CHASEWALK)
@@ -292,14 +292,14 @@ define(
             this.objecttype === this.constructor.TYPE_PC &&
               ((this.display.display = !1), this.display.remove()),
             (this._effectStateColor[3] = 0),
-            q("Renderer/EffectManager").remove(null, this.GID));
+            p("Renderer/EffectManager").remove(null, this.GID));
       else if (this.Camouflage || this.Stealthfield)
         f.Character.intravision
           ? ((this._effectStateColor[0] = 0),
             (this._effectStateColor[1] = 0),
             (this._effectStateColor[2] = 0))
           : ((this._effectStateColor[3] = 0.1),
-            n.play("effect/assasin_cloaking.wav", this.position));
+            k.play("effect/assasin_cloaking.wav", this.position));
       else if (this.Shadowform)
         f.Character.intravision
           ? ((this._effectStateColor[0] = 0),
@@ -309,15 +309,15 @@ define(
             (this._effectStateColor[1] = 0.2),
             (this._effectStateColor[2] = 0.2),
             (this._effectStateColor[3] = 0.2),
-            n.play("effect/assasin_cloaking.wav", this.position));
+            k.play("effect/assasin_cloaking.wav", this.position));
       else if (99 == this.clevel || 200 == this.clevel)
         ((d = { effectId: 202, ownerAID: this.GID, position: this.position }),
-          q("Renderer/EffectManager").spam(d));
+          p("Renderer/EffectManager").spam(d));
       c !== this.costume && ((this.costume = c), (this.job = this._job));
       this._effectState = a;
       b.call(this);
     }
-    function t(a) {
+    function q(a) {
       var c = 0,
         d =
           g.EffectState.RIDING |
@@ -331,18 +331,18 @@ define(
           g.EffectState.WEDDING |
           g.EffectState.XMAS |
           g.EffectState.SUMMER;
-      !a || this._effectState & d || (this._job in k && (c = k[this._job]));
+      !a || this._effectState & d || (this._job in l && (c = l[this._job]));
       c !== this.costume && ((this.costume = c), (this.job = this._job));
       this._allRidingState = a;
       b.call(this);
     }
-    var n = a("Audio/SoundManager"),
+    var k = a("Audio/SoundManager"),
       g = a("DB/Status/StatusState"),
-      p = a("DB/Jobs/MountTable"),
-      k = a("DB/Jobs/MountTable2"),
+      t = a("DB/Jobs/MountTable"),
+      l = a("DB/Jobs/MountTable2"),
       f = a("Engine/SessionStorage"),
-      m = a("DB/Emotions"),
-      q = a,
+      n = a("DB/Emotions"),
+      p = a,
       v = {};
     v[g.Status.TWOHANDQUICKEN] = g.OPT3.QUICKEN;
     v[g.Status.SPEARQUICKEN] = g.OPT3.QUICKEN;
@@ -383,7 +383,7 @@ define(
         get: function () {
           return this._bodyState;
         },
-        set: l,
+        set: m,
       });
       Object.defineProperty(this, "healthState", {
         get: function () {
@@ -401,7 +401,7 @@ define(
         get: function () {
           return this._allRidingState;
         },
-        set: t,
+        set: q,
       });
       Object.defineProperty(this, "virtue", {
         get: function () {

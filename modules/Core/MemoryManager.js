@@ -10,13 +10,13 @@ define("Core/MemoryManager", ["Core/MemoryItem"], function (a) {
     if (d[c]) {
       var e = b(c),
         h = "",
-        l;
-      (l = c.match(/\.[^\.]+$/)) && (h = l.toString().toLowerCase());
+        m;
+      (m = c.match(/\.[^\.]+$/)) && (h = m.toString().toLowerCase());
       if (e)
         switch (h) {
           case ".spr":
             if (e.frames)
-              for (h = 0, l = e.frames.length; h < l; ++h)
+              for (h = 0, m = e.frames.length; h < m; ++h)
                 e.frames[h].texture &&
                   a.isTexture(e.frames[h].texture) &&
                   a.deleteTexture(e.frames[h].texture);
@@ -43,17 +43,17 @@ define("Core/MemoryManager", ["Core/MemoryItem"], function (a) {
     clean: function (a, b) {
       if (!(e + 3e4 > b)) {
         var h,
-          l,
-          n,
+          m,
+          k,
           g,
-          p,
-          k = [];
+          t,
+          l = [];
         h = Object.keys(d);
         g = h.length;
-        p = b - 12e4;
-        for (n = 0; n < g; ++n)
-          ((l = d[h[n]]),
-            l.complete && l.lastTimeUsed < p && (c(a, h[n]), k.push(h[n])));
+        t = b - 12e4;
+        for (k = 0; k < g; ++k)
+          ((m = d[h[k]]),
+            m.complete && m.lastTimeUsed < t && (c(a, h[k]), l.push(h[k])));
         e = b;
       }
     },
@@ -65,11 +65,11 @@ define("Core/MemoryManager", ["Core/MemoryItem"], function (a) {
       var b,
         c,
         e,
-        l = [];
+        m = [];
       b = Object.keys(d);
       e = b.length;
-      for (c = 0; c < e; ++c) b[c].match(a) && l.push(b[c]);
-      return l;
+      for (c = 0; c < e; ++c) b[c].match(a) && m.push(b[c]);
+      return m;
     },
   };
 });

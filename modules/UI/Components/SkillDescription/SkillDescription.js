@@ -9,7 +9,7 @@ define(
     a("Renderer/Renderer");
     var d = a("Controls/KeyEventHandler"),
       e = a("Controls/MouseEventHandler"),
-      l = a("UI/UIManager"),
+      m = a("UI/UIManager"),
       h = a("UI/UIComponent"),
       r = a("text!./SkillDescription.html");
     a = a("text!./SkillDescription.css");
@@ -40,6 +40,6 @@ define(
       this.ui.find(".content").text(b.getSkillDesc(a) || "...");
       this.ui.css({ top: e.screen.y + 10, left: e.screen.x + 10 });
     };
-    return l.addComponent(h);
+    return m.addComponent(h);
   },
 );

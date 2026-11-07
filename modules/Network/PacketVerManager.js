@@ -2,8 +2,8 @@ define("Network/PacketVerManager", ["Core/Configs"], function (a) {
   function b() {
     var a = this.versions,
       b,
-      l = a.length;
-    for (b = 0; b < l - 1 && !(c < a[b + 1][0]); ++b);
+      m = a.length;
+    for (b = 0; b < m - 1 && !(c < a[b + 1][0]); ++b);
     return a[b];
   }
   var c = 0;
@@ -18,8 +18,8 @@ define("Network/PacketVerManager", ["Core/Configs"], function (a) {
       var d,
         e,
         r,
-        t = c.length;
-      for (r = 0; r < t; ++r)
+        q = c.length;
+      for (r = 0; r < q; ++r)
         ((e = c[r]),
           (d = e[0]),
           (e[0] = a),
@@ -33,30 +33,30 @@ define("Network/PacketVerManager", ["Core/Configs"], function (a) {
         e = [];
       a.get("ClientVer");
       var r = 175,
-        t = b - d.tell();
-      if (0 >= t) return e;
-      if (!r || t % r) {
+        q = b - d.tell();
+      if (0 >= q) return e;
+      if (!r || q % r) {
         console.error(
           'CHARACTER_INFO size error!! blockSize : "' +
             r +
             '", list length: ' +
-            t +
+            q +
             ", auto-detect...",
         );
-        var n = [
+        var k = [
             106, 108, 112, 116, 124, 128, 132, 136, 140, 144, 145, 147, 155,
             175,
           ],
           g = [];
         b = 0;
-        for (c = n.length; b < c; ++b) 0 === t % n[b] && g.push(n[b]);
+        for (c = k.length; b < c; ++b) 0 === q % k[b] && g.push(k[b]);
         if (1 !== g.length)
           return (
             require("UI/UIManager").showErrorBox(
               'CHARACTER_INFO size error!! blockSize : "' +
                 r +
                 '", list length: ' +
-                t +
+                q +
                 ", auto-detect...",
             ),
             e
@@ -64,7 +64,7 @@ define("Network/PacketVerManager", ["Core/Configs"], function (a) {
         r = g[0];
       }
       b = 0;
-      for (c = t / r; b < c; ++b)
+      for (c = q / r; b < c; ++b)
         ((e[b] = {}),
           (e[b].GID = d.readULong()),
           (e[b].exp = 155 > r ? d.readLong() : d.getUint64()),

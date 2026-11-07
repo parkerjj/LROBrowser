@@ -14,9 +14,9 @@ define(
               .eq(b)
               .text(
                 (e(a.eq(b).data("button")) ? "ALT + " : "") +
-                  (l(a.eq(b).data("button")) ? "CTRL + " : "") +
+                  (m(a.eq(b).data("button")) ? "CTRL + " : "") +
                   (h(a.eq(b).data("button")) ? "SHIFT + " : "") +
-                  t.toReadableKey(parseInt(d(a.eq(b).data("button")), 10)),
+                  q.toReadableKey(parseInt(d(a.eq(b).data("button")), 10)),
               )
           : a.eq(b).text("\u672a\u8bbe\u7f6e");
     }
@@ -26,26 +26,26 @@ define(
     function e(a) {
       return f[a].Custom_settings ? f[a].Custom_alt : f[a].alt;
     }
-    function l(a) {
+    function m(a) {
       return f[a].Custom_settings ? f[a].Custom_ctrl : f[a].ctrl;
     }
     function h(a) {
       return f[a].Custom_settings ? f[a].Custom_shift : f[a].shift;
     }
     var r = a("Utils/jquery"),
-      t = a("Controls/KeyEventHandler");
+      q = a("Controls/KeyEventHandler");
     a("Core/Configs");
     a("Core/Context");
-    var n = a("Core/Preferences"),
+    var k = a("Core/Preferences"),
       g = a("Renderer/Renderer"),
-      p = a("UI/UIManager"),
-      k = a("UI/UIComponent"),
+      t = a("UI/UIManager"),
+      l = a("UI/UIComponent"),
       f = a("Preferences/ShortCutControls"),
-      m = a("Controls/BattleMode"),
-      q = a("text!./ShortCutOption.html");
+      n = a("Controls/BattleMode"),
+      p = a("text!./ShortCutOption.html");
     a = a("text!./ShortCutOption.css");
-    var v = new k("ShortCutOption", q, a),
-      u = n.get("ShortCutOption", { x: 300, y: 300 }, 1.1),
+    var v = new l("ShortCutOption", p, a),
+      u = k.get("ShortCutOption", { x: 300, y: 300 }, 1.1),
       A = (v.needFocus = !1);
     v.init = function () {
       this.ui.find(".close").on("click", b);
@@ -81,7 +81,7 @@ define(
     v.onKeyDown = function (a) {
       if (A) {
         var b = v.ui.find("td.sd");
-        if (m.match(a.which, t.ALT, t.CTRL, t.SHIFT))
+        if (n.match(a.which, q.ALT, q.CTRL, q.SHIFT))
           return (
             alert("\u4e0e\u5176\u5b83\u5feb\u6377\u952e\u51b2\u7a81"),
             !1
@@ -90,20 +90,20 @@ define(
           17 != a.which &&
           18 != a.which &&
           ((f[b.data("button")].Custom_settings = a.which),
-          (f[b.data("button")].Custom_alt = t.ALT),
-          (f[b.data("button")].Custom_ctrl = t.CTRL),
-          (f[b.data("button")].Custom_shift = t.SHIFT),
+          (f[b.data("button")].Custom_alt = q.ALT),
+          (f[b.data("button")].Custom_ctrl = q.CTRL),
+          (f[b.data("button")].Custom_shift = q.SHIFT),
           f.save());
-        m.reload();
+        n.reload();
         b.text(
           (e(b.data("button")) ? "ALT + " : "") +
-            (l(b.data("button")) ? "CTRL + " : "") +
+            (m(b.data("button")) ? "CTRL + " : "") +
             (h(b.data("button")) ? "SHIFT + " : "") +
-            t.toReadableKey(d(b.data("button")), 10),
+            q.toReadableKey(d(b.data("button")), 10),
         );
       }
       return !1;
     };
-    return p.addComponent(v);
+    return t.addComponent(v);
   },
 );

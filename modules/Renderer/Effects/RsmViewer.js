@@ -17,30 +17,30 @@ define(
     var d = a("Utils/gl-matrix"),
       e = a("Core/Client");
     a("Core/Configs");
-    var l = a("Renderer/Renderer");
+    var m = a("Renderer/Renderer");
     a("Renderer/Camera");
     var h = a("Loaders/Model");
     a("Renderer/Map/Models");
     var r = d.mat4;
     new Float32Array([1, 1, 1]);
-    var t = new Float32Array([1, 1, 1]),
-      n = new Float32Array([0, 0, 0]),
+    var q = new Float32Array([1, 1, 1]),
+      k = new Float32Array([0, 0, 0]),
       g = new Float32Array([0, 1, 0]),
-      p = {
+      t = {
         position: new Float32Array(3),
         rotation: new Float32Array(3),
         scale: new Float32Array([-0.075, -0.075, 0.075]),
         filename: null,
       };
     new Float32Array(16);
-    var k = new Float32Array(9),
+    var l = new Float32Array(9),
       f = null,
-      m = r.create();
+      n = r.create();
     b.prototype.init = function (a) {
       var d = this;
       e.getFile(this.filename, function (g) {
-        function k() {
-          ++q === t
+        function l() {
+          ++p === q
             ? (d._buffer || (d._buffer = a.createBuffer()),
               f ||
                 (f = c.createShaderProgram(
@@ -49,60 +49,60 @@ define(
                   " \n\t\t#version 100\n\t\t#pragma vscode_glsllint_stage : frag\n\t\tprecision highp float;\n\t\t\n\t\tvarying vec2 vTextureCoord;\n\t\tvarying float vLightWeighting;\n\t\tvarying float vAlpha;\n\n\t\tuniform sampler2D uDiffuse;\n\n\t\tuniform bool  uFogUse;\n\t\tuniform float uFogNear;\n\t\tuniform float uFogFar;\n\t\tuniform vec3  uFogColor;\n\n\t\tuniform vec3  uLightAmbient;\n\t\tuniform vec3  uLightDiffuse;\n\t\tuniform float uLightOpacity;\n\n\t\tvoid main(void) {\n\t\t\tvec4 texture  \x3d texture2D( uDiffuse,  vTextureCoord.st );\n\n\t\t\tif (texture.a \x3d\x3d 0.0) {\n\t\t\t\tdiscard;\n\t\t\t}\n\n\t\t\tvec3 Ambient    \x3d uLightAmbient * uLightOpacity;\n\t\t\tvec3 Diffuse    \x3d uLightDiffuse * vLightWeighting;\n\t\t\tvec4 LightColor \x3d vec4( Ambient + Diffuse, 1.0);\n\n\t\t\tgl_FragColor    \x3d texture * clamp(LightColor, 0.0, 1.0);\n\t\t\tgl_FragColor.a *\x3d vAlpha;\n\n\t\t\tif (uFogUse) {\n\t\t\t\tfloat depth     \x3d gl_FragCoord.z / gl_FragCoord.w;\n\t\t\t\tfloat fogFactor \x3d smoothstep( uFogNear, uFogFar, depth );\n\t\t\t\tgl_FragColor    \x3d mix( gl_FragColor, vec4( uFogColor, gl_FragColor.w ), fogFactor );\n\t\t\t}\n\t\t}\n\t",
                 )),
               a.bindBuffer(a.ARRAY_BUFFER, d._buffer),
-              a.bufferData(a.ARRAY_BUFFER, J, a.STATIC_DRAW),
-              b.add(l.getContext(), { buffer: J, infos: N }, d._objects),
+              a.bufferData(a.ARRAY_BUFFER, M, a.STATIC_DRAW),
+              b.add(m.getContext(), { buffer: M, infos: I }, d._objects),
               (d.ready = !0))
             : e.loadFile(
-                N[q].texture,
+                I[p].texture,
                 function (a) {
-                  N[q].texture = a;
-                  k();
+                  I[p].texture = a;
+                  l();
                 },
-                k,
+                l,
               );
         }
-        var m = new h(g),
+        var k = new h(g),
           n,
+          p,
           q,
-          t,
           r,
           u,
           v;
         g = [];
-        var N = [],
-          I,
+        var I = [],
+          L,
           x,
-          J;
-        m.createInstance(p, 0, 0);
-        n = m.compile();
-        t = n.meshes.length;
-        q = v = 0;
-        for (t = n.meshes.length; q < t; ++q)
+          M;
+        k.createInstance(t, 0, 0);
+        n = k.compile();
+        q = n.meshes.length;
+        p = v = 0;
+        for (q = n.meshes.length; p < q; ++p)
           for (
-            I = n.meshes[q], x = Object.keys(I), r = 0, u = x.length;
+            L = n.meshes[p], x = Object.keys(L), r = 0, u = x.length;
             r < u;
             ++r
           )
             (g.push({
               texture: n.textures[x[r]],
-              alpha: m.alpha,
-              mesh: I[x[r]],
+              alpha: k.alpha,
+              mesh: L[x[r]],
             }),
-              (v += I[x[r]].length));
-        J = new Float32Array(v);
-        t = g.length;
-        for (q = m = 0; q < t; ++q)
-          ((r = g[q]),
+              (v += L[x[r]].length));
+        M = new Float32Array(v);
+        q = g.length;
+        for (p = k = 0; p < q; ++p)
+          ((r = g[p]),
             (n = r.mesh.length),
-            (N[q] = {
+            (I[p] = {
               texture: "data/texture/" + r.texture,
-              vertOffset: m / 9,
+              vertOffset: k / 9,
               vertCount: n / 9,
             }),
-            J.set(r.mesh, m),
-            (m += n));
-        q = -1;
-        k();
+            M.set(r.mesh, k),
+            (k += n));
+        p = -1;
+        l();
       });
     };
     b.add = function (a, b, d) {
@@ -164,17 +164,17 @@ define(
     };
     b.beforeRender = function (a, b, c, d, e) {
       e = f.uniform;
-      r.identity(m);
-      r.rotateX(m, m, 1.5 * Math.PI);
+      r.identity(n);
+      r.rotateX(n, n, 1.5 * Math.PI);
       a.useProgram(f);
       a.uniformMatrix4fv(e.uModelViewMat, !1, b);
       a.uniformMatrix4fv(e.uProjectionMat, !1, c);
-      a.uniformMatrix3fv(e.uNormalMat, !1, k);
-      a.uniformMatrix4fv(e.uRotationMat, !1, m);
+      a.uniformMatrix3fv(e.uNormalMat, !1, l);
+      a.uniformMatrix4fv(e.uRotationMat, !1, n);
       a.uniform3fv(e.uLightDirection, g);
       a.uniform1f(e.uLightOpacity, 1);
-      a.uniform3fv(e.uLightAmbient, t);
-      a.uniform3fv(e.uLightDiffuse, n);
+      a.uniform3fv(e.uLightAmbient, q);
+      a.uniform3fv(e.uLightDiffuse, k);
       a.uniform1i(e.uFogUse, d.use && d.exist);
       a.uniform1f(e.uFogNear, d.near);
       a.uniform1f(e.uFogFar, d.far);

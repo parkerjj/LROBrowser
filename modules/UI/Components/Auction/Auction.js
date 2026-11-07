@@ -14,22 +14,22 @@ define(
             : parseInt(a) + "\u79d2\u540e";
     }
     function c(a) {
-      var b = m(a);
+      var b = n(a);
       if (b) {
-        var c = q.getItemName(b),
+        var c = p.getItemName(b),
           d = b.MaxPrice;
-        z.showPromptBox(
+        y.showPromptBox(
           "\u7269\u54c1\u540d\u79f0\uff1a" +
             c +
             "\uff0c\u4ef7\u683c\uff1a" +
             d +
-            L +
+            F +
             "\uff0c\u9053\u5177\u8d2d\u4e70\u540e\u5c06\u53d1\u9001\u5230\u90ae\u7bb1",
           "ok",
           "cancel",
           function () {
             if (b.SellerName == C.Entity.display.name)
-              z.showMessageBox("\u8d2d\u4e70\u5931\u8d25", "ok");
+              y.showMessageBox("\u8d2d\u4e70\u5931\u8d25", "ok");
             else {
               var c = new u.CZ.AUCTION_BUY();
               c.AuctionID = a;
@@ -41,10 +41,10 @@ define(
       }
     }
     function d(a) {
-      var b = m(a);
+      var b = n(a);
       b &&
-        ((b = q.getItemName(b)),
-        z.showPromptBox(
+        ((b = p.getItemName(b)),
+        y.showPromptBox(
           "\u7269\u54c1\u540d\u79f0\uff1a" +
             b +
             "\uff0c\u9053\u5177\u4e0b\u67b6\u540e\u5c06\u53d1\u9001\u5230\u90ae\u7bb1",
@@ -61,7 +61,7 @@ define(
       E.ui.find(".tabsbar .btns button").removeClass("sd");
       E.ui.find(".tabsbar .btns button").eq(a).addClass("sd");
       E.ui.find(".content").empty();
-      F = a;
+      H = a;
       switch (a) {
         case 0:
           E.ui.find(".seachbar").show();
@@ -70,7 +70,7 @@ define(
           E.ui.find(".nav2").hide();
           E.ui.find(".footer .pages").show();
           E.ui.find(".footer .btns").hide();
-          l(4);
+          m(4);
           break;
         case 1:
           E.ui.find(".seachbar").hide();
@@ -97,7 +97,7 @@ define(
             ));
       }
     }
-    function l(a) {
+    function m(a) {
       E.ui.find(".search input").val("");
       E.ui
         .find(".search .sort option[value \x3d " + a + "]")
@@ -115,7 +115,7 @@ define(
       var b;
       try {
         b = JSON.parse(a.originalEvent.dataTransfer.getData("Text"));
-      } catch (T) {
+      } catch (V) {
         return !1;
       }
       a.stopImmediatePropagation();
@@ -127,7 +127,7 @@ define(
         c.index = b.index;
         c.count = 1;
         v.sendPacket(c);
-        P.auctionItem(b.index, 1);
+        J.auctionItem(b.index, 1);
       }
       a.stopImmediatePropagation();
       return !1;
@@ -136,11 +136,11 @@ define(
       a.stopImmediatePropagation();
       return !1;
     }
-    function t() {
+    function q() {
       1 < K && (--K, E.ui.find(".currentPage").text(K), g());
     }
-    function n() {
-      K < M && ((K += 1), E.ui.find(".currentPage").text(K), g());
+    function k() {
+      K < P && ((K += 1), E.ui.find(".currentPage").text(K), g());
     }
     function g() {
       var a = E.ui.find(".search .sort").val(),
@@ -151,7 +151,7 @@ define(
       b.Page = K;
       v.sendPacket(b);
     }
-    function p(a) {
+    function t(a) {
       E.ui
         .find(".search .sort option[value \x3d 4]")
         .prop("selected", "selected");
@@ -162,13 +162,13 @@ define(
       b.Page = K;
       v.sendPacket(b);
     }
-    function k() {
+    function l() {
       var a = E.ui.find(".content");
-      if (W) {
+      if (S) {
         var b = new u.CZ.AUCTION_CREATE();
         b.type = 1;
         v.sendPacket(b);
-        W = null;
+        S = null;
       }
       a.empty();
       a.append(
@@ -176,35 +176,35 @@ define(
       );
     }
     function f() {
-      if (W) {
+      if (S) {
         var a = E.ui.find(".itemSub .name").html(),
           b = E.ui.find(".itemSub .price input").val(),
           c = E.ui.find(".itemSub .datetime input").val();
         a
           ? b
             ? 1 > b
-              ? z.showMessageBox(
+              ? y.showMessageBox(
                   "\u51fa\u552e\u4ef7\u683c\u5927\u4e8e\u7b49\u4e8e1",
                   "ok",
                 )
               : c
                 ? 1 > c
-                  ? z.showMessageBox(
+                  ? y.showMessageBox(
                       "\u6302\u552e\u65f6\u95f4\u81f3\u5c111\u5c0f\u65f6",
                       "ok",
                     )
                   : 168 < c
-                    ? z.showMessageBox(
+                    ? y.showMessageBox(
                         "\u6302\u552e\u65f6\u95f4\u4e0d\u80fd\u8d85\u8fc7168\u5c0f\u65f6",
                         "ok",
                       )
                     : ((b = parseInt(b)),
-                      z.showPromptBox(
+                      y.showPromptBox(
                         "\u7269\u54c1\u540d\u79f0\uff1a" +
                           a +
                           "\uff0c\u4ef7\u683c\uff1a" +
                           b +
-                          L +
+                          F +
                           "\uff0c\u624b\u7eed\u8d39\uff1a" +
                           b +
                           "Z\uff0c\u6302\u552e\u65f6\u95f4\uff1a" +
@@ -223,18 +223,18 @@ define(
                           v.sendPacket(a);
                         },
                       ))
-                : z.showMessageBox(
+                : y.showMessageBox(
                     "\u8bf7\u586b\u5199\u6302\u552e\u65f6\u95f4",
                     "ok",
                   )
-            : z.showMessageBox(
+            : y.showMessageBox(
                 "\u8bf7\u586b\u5199\u51fa\u552e\u4ef7\u683c",
                 "ok",
               )
-          : z.showMessageBox("\u8bf7\u6dfb\u52a0\u7269\u54c1", "ok");
-      } else z.showMessageBox("\u8bf7\u6dfb\u52a0\u7269\u54c1", "ok");
+          : y.showMessageBox("\u8bf7\u6dfb\u52a0\u7269\u54c1", "ok");
+      } else y.showMessageBox("\u8bf7\u6dfb\u52a0\u7269\u54c1", "ok");
     }
-    function m(a) {
+    function n(a) {
       for (var b, c = 0; c < E.list.length; c++)
         if (E.list[c].AuctionID == a) {
           b = E.list[c];
@@ -242,109 +242,109 @@ define(
         }
       return b;
     }
-    var q = a("DB/DBManager"),
+    var p = a("DB/DBManager"),
       v = a("Network/NetworkManager"),
       u = a("Network/PacketStructure"),
       A = a("Utils/jquery"),
       D = a("Core/Preferences"),
       B = a("Core/Client"),
-      H = a("Core/Configs");
+      O = a("Core/Configs");
     a("Renderer/Renderer");
     var C = a("Engine/SessionStorage");
     a("Controls/MouseEventHandler");
-    var z = a("UI/UIManager"),
-      G = a("UI/UIComponent");
+    var y = a("UI/UIManager"),
+      z = a("UI/UIComponent");
     a("UI/Components/ContextMenu/ContextMenu");
     a("UI/Components/ChatBox/ChatBox");
-    var P = a("UI/Components/Inventory/Inventory"),
-      N = a("UI/Components/OnPushCart/OnPushCart"),
-      I = a("UI/Components/ItemInfo/ItemInfo"),
+    var J = a("UI/Components/Inventory/Inventory"),
+      I = a("UI/Components/OnPushCart/OnPushCart"),
+      L = a("UI/Components/ItemInfo/ItemInfo"),
       x = a("UI/Components/ItemObtain/ItemObtain"),
-      J = a("text!./Auction.html");
+      M = a("text!./Auction.html");
     a = a("text!./Auction.css");
-    var E = new G("Auction", J, a),
-      L = "Z";
-    3 == H.get("ClientVer") && (L = "C");
+    var E = new z("Auction", M, a),
+      F = "Z";
+    3 == O.get("ClientVer") && (F = "C");
     E.list = [];
     E.TAB = { ITEM: 0, SELLING: 1, MNSELL: 2 };
-    var y = D.get(
+    var G = D.get(
         "Auction",
         { x: 200, y: 260, width: 6, height: 6, show: !1, tab: E.TAB.ITEM },
         1,
       ),
-      F = 0,
+      H = 0,
       K = 1,
-      M = 1,
-      Q = !1,
-      W = null;
+      P = 1,
+      N = !1,
+      S = null;
     E.init = function () {
       this.ui.find(".titlebar").on("click", ".close", function () {
         var a = new u.CZ.AUCTION_CLOSE();
         v.sendPacket(a);
       });
       this.ui.find(".content").on("contextmenu", ".item .left", function () {
-        if (!Q) {
+        if (!N) {
           var a = A(this).parent().attr("data-auctionid");
-          if ((a = m(a)))
-            I.AuctionID != a.AuctionID
-              ? (I.append(),
-                (I.AuctionID = a.AuctionID),
-                (I.item_ = a),
+          if ((a = n(a)))
+            L.AuctionID != a.AuctionID
+              ? (L.append(),
+                (L.AuctionID = a.AuctionID),
+                (L.item_ = a),
                 (a.type = a.Type),
-                I.setItem(a))
-              : I.remove();
+                L.setItem(a))
+              : L.remove();
         }
       });
       this.ui
         .find(".content")
         .on("contextmenu", ".itemSub .left,.itemSub .name", function () {
-          if (!Q) {
+          if (!N) {
             A(this).parent().attr("data-index");
-            var a = W;
+            var a = S;
             a &&
-              (I.uid != a.ITID
-                ? (I.append(),
-                  (I.uid = a.ITID),
-                  (I.type = "Auction"),
-                  (I.item_ = a),
+              (L.uid != a.ITID
+                ? (L.append(),
+                  (L.uid = a.ITID),
+                  (L.type = "Auction"),
+                  (L.item_ = a),
                   (a.type = a.Type),
-                  I.setItem(a))
-                : I.remove());
+                  L.setItem(a))
+                : L.remove());
           }
         });
       this.ui.find(".tabsbar .btns button").on("click", function () {
         e(A(this).index());
       });
       this.ui.find(".content").on("click", ".item .buyin", function () {
-        Q || c(A(this).attr("data-auctionid"));
+        N || c(A(this).attr("data-auctionid"));
       });
       this.ui.find(".content").on("click", ".item .takedn", function () {
-        Q || d(A(this).attr("data-auctionid"));
+        N || d(A(this).attr("data-auctionid"));
       });
       this.ui.find(".search .sort").on("change", function () {
-        l(A(this).val());
+        m(A(this).val());
       });
-      this.ui.find(".search input").on("change", p);
-      this.ui.find(".footer").on("click", ".prev", t);
-      this.ui.find(".footer").on("click", ".next", n);
+      this.ui.find(".search input").on("change", t);
+      this.ui.find(".footer").on("click", ".prev", q);
+      this.ui.find(".footer").on("click", ".next", k);
       this.ui.find(".openInventory").click(function () {
-        P.toggle();
+        J.toggle();
       });
       this.ui.find(".openpushcart").click(function () {
         C.Entity.cart
-          ? N.toggle()
+          ? I.toggle()
           : x.setMsg("\u627e\u4e0d\u5230\u624b\u63a8\u8f66");
       });
-      this.ui.find(".sellbar").on("click", ".reset", k);
+      this.ui.find(".sellbar").on("click", ".reset", l);
       this.ui.find(".sellbar").on("click", ".release", f);
       var a, b;
       this.ui
         .on("touchstart", ".content", function (b) {
-          Q = !1;
+          N = !1;
           a = b.originalEvent.targetTouches[0].clientY;
         })
         .on("touchmove", ".content", function (c) {
-          Q = !0;
+          N = !0;
           3 < A(this).find(".item").length &&
             ((b = c.originalEvent.targetTouches[0].clientY),
             (0 < b - a && 0 == A("#Auction .content").scrollTop()) ||
@@ -352,24 +352,24 @@ define(
         });
       this.draggable(this.ui.find(".titlebar"));
       this.ui.on("drop", h).on("dragover", r);
-      y.tab = 0;
+      G.tab = 0;
     };
     E.onAppend = function () {
       e(0);
     };
     E.onRemove = function () {
-      I.ui && I.ui.is(":visible") && I.remove();
-      F = 0;
-      M = K = 1;
-      W = null;
+      L.ui && L.ui.is(":visible") && L.remove();
+      H = 0;
+      P = K = 1;
+      S = null;
       E.ui.find(".search input").val("");
     };
     E.addItemSub = function (a, b) {
-      var c = P.getItemByIndex(a);
-      a = q.getItemInfo(c.ITID);
-      b = q.getItemName(c);
+      var c = J.getItemByIndex(a);
+      a = p.getItemInfo(c.ITID);
+      b = p.getItemName(c);
       var d = this.ui.find(".content");
-      W = c;
+      S = c;
       d.empty();
       d.append(
         '\x3cdiv class\x3d"itemSub" data-index\x3d"' +
@@ -379,7 +379,7 @@ define(
           '\x3c/div\x3e\x3cdiv class\x3d"price"\x3e\x3cinput type\x3d"text" value\x3d"1"/\x3e\x3c/div\x3e\x3cdiv class\x3d"datetime"\x3e\x3cinput type\x3d"text" value\x3d"168" /\x3e\x3c/div\x3e\x3c/div\x3e',
       );
       B.loadFile(
-        q.INTERFACE_PATH + "item/" + a.identifiedResourceName + ".bmp",
+        p.INTERFACE_PATH + "item/" + a.identifiedResourceName + ".bmp",
         function (a) {
           d.find('.itemSub[data-index\x3d"' + c.index + '"] .icon').css(
             "backgroundImage",
@@ -390,8 +390,8 @@ define(
     };
     E.addItem = function (a) {
       var c,
-        d = q.getItemInfo(a.ITID),
-        e = q.getItemName(a),
+        d = p.getItemInfo(a.ITID),
+        e = p.getItemName(a),
         f = this.ui.find(".content"),
         g = E.ui.find(".tabsbar .btns button.sd").index(),
         h = !1;
@@ -438,7 +438,7 @@ define(
           );
       f.append(c);
       B.loadFile(
-        q.INTERFACE_PATH + "item/" + d.identifiedResourceName + ".bmp",
+        p.INTERFACE_PATH + "item/" + d.identifiedResourceName + ".bmp",
         function (b) {
           f.find('.item[data-AuctionID\x3d"' + a.AuctionID + '"] .icon').css(
             "backgroundImage",
@@ -448,7 +448,7 @@ define(
       );
     };
     E.getSellitem = function () {
-      return W;
+      return S;
     };
     E.update = function (a) {
       e(a);
@@ -458,17 +458,17 @@ define(
       this.list = a.auctionItemList;
       b = this.ui.find(".content");
       var c = this.ui.find(".footer .pages");
-      M = a.MaxPage;
+      P = a.MaxPage;
       b.empty();
       c.empty();
       b = 0;
       for (a = a.Number; b < a; b++)
-        if ((E.addItem(this.list[b]), 0 == F && b == a - 1)) {
+        if ((E.addItem(this.list[b]), 0 == H && b == a - 1)) {
           var d = A(
             '\x3cbutton class\x3d"prev"\x3e\x3c\x3c/button\x3e\x3cspan class\x3d"currentPage"\x3e' +
               K +
               '\x3c/span\x3e / \x3cspan class\x3d"totalPages"\x3e' +
-              M +
+              P +
               '\x3c/span\x3e\x3cbutton class\x3d"next"\x3e\x3e\x3c/button\x3e',
           );
           c.append(d);
@@ -477,6 +477,6 @@ define(
     E.updatePage = function () {
       g();
     };
-    return z.addComponent(E);
+    return y.addComponent(E);
   },
 );

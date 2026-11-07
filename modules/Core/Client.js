@@ -84,37 +84,37 @@ define(
           "CLIENT_INIT",
           {
             files: f,
-            grfList: l.get("grfList") || "DATA.INI",
-            save: !!l.get("saveFiles"),
+            grfList: m.get("grfList") || "DATA.INI",
+            save: !!m.get("saveFiles"),
             quota: a,
           },
-          k.onFilesLoaded,
+          l.onFilesLoaded,
         );
       });
     }
     var c = a("Utils/Executable"),
       d = a("Utils/Texture"),
       e = a("Utils/WebGL"),
-      l = a("./Configs"),
+      m = a("./Configs"),
       h = a("./Thread"),
       r = a("./MemoryManager"),
-      t = a("Network/PacketVerManager"),
-      n = a("Vendors/text-encoding"),
+      q = a("Network/PacketVerManager"),
+      k = a("Vendors/text-encoding"),
       g = (function () {
         function a(a, b, c) {
           r.set(c.filename, a, b);
         }
         var b = { filename: "", args: null };
-        return function (c, d, f, m) {
-          c = n.decodeString(c);
+        return function (c, d, f, n) {
+          c = k.decodeString(c);
           r.exist(c) ||
-            ((b.filename = c), (b.args = m || null), h.send("GET_FILE", b, a));
+            ((b.filename = c), (b.args = n || null), h.send("GET_FILE", b, a));
           return r.get(c, d, f);
         };
       })(),
-      p = (function () {
+      t = (function () {
         function b(b, c, f) {
-          var m, q, g, p, n, v;
+          var n, p, g, k, t, v;
           if (b && !c)
             switch (f.filename.substr(-3)) {
               case "bmp":
@@ -123,134 +123,134 @@ define(
                 });
                 return;
               case "str":
-                p = a("Renderer/Renderer").getContext();
-                q = b.layers;
-                m = f.filename.split("/");
-                m.pop();
-                n = m.join("/");
-                for (m = 0; m < b.layernum; ++m)
+                k = a("Renderer/Renderer").getContext();
+                p = b.layers;
+                n = f.filename.split("/");
+                n.pop();
+                t = n.join("/");
+                for (n = 0; n < b.layernum; ++n)
                   for (
-                    q[m].materials = Array(q[m].texcnt), g = 0;
-                    g < q[m].texcnt;
+                    p[n].materials = Array(p[n].texcnt), g = 0;
+                    g < p[n].texcnt;
                     ++g
                   ) {
                     v = "";
-                    if ("data/texture/effect" == n) v = q[m].texname[g];
+                    if ("data/texture/effect" == t) v = p[n].texname[g];
                     else {
-                      v = q[m].texname[g].split("\\");
+                      v = p[n].texname[g].split("\\");
                       var u = v.pop();
                       v.join("/");
-                      v = n + "/" + u;
+                      v = t + "/" + u;
                     }
                     (function (a, b, c) {
-                      k.loadFile(a, function (a) {
-                        e.texture(p, a, function (a) {
+                      l.loadFile(a, function (a) {
+                        e.texture(k, a, function (a) {
                           b[c] = a;
                         });
                       });
-                    })(v, q[m].materials, g);
+                    })(v, p[n].materials, g);
                   }
                 r.set(f.filename, b, c);
                 return;
               case "spr":
-                p = a("Renderer/Renderer").getContext();
-                n = b.frames;
-                q = n.length;
-                for (m = 0; m < q; m++)
-                  ((n[m].texture = p.createTexture()),
-                    (v = n[m].type ? p.LINEAR : p.NEAREST),
-                    (g = n[m].type ? p.RGBA : p.LUMINANCE),
-                    p.pixelStorei(p.UNPACK_ALIGNMENT, 1),
-                    p.bindTexture(p.TEXTURE_2D, n[m].texture),
-                    p.texImage2D(
-                      p.TEXTURE_2D,
+                k = a("Renderer/Renderer").getContext();
+                t = b.frames;
+                p = t.length;
+                for (n = 0; n < p; n++)
+                  ((t[n].texture = k.createTexture()),
+                    (v = t[n].type ? k.LINEAR : k.NEAREST),
+                    (g = t[n].type ? k.RGBA : k.LUMINANCE),
+                    k.pixelStorei(k.UNPACK_ALIGNMENT, 1),
+                    k.bindTexture(k.TEXTURE_2D, t[n].texture),
+                    k.texImage2D(
+                      k.TEXTURE_2D,
                       0,
                       g,
-                      n[m].width,
-                      n[m].height,
+                      t[n].width,
+                      t[n].height,
                       0,
                       g,
-                      p.UNSIGNED_BYTE,
-                      n[m].data,
+                      k.UNSIGNED_BYTE,
+                      t[n].data,
                     ),
-                    p.texParameteri(p.TEXTURE_2D, p.TEXTURE_MAG_FILTER, v),
-                    p.texParameteri(p.TEXTURE_2D, p.TEXTURE_MIN_FILTER, v),
-                    p.texParameteri(
-                      p.TEXTURE_2D,
-                      p.TEXTURE_WRAP_S,
-                      p.CLAMP_TO_EDGE,
+                    k.texParameteri(k.TEXTURE_2D, k.TEXTURE_MAG_FILTER, v),
+                    k.texParameteri(k.TEXTURE_2D, k.TEXTURE_MIN_FILTER, v),
+                    k.texParameteri(
+                      k.TEXTURE_2D,
+                      k.TEXTURE_WRAP_S,
+                      k.CLAMP_TO_EDGE,
                     ),
-                    p.texParameteri(
-                      p.TEXTURE_2D,
-                      p.TEXTURE_WRAP_T,
-                      p.CLAMP_TO_EDGE,
+                    k.texParameteri(
+                      k.TEXTURE_2D,
+                      k.TEXTURE_WRAP_T,
+                      k.CLAMP_TO_EDGE,
                     ));
                 0 !== b.rgba_index &&
-                  ((b.texture = p.createTexture()),
-                  p.bindTexture(p.TEXTURE_2D, b.texture),
-                  p.texImage2D(
-                    p.TEXTURE_2D,
+                  ((b.texture = k.createTexture()),
+                  k.bindTexture(k.TEXTURE_2D, b.texture),
+                  k.texImage2D(
+                    k.TEXTURE_2D,
                     0,
-                    p.RGBA,
+                    k.RGBA,
                     256,
                     1,
                     0,
-                    p.RGBA,
-                    p.UNSIGNED_BYTE,
+                    k.RGBA,
+                    k.UNSIGNED_BYTE,
                     b.palette,
                   ),
-                  p.texParameteri(
-                    p.TEXTURE_2D,
-                    p.TEXTURE_MAG_FILTER,
-                    p.NEAREST,
+                  k.texParameteri(
+                    k.TEXTURE_2D,
+                    k.TEXTURE_MAG_FILTER,
+                    k.NEAREST,
                   ),
-                  p.texParameteri(
-                    p.TEXTURE_2D,
-                    p.TEXTURE_MIN_FILTER,
-                    p.NEAREST,
+                  k.texParameteri(
+                    k.TEXTURE_2D,
+                    k.TEXTURE_MIN_FILTER,
+                    k.NEAREST,
                   ));
                 r.set(f.filename, b, c);
                 return;
               case "pal":
-                p = a("Renderer/Renderer").getContext();
-                m = p.createTexture();
+                k = a("Renderer/Renderer").getContext();
+                n = k.createTexture();
                 b = new Uint8Array(b);
-                p.bindTexture(p.TEXTURE_2D, m);
-                p.texImage2D(
-                  p.TEXTURE_2D,
+                k.bindTexture(k.TEXTURE_2D, n);
+                k.texImage2D(
+                  k.TEXTURE_2D,
                   0,
-                  p.RGBA,
+                  k.RGBA,
                   256,
                   1,
                   0,
-                  p.RGBA,
-                  p.UNSIGNED_BYTE,
+                  k.RGBA,
+                  k.UNSIGNED_BYTE,
                   b,
                 );
-                p.texParameteri(p.TEXTURE_2D, p.TEXTURE_MAG_FILTER, p.NEAREST);
-                p.texParameteri(p.TEXTURE_2D, p.TEXTURE_MIN_FILTER, p.NEAREST);
-                r.set(f.filename, { palette: b, texture: m }, c);
+                k.texParameteri(k.TEXTURE_2D, k.TEXTURE_MAG_FILTER, k.NEAREST);
+                k.texParameteri(k.TEXTURE_2D, k.TEXTURE_MIN_FILTER, k.NEAREST);
+                r.set(f.filename, { palette: b, texture: n }, c);
                 return;
             }
           r.set(f.filename, b, c);
         }
         var c = { filename: "", args: null };
-        return function (a, d, f, m) {
-          a = n.decodeString(a);
+        return function (a, d, f, n) {
+          a = k.decodeString(a);
           r.exist(a) ||
-            ((c.filename = a), (c.args = m || null), h.send("LOAD_FILE", c, b));
+            ((c.filename = a), (c.args = n || null), h.send("LOAD_FILE", c, b));
           return r.get(a, d, f);
         };
       })(),
-      k = {
+      l = {
         init: function (a) {
           function d(a) {
-            2e7 < a && (t.value = a);
+            2e7 < a && (q.value = a);
           }
           var f,
             e,
-            g = l.get("remoteClient");
-          l.get("ClientVer");
+            g = m.get("remoteClient");
+          m.get("ClientVer");
           if ("20211103".match(/^executable$/i))
             for (f = 0, e = a.length; f < e; ++f) {
               if (c.isROExec(a[f])) {
@@ -258,39 +258,39 @@ define(
                 break;
               }
             }
-          else t.value = 20211103;
+          else q.value = 20211103;
           g && h.send("SET_HOST", g);
           b(a);
         },
         getFile: g,
         getFiles: function (a, b) {
           function c(e) {
-            m[f++] = e;
-            f === d ? b && b.apply(null, m) : g(a[f], c);
+            n[f++] = e;
+            f === d ? b && b.apply(null, n) : g(a[f], c);
           }
-          var d, f, m;
+          var d, f, n;
           d = a.length;
-          m = Array(d);
+          n = Array(d);
           f = 0;
           g(a[f], c);
         },
-        loadFile: p,
+        loadFile: t,
         loadFiles: function (a, b) {
           function c(e) {
-            m[f++] = e;
-            f === d ? b && b.apply(null, m) : p(a[f], c);
+            n[f++] = e;
+            f === d ? b && b.apply(null, n) : t(a[f], c);
           }
-          var d, f, m;
+          var d, f, n;
           d = a.length;
-          m = Array(d);
+          n = Array(d);
           f = 0;
-          p(a[f], c);
+          t(a[f], c);
         },
         search: function (a, b) {
           h.send("SEARCH_FILE", a, b);
         },
         onFilesLoaded: function () {},
       };
-    return k;
+    return l;
   },
 );

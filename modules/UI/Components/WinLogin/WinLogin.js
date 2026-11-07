@@ -5,14 +5,14 @@ define(
   ),
   function (a) {
     function b() {
-      k.onExitRequest();
+      l.onExitRequest();
       return !1;
     }
     function c() {
       if (B) return !1;
       B = !0;
-      var a = m.val(),
-        b = q.val();
+      var a = n.val(),
+        b = p.val();
       if (!a || !b) return (B = !1);
       f.saveID
         ? ((f.saveID = !0), (f.ID = a), (f.PD = b))
@@ -51,12 +51,12 @@ define(
         data: h,
         success: function (c) {
           if (3 == c)
-            n.showMessageBox(
+            k.showMessageBox(
               "\u767b\u5f55\u7ec8\u7aef\u8d85\u9650",
               "ok",
               null,
             );
-          else k.onConnectionRequest(a, b);
+          else l.onConnectionRequest(a, b);
           B = !1;
         },
       });
@@ -64,20 +64,20 @@ define(
     }
     var d = a("Engine/SessionStorage"),
       e = a("Utils/jquery"),
-      l = a("DB/DBManager");
+      m = a("DB/DBManager");
     a("Core/Client");
     var h = a("Core/Preferences"),
       r = a("Core/Configs");
     a("Renderer/Renderer");
-    var t = a("Controls/KeyEventHandler"),
-      n = a("UI/UIManager"),
+    var q = a("Controls/KeyEventHandler"),
+      k = a("UI/UIManager"),
       g = a("UI/UIComponent"),
-      p = a("text!./WinLogin.html");
+      t = a("text!./WinLogin.html");
     a = a("text!./WinLogin.css");
-    var k = new g("WinLogin", p, a),
+    var l = new g("WinLogin", t, a),
       f = h.get("WinLogin", { saveID: !0, ID: "", PD: "" }, 1),
-      m,
-      q,
+      n,
+      p,
       v = r.get("ClientVer"),
       u = !1,
       A = {
@@ -216,15 +216,15 @@ define(
         4215: "Rebellion",
         4218: "\u53ec\u5524\u5e08",
       };
-    k.init = function () {
+    l.init = function () {
       var a = this.ui,
         d = 0;
-      m = a.find(".user");
-      q = a.find(".pass");
-      m.on("focus", function () {
+      n = a.find(".user");
+      p = a.find(".pass");
+      n.on("focus", function () {
         window.scrollTo(0, 0);
       });
-      q.on("focus", function () {
+      p.on("focus", function () {
         window.scrollTo(0, 0);
       });
       a.find(".field")
@@ -245,7 +245,7 @@ define(
               "http://game.lastro.cn/?r\x3dpc/reg\x26nid\x3d3",
               "_blank",
             )
-          : n.showMessageBox(
+          : k.showMessageBox(
               "\u8bf7\u4f7f\u7528MF\u65b9\u5f0f\u6ce8\u518c\uff0cM\u4e3a\u7537\u6027\uff0cF\u4e3a\u5973\u6027\uff0c\u5047\u8bbe\u8d26\u53f7\u4e3atest\uff0c\u5728\u6700\u540e\u52a0\u4e0a_M(\u4e0b\u5212\u7ebfM)\uff0c\u70b9\u51fb\u767b\u5f55\u5373\u53ef\u521b\u5efa\u8d26\u53f7",
               "ok",
               null,
@@ -396,7 +396,7 @@ define(
                 a.find(".ssres_job").text(A[b.class]);
                 a.find(".ssres_base_level").text(b.base_level);
                 a.find(".ssres_job_level").text(b.job_level);
-                a.find(".ssres_map").text(l.getMapName(b.last_map + ".gat"));
+                a.find(".ssres_map").text(m.getMapName(b.last_map + ".gat"));
                 a.find(".ssres_hp #hp").text(b.hp);
                 a.find(".ssres_hp #max_hp").text(b.max_hp);
                 a.find(".ssres_sp #sp").text(b.sp);
@@ -439,20 +439,20 @@ define(
                   var c = { ITID: b.hppotion, amount: b.hpamount },
                     e = { ITID: b.hppotion2, amount: b.hpamount2 },
                     g = { ITID: b.hppotion3, amount: b.hpamount3 };
-                  a.find(".ssres_hpname").text(l.getItemName(c));
+                  a.find(".ssres_hpname").text(m.getItemName(c));
                   a.find(".ssres_hpamount").text("x " + c.amount);
-                  a.find(".ssres_hpname2").text(l.getItemName(e));
+                  a.find(".ssres_hpname2").text(m.getItemName(e));
                   a.find(".ssres_hpamount2").text("x " + e.amount);
-                  a.find(".ssres_hpname3").text(l.getItemName(g));
+                  a.find(".ssres_hpname3").text(m.getItemName(g));
                   a.find(".ssres_hpamount3").text("x " + g.amount);
                   c = { ITID: b.sppotion, amount: b.spamount };
                   e = { ITID: b.sppotion2, amount: b.spamount2 };
                   g = { ITID: b.sppotion3, amount: b.spamount3 };
-                  a.find(".ssres_spname").text(l.getItemName(c));
+                  a.find(".ssres_spname").text(m.getItemName(c));
                   a.find(".ssres_spamount").text("x " + c.amount);
-                  a.find(".ssres_spname2").text(l.getItemName(e));
+                  a.find(".ssres_spname2").text(m.getItemName(e));
                   a.find(".ssres_spamount2").text("x " + e.amount);
-                  a.find(".ssres_spname3").text(l.getItemName(g));
+                  a.find(".ssres_spname3").text(m.getItemName(g));
                   a.find(".ssres_spamount3").text("x " + g.amount);
                 }
                 a.find(".ssres_cyamount").text(b.cyamount);
@@ -515,7 +515,7 @@ define(
                     case 1:
                     case 4:
                       a.find(".ssres_sj_mob").text(
-                        l.getmobData(b.sjlr_mob).kName,
+                        m.getmobData(b.sjlr_mob).kName,
                       );
                       a.find(".ssres_sl_mob").text(b.sjlr_sl_mob);
                       a.find(".ssres_sj_num_mob").text(b.sjlr_num_mob);
@@ -526,7 +526,7 @@ define(
                       break;
                     case 2:
                       c = { ITID: b.sjlr_item, IsIdentified: 1 };
-                      a.find(".ssres_sj_item").text(l.getItemName(c));
+                      a.find(".ssres_sj_item").text(m.getItemName(c));
                       a.find(".ssres_sl_num_has_item").text(
                         b.sjlr_num_has_item,
                       );
@@ -539,11 +539,11 @@ define(
                     case 3:
                       (a
                         .find(".ssres_sj_mob")
-                        .text(l.getmobData(b.sjlr_mob).kName),
+                        .text(m.getmobData(b.sjlr_mob).kName),
                         a.find(".ssres_sl_mob").text(b.sjlr_sl_mob),
                         a.find(".ssres_sj_num_mob").text(b.sjlr_num_mob),
                         (c = { ITID: b.sjlr_item, IsIdentified: 1 }),
-                        a.find(".ssres_sj_item").text(l.getItemName(c)),
+                        a.find(".ssres_sj_item").text(m.getItemName(c)),
                         a
                           .find(".ssres_sl_num_has_item")
                           .text(b.sjlr_num_has_item),
@@ -561,14 +561,14 @@ define(
               } else
                 1 == b
                   ? ((u = !1),
-                    n.showMessageBox(
+                    k.showMessageBox(
                       "\u7528\u6237\u540d\u6216\u5bc6\u7801\u9519\u8bef",
                       "ok",
                       null,
                     ))
                   : 2 == b &&
                     ((u = !1),
-                    n.showMessageBox(
+                    k.showMessageBox(
                       "\u8be5\u8d26\u53f7\u6ca1\u6709\u89d2\u8272\u5728\u7ebf",
                       "ok",
                       null,
@@ -611,20 +611,20 @@ define(
             e(this).removeClass("input");
           }));
     };
-    k.onAppend = function () {
+    l.onAppend = function () {
       B = !1;
-      m.val(f.saveID ? f.ID : "");
-      q.val(f.saveID ? f.PD : "");
-      m.val() && m.parent().parent().addClass("field--non-empty");
-      q.val() && q.parent().parent().addClass("field--non-empty");
+      n.val(f.saveID ? f.ID : "");
+      p.val(f.saveID ? f.PD : "");
+      n.val() && n.parent().parent().addClass("field--non-empty");
+      p.val() && p.parent().parent().addClass("field--non-empty");
     };
-    k.onRemove = function () {
+    l.onRemove = function () {
       this.ui.find(".btn button").removeClass("processing");
     };
     var D = !1;
-    k.onKeyDown = function (a) {
+    l.onKeyDown = function (a) {
       switch (a.which) {
-        case t.ENTER:
+        case q.ENTER:
           if (!D)
             return (
               (D = !0),
@@ -636,11 +636,11 @@ define(
               !1
             );
           break;
-        case t.ESCAPE:
+        case q.ESCAPE:
           return (b(), a.stopImmediatePropagation(), !1);
-        case t.TAB:
+        case q.TAB:
           return (
-            (document.activeElement === m[0] ? q : m).focus().select(),
+            (document.activeElement === n[0] ? p : n).focus().select(),
             a.stopImmediatePropagation(),
             !1
           );
@@ -648,8 +648,8 @@ define(
       return !0;
     };
     var B = !1;
-    k.onConnectionRequest = function () {};
-    k.onExitRequest = function () {};
-    return n.addComponent(k);
+    l.onConnectionRequest = function () {};
+    l.onExitRequest = function () {};
+    return k.addComponent(l);
   },
 );

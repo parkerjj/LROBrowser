@@ -26,13 +26,13 @@ define(
     }
     var d = a("DB/DBManager"),
       e = a("Engine/MapEngine/Friends"),
-      l = a("Network/NetworkManager"),
+      m = a("Network/NetworkManager"),
       h = a("Network/PacketStructure"),
       r = a("UI/Components/ChatBox/ChatBox");
     return function () {
-      l.hookPacket(h.ZC.WHISPER, b);
-      l.hookPacket(h.ZC.ACK_WHISPER, c);
-      l.hookPacket(h.ZC.ACK_WHISPER2, c);
+      m.hookPacket(h.ZC.WHISPER, b);
+      m.hookPacket(h.ZC.ACK_WHISPER, c);
+      m.hookPacket(h.ZC.ACK_WHISPER2, c);
     };
   },
 );

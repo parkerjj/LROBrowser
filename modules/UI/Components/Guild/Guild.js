@@ -5,10 +5,10 @@ define(
   ),
   function (a) {
     function b() {
-      var a = k(this);
+      var a = l(this);
       a.hasClass("skill") || (a = a.parent());
       a = d(parseInt(a.data("index"), 10));
-      G.uid === a.SKID ? G.remove() : (G.append(), G.setSkill(a.SKID));
+      z.uid === a.SKID ? z.remove() : (z.append(), z.setSkill(a.SKID));
     }
     function c() {
       var a = this.parentNode.parentNode.getAttribute("data-index");
@@ -16,16 +16,16 @@ define(
     }
     function d(a) {
       var b,
-        c = I.length;
-      for (b = 0; b < c; ++b) if (I[b].SKID === a) return I[b];
+        c = L.length;
+      for (b = 0; b < c; ++b) if (L[b].SKID === a) return L[b];
       return null;
     }
     function e() {
-      var a = k(this);
+      var a = l(this);
       a.hasClass("skill") || (a = a.parent());
       x.useSkillID(parseInt(a.data("index"), 10));
     }
-    function l(a) {
+    function m(a) {
       a.stopImmediatePropagation();
       return !1;
     }
@@ -33,7 +33,7 @@ define(
       var b = parseInt(this.getAttribute("data-flag"), 10);
       if (
         !a.isTrigger &&
-        (this.classList.contains("active") || (b && !(M & N[b])))
+        (this.classList.contains("active") || (b && !(P & I[b])))
       )
         return !1;
       x.onGuildInfoRequest(b);
@@ -41,7 +41,7 @@ define(
       x.ui.find(".content").hide();
       x.ui.find(".content." + this.className).show();
       x.ui.find(".footer .btn_ok").hide();
-      "members" === this.className ? v.render(S) : v.stop(S);
+      "members" === this.className ? v.render(U) : v.stop(U);
       this.classList.add("active");
       return !1;
     }
@@ -58,7 +58,7 @@ define(
       b.fillStyle = "#ffffff";
       b.fillRect(a.width / 2 - 1, a.height / 2 - 1, 2, 2);
     }
-    function t() {
+    function q() {
       var a = x.ui.find(".content:visible").get(0).className,
         a = a.replace(/content/g, "").replace(/^\s+|\s+$/gm, "");
       switch (a) {
@@ -72,17 +72,17 @@ define(
             h = [];
           d = x.ui.find(".PositionView");
           a = 0;
-          for (b = y.length; a < b; ++a)
+          for (b = G.length; a < b; ++a)
             ((c = d.eq(a)),
               (f = c.find(".title input").val()),
               (g = parseInt(c.find(".tax input").val(), 10)),
               (e = 0),
               c.find(".invite button").hasClass("on") && (e |= 1),
               c.find(".punish button").hasClass("on") && (e |= 16),
-              (y[a].right === e && y[a].posName === f && y[a].payRate === g) ||
+              (G[a].right === e && G[a].posName === f && G[a].payRate === g) ||
                 h.push({
-                  positionID: y[a].positionID,
-                  ranking: y[a].ranking,
+                  positionID: G[a].positionID,
+                  ranking: G[a].ranking,
                   right: e,
                   posName: f,
                   payRate: g,
@@ -96,71 +96,71 @@ define(
       }
       x.ui.find(".footer .btn_ok").hide();
     }
-    var n = a("DB/DBManager"),
+    var k = a("DB/DBManager"),
       g = a("DB/Monsters/MonsterTable"),
-      p = a("Engine/SessionStorage"),
-      k = a("Utils/jquery"),
+      t = a("Engine/SessionStorage"),
+      l = a("Utils/jquery"),
       f = a("Renderer/Entity/Entity"),
-      m = a("Renderer/SpriteRenderer"),
-      q = a("Renderer/Camera"),
+      n = a("Renderer/SpriteRenderer"),
+      p = a("Renderer/Camera"),
       v = a("Renderer/Renderer"),
       u = a("Core/Preferences"),
       A = a("Core/Client"),
       D = a("UI/UIManager"),
       B = a("UI/UIComponent"),
-      H = a("UI/Components/ContextMenu/ContextMenu"),
+      O = a("UI/Components/ContextMenu/ContextMenu"),
       C = a("UI/Components/ChatBox/ChatBox"),
-      z = a("UI/Components/InputBox/InputBox"),
-      G = a("UI/Components/SkillDescription/SkillDescription"),
-      P = a("text!./Guild.html");
+      y = a("UI/Components/InputBox/InputBox"),
+      z = a("UI/Components/SkillDescription/SkillDescription"),
+      J = a("text!./Guild.html");
     a = a("text!./Guild.css");
     u.get("Guild", { x: 100, y: 100 }, 1);
-    var N = { 0: 0, 1: 1, 2: 2, 3: 4, 4: 16, 5: 64, 6: 128 },
-      I = [],
-      x = new B("Guild", P, a),
-      J,
+    var I = { 0: 0, 1: 1, 2: 2, 3: 4, 4: 16, 5: 64, 6: 128 },
+      L = [],
+      x = new B("Guild", J, a),
+      M,
       E,
-      L,
-      y = [],
-      F = [],
+      F,
+      G = [],
+      H = [],
       K = 0,
-      M = 0,
-      Q,
-      W,
-      V,
-      ba = 0;
+      P = 0,
+      N,
+      S,
+      R,
+      ea = 0;
     x.init = function () {
       var a = this.ui;
-      J = this.ui.find(".MemberView").remove();
+      M = this.ui.find(".MemberView").remove();
       E = this.ui.find(".PositionView").remove();
-      L = this.ui.find(".ExpelView").remove();
-      V = this.ui.find(".btn.levelup").detach().click(c);
+      F = this.ui.find(".ExpelView").remove();
+      R = this.ui.find(".btn.levelup").detach().click(c);
       this.ui.on("dblclick", ".skill .icon", e).on("contextmenu", ".skill", b);
-      a.find(".titlebar .close").mousedown(l).click(x.toggle.bind(this));
+      a.find(".titlebar .close").mousedown(m).click(x.toggle.bind(this));
       a.find(".tabs").on("click", "button", h);
       A.loadFiles(
         [
-          n.INTERFACE_PATH + "checkbox_0.bmp",
-          n.INTERFACE_PATH + "checkbox_1.bmp",
+          k.INTERFACE_PATH + "checkbox_0.bmp",
+          k.INTERFACE_PATH + "checkbox_1.bmp",
         ],
         function (a, b) {
-          Q = a;
-          W = b;
+          N = a;
+          S = b;
         },
       );
       a.find(".content.positions tbody")
         .on("mousedown", "input", function () {
-          return p.isGuildMaster;
+          return t.isGuildMaster;
         })
         .on("focus", "input", function () {
           a.find(".footer .btn_ok").show();
           this.select();
         })
         .on("click", "button", function () {
-          p.isGuildMaster &&
+          t.isGuildMaster &&
             ((this.className = "on" === this.className ? "off" : "on"),
             (this.style.backgroundImage =
-              "url(" + ("on" === this.className ? W : Q) + ")"),
+              "url(" + ("on" === this.className ? S : N) + ")"),
             a.find(".footer .btn_ok").show());
         })
         .on("mousedown", "tr", function () {
@@ -177,9 +177,9 @@ define(
             ".content.info .ally_list div, .content.info .hostile_list div",
           ).removeClass("active");
           this.classList.add("active");
-          H.remove();
-          H.append();
-          H.addElement(n.getMessage(351), function () {
+          O.remove();
+          O.append();
+          O.addElement(k.getMessage(351), function () {
             x.onRequestDeleteRelation(c, b);
           });
         },
@@ -190,41 +190,41 @@ define(
           this.classList.add("active");
         })
         .on("change", ".MemberView.active .position", function () {
-          var a = F[k(".MemberView.active").index()].AID,
-            b = F[k(".MemberView.active").index()].GID,
-            c = k(".MemberView.active .position select option:selected").attr(
+          var a = H[l(".MemberView.active").index()].AID,
+            b = H[l(".MemberView.active").index()].GID,
+            c = l(".MemberView.active .position select option:selected").attr(
               "data-id",
             );
           x.onRequestCHANGE_MEMBERPOS(a, b, c);
         })
         .on("contextmenu", "td.name", function () {
           var a = this.parentNode.getAttribute("data-index"),
-            b = F[a],
-            a = b.AID === p.AID && b.GID === p.GID;
-          H.remove();
-          H.append();
-          H.addElement(n.getMessage(129), function () {
+            b = H[a],
+            a = b.AID === t.AID && b.GID === t.GID;
+          O.remove();
+          O.append();
+          O.addElement(k.getMessage(129), function () {
             x.onRequestMemberInfo(b.AID);
           });
           a &&
-            !p.isGuildMaster &&
-            H.addElement(n.getMessage(508), function () {
-              z.append();
-              z.setType("text");
-              z.ui.find(".text").text(n.getMessage(523));
-              z.onSubmitRequest = function (a) {
-                z.remove();
+            !t.isGuildMaster &&
+            O.addElement(k.getMessage(508), function () {
+              y.append();
+              y.setType("text");
+              y.ui.find(".text").text(k.getMessage(523));
+              y.onSubmitRequest = function (a) {
+                y.remove();
                 x.onRequestLeave(b.AID, b.GID, a);
               };
             });
-          p.guildRight & 16 &&
+          t.guildRight & 16 &&
             !a &&
-            H.addElement(n.getMessage(509), function () {
-              z.append();
-              z.setType("text");
-              z.ui.find(".text").text(n.getMessage(524));
-              z.onSubmitRequest = function (a) {
-                z.remove();
+            O.addElement(k.getMessage(509), function () {
+              y.append();
+              y.setType("text");
+              y.ui.find(".text").text(k.getMessage(524));
+              y.onSubmitRequest = function (a) {
+                y.remove();
                 x.onRequestMemberExpel(b.AID, b.GID, a);
               };
             });
@@ -295,13 +295,13 @@ define(
             b.readAsDataURL(a);
           }
       });
-      a.find(".footer .btn_ok").click(t);
+      a.find(".footer .btn_ok").click(q);
       this.draggable(this.ui.find(".titlebar"));
       this.ui.hide();
       r(0, 0);
     };
     x.onRemove = function () {
-      v.stop(S);
+      v.stop(U);
     };
     x.onShortCut = function (a) {
       switch (a.cmd) {
@@ -310,7 +310,7 @@ define(
       }
     };
     x.toggle = function () {
-      p.hasGuild
+      t.hasGuild
         ? this.ui.is(":visible")
           ? this.hide()
           : this.show()
@@ -325,11 +325,11 @@ define(
         (this.ui.show(),
         this.ui.find(".tabs .active").length ||
           (this.ui.find(".tabs .info").click(), x.onRequestAccess()),
-        this.ui.find(".content.members").is(":visible") && v.render(S));
+        this.ui.find(".content.members").is(":visible") && v.render(U));
     };
     x.hide = function () {
       this.ui.hide();
-      v.stop(S);
+      v.stop(U);
     };
     x.setGuildInformations = function (a) {
       var b = this.ui.find(".content.info");
@@ -344,16 +344,16 @@ define(
       b.find(".exp .value").text(a.exp);
       b.find(".tax .value").text(a.point);
       x.onRequestGuildEmblem(a.GDID, a.emblemVersion, x.setEmblem.bind(this));
-      p.isGuildMaster
+      t.isGuildMaster
         ? b.find(".emblem_edit").show()
         : b.find(".emblem_edit").hide();
       r(a.honor, a.virtue);
     };
     x.changeGuildInfo = function (a) {
-      p.Entity.GID == a.AID &&
+      t.Entity.GID == a.AID &&
         (0 < a.GDID
-          ? ((p.hasGuild = !0), (p.Entity.GUID = a.GDID))
-          : ((p.hasGuild = !1), (p.Entity.GUID = 0)));
+          ? ((t.hasGuild = !0), (t.Entity.GUID = a.GDID))
+          : ((t.hasGuild = !1), (t.Entity.GUID = 0)));
     };
     x.setEmblem = function (a) {
       this.ui
@@ -385,52 +385,52 @@ define(
     x.setMembers = function (a) {
       var b, c, d;
       c = a.length;
-      d = K = F.length = 0;
+      d = K = H.length = 0;
       this.ui.find(".content.members tbody").empty();
       for (b = 0; b < c; ++b)
         ((K += a[b].MemberExp), (d += a[b].CurrentState ? 1 : 0));
       this.ui.find(".content.info .members .online").text(d);
       b = 0;
       for (c = a.length; b < c; ++b) this.setMember(a[b]);
-      S(v.tick + 1e3);
+      U(v.tick + 1e3);
     };
     x.setMember = function (a) {
       var b, c;
       b = 0;
       for (
-        c = F.length;
-        b < c && (F[b].AID !== a.AID || F[b].GID !== a.GID);
+        c = H.length;
+        b < c && (H[b].AID !== a.AID || H[b].GID !== a.GID);
         ++b
       );
       b < c
         ? (c = this.ui.find('.MemberView[data-index\x3d"' + b + '"]'))
-        : ((c = J.clone()),
+        : ((c = M.clone()),
           this.ui.find(".content.members tbody").append(c),
-          F.push(a));
+          H.push(a));
       a.CurrentState && c.addClass("online");
       c.attr("data-index", b);
       c.find(".name .value").text(a.CharName);
-      if (p.isGuildMaster) {
-        if (y[a.GPositionID]) {
+      if (t.isGuildMaster) {
+        if (G[a.GPositionID]) {
           var d = null;
-          for (b = 0; b < y.length; b++)
-            y[b].posName != y[a.GPositionID].posName &&
+          for (b = 0; b < G.length; b++)
+            G[b].posName != G[a.GPositionID].posName &&
               (d +=
                 "\x3coption data-id\x3d" +
                 b +
                 "\x3e" +
-                y[b].posName +
+                G[b].posName +
                 "\x3c/option\x3e");
           b =
             "\x3cselect\x3e\x3coption\x3e" +
-            y[a.GPositionID].posName +
+            G[a.GPositionID].posName +
             "\x3c/option\x3e" +
             d +
             "\x3c/select\x3e";
           c.find(".position").html(b);
         }
       } else
-        y[a.GPositionID] && c.find(".position").text(y[a.GPositionID].posName);
+        G[a.GPositionID] && c.find(".position").text(G[a.GPositionID].posName);
       c.find(".job").text(g[a.Job]);
       c.find(".level").text(a.Level);
       c.find(".note").text(a.Memo);
@@ -451,19 +451,19 @@ define(
       var b, c;
       b = 0;
       for (
-        c = F.length;
-        b < c && (F[b].AID !== a.AID || F[b].GID !== a.GID);
+        c = H.length;
+        b < c && (H[b].AID !== a.AID || H[b].GID !== a.GID);
         ++b
       );
       b >= c ||
         ((c = this.ui.find('.MemberView[data-index\x3d"' + b + '"]')),
-        (F[b].CurrentState = a.status),
-        c.toggleClass("online", F[b].CurrentState),
-        "sex" in a && (F[b].entity.sex = a.sex),
-        "head" in a && (F[b].entity.head = a.head),
-        "headPalette" in a && (F[b].entity.headpalette = a.headPalette),
+        (H[b].CurrentState = a.status),
+        c.toggleClass("online", H[b].CurrentState),
+        "sex" in a && (H[b].entity.sex = a.sex),
+        "head" in a && (H[b].entity.head = a.head),
+        "headPalette" in a && (H[b].entity.headpalette = a.headPalette),
         C.addText(
-          n
+          k
             .getMessage(485 + (a.status ? 0 : 1))
             .replace("%s", c.find(".name .value").text()),
           C.TYPE.BLUE,
@@ -472,25 +472,25 @@ define(
     x.updateMemberPosition = function (a, b, c) {
       var d, e;
       d = 0;
-      for (e = F.length; d < e; ++d)
-        if (F[d].AID === a && F[d].GID === b) {
-          F[d].GPositionID = c;
-          x.setMember(F[d]);
+      for (e = H.length; d < e; ++d)
+        if (H[d].AID === a && H[d].GID === b) {
+          H[d].GPositionID = c;
+          x.setMember(H[d]);
           break;
         }
     };
     x.setPositions = function (a, b) {
       var c, d;
-      b && (y.length = a.length);
+      b && (G.length = a.length);
       b = 0;
       for (c = a.length; b < c; ++b)
         ((d = a[b]),
-          d.positionID in y || (y[d.positionID] = {}),
-          (y[d.positionID].positionID = d.positionID),
-          (y[d.positionID].right = d.right),
-          (y[d.positionID].ranking = d.ranking),
-          (y[d.positionID].payRate = d.payRate),
-          d.posName && (y[d.positionID].posName = d.posName));
+          d.positionID in G || (G[d.positionID] = {}),
+          (G[d.positionID].positionID = d.positionID),
+          (G[d.positionID].right = d.right),
+          (G[d.positionID].ranking = d.ranking),
+          (G[d.positionID].payRate = d.payRate),
+          d.posName && (G[d.positionID].posName = d.posName));
       x.updatePositionView();
     };
     x.setPositionsName = function (a) {
@@ -498,30 +498,30 @@ define(
       b = 0;
       for (c = a.length; b < c; ++b)
         ((d = a[b]),
-          d.positionID in y || (y[d.positionID] = {}),
-          (y[d.positionID].posName = d.posName));
+          d.positionID in G || (G[d.positionID] = {}),
+          (G[d.positionID].posName = d.posName));
       x.updatePositionView();
     };
     x.updatePositionView = function () {
       var a, b, c, d, e;
-      b = y.length;
+      b = G.length;
       e = this.ui.find(".content.positions tbody");
       e.empty();
       for (a = 0; a < b; ++a)
         ((c = E.clone()),
-          (d = y[a]),
+          (d = G[a]),
           0 === a && c.addClass("active"),
           c.find(".id").text(d.positionID),
           c.find(".title input").val(d.posName),
           c.find(".tax input").val(d.payRate),
           c
             .find(".invite button")
-            .css("backgroundImage", "url(" + (d.right & 1 ? W : Q) + ")")
+            .css("backgroundImage", "url(" + (d.right & 1 ? S : N) + ")")
             .removeClass("on off")
             .addClass(d.right & 1 ? "on" : "off"),
           c
             .find(".punish button")
-            .css("backgroundImage", "url(" + (d.right & 16 ? W : Q) + ")")
+            .css("backgroundImage", "url(" + (d.right & 16 ? S : N) + ")")
             .removeClass("on off")
             .addClass(d.right & 16 ? "on" : "off"),
           e.append(c));
@@ -537,41 +537,41 @@ define(
       d.empty();
       b = 0;
       for (c = a.length; b < c; ++b)
-        ((e = L.clone()),
+        ((e = F.clone()),
           e.find(".name").text(a[b].charname),
           e.find(".reason").text(a[b].reason),
           d.append(e));
     };
     x.setAccess = function (a) {
-      M = a;
+      P = a;
     };
     x.setSkillsPoints = function (a) {
       var b, c;
       this.ui.find(".skpoints_count").text(a);
-      if (!ba === !a) ba = a;
+      if (!ea === !a) ea = a;
       else
-        for (ba = a, c = I.length, b = 0; b < c; ++b)
-          I[b].upgradable && a
-            ? this.ui.find(".skill.id" + I[b].SKID + " .levelup").show()
-            : this.ui.find(".skill.id" + I[b].SKID + " .levelup").hide();
+        for (ea = a, c = L.length, b = 0; b < c; ++b)
+          L[b].upgradable && a
+            ? this.ui.find(".skill.id" + L[b].SKID + " .levelup").show()
+            : this.ui.find(".skill.id" + L[b].SKID + " .levelup").hide();
     };
     x.setSkills = function (a) {
       var b, c;
       b = 0;
-      for (c = I.length; b < c; ++b) this.onUpdateSkill(I[b].SKID, 0);
-      I.length = 0;
+      for (c = L.length; b < c; ++b) this.onUpdateSkill(L[b].SKID, 0);
+      L.length = 0;
       this.ui.find(".content.skills table").empty();
       b = 0;
       for (c = a.length; b < c; ++b) this.addSkill(a[b]);
     };
     x.addSkill = function (a) {
-      if (a.SKID in n.getAllSkillInfo())
+      if (a.SKID in k.getAllSkillInfo())
         if (this.ui.find(".skill.id" + a.SKID + ":first").length)
           this.updateSkill(a);
         else {
-          var b = n.getSkillInfo(a.SKID),
-            c = V.clone(!0),
-            d = k(
+          var b = k.getSkillInfo(a.SKID),
+            c = R.clone(!0),
+            d = l(
               '\x3ctr class\x3d"skill id' +
                 a.SKID +
                 " " +
@@ -579,7 +579,7 @@ define(
                 '" data-index\x3d"' +
                 a.SKID +
                 '" draggable\x3d"true"\x3e\x3ctd class\x3d"icon"\x3e\x3cimg src\x3d"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw\x3d\x3d" width\x3d"24" height\x3d"24" /\x3e\x3c/td\x3e\x3ctd class\x3d"levelupcontainer"\x3e\x3c/td\x3e\x3ctd class\x3dselectable\x3e\x3cdiv class\x3d"name"\x3e' +
-                k.escape(b.SkillName) +
+                l.escape(b.SkillName) +
                 '\x3cbr/\x3e\x3cspan class\x3d"level"\x3e' +
                 (b.bSeperateLv
                   ? '\x3cspan class\x3d"arw_left" \x3e\x3c/span\x3e Lv : \x3cspan class\x3d"current"\x3e' +
@@ -600,9 +600,9 @@ define(
                   : "\u88ab\u52a8") +
                 "\x3c/div\x3e\x3c/td\x3e\x3c/tr\x3e",
             );
-          (a.upgradable && ba) || c.hide();
+          (a.upgradable && ea) || c.hide();
           A.loadFile(
-            n.INTERFACE_PATH + "basic_interface/arw_left.bmp",
+            k.INTERFACE_PATH + "basic_interface/arw_left.bmp",
             function (a) {
               d.find(".arw_left").attr(
                 "style",
@@ -613,7 +613,7 @@ define(
             },
           );
           A.loadFile(
-            n.INTERFACE_PATH + "basic_interface/arw_right.bmp",
+            k.INTERFACE_PATH + "basic_interface/arw_right.bmp",
             function (a) {
               d.find(".arw_right").attr(
                 "style",
@@ -624,7 +624,7 @@ define(
             },
           );
           A.loadFile(
-            n.INTERFACE_PATH + "item/" + b.Name + ".bmp",
+            k.INTERFACE_PATH + "item/" + b.Name + ".bmp",
             function (a) {
               d.find(".icon img").attr("src", a);
             },
@@ -632,7 +632,7 @@ define(
           d.find(".levelupcontainer").append(c);
           x.ui.find(".content.skills table").append(d);
           this.parseHTML.call(c);
-          I.push(a);
+          L.push(a);
         }
     };
     x.updateSkill = function (a) {
@@ -647,7 +647,7 @@ define(
         b.find(".spcost").text(a.spcost),
         b.removeClass("active passive disabled"),
         b.addClass(a.level ? (a.type ? "active" : "passive") : "disabled"),
-        a.upgradable && ba
+        a.upgradable && ea
           ? b.find(".levelup").show()
           : b.find(".levelup").hide());
     };
@@ -661,20 +661,20 @@ define(
         200 > c - a || ((a = c), this.onUseSkill(b.SKID, b.level));
       };
     })();
-    var S = (function () {
+    var U = (function () {
       var a = 0;
       return function (b) {
         if (!(b < a + 1e3 / 60)) {
           var c, d, e;
           a = b;
           b = x.ui.find(".content.members canvas");
-          q.direction = 4;
+          p.direction = 4;
           d = 0;
-          for (e = F.length; d < e; ++d)
+          for (e = H.length; d < e; ++d)
             ((c = b[d].getContext("2d")),
               c.clearRect(0, 0, c.canvas.width, c.canvas.height),
-              F[d].CurrentState &&
-                (m.bind2DContext(c, 15, 45), F[d].entity.renderEntity()));
+              H[d].CurrentState &&
+                (n.bind2DContext(c, 15, 45), H[d].entity.renderEntity()));
         }
       };
     })();

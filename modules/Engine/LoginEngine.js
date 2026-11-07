@@ -5,16 +5,16 @@ define(
   ),
   function (a) {
     function b() {
-      H.removeComponents();
-      G.append();
+      O.removeComponents();
+      z.append();
       u.close();
     }
     function c(a, b) {
-      k.play("\u00b9\u00f6\u00c6\u00b0\u00bc\u00d2\u00b8\u00ae.wav");
-      G.remove();
-      N.append();
-      J = a;
-      u.connect(I.address, I.port, function (c) {
+      l.play("\u00b9\u00f6\u00c6\u00b0\u00bc\u00d2\u00b8\u00ae.wav");
+      z.remove();
+      I.append();
+      M = a;
+      u.connect(L.address, L.port, function (c) {
         if (c) {
           account = a;
           var d;
@@ -33,29 +33,29 @@ define(
           d = new A.CA.LOGIN();
           d.ID = a;
           d.Passwd = b;
-          d.Version = parseInt(I.version, 10);
-          d.clienttype = parseInt(I.langtype, 10);
+          d.Version = parseInt(L.version, 10);
+          d.clienttype = parseInt(L.langtype, 10);
           u.sendPacket(d);
           c = jQuery("#_csrf").val();
           d = f.get("ClientVer");
-          var k;
+          var l;
           switch (d) {
             case 3:
-              k = {
+              l = {
                 _csrf: c,
                 "Login_cn2[userid]": uid,
                 "Login_cn2[user_pass]": psd,
               };
               break;
             case 4:
-              k = {
+              l = {
                 _csrf: c,
                 "Login_ts[userid]": uid,
                 "Login_ts[user_pass]": psd,
               };
               break;
             case 5:
-              k = {
+              l = {
                 _csrf: c,
                 "Login_debug[userid]": uid,
                 "Login_debug[user_pass]": psd,
@@ -64,26 +64,26 @@ define(
           jQuery.ajax({
             url: "/?r\x3dmg/checkin\x26nid\x3d" + d,
             type: "post",
-            data: k,
+            data: l,
             success: function (a) {},
           });
-        } else H.showErrorBox(g.getMessage(1));
+        } else O.showErrorBox(g.getMessage(1));
       });
     }
     function d() {
-      P("Engine/GameEngine").reload();
+      J("Engine/GameEngine").reload();
     }
     function e(a) {
-      k.play("\u00b9\u00f6\u00c6\u00b0\u00bc\u00d2\u00b8\u00ae.wav");
+      l.play("\u00b9\u00f6\u00c6\u00b0\u00bc\u00d2\u00b8\u00ae.wav");
       C.remove();
-      N.append();
+      I.append();
       v.onExitRequest = b;
       v.init(x[a]);
     }
-    function l(a) {
-      k.play("\u00b9\u00f6\u00c6\u00b0\u00bc\u00d2\u00b8\u00ae.wav");
+    function m(a) {
+      l.play("\u00b9\u00f6\u00c6\u00b0\u00bc\u00d2\u00b8\u00ae.wav");
       C.remove();
-      N.append();
+      I.append();
       v.onExitRequest = b;
       var c = x[0];
       switch (a) {
@@ -96,12 +96,12 @@ define(
       v.init(c);
     }
     function h(a) {
-      H.removeComponents();
-      q.AuthCode = a.AuthCode;
-      q.AuthToken = a.AuthToken;
-      q.AID = a.AID;
-      q.UserLevel = a.userLevel;
-      q.Sex = a.Sex;
+      O.removeComponents();
+      p.AuthCode = a.AuthCode;
+      p.AuthToken = a.AuthToken;
+      p.AID = a.AID;
+      p.UserLevel = a.userLevel;
+      p.Sex = a.Sex;
       x = a.ServerList;
       var c = x.length,
         d = Array(c);
@@ -112,21 +112,21 @@ define(
             ? g.getMessage(484)
             : " " + g.getMessage(483).replace("%d", x[a].usercount)));
       1 === c
-        ? (N.append(), (v.onExitRequest = b), v.init(x[0]))
-        : (N.remove(),
+        ? (I.append(), (v.onExitRequest = b), v.init(x[0]))
+        : (I.remove(),
           C.append(),
           C.ui.find("h1").text("\u6570\u636e\u4e92\u901a\u7ebf\u8def"),
           (C.onIndexSelected = e),
-          (C.onInterCode = l),
+          (C.onInterCode = m),
           (C.onExitRequest = function () {
             u.close();
-            H.removeComponents();
+            O.removeComponents();
             C.remove();
-            G.append();
+            z.append();
           }),
           C.setList(x, 1));
       var f = new A.CA.CONNECT_INFO_CHANGED();
-      f.ID = J;
+      f.ID = M;
       u.setPing(function () {
         u.sendPacket(f);
       });
@@ -200,17 +200,17 @@ define(
         case 104:
           b = 860;
       }
-      H.showMessageBox(
+      O.showMessageBox(
         g.getMessage(b).replace("%s", a.blockDate),
         "ok",
         function () {
-          H.removeComponents();
-          G.append();
+          O.removeComponents();
+          z.append();
         },
       );
       u.close();
     }
-    function t(a) {
+    function q(a) {
       var b;
       switch (a.ErrorCode) {
         default:
@@ -259,46 +259,46 @@ define(
         case 2:
         case 3:
         case 15:
-          H.showErrorBox(g.getMessage(b));
+          O.showErrorBox(g.getMessage(b));
           break;
         default:
-          H.showEventBox(g.getMessage(b));
+          O.showEventBox(g.getMessage(b));
       }
       u.close();
     }
-    var n = a("Vendors/text-encoding"),
+    var k = a("Vendors/text-encoding"),
       g = a("DB/DBManager"),
-      p = a("Audio/BGM"),
-      k = a("Audio/SoundManager"),
+      t = a("Audio/BGM"),
+      l = a("Audio/SoundManager"),
       f = a("Core/Configs"),
-      m = a("Core/Thread"),
-      q = a("Engine/SessionStorage"),
+      n = a("Core/Thread"),
+      p = a("Engine/SessionStorage"),
       v = a("Engine/CharEngine"),
       u = a("Network/NetworkManager"),
       A = a("Network/PacketStructure"),
       D = a("Network/PacketVerManager"),
       B = a("Renderer/Renderer"),
-      H = a("UI/UIManager"),
+      O = a("UI/UIManager"),
       C = a("UI/Components/WinList/WinList"),
-      z = a("UI/Components/WinPopup/WinPopup"),
-      G = a("UI/Components/WinLogin/WinLogin"),
-      P = a,
-      N = z.clone("WinLoading");
-    N.init = function () {
+      y = a("UI/Components/WinPopup/WinPopup"),
+      z = a("UI/Components/WinLogin/WinLogin"),
+      J = a,
+      I = y.clone("WinLoading");
+    I.init = function () {
       this.ui.css({ top: (B.height - 120) / 1.5, left: (B.width - 280) / 2 });
       this.ui.find(".text").text(g.getMessage(121));
     };
-    H.addComponent(N);
-    var I = null,
+    O.addComponent(I);
+    var L = null,
       x = [],
-      J = "";
+      M = "";
     return {
       init: function (a) {
         var b;
         f.setServer(a);
-        H.removeComponents();
-        q.LangType = "langtype" in a ? parseInt(a.langtype, 10) : 1;
-        switch (q.LangType) {
+        O.removeComponents();
+        p.LangType = "langtype" in a ? parseInt(a.langtype, 10) : 1;
+        switch (p.LangType) {
           case 0:
             if (f.get("disableKorean")) {
               b = "windows-1252";
@@ -336,28 +336,28 @@ define(
           case 20:
             b = "windows-1256";
         }
-        n.setCharset(b);
-        I = a;
+        k.setCharset(b);
+        L = a;
         b = f.get("remoteClient");
         f.get("ClientVer");
         var e = f.get("autoLogin"),
           g = f.get("BGMFileExtension");
         "20211103".match(/^\d+$/) && (D.value = 20211103);
         D.value
-          ? (b && m.send("SET_HOST", b),
-            g && p.setAvailableExtensions(g),
-            (q.AdminList = a.adminList || []),
-            (G.onConnectionRequest = c),
-            (G.onExitRequest = d),
+          ? (b && n.send("SET_HOST", b),
+            g && t.setAvailableExtensions(g),
+            (p.AdminList = a.adminList || []),
+            (z.onConnectionRequest = c),
+            (z.onExitRequest = d),
             e instanceof Array && e[0] && e[1]
               ? (c.apply(null, e), f.set("autoLogin", null))
-              : G.append(),
+              : z.append(),
             u.hookPacket(A.AC.ACCEPT_LOGIN, h),
             u.hookPacket(A.AC.ACCEPT_LOGIN3, h),
             u.hookPacket(A.AC.REFUSE_LOGIN, r),
             u.hookPacket(A.AC.REFUSE_LOGIN_R2, r),
-            u.hookPacket(A.SC.NOTIFY_BAN, t))
-          : H.showErrorBox("Sorry, no PACKETVER configs found.");
+            u.hookPacket(A.SC.NOTIFY_BAN, q))
+          : O.showErrorBox("Sorry, no PACKETVER configs found.");
       },
       reload: b,
     };

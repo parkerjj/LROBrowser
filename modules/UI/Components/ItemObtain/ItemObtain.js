@@ -9,33 +9,33 @@ define(
       d = a("Core/Client"),
       e = a("Core/Events");
     a("Renderer/Renderer");
-    var l = a("UI/UIManager"),
+    var m = a("UI/UIManager"),
       h = a("UI/UIComponent"),
       r = a("text!./ItemObtain.html");
     a = a("text!./ItemObtain.css");
-    var t = new h("ItemObtain", r, a);
-    t.mouseMode = h.MouseMode.CROSS;
-    t.needFocus = !1;
-    var n = 0,
+    var q = new h("ItemObtain", r, a);
+    q.mouseMode = h.MouseMode.CROSS;
+    q.needFocus = !1;
+    var k = 0,
       g = 0;
-    t.ready = 0;
-    t.parReady = 0;
-    t.init = function () {
+    q.ready = 0;
+    q.parReady = 0;
+    q.init = function () {
       this.ui.css("zIndex", 38);
     };
-    t.onAppend = function () {};
-    t.onRemove = function () {
-      n && (e.clearTimeout(n), (n = 0));
+    q.onAppend = function () {};
+    q.onRemove = function () {
+      k && (e.clearTimeout(k), (k = 0));
     };
-    t.clean = function () {
-      t.ready = 0;
-      t.parReady = 0;
+    q.clean = function () {
+      q.ready = 0;
+      q.parReady = 0;
     };
-    t.timeEnd = function () {
+    q.timeEnd = function () {
       this.remove();
     };
-    t.set = function (a) {
-      if (t.ready) {
+    q.set = function (a) {
+      if (q.ready) {
         this.ui.is(":visible") || this.append();
         this.ui.css("zIndex", 99);
         g += 1;
@@ -44,7 +44,7 @@ define(
           h = a.IsIdentified
             ? h.identifiedResourceName
             : h.unidentifiedResourceName,
-          m = c(
+          k = c(
             '\x3cdiv class\x3d"msg item show"\x3e\x3cimg src\x3d"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw\x3d\x3d" class\x3d"' +
               a.ITID +
               '" width\x3d"21" height\x3d"21" /\x3e ' +
@@ -56,28 +56,28 @@ define(
         d.loadFile(
           b.INTERFACE_PATH + "item/" + h + ".bmp",
           function (b) {
-            m.find("img." + a.ITID).attr("src", b);
+            k.find("img." + a.ITID).attr("src", b);
           }.bind(this),
         );
-        this.ui.find(".content").append(m);
+        this.ui.find(".content").append(k);
         e.setTimeout(
           function () {
-            m.removeClass("show").addClass("out");
+            k.removeClass("show").addClass("out");
           },
           2e3 + 300 * g,
         );
         e.setTimeout(
           function () {
-            m.remove();
+            k.remove();
             --g;
-            0 == g && (t.ui.css("zIndex", 40), t.remove());
+            0 == g && (q.ui.css("zIndex", 40), q.remove());
           },
           2500 + 300 * g,
         );
       }
     };
-    t.setZeny = function (a) {
-      if (t.ready) {
+    q.setZeny = function (a) {
+      if (q.ready) {
         this.ui.is(":visible") || this.append();
         this.ui.css("zIndex", 99);
         var b;
@@ -105,14 +105,14 @@ define(
           function () {
             b.remove();
             --g;
-            0 == g && (t.ui.css("zIndex", 40), t.remove());
+            0 == g && (q.ui.css("zIndex", 40), q.remove());
           },
           2500 + 300 * g,
         );
       }
     };
-    t.setExp = function (a, b, d, h) {
-      if (t.ready) {
+    q.setExp = function (a, b, d, h) {
+      if (q.ready) {
         this.ui.is(":visible") || this.append();
         var f;
         b = ((100 * a) / b).toFixed(2);
@@ -165,14 +165,14 @@ define(
           function () {
             f.remove();
             --g;
-            0 == g && t.remove();
+            0 == g && q.remove();
           },
           2500 + 300 * g,
         );
       }
     };
-    t.setMsg = function (a) {
-      if (t.ready) {
+    q.setMsg = function (a) {
+      if (q.ready) {
         this.ui.is(":visible") || this.append();
         this.ui.css("zIndex", 99);
         g += 1;
@@ -190,14 +190,14 @@ define(
           function () {
             b.remove();
             --g;
-            0 == g && (t.ui.css("zIndex", 40), t.remove());
+            0 == g && (q.ui.css("zIndex", 40), q.remove());
           },
           2500 + 300 * g,
         );
       }
     };
-    t.setMapname = function (a) {
-      if (t.ready) {
+    q.setMapname = function (a) {
+      if (q.ready) {
         this.ui.is(":visible") || this.append();
         this.ui.css("zIndex", 99);
         g += 1;
@@ -217,14 +217,14 @@ define(
           function () {
             b.remove();
             --g;
-            0 == g && t.remove();
+            0 == g && q.remove();
           },
           3500 + 300 * g,
         );
       }
     };
-    t.setParMsg = function (a, b) {
-      if (t.parReady) {
+    q.setParMsg = function (a, b) {
+      if (q.parReady) {
         this.ui.is(":visible") || this.append();
         this.ui.css("zIndex", 99);
         g += 1;
@@ -326,14 +326,14 @@ define(
           function () {
             h.remove();
             --g;
-            0 == g && (t.ui.css("zIndex", 40), t.remove());
+            0 == g && (q.ui.css("zIndex", 40), q.remove());
           },
           2500 + 300 * g,
         );
       }
     };
-    t.setNavigate = function (a) {
-      if (t.ready) {
+    q.setNavigate = function (a) {
+      if (q.ready) {
         this.ui.is(":visible") || this.append();
         this.ui.css("zIndex", 99);
         g += 1;
@@ -351,14 +351,14 @@ define(
           function () {
             b.remove();
             --g;
-            0 == g && (t.ui.css("zIndex", 40), t.remove());
+            0 == g && (q.ui.css("zIndex", 40), q.remove());
           },
           2500 + 300 * g,
         );
       }
     };
-    t.setOfflineMsg = function (a) {
-      if (t.ready) {
+    q.setOfflineMsg = function (a) {
+      if (q.ready) {
         this.ui.is(":visible") || this.append();
         this.ui.css("zIndex", 99);
         g += 1;
@@ -376,12 +376,12 @@ define(
           function () {
             b.remove();
             --g;
-            0 == g && t.remove();
+            0 == g && q.remove();
           },
           3500 + 300 * g,
         );
       }
     };
-    return l.addComponent(t);
+    return m.addComponent(q);
   },
 );

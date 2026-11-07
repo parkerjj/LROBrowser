@@ -7,20 +7,20 @@ define(
     function b(a) {
       switch (a.result) {
         case 0:
-          f.title = k.title;
-          f.limit = k.limit;
-          f.type = k.type;
+          f.title = l.title;
+          f.limit = l.limit;
+          f.type = l.type;
           f.count = 1;
-          f.members = [q.Entity.display.name];
-          f.owner = q.Entity.display.name;
+          f.members = [p.Entity.display.name];
+          f.owner = p.Entity.display.name;
           f.append();
-          m.addText(t.getMessage(64), m.TYPE.BLUE);
+          n.addText(q.getMessage(64), n.TYPE.BLUE);
           break;
         case 1:
-          m.addText(t.getMessage(65), m.TYPE.ERROR);
+          n.addText(q.getMessage(65), n.TYPE.ERROR);
           break;
         case 2:
-          m.addText(t.getMessage(66), m.TYPE.ERROR);
+          n.addText(q.getMessage(66), n.TYPE.ERROR);
       }
     }
     function c(a) {
@@ -49,25 +49,25 @@ define(
         case 7:
           b = 434;
       }
-      m.addText(t.getMessage(b), m.TYPE.ERROR);
+      n.addText(q.getMessage(b), n.TYPE.ERROR);
     }
     function d(a) {
       f.count = a.curcount;
       f.members.push(a.name);
       f.updateChat();
-      f.message(t.getMessage(179).replace("%s", a.name), "join");
+      f.message(q.getMessage(179).replace("%s", a.name), "join");
     }
     function e(a) {
       1 === a.role && ((f.owner = a.name), f.updateChat());
     }
-    function l(a) {
+    function m(a) {
       f.isOpen &&
         ((f.count = a.curcount),
         f.removeMember(a.name),
         f.updateChat(),
         0 === a.type
-          ? f.message(t.getMessage(180).replace("%s", a.name), "leave")
-          : f.message(t.getMessage(181).replace("%s", a.name), "leave"));
+          ? f.message(q.getMessage(180).replace("%s", a.name), "leave")
+          : f.message(q.getMessage(181).replace("%s", a.name), "leave"));
     }
     function h(a) {
       f.limit = a.maxcount;
@@ -83,52 +83,52 @@ define(
       for (b = 0; b < c; ++b)
         (0 === a.memberList[b].role && (f.owner = a.memberList[b].name),
           (f.members[b] = a.memberList[b].name));
-      p.forEach(function (b) {
+      t.forEach(function (b) {
         return b.room.id === a.roomID ? (b.room.remove(), !1) : !0;
       });
       f.count = c;
       f.append();
     }
-    var t = a("DB/DBManager"),
-      n = a("Network/NetworkManager"),
+    var q = a("DB/DBManager"),
+      k = a("Network/NetworkManager"),
       g = a("Network/PacketStructure"),
-      p = a("Renderer/EntityManager"),
-      k = a("UI/Components/ChatRoomCreate/ChatRoomCreate"),
+      t = a("Renderer/EntityManager"),
+      l = a("UI/Components/ChatRoomCreate/ChatRoomCreate"),
       f = a("UI/Components/ChatRoom/ChatRoom"),
-      m = a("UI/Components/ChatBox/ChatBox"),
-      q = a("Engine/SessionStorage");
-    k.requestRoom = function () {
+      n = a("UI/Components/ChatBox/ChatBox"),
+      p = a("Engine/SessionStorage");
+    l.requestRoom = function () {
       var a = new g.CZ.CREATE_CHATROOM();
       a.size = this.limit;
       a.type = this.type;
       a.passwd = this.password;
       a.title = this.title;
-      n.sendPacket(a);
+      k.sendPacket(a);
     };
     f.changeChatRoom = function () {
       var a = new g.CZ.CHANGE_CHATROOM();
-      n.sendPacket(a);
+      k.sendPacket(a);
     };
     f.requestRoleChange = function () {
       var a = new g.CZ.REQ_ROLE_CHANGE();
-      n.sendPacket(a);
+      k.sendPacket(a);
     };
     f.requestExpelMember = function () {
       var a = new g.CZ.REQ_EXPEL_MEMBER();
-      n.sendPacket(a);
+      k.sendPacket(a);
     };
     f.exitRoom = function () {
       var a = new g.CZ.EXIT_ROOM();
-      n.sendPacket(a);
+      k.sendPacket(a);
     };
     return function () {
-      n.hookPacket(g.ZC.ACK_CREATE_CHATROOM, b);
-      n.hookPacket(g.ZC.CHANGE_CHATROOM, h);
-      n.hookPacket(g.ZC.ENTER_ROOM, r);
-      n.hookPacket(g.ZC.MEMBER_NEWENTRY, d);
-      n.hookPacket(g.ZC.ROLE_CHANGE, e);
-      n.hookPacket(g.ZC.MEMBER_EXIT, l);
-      n.hookPacket(g.ZC.REFUSE_ENTER_ROOM, c);
+      k.hookPacket(g.ZC.ACK_CREATE_CHATROOM, b);
+      k.hookPacket(g.ZC.CHANGE_CHATROOM, h);
+      k.hookPacket(g.ZC.ENTER_ROOM, r);
+      k.hookPacket(g.ZC.MEMBER_NEWENTRY, d);
+      k.hookPacket(g.ZC.ROLE_CHANGE, e);
+      k.hookPacket(g.ZC.MEMBER_EXIT, m);
+      k.hookPacket(g.ZC.REFUSE_ENTER_ROOM, c);
     };
   },
 );

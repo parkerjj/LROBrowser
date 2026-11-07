@@ -5,7 +5,7 @@ define(
   ),
   function (a) {
     function b(a, b) {
-      l.loadFile("data/texture/effect/cloud" + (b + 1) + ".tga", function (c) {
+      m.loadFile("data/texture/effect/cloud" + (b + 1) + ".tga", function (c) {
         d.texture(a, c, function (a) {
           g[b] = a;
         });
@@ -26,49 +26,49 @@ define(
     }
     var d = a("Utils/WebGL"),
       e = a("DB/Effects/WeatherEffect"),
-      l = a("Core/Client"),
+      m = a("Core/Client"),
       h = a("Engine/SessionStorage"),
       r = a("Renderer/SpriteRenderer"),
-      t = a("Utils/gl-matrix").vec3,
-      n = Array(150),
+      q = a("Utils/gl-matrix").vec3,
+      k = Array(150),
       g = [],
-      p = null,
-      k = !0;
+      t = null,
+      l = !0;
     return {
       init: function (a, c) {
         if (e.sky[c]) {
           if (
-            ((p = e.sky[c].cloudColor),
+            ((t = e.sky[c].cloudColor),
             (c = e.sky[c].skyColor),
-            (k = !0),
+            (l = !0),
             a.clearColor(c[0], c[1], c[2], c[3]),
             !g.length)
           )
             for (g.length = 8, c = 0; 7 > c; c++) b(a, c);
-        } else (a.clearColor(0, 0, 0, 1), (k = !1));
+        } else (a.clearColor(0, 0, 0, 1), (l = !1));
       },
       setUpCloudData: function () {
         var a;
         for (a = 0; 150 > a; a++)
-          (n[a] ||
-            (n[a] = {
-              position: t.create(),
-              direction: t.create(),
+          (k[a] ||
+            (k[a] = {
+              position: q.create(),
+              direction: q.create(),
               born_tick: 0,
               death_tick: 0,
             }),
-            c(n[a]),
-            (n[a].sprite = (Math.random() * (g.length - 1)) | 0),
-            (n[a].death_tick = n[a].born_tick + 8e3 * Math.random()),
-            (n[a].born_tick -= 2e3));
-        n.sort(function (a, b) {
+            c(k[a]),
+            (k[a].sprite = (Math.random() * (g.length - 1)) | 0),
+            (k[a].death_tick = k[a].born_tick + 8e3 * Math.random()),
+            (k[a].born_tick -= 2e3));
+        k.sort(function (a, b) {
           return a.sprite - b.sprite;
         });
       },
       render: function (a, b, d, e, h) {
-        if (k) {
+        if (l) {
           r.bind3DContext(a, b, d, e);
-          r.color.set(p);
+          r.color.set(t);
           r.shadow = 1;
           r.angle = 0;
           r.size[0] = 500;
@@ -80,7 +80,7 @@ define(
           r.blendMode = 3;
           a.depthMask(!1);
           for (b = 0; 150 > b; b++)
-            ((d = n[b]),
+            ((d = k[b]),
               d.born_tick + 1e3 > h
                 ? (e = (h - d.born_tick) / 1e3)
                 : d.death_tick + 2e3 < h
@@ -89,7 +89,7 @@ define(
               (r.zIndex = 0),
               (r.color[3] = e),
               (r.image.texture = g[d.sprite]),
-              t.add(d.position, d.position, d.direction),
+              q.add(d.position, d.position, d.direction),
               r.position.set(d.position),
               r.render());
           r.unbind(a);

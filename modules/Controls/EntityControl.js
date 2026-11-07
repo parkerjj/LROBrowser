@@ -8,48 +8,48 @@ define(
       var a = this.constructor;
       switch (this.objecttype) {
         case a.TYPE_PET:
-          D.action.active || G.setType(G.ACTION.DEFAULT);
+          D.action.active || z.setType(z.ACTION.DEFAULT);
           break;
         case a.TYPE_PC:
         case a.TYPE_ELEM:
         case a.TYPE_HOM:
           if ((!1 === v.SHIFT && !1 === A.noshift) || this === B.Entity) {
-            D.action.active || G.setType(G.ACTION.DEFAULT);
+            D.action.active || z.setType(z.ACTION.DEFAULT);
             break;
           }
-          G.setType(G.ACTION.ATTACK);
+          z.setType(z.ACTION.ATTACK);
           break;
         case a.TYPE_MOB:
         case a.TYPE_ICEWALL:
-          G.setType(G.ACTION.ATTACK);
+          z.setType(z.ACTION.ATTACK);
           break;
         case a.TYPE_NPC:
         case a.TYPE_NPC2:
-          G.setType(G.ACTION.TALK, !0);
+          z.setType(z.ACTION.TALK, !0);
           break;
         case a.TYPE_WARP:
-          G.setType(G.ACTION.WARP);
+          z.setType(z.ACTION.WARP);
           return;
         case a.TYPE_ITEM:
-          G.setType(G.ACTION.PICK, !0, 0);
+          z.setType(z.ACTION.PICK, !0, 0);
       }
       switch (this.display.load) {
         case this.display.TYPE.NONE:
           this.display.load = this.display.TYPE.LOADING;
           a = new C.CZ.REQNAME();
           a.AID = this.GID;
-          z.sendPacket(a);
+          y.sendPacket(a);
           break;
         case this.display.TYPE.COMPLETE:
-          (F.multiply(M, D.projection, this.matrix),
-            this.display.render(M),
+          (H.multiply(P, D.projection, this.matrix),
+            this.display.render(P),
             this.display.add());
       }
     }
     function c() {
       D.action.active
-        ? G.setType(G.ACTION.ROTATE)
-        : G.setType(G.ACTION.DEFAULT);
+        ? z.setType(z.ACTION.ROTATE)
+        : z.setType(z.ACTION.DEFAULT);
       this !== this.constructor.Manager.getFocusEntity() &&
         ((this.display.display = !1), this.display.remove());
     }
@@ -57,7 +57,7 @@ define(
       var a = this.constructor;
       switch (this.objecttype) {
         case a.TYPE_ITEM:
-          G.setType(G.ACTION.PICK, !0, 2);
+          z.setType(z.ACTION.PICK, !0, 2);
           a = new C.CZ.ITEM_PICKUP();
           a.ITAID = this.GID;
           if (2 < K.distance(B.Entity.position, this.position))
@@ -66,10 +66,10 @@ define(
               (a = new C.CZ.REQUEST_MOVE()),
               (a.dest[0] = u.world.x),
               (a.dest[1] = u.world.y),
-              z.sendPacket(a),
+              y.sendPacket(a),
               !0
             );
-          z.sendPacket(a);
+          y.sendPacket(a);
           B.Entity.lookTo(this.position[0], this.position[1]);
           return !0;
         case a.TYPE_NPC:
@@ -78,12 +78,12 @@ define(
             (a = new C.CZ.CONTACTNPC()),
             (a.NAID = this.GID),
             (a.type = 1),
-            z.sendPacket(a),
+            y.sendPacket(a),
             B.Entity.lookTo(this.position[0], this.position[1]),
             (a = new C.CZ.CHANGE_DIRECTION()),
             (a.headDir = B.Entity.headDir),
             (a.dir = B.Entity.direction),
-            z.sendPacket(a),
+            y.sendPacket(a),
             !0
           );
         case a.TYPE_WARP:
@@ -92,122 +92,122 @@ define(
             (a = new C.CZ.REQUEST_MOVE()),
             (a.dest[0] = this.position[0]),
             (a.dest[1] = this.position[1]),
-            z.sendPacket(a),
+            y.sendPacket(a),
             !0
           );
       }
       return !1;
     }
     function e() {}
-    function l() {
+    function m() {
       var a = this.constructor,
         b = this;
       switch (this.objecttype) {
         case a.TYPE_PET:
           B.petId === this.GID &&
-            (I.remove(),
-            I.append(),
-            I.addElement(q.getMessage(596), x.ui.show.bind(x.ui)),
-            I.addElement(q.getMessage(592), x.reqPetFeed),
-            I.addElement(q.getMessage(593), x.reqPetAction),
-            I.addElement(q.getMessage(595), x.reqUnEquipPet),
-            I.addElement(q.getMessage(594), x.reqBackToEgg));
+            (L.remove(),
+            L.append(),
+            L.addElement(p.getMessage(596), x.ui.show.bind(x.ui)),
+            L.addElement(p.getMessage(592), x.reqPetFeed),
+            L.addElement(p.getMessage(593), x.reqPetAction),
+            L.addElement(p.getMessage(595), x.reqUnEquipPet),
+            L.addElement(p.getMessage(594), x.reqBackToEgg));
           break;
         case a.TYPE_PC:
-          I.remove();
-          I.append();
-          I.addElement(
-            q.getMessage(87).replace("%s", this.display.name),
+          L.remove();
+          L.append();
+          L.addElement(
+            p.getMessage(87).replace("%s", this.display.name),
             function () {
-              J.reqExchange(b.GID, b.display.name);
+              M.reqExchange(b.GID, b.display.name);
             },
           );
           B.hasGuild &&
             (B.guildRight & 1 &&
               !this.GUID &&
-              I.addElement(
-                q.getMessage(382).replace("%s", this.display.name),
+              L.addElement(
+                p.getMessage(382).replace("%s", this.display.name),
                 function () {
-                  y("Engine/MapEngine/Guild").requestPlayerInvitation(b.GID);
+                  G("Engine/MapEngine/Guild").requestPlayerInvitation(b.GID);
                 },
               ),
             B.isGuildMaster &&
               this.GUID &&
               B.Entity.GUID !== this.GUID &&
-              (I.addElement(
-                q.getMessage(399).replace("%s", this.display.name),
+              (L.addElement(
+                p.getMessage(399).replace("%s", this.display.name),
                 function () {
-                  y("Engine/MapEngine/Guild").requestAlliance(b.GID);
+                  G("Engine/MapEngine/Guild").requestAlliance(b.GID);
                 },
               ),
-              I.addElement(
-                q.getMessage(403).replace("%s", this.display.name),
+              L.addElement(
+                p.getMessage(403).replace("%s", this.display.name),
                 function () {
-                  y("Engine/MapEngine/Guild").requestHostility(b.GID);
+                  G("Engine/MapEngine/Guild").requestHostility(b.GID);
                 },
               )));
           B.hasParty &&
             B.isPartyLeader &&
-            I.addElement(
-              q.getMessage(88).replace("%s", this.display.name),
+            L.addElement(
+              p.getMessage(88).replace("%s", this.display.name),
               function () {
-                y("Engine/MapEngine/Group").onRequestInvitation(
+                G("Engine/MapEngine/Group").onRequestInvitation(
                   b.GID,
                   b.display.name,
                 );
               },
             );
-          H.isFriend(this.display.name) ||
-            I.addElement(q.getMessage(358), function () {
-              H.addFriend(b.display.name);
+          O.isFriend(this.display.name) ||
+            L.addElement(p.getMessage(358), function () {
+              O.addFriend(b.display.name);
             });
-          I.addElement(
+          L.addElement(
             "\u67e5\u770b\u8be5\u73a9\u5bb6\u7684\u88c5\u5907",
             function () {
               var a = new C.CZ.EQUIPWIN_MICROSCOPE();
               a.AID = b.GID;
-              z.sendPacket(a);
-              y("UI/Components/Equipment/Equipment").setCharacter(b);
+              y.sendPacket(a);
+              G("UI/Components/Equipment/Equipment").setCharacter(b);
             },
           );
-          I.addElement("\u8ddf\u968f\u76ee\u6807\u5bf9\u8c61", function () {
-            "quiz_01.gat" == y("Renderer/MapRenderer").currentMap
+          L.addElement("\u8ddf\u968f\u76ee\u6807\u5bf9\u8c61", function () {
+            "quiz_01.gat" == G("Renderer/MapRenderer").currentMap
               ? E.addText(
                   "\u8be5\u5730\u56fe\u65e0\u6cd5\u4f7f\u7528\u8ddf\u968f\u529f\u80fd",
                   E.TYPE.ERROR,
                 )
               : ((A.noshift = !1),
-                y("Renderer/EntityManager").setFocusEntity(b));
+                G("Renderer/EntityManager").setFocusEntity(b));
           });
-          I.addElement("\u5bf9\u8bdd", function () {
+          L.addElement("\u5bf9\u8bdd", function () {
             E.focus();
-            k("#chatbox .battlemode").hide();
-            k("#chatbox .input").show();
-            k("#chatbox .input .username").val(b.display.name);
-            k("#chatbox .input .message").select();
+            l("#chatbox .battlemode").hide();
+            l("#chatbox .input").show();
+            l("#chatbox .input .username").val(b.display.name);
+            l("#chatbox .input .message").select();
           });
           B.Entity.isAdmin &&
-            I.addElement("\u5254\u9664", function () {
+            L.addElement("\u5254\u9664", function () {
               var a = new C.CZ.WHISPER();
               a.receiver = "";
               a.msg = "@kick " + b.display.name;
-              z.sendPacket(a);
+              y.sendPacket(a);
             });
           break;
         case a.TYPE_HOM:
           0 < B.homGID &&
-            (I.remove(),
-            I.append(),
-            I.addElement("\u663e\u793a\u72b6\u6001", function () {
-              y("UI/Components/Homunc/HomuncInformations").ui.show();
+            (L.remove(),
+            L.append(),
+            L.addElement("\u663e\u793a\u72b6\u6001", function () {
+              G("UI/Components/Homunc/HomuncInformations").ui.show();
             }));
           break;
         case a.TYPE_MERC:
           0 < B.mercGID &&
-            (I.remove(),
-            I.append(),
-            I.addElement("\u663e\u793a\u72b6\u6001", function () {
-              y("UI/Components/Mercenary/MercenaryInformations").ui.show();
+            (L.remove(),
+            L.append(),
+            L.addElement("\u663e\u793a\u72b6\u6001", function () {
+              G("UI/Components/Mercenary/MercenaryInformations").ui.show();
             }));
       }
       return !1;
@@ -215,23 +215,23 @@ define(
     function h() {
       var a = this.constructor,
         b = B.Entity,
-        c = y("Renderer/EntityManager").getFocusEntity();
-      if (W)
-        L.showMessageBox("You are temporarily restricted from clicking.", "ok");
+        c = G("Renderer/EntityManager").getFocusEntity();
+      if (S)
+        F.showMessageBox("You are temporarily restricted from clicking.", "ok");
       else {
-        1 === Q &&
+        1 === N &&
           setTimeout(function () {
-            Q = 0;
+            N = 0;
           }, 5e3);
-        if (30 < Q)
-          ((W = !0),
-            L.showMessageBox(
+        if (30 < N)
+          ((S = !0),
+            F.showMessageBox(
               "Click limit exceeded. You are restricted for 10s.",
               "ok",
             ),
             setTimeout(function () {
-              W = !1;
-              L.showMessageBox(
+              S = !1;
+              F.showMessageBox(
                 "Restriction lifted. You can click again.",
                 "ok",
               );
@@ -242,7 +242,7 @@ define(
             case a.TYPE_ELEM:
             case a.TYPE_HOM:
               if (!1 === v.SHIFT && !1 === A.noshift) {
-                D.action.active || G.setType(G.ACTION.DEFAULT);
+                D.action.active || z.setType(z.ACTION.DEFAULT);
                 break;
               }
             case a.TYPE_MOB:
@@ -251,12 +251,12 @@ define(
                 uid: "lockon",
                 spr: "data/sprite/cursors.spr",
                 act: "data/sprite/cursors.act",
-                frame: G.ACTION.LOCK,
+                frame: z.ACTION.LOCK,
                 repeat: !0,
                 depth: 10,
               });
               var a = [],
-                d = m.search(
+                d = n.search(
                   b.position[0] | 0,
                   b.position[1] | 0,
                   this.position[0] | 0,
@@ -275,13 +275,13 @@ define(
               b = new C.CZ.REQUEST_ACT();
               b.action = A.noctrl ? 7 : 0;
               b.targetGID = this.GID;
-              if (2 > d) return (z.sendPacket(b), !0);
+              if (2 > d) return (y.sendPacket(b), !0);
               if (1 == B.Entity.action && c == this) return !0;
               B.moveAction = b;
               b = new C.CZ.REQUEST_MOVE();
               b.dest[0] = a[2 * (d - 1) + 0];
               b.dest[1] = a[2 * (d - 1) + 1];
-              z.sendPacket(b);
+              y.sendPacket(b);
               return !0;
           }
         return !1;
@@ -289,7 +289,7 @@ define(
     }
     function r() {
       var a = this.constructor,
-        b = y("Renderer/EntityManager"),
+        b = G("Renderer/EntityManager"),
         c = b.get(B.mercGID);
       b.getFocusEntity();
       switch (this.objecttype) {
@@ -297,12 +297,12 @@ define(
         case a.TYPE_ELEM:
         case a.TYPE_HOM:
           if (!1 === v.SHIFT && !1 === A.noshift) {
-            D.action.active || G.setType(G.ACTION.DEFAULT);
+            D.action.active || z.setType(z.ACTION.DEFAULT);
             break;
           }
         case a.TYPE_MOB:
           a = [];
-          b = m.search(
+          b = n.search(
             c.position[0] | 0,
             c.position[1] | 0,
             this.position[0] | 0,
@@ -315,20 +315,20 @@ define(
           c.GID = B.mercGID;
           c.action = 1;
           c.targetGID = this.GID;
-          if (2 > b) return (z.sendPacket(c), !0);
+          if (2 > b) return (y.sendPacket(c), !0);
           B.moveAction = c;
           c = new C.CZ.REQUEST_MOVENPC();
           c.GID = B.mercGID;
           c.dest[0] = a[2 * (b - 1) + 0];
           c.dest[1] = a[2 * (b - 1) + 1];
-          z.sendPacket(c);
+          y.sendPacket(c);
           return !0;
       }
       return !1;
     }
-    function t() {
+    function q() {
       var a = this.constructor,
-        b = y("Renderer/EntityManager"),
+        b = G("Renderer/EntityManager"),
         c = b.get(B.homGID);
       b.getFocusEntity();
       switch (this.objecttype) {
@@ -336,7 +336,7 @@ define(
         case a.TYPE_ELEM:
         case a.TYPE_HOM:
           if (!1 === v.SHIFT && !1 === A.noshift) {
-            D.action.active || G.setType(G.ACTION.DEFAULT);
+            D.action.active || z.setType(z.ACTION.DEFAULT);
             break;
           }
         case a.TYPE_MOB:
@@ -344,13 +344,13 @@ define(
             uid: "lockon",
             spr: "data/sprite/cursors.spr",
             act: "data/sprite/cursors.act",
-            frame: G.ACTION.TARGET,
+            frame: z.ACTION.TARGET,
             repeat: !0,
             head: !0,
             depth: 10,
           });
           a = [];
-          b = m.search(
+          b = n.search(
             c.position[0] | 0,
             c.position[1] | 0,
             this.position[0] | 0,
@@ -363,25 +363,25 @@ define(
           c.GID = B.homGID;
           c.action = 1;
           c.targetGID = this.GID;
-          if (2 > b) return (z.sendPacket(c), !0);
+          if (2 > b) return (y.sendPacket(c), !0);
           B.moveAction = c;
           c = new C.CZ.REQUEST_MOVENPC();
           c.GID = B.homGID;
           c.dest[0] = a[2 * (b - 1) + 0];
           c.dest[1] = a[2 * (b - 1) + 1];
-          z.sendPacket(c);
+          y.sendPacket(c);
           return !0;
       }
       return !1;
     }
-    function n() {
+    function k() {
       var a = this.constructor;
       switch (this.objecttype) {
         case a.TYPE_PC:
         case a.TYPE_ELEM:
         case a.TYPE_HOM:
         case a.TYPE_MOB:
-          a.Manager.getFocusEntity() && z.sendPacket(new C.CZ.CANCEL_LOCKON());
+          a.Manager.getFocusEntity() && y.sendPacket(new C.CZ.CANCEL_LOCKON());
       }
       this.display.display = !1;
       this.display.remove();
@@ -394,86 +394,86 @@ define(
         case b.Type.SELL_SHOP:
           a = new C.CZ.REQ_CLICK_TO_BUYING_STORE();
           a.makerAID = this.room.id;
-          z.sendPacket(a);
+          y.sendPacket(a);
           break;
         case b.Type.BUY_SHOP:
           592 == this._job
-            ? ((b = y("Renderer/EntityManager").get(this.GID)),
-              y("Renderer/EntityManager").setOverEntity(b),
+            ? ((b = G("Renderer/EntityManager").get(this.GID)),
+              G("Renderer/EntityManager").setOverEntity(b),
               (a = new C.CZ.CONTACTNPC()),
               (a.NAID = this.GID),
               (a.type = 1))
             : ((a = new C.CZ.REQ_BUY_FROMMC()), (a.AID = this.room.id));
-          z.sendPacket(a);
+          y.sendPacket(a);
           break;
         case b.Type.PUBLIC_CHAT:
           a = new C.CZ.REQ_ENTER_ROOM();
           a.roomID = this.room.id;
           a.passwd = "";
-          z.sendPacket(a);
-          N.type = 1;
-          N.title = this.room.title;
-          N.limit = this.room.limit;
-          N.count = this.room.count;
+          y.sendPacket(a);
+          I.type = 1;
+          I.title = this.room.title;
+          I.limit = this.room.limit;
+          I.count = this.room.count;
           break;
         case b.Type.PRIVATE_CHAT:
           a = new C.CZ.REQ_ENTER_ROOM();
           a.roomID = this.room.id;
-          P.append();
-          P.setType("pass", !1);
+          J.append();
+          J.setType("pass", !1);
           var c = this;
-          P.onSubmitRequest = function (b) {
-            P.remove();
+          J.onSubmitRequest = function (b) {
+            J.remove();
             a.passwd = b;
-            z.sendPacket(a);
-            N.type = 0;
-            N.title = c.room.title;
-            N.limit = c.room.limit;
-            N.count = c.room.count;
+            y.sendPacket(a);
+            I.type = 0;
+            I.title = c.room.title;
+            I.limit = c.room.limit;
+            I.count = c.room.count;
           };
       }
     }
-    function p() {
-      Q++;
+    function t() {
+      N++;
     }
-    var k = a("Utils/jquery"),
+    var l = a("Utils/jquery"),
       f = a("Utils/gl-matrix"),
-      m = a("Utils/PathFinding"),
-      q = a("DB/DBManager"),
+      n = a("Utils/PathFinding"),
+      p = a("DB/DBManager"),
       v = a("Controls/KeyEventHandler"),
       u = a("Controls/MouseEventHandler"),
       A = a("Preferences/Controls"),
       D = a("Renderer/Camera"),
       B = a("Engine/SessionStorage"),
-      H = a("Engine/MapEngine/Friends"),
+      O = a("Engine/MapEngine/Friends"),
       C = a("Network/PacketStructure"),
-      z = a("Network/NetworkManager"),
-      G = a("UI/CursorManager"),
-      P = a("UI/Components/InputBox/InputBox"),
-      N = a("UI/Components/ChatRoom/ChatRoom"),
-      I = a("UI/Components/ContextMenu/ContextMenu"),
+      y = a("Network/NetworkManager"),
+      z = a("UI/CursorManager"),
+      J = a("UI/Components/InputBox/InputBox"),
+      I = a("UI/Components/ChatRoom/ChatRoom"),
+      L = a("UI/Components/ContextMenu/ContextMenu"),
       x = a("UI/Components/PetInformations/PetInformations"),
-      J = a("UI/Components/Trade/Trade"),
+      M = a("UI/Components/Trade/Trade"),
       E = a("UI/Components/ChatBox/ChatBox"),
-      L = a("UI/UIManager"),
-      y = a,
-      F = f.mat4,
+      F = a("UI/UIManager"),
+      G = a,
+      H = f.mat4,
       K = f.vec2,
-      M = F.create(),
-      Q = 0,
-      W = !1;
+      P = H.create(),
+      N = 0,
+      S = !1;
     return function () {
-      this.onAddClickCount = p;
+      this.onAddClickCount = t;
       this.onMouseOver = b;
       this.onMouseOut = c;
       this.onMouseDown = d;
       this.onMouseUp = e;
       this.onFocus = h;
       this.onMercFocus = r;
-      this.onHomFocus = t;
-      this.onFocusEnd = n;
+      this.onHomFocus = q;
+      this.onFocusEnd = k;
       this.onRoomEnter = g;
-      this.onContextMenu = l;
+      this.onContextMenu = m;
     };
   },
 );

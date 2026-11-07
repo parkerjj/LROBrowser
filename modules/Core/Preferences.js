@@ -30,9 +30,9 @@ define("Core/Preferences", ["./Context"], function (a) {
         },
       };
   return {
-    get: function (a, l, h) {
+    get: function (a, m, h) {
       d.get(a, function (d) {
-        var e, n, g;
+        var e, k, g;
         h = h || 0;
         if (d[a] && JSON.parse(d[a])._version === h)
           for (
@@ -42,17 +42,17 @@ define("Core/Preferences", ["./Context"], function (a) {
               d.save = c,
               e = Object.keys(d),
               g = e.length,
-              n = 0;
-            n < g;
-            ++n
+              k = 0;
+            k < g;
+            ++k
           )
-            l[e[n]] = d[e[n]];
-        else b(l);
+            m[e[k]] = d[e[k]];
+        else b(m);
       });
-      l._key = a;
-      l._version = h;
-      l.save = c;
-      return l;
+      m._key = a;
+      m._version = h;
+      m.save = c;
+      return m;
     },
     save: b,
   };

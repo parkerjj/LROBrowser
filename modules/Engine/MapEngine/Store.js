@@ -7,7 +7,7 @@ define(
     function b(a) {
       K.append();
       K.setType(K.Type.CASH);
-      L.getOverEntity() && 592 == L.getOverEntity()._job && K.setType_(3);
+      F.getOverEntity() && 592 == F.getOverEntity()._job && K.setType_(3);
       K.setList(a.itemList);
       K.onSubmit = function (a) {
         var b, c, d;
@@ -15,7 +15,7 @@ define(
         c = a.length;
         for (b = 0; b < c; ++b)
           d.itemList.push({ ITID: a[b].ITID, count: a[b].count });
-        J.sendPacket(d);
+        M.sendPacket(d);
       };
     }
     function c(a) {
@@ -28,7 +28,7 @@ define(
         c = a.length;
         for (b = 0; b < c; ++b)
           d.itemList.push({ ITID: a[b].ITID, count: a[b].count });
-        J.sendPacket(d);
+        M.sendPacket(d);
       };
     }
     function d(a) {
@@ -47,10 +47,10 @@ define(
               invIndex: a[b].invIndex,
               shopIndex: a[b].index,
             });
-          J.sendPacket(d);
+          M.sendPacket(d);
         }
         d = new E.CZ.NPC_BARTER_MARKET_CLOSE();
-        J.sendPacket(d);
+        M.sendPacket(d);
       };
     }
     function e(a) {
@@ -64,13 +64,13 @@ define(
           c = a.length;
           for (b = 0; b < c; ++b)
             d.itemList.push({ ITID: a[b].ITID, amount: a[b].count });
-          J.sendPacket(d);
+          M.sendPacket(d);
         }
         d = new E.CZ.NPC_MARKET_CLOSE();
-        J.sendPacket(d);
+        M.sendPacket(d);
       };
     }
-    function l(a) {
+    function m(a) {
       K.append();
       K.setType(K.Type.BARTER_MARKET_BUY);
       K.setList(a.itemList);
@@ -85,35 +85,35 @@ define(
               shopIndex: a[b].index,
               amount: a[b].count,
             });
-          J.sendPacket(d);
+          M.sendPacket(d);
         }
         d = new E.CZ.NPC_EXPANDED_BARTER_MARKET_CLOSE();
-        J.sendPacket(d);
+        M.sendPacket(d);
       };
     }
     function h(a) {
       K.remove();
       switch (a.result) {
         case 0:
-          M.addText(x.getMessage(54), M.TYPE.BLUE);
+          P.addText(x.getMessage(54), P.TYPE.BLUE);
           break;
         case 1:
-          M.addText(x.getMessage(55), M.TYPE.ERROR);
+          P.addText(x.getMessage(55), P.TYPE.ERROR);
           break;
         case 2:
-          M.addText(x.getMessage(56), M.TYPE.ERROR);
+          P.addText(x.getMessage(56), P.TYPE.ERROR);
           break;
         case 4:
-          M.addText(x.getMessage(230), M.TYPE.ERROR);
+          P.addText(x.getMessage(230), P.TYPE.ERROR);
           break;
         case 5:
-          M.addText(x.getMessage(281), M.TYPE.ERROR);
+          P.addText(x.getMessage(281), P.TYPE.ERROR);
           break;
         case 7:
-          M.addText(x.getMessage(1797), M.TYPE.ERROR);
+          P.addText(x.getMessage(1797), P.TYPE.ERROR);
           break;
         default:
-          M.addText(x.getMessage(57), M.TYPE.ERROR);
+          P.addText(x.getMessage(57), P.TYPE.ERROR);
       }
     }
     function r(a) {
@@ -126,16 +126,16 @@ define(
         c = a.length;
         for (b = 0; b < c; ++b)
           d.itemList.push({ index: a[b].index, count: a[b].count });
-        J.sendPacket(d);
+        M.sendPacket(d);
       };
     }
-    function t(a) {
+    function q(a) {
       K.remove();
       0 === a.result
-        ? M.addText(x.getMessage(54), M.TYPE.BLUE)
-        : M.addText(x.getMessage(57), M.TYPE.ERROR);
+        ? P.addText(x.getMessage(54), P.TYPE.BLUE)
+        : P.addText(x.getMessage(57), P.TYPE.ERROR);
     }
-    function n(a) {
+    function k(a) {
       K.append();
       K.setType(K.Type.VENDING_STORE);
       K.setList(a.itemList);
@@ -153,7 +153,7 @@ define(
         d = b.length;
         for (c = 0; c < d; ++c)
           e.itemList.push({ index: b[c].index, count: b[c].count });
-        J.sendPacket(e);
+        M.sendPacket(e);
       };
     }
     function g(a) {
@@ -167,7 +167,7 @@ define(
       for (c = 0; c < d; c++)
         e = b[d - c - 1] + (c && 0 === c % 3 ? "," : "") + e;
       K.ui.find(".limit span").html(e);
-      b = L.get(a.AID);
+      b = F.get(a.AID);
       K.ui.find(".seller").text(b ? b.display.name : "");
       K.onSubmit = function (b) {
         K.remove();
@@ -182,224 +182,224 @@ define(
             index: b[c].index,
             count: b[c].count,
           });
-        J.sendPacket(e);
+        M.sendPacket(e);
       };
     }
-    function p(a) {
-      y.append();
-      y.initList(a);
-      y.onSubmit = function (a, b) {
+    function t(a) {
+      G.append();
+      G.initList(a);
+      G.onSubmit = function (a, b) {
         var c;
         c = new E.CZ.REQ_OPENSTORE2();
         c.storeName = b || "\u6b22\u8fce\u5149\u4e34\uff01";
         c.result = 1;
         c.storeList = a;
-        J.sendPacket(c);
+        M.sendPacket(c);
       };
     }
-    function k(a) {
-      y.initSuss(a);
+    function l(a) {
+      G.initSuss(a);
     }
     function f(a) {
-      y.delitem2(a);
+      G.delitem2(a);
     }
-    function m(a) {
-      F.remove();
-      F.__active = 1;
-      F.append();
-      F.initList(a);
-      F.onSubmit = function (a, b, c) {
+    function n(a) {
+      H.remove();
+      H.__active = 1;
+      H.append();
+      H.initList(a);
+      H.onSubmit = function (a, b, c) {
         var d;
         d = new E.CZ.REQ_OPEN_BUYING_STORE();
         d.LimitZeny = c;
         d.storeName = b || "\u6b22\u8fce\u5149\u4e34\uff01";
         d.result = 1;
         d.ItemList = a;
-        J.sendPacket(d);
+        M.sendPacket(d);
       };
     }
-    function q(a) {
+    function p(a) {
       sessionStorage.getItem("storeName")
         ? ((Session.Entity.effectState = 64),
           sessionStorage.removeItem("storeName"),
           (a = new E.CZ.WHISPER()),
           (a.receiver = "NPC:offline"),
           (a.msg = "0"))
-        : (F.initSuss(a), (a = new E.CZ.REQUEST_ACT()), (a.action = 2));
-      J.sendPacket(a);
+        : (H.initSuss(a), (a = new E.CZ.REQUEST_ACT()), (a.action = 2));
+      M.sendPacket(a);
     }
     function v(a) {
-      F.Openfalut(a);
+      H.Openfalut(a);
     }
     function u(a) {
-      F.updateStore(a);
+      H.updateStore(a);
     }
     function A(a) {
       switch (a.Result) {
         case 5:
-          M.addText(
+          P.addText(
             "\u91c7\u8d2d\u5546\u5e97\u5f00\u542f\u5931\u8d25",
-            M.TYPE.ERROR,
+            P.TYPE.ERROR,
           );
           break;
         case 6:
-          M.addText("\u4f9b\u8fc7\u4e8e\u6c42", M.TYPE.ERROR);
+          P.addText("\u4f9b\u8fc7\u4e8e\u6c42", P.TYPE.ERROR);
           break;
         case 7:
-          M.addText(
+          P.addText(
             "\u5bf9\u65b9\u6ca1\u6709\u8db3\u591f\u7684\u91d1\u94b1",
-            M.TYPE.ERROR,
+            P.TYPE.ERROR,
           );
       }
     }
     function D(a) {
-      0 == a.Type ? Q.append() : Q.remove();
+      0 == a.Type ? N.append() : N.remove();
     }
     function B(a) {
       if (0 == a.result) {
-        var b = W.getItemByIndex(a.Index);
-        Q.update(2);
-        Q.addItemSub(a.Index, b.count_);
-        W.removeItem(a.Index, b.count_);
-        W.toggle();
-      } else ba.setMsg("\u6dfb\u52a0\u5931\u8d25", M.TYPE.ERROR);
+        var b = S.getItemByIndex(a.Index);
+        N.update(2);
+        N.addItemSub(a.Index, b.count_);
+        S.removeItem(a.Index, b.count_);
+        S.toggle();
+      } else ea.setMsg("\u6dfb\u52a0\u5931\u8d25", P.TYPE.ERROR);
     }
-    function H(a) {
+    function O(a) {
       1 == a.Result
-        ? (Q.update(1),
-          M.addText("\u6210\u529f\u767b\u8bb0\u7269\u54c1", M.TYPE.PRIVATE),
-          ba.setMsg("\u6210\u529f\u767b\u8bb0\u7269\u54c1"))
+        ? (N.update(1),
+          P.addText("\u6210\u529f\u767b\u8bb0\u7269\u54c1", P.TYPE.PRIVATE),
+          ea.setMsg("\u6210\u529f\u767b\u8bb0\u7269\u54c1"))
         : 2 == a.Result
-          ? (M.addText(
+          ? (P.addText(
               "\u5546\u54c1\u5df2\u4e0b\u67b6\uff0c\u5546\u54c1\u5df2\u53d1\u9001\u81f3\u90ae\u4ef6",
-              M.TYPE.ERROR,
+              P.TYPE.ERROR,
             ),
-            ba.setMsg("\u5546\u54c1\u5df2\u4e0b\u67b6"),
-            Q.update(1))
+            ea.setMsg("\u5546\u54c1\u5df2\u4e0b\u67b6"),
+            N.update(1))
           : 4 == a.Result
-            ? (Q.update(1),
-              M.addText(
+            ? (N.update(1),
+              P.addText(
                 "\u6700\u591a\u767b\u8bb010\u4e2a\u7269\u54c1",
-                M.TYPE.ERROR,
+                P.TYPE.ERROR,
               ),
-              ba.setMsg("\u6700\u591a\u767b\u8bb010\u4e2a\u7269\u54c1"))
+              ea.setMsg("\u6700\u591a\u767b\u8bb010\u4e2a\u7269\u54c1"))
             : 5 == a.Result
-              ? (M.addText(
+              ? (P.addText(
                   "\u624b\u7eed\u8d39\u7f34\u8d39\u5931\u8d25",
-                  M.TYPE.ERROR,
+                  P.TYPE.ERROR,
                 ),
-                ba.setMsg("\u624b\u7eed\u8d39\u7f34\u8d39\u5931\u8d25"))
+                ea.setMsg("\u624b\u7eed\u8d39\u7f34\u8d39\u5931\u8d25"))
               : 6 == a.Result
-                ? (M.addText(
+                ? (P.addText(
                     "\u5546\u54c1\u5df2\u53d1\u9001\u81f3\u90ae\u4ef6",
-                    M.TYPE.PRIVATE,
+                    P.TYPE.PRIVATE,
                   ),
-                  ba.setMsg("\u5546\u54c1\u5df2\u53d1\u9001\u81f3\u90ae\u4ef6"),
-                  Q.updatePage())
-                : M.addText("\u4ea4\u6613\u5931\u8d25", M.TYPE.ERROR);
+                  ea.setMsg("\u5546\u54c1\u5df2\u53d1\u9001\u81f3\u90ae\u4ef6"),
+                  N.updatePage())
+                : P.addText("\u4ea4\u6613\u5931\u8d25", P.TYPE.ERROR);
     }
     function C(a) {
       1 == a.Result
-        ? (M.addText("\u5546\u54c1\u5df2\u4e0b\u67b6", M.TYPE.PRIVATE),
-          ba.setMsg("\u5546\u54c1\u5df2\u4e0b\u67b6"))
+        ? (P.addText("\u5546\u54c1\u5df2\u4e0b\u67b6", P.TYPE.PRIVATE),
+          ea.setMsg("\u5546\u54c1\u5df2\u4e0b\u67b6"))
         : 2 == a.Result
-          ? (M.addText("\u5546\u54c1\u4e0d\u80fd\u4e0b\u67b6", M.TYPE.ERROR),
-            ba.setMsg("\u5546\u54c1\u4e0d\u80fd\u4e0b\u67b6"))
-          : (M.addText(
+          ? (P.addText("\u5546\u54c1\u4e0d\u80fd\u4e0b\u67b6", P.TYPE.ERROR),
+            ea.setMsg("\u5546\u54c1\u4e0d\u80fd\u4e0b\u67b6"))
+          : (P.addText(
               "\u5546\u54c1\u53ef\u80fd\u5df2\u51fa\u552e",
-              M.TYPE.PRIVATE,
+              P.TYPE.PRIVATE,
             ),
-            ba.setMsg("\u5546\u54c1\u53ef\u80fd\u5df2\u51fa\u552e"));
-      Q.update(1);
+            ea.setMsg("\u5546\u54c1\u53ef\u80fd\u5df2\u51fa\u552e"));
+      N.update(1);
+    }
+    function y(a) {
+      N.setList(a);
     }
     function z(a) {
-      Q.setList(a);
+      R.setInit(a);
     }
-    function G(a) {
-      V.setInit(a);
-    }
-    function P(a) {
-      V.setList(a);
-    }
-    function N(a) {
-      0 == a.result
-        ? (M.addText("\u8d2d\u4e70\u6210\u529f", M.TYPE.PRIVATE),
-          V.BuyResult(a),
-          ba.setMsg("\u8d2d\u4e70\u6210\u529f"))
-        : (M.addText("\u8d2d\u4e70\u5931\u8d25", M.TYPE.ERROR),
-          ba.setMsg("\u8d2d\u4e70\u5931\u8d25"));
+    function J(a) {
+      R.setList(a);
     }
     function I(a) {
+      0 == a.result
+        ? (P.addText("\u8d2d\u4e70\u6210\u529f", P.TYPE.PRIVATE),
+          R.BuyResult(a),
+          ea.setMsg("\u8d2d\u4e70\u6210\u529f"))
+        : (P.addText("\u8d2d\u4e70\u5931\u8d25", P.TYPE.ERROR),
+          ea.setMsg("\u8d2d\u4e70\u5931\u8d25"));
+    }
+    function L(a) {
       K.remove();
       0 == a.rs
-        ? (M.addText("\u8d2d\u4e70\u6210\u529f", M.TYPE.PRIVATE),
-          ba.setMsg("\u8d2d\u4e70\u6210\u529f"))
-        : (M.addText("\u8d2d\u4e70\u5931\u8d25", M.TYPE.ERROR),
-          ba.setMsg("\u8d2d\u4e70\u5931\u8d25"));
+        ? (P.addText("\u8d2d\u4e70\u6210\u529f", P.TYPE.PRIVATE),
+          ea.setMsg("\u8d2d\u4e70\u6210\u529f"))
+        : (P.addText("\u8d2d\u4e70\u5931\u8d25", P.TYPE.ERROR),
+          ea.setMsg("\u8d2d\u4e70\u5931\u8d25"));
     }
     var x = a("DB/DBManager"),
-      J = a("Network/NetworkManager"),
+      M = a("Network/NetworkManager"),
       E = a("Network/PacketStructure"),
-      L = a("Renderer/EntityManager");
+      F = a("Renderer/EntityManager");
     a("Preferences/Controls");
-    var y = a("UI/Components/PlayerStore/PlayerStore"),
-      F = a("UI/Components/BuyingStore/BuyingStore"),
+    var G = a("UI/Components/PlayerStore/PlayerStore"),
+      H = a("UI/Components/BuyingStore/BuyingStore"),
       K = a("UI/Components/NpcStore/NpcStore"),
-      M = a("UI/Components/ChatBox/ChatBox"),
-      Q = a("UI/Components/Auction/Auction"),
-      W = a("UI/Components/Inventory/Inventory"),
-      V = a("UI/Components/Shop/CashShop"),
-      ba = a("UI/Components/ItemObtain/ItemObtain");
-    y.onRemove2 = function () {
+      P = a("UI/Components/ChatBox/ChatBox"),
+      N = a("UI/Components/Auction/Auction"),
+      S = a("UI/Components/Inventory/Inventory"),
+      R = a("UI/Components/Shop/CashShop"),
+      ea = a("UI/Components/ItemObtain/ItemObtain");
+    G.onRemove2 = function () {
       var a;
       a = new E.CZ.REQ_OPENSTORE2();
-      J.sendPacket(a);
+      M.sendPacket(a);
       a = new E.CZ.REQ_CLOSESTORE();
-      J.sendPacket(a);
+      M.sendPacket(a);
     };
-    F.onRemove2 = function () {
+    H.onRemove2 = function () {
       var a = new E.CZ.REQ_CLOSE_BUYING_STORE();
-      J.sendPacket(a);
+      M.sendPacket(a);
       a = new E.CZ.REQUEST_ACT();
       a.action = 3;
-      J.sendPacket(a);
+      M.sendPacket(a);
     };
     return function () {
-      J.hookPacket(E.ZC.PC_CASH_POINT_ITEMLIST, b);
-      J.hookPacket(E.ZC.PC_PURCHASE_ITEMLIST, c);
-      J.hookPacket(E.ZC.PC_PURCHASE_ITEMLIST2, c);
-      J.hookPacket(E.ZC.NPC_BARTER_MARKET_ITEMINFO, d);
-      J.hookPacket(E.ZC.NPC_MARKET_OPEN, e);
-      J.hookPacket(E.ZC.NPC_EXPANDED_BARTER_MARKET_ITEMINFO, l);
-      J.hookPacket(E.ZC.NPC_MARKET_PURCHASE_RESULT, I);
-      J.hookPacket(E.ZC.PC_PURCHASE_RESULT, h);
-      J.hookPacket(E.ZC.PC_SELL_ITEMLIST, r);
-      J.hookPacket(E.ZC.PC_SELL_RESULT, t);
-      J.hookPacket(E.ZC.PC_PURCHASE_ITEMLIST_FROMMC, n);
-      J.hookPacket(E.ZC.PC_PURCHASE_ITEMLIST_FROMMC2, n);
-      J.hookPacket(E.ZC.PC_PURCHASE_ITEMLIST_FROMMC3, n);
-      J.hookPacket(E.ZC.ACK_ITEMLIST_BUYING_STORE, g);
-      J.hookPacket(E.ZC.PC_PURCHASE_RESULT_FROMMC, h);
-      J.hookPacket(E.ZC.OPENSTORE, p);
-      J.hookPacket(E.ZC.PC_PURCHASE_MYITEMLIST, k);
-      J.hookPacket(E.ZC.PC_PURCHASE_MYITEMLIST2, k);
-      J.hookPacket(E.ZC.DELETEITEM_FROM_MCSTORE, f);
-      J.hookPacket(E.ZC.DELETEITEM_FROM_MCSTORE2, f);
-      J.hookPacket(E.ZC.OPEN_BUYING_STORE, m);
-      J.hookPacket(E.ZC.MYITEMLIST_BUYING_STORE, q);
-      J.hookPacket(E.ZC.FAILED_OPEN_BUYING_STORE_TO_BUYER, v);
-      J.hookPacket(E.ZC.UPDATE_ITEM_FROM_BUYING_STORE, u);
-      J.hookPacket(E.ZC.UPDATE_ITEM_FROM_BUYING_STORE2, u);
-      J.hookPacket(E.ZC.FAILED_TRADE_BUYING_STORE_TO_SELLER, A);
-      J.hookPacket(E.ZC.AUCTION_WINDOWS, D);
-      J.hookPacket(E.ZC.ACK_AUCTION_ADD_ITEM, B);
-      J.hookPacket(E.ZC.AUCTION_RESULT, H);
-      J.hookPacket(E.ZC.AUCTION_ITEM_REQ_SEARCH, z);
-      J.hookPacket(E.ZC.AUCTION_ACK_MY_SELL_STOP, C);
-      J.hookPacket(E.ZC.OPEN_CASHSHOP_RESULT, G);
-      J.hookPacket(E.ZC.SE_CASHSHOP_OPEN, G);
-      J.hookPacket(E.ZC.ZC_ACK_SCHEDULER_CASHITEM, P);
-      J.hookPacket(E.ZC.OPEN_CASHSHOP_RESULT2, N);
+      M.hookPacket(E.ZC.PC_CASH_POINT_ITEMLIST, b);
+      M.hookPacket(E.ZC.PC_PURCHASE_ITEMLIST, c);
+      M.hookPacket(E.ZC.PC_PURCHASE_ITEMLIST2, c);
+      M.hookPacket(E.ZC.NPC_BARTER_MARKET_ITEMINFO, d);
+      M.hookPacket(E.ZC.NPC_MARKET_OPEN, e);
+      M.hookPacket(E.ZC.NPC_EXPANDED_BARTER_MARKET_ITEMINFO, m);
+      M.hookPacket(E.ZC.NPC_MARKET_PURCHASE_RESULT, L);
+      M.hookPacket(E.ZC.PC_PURCHASE_RESULT, h);
+      M.hookPacket(E.ZC.PC_SELL_ITEMLIST, r);
+      M.hookPacket(E.ZC.PC_SELL_RESULT, q);
+      M.hookPacket(E.ZC.PC_PURCHASE_ITEMLIST_FROMMC, k);
+      M.hookPacket(E.ZC.PC_PURCHASE_ITEMLIST_FROMMC2, k);
+      M.hookPacket(E.ZC.PC_PURCHASE_ITEMLIST_FROMMC3, k);
+      M.hookPacket(E.ZC.ACK_ITEMLIST_BUYING_STORE, g);
+      M.hookPacket(E.ZC.PC_PURCHASE_RESULT_FROMMC, h);
+      M.hookPacket(E.ZC.OPENSTORE, t);
+      M.hookPacket(E.ZC.PC_PURCHASE_MYITEMLIST, l);
+      M.hookPacket(E.ZC.PC_PURCHASE_MYITEMLIST2, l);
+      M.hookPacket(E.ZC.DELETEITEM_FROM_MCSTORE, f);
+      M.hookPacket(E.ZC.DELETEITEM_FROM_MCSTORE2, f);
+      M.hookPacket(E.ZC.OPEN_BUYING_STORE, n);
+      M.hookPacket(E.ZC.MYITEMLIST_BUYING_STORE, p);
+      M.hookPacket(E.ZC.FAILED_OPEN_BUYING_STORE_TO_BUYER, v);
+      M.hookPacket(E.ZC.UPDATE_ITEM_FROM_BUYING_STORE, u);
+      M.hookPacket(E.ZC.UPDATE_ITEM_FROM_BUYING_STORE2, u);
+      M.hookPacket(E.ZC.FAILED_TRADE_BUYING_STORE_TO_SELLER, A);
+      M.hookPacket(E.ZC.AUCTION_WINDOWS, D);
+      M.hookPacket(E.ZC.ACK_AUCTION_ADD_ITEM, B);
+      M.hookPacket(E.ZC.AUCTION_RESULT, O);
+      M.hookPacket(E.ZC.AUCTION_ITEM_REQ_SEARCH, y);
+      M.hookPacket(E.ZC.AUCTION_ACK_MY_SELL_STOP, C);
+      M.hookPacket(E.ZC.OPEN_CASHSHOP_RESULT, z);
+      M.hookPacket(E.ZC.SE_CASHSHOP_OPEN, z);
+      M.hookPacket(E.ZC.ZC_ACK_SCHEDULER_CASHITEM, J);
+      M.hookPacket(E.ZC.OPEN_CASHSHOP_RESULT2, I);
     };
   },
 );

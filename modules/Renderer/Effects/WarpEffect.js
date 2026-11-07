@@ -14,17 +14,17 @@ define(
       d = a("Utils/gl-matrix");
     a("DB/Skills/SkillConst");
     var e = a("Core/Client"),
-      l = a("Renderer/Map/Altitude"),
+      m = a("Renderer/Map/Altitude"),
       h,
       r,
-      t = d.mat4,
-      n = t.create(),
+      q = d.mat4,
+      k = q.create(),
       g =
         "attribute vec3 aPosition;\nattribute vec2 aTextureCoord;\nvarying vec2 vTextureCoord;\nuniform mat4 uModelViewMat;\nuniform mat4 uProjectionMat;\nuniform mat4 uRotationMat;\nvoid main(void) {\ngl_Position    \x3d uProjectionMat * uModelViewMat * vec4( aPosition.x, aPosition.y - 0.5, aPosition.z, 1.0);\ngl_Position.z -\x3d 0.01;\nvTextureCoord  \x3d (uRotationMat * vec4( aTextureCoord - 0.5, 1.0, 1.0)).xy + 0.5;\n}",
-      p =
+      t =
         "varying vec2 vTextureCoord;\nuniform sampler2D uDiffuse;\nuniform vec4 uSpriteRendererColor;\nuniform bool  uFogUse;\nuniform float uFogNear;\nuniform float uFogFar;\nuniform vec3  uFogColor;\nvoid main(void) {\nif (uSpriteRendererColor.a \x3d\x3d 0.0) {\ndiscard;\n}\nvec4 texture \x3d texture2D( uDiffuse,  vTextureCoord.st );\nif (texture.a \x3d\x3d 0.0) {\n\tdiscard;\n}\ngl_FragColor \x3d texture * uSpriteRendererColor;\nif (uFogUse) {\nfloat depth     \x3d gl_FragCoord.z / gl_FragCoord.w;\nfloat fogFactor \x3d smoothstep( uFogNear, uFogFar, depth );\ngl_FragColor    \x3d mix( gl_FragColor, vec4( uFogColor, gl_FragColor.w ), fogFactor );\n}\n}";
     b.prototype.init = function (a) {
-      var b = l.generatePlane(this.x, this.y, this.size);
+      var b = m.generatePlane(this.x, this.y, this.size);
       this.buffer = a.createBuffer();
       this.vertCount = b.length / 5;
       a.bindBuffer(a.ARRAY_BUFFER, this.buffer);
@@ -43,7 +43,7 @@ define(
       a.drawArrays(a.TRIANGLES, 0, this.vertCount);
     };
     b.init = function (a) {
-      r = c.createShaderProgram(a, g, p);
+      r = c.createShaderProgram(a, g, t);
       e.loadFile("data/texture/effect/pok2.tga", function (d) {
         c.texture(a, d, function (a) {
           h = a;
@@ -66,11 +66,11 @@ define(
       e = r.uniform;
       var f = r.attribute;
       a.depthMask(!1);
-      t.identity(n);
+      q.identity(k);
       a.useProgram(r);
       a.uniformMatrix4fv(e.uModelViewMat, !1, b);
       a.uniformMatrix4fv(e.uProjectionMat, !1, c);
-      a.uniformMatrix4fv(e.uRotationMat, !1, n);
+      a.uniformMatrix4fv(e.uRotationMat, !1, k);
       a.uniform1i(e.uFogUse, d.use && d.exist);
       a.uniform1f(e.uFogNear, d.near);
       a.uniform1f(e.uFogFar, d.far);

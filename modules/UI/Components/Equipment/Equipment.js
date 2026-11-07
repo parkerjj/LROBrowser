@@ -21,40 +21,40 @@ define(
       );
     }
     function d() {
-      x.onConfigUpdate(0, M ? 0 : 1);
+      x.onConfigUpdate(0, P ? 0 : 1);
     }
     function e(a) {
       var b = [];
-      a & m.HEAD_TOP && b.push(".head_top");
-      a & m.HEAD_MID && b.push(".head_mid");
-      a & m.HEAD_BOTTOM && b.push(".head_bottom");
-      a & m.ARMOR && b.push(".armor");
-      a & m.WEAPON && b.push(".weapon");
-      a & m.SHIELD && b.push(".shield");
-      a & m.GARMENT && b.push(".garment");
-      a & m.SHOES && b.push(".shoes");
-      a & m.ACCESSORY1 && b.push(".accessory1");
-      a & m.ACCESSORY2 && b.push(".accessory2");
-      a & m.AMMO && b.push(".ammo");
-      a & m.HEAD_TOP_F && b.push(".head_top_f");
-      a & m.HEAD_MID_F && b.push(".head_mid_f");
-      a & m.HEAD_BOTTOM_F && b.push(".head_bottom_f");
-      a & m.ARMOR_F && b.push(".armor_f");
-      a & m.WEAPON_F && b.push(".weapon_f");
-      a & m.SHIELD_F && b.push(".shield_f");
-      a & m.GARMENT_F && b.push(".garment_f");
-      a & m.SHOES_F && b.push(".shoes_f");
-      a & m.ACC_R_F && b.push(".accessory1_f");
-      a & m.ACC_L_F && b.push(".accessory2_f");
+      a & n.HEAD_TOP && b.push(".head_top");
+      a & n.HEAD_MID && b.push(".head_mid");
+      a & n.HEAD_BOTTOM && b.push(".head_bottom");
+      a & n.ARMOR && b.push(".armor");
+      a & n.WEAPON && b.push(".weapon");
+      a & n.SHIELD && b.push(".shield");
+      a & n.GARMENT && b.push(".garment");
+      a & n.SHOES && b.push(".shoes");
+      a & n.ACCESSORY1 && b.push(".accessory1");
+      a & n.ACCESSORY2 && b.push(".accessory2");
+      a & n.AMMO && b.push(".ammo");
+      a & n.HEAD_TOP_F && b.push(".head_top_f");
+      a & n.HEAD_MID_F && b.push(".head_mid_f");
+      a & n.HEAD_BOTTOM_F && b.push(".head_bottom_f");
+      a & n.ARMOR_F && b.push(".armor_f");
+      a & n.WEAPON_F && b.push(".weapon_f");
+      a & n.SHIELD_F && b.push(".shield_f");
+      a & n.GARMENT_F && b.push(".garment_f");
+      a & n.SHOES_F && b.push(".shoes_f");
+      a & n.ACC_R_F && b.push(".accessory1_f");
+      a & n.ACC_L_F && b.push(".accessory2_f");
       return b.join(", ");
     }
-    function l(a) {
+    function m(a) {
       if (window._OBJ_DRAG_) {
         var b = window._OBJ_DRAG_,
           c;
         "item" === b.type &&
           ((b = b.data),
-          (b.type !== q.WEAPON && b.type !== q.EQUIP) ||
+          (b.type !== p.WEAPON && b.type !== p.EQUIP) ||
             !b.IsIdentified ||
             b.IsDamaged ||
             ((b = e("location" in b ? b.location : b.WearLocation)),
@@ -78,11 +78,11 @@ define(
       var b;
       try {
         b = JSON.parse(a.originalEvent.dataTransfer.getData("Text"));
-      } catch (T) {}
+      } catch (V) {}
       b &&
         "item" === b.type &&
         ((b = b.data),
-        (b.type !== q.WEAPON && b.type !== q.EQUIP && b.type !== q.AMMO) ||
+        (b.type !== p.WEAPON && b.type !== p.EQUIP && b.type !== p.AMMO) ||
           !b.IsIdentified ||
           b.IsDamaged ||
           (x.ui.find("td").css("backgroundImage", "none"),
@@ -90,32 +90,32 @@ define(
       a.stopImmediatePropagation();
       return !1;
     }
-    function t(a) {
+    function q(a) {
       var b = parseInt(this.getAttribute("data-index"), 10);
-      if ((b = L[b]))
-        P.uid === b.ITID
-          ? P.remove()
-          : (P.append(), (P.uid = b.ITID), P.setItem(b));
+      if ((b = F[b]))
+        J.uid === b.ITID
+          ? J.remove()
+          : (J.append(), (J.uid = b.ITID), J.setItem(b));
       a.stopImmediatePropagation();
       return !1;
     }
-    function n(a) {
+    function k(a) {
       for (
         var b = parseInt(this.getAttribute("data-index"), 10), c, d = 0;
-        d < y.length;
+        d < G.length;
         d++
       )
-        if (y[d].index == b) {
-          c = y[d];
+        if (G[d].index == b) {
+          c = G[d];
           break;
         }
       if (c) {
-        if (P.uid === c.ITID) return (P.remove(), !1);
-        P.append();
-        P.uid = c.ITID;
-        P.item_ = c;
-        P.type = "Equipment_";
-        P.setItem(c);
+        if (J.uid === c.ITID) return (J.remove(), !1);
+        J.append();
+        J.uid = c.ITID;
+        J.item_ = c;
+        J.type = "Equipment_";
+        J.setItem(c);
       }
       a.stopImmediatePropagation();
       return !1;
@@ -125,9 +125,9 @@ define(
       x.onUnEquip(a);
       x.ui.find(".overlay").hide();
     }
-    function p() {
+    function t() {
       var a = parseInt(this.parentNode.getAttribute("data-index"), 10);
-      if ((a = L[a])) {
+      if ((a = F[a])) {
         var b = x.ui.find(".overlay"),
           c = v(this).position();
         if (c.top || c.left)
@@ -136,51 +136,51 @@ define(
             b.text(f.getItemName(a)));
       }
     }
-    function k() {
+    function l() {
       x.ui.find(".overlay").hide();
     }
     var f = a("DB/DBManager");
     a("DB/Status/StatusState");
-    var m = a("DB/Items/EquipmentLocation"),
-      q = a("DB/Items/ItemType"),
+    var n = a("DB/Items/EquipmentLocation"),
+      p = a("DB/Items/ItemType"),
       v = a("Utils/jquery"),
       u = a("Core/Client"),
       A = a("Core/Preferences"),
       D = a("Engine/SessionStorage"),
       B = a("Renderer/Renderer"),
-      H = a("Renderer/Camera"),
+      O = a("Renderer/Camera"),
       C = a("Renderer/SpriteRenderer"),
-      z = a("UI/UIManager"),
-      G = a("UI/UIComponent"),
-      P = a("UI/Components/ItemInfo/ItemInfo"),
-      N = a("UI/Components/OnPushCart/OnPushCart"),
-      I = a("text!./Equipment.html");
+      y = a("UI/UIManager"),
+      z = a("UI/UIComponent"),
+      J = a("UI/Components/ItemInfo/ItemInfo"),
+      I = a("UI/Components/OnPushCart/OnPushCart"),
+      L = a("text!./Equipment.html");
     a = a("text!./Equipment.css");
-    var x = new G("Equipment", I, a),
-      J = x.clone("Equipment_");
-    z.addComponent(J);
+    var x = new z("Equipment", L, a),
+      M = x.clone("Equipment_");
+    y.addComponent(M);
     var E = A.get(
         "Equipment",
         { x: 480, y: 200, show: !1, reduce: !1, stats: !0 },
         1,
       ),
-      L = {},
-      y = {},
-      F,
+      F = {},
+      G = {},
+      H,
       K,
-      M = !1,
-      Q,
-      W;
+      P = !1,
+      N,
+      S;
     x.init = function () {
-      F = this.ui.find("canvas")[0].getContext("2d");
-      Q = v("#lvlup_base")
+      H = this.ui.find("canvas")[0].getContext("2d");
+      N = v("#lvlup_base")
         .detach()
         .mousedown(b)
         .click(function () {
-          Q.detach();
+          N.detach();
           x.ui.show();
           x.ui.parent().append(x.ui);
-          x.ui.is(":visible") && B.render(V);
+          x.ui.is(":visible") && B.render(R);
         });
       this.ui.find(".titlebar .base").mousedown(b);
       this.ui.find(".titlebar .mini").click(function () {
@@ -190,11 +190,11 @@ define(
         x.ui.hide();
       });
       this.ui.find(".OpenCart").click(function () {
-        N.ui.toggle();
-        N.focus();
+        I.ui.toggle();
+        I.focus();
       });
       this.ui.find(".removeOption").click(function () {
-        N.ui.hide();
+        I.ui.hide();
         x.onRemoveOption();
       });
       this.ui.find(".removeOption_").click(function () {
@@ -208,19 +208,19 @@ define(
           ? x.ui.find(".panel").removeClass("fashion").addClass("unfashion")
           : x.ui.find(".panel").removeClass("unfashion").addClass("fashion");
       });
-      this.ui.on("dragover", l);
+      this.ui.on("dragover", m);
       this.ui.on("dragleave", h);
       this.ui.on("drop", r);
       this.ui
         .find(".content")
-        .on("contextmenu", ".item", t)
+        .on("contextmenu", ".item", q)
         .on("dblclick", ".item", g)
-        .on("mouseover", "button", p)
-        .on("mouseout", "button", k);
+        .on("mouseover", "button", t)
+        .on("mouseout", "button", l);
       this.ui.mousedown(b);
       this.draggable(this.ui.find(".titlebar"));
     };
-    J.init = function () {
+    M.init = function () {
       this.ui.css({
         top: Math.min(Math.max(0, E.y), (B.height - this.ui.height()) / 2),
         left: Math.min(Math.max(0, E.x), (B.width - this.ui.width()) / 2),
@@ -228,11 +228,11 @@ define(
       K = this.ui.find("canvas")[0].getContext("2d");
       this.ui.find(".footer .left,.footer .right,#lvlup_base").hide();
       this.ui.find(".titlebar .close").on("click", function () {
+        M.remove();
         J.remove();
-        P.remove();
         event.stopImmediatePropagation();
       });
-      this.ui.on("contextmenu", ".item", n);
+      this.ui.on("contextmenu", ".item", k);
       this.draggable(this.ui.find(".titlebar"));
     };
     x.onAppend = function () {
@@ -252,14 +252,14 @@ define(
               .css("backgroundImage", "url(" + a + ")");
           }.bind(this),
         ));
-      this.ui.find("canvas").is(":visible") && B.render(V);
+      this.ui.find("canvas").is(":visible") && B.render(R);
     };
     x.onRemove = function () {
-      Q.detach();
+      N.detach();
       x.ui.find(".OpenCart").hide();
       x.ui.find(".removeOption").hide();
       x.ui.find(".removeOption_").hide();
-      L = {};
+      F = {};
       this.ui.find(".col1, .col3, .ammo").empty();
       this.ui.find(".item").remove();
       E.show = this.ui.is(":visible");
@@ -272,8 +272,8 @@ define(
     x.toggle = function () {
       this.ui.toggle();
       this.ui.is(":visible")
-        ? (B.render(V), Q.detach(), this.focus())
-        : B.stop(V);
+        ? (B.render(R), N.detach(), this.focus())
+        : B.stop(R);
     };
     x.onShortCut = function (a) {
       switch (a.cmd) {
@@ -282,7 +282,7 @@ define(
       }
     };
     x.setEquipConfig = function (a) {
-      M = a;
+      P = a;
       u.loadFile(
         f.INTERFACE_PATH + "checkbox_" + (a ? "1" : "0") + ".bmp",
         function (a) {
@@ -292,7 +292,7 @@ define(
     };
     x.equip = function (a, b) {
       var c = f.getItemInfo(a.ITID);
-      L[a.index] = a;
+      F[a.index] = a;
       1 === arguments.length &&
         ("WearState" in a
           ? (b = a.WearState)
@@ -334,7 +334,7 @@ define(
         }.bind(this),
       );
     };
-    J.equip = function (a, b) {
+    M.equip = function (a, b) {
       var c = f.getItemInfo(a.ITID);
       b = a.WearState;
       this.ui
@@ -357,9 +357,9 @@ define(
     };
     x.unEquip = function (a, b) {
       b = e(b);
-      var c = L[a];
+      var c = F[a];
       this.ui.find(b).empty();
-      delete L[a];
+      delete F[a];
       return c;
     };
     x.setBound = function (a) {
@@ -367,34 +367,34 @@ define(
         a.bindOnEquipType = 0 < a.bindOnEquipType ? 0 : 2;
     };
     x.getItemByIndex = function (a) {
-      for (var b in L) if (L[b].index === a) return L[b];
+      for (var b in F) if (F[b].index === a) return F[b];
       return null;
     };
-    J.setEquip = function (a) {
-      y = a.ItemInfo;
+    M.setEquip = function (a) {
+      G = a.ItemInfo;
       this.ui
         .find(".titlebar .text")
         .html(a.characterName + " \u88c5\u5907\u680f");
-      for (a = 0; a < y.length; a++) y[a].WearState && J.equip(y[a]);
+      for (a = 0; a < G.length; a++) G[a].WearState && M.equip(G[a]);
     };
     x.ShowOEquip = function (a) {
-      J.append();
-      J.setEquip(a);
-      x.renderOCharacter(W);
+      M.append();
+      M.setEquip(a);
+      x.renderOCharacter(S);
     };
     x.updateInfos = function (a) {
       var b = this.ui
         .find('.item[data-gid\x3d"' + a.GID + '"]')
         .attr("data-index");
-      b && (L[b].makerInfo = a);
+      b && (F[b].makerInfo = a);
     };
     x.getAmount = function () {
-      return Object.keys(L).length;
+      return Object.keys(F).length;
     };
     x.onLevelUp = function () {
-      Q.appendTo("body");
+      N.appendTo("body");
     };
-    var V = (function () {
+    var R = (function () {
       var a = 0,
         b = new Float32Array([1, 1, 1, 1]),
         c = new Float32Array(4),
@@ -429,15 +429,15 @@ define(
               4060 != e._job &&
               4066 != e._job) ||
             x.ui.find(".removeOption_").show();
-          H.direction = 4;
+          O.direction = 4;
           e.direction = 4;
           e.headDir = 0;
           e.action = e.ACTION.IDLE;
           e.animation = d;
           c.set(e.effectColor);
           e.effectColor.set(b);
-          C.bind2DContext(F, 30, 130);
-          F.clearRect(0, 0, F.canvas.width, F.canvas.height);
+          C.bind2DContext(H, 30, 130);
+          H.clearRect(0, 0, H.canvas.width, H.canvas.height);
           e.renderEntity();
           e.direction = f;
           e.headDir = g;
@@ -448,7 +448,7 @@ define(
       };
     })();
     x.setCharacter = function (a) {
-      W = a;
+      S = a;
     };
     x.renderOCharacter = function (a) {
       var b = new Float32Array([1, 1, 1, 1]),
@@ -457,7 +457,7 @@ define(
         e = a.headDir,
         f = a.action,
         g = a.animation;
-      H.direction = 4;
+      O.direction = 4;
       a.direction = 4;
       a.headDir = 0;
       a.action = a.ACTION.IDLE;
@@ -485,6 +485,6 @@ define(
     x.onConfigUpdate = function () {};
     x.onEquipItem = function () {};
     x.onRemoveCart = function () {};
-    return z.addComponent(x);
+    return y.addComponent(x);
   },
 );

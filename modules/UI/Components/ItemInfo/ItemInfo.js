@@ -6,12 +6,12 @@ define(
   function (a) {
     function b(a, b, e, g) {
       var k = "",
-        m = d.getItemInfo(b);
-      b && m
-        ? ((g = "item/" + m.identifiedResourceName + ".bmp"),
+        l = d.getItemInfo(b);
+      b && l
+        ? ((g = "item/" + l.identifiedResourceName + ".bmp"),
           (k =
             '\x3cdiv class\x3d"name"\x3e' +
-            c.escape(m.identifiedDiSPlayName) +
+            c.escape(l.identifiedDiSPlayName) +
             "\x3c/div\x3e"))
         : (g = e < g ? "empty_card_slot.bmp" : "disable_card_slot.bmp");
       a.append(
@@ -24,7 +24,7 @@ define(
       h.loadFile(d.INTERFACE_PATH + g, function (c) {
         var d = a.find('.item[data-index\x3d"' + e + '"] .icon');
         d.css("backgroundImage", "url(" + c + ")");
-        if (b && m)
+        if (b && l)
           d.on("contextmenu", function () {
             f.setItem({ ITID: b, IsIdentified: !0, type: 6 });
             return !1;
@@ -34,21 +34,21 @@ define(
     var c = a("Utils/jquery"),
       d = a("DB/DBManager"),
       e = a("DB/Items/Randomoption"),
-      l = a("DB/Items/ItemType"),
+      m = a("DB/Items/ItemType"),
       h = a("Core/Client"),
       r = a("Core/Configs"),
-      t = a("Controls/KeyEventHandler"),
-      n = a("UI/Components/CardIllustration/CardIllustration"),
+      q = a("Controls/KeyEventHandler"),
+      k = a("UI/Components/CardIllustration/CardIllustration"),
       g = a("UI/UIManager"),
-      p = a("UI/UIComponent"),
-      k = a("text!./ItemInfo.html");
+      t = a("UI/UIComponent"),
+      l = a("text!./ItemInfo.html");
     a = a("text!./ItemInfo.css");
-    var f = new p("ItemInfo", k, a);
+    var f = new t("ItemInfo", l, a);
     f.uid = -1;
     f.index = -1;
-    var m = r.get("ClientVer");
+    var n = r.get("ClientVer");
     f.onKeyDown = function (a) {
-      return a.which === t.ESCAPE
+      return a.which === q.ESCAPE
         ? (f.remove(), a.stopImmediatePropagation(), !1)
         : !0;
     };
@@ -70,8 +70,8 @@ define(
         .click(this.remove.bind(this));
       this.ui.find(".view").click(
         function () {
-          n.append();
-          n.setCard(this.item);
+          k.append();
+          k.setCard(this.item);
         }.bind(this),
       );
       this.draggable(this.ui.find(".title"));
@@ -109,7 +109,7 @@ define(
           .append(
             '[\x3cspan style\x3d"color:red"\x3e\u5df2\u635f\u574f\x3c/span\x3e]',
           );
-      5 != m ||
+      5 != n ||
         (4 != a.type && 5 != a.type) ||
         (0 < a.bindOnEquipType
           ? f
@@ -136,44 +136,44 @@ define(
               "\x3c/span\x3e\x3cbr\x3e",
           );
       if (a.HireExpireDate) {
-        var n, p, q, t;
-        n = new Date(1e3 * a.HireExpireDate);
-        n.getFullYear();
+        var l, p, t, q;
+        l = new Date(1e3 * a.HireExpireDate);
+        l.getFullYear();
         p =
-          (10 > n.getMonth() + 1
-            ? "0" + (n.getMonth() + 1)
-            : n.getMonth() + 1) + "\u6708 ";
-        q = n.getDate() + "\u65e5 ";
-        t = n.getHours() + "\u65f6";
-        n.getMinutes();
-        n.getSeconds();
+          (10 > l.getMonth() + 1
+            ? "0" + (l.getMonth() + 1)
+            : l.getMonth() + 1) + "\u6708 ";
+        t = l.getDate() + "\u65e5 ";
+        q = l.getHours() + "\u65f6";
+        l.getMinutes();
+        l.getSeconds();
         f.find(".description").prepend(
           '\x3cp style\x3d"color:red;margin:0;"\x3e\u6d88\u5931\u65f6\u95f4\uff1a' +
             p +
-            q +
             t +
+            q +
             "\x3c/p\x3e",
         );
       }
-      a.type === l.CARD ? f.find(".view").show() : f.find(".view").hide();
+      a.type === m.CARD ? f.find(".view").show() : f.find(".view").hide();
       switch (a.type) {
         default:
           g.parent().hide();
           k.hide();
           break;
-        case l.WEAPON:
-        case l.EQUIP:
-        case l.FASHION:
+        case m.WEAPON:
+        case m.EQUIP:
+        case m.FASHION:
           if (!a.IsIdentified) {
             g.parent().hide();
             k.hide();
             return;
           }
-          n = c.slotCount || 0;
+          l = c.slotCount || 0;
           g.parent().show();
           g.empty();
           for (c = 0; 4 > c; ++c)
-            b(g, (a.slot && a.slot["card" + (c + 1)]) || 0, c, n);
+            b(g, (a.slot && a.slot["card" + (c + 1)]) || 0, c, l);
           a.slot && 255 == a.slot.card1 && g.parent().hide();
       }
       g = 0;

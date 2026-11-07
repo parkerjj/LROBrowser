@@ -22,18 +22,18 @@ define(
             this.renderEntity(!1),
             (this.ghost.render = !1)),
           this.renderEntity(!1),
-          this.attachments.render(n.tick),
+          this.attachments.render(k.tick),
           this._explosion)
         ) {
-          if (this.expTick + 800 < n.tick) {
-            this.expTick = n.tick;
+          if (this.expTick + 800 < k.tick) {
+            this.expTick = k.tick;
             var d = { effectId: 2018, ownerAID: this.GID };
             a("Renderer/EffectManager").spam(d);
           }
         } else
           this.explosion &&
-            this.expTick + 800 < n.tick &&
-            ((this.expTick = n.tick),
+            this.expTick + 800 < k.tick &&
+            ((this.expTick = k.tick),
             (d =
               5 == this.objecttype
                 ? { effectId: 2018, ownerAID: this.GID }
@@ -41,24 +41,24 @@ define(
             a("Renderer/EffectManager").spam(d));
       f(this, b, c);
     }
-    function c(a, b, c, d, f, e, k, m, p) {
-      var q = (p = void 0 === p ? {} : p),
-        h = void 0 === q.enableTrail ? !1 : q.enableTrail;
-      p = void 0 === q.trailLength ? 5 : q.trailLength;
-      var n = void 0 === q.blurType ? 1 : q.blurType;
-      if (h && "shadow" !== e && "cartshadow" !== e && h) {
+    function c(a, b, c, d, e, f, l, n, k) {
+      var p = (k = void 0 === k ? {} : k),
+        h = void 0 === p.enableTrail ? !1 : p.enableTrail;
+      k = void 0 === p.trailLength ? 5 : p.trailLength;
+      var t = void 0 === p.blurType ? 1 : p.blurType;
+      if (h && "shadow" !== f && "cartshadow" !== f && h) {
         a._trailData || (a._trailData = {});
-        a._trailData[e] || (a._trailData[e] = { snapshots: [], lastTick: 0 });
-        var u = a._trailData[e],
+        a._trailData[f] || (a._trailData[f] = { snapshots: [], lastTick: 0 });
+        var u = a._trailData[f],
           v = Date.now(),
-          q = 3 === n || 5 === n ? 560 : 100;
-        p = 4 === n ? 1 : Math.floor(p / 2);
+          p = 3 === t || 5 === t ? 560 : 100;
+        k = 4 === t ? 1 : Math.floor(k / 2);
         h = !1;
-        1 === n || 3 === n
-          ? (h = a.action === a.ACTION.WALK && v - u.lastTick > q)
-          : 4 === n
+        1 === t || 3 === t
+          ? (h = a.action === a.ACTION.WALK && v - u.lastTick > p)
+          : 4 === t
             ? (h = 0 === u.snapshots.length)
-            : 5 === n &&
+            : 5 === t &&
               (h =
                 [
                   a.ACTION.ATTACK,
@@ -66,62 +66,62 @@ define(
                   a.ACTION.ATTACK2,
                   a.ACTION.ATTACK3,
                   a.ACTION.SKILL,
-                ].includes(a.action) && v - u.lastTick > q);
+                ].includes(a.action) && v - u.lastTick > p);
         h &&
           (u.snapshots.unshift({
-            position: l.vec3.clone(a.position),
+            position: m.vec3.clone(a.position),
             tick: v,
             layers: b,
             spr: c,
             pal: d,
-            _position: new Int32Array(k),
+            _position: new Int32Array(l),
             color: [].concat($jscomp.arrayFromIterable(a.effectColor)),
           }),
           (u.lastTick = v),
-          u.snapshots.length > p && u.snapshots.pop());
+          u.snapshots.length > k && u.snapshots.pop());
         if (u.snapshots.length) {
-          b = l.vec3.clone(g.position);
-          var t = g.zIndex;
+          b = m.vec3.clone(g.position);
+          var q = g.zIndex;
           c = new Float32Array(a.effectColor);
           g.runWithDepth(!0, !1, !1, function () {
             for (
-              var b = 4 === n || 3 === n ? 800 : 400, c = 0;
+              var b = 4 === t || 3 === t ? 800 : 400, c = 0;
               c < u.snapshots.length;
               c++
             ) {
               var d = u.snapshots[c],
-                k = v - d.tick;
+                l = v - d.tick;
               if (!(
-                (k > b && 4 !== n) ||
-                ((k = Math.max(0, 0.5 * (1 - k / b))), 0.05 >= k && 4 !== n)
+                (l > b && 4 !== t) ||
+                ((l = Math.max(0, 0.5 * (1 - l / b))), 0.05 >= l && 4 !== t)
               ))
                 for (
-                  3 === n && (k *= 2),
-                    1 !== n &&
+                  3 === t && (l *= 2),
+                    1 !== t &&
                       ((a.effectColor[0] = 1),
                       (a.effectColor[1] = 1),
                       (a.effectColor[2] = 1)),
-                    a.effectColor[3] = k,
+                    a.effectColor[3] = l,
                     g.position.set(d.position),
-                    g.zIndex = t - c,
-                    k = 0;
-                  k < d.layers.length;
-                  ++k
+                    g.zIndex = q - c,
+                    l = 0;
+                  l < d.layers.length;
+                  ++l
                 )
                   a.renderLayer(
-                    d.layers[k],
+                    d.layers[l],
                     d.spr,
                     d.pal,
-                    f.size,
+                    e.size,
                     d._position,
-                    e,
+                    f,
                     !1,
-                    m,
+                    n,
                   );
             }
           });
           g.position.set(b);
-          g.zIndex = t;
+          g.zIndex = q;
           a.effectColor.set(c);
         }
       }
@@ -134,13 +134,13 @@ define(
         "undefined" === b.animations
       )
         return 0;
-      var f = a.ACTION,
-        e = a.action,
+      var e = a.ACTION,
+        f = a.action,
         g = a.animation,
-        k = b.animations.length,
-        m = k,
-        f = e === f.IDLE || e === f.SIT;
-      e =
+        l = b.animations.length,
+        n = l,
+        e = f === e.IDLE || f === e.SIT;
+      f =
         "body" === c && a.action === a.ACTION.WALK
           ? (b.delay / 150) * a.walk.speed
           : a.action === a.ACTION.ATTACK ||
@@ -150,30 +150,30 @@ define(
             ? a.attack_speed / b.animations.length
             : b.delay;
       b = 0;
-      if ("cart" === c && f) return 0;
+      if ("cart" === c && e) return 0;
       if (
-        ("body" === c && a.objecttype === a.constructor.TYPE_PC && f) ||
-        ("body" === c && a.objecttype === a.constructor.TYPE_MERC && f)
+        ("body" === c && a.objecttype === a.constructor.TYPE_PC && e) ||
+        ("body" === c && a.objecttype === a.constructor.TYPE_MERC && e)
       )
         return a.headDir;
-      if (!1 === g.play) return Math.min(g.frame, m - 1);
+      if (!1 === g.play) return Math.min(g.frame, n - 1);
       ("head" !== c && "head_" !== c) ||
-        !f ||
-        ((k = Math.floor(k / 3)), (b = a.headDir));
+        !e ||
+        ((l = Math.floor(l / 3)), (b = a.headDir));
       if (g.repeat)
         return (
-          (d = Math.floor(d / e)),
-          a.sound.freeOnAnimationEnd(d, k),
-          (d = (d % k) + k * b + g.frame),
-          d % m
+          (d = Math.floor(d / f)),
+          a.sound.freeOnAnimationEnd(d, l),
+          (d = (d % l) + l * b + g.frame),
+          d % n
         );
-      d = Math.min((d / e) | 0, k || k - 1) + k * b + g.frame;
+      d = Math.min((d / f) | 0, l || l - 1) + l * b + g.frame;
       "body" === c &&
-        d >= m - 1 &&
-        ((g.frame = d = m - 1), (g.play = !1), g.next && a.setAction(g.next));
-      return Math.min(d, k - 1);
+        d >= n - 1 &&
+        ((g.frame = d = n - 1), (g.play = !1), g.next && a.setAction(g.next));
+      return Math.min(d, l - 1);
     }
-    function e(a, b, c, d, f, e, k, m) {
+    function e(a, b, c, d, e, f, l, n) {
       if (!(0 > a.index)) {
         g.image.palette = null;
         g.sprite = b.frames[a.index];
@@ -191,28 +191,28 @@ define(
         0 < this.isBoss && (d = 1.3 * d * 1.3);
         b *= a.scale[0] * d;
         c *= a.scale[1] * d;
-        if ("body" === e) {
-          var q = (p.originalWidth * a.scale[0] * d) / 2;
+        if ("body" === f) {
+          var h = (p.originalWidth * a.scale[0] * d) / 2;
           d = (p.originalHeight * a.scale[1] * d) / 2;
           this.boundingRect.x1 = Math.min(
             this.boundingRect.x1,
-            a.pos[0] + f[0] - q,
+            a.pos[0] + e[0] - h,
           );
           this.boundingRect.y1 = Math.max(
             this.boundingRect.y1,
-            -(a.pos[1] + f[1]) + d,
+            -(a.pos[1] + e[1]) + d,
           );
           this.boundingRect.x2 = Math.max(
             this.boundingRect.x2,
-            a.pos[0] + f[0] + q,
+            a.pos[0] + e[0] + h,
           );
           this.boundingRect.y2 = Math.min(
             this.boundingRect.y2,
-            -(a.pos[1] + f[1]) - d,
+            -(a.pos[1] + e[1]) - d,
           );
         }
         a.is_mirror && (b = -b);
-        "shadow" !== e
+        "shadow" !== f
           ? ((g.color[0] = a.color[0] * this.effectColor[0]),
             (g.color[1] = a.color[1] * this.effectColor[1]),
             (g.color[2] = a.color[2] * this.effectColor[2]),
@@ -222,19 +222,19 @@ define(
             (g.color[2] = a.color[2]),
             (g.color[3] = a.color[3]));
         this.remove_tick &&
-          (g.color[3] *= 1 - (n.tick - this.remove_tick) / this.remove_delay);
+          (g.color[3] *= 1 - (k.tick - this.remove_tick) / this.remove_delay);
         g.angle = a.angle;
         g.size[0] = b;
         g.size[1] = c;
-        !m || ("head" != e && "head_" != e)
+        !n || ("head" != f && "head_" != f)
           ? ((g.xSize = this.xSize),
             (g.ySize = this.ySize),
-            (g.offset[0] = a.pos[0] + f[0]),
-            (g.offset[1] = a.pos[1] + f[1]))
+            (g.offset[0] = a.pos[0] + e[0]),
+            (g.offset[1] = a.pos[1] + e[1]))
           : ((g.xSize = 1.2 * this.xSize),
             (g.ySize = 1.2 * this.ySize),
-            (g.offset[0] = a.pos[0] + f[0]),
-            (g.offset[1] = 0.86 * (a.pos[1] + f[1])));
+            (g.offset[0] = a.pos[0] + e[0]),
+            (g.offset[1] = 0.86 * (a.pos[1] + e[1])));
         g.image.texture = p.texture;
         this.ghost && this.ghost.render
           ? ((a = 1 < this.ghost.xSize || 1 < this.ghost.ySize),
@@ -246,29 +246,29 @@ define(
             (g.blendMode = a ? 2 : 1),
             g.render(),
             (g.blendMode = 0))
-          : g.render(k);
+          : g.render(l);
       }
     }
-    var l = a("Utils/gl-matrix"),
+    var m = a("Utils/gl-matrix"),
       h = a("Renderer/Camera"),
       r = a("Core/Client"),
-      t = a("DB/Status/StatusState"),
-      n = a("Renderer/Renderer"),
+      q = a("DB/Status/StatusState"),
+      k = a("Renderer/Renderer"),
       g = a("Renderer/SpriteRenderer"),
-      p = a("Renderer/Map/Ground"),
-      k = a("Renderer/Map/Altitude");
+      t = a("Renderer/Map/Ground"),
+      l = a("Renderer/Map/Altitude");
     a("Engine/SessionStorage");
     a("DB/Jobs/JobConst");
     var f = (function () {
-        var a = l.mat4,
-          b = l.vec4,
+        var a = m.mat4,
+          b = m.vec4,
           c = a.create(),
           d = b.create();
-        return function (f, e, g) {
-          d[0] = f.position[0] + 0.5;
-          d[1] = -f.position[2];
-          d[2] = f.position[1] + 0.5;
-          a.translate(c, e, d);
+        return function (e, f, g) {
+          d[0] = e.position[0] + 0.5;
+          d[1] = -e.position[2];
+          d[2] = e.position[1] + 0.5;
+          a.translate(c, f, d);
           c[0] = 1;
           c[1] = 0;
           c[2] = 0;
@@ -279,71 +279,71 @@ define(
           c[9] = 0;
           c[10] = 1;
           a.multiply(c, g, c);
-          f.effectColor[3] && 139 !== f._job && m(f, c);
+          e.effectColor[3] && 139 !== e._job && n(e, c);
           d[0] = 0;
           d[1] = 0;
           d[2] = 0;
           d[3] = 1;
           b.transformMat4(d, d, c);
-          f.depth = d[3];
-          f.life.display && f.life.render(c);
-          f.display.display && f.display.render(c);
-          f.dialog.display && f.dialog.render(c);
-          f.cast.display && f.cast.render(c);
-          f.room.display && f.room.render(c);
+          e.depth = d[3];
+          e.life.display && e.life.render(c);
+          e.display.display && e.display.render(c);
+          e.dialog.display && e.dialog.render(c);
+          e.cast.display && e.cast.render(c);
+          e.room.display && e.room.render(c);
         };
       })(),
-      m = (function () {
-        function a(a, c, e) {
+      n = (function () {
+        function a(a, c, f) {
           d[0] = a;
           d[1] = c;
           d[2] = 0;
           d[3] = 1;
-          b.transformMat4(f, d, e);
-          f[3] = 0 === f[3] ? 1 : 1 / f[3];
-          f[0] *= f[3];
-          f[1] *= f[3];
+          b.transformMat4(e, d, f);
+          e[3] = 0 === e[3] ? 1 : 1 / e[3];
+          e[0] *= e[3];
+          e[1] *= e[3];
         }
-        var b = l.vec4,
-          c = l.vec2.create(),
+        var b = m.vec4,
+          c = m.vec2.create(),
           d = b.create(),
-          f = b.create();
+          e = b.create();
         return function (b, d) {
-          var e, g, k, m;
-          e = b.xSize / 175;
+          var f, g, l, n;
+          f = b.xSize / 175;
           g = b.ySize / 175;
-          c[0] = 0.5 * n.width;
-          c[1] = 0.5 * n.height;
-          m = b.boundingRect;
+          c[0] = 0.5 * k.width;
+          c[1] = 0.5 * k.height;
+          n = b.boundingRect;
           b = b.objecttype === b.constructor.TYPE_ITEM ? 30 : 60;
           if (
-            Infinity === m.x1 ||
-            -Infinity === m.x2 ||
-            -Infinity === m.y1 ||
-            Infinity === m.y2
+            Infinity === n.x1 ||
+            -Infinity === n.x2 ||
+            -Infinity === n.y1 ||
+            Infinity === n.y2
           )
-            ((m.x1 = -25), (m.x2 = 25), (m.y1 = 45), (m.y2 = 0));
-          m.x1 > m.x2 && ((k = m.x1), (m.x1 = m.x2), (m.x2 = k));
-          a(m.x1 * e, m.y1 * g, d);
-          m.x1 = c[0] + c[0] * f[0];
-          m.y1 = c[1] - c[1] * f[1];
-          a(m.x2 * e, m.y2 * g, d);
-          m.x2 = c[0] + c[0] * f[0];
-          m.y2 = c[1] - c[1] * f[1];
-          m.x2 - m.x1 < b &&
-            ((m.x1 = 0.5 * (m.x1 + m.x2) - 0.5 * b), (m.x2 = m.x1 + b));
-          m.y2 - m.y1 < b &&
-            ((m.y1 = 0.5 * (m.y1 + m.y2) - 0.5 * b), (m.y2 = m.y1 + b));
+            ((n.x1 = -25), (n.x2 = 25), (n.y1 = 45), (n.y2 = 0));
+          n.x1 > n.x2 && ((l = n.x1), (n.x1 = n.x2), (n.x2 = l));
+          a(n.x1 * f, n.y1 * g, d);
+          n.x1 = c[0] + c[0] * e[0];
+          n.y1 = c[1] - c[1] * e[1];
+          a(n.x2 * f, n.y2 * g, d);
+          n.x2 = c[0] + c[0] * e[0];
+          n.y2 = c[1] - c[1] * e[1];
+          n.x2 - n.x1 < b &&
+            ((n.x1 = 0.5 * (n.x1 + n.x2) - 0.5 * b), (n.x2 = n.x1 + b));
+          n.y2 - n.y1 < b &&
+            ((n.y1 = 0.5 * (n.y1 + n.y2) - 0.5 * b), (n.y2 = n.y1 + b));
         };
       })(),
-      q = (function () {
+      p = (function () {
         var a = new Int32Array(2);
         return function (b) {
           b = void 0 === b ? !1 : b;
           if (!this.hideEntity) {
             var c = this.animation,
               d = this.constructor;
-            g.shadow = p.getShadowFactor(this.position[0], this.position[1]);
+            g.shadow = t.getShadowFactor(this.position[0], this.position[1]);
             g.zIndex =
               this.ghost && this.ghost.render
                 ? 99
@@ -353,10 +353,10 @@ define(
             a[0] = 0;
             a[1] = 0;
             if (this.objecttype != d.TYPE_WARP) {
-              c.save && c.delay < n.tick && this.setAction(c.save);
+              c.save && c.delay < k.tick && this.setAction(c.save);
               var c = 0 > this.action ? this.ACTION.IDLE : this.action,
-                f = (h.direction + this.direction + 8) % 8,
-                e = 1 < f && 6 > f;
+                e = (h.direction + this.direction + 8) % 8,
+                f = 1 < e && 6 > e;
               c === this.ACTION.DIE ||
                 c === this.ACTION.SIT ||
                 45 === this.job ||
@@ -365,7 +365,7 @@ define(
                 (this.ghost && this.ghost.render) ||
                 ((g.position[0] = this.position[0]),
                 (g.position[1] = this.position[1]),
-                (g.position[2] = k.getCellHeight(
+                (g.position[2] = l.getCellHeight(
                   this.position[0],
                   this.position[1],
                 )),
@@ -375,12 +375,12 @@ define(
                 if (
                   (this.objecttype === d.TYPE_PC &&
                     this.shield &&
-                    e &&
+                    f &&
                     !this.riding &&
                     !this.riding_ &&
                     v(this, this.files.shield, "shield", a, !0, b),
-                  (f = (h.direction + this.direction + 8) % 8),
-                  0 == f || 1 == f || 2 == f || 6 == f || 7 == f)
+                  (e = (h.direction + this.direction + 8) % 8),
+                  0 == e || 1 == e || 2 == e || 6 == e || 7 == e)
                 ) {
                   if (
                     (v(this, this.files.body, "body", a, !0, b),
@@ -414,7 +414,7 @@ define(
                           b,
                         ),
                       0 < this.shield &&
-                        !e &&
+                        !f &&
                         !this.riding &&
                         !this.riding_ &&
                         v(this, this.files.shield, "shield", a, !0, b));
@@ -448,7 +448,7 @@ define(
                         b,
                       ),
                     0 < this.shield &&
-                      !e &&
+                      !f &&
                       !this.riding &&
                       !this.riding_ &&
                       v(this, this.files.shield, "shield", a, !0, b));
@@ -458,55 +458,55 @@ define(
       })(),
       v = (function () {
         var a = new Int32Array(2);
-        return function (b, f, e, g, k, m) {
+        return function (b, e, f, g, l, n) {
           var p = !1;
-          if (f.spr && f.act) {
-            var q = r.loadFile(f.spr),
-              l = r.loadFile(f.act);
-            if (q && l) {
-              var v = (f.pal && r.loadFile(f.pal)) || q,
+          if (e.spr && e.act) {
+            var t = r.loadFile(e.spr),
+              m = r.loadFile(e.act);
+            if (t && m) {
+              var v = (e.pal && r.loadFile(e.pal)) || t,
                 u =
-                  "falcon" === e
-                    ? l.actions[
+                  "falcon" === f
+                    ? m.actions[
                         (8 * b.ACTION.IDLE +
                           ((h.direction + b.direction + 8) % 8)) %
-                          l.actions.length
+                          m.actions.length
                       ]
-                    : l.actions[
+                    : m.actions[
                         (8 * b.action + ((h.direction + b.direction + 8) % 8)) %
-                          l.actions.length
+                          m.actions.length
                       ],
-                B = d(b, u, e, n.tick - b.animation.tick);
-              if ((u = u.animations[B])) {
-                var D = u.layers;
-                -1 < u.sound && b.sound.play(l.sounds[u.sound], b.action, B);
+                D = d(b, u, f, k.tick - b.animation.tick);
+              if ((u = u.animations[D])) {
+                var B = u.layers;
+                -1 < u.sound && b.sound.play(m.sounds[u.sound], b.action, D);
                 a[0] = 0;
                 a[1] = 0;
                 u.pos.length &&
-                  !k &&
+                  !l &&
                   ((a[0] = g[0] - u.pos[0].x), (a[1] = g[1] - u.pos[0].y));
                 if (
-                  ("shadow" !== e && b.getOpt3(t.Status.BERSERK)) ||
-                  b.getOpt3(t.Status.MARIONETTE)
+                  ("shadow" !== f && b.getOpt3(q.Status.BERSERK)) ||
+                  b.getOpt3(q.Status.MARIONETTE)
                 )
                   p = !0;
                 if (!b.ghost.render) {
-                  var l = b.getOpt3(t.Status.NJ_BUNSINJYUTSU),
-                    B = b.getOpt3(t.Status.HALLUCINATIONWALK),
-                    A = b.getOpt3(t.Status.ENERGYCOAT),
-                    z = b.virtue & t.OPT3.QUICKEN,
-                    H = b.getOpt3(t.Status.OVERTHRUST),
-                    C = b.getOpt3(t.Status.EXPLOSIONSPIRITS),
-                    M = b.getOpt3(t.Status.BERSERK);
-                  c(b, D, q, v, f, e, a, m, {
+                  var m = b.getOpt3(q.Status.NJ_BUNSINJYUTSU),
+                    D = b.getOpt3(q.Status.HALLUCINATIONWALK),
+                    A = b.getOpt3(q.Status.ENERGYCOAT),
+                    y = b.virtue & q.OPT3.QUICKEN,
+                    O = b.getOpt3(q.Status.OVERTHRUST),
+                    C = b.getOpt3(q.Status.EXPLOSIONSPIRITS),
+                    P = b.getOpt3(q.Status.BERSERK);
+                  c(b, B, t, v, e, f, a, n, {
                     enableTrail:
-                      A || l || B || z || H || C || M || !!b._enableTrail,
+                      A || m || D || y || O || C || P || !!b._enableTrail,
                   });
                 }
-                l = 0;
-                for (B = D.length; l < B; ++l)
-                  b.renderLayer(D[l], q, v, f.size, a, e, p, m);
-                k && u.pos.length && ((g[0] = u.pos[0].x), (g[1] = u.pos[0].y));
+                m = 0;
+                for (D = B.length; m < D; ++m)
+                  b.renderLayer(B[m], t, v, e.size, a, f, p, n);
+                l && u.pos.length && ((g[0] = u.pos[0].x), (g[1] = u.pos[0].y));
               }
             }
           }
@@ -515,7 +515,7 @@ define(
     return function () {
       this.render = b;
       this.renderLayer = e;
-      this.renderEntity = q;
+      this.renderEntity = p;
     };
   },
 );

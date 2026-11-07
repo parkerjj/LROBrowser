@@ -5,27 +5,27 @@ define(
   ),
   function (a) {
     function b() {
-      n.ui && n.ui[0].parentNode ? n.remove() : n.append();
+      k.ui && k.ui[0].parentNode ? k.remove() : k.append();
     }
     function c() {
       g.ui && g.ui[0].parentNode ? g.remove() : g.append();
     }
     function d() {
-      p.ui && p.ui[0].parentNode ? p.remove() : p.append();
+      t.ui && t.ui[0].parentNode ? t.remove() : t.append();
     }
     var e = a("Core/Configs");
     a("Engine/SessionStorage");
-    var l = a("Controls/KeyEventHandler"),
+    var m = a("Controls/KeyEventHandler"),
       h = a("Renderer/Renderer"),
       r = a("UI/UIManager"),
-      t = a("UI/UIComponent"),
-      n = a("UI/Components/SoundOption/SoundOption"),
+      q = a("UI/UIComponent"),
+      k = a("UI/Components/SoundOption/SoundOption"),
       g = a("UI/Components/GraphicsOption/GraphicsOption"),
-      p = a("UI/Components/ShortCutOption/ShortCutOption"),
-      k = a("text!./Escape.html");
+      t = a("UI/Components/ShortCutOption/ShortCutOption"),
+      l = a("text!./Escape.html");
     a = a("text!./Escape.css");
-    var f = new t("Escape", k, a),
-      m = e.get("ClientVer");
+    var f = new q("Escape", l, a),
+      n = e.get("ClientVer");
     f.init = function () {
       this.draggable(this.ui.find(".top"));
       this.ui.find(".node").mousedown(function (a) {
@@ -58,7 +58,7 @@ define(
         localStorage.setItem("gid", gid);
         localStorage.setItem("rolename", rolename);
         localStorage.setItem("account", account);
-        window.open("http://game.lastro.cn/?r\x3dpay/index\x26nid\x3d" + m);
+        window.open("http://game.lastro.cn/?r\x3dpay/index\x26nid\x3d" + n);
       });
     };
     f.onAppend = function () {
@@ -76,7 +76,7 @@ define(
       this.ui.find(".setting, .hotkey, .setoffline, .charselect").show();
     };
     f.onKeyDown = function (a) {
-      return a.which === l.ESCAPE
+      return a.which === m.ESCAPE
         ? (this.ui.toggle(),
           this.ui.is(":visible") && this.focus(),
           a.stopImmediatePropagation(),

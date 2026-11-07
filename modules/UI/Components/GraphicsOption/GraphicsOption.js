@@ -8,7 +8,7 @@ define(
       r.quality = parseInt(this.value, 10);
       r.save();
       e.set("quality", r.quality);
-      t.resize();
+      q.resize();
     }
     function c() {
       r.cursor = !!this.checked;
@@ -16,13 +16,13 @@ define(
       r.cursor || (document.body.style.cursor = "default");
     }
     function d() {
-      var a = l.isFullScreen();
+      var a = m.isFullScreen();
       r.screensize = this.value;
       r.save();
       "full" === r.screensize
-        ? a || l.requestFullScreen()
-        : (a && l.cancelFullScreen(),
-          l.Is.POPUP &&
+        ? a || m.requestFullScreen()
+        : (a && m.cancelFullScreen(),
+          m.Is.POPUP &&
             ((a = r.screensize.split("x")),
             a[0] != window.innerWidth &&
               a[1] != window.innerHeight &&
@@ -33,16 +33,16 @@ define(
               ))));
     }
     var e = a("Core/Configs"),
-      l = a("Core/Context"),
+      m = a("Core/Context"),
       h = a("Core/Preferences"),
       r = a("Preferences/Graphics"),
-      t = a("Renderer/Renderer"),
-      n = a("UI/UIManager"),
+      q = a("Renderer/Renderer"),
+      k = a("UI/UIManager"),
       g = a("UI/UIComponent"),
-      p = a("text!./GraphicsOption.html");
+      t = a("text!./GraphicsOption.html");
     a = a("text!./GraphicsOption.css");
-    var g = new g("GraphicsOption", p, a),
-      k = h.get("GraphicsOption", { x: 300, y: 300 }, 1.1);
+    var g = new g("GraphicsOption", t, a),
+      l = h.get("GraphicsOption", { x: 300, y: 300 }, 1.1);
     g.init = function () {
       this.ui.find(".base").mousedown(function (a) {
         a.stopImmediatePropagation();
@@ -55,16 +55,16 @@ define(
       this.draggable(this.ui.find(".titlebar"));
     };
     g.onAppend = function () {
-      this.ui.css({ top: k.y, left: k.x });
+      this.ui.css({ top: l.y, left: l.x });
       this.ui.find(".details").val(r.quality);
       this.ui.find(".screensize").val(r.screensize);
       this.ui.find(".cursor").attr("checked", r.cursor);
     };
     g.onRemove = function () {
-      k.x = parseInt(this.ui.css("left"), 10);
-      k.y = parseInt(this.ui.css("top"), 10);
-      k.save();
+      l.x = parseInt(this.ui.css("left"), 10);
+      l.y = parseInt(this.ui.css("top"), 10);
+      l.save();
     };
-    return n.addComponent(g);
+    return k.addComponent(g);
   },
 );

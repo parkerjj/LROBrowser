@@ -23,13 +23,13 @@ define(
     var c = a("DB/DBManager"),
       d = a("Utils/jquery"),
       e = a("./UIComponent"),
-      l = a("Core/Client");
+      m = a("Core/Client");
     a("Engine/SessionStorage");
     a("Network/NetworkManager");
     a("Network/PacketStructure");
     var h = a("Controls/KeyEventHandler"),
       r = a("Renderer/Renderer"),
-      t = {
+      q = {
         components: {},
         addComponent: function (a) {
           if (!(a instanceof e))
@@ -57,18 +57,18 @@ define(
             d,
             e = c.length,
             g,
-            p,
+            k,
             h,
-            n,
-            l;
+            t,
+            m;
           for (d = 0; d < e; ++d)
             if ((g = this.components[c[d]].ui))
-              ((p = parseInt(g.css("left"), 10)),
+              ((k = parseInt(g.css("left"), 10)),
                 (h = parseInt(g.css("top"), 10)),
-                (n = parseInt(g.css("width"), 10)),
-                (l = parseInt(g.css("height"), 10)),
-                h + l > b && b > l && g.css("top", b - l),
-                p + n > a && a > n && g.css("left", a - n));
+                (t = parseInt(g.css("width"), 10)),
+                (m = parseInt(g.css("height"), 10)),
+                h + m > b && b > m && g.css("top", b - m),
+                k + t > a && a > t && g.css("left", a - t));
         },
         showEventBox: function (a) {
           var b, e, f, g;
@@ -112,7 +112,7 @@ define(
             });
           g.appendTo("body");
           b.onAppend = function () {
-            l.loadFile(
+            m.loadFile(
               c.INTERFACE_PATH + "login_interface/btn_ok.bmp",
               function (a) {
                 b.ui.find(".btn").css("backgroundImage", "url(" + a + ")");
@@ -157,7 +157,7 @@ define(
           g = d("\x3cdiv/\x3e").addClass("win_popup_overlay");
           g.appendTo("body");
           e.onAppend = function () {
-            l.loadFile(
+            m.loadFile(
               c.INTERFACE_PATH + "login_interface/btn_exit.bmp",
               function (a) {
                 e.ui.find(".btn").css("backgroundImage", "url(" + a + ")");
@@ -211,11 +211,11 @@ define(
           return f;
         },
       },
-      n;
-    t.showPromptBox = function (a, b, c, e, m) {
-      n && n.remove();
-      n = this.getComponent("WinPopup").clone("WinPrompt");
-      n.init = function () {
+      k;
+    q.showPromptBox = function (a, b, c, e, n) {
+      k && k.remove();
+      k = this.getComponent("WinPopup").clone("WinPrompt");
+      k.init = function () {
         this.draggable();
         this.ui.find(".text").text(a);
         this.ui.css({
@@ -230,7 +230,7 @@ define(
             .data("hover", "btn_" + b + "_a.bmp")
             .data("down", "btn_" + b + "_b.bmp")
             .one("click", function () {
-              n.remove();
+              k.remove();
               e && e();
             })
             .each(this.parseHTML),
@@ -240,16 +240,16 @@ define(
             .data("hover", "btn_" + c + "_a.bmp")
             .data("down", "btn_" + c + "_b.bmp")
             .one("click", function () {
-              n.remove();
-              m && m();
+              k.remove();
+              n && n();
             })
             .each(this.parseHTML),
         );
       };
-      n.append();
-      return n;
+      k.append();
+      return k;
     };
-    t.showOfflineMsgBox = function (a) {
+    q.showOfflineMsgBox = function (a) {
       var c,
         e = "";
       c = this.getComponent("WinPopup").clone("WinOfflineMsg");
@@ -375,6 +375,6 @@ define(
       c.append();
       return c;
     };
-    return t;
+    return q;
   },
 );

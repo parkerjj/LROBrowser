@@ -32,11 +32,11 @@ define(
             "\u5df2\u5173\u95ed\u81ea\u52a8\u6218\u6597" == a.msg ||
             "@autoattack \u6267\u884c\u5931\u8d25" == a.msg
           )
-            O.autoattack = !1;
+            Q.autoattack = !1;
           "[ \u79ef\u5206 ]" == a.msg
-            ? wa.setType_(1)
+            ? xa.setType_(1)
             : "[ \u5546\u57ce ]" == a.msg
-              ? wa.setType_(2)
+              ? xa.setType_(2)
               : a.msg == "[ " + ha.Entity.GID + "\u5145\u503c ]"
                 ? ((a = navigator.userAgent.toLowerCase()),
                   /micromessenger/.test(a)
@@ -55,15 +55,15 @@ define(
         }
     }
     function d(a) {
-      Y.addText(oa.getMessage(a.msg).replace("%d", a.value), Y.TYPE.PUBLIC);
+      Y.addText(ka.getMessage(a.msg).replace("%d", a.value), Y.TYPE.PUBLIC);
       ha.Entity &&
-        ha.Entity.dialog.set(oa.getMessage(a.msg).replace("%d", a.value));
+        ha.Entity.dialog.set(ka.getMessage(a.msg).replace("%d", a.value));
     }
     function e(a) {
       var b = qa.get(a.targetAID);
       b && b.dialog.set(a.msg);
     }
-    function l(a) {
+    function m(a) {
       if ((a = qa.get(a.targetAID))) a.onFocus();
     }
     function h(a) {
@@ -97,7 +97,7 @@ define(
       aa.update("mdef2", a.plusmdefPower);
       aa.update("statuspoint", a.point);
     }
-    function t(a) {
+    function q(a) {
       if (a.result)
         switch (a.statusID) {
           case ga.STR:
@@ -119,7 +119,7 @@ define(
             aa.update("luk", a.value);
         }
     }
-    function n(a) {
+    function k(a) {
       var b = 0,
         c,
         d = [];
@@ -156,18 +156,18 @@ define(
           ha.Entity.walk.speed = b;
           break;
         case ga.EXP:
-          U.base_exp = b;
-          U.base_exp_next && U.update("bexp", U.base_exp, U.base_exp_next);
+          W.base_exp = b;
+          W.base_exp_next && W.update("bexp", W.base_exp, W.base_exp_next);
           break;
         case ga.JOBEXP:
-          U.job_exp = b;
-          U.job_exp_next && U.update("jexp", U.job_exp, U.job_exp_next);
+          W.job_exp = b;
+          W.job_exp_next && W.update("jexp", W.job_exp, W.job_exp_next);
           break;
         case ga.HP:
           ha.Entity.life.hp = b;
           ha.Entity.life.update();
           -1 < ha.Entity.life.hp_max &&
-            (U.update("hp", ha.Entity.life.hp, ha.Entity.life.hp_max),
+            (W.update("hp", ha.Entity.life.hp, ha.Entity.life.hp_max),
             ha.hasParty &&
               ia.updateMemberLife(
                 ha.AID,
@@ -180,7 +180,7 @@ define(
           ha.Entity.life.hp_max = b;
           ha.Entity.life.update();
           -1 < ha.Entity.life.hp &&
-            (U.update("hp", ha.Entity.life.hp, ha.Entity.life.hp_max),
+            (W.update("hp", ha.Entity.life.hp, ha.Entity.life.hp_max),
             ha.hasParty &&
               ia.updateMemberLife(
                 ha.AID,
@@ -193,20 +193,20 @@ define(
           ha.Entity.life.sp = b;
           ha.Entity.life.update();
           -1 < ha.Entity.life.sp_max &&
-            U.update("sp", ha.Entity.life.sp, ha.Entity.life.sp_max);
+            W.update("sp", ha.Entity.life.sp, ha.Entity.life.sp_max);
           break;
         case ga.MAXSP:
           ha.Entity.life.sp_max = b;
           ha.Entity.life.update();
           -1 < ha.Entity.life.sp &&
-            U.update("sp", ha.Entity.life.sp, ha.Entity.life.sp_max);
+            W.update("sp", ha.Entity.life.sp, ha.Entity.life.sp_max);
           break;
         case ga.POINT:
           aa.update("statuspoint", b);
           break;
         case ga.CLEVEL:
           ha.Entity.clevel = b;
-          U.update("blvl", b);
+          W.update("blvl", b);
           ma.onLevelUp();
           break;
         case ga.SKPOINT:
@@ -237,23 +237,23 @@ define(
           aa.update("luk2", a.plusStatus);
           break;
         case ga.MONEY:
-          U.update("zeny", b);
+          W.update("zeny", b);
           break;
         case ga.MAXEXP:
-          U.base_exp_next = b;
-          -1 < U.base_exp && U.update("bexp", U.base_exp, U.base_exp_next);
+          W.base_exp_next = b;
+          -1 < W.base_exp && W.update("bexp", W.base_exp, W.base_exp_next);
           break;
         case ga.MAXJOBEXP:
-          U.job_exp_next = b;
-          -1 < U.job_exp && U.update("jexp", U.job_exp, U.job_exp_next);
+          W.job_exp_next = b;
+          -1 < W.job_exp && W.update("jexp", W.job_exp, W.job_exp_next);
           break;
         case ga.WEIGHT:
-          U.weight = b;
-          -1 < U.weight_max && U.update("weight", U.weight, U.weight_max);
+          W.weight = b;
+          -1 < W.weight_max && W.update("weight", W.weight, W.weight_max);
           break;
         case ga.MAXWEIGHT:
-          U.weight_max = b;
-          -1 < U.weight && U.update("weight", U.weight, U.weight_max);
+          W.weight_max = b;
+          -1 < W.weight && W.update("weight", W.weight, W.weight_max);
           break;
         case ga.STANDARD_STR:
           aa.update("str3", b);
@@ -313,14 +313,14 @@ define(
           aa.update("aspd", b);
           break;
         case ga.JOBLEVEL:
-          U.update("jlvl", b);
+          W.update("jlvl", b);
           ja.onLevelUp();
           break;
         case na:
           na.update(d);
           break;
         case ga.BPOWER:
-          Ka.update2(2e3, 1, 0, b);
+          Ja.update2(2e3, 1, 0, b);
       }
     }
     function g(a) {
@@ -400,7 +400,7 @@ define(
           ua.update("faith", b);
       }
     }
-    function p(a) {
+    function t(a) {
       var b;
       a.fontColor
         ? (b =
@@ -421,8 +421,8 @@ define(
       a = a.msg.replace(/<[^>]*>/g, "");
       sa.set(a, b);
     }
-    function k(a) {
-      var b = oa.getItemInfo(a.itemID);
+    function l(a) {
+      var b = ka.getItemInfo(a.itemID);
       a =
         0 < a.status
           ? "[" +
@@ -445,56 +445,56 @@ define(
       sa.set(a, "#FFFF00");
     }
     function f(a) {
-      Y.addText(oa.getMessage(178).replace("%d", a.count), Y.TYPE.INFO);
+      Y.addText(ka.getMessage(178).replace("%d", a.count), Y.TYPE.INFO);
     }
-    function m(a) {
+    function n(a) {
       switch (a.Config) {
         case 0:
           (ma.setEquipConfig(a.Value),
-            Y.addText(oa.getMessage(1358 + (a.Value ? 1 : 0)), Y.TYPE.INFO));
+            Y.addText(ka.getMessage(1358 + (a.Value ? 1 : 0)), Y.TYPE.INFO));
       }
     }
-    function q(a) {
+    function p(a) {
       switch (a.errorCode) {
         case 0:
-          Y.addText(oa.getMessage(242), Y.TYPE.ERROR);
+          Y.addText(ka.getMessage(242), Y.TYPE.ERROR);
           break;
         case 1:
-          Y.addText(oa.getMessage(243), Y.TYPE.ERROR);
+          Y.addText(ka.getMessage(243), Y.TYPE.ERROR);
           break;
         case 2:
-          Y.addText(oa.getMessage(244), Y.TYPE.ERROR);
+          Y.addText(ka.getMessage(244), Y.TYPE.ERROR);
           break;
         case 3:
-          Y.addText(oa.getMessage(245), Y.TYPE.BLUE);
+          Y.addText(ka.getMessage(245), Y.TYPE.BLUE);
       }
     }
     function v(a) {
-      Y.addText(oa.getMessage(a.msg), Y.TYPE.PUBLIC);
+      Y.addText(ka.getMessage(a.msg), Y.TYPE.PUBLIC);
     }
     function u(a) {
       switch (a.varID) {
         case ga.HP:
-          ca.add(a.amount, ha.Entity, w.tick, null, ca.TYPE.HEAL);
-          var b = { effectId: ka.EF_HPTIME, ownerAID: ha.Entity.GID };
+          ba.add(a.amount, ha.Entity, w.tick, null, ba.TYPE.HEAL);
+          var b = { effectId: la.EF_HPTIME, ownerAID: ha.Entity.GID };
           pa.spam(b);
           ha.Entity.life.hp += a.amount;
           ha.Entity.life.update();
           -1 < ha.Entity.life.hp_max &&
-            U.update("hp", ha.Entity.life.hp, ha.Entity.life.hp_max);
+            W.update("hp", ha.Entity.life.hp, ha.Entity.life.hp_max);
           break;
         case ga.SP:
-          (ca.add(a.amount, ha.Entity, w.tick, null, ca.TYPE.HEAL | ca.TYPE.SP),
-            (b = { effectId: ka.EF_SPTIME, ownerAID: ha.Entity.GID }),
+          (ba.add(a.amount, ha.Entity, w.tick, null, ba.TYPE.HEAL | ba.TYPE.SP),
+            (b = { effectId: la.EF_SPTIME, ownerAID: ha.Entity.GID }),
             pa.spam(b),
             (ha.Entity.life.sp += a.amount),
             ha.Entity.life.update(),
             -1 < ha.Entity.life.sp_max &&
-              U.update("sp", ha.Entity.life.sp, ha.Entity.life.sp_max));
+              W.update("sp", ha.Entity.life.sp, ha.Entity.life.sp_max));
       }
     }
     function A(a) {
-      na.addItem(la.extend({}, a));
+      na.addItem(oa.extend({}, a));
     }
     function D(a) {
       na.removeItem(a.index, a.count);
@@ -524,7 +524,7 @@ define(
       Y.addText("MyPoint   " + a.myPoint + " \u70b9", Y.TYPE.SELF);
       Y.addText("-----------------------------------", Y.TYPE.SELF);
     }
-    function H(a) {
+    function O(a) {
       Y.addText(
         "\u592a\u62f3\u4efb\u52a1\uff1a\u51fb\u6740" +
           a.mapName +
@@ -586,7 +586,7 @@ define(
           Y.TYPE.SELF,
         ));
     }
-    function z(a) {
+    function y(a) {
       for (
         var b = ha.AID.toString().slice(-4),
           c = a.pincode,
@@ -609,16 +609,16 @@ define(
       d.pinCode = b;
       X.sendPacket(d);
     }
-    function G(a) {
+    function z(a) {
       Aa.setloadInfo(a);
     }
-    function P(a) {
+    function J(a) {
       Aa.setReloadInfo(a);
     }
-    function N(a) {
+    function I(a) {
       Aa.setTarget(a);
     }
-    function I(a) {
+    function L(a) {
       if (a.op) {
         Y.addText(
           "\u79bb\u7ebf\u65f6\u957f\uff1a" + x(a.time, a.endtime),
@@ -733,23 +733,23 @@ define(
       0 < e && (c = c + e + "\u79d2");
       return c;
     }
-    function J(a) {
+    function M(a) {
       switch (a.ui_type) {
         case 7:
-          xa.setData(a.data);
+          wa.setData(a.data);
       }
     }
     function E(a) {
-      xa.getreward(a.data);
+      wa.getreward(a.data);
     }
-    function L(a) {
+    function F(a) {
       ya.append();
       ya.toggle();
     }
-    function y(a) {
+    function G(a) {
       ya.setData(a);
     }
-    function F(a) {
+    function H(a) {
       switch (a.response) {
         case 2:
           va.setMsg(
@@ -777,35 +777,35 @@ define(
     function K(a) {
       za.rechargeList(a);
     }
-    function M(a) {
+    function P(a) {
       za.updateList(a);
     }
-    function Q(a) {
+    function N(a) {
       za.setActivate(a);
     }
-    function W(a) {
+    function S(a) {
       za.setEnable(a);
     }
-    function V(a) {
+    function R(a) {
       za.removeCard(a);
     }
-    function ba(a) {
-      U.setGoldPccafe(a);
+    function ea(a) {
+      W.setGoldPccafe(a);
     }
-    function S(a) {
+    function U(a) {
       a = new Z.CZ.CONTACTNPC();
       a.NAID = ha.goldpcid;
       a.type = 1;
       X.sendPacket(a);
     }
+    function V(a) {
+      Ha.append();
+      Ha.setData(a.ITID);
+    }
+    function ca(a) {
+      Ha.remove();
+    }
     function T(a) {
-      Ia.append();
-      Ia.setData(a.ITID);
-    }
-    function da(a) {
-      Ia.remove();
-    }
-    function R(a) {
       Ca.append();
       Ca.setData(a.ITID);
     }
@@ -823,107 +823,107 @@ define(
           va.setMsg("\u6750\u6599\u4e0d\u7b26\u5408");
       }
     }
-    function ea(a) {
-      Da.append();
-      Da.setData(a.ITID);
+    function da(a) {
+      Fa.append();
+      Fa.setData(a.ITID);
     }
     function ta(a) {
       a = new Z.CZ.RANDOM_UPGRADE_ITEM_UI_CLOSE();
       X.sendPacket(a);
-      Da.remove();
+      Fa.remove();
     }
-    var oa = a("DB/DBManager"),
-      la = a("Utils/jquery"),
+    var ka = a("DB/DBManager"),
+      oa = a("Utils/jquery"),
       ga = a("DB/Status/StatusProperty"),
-      ka = a("DB/Effects/EffectConst"),
+      la = a("DB/Effects/EffectConst"),
       ha = a("Engine/SessionStorage"),
       X = a("Network/NetworkManager"),
       Z = a("Network/PacketStructure"),
       qa = a("Renderer/EntityManager"),
       pa = a("Renderer/EffectManager"),
       w = a("Renderer/Renderer"),
-      ca = a("Renderer/Effects/Damage"),
-      O = a("Preferences/Controls");
+      ba = a("Renderer/Effects/Damage"),
+      Q = a("Preferences/Controls");
     a("UI/UIManager");
     var Y = a("UI/Components/ChatBox/ChatBox"),
       ra = a("UI/Components/ChatRoom/ChatRoom"),
-      U = a("UI/Components/BasicInfo/BasicInfo"),
+      W = a("UI/Components/BasicInfo/BasicInfo"),
       aa = a("UI/Components/WinStats/WinStats"),
       sa = a("UI/Components/Announce/Announce"),
       ma = a("UI/Components/Equipment/Equipment"),
       ja = a("UI/Components/SkillList/SkillList"),
       ia = a("UI/Components/PartyFriends/PartyFriends"),
       na = a("UI/Components/OnPushCart/OnPushCart"),
-      wa = a("UI/Components/NpcStore/NpcStore"),
+      xa = a("UI/Components/NpcStore/NpcStore"),
       ua = a("UI/Components/Mercenary/MercenaryInformations"),
       Ba = a("UI/Components/MiniMap/MiniMap"),
       Aa = a("UI/Components/vbk/vbk"),
-      xa = a("UI/Components/Attendance/Attendance"),
+      wa = a("UI/Components/Attendance/Attendance"),
       ya = a("UI/Components/RefineUI/RefineUI"),
       za = a("UI/Components/CardConnection/CardConnection2");
     a("UI/Components/PartyBooking/PartyBooking");
-    var Ka = a("UI/Components/StatusIcons/StatusIcons"),
+    var Ja = a("UI/Components/StatusIcons/StatusIcons"),
       va = a("UI/Components/ItemObtain/ItemObtain"),
-      Ia = a("UI/Components/ItemReform/ItemReform"),
+      Ha = a("UI/Components/ItemReform/ItemReform"),
       Ca = a("UI/Components/LaphineSynthesis/LaphineSynthesis"),
-      Da = a("UI/Components/LaphineUpgrade/LaphineUpgrade");
+      Fa = a("UI/Components/LaphineUpgrade/LaphineUpgrade");
     return function () {
       X.hookPacket(Z.ZC.ACK_RANKING, B);
-      X.hookPacket(Z.ZC.STARSKILL, H);
+      X.hookPacket(Z.ZC.STARSKILL, O);
       X.hookPacket(Z.ZC.ADD_ITEM_TO_CART, A);
       X.hookPacket(Z.ZC.ADD_ITEM_TO_CART2, A);
       X.hookPacket(Z.ZC.ADD_ITEM_TO_CART3, A);
       X.hookPacket(Z.ZC.ADD_ITEM_TO_CART4, A);
       X.hookPacket(Z.ZC.DELETE_ITEM_FROM_CART, D);
       X.hookPacket(Z.ZC.NOTIFY_PLAYERMOVE, b);
-      X.hookPacket(Z.ZC.PAR_CHANGE, n);
-      X.hookPacket(Z.ZC.LONGPAR_CHANGE, n);
-      X.hookPacket(Z.ZC.STATUS_CHANGE, n);
+      X.hookPacket(Z.ZC.PAR_CHANGE, k);
+      X.hookPacket(Z.ZC.LONGPAR_CHANGE, k);
+      X.hookPacket(Z.ZC.STATUS_CHANGE, k);
       X.hookPacket(Z.ZC.MER_PAR_CHANGE, g);
-      X.hookPacket(Z.ZC.NOTIFY_CARTITEM_COUNTINFO, n);
-      X.hookPacket(Z.ZC.COUPLESTATUS, n);
-      X.hookPacket(Z.ZC.UPDATE_EXP, n);
-      X.hookPacket(Z.ZC.NOTIFY_EXP, n);
+      X.hookPacket(Z.ZC.NOTIFY_CARTITEM_COUNTINFO, k);
+      X.hookPacket(Z.ZC.COUPLESTATUS, k);
+      X.hookPacket(Z.ZC.UPDATE_EXP, k);
+      X.hookPacket(Z.ZC.NOTIFY_EXP, k);
       X.hookPacket(Z.ZC.STATUS, r);
-      X.hookPacket(Z.ZC.STATUS_CHANGE_ACK, t);
+      X.hookPacket(Z.ZC.STATUS_CHANGE_ACK, q);
       X.hookPacket(Z.ZC.ATTACK_RANGE, h);
-      X.hookPacket(Z.ZC.BROADCAST, p);
-      X.hookPacket(Z.ZC.BROADCAST2, p);
-      X.hookPacket(Z.ZC.BROADCAST_ITEMREFINING_RESULT, k);
+      X.hookPacket(Z.ZC.BROADCAST, t);
+      X.hookPacket(Z.ZC.BROADCAST2, t);
+      X.hookPacket(Z.ZC.BROADCAST_ITEMREFINING_RESULT, l);
       X.hookPacket(Z.ZC.USER_COUNT, f);
       X.hookPacket(Z.ZC.NOTIFY_PLAYERCHAT, c);
       X.hookPacket(Z.ZC.MSG_VALUE, d);
       X.hookPacket(Z.ZC.SHOWSCRIPT, e);
-      X.hookPacket(Z.ZC.ATTACK_FAILURE_FOR_DISTANCE, l);
-      X.hookPacket(Z.ZC.CONFIG, m);
-      X.hookPacket(Z.ZC.ACTION_FAILURE, q);
+      X.hookPacket(Z.ZC.ATTACK_FAILURE_FOR_DISTANCE, m);
+      X.hookPacket(Z.ZC.CONFIG, n);
+      X.hookPacket(Z.ZC.ACTION_FAILURE, p);
       X.hookPacket(Z.ZC.MSG, v);
       X.hookPacket(Z.ZC.MSG_COLOR, v);
       X.hookPacket(Z.ZC.RECOVERY, u);
       X.hookPacket(Z.ZC.RECOVERY2, u);
       X.hookPacket(Z.ZC.MEMORIALDUNGEON_INFO, C);
-      X.hookPacket(Z.ZC.SECOND_CHECK, z);
-      X.hookPacket(Z.ZC.NOTIFY_LOADINFO, G);
-      X.hookPacket(Z.ZC.NOTIFY_OFFLINEMSG, I);
-      X.hookPacket(Z.ZC.NOTIFY_RELOADINFOS, P);
-      X.hookPacket(Z.ZC.NOTIFY_SETTARGET, N);
-      X.hookPacket(Z.ZC.UI_OPEN, J);
+      X.hookPacket(Z.ZC.SECOND_CHECK, y);
+      X.hookPacket(Z.ZC.NOTIFY_LOADINFO, z);
+      X.hookPacket(Z.ZC.NOTIFY_OFFLINEMSG, L);
+      X.hookPacket(Z.ZC.NOTIFY_RELOADINFOS, J);
+      X.hookPacket(Z.ZC.NOTIFY_SETTARGET, I);
+      X.hookPacket(Z.ZC.UI_OPEN, M);
       X.hookPacket(Z.ZC.NOTIFY_ATTENDANCE, E);
-      X.hookPacket(Z.ZC.REFINE_OPEN_WINDOW, L);
-      X.hookPacket(Z.ZC.REFINE_ADD_ITEM, y);
-      X.hookPacket(Z.ZC.PRIVATE_AIRSHIP_RESPONSE, F);
+      X.hookPacket(Z.ZC.REFINE_OPEN_WINDOW, F);
+      X.hookPacket(Z.ZC.REFINE_ADD_ITEM, G);
+      X.hookPacket(Z.ZC.PRIVATE_AIRSHIP_RESPONSE, H);
       X.hookPacket(Z.ZC.CARDCONNECTION_RECHARGE_LIST, K);
-      X.hookPacket(Z.ZC.CARDCONNECTION_RECHARGE_UPDATE, M);
-      X.hookPacket(Z.ZC.CARDCONNECTION_ACTIVATE_UPDATE, Q);
-      X.hookPacket(Z.ZC.CARDCONNECTION_ENABLE_UPDATE, W);
-      X.hookPacket(Z.ZC.CARDCONNECTION_CANCEL_UPDATE, V);
-      X.hookPacket(Z.ZC.GOLDPCCAFE_POINT, ba);
-      X.hookPacket(Z.ZC.DYNAMICNPC_CREATE_RESULT, S);
-      X.hookPacket(Z.ZC.OPEN_REFORM_UI, T);
-      X.hookPacket(Z.ZC.ITEM_REFORM_ACK, da);
-      X.hookPacket(Z.ZC.RANDOM_COMBINE_ITEM_UI_OPEN, R);
+      X.hookPacket(Z.ZC.CARDCONNECTION_RECHARGE_UPDATE, P);
+      X.hookPacket(Z.ZC.CARDCONNECTION_ACTIVATE_UPDATE, N);
+      X.hookPacket(Z.ZC.CARDCONNECTION_ENABLE_UPDATE, S);
+      X.hookPacket(Z.ZC.CARDCONNECTION_CANCEL_UPDATE, R);
+      X.hookPacket(Z.ZC.GOLDPCCAFE_POINT, ea);
+      X.hookPacket(Z.ZC.DYNAMICNPC_CREATE_RESULT, U);
+      X.hookPacket(Z.ZC.OPEN_REFORM_UI, V);
+      X.hookPacket(Z.ZC.ITEM_REFORM_ACK, ca);
+      X.hookPacket(Z.ZC.RANDOM_COMBINE_ITEM_UI_OPEN, T);
       X.hookPacket(Z.ZC.ACK_RANDOM_COMBINE_ITEM, fa);
-      X.hookPacket(Z.ZC.RANDOM_UPGRADE_ITEM_UI_OPEN, ea);
+      X.hookPacket(Z.ZC.RANDOM_UPGRADE_ITEM_UI_OPEN, da);
       X.hookPacket(Z.ZC.ACK_RANDOM_UPGRADE_ITEM, ta);
     };
   },

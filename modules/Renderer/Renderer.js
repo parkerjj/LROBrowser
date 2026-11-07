@@ -8,13 +8,13 @@ define(
       c = a("Utils/jquery"),
       d = a("Utils/gl-matrix"),
       e = a("Core/Configs"),
-      l = a("Preferences/Graphics"),
+      m = a("Preferences/Graphics"),
       h = a("Core/Events"),
       r = a("UI/Background"),
-      t = a("UI/CursorManager"),
-      n = a("Controls/MouseEventHandler"),
+      q = a("UI/CursorManager"),
+      k = a("Controls/MouseEventHandler"),
       g = a("Renderer/Camera"),
-      p = d.mat4,
+      t = d.mat4,
       d = {};
     d.canvas = document.createElement("canvas");
     d.gl = null;
@@ -22,11 +22,11 @@ define(
     d.height = 0;
     d.resizeTimeOut = 0;
     d.updateId = 0;
-    d.frameLimit = l.fpslimit;
+    d.frameLimit = m.fpslimit;
     d.tick = 0;
     d.vFov = 15;
     d.renderCallbacks = [];
-    var k =
+    var l =
         window.requestAnimationFrame ||
         window.webkitRequestAnimationFrame ||
         window.mozRequestAnimationFrame ||
@@ -83,9 +83,9 @@ define(
       var b, c, d;
       b = window.innerWidth || document.body.offsetWidth;
       c = window.innerHeight || document.body.offsetHeight;
-      n.screen.width = this.width = b;
-      n.screen.height = this.height = c;
-      d = e.get("quality", l.quality) / 100;
+      k.screen.width = this.width = b;
+      k.screen.height = this.height = c;
+      d = e.get("quality", m.quality) / 100;
       b *= d;
       c *= d;
       this.canvas.width = 1.5 * b;
@@ -93,7 +93,7 @@ define(
       this.canvas.style.width = this.width + "px";
       this.canvas.style.height = this.height + "px";
       this.gl.viewport(0, 0, 1.5 * b, 1.5 * c);
-      p.perspective(this.vFov, b / c, 1, 1e3, g.projection);
+      t.perspective(this.vFov, b / c, 1, 1e3, g.projection);
       r.resize(this.width, this.height);
       a("UI/UIManager").fixResizeOverflow(this.width, this.height);
     };
@@ -108,14 +108,14 @@ define(
           return;
       } else
         ("undefined" === typeof a && clearInterval(this.updateId),
-          (this.updateId = k(this._render.bind(this), this.canvas)));
+          (this.updateId = l(this._render.bind(this), this.canvas)));
       this.tick = b;
       h.process(this.tick);
       a = 0;
       for (b = this.renderCallbacks.length; a < b; ++a)
         if (this.renderCallbacks[a])
           this.renderCallbacks[a](this.tick, this.gl);
-      t.render(this.tick);
+      q.render(this.tick);
     };
     d.render = function (a) {
       a && this.renderCallbacks.push(a);

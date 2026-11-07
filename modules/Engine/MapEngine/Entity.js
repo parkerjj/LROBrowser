@@ -6,13 +6,13 @@ define(
   function (a) {
     function b(a) {
       a.objecttype === ja.TYPE_MERC &&
-        oa[a.job] &&
-        ((a.sex = oa[a.job][0].sex),
-        (a.head = oa[a.job][0].head),
-        (a.accessory = oa[a.job][0].accessory),
-        (a.accessory2 = oa[a.job][0].accessory2),
-        (a.accessory3 = oa[a.job][0].accessory3),
-        (a.weapon = oa[a.job][0].weapon));
+        ka[a.job] &&
+        ((a.sex = ka[a.job][0].sex),
+        (a.head = ka[a.job][0].head),
+        (a.accessory = ka[a.job][0].accessory),
+        (a.accessory2 = ka[a.job][0].accessory2),
+        (a.accessory3 = ka[a.job][0].accessory3),
+        (a.weapon = ka[a.job][0].weapon));
       var b = ma.get(a.GID);
       if (b) {
         if ((b.set(a), 45 == a.job)) {
@@ -70,36 +70,36 @@ define(
           (c.effectId = 20030715 > ra.value ? X.EF_WARPZONE : X.EF_WARPZONE2),
           ia.spam(c));
         ma.add(b);
-        Fa.setObjList(b);
+        Da.setObjList(b);
       }
-      W(b);
+      S(b);
     }
     function c(a) {
-      if (a.GID === ca.Entity.GID && 1 === a.type)
+      if (a.GID === ba.Entity.GID && 1 === a.type)
         return (
           Ca.ui.show(),
           Ca.onCheakResurection(),
           Ca.ui.find(".savepoint").show(),
           Ca.ui.find(".setting, .hotkey,.setoffline,.charselect").hide(),
-          ca.Entity.remove(a.type),
+          ba.Entity.remove(a.type),
           !1
         );
       var b = ma.get(a.GID);
       if (b) {
         if (1 == a.type)
           return (
-            b.objecttype != ja.TYPE_PC && Fa.delobjlist(a.GID),
+            b.objecttype != ja.TYPE_PC && Da.delobjlist(a.GID),
             (b.isDeath = !0),
             b.remove(a.type),
             ia.remove(null, a.GID),
-            ca.hasAttackTarget == b && (ca.hasAttackTarget = null),
+            ba.hasAttackTarget == b && (ba.hasAttackTarget = null),
             !1
           );
-        Fa.delobjlist(a.GID);
+        Da.delobjlist(a.GID);
         b.cart && Aa.remove(a.GID);
-        b.falcon && xa.remove(a.GID);
+        b.falcon && wa.remove(a.GID);
         b.wolf && ya.remove(a.GID);
-        if (b.objecttype === ja.TYPE_PC && a.GID === ca.Entity.GID) {
+        if (b.objecttype === ja.TYPE_PC && a.GID === ba.Entity.GID) {
           var c = { effectId: X.EF_DEVIL, ownerAID: b.GID };
           ia.spam(c);
         }
@@ -138,7 +138,7 @@ define(
             play: !0,
           }));
     }
-    function l(a) {
+    function m(a) {
       var b = ma.get(a.AID);
       b &&
         ((b.position[0] = a.xPos),
@@ -162,16 +162,16 @@ define(
     function r(a) {
       var b = ma.get(a.GID);
       b &&
-        a.type in la.indexes &&
+        a.type in oa.indexes &&
         b.attachments.add({
-          frame: la.indexes[a.type],
+          frame: oa.indexes[a.type],
           file: "emotion",
           play: !0,
           head: !0,
           depth: 5,
         });
     }
-    function t(a) {
+    function q(a) {
       if ((a = ma.get(a.AID)))
         ((a.isDeath = !1),
           a.setAction({
@@ -180,12 +180,12 @@ define(
             repeat: !0,
             play: !0,
           }),
-          a === ca.Entity &&
+          a === ba.Entity &&
             (Ca.ui.hide(),
             Ca.ui.find(".resurection, .savepoint").hide(),
             Ca.ui.find(" .setting, .hotkey, .setoffline, .charselect").show()));
     }
-    function n(a) {
+    function k(a) {
       var b = ma.get(a.GID);
       if (b) {
         var c = ma.get(a.targetGID),
@@ -201,19 +201,19 @@ define(
           case 10:
           case 11:
           case 13:
-            var g = (d = da.getWeaponSound(e)) ? d[0] : !1,
+            var g = (d = ca.getWeaponSound(e)) ? d[0] : !1,
               h = d ? d[1] : !1,
-              k = (d = da.getWeaponSound(f)) ? d[0] : !1;
+              k = (d = ca.getWeaponSound(f)) ? d[0] : !1;
             d = d ? d[1] : !1;
             if (g && g.includes("bow")) {
-              var m = {
+              var l = {
                 effectId: "ef_arrow_projectile",
                 ownerAID: c.GID,
                 otherAID: b.GID,
                 otherPosition: b.position,
               };
               pa.setTimeout(function () {
-                ia.spam(m);
+                ia.spam(l);
               }, 0.75 * a.attackMT);
             }
             g &&
@@ -249,17 +249,17 @@ define(
                   0.25 * a.attackMT + 350,
                 ));
             if (c) {
-              Q(a, c);
+              N(a, c);
               if ((d = a.damage ? c : b)) {
                 c.objecttype === ja.TYPE_MOB &&
                   0 < a.damage &&
                   11 != b.weaponeffect &&
-                  ((m = {
+                  ((l = {
                     effectId: X.EF_HIT1,
                     ownerAID: a.targetGID,
                     startTick: sa.tick + a.attackMT,
                   }),
-                  ia.spam(m));
+                  ia.spam(l));
                 var n = null;
                 switch (a.action) {
                   case 10:
@@ -393,16 +393,16 @@ define(
                       next: !1,
                     },
                   });
-            b.GID === ca.Entity.GID &&
-              900 < ca.pet.friendly &&
-              (ca.pet.lastTalk || 0) + 1e4 < Date.now() &&
+            b.GID === ba.Entity.GID &&
+              900 < ba.pet.friendly &&
+              (ba.pet.lastTalk || 0) + 1e4 < Date.now() &&
               3 > parseInt(10 * Math.random()) &&
-              ((c = da.getPetHungryState(ca.pet.oldHungry)),
-              (c = da.getPetTalkNumber(ca.pet.job, Z.PM_HUNTING, c)),
+              ((c = ca.getPetHungryState(ba.pet.oldHungry)),
+              (c = ca.getPetTalkNumber(ba.pet.job, Z.PM_HUNTING, c)),
               (e = new Y.CZ.PET_ACT()),
               (e.data = c),
-              O.sendPacket(e),
-              (ca.pet.lastTalk = Date.now()));
+              Q.sendPacket(e),
+              (ba.pet.lastTalk = Date.now()));
             break;
           case 1:
             b.setAction({
@@ -441,24 +441,24 @@ define(
     function g(a) {
       var b, c;
       a.msg = a.msg.replace(/\: \|\d{2}/, ": ");
-      if (Ia.isOpen) Ia.message(a.msg);
+      if (Ha.isOpen) Ha.message(a.msg);
       else {
         c = va.TYPE.PUBLIC;
         if ((b = ma.get(a.GID)))
           (b.dialog.set(a.msg),
-            b === ca.Entity
+            b === ba.Entity
               ? (c |= va.TYPE.SELF)
               : b.isAdmin && (c |= va.TYPE.ADMIN));
         va.addText(a.msg, c);
       }
     }
-    function p(a) {
+    function t(a) {
       var b = a.msg.split("\x3cmsg\x3e");
       if (3 == b.length && "" == b[0] && "" != b[1] && "" == b[2])
-        return (Ya.setMsg(b[1]), !1);
+        return (Oa.setMsg(b[1]), !1);
       b = a.msg.split("\x3cmapname\x3e");
       if (3 == b.length && "" == b[0] && "" != b[1] && "" == b[2])
-        return (Ya.setMapname(b[1]), !1);
+        return (Oa.setMapname(b[1]), !1);
       var c =
         "rgb(" +
         [
@@ -469,11 +469,11 @@ define(
         ")";
       a.msg = a.msg.replace(/\: \|\d{2}/, ": ");
       (b = ma.get(a.accountID)) &&
-        ca.Entity.GID != b.GID &&
+        ba.Entity.GID != b.GID &&
         b.dialog.set(a.msg);
       va.addText(a.msg, va.TYPE.PUBLIC, c);
     }
-    function k(a) {
+    function l(a) {
       var b = ma.get(a.AID);
       if (b) {
         if (b.objecttype == ja.TYPE_SLAVE) return !1;
@@ -509,14 +509,14 @@ define(
       var b = ma.get(a.AID);
       b && ((b.life.hp = a.hp), (b.life.hp_max = a.maxhp), b.life.update());
     }
-    function m(a) {
+    function n(a) {
       var b = ma.get(a.npcID);
       if (9999 !== a.effect) {
         var c = a.effect + 81;
         b &&
-          a.effect in la.indexes &&
+          a.effect in oa.indexes &&
           b.attachments.add({
-            frame: la.indexes[c],
+            frame: oa.indexes[c],
             file: "emotion",
             play: !0,
             head: !0,
@@ -540,9 +540,9 @@ define(
         default:
           return;
       }
-      Da.addNpcMark(a.npcID, a.xPos, a.yPos, b, Infinity);
+      Fa.addNpcMark(a.npcID, a.xPos, a.yPos, b, Infinity);
     }
-    function q(a) {
+    function p(a) {
       var b = ma.get(a.AID);
       b &&
         ((b.direction = [4, 3, 2, 1, 0, 7, 6, 5][a.dir]),
@@ -565,7 +565,7 @@ define(
                   b.creatorGID,
                 )
               : ((b.job = a.value),
-                b === ca.Entity && Ka.update("job", a.value));
+                b === ba.Entity && Ja.update("job", a.value));
             break;
           case 1:
             b.head = a.value;
@@ -611,49 +611,49 @@ define(
           b.objecttype !== ja.TYPE_HOM &&
           b.objecttype !== ja.TYPE_MERC &&
           b.objecttype !== ja.TYPE_ELEM) ||
-        Na.includes(a.SKID) ||
+        Pa.includes(a.SKID) ||
         b.dialog.set(
           ((fa[a.SKID] && fa[a.SKID].SkillName) || "Unknown Skill") + " !!",
           "white",
         );
       if (b && b.action !== b.ACTION.DIE && b.action !== b.ACTION.SIT)
-        if (a.SKID in ka) {
-          var d = ka[a.SKID];
+        if (a.SKID in la) {
+          var d = la[a.SKID];
           d && b.setAction(d(b, sa.tick));
-        } else b.setAction(ka.DEFAULT(b, sa.tick));
+        } else b.setAction(la.DEFAULT(b, sa.tick));
       if (c) {
         b && c !== b && b.lookTo(c.position[0], c.position[1]);
         if (
-          a.SKID === R.AL_HEAL ||
-          a.SKID === R.AB_HIGHNESSHEAL ||
-          a.SKID === R.AB_CHEAL
+          a.SKID === T.AL_HEAL ||
+          a.SKID === T.AB_HIGHNESSHEAL ||
+          a.SKID === T.AB_CHEAL
         )
           (na.add(a.level, c, sa.tick, null, na.TYPE.HEAL),
             qa.playPosition("_heal_effect.wav", c.position));
-        a.SKID === R.GC_ROLLINGCUTTER &&
+        a.SKID === T.GC_ROLLINGCUTTER &&
           c.RollCounter &&
           ((b = {
             effectId: X.EF_ROLLING1 + c.RollCounter - 1,
             ownerAID: c.GID,
           }),
           ia.spam(b));
-        a.SKID === R.TK_SEVENWIND &&
+        a.SKID === T.TK_SEVENWIND &&
           a.level &&
           ((b = { effectId: X.EF_BEGINASURA1 + a.level - 1, ownerAID: c.GID }),
           ia.spam(b));
         ia.spamSkill(a.SKID, a.targetAID, null, null, a.srcAID);
         1 == a.result &&
           ia.spamSkillSuccess(a.SKID, a.targetAID, null, a.srcAID);
-        ca.Entity == c &&
+        ba.Entity == c &&
           154 == a.SKID &&
           1 == a.result &&
-          (Ea.append(),
-          Ea.setListPushCart(),
-          Ea.setTitle("\u624b\u63a8\u8f66\u76ee\u5f55"),
-          (Ea.onIndexSelected = function (a) {
+          (Ga.append(),
+          Ga.setListPushCart(),
+          Ga.setTitle("\u624b\u63a8\u8f66\u76ee\u5f55"),
+          (Ga.onIndexSelected = function (a) {
             switch (a) {
               case 2:
-                if (40 > ca.Entity.clevel)
+                if (40 > ba.Entity.clevel)
                   return (
                     za.showMessageBox(
                       "\u6728\u8d28\u624b\u63a8\u8f66\u9700\u898140\u7ea7\u4ee5\u4e0a\u624d\u80fd\u4f7f\u7528\u3002",
@@ -663,7 +663,7 @@ define(
                   );
                 break;
               case 3:
-                if (65 > ca.Entity.clevel)
+                if (65 > ba.Entity.clevel)
                   return (
                     za.showMessageBox(
                       "\u5de1\u6e38\u624b\u63a8\u8f66\u9700\u898165\u7ea7\u4ee5\u4e0a\u624d\u80fd\u4f7f\u7528\u3002",
@@ -673,7 +673,7 @@ define(
                   );
                 break;
               case 4:
-                if (80 > ca.Entity.clevel)
+                if (80 > ba.Entity.clevel)
                   return (
                     za.showMessageBox(
                       "\u7279\u5356\u624b\u63a8\u8f66\u9700\u898180\u7ea7\u4ee5\u4e0a\u624d\u80fd\u4f7f\u7528\u3002",
@@ -683,7 +683,7 @@ define(
                   );
                 break;
               case 5:
-                if (90 > ca.Entity.clevel)
+                if (90 > ba.Entity.clevel)
                   return (
                     za.showMessageBox(
                       "\u8c6a\u534e\u624b\u63a8\u8f66\u9700\u898190\u7ea7\u4ee5\u4e0a\u624d\u80fd\u4f7f\u7528\u3002",
@@ -693,7 +693,7 @@ define(
                   );
                 break;
               case 6:
-                if (105 > ca.Entity.clevel)
+                if (105 > ba.Entity.clevel)
                   return (
                     za.showMessageBox(
                       "\u96e8\u4f1e\u624b\u63a8\u8f66\u9700\u8981105\u7ea7\u4ee5\u4e0a\u624d\u80fd\u4f7f\u7528\u3002",
@@ -703,7 +703,7 @@ define(
                   );
                 break;
               case 7:
-                if (115 > ca.Entity.clevel)
+                if (115 > ba.Entity.clevel)
                   return (
                     za.showMessageBox(
                       "\u5192\u9669\u624b\u63a8\u8f66\u9700\u8981115\u7ea7\u4ee5\u4e0a\u624d\u80fd\u4f7f\u7528\u3002",
@@ -713,7 +713,7 @@ define(
                   );
                 break;
               case 8:
-                if (125 > ca.Entity.clevel)
+                if (125 > ba.Entity.clevel)
                   return (
                     za.showMessageBox(
                       "\u52c7\u8005\u624b\u63a8\u8f66\u9700\u8981125\u7ea7\u4ee5\u4e0a\u624d\u80fd\u4f7f\u7528\u3002",
@@ -723,7 +723,7 @@ define(
                   );
                 break;
               case 9:
-                if (135 > ca.Entity.clevel)
+                if (135 > ba.Entity.clevel)
                   return (
                     za.showMessageBox(
                       "\u534e\u4e3d\u624b\u63a8\u8f66\u9700\u8981135\u7ea7\u4ee5\u4e0a\u624d\u80fd\u4f7f\u7528\u3002",
@@ -734,7 +734,7 @@ define(
             }
             var b = new Y.CZ.REQ_CHANGECART();
             b.num = a;
-            O.sendPacket(b);
+            Q.sendPacket(b);
           }));
         c &&
           349 == a.SKID &&
@@ -750,20 +750,20 @@ define(
       }
     }
     function D(a) {
-      Ea.append();
-      Ea.setListPushCart2();
-      Ea.setTitle("\u624b\u63a8\u8f66\u76ee\u5f55");
-      Ea.onIndexSelected = function (b) {
+      Ga.append();
+      Ga.setListPushCart2();
+      Ga.setTitle("\u624b\u63a8\u8f66\u76ee\u5f55");
+      Ga.onIndexSelected = function (b) {
         var c = new Y.CZ.SELECTCART();
         c.AID = a.AID;
         c.type = 9 + b;
-        O.sendPacket(c);
+        Q.sendPacket(c);
       };
     }
     function B(a) {
       ia.spamSkillZone(a.job, a.xPos, a.yPos, a.AID, a.creatorAID);
     }
-    function H(a) {
+    function O(a) {
       ia.remove(null, a.AID);
       (a = ma.get(a.AID)) && a.remove();
     }
@@ -779,7 +779,7 @@ define(
         (b.amotionTick = sa.tick + a.attackMT),
         (d = 0),
         b.weapon && (d = b.weapon),
-        Na.includes(a.SKID) ||
+        Pa.includes(a.SKID) ||
           (b.objecttype !== ja.TYPE_PC &&
             b.objecttype !== ja.TYPE_DISGUISED &&
             b.objecttype !== ja.TYPE_PET &&
@@ -791,52 +791,52 @@ define(
           ),
         b.action !== b.ACTION.DIE && b.action !== b.ACTION.SIT)
       ) {
-        if (a.SKID in ka) {
-          var e = ka[a.SKID];
+        if (a.SKID in la) {
+          var e = la[a.SKID];
           e && b.setAction(e(b, sa.tick));
-        } else b.setAction(ka.DEFAULT(b, sa.tick));
+        } else b.setAction(la.DEFAULT(b, sa.tick));
         if (
-          b.GID === ca.Entity.GID &&
-          900 < ca.pet.friendly &&
-          (ca.pet.lastTalk || 0) + 1e4 < Date.now() &&
+          b.GID === ba.Entity.GID &&
+          900 < ba.pet.friendly &&
+          (ba.pet.lastTalk || 0) + 1e4 < Date.now() &&
           3 > parseInt(10 * Math.random())
         ) {
-          var e = da.getPetHungryState(ca.pet.oldHungry),
-            e = da.getPetTalkNumber(ca.pet.job, Z.PM_HUNTING, e),
+          var e = ca.getPetHungryState(ba.pet.oldHungry),
+            e = ca.getPetTalkNumber(ba.pet.job, Z.PM_HUNTING, e),
             f = new Y.CZ.PET_ACT();
           f.data = e;
-          O.sendPacket(f);
-          ca.pet.lastTalk = Date.now();
+          Q.sendPacket(f);
+          ba.pet.lastTalk = Date.now();
         }
       }
       if (c && (e = a.damage ? c : b) && (b != c || 6 != a.action)) {
-        Q(a, c);
+        N(a, c);
         for (
           var f = e.objecttype !== ja.TYPE_PC && 1 < a.count,
-            g = $a.includes(a.SKID),
+            g = Za.includes(a.SKID),
             h = 0;
           h < a.count;
           ++h
         ) {
           ia.spamSkillBeforeHit(a.SKID, a.targetID, sa.tick + 200 * h, a.AID);
           var k = h,
-            m = sa.tick + a.attackMT + 200 * h;
-          a.damage && ia.spamSkillHit(a.SKID, a.targetID, m, a.AID);
+            l = sa.tick + a.attackMT + 200 * h;
+          a.damage && ia.spamSkillHit(a.SKID, a.targetID, l, a.AID);
           !f && g && a.damage
             ? na.add(
                 a.damage / a.count,
                 e,
-                m,
+                l,
                 d,
                 na.TYPE.COMBO_B | (k + 1 === a.count ? na.TYPE.COMBO_FINAL : 0),
               )
-            : na.add(a.damage / a.count, e, m, d);
+            : na.add(a.damage / a.count, e, l, d);
           f &&
             a.damage &&
             na.add(
               (a.damage / a.count) * (k + 1),
               e,
-              m,
+              l,
               d,
               (g ? na.TYPE.COMBO_B : na.TYPE.COMBO) |
                 (k + 1 === a.count ? na.TYPE.COMBO_FINAL : 0),
@@ -851,7 +851,7 @@ define(
         406 != a.SKID &&
         ia.spamSkill(a.SKID, a.targetID, null, sa.tick, a.AID);
     }
-    function z(a) {
+    function y(a) {
       var b = ma.get(a.AID),
         c = ma.get(a.targetID),
         d = !1;
@@ -877,15 +877,15 @@ define(
             play: e,
             next: f,
           });
-        a.SKID == R.KN_AUTOCOUNTER &&
-          (b.cast.set(1e3), b === ca.Entity && (ca.underAutoCounter = !0));
-        if (a.SKID === R.BA_FROSTJOKE && b.GID == ca.Entity.GID) {
-          if ((e = da.getRandomJoke()))
+        a.SKID == T.KN_AUTOCOUNTER &&
+          (b.cast.set(1e3), b === ba.Entity && (ba.underAutoCounter = !0));
+        if (a.SKID === T.BA_FROSTJOKE && b.GID == ba.Entity.GID) {
+          if ((e = ca.getRandomJoke()))
             (va.onRequestTalk("", e, va.TYPE.PUBLIC), (d = !0));
         } else
-          a.SKID === R.DC_SCREAM &&
-            b.GID == ca.Entity.GID &&
-            (e = da.getRandomScream()) &&
+          a.SKID === T.DC_SCREAM &&
+            b.GID == ba.Entity.GID &&
+            (e = ca.getRandomScream()) &&
             (va.onRequestTalk("", e, va.TYPE.PUBLIC), (d = !0));
         if (
           b.objecttype === ja.TYPE_PC ||
@@ -895,7 +895,7 @@ define(
           b.objecttype === ja.TYPE_MERC ||
           b.objecttype === ja.TYPE_ELEM
         )
-          Na.includes(a.SKID) ||
+          Pa.includes(a.SKID) ||
             d ||
             b.dialog.set(
               ((fa[a.SKID] && fa[a.SKID].SkillName) || "Unknown Skill") + " !!",
@@ -916,7 +916,7 @@ define(
             a.yPos &&
             (b.lookTo(a.xPos, a.yPos),
             a.delayTime &&
-              ((c = da.getSkillInfo(a.SKID)),
+              ((c = ca.getSkillInfo(a.SKID)),
               (c = {
                 effectId: X.EF_GROUNDSAMPLE,
                 skillId: a.SKID,
@@ -969,24 +969,24 @@ define(
         }
       }
     }
-    function G(a) {
+    function z(a) {
       var b = ma.get(a.AID);
       if (
         b &&
         (b.cast.clean(),
         ia.remove(null, b.GID, [12, 54, 55, 56, 57, 58, 59, 454, 60, 513]),
         ia.remove(ua, b.GID),
-        ia.remove(wa, b.GID),
+        ia.remove(xa, b.GID),
         ia.remove(Ba, b.GID),
-        b === ca.Entity && ca.underAutoCounter)
+        b === ba.Entity && ba.underAutoCounter)
       ) {
-        if (0 < ca.Entity.life.hp)
+        if (0 < ba.Entity.life.hp)
           var c = { effectId: X.EF_AUTOCOUNTER, ownerAID: a.AID };
         ia.spam(c);
-        ca.underAutoCounter = !1;
+        ba.underAutoCounter = !1;
       }
     }
-    function P(a) {
+    function J(a) {
       var b = ma.get(a.AID);
       if (b) {
         var c = 0,
@@ -1000,78 +1000,78 @@ define(
           b.effectColor[3],
         ]);
         switch (a.index) {
-          case ea.CLAIRVOYANCE:
-            b === ca.Entity &&
-              ((ca.Character.intravision = a.state),
+          case da.CLAIRVOYANCE:
+            b === ba.Entity &&
+              ((ba.Character.intravision = a.state),
               ma.forEach(function (a) {
                 a.effectState = a.effectState;
               }));
             break;
-          case ea.ON_PUSH_CART:
+          case da.ON_PUSH_CART:
             b.cart = "undefined" !== typeof a.val ? a.val[0] : a.state;
-            b === ca.Entity &&
-              ((ca.Entity.cart = b.cart), ca.Entity.cart || Ha.ui.hide());
+            b === ba.Entity &&
+              ((ba.Entity.cart = b.cart), ba.Entity.cart || La.ui.hide());
             Aa.remove(a.AID);
             b.cart && b._effectStateColor[3] && Aa.add(b, b.cart);
             break;
-          case ea.FALCON:
+          case da.FALCON:
             b.falcon = a.state;
-            b === ca.Entity && (ca.Entity.falcon = b.falcon);
-            xa.remove(a.AID);
-            b.falcon && b._effectStateColor[3] && xa.add(b);
+            b === ba.Entity && (ba.Entity.falcon = b.falcon);
+            wa.remove(a.AID);
+            b.falcon && b._effectStateColor[3] && wa.add(b);
             break;
-          case ea.RIDING:
+          case da.RIDING:
             b.riding = 1 == c || 0 < d ? !0 : !1;
             b.effectState = b.effectState;
             b.effectColor = e;
             break;
-          case ea.ALL_RIDING:
+          case da.ALL_RIDING:
             1 == c || 0 < d
               ? ((b.riding_ = !0), (b.allRidingState = 1))
               : ((b.riding_ = !1), (b.allRidingState = 0));
             b.effectColor = e;
             break;
-          case ea.HIDING:
+          case da.HIDING:
             c = { effectId: X.EF_SUMMONSLAVE, ownerAID: a.AID };
             1 == a.state && (c.effectId = X.EF_BASH);
             ia.spam(c);
             break;
-          case ea.MARIONETTE_MASTER:
-          case ea.MARIONETTE:
-          case ea.TWOHANDQUICKEN:
-          case ea.ONEHANDQUICKEN:
-          case ea.SPEARQUICKEN:
-          case ea.LKCONCENTRATION:
-          case ea.BERSERK:
-          case ea.ENERGYCOAT:
-          case ea.OVERTHRUST:
-          case ea.OVERTHRUSTMAX:
-          case ea.SWOO:
-          case ea.SKE:
-          case ea.NJ_BUNSINJYUTSU:
-          case ea.STEELBODY:
-          case ea.AURABLADE:
-          case ea.SG_WARM:
-          case ea.SG_SUN_WARM:
-          case ea.SG_MOON_WARM:
-          case ea.SG_STAR_WARM:
-          case ea.KAITE:
-          case ea.SOULLINK:
-          case ea.PROPERTYUNDEAD:
-          case ea.DA_CONTRACT:
+          case da.MARIONETTE_MASTER:
+          case da.MARIONETTE:
+          case da.TWOHANDQUICKEN:
+          case da.ONEHANDQUICKEN:
+          case da.SPEARQUICKEN:
+          case da.LKCONCENTRATION:
+          case da.BERSERK:
+          case da.ENERGYCOAT:
+          case da.OVERTHRUST:
+          case da.OVERTHRUSTMAX:
+          case da.SWOO:
+          case da.SKE:
+          case da.NJ_BUNSINJYUTSU:
+          case da.STEELBODY:
+          case da.AURABLADE:
+          case da.SG_WARM:
+          case da.SG_SUN_WARM:
+          case da.SG_MOON_WARM:
+          case da.SG_STAR_WARM:
+          case da.KAITE:
+          case da.SOULLINK:
+          case da.PROPERTYUNDEAD:
+          case da.DA_CONTRACT:
             b.toggleOpt3(a.index, a.state);
             break;
-          case ea.RUN:
+          case da.RUN:
             c = { effectId: X.EF_STOPEFFECT, ownerAID: a.AID };
             1 == a.state && (c.effectId = X.EF_RUN);
             ia.spam(c);
             break;
-          case ea.TING:
+          case da.TING:
             c = { effectId: X.EF_QUAKEBODY, ownerAID: a.AID };
             ia.spam(c);
             break;
-          case ea.STORMKICK_ON:
-          case ea.STORMKICK_READY:
+          case da.STORMKICK_ON:
+          case da.STORMKICK_READY:
             b.setAction({
               action: b.ACTION.SKILL,
               frame: 0,
@@ -1080,8 +1080,8 @@ define(
               next: !1,
             });
             break;
-          case ea.DOWNKICK_ON:
-          case ea.DOWNKICK_READY:
+          case da.DOWNKICK_ON:
+          case da.DOWNKICK_READY:
             b.setAction({
               action: b.ACTION.SKILL,
               frame: 2,
@@ -1090,8 +1090,8 @@ define(
               next: !1,
             });
             break;
-          case ea.TURNKICK_ON:
-          case ea.TURNKICK_READY:
+          case da.TURNKICK_ON:
+          case da.TURNKICK_READY:
             b.setAction({
               action: b.ACTION.SKILL,
               frame: 3,
@@ -1100,8 +1100,8 @@ define(
               next: !1,
             });
             break;
-          case ea.COUNTER_ON:
-          case ea.COUNTER_READY:
+          case da.COUNTER_ON:
+          case da.COUNTER_READY:
             b.setAction({
               action: b.ACTION.SKILL,
               frame: 4,
@@ -1110,8 +1110,8 @@ define(
               next: !1,
             });
             break;
-          case ea.DODGE_ON:
-          case ea.DODGE_READY:
+          case da.DODGE_ON:
+          case da.DODGE_READY:
             b.setAction({
               action: b.ACTION.PICKUP,
               frame: 1,
@@ -1120,42 +1120,42 @@ define(
               next: !1,
             });
             break;
-          case ea.ROLLINGCUTTER:
+          case da.ROLLINGCUTTER:
             b.RollCounter = 1 == a.state ? a.val[0] : 0;
             break;
-          case ea.CAMOUFLAGE:
+          case da.CAMOUFLAGE:
             b.Camouflage = 1 == a.state ? a.val[0] : 0;
             b.effectState = b.effectState;
             break;
-          case ea.SUMMON1:
+          case da.SUMMON1:
             b.Summon1 = 1 == a.state ? a.val[0] : 0;
-            N(b);
+            I(b);
             break;
-          case ea.SUMMON2:
+          case da.SUMMON2:
             b.Summon2 = 1 == a.state ? a.val[0] : 0;
-            N(b);
+            I(b);
             break;
-          case ea.SUMMON3:
+          case da.SUMMON3:
             b.Summon3 = 1 == a.state ? a.val[0] : 0;
-            N(b);
+            I(b);
             break;
-          case ea.SUMMON4:
+          case da.SUMMON4:
             b.Summon4 = 1 == a.state ? a.val[0] : 0;
-            N(b);
+            I(b);
             break;
-          case ea.SUMMON5:
+          case da.SUMMON5:
             b.Summon5 = 1 == a.state ? a.val[0] : 0;
-            N(b);
+            I(b);
             break;
-          case ea.STEALTHFIELD:
+          case da.STEALTHFIELD:
             b.Stealthfield = 1 == a.state ? a.val[0] : 0;
             b.effectState = b.effectState;
             break;
-          case ea.SHADOWFORM:
+          case da.SHADOWFORM:
             b.Shadowform = 1 == a.state ? a.val[0] : 0;
             b.effectState = b.effectState;
             break;
-          case ea.TRICKDEAD:
+          case da.TRICKDEAD:
             1 == a.state &&
               (b.setAction({
                 action: b.ACTION.DIE,
@@ -1175,10 +1175,10 @@ define(
               }),
               (b.isTrickDead = !1));
             break;
-          case ea.ILLUSION:
+          case da.ILLUSION:
             b.isHallucinating = 1 == a.state ? !0 : !1;
             break;
-          case ea.STOP:
+          case da.STOP:
             1 == a.state
               ? b.attachments.add({
                   repeat: !0,
@@ -1187,15 +1187,15 @@ define(
                 })
               : b.attachments.remove("status-stop");
             break;
-          case ea.C_MARKER:
+          case da.C_MARKER:
             1 == a.state &&
               ((c = { effectId: "ef_c_marker2", ownerAID: a.AID }), ia.spam(c));
             break;
-          case ea.POSTDELAY:
-            ca.Entity == b &&
-              ((ca.Entity.startTickCD = Date.now()),
-              (ca.Entity.RemainMS = a.RemainMS),
-              La.addCooldown(a.RemainMS));
+          case da.POSTDELAY:
+            ba.Entity == b &&
+              ((ba.Entity.startTickCD = Date.now()),
+              (ba.Entity.RemainMS = a.RemainMS),
+              Ka.addCooldown(a.RemainMS));
             b.setAction({
               action: b.ACTION.SKILL,
               frame: 0,
@@ -1210,7 +1210,7 @@ define(
               },
             });
             break;
-          case ea.TRICKDEAD:
+          case da.TRICKDEAD:
             1 == c
               ? b.setAction({
                   action: b.ACTION.DIE,
@@ -1227,8 +1227,8 @@ define(
                   next: !1,
                 });
             break;
-          case ea.TWOHANDQUICKEN:
-          case ea.SPEARQUICKEN:
+          case da.TWOHANDQUICKEN:
+          case da.SPEARQUICKEN:
             1 == c
               ? ((b.virtue = 1),
                 (b.effectColor[0] = 0.8),
@@ -1239,7 +1239,7 @@ define(
                 (b.effectColor[1] = 1),
                 (b.effectColor[2] = 1));
             break;
-          case ea.OVERTHRUST:
+          case da.OVERTHRUST:
             1 == c
               ? ((b.virtue = 2),
                 (b.effectColor[0] = 1),
@@ -1250,7 +1250,7 @@ define(
                 (b.effectColor[1] = 1),
                 (b.effectColor[2] = 1));
             break;
-          case ea.ENERGYCOAT:
+          case da.ENERGYCOAT:
             1 == c
               ? ((b.virtue = 4),
                 (b.effectColor[0] = 0.7),
@@ -1260,8 +1260,8 @@ define(
                 (b.effectColor[1] = 1));
             b.effectColor[2] = 1;
             break;
-          case ea.MONSTER_TRANSFORM:
-          case ea.ACTIVE_MONSTER_TRANSFORM:
+          case da.MONSTER_TRANSFORM:
+          case da.ACTIVE_MONSTER_TRANSFORM:
             1 == c || 0 < d
               ? b.job != d &&
                 ((b.tranfrom_bjob = b._job),
@@ -1280,14 +1280,14 @@ define(
                 (b.tranfrom_btype = -1),
                 (b.tranfrom_costume = -1));
             break;
-          case ea.ASSUMPTIO:
-          case ea.ASSUMPTIO2:
+          case da.ASSUMPTIO:
+          case da.ASSUMPTIO2:
             b.ghost =
               1 == c || 0 < d
                 ? { xSize: 1.2, ySize: 1.1 }
                 : { xSize: 1, ySize: 1 };
             break;
-          case ea.EXPLOSIONSPIRITS:
+          case da.EXPLOSIONSPIRITS:
             1 == c
               ? ((b.explosion = 1),
                 (b.effectColor[0] = 1),
@@ -1298,7 +1298,7 @@ define(
                 (b.effectColor[1] = 1),
                 (b.effectColor[2] = 1));
             break;
-          case ea.BERSERK:
+          case da.BERSERK:
             1 == c
               ? ((b.berserk = 1),
                 (b.effectColor[0] = 2),
@@ -1308,7 +1308,7 @@ define(
                 (b.effectColor[1] = 1));
             b.effectColor[2] = 1;
             break;
-          case ea.SOULLINK:
+          case da.SOULLINK:
             1 == c
               ? ((b.soullink = 1),
                 (b.effectColor[0] = 1),
@@ -1319,14 +1319,14 @@ define(
                 (b.effectColor[1] = 1),
                 (b.effectColor[2] = 1));
             break;
-          case ea.DEVIL1:
+          case da.DEVIL1:
             b.healthState = 1 == c ? 16 : 0;
         }
-        b === ca.Entity && Ma.update(a.index, a.state, d, a.RemainMS);
-        W(b);
+        b === ba.Entity && Ma.update(a.index, a.state, d, a.RemainMS);
+        S(b);
       }
     }
-    function N(a) {
+    function I(a) {
       a.Summon1 || a.Summon2 || a.Summon3 || a.Summon4 || a.Summon5
         ? (ia.spam({
             effectId: "temporary_warlock_sphere",
@@ -1338,14 +1338,14 @@ define(
           (ia.remove(null, a.GID, "temporary_warlock_sphere"),
           (a.WarlockSpheres = !1));
     }
-    function I(a) {
+    function L(a) {
       var b = ma.get(a.AID);
       b &&
         ((b.bodyState = a.bodyState),
         (b.healthState = a.healthState),
         (b.effectState = a.effectState),
         (b.isPKModeON = a.isPKModeON),
-        W(b));
+        S(b));
     }
     function x(a) {
       var b;
@@ -1381,7 +1381,7 @@ define(
         b.room.create(d, a.roomID, c, !0);
       }
     }
-    function J(a) {
+    function M(a) {
       if ("roomID" in a)
         ma.forEach(function (b) {
           return b.room.id === a.roomID ? (b.room.remove(), !1) : !0;
@@ -1393,7 +1393,7 @@ define(
     }
     function E(a, b, c) {
       a.lookTo(b.position[0], b.position[1]);
-      a.toggleOpt3(ea.BLADESTOP, c);
+      a.toggleOpt3(da.BLADESTOP, c);
       1 == c &&
         a.setAction({
           action: a.ACTION.READYFIGHT,
@@ -1411,12 +1411,12 @@ define(
           next: !1,
         });
     }
-    function L(a) {
+    function F(a) {
       var b = ma.get(a.srcAID),
         c = ma.get(a.destAID);
       b && c && (E(b, c, a.flag), E(c, b, a.flag));
     }
-    function y(a) {
+    function G(a) {
       1 == a.expType &&
         (1 == a.varID &&
           va.addText(
@@ -1431,12 +1431,12 @@ define(
             "#A442DC",
           ));
     }
-    function F(a) {
-      Da.removeNpcMark("mvp");
+    function H(a) {
+      Fa.removeNpcMark("mvp");
       0 == a.infoType
-        ? va.addText(da.getMessage(1223), va.TYPE.ERROR)
+        ? va.addText(ca.getMessage(1223), va.TYPE.ERROR)
         : 1 == a.infoType
-          ? Da.addNpcMark("mvp", a.xPos, a.yPos, 16711680, Infinity)
+          ? Fa.addNpcMark("mvp", a.xPos, a.yPos, 16711680, Infinity)
           : 3 == a.infoType &&
             va.addText(
               "Boss\u7ea7\u9b54\u7269 '" +
@@ -1452,12 +1452,12 @@ define(
     function K(a) {
       ia.spam({ effectId: X.EF_MVP, ownerAID: a.AID });
     }
-    function M(a) {
-      a = da.getItemInfo(a.ITID);
-      va.addText(da.getMessage(143), va.TYPE.BLUE);
+    function P(a) {
+      a = ca.getItemInfo(a.ITID);
+      va.addText(ca.getMessage(143), va.TYPE.BLUE);
       va.addText(a.identifiedDiSPlayName, va.TYPE.BLUE);
     }
-    function Q(a, b) {
+    function N(a, b) {
       if (
         (0 < a.damage || 0 < a.leftDamage) &&
         4 !== a.action &&
@@ -1489,8 +1489,8 @@ define(
           (a.damage && pa.setTimeout(c, a.attackMT + 200 * e),
             a.leftDamage && pa.setTimeout(c, a.attackMT + 350 * e));
     }
-    function W(a) {
-      if (ca.Playing && 99 <= a.clevel) {
+    function S(a) {
+      if (ba.Playing && 99 <= a.clevel) {
         var b =
           a._effectState &
             (ta.EffectState.INVISIBLE |
@@ -1500,7 +1500,7 @@ define(
           !!a.Shadowform ||
           !!a.Camouflage ||
           !!a.Stealthfield;
-        U.aura && !b
+        W.aura && !b
           ? a.auraVisible ||
             (ia.spam({
               ownerAID: a.GID,
@@ -1525,17 +1525,17 @@ define(
             (a.auraVisible = !1));
       }
     }
-    function V(a) {
-      ca.Entity.display.title = a.ACHID ? ha[a.ACHID] : "";
-      ca.Entity.display.update(
-        ca.Entity.objecttype === ja.TYPE_MOB
+    function R(a) {
+      ba.Entity.display.title = a.ACHID ? ha[a.ACHID] : "";
+      ba.Entity.display.update(
+        ba.Entity.objecttype === ja.TYPE_MOB
           ? "#ffc6c6"
-          : ca.Entity.objecttype === ja.TYPE_NPC
+          : ba.Entity.objecttype === ja.TYPE_NPC
             ? "#94bdf7"
             : "white",
       );
     }
-    function ba(a) {
+    function ea(a) {
       var b = ma.get(a.AID);
       b &&
         (pa.clearTimeout(b._TimeOut),
@@ -1545,32 +1545,32 @@ define(
           0 < b.spirs && ia.spam({ effectId: 2010 + b.spirs, ownerAID: a.AID });
         }, 200)));
     }
-    function S(a) {
-      Za.onCreateBookingLog(a);
+    function U(a) {
+      Ya.onCreateBookingLog(a);
     }
-    function T(a) {
-      Za.onDelBookingLog(a);
+    function V(a) {
+      Ya.onDelBookingLog(a);
     }
-    var da = a("DB/DBManager"),
-      R = a("DB/Skills/SkillConst"),
+    var ca = a("DB/DBManager"),
+      T = a("DB/Skills/SkillConst"),
       fa = a("DB/Skills/SkillInfo"),
-      ea = a("DB/Status/StatusConst"),
+      da = a("DB/Status/StatusConst"),
       ta = a("DB/Status/StatusState"),
-      oa = a("DB/Mercenary/MercenaryTable"),
-      la = a("DB/Emotions"),
+      ka = a("DB/Mercenary/MercenaryTable"),
+      oa = a("DB/Emotions"),
       ga = a("DB/Skills/SkillEffect"),
-      ka = a("DB/Skills/SkillAction"),
+      la = a("DB/Skills/SkillAction"),
       ha = a("DB/Items/TitleTable"),
       X = a("DB/Effects/EffectConst"),
       Z = a("DB/Pets/PetMessageConst"),
       qa = a("Audio/SoundManager"),
       pa = a("Core/Events"),
       w = a("Engine/MapEngine/Guild"),
-      ca = a("Engine/SessionStorage"),
-      O = a("Network/NetworkManager"),
+      ba = a("Engine/SessionStorage"),
+      Q = a("Network/NetworkManager"),
       Y = a("Network/PacketStructure"),
       ra = a("Network/PacketVerManager"),
-      U = a("Preferences/Map"),
+      W = a("Preferences/Map"),
       aa = a("Renderer/Map/Altitude"),
       sa = a("Renderer/Renderer"),
       ma = a("Renderer/EntityManager"),
@@ -1578,151 +1578,151 @@ define(
       ia = a("Renderer/EffectManager");
     a("Renderer/Map/Effects");
     var na = a("Renderer/Effects/Damage"),
-      wa = a("Renderer/Effects/MagicTarget"),
+      xa = a("Renderer/Effects/MagicTarget"),
       ua = a("Renderer/Effects/LockOnTarget"),
       Ba = a("Renderer/Effects/MagicRing");
     a("Renderer/Effects/StrEffect");
     a("Renderer/Map/Effects");
     var Aa = a("Renderer/CartObject"),
-      xa = a("Renderer/FalconObject"),
+      wa = a("Renderer/FalconObject"),
       ya = a("Renderer/WolfObject"),
       za = a("UI/UIManager"),
-      Ka = a("UI/Components/BasicInfo/BasicInfo"),
+      Ja = a("UI/Components/BasicInfo/BasicInfo"),
       va = a("UI/Components/ChatBox/ChatBox"),
-      Ia = a("UI/Components/ChatRoom/ChatRoom"),
+      Ha = a("UI/Components/ChatRoom/ChatRoom"),
       Ca = a("UI/Components/Escape/Escape");
     a("UI/Components/Inventory/Inventory");
-    var Da = a("UI/Components/MiniMap/MiniMap"),
-      La = a("UI/Components/ShortCut/ShortCut"),
+    var Fa = a("UI/Components/MiniMap/MiniMap"),
+      Ka = a("UI/Components/ShortCut/ShortCut"),
       Ma = a("UI/Components/StatusIcons/StatusIcons"),
-      Ha = a("UI/Components/OnPushCart/OnPushCart"),
-      Ea = a("UI/Components/ItemSelection/ItemSelection"),
-      Fa = a("UI/Components/vbk/vbk"),
-      Ya = a("UI/Components/ItemObtain/ItemObtain"),
-      Za = a("UI/Components/PartyBookingReg/PartyBookingReg"),
-      Na = [
-        R.TF_HIDING,
-        R.AS_CLOAKING,
-        R.RG_CHASEWALK,
-        R.GC_CLOAKINGEXCEED,
-        R.RA_CAMOUFLAGE,
-        R.NC_STEALTHFIELD,
-        R.SC_SHADOWFORM,
-        R.SC_INVISIBILITY,
-        R.KO_YAMIKUMO,
-        R.LG_OVERBRAND_BRANDISH,
-        R.LG_OVERBRAND_PLUSATK,
-        R.WM_REVERBERATION_MELEE,
-        R.WM_REVERBERATION_MAGIC,
-        R.WL_TETRAVORTEX_FIRE,
-        R.WL_TETRAVORTEX_WATER,
-        R.WL_TETRAVORTEX_WIND,
-        R.WL_TETRAVORTEX_GROUND,
-        R.WL_SUMMON_ATK_FIRE,
-        R.WL_SUMMON_ATK_WIND,
-        R.WL_SUMMON_ATK_WATER,
-        R.WL_SUMMON_ATK_GROUND,
+      La = a("UI/Components/OnPushCart/OnPushCart"),
+      Ga = a("UI/Components/ItemSelection/ItemSelection"),
+      Da = a("UI/Components/vbk/vbk"),
+      Oa = a("UI/Components/ItemObtain/ItemObtain"),
+      Ya = a("UI/Components/PartyBookingReg/PartyBookingReg"),
+      Pa = [
+        T.TF_HIDING,
+        T.AS_CLOAKING,
+        T.RG_CHASEWALK,
+        T.GC_CLOAKINGEXCEED,
+        T.RA_CAMOUFLAGE,
+        T.NC_STEALTHFIELD,
+        T.SC_SHADOWFORM,
+        T.SC_INVISIBILITY,
+        T.KO_YAMIKUMO,
+        T.LG_OVERBRAND_BRANDISH,
+        T.LG_OVERBRAND_PLUSATK,
+        T.WM_REVERBERATION_MELEE,
+        T.WM_REVERBERATION_MAGIC,
+        T.WL_TETRAVORTEX_FIRE,
+        T.WL_TETRAVORTEX_WATER,
+        T.WL_TETRAVORTEX_WIND,
+        T.WL_TETRAVORTEX_GROUND,
+        T.WL_SUMMON_ATK_FIRE,
+        T.WL_SUMMON_ATK_WIND,
+        T.WL_SUMMON_ATK_WATER,
+        T.WL_SUMMON_ATK_GROUND,
       ],
-      $a = [
-        R.TK_STORMKICK,
-        R.TK_DOWNKICK,
-        R.TK_TURNKICK,
-        R.TK_COUNTER,
-        R.TK_JUMPKICK,
-        R.SR_RAMPAGEBLASTER,
+      Za = [
+        T.TK_STORMKICK,
+        T.TK_DOWNKICK,
+        T.TK_TURNKICK,
+        T.TK_COUNTER,
+        T.TK_JUMPKICK,
+        T.SR_RAMPAGEBLASTER,
       ];
     return function () {
-      O.hookPacket(Y.ZC.NOTIFY_STANDENTRY, b);
-      O.hookPacket(Y.ZC.NOTIFY_NEWENTRY, b);
-      O.hookPacket(Y.ZC.NOTIFY_ACTENTRY, b);
-      O.hookPacket(Y.ZC.NOTIFY_MOVEENTRY, b);
-      O.hookPacket(Y.ZC.NOTIFY_STANDENTRY_NPC, b);
-      O.hookPacket(Y.ZC.NOTIFY_STANDENTRY2, b);
-      O.hookPacket(Y.ZC.NOTIFY_NEWENTRY2, b);
-      O.hookPacket(Y.ZC.NOTIFY_MOVEENTRY2, b);
-      O.hookPacket(Y.ZC.NOTIFY_STANDENTRY3, b);
-      O.hookPacket(Y.ZC.NOTIFY_NEWENTRY3, b);
-      O.hookPacket(Y.ZC.NOTIFY_MOVEENTRY3, b);
-      O.hookPacket(Y.ZC.NOTIFY_STANDENTRY4, b);
-      O.hookPacket(Y.ZC.NOTIFY_NEWENTRY4, b);
-      O.hookPacket(Y.ZC.NOTIFY_MOVEENTRY4, b);
-      O.hookPacket(Y.ZC.NOTIFY_STANDENTRY5, b);
-      O.hookPacket(Y.ZC.NOTIFY_NEWENTRY5, b);
-      O.hookPacket(Y.ZC.NOTIFY_MOVEENTRY5, b);
-      O.hookPacket(Y.ZC.NOTIFY_STANDENTRY6, b);
-      O.hookPacket(Y.ZC.NOTIFY_NEWENTRY6, b);
-      O.hookPacket(Y.ZC.NOTIFY_MOVEENTRY6, b);
-      O.hookPacket(Y.ZC.NOTIFY_STANDENTRY7, b);
-      O.hookPacket(Y.ZC.NOTIFY_NEWENTRY7, b);
-      O.hookPacket(Y.ZC.NOTIFY_MOVEENTRY7, b);
-      O.hookPacket(Y.ZC.NOTIFY_STANDENTRY8, b);
-      O.hookPacket(Y.ZC.NOTIFY_NEWENTRY8, b);
-      O.hookPacket(Y.ZC.NOTIFY_MOVEENTRY8, b);
-      O.hookPacket(Y.ZC.NOTIFY_STANDENTRY9, b);
-      O.hookPacket(Y.ZC.NOTIFY_NEWENTRY9, b);
-      O.hookPacket(Y.ZC.NOTIFY_MOVEENTRY9, b);
-      O.hookPacket(Y.ZC.NOTIFY_VANISH, c);
-      O.hookPacket(Y.ZC.NOTIFY_MOVE, d);
-      O.hookPacket(Y.ZC.STOPMOVE, e);
-      O.hookPacket(Y.ZC.NOTIFY_ACT, n);
-      O.hookPacket(Y.ZC.NOTIFY_ACT2, n);
-      O.hookPacket(Y.ZC.NOTIFY_ACT3, n);
-      O.hookPacket(Y.ZC.NOTIFY_CHAT, g);
-      O.hookPacket(Y.ZC.SHOWSCRIPT, g);
-      O.hookPacket(Y.ZC.NPC_CHAT, p);
-      O.hookPacket(Y.ZC.ACK_REQNAME, k);
-      O.hookPacket(Y.ZC.ACK_REQNAME3, k);
-      O.hookPacket(Y.ZC.ACK_REQNAMEALL, k);
-      O.hookPacket(Y.ZC.ACK_REQNAMEALL2, k);
-      O.hookPacket(Y.ZC.CHANGE_DIRECTION, q);
-      O.hookPacket(Y.ZC.SPRITE_CHANGE, v);
-      O.hookPacket(Y.ZC.SPRITE_CHANGE2, v);
-      O.hookPacket(Y.ZC.NPCSPRITE_CHANGE, u);
-      O.hookPacket(Y.ZC.USE_SKILL, A);
-      O.hookPacket(Y.ZC.USE_SKILL2, A);
-      O.hookPacket(Y.ZC.NOTIFY_SKILL, C);
-      O.hookPacket(Y.ZC.NOTIFY_SKILL2, C);
-      O.hookPacket(Y.ZC.NOTIFY_SKILL_POSITION, C);
-      O.hookPacket(Y.ZC.SELECTCART, D);
-      O.hookPacket(Y.ZC.USESKILL_ACK, z);
-      O.hookPacket(Y.ZC.USESKILL_ACK2, z);
-      O.hookPacket(Y.ZC.USESKILL_ACK3, z);
-      O.hookPacket(Y.ZC.STATE_CHANGE, I);
-      O.hookPacket(Y.ZC.STATE_CHANGE3, I);
-      O.hookPacket(Y.ZC.MSG_STATE_CHANGE, P);
-      O.hookPacket(Y.ZC.MSG_STATE_CHANGE2, P);
-      O.hookPacket(Y.ZC.MSG_STATE_CHANGE3, P);
-      O.hookPacket(Y.ZC.MSG_STATE_CHANGE4, P);
-      O.hookPacket(Y.ZC.MSG_STATE_CHANGE5, P);
-      O.hookPacket(Y.ZC.STORE_ENTRY, x);
-      O.hookPacket(Y.ZC.DISAPPEAR_ENTRY, J);
-      O.hookPacket(Y.ZC.BUYING_STORE_ENTRY, x);
-      O.hookPacket(Y.ZC.DISAPPEAR_BUYING_STORE_ENTRY, J);
-      O.hookPacket(Y.ZC.ROOM_NEWENTRY, x);
-      O.hookPacket(Y.ZC.DESTROY_ROOM, J);
-      O.hookPacket(Y.ZC.SKILL_ENTRY, B);
-      O.hookPacket(Y.ZC.SKILL_ENTRY2, B);
-      O.hookPacket(Y.ZC.SKILL_ENTRY3, B);
-      O.hookPacket(Y.ZC.SKILL_ENTRY4, B);
-      O.hookPacket(Y.ZC.SKILL_ENTRY5, B);
-      O.hookPacket(Y.ZC.SKILL_DISAPPEAR, H);
-      O.hookPacket(Y.ZC.DISPEL, G);
-      O.hookPacket(Y.ZC.HIGHJUMP, l);
-      O.hookPacket(Y.ZC.FASTMOVE, h);
-      O.hookPacket(Y.ZC.RESURRECTION, t);
-      O.hookPacket(Y.ZC.EMOTION, r);
-      O.hookPacket(Y.ZC.NOTIFY_MONSTER_HP, f);
-      O.hookPacket(Y.ZC.QUEST_NOTIFY_EFFECT, m);
-      O.hookPacket(Y.ZC.BLADESTOP, L);
-      O.hookPacket(Y.ZC.NOTIFY_EXP, y);
-      O.hookPacket(Y.ZC.BOSS_INFO, F);
-      O.hookPacket(Y.ZC.MVP, K);
-      O.hookPacket(Y.ZC.MVP_GETTING_ITEM, M);
-      O.hookPacket(Y.ZC.SPIRITS, ba);
-      O.hookPacket(Y.ZC.SPIRITS2, ba);
-      O.hookPacket(Y.ZC.ACK_CHANGE_TITLE, V);
-      O.hookPacket(Y.ZC.RS_CREATE_INSTANCE, S);
-      O.hookPacket(Y.ZC.RS_DEL_INSTANCE, T);
+      Q.hookPacket(Y.ZC.NOTIFY_STANDENTRY, b);
+      Q.hookPacket(Y.ZC.NOTIFY_NEWENTRY, b);
+      Q.hookPacket(Y.ZC.NOTIFY_ACTENTRY, b);
+      Q.hookPacket(Y.ZC.NOTIFY_MOVEENTRY, b);
+      Q.hookPacket(Y.ZC.NOTIFY_STANDENTRY_NPC, b);
+      Q.hookPacket(Y.ZC.NOTIFY_STANDENTRY2, b);
+      Q.hookPacket(Y.ZC.NOTIFY_NEWENTRY2, b);
+      Q.hookPacket(Y.ZC.NOTIFY_MOVEENTRY2, b);
+      Q.hookPacket(Y.ZC.NOTIFY_STANDENTRY3, b);
+      Q.hookPacket(Y.ZC.NOTIFY_NEWENTRY3, b);
+      Q.hookPacket(Y.ZC.NOTIFY_MOVEENTRY3, b);
+      Q.hookPacket(Y.ZC.NOTIFY_STANDENTRY4, b);
+      Q.hookPacket(Y.ZC.NOTIFY_NEWENTRY4, b);
+      Q.hookPacket(Y.ZC.NOTIFY_MOVEENTRY4, b);
+      Q.hookPacket(Y.ZC.NOTIFY_STANDENTRY5, b);
+      Q.hookPacket(Y.ZC.NOTIFY_NEWENTRY5, b);
+      Q.hookPacket(Y.ZC.NOTIFY_MOVEENTRY5, b);
+      Q.hookPacket(Y.ZC.NOTIFY_STANDENTRY6, b);
+      Q.hookPacket(Y.ZC.NOTIFY_NEWENTRY6, b);
+      Q.hookPacket(Y.ZC.NOTIFY_MOVEENTRY6, b);
+      Q.hookPacket(Y.ZC.NOTIFY_STANDENTRY7, b);
+      Q.hookPacket(Y.ZC.NOTIFY_NEWENTRY7, b);
+      Q.hookPacket(Y.ZC.NOTIFY_MOVEENTRY7, b);
+      Q.hookPacket(Y.ZC.NOTIFY_STANDENTRY8, b);
+      Q.hookPacket(Y.ZC.NOTIFY_NEWENTRY8, b);
+      Q.hookPacket(Y.ZC.NOTIFY_MOVEENTRY8, b);
+      Q.hookPacket(Y.ZC.NOTIFY_STANDENTRY9, b);
+      Q.hookPacket(Y.ZC.NOTIFY_NEWENTRY9, b);
+      Q.hookPacket(Y.ZC.NOTIFY_MOVEENTRY9, b);
+      Q.hookPacket(Y.ZC.NOTIFY_VANISH, c);
+      Q.hookPacket(Y.ZC.NOTIFY_MOVE, d);
+      Q.hookPacket(Y.ZC.STOPMOVE, e);
+      Q.hookPacket(Y.ZC.NOTIFY_ACT, k);
+      Q.hookPacket(Y.ZC.NOTIFY_ACT2, k);
+      Q.hookPacket(Y.ZC.NOTIFY_ACT3, k);
+      Q.hookPacket(Y.ZC.NOTIFY_CHAT, g);
+      Q.hookPacket(Y.ZC.SHOWSCRIPT, g);
+      Q.hookPacket(Y.ZC.NPC_CHAT, t);
+      Q.hookPacket(Y.ZC.ACK_REQNAME, l);
+      Q.hookPacket(Y.ZC.ACK_REQNAME3, l);
+      Q.hookPacket(Y.ZC.ACK_REQNAMEALL, l);
+      Q.hookPacket(Y.ZC.ACK_REQNAMEALL2, l);
+      Q.hookPacket(Y.ZC.CHANGE_DIRECTION, p);
+      Q.hookPacket(Y.ZC.SPRITE_CHANGE, v);
+      Q.hookPacket(Y.ZC.SPRITE_CHANGE2, v);
+      Q.hookPacket(Y.ZC.NPCSPRITE_CHANGE, u);
+      Q.hookPacket(Y.ZC.USE_SKILL, A);
+      Q.hookPacket(Y.ZC.USE_SKILL2, A);
+      Q.hookPacket(Y.ZC.NOTIFY_SKILL, C);
+      Q.hookPacket(Y.ZC.NOTIFY_SKILL2, C);
+      Q.hookPacket(Y.ZC.NOTIFY_SKILL_POSITION, C);
+      Q.hookPacket(Y.ZC.SELECTCART, D);
+      Q.hookPacket(Y.ZC.USESKILL_ACK, y);
+      Q.hookPacket(Y.ZC.USESKILL_ACK2, y);
+      Q.hookPacket(Y.ZC.USESKILL_ACK3, y);
+      Q.hookPacket(Y.ZC.STATE_CHANGE, L);
+      Q.hookPacket(Y.ZC.STATE_CHANGE3, L);
+      Q.hookPacket(Y.ZC.MSG_STATE_CHANGE, J);
+      Q.hookPacket(Y.ZC.MSG_STATE_CHANGE2, J);
+      Q.hookPacket(Y.ZC.MSG_STATE_CHANGE3, J);
+      Q.hookPacket(Y.ZC.MSG_STATE_CHANGE4, J);
+      Q.hookPacket(Y.ZC.MSG_STATE_CHANGE5, J);
+      Q.hookPacket(Y.ZC.STORE_ENTRY, x);
+      Q.hookPacket(Y.ZC.DISAPPEAR_ENTRY, M);
+      Q.hookPacket(Y.ZC.BUYING_STORE_ENTRY, x);
+      Q.hookPacket(Y.ZC.DISAPPEAR_BUYING_STORE_ENTRY, M);
+      Q.hookPacket(Y.ZC.ROOM_NEWENTRY, x);
+      Q.hookPacket(Y.ZC.DESTROY_ROOM, M);
+      Q.hookPacket(Y.ZC.SKILL_ENTRY, B);
+      Q.hookPacket(Y.ZC.SKILL_ENTRY2, B);
+      Q.hookPacket(Y.ZC.SKILL_ENTRY3, B);
+      Q.hookPacket(Y.ZC.SKILL_ENTRY4, B);
+      Q.hookPacket(Y.ZC.SKILL_ENTRY5, B);
+      Q.hookPacket(Y.ZC.SKILL_DISAPPEAR, O);
+      Q.hookPacket(Y.ZC.DISPEL, z);
+      Q.hookPacket(Y.ZC.HIGHJUMP, m);
+      Q.hookPacket(Y.ZC.FASTMOVE, h);
+      Q.hookPacket(Y.ZC.RESURRECTION, q);
+      Q.hookPacket(Y.ZC.EMOTION, r);
+      Q.hookPacket(Y.ZC.NOTIFY_MONSTER_HP, f);
+      Q.hookPacket(Y.ZC.QUEST_NOTIFY_EFFECT, n);
+      Q.hookPacket(Y.ZC.BLADESTOP, F);
+      Q.hookPacket(Y.ZC.NOTIFY_EXP, G);
+      Q.hookPacket(Y.ZC.BOSS_INFO, H);
+      Q.hookPacket(Y.ZC.MVP, K);
+      Q.hookPacket(Y.ZC.MVP_GETTING_ITEM, P);
+      Q.hookPacket(Y.ZC.SPIRITS, ea);
+      Q.hookPacket(Y.ZC.SPIRITS2, ea);
+      Q.hookPacket(Y.ZC.ACK_CHANGE_TITLE, R);
+      Q.hookPacket(Y.ZC.RS_CREATE_INSTANCE, U);
+      Q.hookPacket(Y.ZC.RS_DEL_INSTANCE, V);
     };
   },
 );

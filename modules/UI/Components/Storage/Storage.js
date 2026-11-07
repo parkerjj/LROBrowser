@@ -14,11 +14,11 @@ define(
         e = B(a)[0].getAttribute("data-index"),
         f = 0,
         g = 0;
-      0 > e ? (f = Q.height) : ((f = F[e]), (g = K[e]));
+      0 > e ? (f = N.height) : ((f = H[e]), (g = K[e]));
       var h;
       h = setInterval(function () {
-        var a = Math.floor((G.screen.y - b - 20) / 32),
-          h = Math.floor((G.screen.x - c - 25) / 32);
+        var a = Math.floor((z.screen.y - b - 20) / 32),
+          h = Math.floor((z.screen.x - c - 25) / 32);
         0 > e
           ? (a = Math.min(Math.max(a, 12), 14))
           : ((a = Math.min(Math.max(a, 3), 8)),
@@ -29,7 +29,7 @@ define(
         1 === a.which &&
           (clearInterval(h),
           B(window).off("mouseup.resize"),
-          0 > e ? (Q.height = f) : ((F[e] = f), (K[e] = g)));
+          0 > e ? (N.height = f) : ((H[e] = f), (K[e] = g)));
       });
     }
     function d(a, b, c) {
@@ -38,44 +38,44 @@ define(
         : ((a = Math.min(Math.max(a, 3), 8)),
           (b = Math.min(Math.max(b, 3), 8)));
       0 > c
-        ? (L.ui.find(".MainWindow .container .content").css("height", 32 * a),
-          L.ui.find(".MainWindow").css("height", 50 + 32 * a))
-        : (L.ui
+        ? (F.ui.find(".MainWindow .container .content").css("height", 32 * a),
+          F.ui.find(".MainWindow").css("height", 50 + 32 * a))
+        : (F.ui
             .find(
               '.SecondaryWindow[data-index\x3d"' + c + '"] .container .content',
             )
             .css("height", 32 * a),
-          L.ui
+          F.ui
             .find('.SecondaryWindow[data-index\x3d"' + c + '"]')
             .css("height", 50 + 32 * a),
-          L.ui
+          F.ui
             .find(
               '.SecondaryWindow[data-index\x3d"' + c + '"] .container .content',
             )
             .css("width", 40 + 32 * b),
-          L.ui
+          F.ui
             .find('.SecondaryWindow[data-index\x3d"' + c + '"]')
             .css("width", 55 + 32 * b));
     }
     function e() {
       var a = B(this).index();
-      Q.tab = a;
-      H.loadFile(
+      N.tab = a;
+      O.loadFile(
         A.INTERFACE_PATH + "basic_interface/tab_itm_ex_0" + (a + 1) + ".bmp",
         function (a) {
-          L.ui.find(".tabs").css("backgroundImage", 'url("' + a + '")');
-          n();
+          F.ui.find(".tabs").css("backgroundImage", 'url("' + a + '")');
+          k();
         },
       );
     }
-    function l() {
-      var a = L.ui.find(".MainWindow .secondline .searchtext").val();
-      L.ui
+    function m() {
+      var a = F.ui.find(".MainWindow .secondline .searchtext").val();
+      F.ui
         .find('.SecondaryWindow[data-index\x3d"8"] .container .content')
         .empty();
-      for (var b = 0, c = y.length; b < c; ++b) L.addItemSubSearch(y[b], a);
-      L.ui.find('.SecondaryWindow[data-index\x3d"8"]').is(":visible") || r(8);
-      L.ui.find(".MainWindow .secondline .searchtext").val("");
+      for (var b = 0, c = G.length; b < c; ++b) F.addItemSubSearch(G[b], a);
+      F.ui.find('.SecondaryWindow[data-index\x3d"8"]').is(":visible") || r(8);
+      F.ui.find(".MainWindow .secondline .searchtext").val("");
     }
     function h() {
       var a = parseInt(this.getAttribute("data-index"), 10);
@@ -83,11 +83,11 @@ define(
     }
     function r(a) {
       var b = "",
-        c = L.ui.find('.SecondaryWindow[data-index\x3d"' + a + '"]');
-      Q.tabsOpened[a] = !c.is(":visible");
-      Q.tabsOpened[a]
-        ? (M.push(a), c.show())
-        : (-1 < M.indexOf(a) && M.splice(M.indexOf(a), 1), c.hide());
+        c = F.ui.find('.SecondaryWindow[data-index\x3d"' + a + '"]');
+      N.tabsOpened[a] = !c.is(":visible");
+      N.tabsOpened[a]
+        ? (P.push(a), c.show())
+        : (-1 < P.indexOf(a) && P.splice(P.indexOf(a), 1), c.hide());
       switch (a) {
         case 0:
           b = "\u00bc\u00d2\u00ba\u00f1";
@@ -111,15 +111,15 @@ define(
           b = "\u00b1\u00e2\u00c5\u00b8";
       }
       8 != a &&
-        H.loadFile(
+        O.loadFile(
           A.INTERFACE_PATH +
             "basic_interface/" +
             b +
             "-" +
-            (Q.tabsOpened[a] ? "1" : "2") +
+            (N.tabsOpened[a] ? "1" : "2") +
             ".bmp",
           function (b) {
-            L.ui
+            F.ui
               .find(
                 '.MainWindow .footer .firstline button[data-index\x3d"' +
                   a +
@@ -129,11 +129,11 @@ define(
           },
         );
     }
-    function t(a) {
+    function q(a) {
       var b, c;
       try {
         c = JSON.parse(a.originalEvent.dataTransfer.getData("Text"));
-      } catch (S) {}
+      } catch (U) {}
       a.stopImmediatePropagation();
       if (!c) return !1;
       if (("item" == c.type) & ("OnPushCart" == c.from)) {
@@ -144,11 +144,11 @@ define(
             x.setType("number", !1, b.count),
             (x.onSubmitRequest = function (a) {
               x.remove();
-              L.reqAddItem1(b.index, parseInt(a, 10));
+              F.reqAddItem1(b.index, parseInt(a, 10));
             }),
             !1
           );
-        L.reqAddItem1(b.index, 1);
+        F.reqAddItem1(b.index, 1);
         return !1;
       }
       if (("item" == c.type) & ("Inventory" == c.from)) {
@@ -159,41 +159,41 @@ define(
             x.setType("number", !1, b.count),
             (x.onSubmitRequest = function (a) {
               x.remove();
-              L.reqAddItem(b.index, parseInt(a, 10));
+              F.reqAddItem(b.index, parseInt(a, 10));
             }),
             !1
           );
-        L.reqAddItem(b.index, 1);
+        F.reqAddItem(b.index, 1);
         return !1;
       }
     }
-    function n() {
-      L.ui.find(".container .content").empty();
+    function k() {
+      F.ui.find(".container .content").empty();
       var a,
         b,
-        c = y.slice(0);
-      L.ORDER.RISE === Q.order
+        c = G.slice(0);
+      F.ORDER.RISE === N.order
         ? c.sort(function (a, b) {
             return B.escape(A.getItemName(a)).localeCompare(
               B.escape(A.getItemName(b)),
             );
           })
-        : L.ORDER.FALL === Q.order &&
+        : F.ORDER.FALL === N.order &&
           c.sort(function (a, b) {
             return B.escape(A.getItemName(b)).localeCompare(
               B.escape(A.getItemName(a)),
             );
           });
       a = 0;
-      for (b = c.length; a < b; ++a) L.addItemSub(c[a]);
+      for (b = c.length; a < b; ++a) F.addItemSub(c[a]);
     }
     function g(a) {
       var b, c;
       b = 0;
-      for (c = y.length; b < c; ++b) if (y[b].index === a) return b;
+      for (c = G.length; b < c; ++b) if (G[b].index === a) return b;
       return -1;
     }
-    function p(a) {
+    function t(a) {
       var b;
       a.originalEvent.wheelDelta
         ? ((b = a.originalEvent.wheelDelta / 120), window.opera && (b = -b))
@@ -201,11 +201,11 @@ define(
       this.scrollTop = 32 * Math.floor(this.scrollTop / 32) - 32 * b;
       return !1;
     }
-    function k() {
+    function l() {
       var a = parseInt(this.getAttribute("data-index"), 10),
         a = g(a);
       if (!(0 > a)) {
-        var a = y[a],
+        var a = G[a],
           b = B(this).position(),
           c = B(this).parents().eq(4).find(".overlay");
         c.show();
@@ -215,9 +215,9 @@ define(
       }
     }
     function f() {
-      L.ui.find(".overlay").hide();
+      F.ui.find(".overlay").hide();
     }
-    function m(a) {
+    function n(a) {
       var b = parseInt(this.getAttribute("data-index"), 10),
         b = g(b);
       if (-1 !== b) {
@@ -229,48 +229,48 @@ define(
         a.originalEvent.dataTransfer.setData(
           "Text",
           JSON.stringify(
-            (window._OBJ_DRAG_ = { type: "item", from: "Storage", data: y[b] }),
+            (window._OBJ_DRAG_ = { type: "item", from: "Storage", data: G[b] }),
           ),
         );
         f();
       }
     }
-    function q() {
+    function p() {
       delete window._OBJ_DRAG_;
     }
     function v() {
       var a = B(this).val();
-      Q.order =
-        "Rise" == a ? L.ORDER.RISE : "Fall" == a ? L.ORDER.FALL : L.ORDER.BASIC;
-      n();
+      N.order =
+        "Rise" == a ? F.ORDER.RISE : "Fall" == a ? F.ORDER.FALL : F.ORDER.BASIC;
+      k();
     }
     function u(a) {
       a.stopImmediatePropagation();
       a = parseInt(this.getAttribute("data-index"), 10);
       a = g(a);
       if (-1 === a) return !1;
-      J.uid === y[a].ITID && J.remove();
-      J.append();
-      J.uid = y[a].ITID;
-      J.setItem(y[a]);
+      M.uid === G[a].ITID && M.remove();
+      M.append();
+      M.uid = G[a].ITID;
+      M.setItem(G[a]);
       return !1;
     }
     var A = a("DB/DBManager"),
       D = a("Controls/KeyEventHandler"),
       B = a("Utils/jquery"),
-      H = a("Core/Client"),
+      O = a("Core/Client"),
       C = a("Core/Preferences"),
-      z = a("Renderer/Renderer"),
-      G = a("Controls/MouseEventHandler"),
-      P = a("Preferences/Controls"),
-      N = a("UI/UIManager"),
-      I = a("UI/UIComponent"),
+      y = a("Renderer/Renderer"),
+      z = a("Controls/MouseEventHandler"),
+      J = a("Preferences/Controls"),
+      I = a("UI/UIManager"),
+      L = a("UI/UIComponent"),
       x = a("UI/Components/InputBox/InputBox"),
-      J = a("UI/Components/ItemInfo/ItemInfo"),
+      M = a("UI/Components/ItemInfo/ItemInfo"),
       E = a("text!./Storage.html");
     a = a("text!./Storage.css");
-    var L = new I("Storage", E, a);
-    L.ITEM = {
+    var F = new L("Storage", E, a);
+    F.ITEM = {
       HEALING: 0,
       USABLE: 2,
       ETC: 3,
@@ -283,20 +283,20 @@ define(
       USABLE_SKILL: 11,
       USABLE_UNK: 18,
     };
-    L.TAB = { ITEM: 0, CASH: 1, ARMOR: 2, WEAPON: 3, AMMO: 4, CARD: 5, ETC: 6 };
-    L.ORDER = { BASIC: 0, RISE: 1, FALL: 2 };
-    var y = [],
-      F = Array(8).fill(3, 0, 8),
+    F.TAB = { ITEM: 0, CASH: 1, ARMOR: 2, WEAPON: 3, AMMO: 4, CARD: 5, ETC: 6 };
+    F.ORDER = { BASIC: 0, RISE: 1, FALL: 2 };
+    var G = [],
+      H = Array(8).fill(3, 0, 8),
       K = Array(8).fill(1, 0, 8),
-      M = [],
-      Q = C.get(
+      P = [],
+      N = C.get(
         "Storage",
         {
           x: 0,
           y: 0,
           height: 6,
-          order: L.ORDER.BASIC,
-          tab: L.TAB.ITEM,
+          order: F.ORDER.BASIC,
+          tab: F.TAB.ITEM,
           tabsPositions: {
             0: { x: 300, y: 0 },
             1: { x: 300, y: 160 },
@@ -312,7 +312,7 @@ define(
         },
         1.3,
       );
-    L.init = function () {
+    F.init = function () {
       var a = this.ui.find(".MainWindow"),
         g = this.ui.find(".SecondaryWindow");
       this.ui.find(".tabs button").mousedown(e);
@@ -322,118 +322,118 @@ define(
         B(".searchsf").hide();
       });
       a.find(".footer .firstline button").click(h);
-      a.find(".footer .secondline .search").click(l);
-      H.loadFile(
+      a.find(".footer .secondline .search").click(m);
+      O.loadFile(
         A.INTERFACE_PATH +
           "basic_interface/tab_itm_ex_0" +
-          (Q.tab + 1) +
+          (N.tab + 1) +
           ".bmp",
         function (a) {
-          L.ui.find(".tabs").css("backgroundImage", 'url("' + a + '")');
+          F.ui.find(".tabs").css("backgroundImage", 'url("' + a + '")');
         },
       );
       this.ui
-        .on("drop", t)
+        .on("drop", q)
         .on("dragover", b)
         .find(".container .content")
-        .on("mousewheel DOMMouseScroll", p)
-        .on("mouseover", ".item", k)
+        .on("mousewheel DOMMouseScroll", t)
+        .on("mouseover", ".item", l)
         .on("mouseout", ".item", f)
-        .on("dragstart", ".item", m)
-        .on("dragend", ".item", q)
+        .on("dragstart", ".item", n)
+        .on("dragend", ".item", p)
         .on("contextmenu", ".item", u);
       this.ui.find("select").change(v);
-      for (var n = {}, r = -1; r < g.length; n = { _main: n._main }, r++) {
-        n._main = void 0;
-        var T,
+      for (var k = {}, r = -1; r < g.length; k = { _main: k._main }, r++) {
+        k._main = void 0;
+        var V,
           x = 0,
-          R = 0,
-          M = 0;
+          z = 0,
+          P = 0;
         -1 == r
-          ? ((n._main = a), (T = Q.height), (R = Q.x), (M = Q.y))
-          : ((n._main = B(g[r])),
-            (T = F[r]),
+          ? ((k._main = a), (V = N.height), (z = N.x), (P = N.y))
+          : ((k._main = B(g[r])),
+            (V = H[r]),
             (x = K[r]),
-            void 0 !== Q.tabsPositions[r] &&
-              ((R = Q.tabsPositions[r].x), (M = Q.tabsPositions[r].y)));
-        this.draggable.call({ ui: n._main }, n._main.find(".titlebar"));
-        n._main.find(".footer .extend").mousedown(
+            void 0 !== N.tabsPositions[r] &&
+              ((z = N.tabsPositions[r].x), (P = N.tabsPositions[r].y)));
+        this.draggable.call({ ui: k._main }, k._main.find(".titlebar"));
+        k._main.find(".footer .extend").mousedown(
           (function (a) {
             return function () {
               c(a._main);
             };
-          })(n),
+          })(k),
         );
-        d(T, x, r);
-        n._main.css({
-          top: Math.min(Math.max(0, M), (z.height - n._main.height()) / 2),
-          left: Math.min(Math.max(0, R), z.width - n._main.width()),
+        d(V, x, r);
+        k._main.css({
+          top: Math.min(Math.max(0, P), (y.height - k._main.height()) / 2),
+          left: Math.min(Math.max(0, z), y.width - k._main.width()),
         });
       }
     };
-    L.onAppend = function () {
-      P.talk = !0;
+    F.onAppend = function () {
+      J.talk = !0;
       var a = B._data(window, "events").keydown;
       a.unshift(a.pop());
     };
-    L.onKeyDown = function (a) {
+    F.onKeyDown = function (a) {
       return a.which === D.ESCAPE
-        ? (0 < M.length && (r(M[M.length - 1]), a.stopImmediatePropagation()),
+        ? (0 < P.length && (r(P[P.length - 1]), a.stopImmediatePropagation()),
           !1)
         : !0;
     };
-    L.onRemove = function () {
-      P.talk = !1;
+    F.onRemove = function () {
+      J.talk = !1;
       this.ui.find(".container .content").empty();
-      y.length = 0;
-      Q.y = parseInt(this.ui.css("top"), 10);
-      Q.x = parseInt(this.ui.css("left"), 10);
-      Q.height = Math.floor((this.ui.height() - 20) / 32);
-      Q.save();
+      G.length = 0;
+      N.y = parseInt(this.ui.css("top"), 10);
+      N.x = parseInt(this.ui.css("left"), 10);
+      N.height = Math.floor((this.ui.height() - 20) / 32);
+      N.save();
     };
-    L.setItems = function (a) {
+    F.setItems = function (a) {
       var b, c;
       b = 0;
-      for (c = a.length; b < c; ++b) this.addItemSub(a[b]) && y.push(a[b]);
+      for (c = a.length; b < c; ++b) this.addItemSub(a[b]) && G.push(a[b]);
     };
-    L.addItem = function (a) {
+    F.addItem = function (a) {
       var b = g(a.index);
       -1 < b
-        ? ((y[b].count += a.count),
+        ? ((G[b].count += a.count),
           this.ui
             .find('.item[data-index\x3d"' + a.index + '"] .count')
-            .text(y[b].count))
-        : this.addItemSub(a) && y.push(a);
+            .text(G[b].count))
+        : this.addItemSub(a) && G.push(a);
     };
-    L.addItemSub = function (a) {
+    F.addItemSub = function (a) {
       var b;
       switch (a.type) {
-        case L.ITEM.HEALING:
-        case L.ITEM.USABLE:
-        case L.ITEM.USABLE_SKILL:
-        case L.ITEM.USABLE_SKILL_UNK:
-          b = L.TAB.ITEM;
+        case F.ITEM.HEALING:
+        case F.ITEM.USABLE:
+        case F.ITEM.USABLE_SKILL:
+        case F.ITEM.USABLE_SKILL_UNK:
+          b = F.TAB.ITEM;
           break;
-        case L.ITEM.USABLE_UNK:
-          b = L.TAB.CASH;
+        case F.ITEM.USABLE_UNK:
+          b = F.TAB.CASH;
           break;
-        case L.ITEM.EQUIP:
-        case L.ITEM.PETEQUIP:
-          b = L.TAB.ARMOR;
+        case F.ITEM.EQUIP:
+        case F.ITEM.PETEQUIP:
+          b = F.TAB.ARMOR;
           break;
-        case L.ITEM.WEAPON:
-          b = L.TAB.WEAPON;
+        case F.ITEM.WEAPON:
+          b = F.TAB.WEAPON;
           break;
-        case L.ITEM.AMMO:
-          b = L.TAB.AMMO;
+        case F.ITEM.AMMO:
+          b = F.TAB.AMMO;
           break;
-        case L.ITEM.CARD:
-          b = L.TAB.CARD;
+        case F.ITEM.CARD:
+          b = F.TAB.CARD;
           break;
         default:
-        case L.ITEM.ETC:
-        case L.ITEM.PETEGG:
-          b = L.TAB.ETC;
+        case F.ITEM.ETC:
+        case F.ITEM.PETEGG:
+          b = F.TAB.ETC;
       }
       var c = A.getItemInfo(a.ITID),
         d =
@@ -446,11 +446,11 @@ define(
           '\x3c/div\x3e\x3cspan class\x3d"name"\x3e' +
           B.escape(A.getItemName(a)) +
           "\x3c/span\x3e\x3c/div\x3e";
-      b === Q.tab && L.ui.find(".MainWindow .container .content").append(d);
-      L.ui
+      b === N.tab && F.ui.find(".MainWindow .container .content").append(d);
+      F.ui
         .find('.SecondaryWindow[data-index\x3d"' + b + '"] .container .content')
         .append(d);
-      H.loadFile(
+      O.loadFile(
         A.INTERFACE_PATH +
           "item/" +
           (a.IsIdentified
@@ -465,7 +465,7 @@ define(
       );
       return !0;
     };
-    L.addItemSubSearch = function (a, b) {
+    F.addItemSubSearch = function (a, b) {
       var c = A.getItemInfo(a.ITID);
       B.escape(A.getItemName(a)).toLowerCase().includes(b.toLowerCase()) &&
         ((b =
@@ -478,10 +478,10 @@ define(
           '\x3c/div\x3e\x3cspan class\x3d"name"\x3e' +
           B.escape(A.getItemName(a)) +
           "\x3c/span\x3e\x3c/div\x3e"),
-        L.ui
+        F.ui
           .find('.SecondaryWindow[data-index\x3d"8"] .container .content')
           .append(b),
-        H.loadFile(
+        O.loadFile(
           A.INTERFACE_PATH +
             "item/" +
             (a.IsIdentified
@@ -496,28 +496,28 @@ define(
         ));
       return !0;
     };
-    L.removeItem = function (a, b) {
+    F.removeItem = function (a, b) {
       var c = g(a);
       if (0 > c) return null;
-      if (y[c].count && ((y[c].count -= b), 0 < y[c].count))
+      if (G[c].count && ((G[c].count -= b), 0 < G[c].count))
         return (
           this.ui
             .find('.item[data-index\x3d"' + a + '"] .count')
-            .text(y[c].count),
-          y[c]
+            .text(G[c].count),
+          G[c]
         );
-      b = y[c];
-      y.splice(c, 1);
+      b = G[c];
+      G.splice(c, 1);
       this.ui.find('.item[data-index\x3d"' + a + '"]').remove();
       return b;
     };
-    L.setItemInfo = function (a, b) {
+    F.setItemInfo = function (a, b) {
       this.ui.find(".footer .current").text(a);
       this.ui.find(".footer .limit").text(b);
     };
-    L.onClosePressed = function () {};
-    L.reqAddItem = function () {};
-    L.reqRemoveItem = function () {};
-    return N.addComponent(L);
+    F.onClosePressed = function () {};
+    F.reqAddItem = function () {};
+    F.reqRemoveItem = function () {};
+    return I.addComponent(F);
   },
 );

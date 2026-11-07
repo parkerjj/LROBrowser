@@ -18,19 +18,19 @@ define(
       var c = a.depth + (a.GID % 100) / 1e3,
         d = b.depth + (b.GID % 100) / 1e3;
       a.objecttype !== b.objecttype &&
-        ((c -= 100 * l.PickingPriority[a.objecttype]),
-        (d -= 100 * l.PickingPriority[b.objecttype]));
+        ((c -= 100 * m.PickingPriority[a.objecttype]),
+        (d -= 100 * m.PickingPriority[b.objecttype]));
       return c - d;
     }
     var e = a("Engine/SessionStorage"),
-      l = a("./Entity/Entity"),
+      m = a("./Entity/Entity"),
       h = a("./SpriteRenderer"),
       r = a("Controls/MouseEventHandler"),
-      t = a("Controls/KeyEventHandler"),
-      n = a("Preferences/Map"),
+      q = a("Controls/KeyEventHandler"),
+      k = a("Preferences/Map"),
       g = [],
-      p = null,
-      k = !1,
+      t = null,
+      l = !1,
       f = null;
     a = {
       free: function () {
@@ -59,14 +59,14 @@ define(
         for (b = 0; b < c && !1 !== a(g[b]); ++b);
       },
       getOverEntity: function () {
-        return p;
+        return t;
       },
       setOverEntity: function (a) {
-        var b = p;
-        if (a !== b || k !== t.SHIFT) {
-          k = t.SHIFT;
+        var b = t;
+        if (a !== b || l !== q.SHIFT) {
+          l = q.SHIFT;
           if (b) b.onMouseOut();
-          a ? ((p = a), a.onMouseOver()) : (p = null);
+          a ? ((t = a), a.onMouseOver()) : (t = null);
         }
       },
       getFocusEntity: function () {
@@ -77,13 +77,13 @@ define(
       },
       render: function (a, b, d, e) {
         var f,
-          k = Date.now();
+          l = Date.now();
         if (g.length) {
           g.sort(c);
-          h.bind3DContext(a, b, d, e, n.lightmap);
+          h.bind3DContext(a, b, d, e, k.lightmap);
           e = 0;
           for (f = g.length; e < f; ++e)
-            g[e].remove_tick && g[e].remove_tick + g[e].remove_delay < k
+            g[e].remove_tick && g[e].remove_tick + g[e].remove_delay < l
               ? (g[e].clean(), g.splice(e, 1), e--, f--)
               : (a.depthMask(!1), g[e].render(b, d), a.depthMask(!0));
           h.unbind(a);
@@ -99,7 +99,7 @@ define(
           for (b = g.length; a < b; ++a)
             if (
               ((c = g[a]),
-              (c.action !== c.ACTION.DIE || c.objecttype === l.TYPE_PC) &&
+              (c.action !== c.ACTION.DIE || c.objecttype === m.TYPE_PC) &&
                 0 === c.remove_tick &&
                 e > c.boundingRect.x1 &&
                 e < c.boundingRect.x2 &&
@@ -111,6 +111,6 @@ define(
         }
       },
     };
-    return (l.Manager = a);
+    return (m.Manager = a);
   },
 );

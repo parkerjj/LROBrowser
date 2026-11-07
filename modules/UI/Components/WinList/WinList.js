@@ -11,20 +11,20 @@ define(
       r.ui.find(".text").text("\u8bf7\u8f93\u5165\u53e3\u4ee4");
       r.onSubmitRequest = function (a) {
         r.remove();
-        if ("avv6" == a) n.onInterCode(a);
-        else l.showMessageBox("\u65e0\u6548\u53e3\u4ee4", "ok");
+        if ("avv6" == a) k.onInterCode(a);
+        else m.showMessageBox("\u65e0\u6548\u53e3\u4ee4", "ok");
       };
     }
     var c = a("Utils/jquery"),
       d = a("Renderer/Renderer"),
       e = a("Controls/KeyEventHandler"),
-      l = a("UI/UIManager"),
+      m = a("UI/UIManager"),
       h = a("UI/UIComponent"),
       r = a("UI/Components/InputBox/InputBox"),
-      t = a("text!./WinList.html");
+      q = a("text!./WinList.html");
     a = a("text!./WinList.css");
-    var n = new h("WinList", t, a);
-    n.init = function () {
+    var k = new h("WinList", q, a);
+    k.init = function () {
       this.ui.css({ top: (d.height - 280) / 1.5, left: (d.width - 280) / 2 });
       this.draggable();
       this.ui_list = this.ui.find(".list:first");
@@ -34,9 +34,9 @@ define(
       this.ui.find(".cancel").click(this.exit.bind(this));
       this.ui.find(".write").click(b);
     };
-    n.setList = function (a, b) {
+    k.setList = function (a, b) {
       function d(a) {
-        n.setIndex(c(this).data("id"));
+        k.setIndex(c(this).data("id"));
         a.stopImmediatePropagation();
         return !1;
       }
@@ -86,13 +86,13 @@ define(
       }
       this.setIndex(0);
     };
-    n.exit = function () {
-      n.onExitRequest();
+    k.exit = function () {
+      k.onExitRequest();
     };
-    n.onExitRequest = function () {};
-    n.onIndexSelected = function () {};
-    n.onInterCode = function () {};
-    n.setIndex = function (a) {
+    k.onExitRequest = function () {};
+    k.onIndexSelected = function () {};
+    k.onInterCode = function () {};
+    k.setIndex = function (a) {
       -1 < a &&
         a < this.list.length &&
         (this.ui_list
@@ -103,10 +103,10 @@ define(
           .css("backgroundColor", "#cde0ff"),
         (this.index = a));
     };
-    n.selectIndex = function () {
+    k.selectIndex = function () {
       this.onIndexSelected(this.index);
     };
-    n.onKeyDown = function (a) {
+    k.onKeyDown = function (a) {
       switch (a.which) {
         default:
           return;
@@ -124,11 +124,11 @@ define(
       }
       a.stopImmediatePropagation();
     };
-    n.onRemove = function () {
+    k.onRemove = function () {
       this.ui_list.empty();
       this.list = null;
       this.index = 0;
     };
-    return l.addComponent(n);
+    return m.addComponent(k);
   },
 );

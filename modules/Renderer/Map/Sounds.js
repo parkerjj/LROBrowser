@@ -11,16 +11,16 @@ define("Renderer/Map/Sounds", [
     free: function () {
       d.length = 0;
     },
-    render: function (a, l) {
+    render: function (a, m) {
       var e,
         r,
-        t = d.length;
-      for (r = 0; r < t; ++r) {
+        q = d.length;
+      for (r = 0; r < q; ++r) {
         e = d[r];
-        var n = Math.floor(c.dist(e.pos, a));
-        e.tick < l &&
-          n <= e.range &&
-          (b.playPosition(e.file, e.pos), (e.tick = l + 1e3 * e.cycle));
+        var k = Math.floor(c.dist(e.pos, a));
+        e.tick < m &&
+          k <= e.range &&
+          (b.playPosition(e.file, e.pos), (e.tick = m + 1e3 * e.cycle));
       }
     },
   };

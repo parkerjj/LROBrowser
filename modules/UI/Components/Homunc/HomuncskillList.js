@@ -27,7 +27,7 @@ define(
       a.hasClass("skill") || (a = a.parent());
       D.useSkillID(parseInt(a.data("index"), 10), a.find(".current").text());
     }
-    function l(a) {
+    function m(a) {
       var b,
         c = C.length;
       for (b = 0; b < c; ++b) if (C[b].SKID === a) return C[b];
@@ -35,21 +35,21 @@ define(
     }
     function h() {
       var a = g(this),
-        a = l(parseInt(a.data("index"), 10));
+        a = m(parseInt(a.data("index"), 10));
       u.uid != a.SKID ? (u.append(), u.setSkill(a.SKID)) : u.remove();
     }
     function r() {
       D.ui.hide();
     }
-    function t(a) {
+    function q(a) {
       a.stopImmediatePropagation();
       return !1;
     }
-    function n(a) {
+    function k(a) {
       var b = parseInt(this.getAttribute("data-index"), 10),
-        b = l(b),
+        b = m(b),
         c = g(this).find(".current").text();
-      if (!b || !b.level || !b.type) return t(a);
+      if (!b || !b.level || !b.type) return q(a);
       var d = new Image();
       d.src = this.src;
       a.originalEvent.dataTransfer.setDragImage(d, 12, 12);
@@ -66,24 +66,24 @@ define(
       );
     }
     var g = a("Utils/jquery"),
-      p = a("DB/DBManager"),
-      k = a("Core/Client"),
+      t = a("DB/DBManager"),
+      l = a("Core/Client"),
       f = a("Core/Preferences");
     a("Renderer/Renderer");
-    var m = a("UI/UIManager"),
-      q = a("UI/UIComponent"),
+    var n = a("UI/UIManager"),
+      p = a("UI/UIComponent"),
       v = a("UI/Components/SkillTargetSelection/SkillTargetSelection"),
       u = a("UI/Components/SkillDescription/SkillDescription"),
       A = a("text!./HomuncskillList.html");
     a = a("text!./HomuncskillList.css");
-    var D = new q("HomuncskillList", A, a),
+    var D = new p("HomuncskillList", A, a),
       B = 0,
-      H;
+      O;
     f.get("HomuncskillList", { x: 100, y: 200, show: !1 }, 1);
     var C = [];
     D.init = function () {
       this.draggable(this.ui.find(".titlebar"));
-      H = this.ui.find(".btn.levelup").detach().mousedown(t).click(d);
+      O = this.ui.find(".btn.levelup").detach().mousedown(q).click(d);
       this.ui.find(".close").click(r);
       this.ui
         .find(".content")
@@ -91,7 +91,7 @@ define(
         .on("click", ".arw_left", c)
         .on("click", ".arw_right", b)
         .on("contextmenu", ".skill", h)
-        .on("dragstart", ".skill", n)
+        .on("dragstart", ".skill", k)
         .on("dragend", ".skill", function () {
           delete window._OBJ_DRAG_;
         });
@@ -118,12 +118,12 @@ define(
       for (c = a.length; b < c; ++b) this.addSkill(a[b]);
     };
     D.addSkill = function (a) {
-      if (a.SKID in p.getAllSkillInfo())
+      if (a.SKID in t.getAllSkillInfo())
         if (this.ui.find(".skill.id" + a.SKID + ":first").length)
           this.updateSkill(a);
         else {
-          var b = p.getSkillInfo(a.SKID),
-            c = H.clone(!0),
+          var b = t.getSkillInfo(a.SKID),
+            c = O.clone(!0),
             d = g(
               '\x3ctr class\x3d"skill id' +
                 a.SKID +
@@ -156,8 +156,8 @@ define(
                 "\x3c/td\x3e\x3c/tr\x3e",
             );
           (a.upgradable && B) || c.hide();
-          k.loadFile(
-            p.INTERFACE_PATH + "basic_interface/arw_left.bmp",
+          l.loadFile(
+            t.INTERFACE_PATH + "basic_interface/arw_left.bmp",
             function (a) {
               d.find(".arw_left").attr(
                 "style",
@@ -167,8 +167,8 @@ define(
               );
             },
           );
-          k.loadFile(
-            p.INTERFACE_PATH + "basic_interface/arw_right.bmp",
+          l.loadFile(
+            t.INTERFACE_PATH + "basic_interface/arw_right.bmp",
             function (a) {
               d.find(".arw_right").attr(
                 "style",
@@ -179,8 +179,8 @@ define(
             },
           );
           this.ui.find(".content table").append(d);
-          k.loadFile(
-            p.INTERFACE_PATH + "item/" + b.Name + ".bmp",
+          l.loadFile(
+            t.INTERFACE_PATH + "item/" + b.Name + ".bmp",
             function (a) {
               d.find(".icon img").attr("src", a);
             },
@@ -204,7 +204,7 @@ define(
       }
     };
     D.useSkillID = function (a, b) {
-      (a = l(a)) && b && a.type && D.useSkill(a, b);
+      (a = m(a)) && b && a.type && D.useSkill(a, b);
     };
     D.useSkill = (function () {
       var a = 0;
@@ -223,7 +223,7 @@ define(
     })();
     D.onUseSkill = function () {};
     D.onIncreaseSkill = function () {};
-    D.getSkillById = l;
-    return m.addComponent(D);
+    D.getSkillById = m;
+    return n.addComponent(D);
   },
 );

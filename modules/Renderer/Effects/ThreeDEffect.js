@@ -3,7 +3,7 @@ define(
   "Utils/WebGL Core/Client Renderer/SpriteRenderer Renderer/EntityManager Renderer/Map/Altitude Renderer/Camera".split(
     " ",
   ),
-  function (a, b, c, d, e, l) {
+  function (a, b, c, d, e, m) {
     function h(a, b) {
       return parseFloat(Math.min(a + Math.random() * (b - a), b).toFixed(3));
     }
@@ -11,7 +11,7 @@ define(
       var d = b.position,
         e = b.otherPosition,
         g = b.startTick,
-        n = b.endTick;
+        k = b.endTick;
       this.AID = c.ownerAID;
       this.ownerEntity = c.ownerEntity;
       this.otherEntity = c.otherEntity;
@@ -179,17 +179,17 @@ define(
             a.posyStartRand ? h(-a.posyStartRand, a.posyStartRand) : 0,
             a.poszStartRand ? h(-a.poszStartRand, a.poszStartRand) : 0,
           ];
-          var p = [
+          var m = [
             a.posxEndRand ? h(-a.posxEndRand, a.posxEndRand) : 0,
             a.posyEndRand ? h(-a.posyEndRand, a.posyEndRand) : 0,
             a.poszEndRand ? h(-a.poszEndRand, a.poszEndRand) : 0,
           ];
           this.posxStart = 0 + this.xOffset + c[0];
-          this.posxEnd = e[0] - d[0] + this.xOffset + p[0];
+          this.posxEnd = e[0] - d[0] + this.xOffset + m[0];
           this.posyStart = 0 + this.yOffset + c[1];
-          this.posyEnd = e[1] - d[1] + this.yOffset + p[1];
+          this.posyEnd = e[1] - d[1] + this.yOffset + m[1];
           this.poszStart = 0 + this.zOffset + c[2];
-          this.poszEnd = e[2] - d[2] + this.zOffset + p[2];
+          this.poszEnd = e[2] - d[2] + this.zOffset + m[2];
         }
       if (a.toSrc)
         if (this.bezierCurve) {
@@ -257,17 +257,17 @@ define(
             a.posyStartRand ? h(-a.posyStartRand, a.posyStartRand) : 0,
             a.poszStartRand ? h(-a.poszStartRand, a.poszStartRand) : 0,
           ]),
-            (p = [
+            (m = [
               a.posxEndRand ? h(-a.posxEndRand, a.posxEndRand) : 0,
               a.posyEndRand ? h(-a.posyEndRand, a.posyEndRand) : 0,
               a.poszEndRand ? h(-a.poszEndRand, a.poszEndRand) : 0,
             ]),
             (this.posxStart = e[0] - d[0] + this.xOffset + c[0]),
-            (this.posxEnd = 0 + this.xOffset + p[0]),
+            (this.posxEnd = 0 + this.xOffset + m[0]),
             (this.posyStart = e[1] - d[1] + this.yOffset + c[1]),
-            (this.posyEnd = 0 + this.yOffset + p[1]),
+            (this.posyEnd = 0 + this.yOffset + m[1]),
             (this.poszStart = e[2] - d[2] + this.zOffset + c[2]),
-            (this.poszEnd = 0 + this.zOffset + p[2]));
+            (this.poszEnd = 0 + this.zOffset + m[2]));
       this.sizeEndY = a.size
         ? (this.sizeEndX = this.sizeStartY = this.sizeStartX = a.size)
         : (this.sizeEndX = this.sizeStartY = this.sizeStartX = 1);
@@ -303,7 +303,7 @@ define(
       this.rotate = a.rotate ? !0 : !1;
       this.toAngle = a.toAngle ? a.toAngle : 0;
       this.startTick = g;
-      this.endTick = n;
+      this.endTick = k;
       this.blendMode = a.blendMode;
       a.rotateToTarget &&
         ((this.rotateToTarget = !0),
@@ -317,19 +317,19 @@ define(
       this.rotateWithCamera = a.rotateWithCamera ? !0 : !1;
       this.noLifeTime = a.noLifeTime;
     }
-    var t = {};
+    var q = {};
     r.prototype.init = function (c) {
       this.loadedTextures = 0;
       this.textureList = [];
       var d = this;
       if (0 < this.textureNameList.length)
         for (
-          var e = this.textureNameList.length, k = { i: 0 };
-          k.i < e;
-          k = { i: k.i }, k.i++
+          var e = this.textureNameList.length, l = { i: 0 };
+          l.i < e;
+          l = { i: l.i }, l.i++
         )
           b.loadFile(
-            "data/texture/" + this.textureNameList[k.i],
+            "data/texture/" + this.textureNameList[l.i],
             (function (b) {
               return function (f) {
                 a.texture(c, f, function (a) {
@@ -338,7 +338,7 @@ define(
                   d.loadedTextures == e && (d.ready = !0);
                 });
               };
-            })(k),
+            })(l),
           );
       else
         this.textureName
@@ -356,12 +356,12 @@ define(
     r.prototype.render = function (a, g) {
       if (!(this.startTick > g)) {
         0 < this.blendMode && 16 > this.blendMode
-          ? a.blendFunc(a.SRC_ALPHA, t[this.blendMode])
+          ? a.blendFunc(a.SRC_ALPHA, q[this.blendMode])
           : a.blendFunc(a.SRC_ALPHA, a.ONE_MINUS_SRC_ALPHA);
         a = g - this.startTick;
         var h = this.endTick - this.startTick;
-        if (this.noLifeTime) var k = g / 120;
-        else ((k = (a / h) * 100), 100 < k && (k = 100));
+        if (this.noLifeTime) var l = g / 120;
+        else ((l = (a / h) * 100), 100 < l && (l = 100));
         this.spriteRessource ||
           (this.shadowTexture
             ? ((this.spriteRessource = b.loadFile("data/sprite/shadow.spr")),
@@ -389,19 +389,19 @@ define(
         c.zIndex = this.zIndex;
         if (this.bezierCurve) {
           var f = this.pos1,
-            m = this.pos2,
-            n = this.pos3,
-            r = k / 100,
+            k = this.pos2,
+            p = this.pos3,
+            r = l / 100,
             f = new Float32Array([
               Math.pow(1 - r, 2) * f[0] +
-                2 * (1 - r) * r * m[0] +
-                Math.pow(r, 2) * n[0],
+                2 * (1 - r) * r * k[0] +
+                Math.pow(r, 2) * p[0],
               Math.pow(1 - r, 2) * f[1] +
-                2 * (1 - r) * r * m[1] +
-                Math.pow(r, 2) * n[1],
+                2 * (1 - r) * r * k[1] +
+                Math.pow(r, 2) * p[1],
               Math.pow(1 - r, 2) * f[2] +
-                2 * (1 - r) * r * m[2] +
-                Math.pow(r, 2) * n[2],
+                2 * (1 - r) * r * k[2] +
+                Math.pow(r, 2) * p[2],
             ]);
           c.position = new Float32Array(f);
         } else
@@ -409,54 +409,54 @@ define(
             ? ((f =
                 this.rotatePosX *
                 Math.cos(
-                  (3.5 * k * this.nbOfRotation * Math.PI) / 180 -
+                  (3.5 * l * this.nbOfRotation * Math.PI) / 180 -
                     (this.rotateLate * Math.PI) / 2,
                 )),
               this.rotationClockwise && (f *= -1))
             : this.posxSmooth
               ? this.posxStart != this.posxEnd
-                ? ((f = Math.log10(0.09 * k + 1)),
-                  (m = this.posxEnd - this.posxStart),
-                  (n = this.posxStart),
-                  (f = f * m + n))
+                ? ((f = Math.log10(0.09 * l + 1)),
+                  (k = this.posxEnd - this.posxStart),
+                  (p = this.posxStart),
+                  (f = f * k + p))
                 : (f = this.posxStart)
               : this.posxStart != this.posxEnd
-                ? ((m = (this.posxEnd - this.posxStart) / 100),
-                  (n = this.posxStart),
-                  (f = k * m + n))
+                ? ((k = (this.posxEnd - this.posxStart) / 100),
+                  (p = this.posxStart),
+                  (f = l * k + p))
                 : (f = this.posxStart),
             (c.position[0] = this.position[0] + f),
             0 < this.rotatePosY
               ? (f =
                   this.rotatePosY *
                   Math.sin(
-                    (3.5 * k * this.nbOfRotation * Math.PI) / 180 -
+                    (3.5 * l * this.nbOfRotation * Math.PI) / 180 -
                       (this.rotateLate * Math.PI) / 2,
                   ))
               : this.posySmooth
                 ? this.posyStart != this.posyEnd
-                  ? ((f = Math.log10(0.09 * k + 1)),
-                    (m = this.posyEnd - this.posyStart),
-                    (n = this.posyStart),
-                    (f = f * m + n))
+                  ? ((f = Math.log10(0.09 * l + 1)),
+                    (k = this.posyEnd - this.posyStart),
+                    (p = this.posyStart),
+                    (f = f * k + p))
                   : (f = this.posyStart)
                 : this.posyStart != this.posyEnd
-                  ? ((m = (this.posyEnd - this.posyStart) / 100),
-                    (n = this.posyStart),
-                    (f = k * m + n))
+                  ? ((k = (this.posyEnd - this.posyStart) / 100),
+                    (p = this.posyStart),
+                    (f = l * k + p))
                   : (f = this.posyStart),
             (c.position[1] = this.position[1] + f),
             this.poszSmooth
               ? this.poszStart != this.poszEnd
-                ? ((f = Math.log10(0.09 * k + 1)),
-                  (m = this.poszEnd - this.poszStart),
-                  (n = this.poszStart),
-                  (f = f * m + n))
+                ? ((f = Math.log10(0.09 * l + 1)),
+                  (k = this.poszEnd - this.poszStart),
+                  (p = this.poszStart),
+                  (f = f * k + p))
                 : (f = this.poszStart)
               : this.poszStart != this.poszEnd
-                ? ((m = (this.poszEnd - this.poszStart) / 100),
-                  (n = this.poszStart),
-                  (f = k * m + n))
+                ? ((k = (this.poszEnd - this.poszStart) / 100),
+                  (p = this.poszStart),
+                  (f = l * k + p))
                 : (f = this.poszStart),
             (c.position[2] = this.position[2] + f));
         this.shadowTexture &&
@@ -468,7 +468,7 @@ define(
             ? (f = ((h - a) * this.alphaMax) / (h / 4))
             : this.sparkling &&
               (f =
-                ((Math.cos((11 * k * this.sparkNumber * Math.PI) / 180) + 1) /
+                ((Math.cos((11 * l * this.sparkNumber * Math.PI) / 180) + 1) /
                   2) *
                 this.alphaMax);
         0 > f ? (f = 0) : 1 < f && (f = 1);
@@ -478,63 +478,63 @@ define(
         c.color[2] = this.blue;
         this.sizeSmooth
           ? (this.sizeEndX != this.sizeStartX
-              ? ((f = Math.log10(0.09 * k + 1)),
-                (m = this.sizeEndX - this.sizeStartX),
-                (n = this.sizeStartX),
-                (a = f * m + n))
+              ? ((f = Math.log10(0.09 * l + 1)),
+                (k = this.sizeEndX - this.sizeStartX),
+                (p = this.sizeStartX),
+                (a = f * k + p))
               : (a = this.sizeStartX),
             this.sizeEndY != this.sizeStartY
               ? ((h = this.sizeEndY - this.sizeStartY),
                 (f = this.sizeStartY),
-                (h = Math.log10(0.09 * k + 1) * h + f))
+                (h = Math.log10(0.09 * l + 1) * h + f))
               : (h = this.sizeStartY))
           : (this.sizeEndX != this.sizeStartX
-              ? ((m = (this.sizeEndX - this.sizeStartX) / 100),
-                (n = this.sizeStartX),
-                (a = k * m + n))
+              ? ((k = (this.sizeEndX - this.sizeStartX) / 100),
+                (p = this.sizeStartX),
+                (a = l * k + p))
               : (a = this.sizeStartX),
             this.sizeEndY != this.sizeStartY
               ? ((h = (this.sizeEndY - this.sizeStartY) / 100),
                 (f = this.sizeStartY),
-                (h = k * h + f))
+                (h = l * h + f))
               : (h = this.sizeStartY));
         c.size[0] = a;
         c.size[1] = h;
         this.rotate
-          ? ((k = ((this.toAngle - this.angle) / 100) * k + this.angle),
-            (c.angle = this.rotateWithCamera ? k + l.angle[1] : k))
+          ? ((l = ((this.toAngle - this.angle) / 100) * l + this.angle),
+            (c.angle = this.rotateWithCamera ? l + m.angle[1] : l))
           : (c.angle = this.rotateWithCamera
-              ? this.angle + l.angle[1]
+              ? this.angle + m.angle[1]
               : this.angle);
         if (this.actRessource && this.spriteRessource) {
           if (
-            ((k = this.ownerEntity),
-            !k && (k = d.get(this.AID)) && (this.ownerEntity = k),
-            k)
+            ((l = this.ownerEntity),
+            !l && (l = d.get(this.AID)) && (this.ownerEntity = l),
+            l)
           ) {
-            k =
+            l =
               this.actRessource.actions[
-                (8 * k.action + ((l.direction + k.direction + 8) % 8)) %
+                (8 * l.action + ((m.direction + l.direction + 8) % 8)) %
                   this.actRessource.actions.length
               ];
-            f = this.sprDelay || k.delay;
-            k = this.playSprite
-              ? k.animations[
-                  Math.floor((g - this.startTick) / f) % k.animations.length
+            f = this.sprDelay || l.delay;
+            l = this.playSprite
+              ? l.animations[
+                  Math.floor((g - this.startTick) / f) % l.animations.length
                 ]
-              : k.animations[0];
-            f = k.layers;
-            m = 0;
-            n = f.length;
+              : l.animations[0];
+            f = l.layers;
+            k = 0;
+            p = f.length;
             do {
-              var r = 0 == m ? c : Object.assign({}, c),
-                u = f[m],
+              var r = 0 == k ? c : Object.assign({}, c),
+                u = f[k],
                 A = new Int16Array(2);
               A[0] = 0;
               A[1] = 0;
-              k.pos.length &&
-                ((A[0] = this.position[0] - k.pos[0].x),
-                (A[1] = this.position[1] - k.pos[0].y));
+              l.pos.length &&
+                ((A[0] = this.position[0] - l.pos[0].x),
+                (A[1] = this.position[1] - l.pos[0].y));
               r.image.texture = this.spriteRessource.frames[u.index].texture;
               r.image.palette = null;
               r.sprite = this.spriteRessource.frames[u.index];
@@ -562,29 +562,29 @@ define(
               r.size[0] = D;
               r.size[1] = B;
               r.render();
-              ++m;
-            } while (m < n);
+              ++k;
+            } while (k < p);
           }
         } else c.render();
         this.noLifeTime || (this.needCleanUp = this.endTick < g);
       }
     };
     r.init = function (a) {
-      t[1] = a.ZERO;
-      t[2] = a.ONE;
-      t[3] = a.SRC_COLOR;
-      t[4] = a.ONE_MINUS_SRC_COLOR;
-      t[5] = a.DST_COLOR;
-      t[6] = a.ONE_MINUS_DST_COLOR;
-      t[7] = a.SRC_ALPHA;
-      t[8] = a.ONE_MINUS_SRC_ALPHA;
-      t[9] = a.DST_ALPHA;
-      t[10] = a.ONE_MINUS_DST_ALPHA;
-      t[11] = a.CONSTANT_COLOR;
-      t[12] = a.ONE_MINUS_CONSTANT_COLOR;
-      t[13] = a.CONSTANT_ALPHA;
-      t[14] = a.ONE_MINUS_CONSTANT_ALPHA;
-      t[15] = a.SRC_ALPHA_SATURATE;
+      q[1] = a.ZERO;
+      q[2] = a.ONE;
+      q[3] = a.SRC_COLOR;
+      q[4] = a.ONE_MINUS_SRC_COLOR;
+      q[5] = a.DST_COLOR;
+      q[6] = a.ONE_MINUS_DST_COLOR;
+      q[7] = a.SRC_ALPHA;
+      q[8] = a.ONE_MINUS_SRC_ALPHA;
+      q[9] = a.DST_ALPHA;
+      q[10] = a.ONE_MINUS_DST_ALPHA;
+      q[11] = a.CONSTANT_COLOR;
+      q[12] = a.ONE_MINUS_CONSTANT_COLOR;
+      q[13] = a.CONSTANT_ALPHA;
+      q[14] = a.ONE_MINUS_CONSTANT_ALPHA;
+      q[15] = a.SRC_ALPHA_SATURATE;
       this.ready = !0;
       this.renderBeforeEntities = !1;
     };

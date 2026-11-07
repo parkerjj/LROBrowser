@@ -64,7 +64,7 @@ define("Vendors/text-encoding", [], function () {
       return b >= c.length ? -1 : c[b];
     };
   }
-  function l() {
+  function m() {
     var a = "";
     this.string = function () {
       return a;
@@ -86,25 +86,25 @@ define("Vendors/text-encoding", [], function () {
     if (a) throw new h("Decoder error");
     return d || 65533;
   }
-  function t(a) {
+  function q(a) {
     throw new h("The code point " + a + " could not be encoded.");
   }
-  function n(a) {
+  function k(a) {
     a = String(a).trim().toLowerCase();
-    return Object.prototype.hasOwnProperty.call(ba, a) ? ba[a] : null;
+    return Object.prototype.hasOwnProperty.call(ea, a) ? ea[a] : null;
   }
   function g(a, d) {
     return d ? d[a] || null : null;
   }
-  function p(a, d) {
+  function t(a, d) {
     a = d.indexOf(a);
     return -1 === a ? null : a;
   }
-  function k(a, d) {
-    if (!(this instanceof k)) return new k(a, d);
+  function l(a, d) {
+    if (!(this instanceof l)) return new l(a, d);
     a = a ? String(a) : "utf-8";
     d = Object(d);
-    this._encoding = n(a);
+    this._encoding = k(a);
     if (null === this._encoding || "replacement" === this._encoding.name)
       throw new TypeError("Unknown encoding: " + a);
     if (!this._encoding.getDecoder)
@@ -127,7 +127,7 @@ define("Vendors/text-encoding", [], function () {
     if (!(this instanceof f)) return new f(a, d);
     a = a ? String(a) : "utf-8";
     d = Object(d);
-    this._encoding = n(a);
+    this._encoding = k(a);
     if (null === this._encoding) throw new TypeError("Unknown encoding: " + a);
     if (!this._encoding.getEncoder)
       throw Error(
@@ -145,41 +145,41 @@ define("Vendors/text-encoding", [], function () {
       : (this.encoding = this._encoding.name);
     return this;
   }
-  function m(d) {
+  function n(d) {
     var b = d.fatal,
       c = 0,
       e = 0,
       f = 0,
       h = 0;
     this.decode = function (d) {
-      var m = d.get();
-      if (-1 === m) return 0 !== e ? r(b) : -1;
+      var n = d.get();
+      if (-1 === n) return 0 !== e ? r(b) : -1;
       d.offset(1);
       if (0 === e) {
-        if (a(m, 0, 127)) return m;
-        if (a(m, 194, 223)) ((e = 1), (h = 128), (c = m - 192));
-        else if (a(m, 224, 239)) ((e = 2), (h = 2048), (c = m - 224));
-        else if (a(m, 240, 244)) ((e = 3), (h = 65536), (c = m - 240));
+        if (a(n, 0, 127)) return n;
+        if (a(n, 194, 223)) ((e = 1), (h = 128), (c = n - 192));
+        else if (a(n, 224, 239)) ((e = 2), (h = 2048), (c = n - 224));
+        else if (a(n, 240, 244)) ((e = 3), (h = 65536), (c = n - 240));
         else return r(b);
         c *= Math.pow(64, e);
         return null;
       }
-      if (!a(m, 128, 191)) return ((h = f = e = c = 0), d.offset(-1), r(b));
+      if (!a(n, 128, 191)) return ((h = f = e = c = 0), d.offset(-1), r(b));
       f += 1;
-      c += (m - 128) * Math.pow(64, e - f);
+      c += (n - 128) * Math.pow(64, e - f);
       if (f !== e) return null;
       d = c;
-      m = h;
+      n = h;
       h = f = e = c = 0;
-      return a(d, m, 1114111) && !a(d, 55296, 57343) ? d : r(b);
+      return a(d, n, 1114111) && !a(d, 55296, 57343) ? d : r(b);
     };
   }
-  function q(d) {
+  function p(d) {
     this.encode = function (d, c) {
       var e = c.get();
       if (-1 === e) return -1;
       c.offset(1);
-      if (a(e, 55296, 57343)) return t(e);
+      if (a(e, 55296, 57343)) return q(e);
       if (a(e, 0, 127)) return d.emit(e);
       var f, h;
       a(e, 128, 2047)
@@ -209,8 +209,8 @@ define("Vendors/text-encoding", [], function () {
       if (-1 === e) return -1;
       c.offset(1);
       if (a(e, 0, 127)) return b.emit(e);
-      c = p(e, d);
-      null === c && t(e);
+      c = t(e, d);
+      null === c && q(e);
       return b.emit(c + 128);
     };
   }
@@ -224,30 +224,30 @@ define("Vendors/text-encoding", [], function () {
       if (-1 === h && 0 === c && 0 === e && 0 === f) return -1;
       -1 !== h || (0 === c && 0 === e && 0 === f) || ((f = e = c = 0), r(b));
       d.offset(1);
-      var m;
+      var n;
       if (0 !== f) {
-        m = null;
+        n = null;
         if (a(h, 48, 57))
           if (
             ((h =
               10 * (126 * (10 * (c - 129) + (e - 48)) + (f - 129)) + h - 48),
             (39419 < h && 189e3 > h) || 1237575 < h)
           )
-            m = null;
+            n = null;
           else {
-            var q = 0;
-            m = 0;
-            var l = Q.gb18030,
-              k;
-            for (k = 0; k < l.length; ++k) {
-              var n = l[k];
-              if (n[0] <= h) ((q = n[0]), (m = n[1]));
+            var p = 0;
+            n = 0;
+            var m = N.gb18030,
+              l;
+            for (l = 0; l < m.length; ++l) {
+              var k = m[l];
+              if (k[0] <= h) ((p = k[0]), (n = k[1]));
               else break;
             }
-            m = m + h - q;
+            n = n + h - p;
           }
         f = e = c = 0;
-        return null === m ? (d.offset(-3), r(b)) : m;
+        return null === n ? (d.offset(-3), r(b)) : n;
       }
       if (0 !== e) {
         if (a(h, 129, 254)) return ((f = h), null);
@@ -257,14 +257,14 @@ define("Vendors/text-encoding", [], function () {
       }
       if (0 !== c) {
         if (a(h, 48, 57)) return ((e = h), null);
-        m = c;
-        q = null;
+        n = c;
+        p = null;
         c = 0;
-        l = 127 > h ? 64 : 65;
-        if (a(h, 64, 126) || a(h, 128, 254)) q = 190 * (m - 129) + (h - l);
-        m = null === q ? null : g(q, Q.gb18030);
-        null === q && d.offset(-1);
-        return null === m ? r(b) : m;
+        m = 127 > h ? 64 : 65;
+        if (a(h, 64, 126) || a(h, 128, 254)) p = 190 * (n - 129) + (h - m);
+        n = null === p ? null : g(p, N.gb18030);
+        null === p && d.offset(-1);
+        return null === n ? r(b) : n;
       }
       return a(h, 0, 127)
         ? h
@@ -281,7 +281,7 @@ define("Vendors/text-encoding", [], function () {
       if (-1 === e) return -1;
       c.offset(1);
       if (a(e, 0, 127)) return d.emit(e);
-      c = p(e, Q.gb18030);
+      c = t(e, N.gb18030);
       if (null !== c)
         return (
           (e = b(c, 190) + 129),
@@ -289,11 +289,11 @@ define("Vendors/text-encoding", [], function () {
           d.emit(e, c + (63 > c ? 64 : 65))
         );
       var f = (c = 0),
-        h = Q.gb18030,
-        m;
-      for (m = 0; m < h.length; ++m) {
-        var q = h[m];
-        if (q[1] <= e) ((c = q[1]), (f = q[0]));
+        h = N.gb18030,
+        n;
+      for (n = 0; n < h.length; ++n) {
+        var p = h[n];
+        if (p[1] <= e) ((c = p[1]), (f = p[0]));
         else break;
       }
       c = f + e - c;
@@ -327,7 +327,7 @@ define("Vendors/text-encoding", [], function () {
         d = e;
         e = 0;
         var h = null;
-        a(f, 33, 126) && (h = g(190 * (d - 1) + (f + 63), Q.gb18030));
+        a(f, 33, 126) && (h = g(190 * (d - 1) + (f + 63), N.gb18030));
         10 === f && (c = !1);
         return null === h ? r(b) : h;
       }
@@ -340,7 +340,7 @@ define("Vendors/text-encoding", [], function () {
       return a(f, 0, 127) ? f : r(b);
     };
   }
-  function H(d) {
+  function O(d) {
     var c = !1;
     this.encode = function (d, e) {
       var f = e.get();
@@ -350,11 +350,11 @@ define("Vendors/text-encoding", [], function () {
       if (126 === f) return d.emit(126, 126);
       if (a(f, 0, 127)) return d.emit(f);
       if (!c) return (e.offset(-1), (c = !0), d.emit(126, 123));
-      var h = p(f, Q.gb18030);
-      if (null === h) return t(f);
+      var h = t(f, N.gb18030);
+      if (null === h) return q(f);
       e = b(h, 190) + 1;
       h = (h % 190) - 63;
-      return a(e, 33, 126) && a(h, 33, 126) ? d.emit(e, h) : t(f);
+      return a(e, 33, 126) && a(h, 33, 126) ? d.emit(e, h) : q(f);
     };
   }
   function C(d) {
@@ -369,35 +369,35 @@ define("Vendors/text-encoding", [], function () {
       d.offset(1);
       if (0 !== c) {
         var h = c,
-          m = null;
+          n = null;
         c = 0;
-        var q = 127 > f ? 64 : 98;
-        if (a(f, 64, 126) || a(f, 161, 254)) m = 157 * (h - 129) + (f - q);
-        if (1133 === m) return ((e = 772), 202);
-        if (1135 === m) return ((e = 780), 202);
-        if (1164 === m) return ((e = 772), 234);
-        if (1166 === m) return ((e = 780), 234);
-        f = null === m ? null : g(m, Q.big5);
-        null === m && d.offset(-1);
+        var p = 127 > f ? 64 : 98;
+        if (a(f, 64, 126) || a(f, 161, 254)) n = 157 * (h - 129) + (f - p);
+        if (1133 === n) return ((e = 772), 202);
+        if (1135 === n) return ((e = 780), 202);
+        if (1164 === n) return ((e = 772), 234);
+        if (1166 === n) return ((e = 780), 234);
+        f = null === n ? null : g(n, N.big5);
+        null === n && d.offset(-1);
         return null === f ? r(b) : f;
       }
       return a(f, 0, 127) ? f : a(f, 129, 254) ? ((c = f), null) : r(b);
     };
   }
-  function z(d) {
+  function y(d) {
     this.encode = function (d, c) {
       var e = c.get();
       if (-1 === e) return -1;
       c.offset(1);
       if (a(e, 0, 127)) return d.emit(e);
-      c = p(e, Q.big5);
-      if (null === c) return t(e);
+      c = t(e, N.big5);
+      if (null === c) return q(e);
       e = b(c, 157) + 129;
       c %= 157;
       return d.emit(e, c + (63 > c ? 64 : 98));
     };
   }
-  function G(d) {
+  function z(d) {
     var b = d.fatal,
       c = 0,
       e = 0;
@@ -409,16 +409,16 @@ define("Vendors/text-encoding", [], function () {
         return r(b);
       }
       d.offset(1);
-      var h, m;
+      var h, n;
       return 0 !== e
         ? ((h = e),
           (e = 0),
-          (m = null),
+          (n = null),
           a(h, 161, 254) &&
             a(f, 161, 254) &&
-            (m = g(94 * (h - 161) + f - 161, Q.jis0212)),
+            (n = g(94 * (h - 161) + f - 161, N.jis0212)),
           a(f, 161, 254) || d.offset(-1),
-          null === m ? r(b) : m)
+          null === n ? r(b) : n)
         : 142 === c && a(f, 161, 223)
           ? ((c = 0), 65377 + f - 161)
           : 143 === c && a(f, 161, 254)
@@ -426,12 +426,12 @@ define("Vendors/text-encoding", [], function () {
             : 0 !== c
               ? ((h = c),
                 (c = 0),
-                (m = null),
+                (n = null),
                 a(h, 161, 254) &&
                   a(f, 161, 254) &&
-                  (m = g(94 * (h - 161) + f - 161, Q.jis0208)),
+                  (n = g(94 * (h - 161) + f - 161, N.jis0208)),
                 a(f, 161, 254) || d.offset(-1),
-                null === m ? r(b) : m)
+                null === n ? r(b) : n)
               : a(f, 0, 127)
                 ? f
                 : 142 === f || 143 === f || a(f, 161, 254)
@@ -439,7 +439,7 @@ define("Vendors/text-encoding", [], function () {
                   : r(b);
     };
   }
-  function P(d) {
+  function J(d) {
     this.encode = function (d, c) {
       var e = c.get();
       if (-1 === e) return -1;
@@ -448,13 +448,13 @@ define("Vendors/text-encoding", [], function () {
       if (165 === e) return d.emit(92);
       if (8254 === e) return d.emit(126);
       if (a(e, 65377, 65439)) return d.emit(142, e - 65377 + 161);
-      c = p(e, Q.jis0208);
-      if (null === c) return t(e);
+      c = t(e, N.jis0208);
+      if (null === c) return q(e);
       e = b(c, 94) + 161;
       return d.emit(e, (c % 94) + 161);
     };
   }
-  function N(d) {
+  function I(d) {
     var b = d.fatal,
       c = 0,
       e = !1,
@@ -478,13 +478,13 @@ define("Vendors/text-encoding", [], function () {
           c = 0;
           return r(b);
         case 2:
-          var m = f;
+          var n = f;
           f = 0;
-          if (36 === m && (64 === h || 66 === h))
+          if (36 === n && (64 === h || 66 === h))
             return ((e = !1), (c = 4), null);
-          if (36 === m && 40 === h) return ((c = 3), null);
-          if (40 === m && (66 === h || 74 === h)) return ((c = 0), null);
-          if (40 === m && 73 === h) return ((c = 6), null);
+          if (36 === n && 40 === h) return ((c = 3), null);
+          if (40 === n && (66 === h || 74 === h)) return ((c = 0), null);
+          if (40 === n && 73 === h) return ((c = 6), null);
           -1 === h ? d.offset(-1) : d.offset(-2);
           c = 0;
           return r(b);
@@ -504,10 +504,10 @@ define("Vendors/text-encoding", [], function () {
           c = 4;
           if (-1 === h) return r(b);
           d = null;
-          m = 94 * (f - 33) + h - 33;
+          n = 94 * (f - 33) + h - 33;
           a(f, 33, 126) &&
             a(h, 33, 126) &&
-            (d = !1 === e ? g(m, Q.jis0208) : g(m, Q.jis0212));
+            (d = !1 === e ? g(n, N.jis0208) : g(n, N.jis0212));
           return null === d ? r(b) : d;
         case 6:
           return 27 === h
@@ -520,7 +520,7 @@ define("Vendors/text-encoding", [], function () {
       }
     };
   }
-  function I(d) {
+  function L(d) {
     var c = 0;
     this.encode = function (d, e) {
       var f = e.get();
@@ -535,8 +535,8 @@ define("Vendors/text-encoding", [], function () {
         return (e.offset(-1), (c = 2), d.emit(27, 40, 73));
       if (a(f, 65377, 65439)) return d.emit(f - 65377 - 33);
       if (1 !== c) return (e.offset(-1), (c = 1), d.emit(27, 36, 66));
-      e = p(f, Q.jis0208);
-      if (null === e) return t(f);
+      e = t(f, N.jis0208);
+      if (null === e) return q(f);
       f = b(e, 94) + 33;
       return d.emit(f, (e % 94) + 33);
     };
@@ -556,7 +556,7 @@ define("Vendors/text-encoding", [], function () {
           return (
             (d = g(
               188 * (f - (160 > f ? 129 : 193)) + e - (127 > e ? 64 : 65),
-              Q.jis0208,
+              N.jis0208,
             )),
             null === d ? r(b) : d
           );
@@ -572,7 +572,7 @@ define("Vendors/text-encoding", [], function () {
             : r(b);
     };
   }
-  function J(d) {
+  function M(d) {
     this.encode = function (d, c) {
       var e = c.get();
       if (-1 === e) return -1;
@@ -581,8 +581,8 @@ define("Vendors/text-encoding", [], function () {
       if (165 === e) return d.emit(92);
       if (8254 === e) return d.emit(126);
       if (a(e, 65377, 65439)) return d.emit(e - 65377 + 161);
-      c = p(e, Q.jis0208);
-      if (null === c) return t(e);
+      c = t(e, N.jis0208);
+      if (null === c) return q(e);
       e = b(c, 188);
       c %= 188;
       return d.emit(e + (31 > e ? 129 : 193), c + (63 > c ? 64 : 65));
@@ -601,31 +601,31 @@ define("Vendors/text-encoding", [], function () {
           h = null;
         c = 0;
         if (a(f, 129, 198)) {
-          var m = 178 * (f - 129);
+          var n = 178 * (f - 129);
           a(e, 65, 90)
-            ? (h = m + e - 65)
+            ? (h = n + e - 65)
             : a(e, 97, 122)
-              ? (h = m + 26 + e - 97)
-              : a(e, 129, 254) && (h = m + 26 + 26 + e - 129);
+              ? (h = n + 26 + e - 97)
+              : a(e, 129, 254) && (h = n + 26 + 26 + e - 129);
         }
         a(f, 199, 253) &&
           a(e, 161, 254) &&
           (h = 12460 + 94 * (f - 199) + (e - 161));
-        e = null === h ? null : g(h, Q["euc-kr"]);
+        e = null === h ? null : g(h, N["euc-kr"]);
         null === h && d.offset(-1);
         return null === e ? r(b) : e;
       }
       return a(e, 0, 127) ? e : a(e, 129, 253) ? ((c = e), null) : r(b);
     };
   }
-  function L(d) {
+  function F(d) {
     this.encode = function (d, c) {
       var e = c.get();
       if (-1 === e) return -1;
       c.offset(1);
       if (a(e, 0, 127)) return d.emit(e);
-      c = p(e, Q["euc-kr"]);
-      if (null === c) return t(e);
+      c = t(e, N["euc-kr"]);
+      if (null === c) return q(e);
       if (12460 > c)
         return (
           (e = b(c, 178) + 129),
@@ -637,7 +637,7 @@ define("Vendors/text-encoding", [], function () {
       return d.emit(e, (c % 94) + 161);
     };
   }
-  function y(d, b) {
+  function G(d, b) {
     var c = b.fatal,
       e = null,
       f = null;
@@ -650,9 +650,9 @@ define("Vendors/text-encoding", [], function () {
       h = d ? (e << 8) + h : (h << 8) + e;
       e = null;
       if (null !== f) {
-        var m = f;
+        var n = f;
         f = null;
-        if (a(h, 56320, 57343)) return 65536 + 1024 * (m - 55296) + (h - 56320);
+        if (a(h, 56320, 57343)) return 65536 + 1024 * (n - 55296) + (h - 56320);
         b.offset(-2);
         return r(c);
       }
@@ -663,7 +663,7 @@ define("Vendors/text-encoding", [], function () {
           : h;
     };
   }
-  function F(d, c) {
+  function H(d, c) {
     this.encode = function (c, e) {
       function f(a) {
         var b = a >> 8;
@@ -673,7 +673,7 @@ define("Vendors/text-encoding", [], function () {
       var h = e.get();
       if (-1 === h) return -1;
       e.offset(1);
-      a(h, 55296, 57343) && t(h);
+      a(h, 55296, 57343) && q(h);
       if (65535 >= h) return f(h);
       e = b(h - 65536, 1024) + 55296;
       h = ((h - 65536) % 1024) + 56320;
@@ -689,17 +689,17 @@ define("Vendors/text-encoding", [], function () {
       return a(b, 0, 127) ? b : 63360 + b - 128;
     };
   }
-  function M(d, b) {
+  function P(d, b) {
     this.encode = function (d, b) {
       var c = b.get();
       if (-1 === c) return -1;
       b.offset(1);
       if (a(c, 0, 127)) return d.emit(c);
       if (a(c, 63360, 63487)) return d.emit(c - 63360 + 128);
-      t(c);
+      q(c);
     };
   }
-  var Q = {
+  var N = {
     big5: [
       null,
       null,
@@ -62098,7 +62098,7 @@ define("Vendors/text-encoding", [], function () {
     ],
   };
   h.prototype = Error.prototype;
-  var W = [
+  var S = [
       {
         encodings: [
           { labels: ["unicode-1-1-utf-8", "utf-8", "utf8"], name: "utf-8" },
@@ -62318,17 +62318,17 @@ define("Vendors/text-encoding", [], function () {
         heading: "Legacy miscellaneous encodings",
       },
     ],
-    V = {},
-    ba = {};
-  W.forEach(function (a) {
+    R = {},
+    ea = {};
+  S.forEach(function (a) {
     a.encodings.forEach(function (a) {
-      V[a.name] = a;
+      R[a.name] = a;
       a.labels.forEach(function (d) {
-        ba[d] = a;
+        ea[d] = a;
       });
     });
   });
-  k.prototype = {
+  l.prototype = {
     decode: function (a, d) {
       if (!a || ("buffer" in a && "byteOffset" in a && "byteLength" in a))
         a || (a = new Uint8Array(0));
@@ -62340,7 +62340,7 @@ define("Vendors/text-encoding", [], function () {
       this._streaming = !!d.stream;
       a = new Uint8Array(a.buffer, a.byteOffset, a.byteLength);
       a = new c(a);
-      d = new l();
+      d = new m();
       for (var b; -1 !== a.get();)
         ((b = this._decoder.decode(a)), null !== b && -1 !== b && d.emit(b));
       if (!this._streaming) {
@@ -62377,17 +62377,17 @@ define("Vendors/text-encoding", [], function () {
       return new Uint8Array(b);
     },
   };
-  V["utf-8"].getEncoder = function (a) {
-    return new q(a);
+  R["utf-8"].getEncoder = function (a) {
+    return new p(a);
   };
-  V["utf-8"].getDecoder = function (a) {
-    return new m(a);
+  R["utf-8"].getDecoder = function (a) {
+    return new n(a);
   };
   (function () {
-    W.forEach(function (a) {
+    S.forEach(function (a) {
       "Legacy single-byte encodings" === a.heading &&
         a.encodings.forEach(function (a) {
-          var d = Q[a.name];
+          var d = N[a.name];
           a.getDecoder = function (a) {
             return new v(d, a);
           };
@@ -62397,67 +62397,67 @@ define("Vendors/text-encoding", [], function () {
         });
     });
   })();
-  V.gb18030.getEncoder = function (a) {
+  R.gb18030.getEncoder = function (a) {
     return new D(a);
   };
-  V.gb18030.getDecoder = function (a) {
+  R.gb18030.getDecoder = function (a) {
     return new A(a);
   };
-  V["hz-gb-2312"].getEncoder = function (a) {
-    return new H(a);
+  R["hz-gb-2312"].getEncoder = function (a) {
+    return new O(a);
   };
-  V["hz-gb-2312"].getDecoder = function (a) {
+  R["hz-gb-2312"].getDecoder = function (a) {
     return new B(a);
   };
-  V.big5.getEncoder = function (a) {
-    return new z(a);
+  R.big5.getEncoder = function (a) {
+    return new y(a);
   };
-  V.big5.getDecoder = function (a) {
+  R.big5.getDecoder = function (a) {
     return new C(a);
   };
-  V["euc-jp"].getEncoder = function (a) {
-    return new P(a);
-  };
-  V["euc-jp"].getDecoder = function (a) {
-    return new G(a);
-  };
-  V["iso-2022-jp"].getEncoder = function (a) {
-    return new I(a);
-  };
-  V["iso-2022-jp"].getDecoder = function (a) {
-    return new N(a);
-  };
-  V.shift_jis.getEncoder = function (a) {
+  R["euc-jp"].getEncoder = function (a) {
     return new J(a);
   };
-  V.shift_jis.getDecoder = function (a) {
-    return new x(a);
+  R["euc-jp"].getDecoder = function (a) {
+    return new z(a);
   };
-  V["euc-kr"].getEncoder = function (a) {
+  R["iso-2022-jp"].getEncoder = function (a) {
     return new L(a);
   };
-  V["euc-kr"].getDecoder = function (a) {
+  R["iso-2022-jp"].getDecoder = function (a) {
+    return new I(a);
+  };
+  R.shift_jis.getEncoder = function (a) {
+    return new M(a);
+  };
+  R.shift_jis.getDecoder = function (a) {
+    return new x(a);
+  };
+  R["euc-kr"].getEncoder = function (a) {
+    return new F(a);
+  };
+  R["euc-kr"].getDecoder = function (a) {
     return new E(a);
   };
-  V["utf-16be"].getEncoder = function (a) {
-    return new F(!0, a);
+  R["utf-16be"].getEncoder = function (a) {
+    return new H(!0, a);
   };
-  V["utf-16be"].getDecoder = function (a) {
-    return new y(!0, a);
+  R["utf-16be"].getDecoder = function (a) {
+    return new G(!0, a);
   };
-  V["utf-16le"].getEncoder = function (a) {
-    return new F(!1, a);
+  R["utf-16le"].getEncoder = function (a) {
+    return new H(!1, a);
   };
-  V["utf-16le"].getDecoder = function (a) {
-    return new y(!1, a);
+  R["utf-16le"].getDecoder = function (a) {
+    return new G(!1, a);
   };
-  V["x-user-defined"].getEncoder = function (a) {
-    return new M(!1, a);
+  R["x-user-defined"].getEncoder = function (a) {
+    return new P(!1, a);
   };
-  V["x-user-defined"].getDecoder = function (a) {
+  R["x-user-defined"].getDecoder = function (a) {
     return new K(!1, a);
   };
-  var S = {
+  var U = {
     charset: "gbk",
     setCharset: function (a) {
       this.charset = a;
@@ -62474,9 +62474,9 @@ define("Vendors/text-encoding", [], function () {
       for (d = 0; d < b; ++d) c[d] = a.charCodeAt(d);
       return this.decode(c);
     },
-    TextDecoder: self.TextDecoder || k,
+    TextDecoder: self.TextDecoder || l,
     TextEncoder: f,
   };
-  S.setCharset("gbk");
-  return S;
+  U.setCharset("gbk");
+  return U;
 });

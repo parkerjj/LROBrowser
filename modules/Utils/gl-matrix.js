@@ -1,57 +1,57 @@
 define("Utils/gl-matrix", ["Vendors/gl-matrix"], function (a) {
   a.vec3.calcNormal = function (a, c, d, e) {
-    var b, h, r, t;
+    var b, h, r, q;
     b = d[0] - c[0];
     h = d[1] - c[1];
     r = d[2] - c[2];
     d = a[0] - c[0];
-    t = a[1] - c[1];
+    q = a[1] - c[1];
     c = a[2] - c[2];
-    a = h * c - r * t;
+    a = h * c - r * q;
     r = r * d - b * c;
-    b = b * t - h * d;
+    b = b * q - h * d;
     h = 1 / Math.sqrt(a * a + r * r + b * b);
     e[0] = a * h;
     e[1] = r * h;
     e[2] = b * h;
     return e;
   };
-  a.vec4.calcNormal = function (a, c, d, e, l) {
-    var b, r, t, n, g, p, k, f, m;
-    t = d[0] - c[0];
-    n = d[1] - c[1];
+  a.vec4.calcNormal = function (a, c, d, e, m) {
+    var b, r, q, k, g, t, l, f, n;
+    q = d[0] - c[0];
+    k = d[1] - c[1];
     g = d[2] - c[2];
-    p = a[0] - c[0];
-    k = a[1] - c[1];
+    t = a[0] - c[0];
+    l = a[1] - c[1];
     f = a[2] - c[2];
-    m = n * f - g * k;
-    g = g * p - t * f;
-    t = t * k - n * p;
-    n = 1 / Math.sqrt(m * m + g * g + t * t);
-    c = m * n;
-    b = g * n;
-    r = t * n;
-    t = a[0] - e[0];
-    n = a[1] - e[1];
+    n = k * f - g * l;
+    g = g * t - q * f;
+    q = q * l - k * t;
+    k = 1 / Math.sqrt(n * n + g * g + q * q);
+    c = n * k;
+    b = g * k;
+    r = q * k;
+    q = a[0] - e[0];
+    k = a[1] - e[1];
     g = a[2] - e[2];
-    p = d[0] - e[0];
-    k = d[1] - e[1];
+    t = d[0] - e[0];
+    l = d[1] - e[1];
     f = d[2] - e[2];
-    m = n * f - g * k;
-    g = g * p - t * f;
-    t = t * k - n * p;
-    n = 1 / Math.sqrt(m * m + g * g + t * t);
-    c += m * n;
-    b += g * n;
-    r += t * n;
-    n = 1 / Math.sqrt(c * c + b * b + r * r);
-    l[0] = c * n;
-    l[1] = b * n;
-    l[2] = r * n;
-    return l;
+    n = k * f - g * l;
+    g = g * t - q * f;
+    q = q * l - k * t;
+    k = 1 / Math.sqrt(n * n + g * g + q * q);
+    c += n * k;
+    b += g * k;
+    r += q * k;
+    k = 1 / Math.sqrt(c * c + b * b + r * r);
+    m[0] = c * k;
+    m[1] = b * k;
+    m[2] = r * k;
+    return m;
   };
   a.mat4.translateZ = function (a, c, d) {
-    var b, l, h, r, t, n, g, p, k, f, m;
+    var b, m, h, r, q, k, g, t, l, f, n;
     if (!d || a === d)
       return (
         (a[12] += a[8] * c),
@@ -61,58 +61,58 @@ define("Utils/gl-matrix", ["Vendors/gl-matrix"], function (a) {
         a
       );
     b = a[0];
-    l = a[1];
+    m = a[1];
     h = a[2];
     r = a[3];
-    t = a[4];
-    n = a[5];
+    q = a[4];
+    k = a[5];
     g = a[6];
-    p = a[7];
-    k = a[8];
+    t = a[7];
+    l = a[8];
     f = a[9];
-    m = a[10];
+    n = a[10];
     a = a[11];
     d[0] = b;
-    d[1] = l;
+    d[1] = m;
     d[2] = h;
     d[3] = r;
-    d[4] = t;
-    d[5] = n;
+    d[4] = q;
+    d[5] = k;
     d[6] = g;
-    d[7] = p;
-    d[8] = k;
+    d[7] = t;
+    d[8] = l;
     d[9] = f;
-    d[10] = m;
+    d[10] = n;
     d[11] = a;
-    d[12] += k * c;
+    d[12] += l * c;
     d[13] += f * c;
-    d[14] += m * c;
+    d[14] += n * c;
     d[15] += a * c;
     return d;
   };
   a.mat4.rotateQuat = function (b, c, d) {
-    var e, l, h;
+    var e, m, h;
     e = d[0];
-    l = d[1];
+    m = d[1];
     h = d[2];
     d = d[3];
-    var r = Math.sqrt(e * e + l * l + h * h + d * d);
+    var r = Math.sqrt(e * e + m * m + h * h + d * d);
     e /= r;
-    l /= r;
+    m /= r;
     h /= r;
     d /= r;
     return a.mat4.multiply(b, c, [
-      1 - 2 * (l * l + h * h),
-      2 * (e * l + h * d),
-      2 * (e * h - l * d),
+      1 - 2 * (m * m + h * h),
+      2 * (e * m + h * d),
+      2 * (e * h - m * d),
       0,
-      2 * (e * l - h * d),
+      2 * (e * m - h * d),
       1 - 2 * (e * e + h * h),
-      2 * (h * l + e * d),
+      2 * (h * m + e * d),
       0,
-      2 * (e * h + l * d),
-      2 * (l * h - e * d),
-      1 - 2 * (e * e + l * l),
+      2 * (e * h + m * d),
+      2 * (m * h - e * d),
+      1 - 2 * (e * e + m * m),
       0,
       0,
       0,
@@ -123,16 +123,16 @@ define("Utils/gl-matrix", ["Vendors/gl-matrix"], function (a) {
   a.mat4.extractRotation = function (b, c) {
     var d = 1 / a.vec3.length([c[0], c[1], c[2]]),
       e = 1 / a.vec3.length([c[4], c[5], c[6]]),
-      l = 1 / a.vec3.length([c[8], c[9], c[10]]);
+      m = 1 / a.vec3.length([c[8], c[9], c[10]]);
     b[0] = c[0] * d;
     b[1] = c[1] * d;
     b[2] = c[2] * d;
     b[4] = c[4] * e;
     b[5] = c[5] * e;
     b[6] = c[6] * e;
-    b[8] = c[8] * l;
-    b[9] = c[9] * l;
-    b[10] = c[10] * l;
+    b[8] = c[8] * m;
+    b[9] = c[9] * m;
+    b[10] = c[10] * m;
     return b;
   };
   a.mat3.toMat4 = function (b, c) {
@@ -158,35 +158,35 @@ define("Utils/gl-matrix", ["Vendors/gl-matrix"], function (a) {
   a.mat4.toInverseMat3 = function (b, c) {
     var d = b[0],
       e = b[1],
-      l = b[2],
+      m = b[2],
       h = b[4],
       r = b[5],
-      t = b[6],
-      n = b[8],
+      q = b[6],
+      k = b[8],
       g = b[9];
     b = b[10];
-    var p = b * r - t * g,
-      k = -b * h + t * n,
-      f = g * h - r * n,
-      m = d * p + e * k + l * f;
-    if (!m) return null;
-    m = 1 / m;
+    var t = b * r - q * g,
+      l = -b * h + q * k,
+      f = g * h - r * k,
+      n = d * t + e * l + m * f;
+    if (!n) return null;
+    n = 1 / n;
     c || (c = a.mat3.create());
-    c[0] = p * m;
-    c[1] = (-b * e + l * g) * m;
-    c[2] = (t * e - l * r) * m;
-    c[3] = k * m;
-    c[4] = (b * d - l * n) * m;
-    c[5] = (-t * d + l * h) * m;
-    c[6] = f * m;
-    c[7] = (-g * d + e * n) * m;
-    c[8] = (r * d - e * h) * m;
+    c[0] = t * n;
+    c[1] = (-b * e + m * g) * n;
+    c[2] = (q * e - m * r) * n;
+    c[3] = l * n;
+    c[4] = (b * d - m * k) * n;
+    c[5] = (-q * d + m * h) * n;
+    c[6] = f * n;
+    c[7] = (-g * d + e * k) * n;
+    c[8] = (r * d - e * h) * n;
     return c;
   };
-  a.mat4.perspective = function (b, c, d, e, l) {
+  a.mat4.perspective = function (b, c, d, e, m) {
     b = d * Math.tan((b * Math.PI) / 360);
     c *= b;
-    return a.mat4.frustum(l, -c, c, -b, b, d, e);
+    return a.mat4.frustum(m, -c, c, -b, b, d, e);
   };
   return a;
 });

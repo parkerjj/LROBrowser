@@ -12,16 +12,16 @@ define(
     var c = a("text!./Common.css"),
       d = a("Utils/jquery"),
       e = a("./CursorManager"),
-      l = a("DB/DBManager"),
+      m = a("DB/DBManager"),
       h = a("Core/Client"),
       r = a("Core/Events"),
-      t = a("Controls/MouseEventHandler"),
-      n = d("style:first");
-    n.length ||
-      (n = d('\x3cstyle type\x3d"text/css"\x3e\x3c/style\x3e').appendTo(
+      q = a("Controls/MouseEventHandler"),
+      k = d("style:first");
+    k.length ||
+      (k = d('\x3cstyle type\x3d"text/css"\x3e\x3c/style\x3e').appendTo(
         "head",
       ));
-    n.append(c);
+    k.append(c);
     b.MouseMode = { CROSS: 0, STOP: 1, FREEZE: 2 };
     b.prototype.mouseMode = b.MouseMode.STOP;
     b.prototype.__loaded = !1;
@@ -32,8 +32,8 @@ define(
         this._htmlText &&
           ((this.ui = d(this._htmlText)), this.ui.css("zIndex", 50));
         this._cssText &&
-          (-1 === n.text().indexOf("\n\n/** " + this.name + " **/\n") &&
-            n.append("\n\n/** " + this.name + " **/\n" + this._cssText),
+          (-1 === k.text().indexOf("\n\n/** " + this.name + " **/\n") &&
+            k.append("\n\n/** " + this.name + " **/\n" + this._cssText),
           d("body").append(this.ui));
         this._htmlText &&
           this.ui.each(this.parseHTML).find("*").each(this.parseHTML);
@@ -52,23 +52,23 @@ define(
         d = 0;
       b.mouseenter(function () {
         0 === d &&
-          ((c = t.intersect),
+          ((c = q.intersect),
           d++,
-          c && ((t.intersect = !1), e.setType(e.ACTION.DEFAULT)));
+          c && ((q.intersect = !1), e.setType(e.ACTION.DEFAULT)));
       });
       b.mouseleave(function () {
         0 < d &&
           (d--,
           0 === d &&
             c &&
-            ((t.intersect = !0),
+            ((q.intersect = !0),
             a("Renderer/EntityManager").setOverEntity(null)));
       });
       b.on("x_remove", function () {
         0 < d &&
           ((d = 0),
           c &&
-            ((t.intersect = !0),
+            ((q.intersect = !0),
             a("Renderer/EntityManager").setOverEntity(null)));
       });
       b.on("touchstart", function (a) {
@@ -83,7 +83,7 @@ define(
         this.onKeyDown && d(window).off("keydown." + this.name);
         this.ui.trigger("x_remove");
         this.ui.detach();
-        this.mouseMode === b.MouseMode.FREEZE && (t.intersect = !0);
+        this.mouseMode === b.MouseMode.FREEZE && (q.intersect = !0);
       }
     };
     b.prototype.append = function () {
@@ -95,7 +95,7 @@ define(
             .off("keydown." + this.name)
             .on("keydown." + this.name, this.onKeyDown.bind(this));
         this.mouseMode === b.MouseMode.FREEZE &&
-          ((t.intersect = !1), e.setType(e.ACTION.DEFAULT));
+          ((q.intersect = !1), e.setType(e.ACTION.DEFAULT));
         if (this.onAppend) this.onAppend();
         this.focus();
       } else
@@ -114,21 +114,21 @@ define(
           c,
           d = [],
           e,
-          q;
+          k;
         for (b in a)
           this !== a[b] &&
             a[b].__active &&
             a[b].needFocus &&
             ((c = parseInt(a[b].ui.css("zIndex"), 10)), (d[c - 50] = c));
-        q = c = 0;
-        for (e = d.length; c < e; ++c) d[c] ? (d[c] -= q) : q++;
+        k = c = 0;
+        for (e = d.length; c < e; ++c) d[c] ? (d[c] -= k) : k++;
         for (b in a)
           this !== a[b] &&
             a[b].__active &&
             a[b].needFocus &&
             ((c = parseInt(a[b].ui.css("zIndex"), 10)),
             a[b].ui.css("zIndex", d[c - 50]));
-        this.ui.css("zIndex", d.length + 50 - q);
+        this.ui.css("zIndex", d.length + 50 - k);
       }
     };
     b.prototype.clone = function (a, c) {
@@ -136,8 +136,8 @@ define(
       if (c) {
         c = Object.keys(this);
         var d,
-          f = c.length;
-        for (d = 0; d < f; ++d) a[c[d]] = this[c[d]];
+          e = c.length;
+        for (d = 0; d < e; ++d) a[c[d]] = this[c[d]];
       }
       return a;
     };
@@ -161,25 +161,25 @@ define(
       a || (a = this.ui);
       a.on("mousedown touchstart", function (a) {
         function c() {
-          var a = t.screen.x + e,
-            d = t.screen.y + g,
+          var a = q.screen.x + e,
+            d = q.screen.y + g,
             f = parseFloat(b.css("opacity") || 1) - 0.02;
           10 > Math.abs(a) && (a = 0);
           10 > Math.abs(d) && (d = 0);
-          10 > Math.abs(a + k - t.screen.width) && (a = t.screen.width - k);
-          10 > Math.abs(d + p - t.screen.height) && (d = t.screen.height - p);
+          10 > Math.abs(a + l - q.screen.width) && (a = q.screen.width - l);
+          10 > Math.abs(d + k - q.screen.height) && (d = q.screen.height - k);
           b.css({ top: d, left: a, opacity: Math.max(f, 0.7) });
           h = r.setTimeout(c, 15);
         }
         if ("touchstart" === a.type)
-          ((t.screen.x = a.originalEvent.touches[0].pageX),
-            (t.screen.y = a.originalEvent.touches[0].pageY));
+          ((q.screen.x = a.originalEvent.touches[0].pageX),
+            (q.screen.y = a.originalEvent.touches[0].pageY));
         else if (1 !== a.which) return;
-        var e, g, k, p, h;
-        e = b.position().left - t.screen.x;
-        g = b.position().top - t.screen.y;
-        k = b.width();
-        p = b.height();
+        var e, g, l, k, h;
+        e = b.position().left - q.screen.x;
+        g = b.position().top - q.screen.y;
+        l = b.width();
+        k = b.height();
         b.stop();
         h = r.setTimeout(c, 15);
         d(window).on("mouseup.dragdrop touchend.dragdrop", function (a) {
@@ -198,21 +198,21 @@ define(
         function c() {
           var a = b74.zoom / 100,
             f = b73.screen.x + d,
-            m = e - b73.screen.y,
-            q = parseFloat(b.css("opacity") || 1) - 0.02;
+            n = e - b73.screen.y,
+            p = parseFloat(b.css("opacity") || 1) - 0.02;
           10 > Math.abs(f) && (f = 0);
-          10 > Math.abs(m) && (m = 0);
+          10 > Math.abs(n) && (n = 0);
           10 > Math.abs(f + g - b73.screen.width) && (f = b73.screen.width - g);
-          10 > Math.abs(m + k * a - b73.screen.height) &&
-            (m = b73.screen.height - k * a);
-          b.css({ bottom: m, left: f, opacity: Math.max(q, 0.7) });
-          p = b72.setTimeout(c, 15);
+          10 > Math.abs(n + l * a - b73.screen.height) &&
+            (n = b73.screen.height - l * a);
+          b.css({ bottom: n, left: f, opacity: Math.max(p, 0.7) });
+          k = b72.setTimeout(c, 15);
         }
         if ("touchstart" === a.type)
           ((b73.screen.x = a.originalEvent.touches[0].pageX),
             (b73.screen.y = a.originalEvent.touches[0].pageY));
         else if (1 !== a.which) return;
-        var d, e, g, k, p;
+        var d, e, g, l, k;
         a = b74.zoom / 100;
         d = b.position().left - b73.screen.x;
         e =
@@ -221,13 +221,13 @@ define(
           b.height() * a +
           b73.screen.y;
         g = b.width();
-        k = b.height();
+        l = b.height();
         b.stop();
-        p = b72.setTimeout(c, 15);
+        k = b72.setTimeout(c, 15);
         b6Y(window).on("mouseup.dragdrop touchend.dragdrop", function (a) {
           if ("touchend" === a.type || 1 === a.which || a.isTrigger)
             (b.stop().animate({ opacity: 1 }, 500),
-              b72.clearTimeout(p),
+              b72.clearTimeout(k),
               b6Y(window).off("mouseup.dragdrop touchend.dragdrop"));
         });
       });
@@ -252,44 +252,44 @@ define(
         b = a.data("background"),
         c = a.data("preload"),
         e = a.data("hover"),
-        m = a.data("down"),
-        q = a.data("text"),
-        n = null,
+        n = a.data("down"),
+        k = a.data("text"),
+        v = null,
         u = null;
-      q && l.getMessage(q, "") && a.text(l.getMessage(q, ""));
+      k && m.getMessage(k, "") && a.text(m.getMessage(k, ""));
       b &&
-        h.loadFile(l.INTERFACE_PATH + b, function (b) {
-          n = b;
-          a.css("backgroundImage", "url(" + n + ")");
+        h.loadFile(m.INTERFACE_PATH + b, function (b) {
+          v = b;
+          a.css("backgroundImage", "url(" + v + ")");
         });
       e &&
-        h.loadFile(l.INTERFACE_PATH + e, function (b) {
+        h.loadFile(m.INTERFACE_PATH + e, function (b) {
           u = b;
           a.mouseover(function () {
             this.style.backgroundImage = "url(" + u + ")";
           });
           a.mouseout(function () {
-            this.style.backgroundImage = "url(" + n + ")";
+            this.style.backgroundImage = "url(" + v + ")";
           });
         });
-      m &&
-        (h.loadFile(l.INTERFACE_PATH + m, function (b) {
+      n &&
+        (h.loadFile(m.INTERFACE_PATH + n, function (b) {
           a.mousedown(function (a) {
             this.style.backgroundImage = "url(" + b + ")";
             a.stopImmediatePropagation();
           });
           a.mouseup(function () {
-            this.style.backgroundImage = "url(" + (u || n) + ")";
+            this.style.backgroundImage = "url(" + (u || v) + ")";
           });
         }),
         e ||
           a.mouseout(function () {
-            this.style.backgroundImage = "url(" + n + ")";
+            this.style.backgroundImage = "url(" + v + ")";
           }));
       if (c) {
         b = c.split(";");
         c = 0;
-        for (e = b.length; c < e; ++c) b[c] = l.INTERFACE_PATH + d.trim(b[c]);
+        for (e = b.length; c < e; ++c) b[c] = m.INTERFACE_PATH + d.trim(b[c]);
         h.loadFiles(b);
       }
     };

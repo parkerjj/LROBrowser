@@ -8,9 +8,9 @@ define(
       c = a("Renderer/Renderer"),
       d = a("Controls/MouseEventHandler"),
       e = a("UI/UIManager"),
-      l = a("UI/UIComponent");
+      m = a("UI/UIComponent");
     a = a("text!./ContextMenu.css");
-    var h = new l(
+    var h = new m(
       "ContextMenu",
       '\x3cdiv id\x3d"ContextMenu"\x3e\x3cdiv class\x3d"menu"/\x3e\x3c/div\x3e',
       a,

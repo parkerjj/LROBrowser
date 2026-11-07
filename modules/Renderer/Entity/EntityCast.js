@@ -17,7 +17,7 @@ define("Renderer/Entity/EntityCast", [
   }
   var d = a.vec4,
     e = new Float32Array(4),
-    l = new Float32Array(2);
+    m = new Float32Array(2);
   c.prototype.set = function (a, c) {
     this.display = !0;
     this.tick = b.tick + 0;
@@ -56,12 +56,12 @@ define("Renderer/Entity/EntityCast", [
         (e[1] = 90 / 35),
         (e[2] = 0),
         (e[3] = 1),
-        (l[0] = b.width / 2),
-        (l[1] = b.height / 2),
+        (m[0] = b.width / 2),
+        (m[1] = b.height / 2),
         d.transformMat4(e, e, a),
         (a = 0 === e[3] ? 1 : 1 / e[3]),
-        (e[0] = l[0] + Math.round(l[0] * e[0] * a)),
-        (e[1] = l[1] - Math.round(l[1] * e[1] * a)),
+        (e[0] = m[0] + Math.round(m[0] * e[0] * a)),
+        (e[1] = m[1] - Math.round(m[1] * e[1] * a)),
         (c.style.top = (e[1] | 0) + "px"),
         (c.style.left = ((e[0] - c.width / 2) | 0) + "px"),
         c.parentNode || document.body.appendChild(c));

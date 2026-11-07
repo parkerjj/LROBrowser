@@ -5,10 +5,10 @@ define("Renderer/Effects/GroundEffect", [
   "Core/Client",
   "Renderer/Camera",
 ], function (a, b, c, d, e) {
-  function l(a, b, c) {
+  function m(a, b, c) {
     c = b.otherPosition;
     var d = b.position;
-    this.matrix = n.create();
+    this.matrix = k.create();
     this.position = b.position;
     this._position = [
       b.otherPosition[0],
@@ -66,10 +66,10 @@ define("Renderer/Effects/GroundEffect", [
     return (180 * Math.atan2(b[1] - a[1], b[0] - a[0])) / Math.PI;
   }
   var r,
-    t,
-    n = c.mat4;
-  n.create();
-  l.prototype.init = function (b) {
+    q,
+    k = c.mat4;
+  k.create();
+  m.prototype.init = function (b) {
     var c = this;
     d.loadFile("data/texture/" + this.textureName, function (d) {
       a.texture(b, d, function (a) {
@@ -78,10 +78,10 @@ define("Renderer/Effects/GroundEffect", [
       });
     });
   };
-  l.prototype.free = function (a) {
+  m.prototype.free = function (a) {
     this.ready = !1;
   };
-  l.prototype.render = function (a, b) {
+  m.prototype.render = function (a, b) {
     var c = b - this.startLifeTime,
       d = this.endLifeTime - this.startLifeTime;
     if (this.noLifeTime) var e = b / 120;
@@ -139,14 +139,14 @@ define("Renderer/Effects/GroundEffect", [
     a.bindTexture(a.TEXTURE_2D, this.texture);
     a.uniform1i(d.uDiffuse, 0);
     this.rotate
-      ? (n.identity(this.matrix),
-        n.rotateY(this.matrix, this.matrix, (b / 4 / 180) * Math.PI))
-      : (n.identity(this.matrix),
-        n.rotateY(this.matrix, this.matrix, (this.angle / 180) * Math.PI));
+      ? (k.identity(this.matrix),
+        k.rotateY(this.matrix, this.matrix, (b / 4 / 180) * Math.PI))
+      : (k.identity(this.matrix),
+        k.rotateY(this.matrix, this.matrix, (this.angle / 180) * Math.PI));
     a.uniformMatrix4fv(r.uniform.uRotationMat, !1, this.matrix);
     a.enableVertexAttribArray(c.aPosition);
     a.enableVertexAttribArray(c.aTextureCoord);
-    a.bindBuffer(a.ARRAY_BUFFER, t);
+    a.bindBuffer(a.ARRAY_BUFFER, q);
     a.vertexAttribPointer(c.aPosition, 2, a.FLOAT, !1, 16, 0);
     a.vertexAttribPointer(c.aTextureCoord, 2, a.FLOAT, !1, 16, 8);
     a.uniform3fv(r.uniform.uPosition, this.position);
@@ -155,16 +155,16 @@ define("Renderer/Effects/GroundEffect", [
     a.drawArrays(a.TRIANGLES, 0, 6);
     this.noLifeTime || (this.needCleanUp = this.endLifeTime < b);
   };
-  l.init = function (b) {
+  m.init = function (b) {
     r = a.createShaderProgram(
       b,
       "\n\t\t#version 100\n\t\t#pragma vscode_glsllint_stage : vert\n\t\tprecision highp float;\n\t\t\n\t\tattribute vec2 aPosition;\n\t\tattribute vec2 aTextureCoord;\n\n\t\tvarying vec2 vTextureCoord;\n\n\t\tuniform mat4 uModelViewMat;\n\t\tuniform mat4 uProjectionMat;\n\t\tuniform mat4 uRotationMat;\n\n\t\tuniform vec3 uPosition;\n\t\tuniform float uSize;\n\n\t\tvoid main(void) {\n\t\t\tvec4 position  \x3d vec4(uPosition.x + 0.5, -uPosition.z, uPosition.y + 0.5, 1.0);\n\t\t\tposition      +\x3d vec4(aPosition.x * uSize, 0.0, aPosition.y * uSize, 0.0) * uRotationMat;\n\n\t\t\tgl_Position    \x3d uProjectionMat * uModelViewMat * position;\n\t\t\tgl_Position.z -\x3d 0.02;\n\n\t\t\tvTextureCoord  \x3d aTextureCoord;\n\t\t}\n\t",
       "\n\t\t#version 100\n\t\t#pragma vscode_glsllint_stage : frag\n\t\tprecision highp float;\n\t\t\n\t\tvarying vec2 vTextureCoord;\n\n\t\tuniform sampler2D uDiffuse;\n\t\tuniform vec4 uColor;\n\n\t\tuniform bool  uFogUse;\n\t\tuniform float uFogNear;\n\t\tuniform float uFogFar;\n\t\tuniform vec3  uFogColor;\n\n\t\tvoid main(void) {\n\t\t\tvec4 texture \x3d texture2D( uDiffuse,  vTextureCoord.st );\n\n\t\t\tif (texture.a \x3d\x3d 0.0) {\n\t\t\t\tdiscard;\n\t\t\t}\n\n\t\t\tgl_FragColor     \x3d texture * uColor;\n\n\t\t\tif (uFogUse) {\n\t\t\t\tfloat depth     \x3d gl_FragCoord.z / gl_FragCoord.w;\n\t\t\t\tfloat fogFactor \x3d smoothstep( uFogNear, uFogFar, depth );\n\t\t\t\tgl_FragColor    \x3d mix( gl_FragColor, vec4( uFogColor, gl_FragColor.w ), fogFactor );\n\t\t\t}\n\t\t}\n\t",
     );
-    t = b.createBuffer();
+    q = b.createBuffer();
     this.ready = !0;
     this.renderBeforeEntities = !1;
-    b.bindBuffer(b.ARRAY_BUFFER, t);
+    b.bindBuffer(b.ARRAY_BUFFER, q);
     b.bufferData(
       b.ARRAY_BUFFER,
       new Float32Array([
@@ -174,12 +174,12 @@ define("Renderer/Effects/GroundEffect", [
       b.STATIC_DRAW,
     );
   };
-  l.free = function (a) {
+  m.free = function (a) {
     r && (a.deleteProgram(r), (r = null));
-    t && a.deleteBuffer(t);
+    q && a.deleteBuffer(q);
     this.ready = !1;
   };
-  l.beforeRender = function (a, b, c, d, e) {
+  m.beforeRender = function (a, b, c, d, e) {
     d = r.uniform;
     a.depthMask(!1);
     a.useProgram(r);
@@ -188,11 +188,11 @@ define("Renderer/Effects/GroundEffect", [
     a.activeTexture(a.TEXTURE0);
     a.uniform1i(d.uDiffuse, 0);
   };
-  l.afterRender = function (a) {
+  m.afterRender = function (a) {
     a.depthMask(!0);
     a.disableVertexAttribArray(r.attribute.aPosition);
     a.disableVertexAttribArray(r.attribute.aTextureCoord);
     a.blendFunc(a.SRC_ALPHA, a.ONE_MINUS_SRC_ALPHA);
   };
-  return l;
+  return m;
 });

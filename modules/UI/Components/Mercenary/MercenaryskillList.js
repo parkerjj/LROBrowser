@@ -7,7 +7,7 @@ define(
     function b() {
       var a = h(this);
       a.hasClass("skill") || (a = a.parent());
-      q.useSkillID(parseInt(a.data("index"), 10), a.find(".current").text());
+      p.useSkillID(parseInt(a.data("index"), 10), a.find(".current").text());
     }
     function c(a) {
       var b,
@@ -21,9 +21,9 @@ define(
       f.uid != a.SKID ? (f.append(), f.setSkill(a.SKID)) : f.remove();
     }
     function e() {
-      q.ui.hide();
+      p.ui.hide();
     }
-    function l(a) {
+    function m(a) {
       var b = parseInt(this.getAttribute("data-index"), 10),
         b = c(b),
         d = h(this).find(".current").text();
@@ -45,47 +45,47 @@ define(
     }
     var h = a("Utils/jquery"),
       r = a("DB/DBManager"),
-      t = a("Core/Client"),
-      n = a("Core/Preferences");
+      q = a("Core/Client"),
+      k = a("Core/Preferences");
     a("Renderer/Renderer");
     var g = a("UI/UIManager"),
-      p = a("UI/UIComponent"),
-      k = a("UI/Components/SkillTargetSelection/SkillTargetSelection"),
+      t = a("UI/UIComponent"),
+      l = a("UI/Components/SkillTargetSelection/SkillTargetSelection"),
       f = a("UI/Components/SkillDescription/SkillDescription"),
-      m = a("text!./MercenaryskillList.html");
+      n = a("text!./MercenaryskillList.html");
     a = a("text!./MercenaryskillList.css");
-    var q = new p("MercenaryskillList", m, a);
-    n.get("MercenaryskillList", { x: 100, y: 200, show: !1 }, 1);
+    var p = new t("MercenaryskillList", n, a);
+    k.get("MercenaryskillList", { x: 100, y: 200, show: !1 }, 1);
     var v = [];
-    q.init = function () {
+    p.init = function () {
       this.draggable(this.ui.find(".titlebar"));
       this.ui.find(".close").click(e);
       this.ui
         .on("dblclick", ".skill.active .icon", b)
         .find(".content")
         .on("contextmenu", ".skill", d)
-        .on("dragstart", ".skill", l)
+        .on("dragstart", ".skill", m)
         .on("dragend", ".skill", function () {
           delete window._OBJ_DRAG_;
         });
       this.ui.hide();
     };
-    q.onRemove = function () {};
-    q.onShortCut = function (a) {
+    p.onRemove = function () {};
+    p.onShortCut = function (a) {
       if (this.ui)
         switch (a.cmd) {
           case "TOGGLE":
             (this.ui.toggle(), this.ui.is(":visible") && this.focus());
         }
     };
-    q.setskill = function (a) {
+    p.setskill = function (a) {
       var b, c;
       v.length = 0;
       this.ui.find(".content table").empty();
       b = 0;
       for (c = a.length; b < c; ++b) this.addSkill(a[b]);
     };
-    q.addSkill = function (a) {
+    p.addSkill = function (a) {
       if (a.SKID in r.getAllSkillInfo())
         if (this.ui.find(".skill.id" + a.SKID + ":first").length)
           this.updateSkill(a);
@@ -120,7 +120,7 @@ define(
                   : "\u88ab\u52a8") +
                 "\x3c/td\x3e\x3c/tr\x3e",
             );
-          t.loadFile(
+          q.loadFile(
             r.INTERFACE_PATH + "basic_interface/arw_left.bmp",
             function (a) {
               c.find(".arw_left").attr(
@@ -131,7 +131,7 @@ define(
               );
             },
           );
-          t.loadFile(
+          q.loadFile(
             r.INTERFACE_PATH + "basic_interface/arw_right.bmp",
             function (a) {
               c.find(".arw_right").attr(
@@ -143,7 +143,7 @@ define(
             },
           );
           this.ui.find(".content table").append(c);
-          t.loadFile(
+          q.loadFile(
             r.INTERFACE_PATH + "item/" + b.Name + ".bmp",
             function (a) {
               c.find(".icon img").attr("src", a);
@@ -152,26 +152,26 @@ define(
           v.push(a);
         }
     };
-    q.useSkillID = function (a, b) {
-      (a = c(a)) && b && a.type && q.useSkill(a, b);
+    p.useSkillID = function (a, b) {
+      (a = c(a)) && b && a.type && p.useSkill(a, b);
     };
-    q.useSkill = (function () {
+    p.useSkill = (function () {
       var a = 0;
       return function (b, c) {
         var d = Date.now();
         if (!(200 > d - a)) {
           a = d;
-          if (b.type & k.TYPE.SELF) this.onUseSkill(b.SKID, c);
-          b.type & k.TYPE.TARGET &&
-            (k.append(),
+          if (b.type & l.TYPE.SELF) this.onUseSkill(b.SKID, c);
+          b.type & l.TYPE.TARGET &&
+            (l.append(),
             (b.useLevel = c),
-            k.set(b, b.type),
-            (k.onUseSkillToId = q.onUseSkill));
+            l.set(b, b.type),
+            (l.onUseSkillToId = p.onUseSkill));
         }
       };
     })();
-    q.onUseSkill = function () {};
-    q.getSkillById = c;
-    return g.addComponent(q);
+    p.onUseSkill = function () {};
+    p.getSkillById = c;
+    return g.addComponent(p);
   },
 );

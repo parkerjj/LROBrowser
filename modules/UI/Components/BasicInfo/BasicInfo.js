@@ -5,10 +5,10 @@ define(
   ),
   function (a) {
     function b(a) {
-      if (!(1e3 > a - V)) {
-        V = a;
-        W++;
-        var b = 3600 - W;
+      if (!(1e3 > a - R)) {
+        R = a;
+        S++;
+        var b = 3600 - S;
         0 > b && (b = 0);
         a = parseInt(b / 60);
         b %= 60;
@@ -22,45 +22,45 @@ define(
     var c = a("DB/DBManager"),
       d = a("DB/Monsters/MonsterTable"),
       e = a("Core/Client"),
-      l = a("Core/Preferences"),
+      m = a("Core/Preferences"),
       h = a("Core/Configs"),
       r = a("Preferences/Controls"),
-      t = a("Network/NetworkManager"),
-      n = a("Network/PacketStructure"),
+      q = a("Network/NetworkManager"),
+      k = a("Network/PacketStructure"),
       g = a("Renderer/Renderer"),
-      p = a("Engine/SessionStorage"),
-      k = a("UI/UIManager"),
+      t = a("Engine/SessionStorage"),
+      l = a("UI/UIManager"),
       f = a("UI/UIComponent"),
-      m = a("UI/Components/Inventory/Inventory");
+      n = a("UI/Components/Inventory/Inventory");
     a("UI/Components/OnPushCart/OnPushCart");
-    var q = a("UI/Components/WinStats/WinStats"),
+    var p = a("UI/Components/WinStats/WinStats"),
       v = a("UI/Components/Equipment/Equipment"),
       u = a("UI/Components/SkillList/SkillList"),
       A = a("UI/Components/PartyFriends/PartyFriends"),
       D = a("UI/Components/ChatBox/ChatBox"),
       B = a("UI/Components/Guild/Guild"),
-      H = a("UI/Components/Emoticons/Emoticons"),
+      O = a("UI/Components/Emoticons/Emoticons"),
       C = a("UI/Components/Escape/Escape"),
-      z = a("UI/Components/Quest/Quest"),
-      G = a("UI/Components/Mail/Rodex"),
-      P = a("UI/Components/WorldMap/WorldMap"),
-      N = a("UI/Components/Achievement/Achievement"),
-      I = a("UI/Components/Attendance/Attendance"),
+      y = a("UI/Components/Quest/Quest"),
+      z = a("UI/Components/Mail/Rodex"),
+      J = a("UI/Components/WorldMap/WorldMap"),
+      I = a("UI/Components/Achievement/Achievement"),
+      L = a("UI/Components/Attendance/Attendance"),
       x = a("UI/Components/CardConnection/CardConnection2"),
-      J = a("UI/Components/ShortCut/ShortCut"),
+      M = a("UI/Components/ShortCut/ShortCut"),
       E = a("UI/Components/Shop/CashShop"),
-      L = a("UI/Components/PartyBooking/PartyBooking"),
-      y = a("text!./BasicInfo.html"),
-      F = a("text!./BasicInfo.css"),
-      K = new f("BasicInfo", y, F);
+      F = a("UI/Components/PartyBooking/PartyBooking"),
+      G = a("text!./BasicInfo.html"),
+      H = a("text!./BasicInfo.css"),
+      K = new f("BasicInfo", G, H);
     K.base_exp = 0;
     K.base_exp_next = 1;
     K.job_exp = 0;
     K.job_exp_next = -1;
     K.weight = 0;
     K.weight_max = 1;
-    var M = l.get("BasicInfo", { x: 0, y: 0, reduce: !0, buttons: !0 }, 1),
-      Q = h.get("ClientVer");
+    var P = m.get("BasicInfo", { x: 0, y: 0, reduce: !0, buttons: !0 }, 1),
+      N = h.get("ClientVer");
     K.init = function () {
       this.ui.find(".topbar button").mousedown(function (a) {
         a.stopImmediatePropagation();
@@ -71,15 +71,15 @@ define(
       this.ui.find(".buttons button").mousedown(function () {
         switch (this.className) {
           case "status":
-            q.ui.toggle();
-            q.focus();
+            p.ui.toggle();
+            p.focus();
             break;
           case "equip":
             v.toggle();
             break;
           case "item":
-            m.ui.toggle();
-            m.focus();
+            n.ui.toggle();
+            n.focus();
             break;
           case "info":
             v.toggle();
@@ -100,68 +100,68 @@ define(
           case "cashshop":
             if (E.ui && E.ui.is(":visible")) break;
             E.ui.show();
-            var b = new n.CZ.REQ_CASHSHOP_OPEN();
-            t.sendPacket(b);
+            var b = new k.CZ.REQ_CASHSHOP_OPEN();
+            q.sendPacket(b);
             break;
           case "sit":
-            b = new n.CZ.REQUEST_ACT();
-            b.action = p.Entity.action === p.Entity.ACTION.SIT ? 3 : 2;
-            t.sendPacket(b);
+            b = new k.CZ.REQUEST_ACT();
+            b.action = t.Entity.action === t.Entity.ACTION.SIT ? 3 : 2;
+            q.sendPacket(b);
             break;
           case "quest":
-            z.toggle();
-            z.focus();
+            y.toggle();
+            y.focus();
             break;
           case "emo":
-            H.ui.toggle();
-            H.focus();
+            O.ui.toggle();
+            O.focus();
             break;
           case "map":
-            P.select();
+            J.select();
             break;
           case "mail":
-            if (G.ui && G.ui.is(":visible")) break;
-            G.ui.show();
-            b = new n.CZ.OPEN_MAILBOX();
+            if (z.ui && z.ui.is(":visible")) break;
+            z.ui.show();
+            b = new k.CZ.OPEN_MAILBOX();
             b.MailTAB = 0;
             b.MailID = 0;
-            t.sendPacket(b);
-            G.focus();
+            q.sendPacket(b);
+            z.focus();
             break;
           case "shortcut":
-            J.setCustom();
+            M.setCustom();
             break;
           case "achievement":
-            3 == Q || 4 == Q || 5 == Q
-              ? N.toggle()
-              : k.showMessageBox(
+            3 == N || 4 == N || 5 == N
+              ? I.toggle()
+              : l.showMessageBox(
                   "\u7248\u672c\u5347\u7ea7\u540e\u5f00\u653e",
                   "ok",
                 );
             break;
           case "attendance":
-            3 == Q || 4 == Q || 5 == Q
-              ? I.toggle()
-              : k.showMessageBox(
+            3 == N || 4 == N || 5 == N
+              ? L.toggle()
+              : l.showMessageBox(
                   "\u7248\u672c\u5347\u7ea7\u540e\u5f00\u653e",
                   "ok",
                 );
             break;
           case "CardConnection":
-            3 == Q || 4 == Q || 5 == Q
+            3 == N || 4 == N || 5 == N
               ? (x.ui.is(":visible") && x.ui.hide(), x.ui.show(), x.focus())
-              : k.showMessageBox(
+              : l.showMessageBox(
                   "\u7248\u672c\u5347\u7ea7\u540e\u5f00\u653e",
                   "ok",
                 );
             break;
           case "adventureragency":
-            3 == Q || 4 == Q || 5 == Q
+            3 == N || 4 == N || 5 == N
               ? (a("Renderer/MapRenderer"),
                 (b = new FormData()),
-                b.append("AuthToken", p.AuthToken),
-                b.append("AID", p.Entity.GID),
-                b.append("GDID", p.Entity.GUID),
+                b.append("AuthToken", t.AuthToken),
+                b.append("AID", t.Entity.GID),
+                b.append("GDID", t.Entity.GUID),
                 b.append("WorldName", "lastro"),
                 $.ajax({
                   url: "https://game.lastro.cn/" + c.webpath + "/party/list",
@@ -172,15 +172,15 @@ define(
                   contentType: !1,
                 })
                   .done(function (a) {
-                    L.setList(a);
+                    F.setList(a);
                   })
                   .fail(function (a) {
-                    k.showMessageBox(
+                    l.showMessageBox(
                       "\u6570\u636e\u52a0\u8f7d\u5931\u8d25",
                       "ok",
                     );
                   }))
-              : k.showMessageBox(
+              : l.showMessageBox(
                   "\u7248\u672c\u5347\u7ea7\u540e\u5f00\u653e",
                   "ok",
                 );
@@ -188,31 +188,31 @@ define(
       });
       this.ui.find("#goldpcButton").on("click", function () {
         if (!r.talk) {
-          var a = new n.CZ.DYNAMICNPC_CREATE_REQUEST();
+          var a = new k.CZ.DYNAMICNPC_CREATE_REQUEST();
           a.name = "GOLDPCCAFE";
-          t.sendPacket(a);
+          q.sendPacket(a);
         }
       });
     };
-    var W = 0;
+    var S = 0;
     K.setGoldPccafe = function (a) {
       a.isActive
-        ? ((W = a.playedTime),
+        ? ((S = a.playedTime),
           this.ui.find("#goldpcButton .points").text(a.point),
           g.stop(b),
-          0 < 3600 - W && g.render(b))
+          0 < 3600 - S && g.render(b))
         : g.stop(b);
     };
-    var V = 0;
+    var R = 0;
     K.onAppend = function () {
       this.ui.css({
-        top: Math.min(Math.max(0, M.y), g.height - this.ui.height()),
-        left: Math.min(Math.max(0, M.x), g.width - this.ui.width()),
+        top: Math.min(Math.max(0, P.y), g.height - this.ui.height()),
+        left: Math.min(Math.max(0, P.x), g.width - this.ui.width()),
       });
       this.ui.removeClass("small large");
-      M.reduce
+      P.reduce
         ? (this.ui.addClass("small"),
-          M.buttons
+          P.buttons
             ? (this.ui.find(".buttons").show(),
               this.ui.find(".toggle_btns_hide").show(),
               this.ui.find(".toggle_btns_show").hide())
@@ -226,11 +226,11 @@ define(
       K.ui &&
         (K.ui.find("#goldpcButton .timer").text("00:00"),
         K.ui.find("#goldpcButton .points").text("0"));
-      M.x = parseInt(this.ui.css("left"), 10);
-      M.y = parseInt(this.ui.css("top"), 10);
-      M.reduce = this.ui.hasClass("small");
-      M.buttons = this.ui.find(".buttons").is(":visible");
-      M.save();
+      P.x = parseInt(this.ui.css("left"), 10);
+      P.y = parseInt(this.ui.css("top"), 10);
+      P.reduce = this.ui.hasClass("small");
+      P.buttons = this.ui.find(".buttons").is(":visible");
+      P.save();
     };
     K.onShortCut = function (a) {
       switch (a.cmd) {
@@ -243,7 +243,7 @@ define(
       this.ui.toggleClass("small large");
       this.ui.hasClass("large")
         ? this.ui.find(".buttons").show()
-        : (M.buttons
+        : (P.buttons
             ? (this.ui.find(".buttons").show(), (a = "off"))
             : (this.ui.find(".buttons").hide(), (a = "on")),
           e.loadFile(
@@ -257,8 +257,8 @@ define(
     };
     K.toggleButtons = function (a) {
       var b = this.ui.find(".buttons");
-      M.buttons = !b.is(":visible");
-      M.buttons
+      P.buttons = !b.is(":visible");
+      P.buttons
         ? (b.show(),
           this.ui.find(".toggle_btns_hide").show(),
           this.ui.find(".toggle_btns_show").hide())
@@ -275,14 +275,14 @@ define(
           this.ui.find("." + a + "_value").text(b);
           break;
         case "zeny":
-          p.zeny = b;
+          t.zeny = b;
           b = b.toString().split("");
           var g = b.length,
             h = "";
           for (f = 0; f < g; f++)
             h = b[g - f - 1] + (f && 0 === f % 3 ? "," : "") + h;
           this.ui.find("." + a + "_value").text(h);
-          m.ui.find(".curzeny").text(h);
+          n.ui.find(".curzeny").text(h);
           break;
         case "job":
           this.ui.find(".job_value").text(d[b]);
@@ -307,9 +307,9 @@ define(
           this.ui.find(".weight_value").text((b / 10) | 0);
           this.ui.find(".weight_total").text((f / 10) | 0);
           this.ui.find(".weight").css("color", b < 0.7 * f ? "" : "red");
-          m.ui.find(".curweight").text((b / 10) | 0);
-          m.ui.find(".maxweight").text((f / 10) | 0);
-          m.ui.find(".curweight").css("color", b < 0.7 * f ? "#FFB850" : "red");
+          n.ui.find(".curweight").text((b / 10) | 0);
+          n.ui.find(".maxweight").text((f / 10) | 0);
+          n.ui.find(".curweight").css("color", b < 0.7 * f ? "#FFB850" : "red");
           b > 0.9 * f && D.addText(c.getMessage(243), D.TYPE.ERROR);
           break;
         case "hp":
@@ -353,6 +353,6 @@ define(
               ));
       }
     };
-    return k.addComponent(K);
+    return l.addComponent(K);
   },
 );

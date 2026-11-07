@@ -15,7 +15,7 @@ define(
         };
       }
       B.showPromptBox(
-        a.name + " " + m.getMessage(94),
+        a.name + " " + n.getMessage(94),
         "ok",
         "cancel",
         b(1),
@@ -25,12 +25,12 @@ define(
     function c(a) {
       switch (a.result) {
         case 0:
-          H.addText(m.getMessage(77), H.TYPE.BLUE);
-          q.hasParty = !0;
-          z.setParty(N, [
+          O.addText(n.getMessage(77), O.TYPE.BLUE);
+          p.hasParty = !0;
+          y.setParty(I, [
             {
-              AID: q.AID,
-              characterName: q.Entity.display.name,
+              AID: p.AID,
+              characterName: p.Entity.display.name,
               role: 0,
               state: 0,
               mapName: D.currentMap,
@@ -38,61 +38,61 @@ define(
           ]);
           break;
         case 1:
-          H.addText(m.getMessage(78), H.TYPE.ERROR);
+          O.addText(n.getMessage(78), O.TYPE.ERROR);
           break;
         case 1:
-          H.addText(m.getMessage(79), H.TYPE.ERROR);
+          O.addText(n.getMessage(79), O.TYPE.ERROR);
           break;
         case 3:
-          H.addText(m.getMessage(1387), H.TYPE.ERROR);
+          O.addText(n.getMessage(1387), O.TYPE.ERROR);
       }
     }
     function d(a) {
       switch (a.refused) {
         case 0:
-          q.partyLeaderAID = a.AID;
-          H.addText("\u52a0\u5165\u7ec4\u961f", H.TYPE.BLUE);
-          G.setMsg("\u52a0\u5165\u7ec4\u961f");
+          p.partyLeaderAID = a.AID;
+          O.addText("\u52a0\u5165\u7ec4\u961f", O.TYPE.BLUE);
+          z.setMsg("\u52a0\u5165\u7ec4\u961f");
           break;
         case 1:
-          (H.addText("\u52a0\u5165\u5931\u8d25", H.TYPE.BLUE),
-            G.setMsg("\u52a0\u5165\u5931\u8d25"));
+          (O.addText("\u52a0\u5165\u5931\u8d25", O.TYPE.BLUE),
+            z.setMsg("\u52a0\u5165\u5931\u8d25"));
       }
     }
     function e(a) {
       var b, c, d;
-      q.hasParty = !0;
+      p.hasParty = !0;
       c = a.groupInfo.length;
       for (b = 0; b < c; ++b)
-        (0 == a.groupInfo[b].role && (q.partyLeaderAID = a.groupInfo[b].AID),
+        (0 == a.groupInfo[b].role && (p.partyLeaderAID = a.groupInfo[b].AID),
           (d = A.get(a.groupInfo[b].AID)) &&
             d.life.display &&
             (a.groupInfo[b].life = d.life));
-      z.setParty(a.groupName, a.groupInfo);
+      y.setParty(a.groupName, a.groupInfo);
     }
-    function l(a) {
+    function m(a) {
       var b = A.get(a.AID);
       b && b.life.display && (a.life = b.life);
-      z.addPartyMember(a);
+      y.addPartyMember(a);
     }
     function h(a) {
       switch (a.result) {
         case 2:
-          H.addText(m.getMessage(1872), H.TYPE.ERROR);
+          O.addText(n.getMessage(1872), O.TYPE.ERROR);
           return;
         case 3:
-          H.addText(m.getMessage(1873), H.TYPE.ERROR);
+          O.addText(n.getMessage(1873), O.TYPE.ERROR);
           return;
       }
-      if (q.AID === a.AID) {
-        if (q.partyLeaderAID == a.AID) {
+      if (p.AID === a.AID) {
+        if (p.partyLeaderAID == a.AID) {
           var b = new FormData();
-          b.append("AuthToken", q.AuthToken);
-          b.append("AID", q.Entity.GID);
-          b.append("GDID", q.Entity.GUID);
+          b.append("AuthToken", p.AuthToken);
+          b.append("AID", p.Entity.GID);
+          b.append("GDID", p.Entity.GUID);
           b.append("WorldName", "lastro");
           $.ajax({
-            url: "https://game.lastro.cn/" + m.webpath + "/party/del",
+            url: "https://game.lastro.cn/" + n.webpath + "/party/del",
             type: "POST",
             cache: !1,
             data: b,
@@ -102,10 +102,10 @@ define(
             .done(function (a) {})
             .fail(function (a) {});
         }
-        q.hasParty = !1;
-        q.partyLeaderAID = 0;
+        p.hasParty = !1;
+        p.partyLeaderAID = 0;
       }
-      z.removePartyMember(a.AID, a.characterName);
+      y.removePartyMember(a.AID, a.characterName);
     }
     function r(a) {
       var b = A.get(a.AID);
@@ -113,50 +113,50 @@ define(
         ((b.life.hp = a.hp),
         (b.life.hp_max = a.maxhp),
         b.life.update(),
-        a.AID !== q.AID &&
-          z.updateMemberLife(a.AID, b.life.canvas, a.hp, a.maxhp));
+        a.AID !== p.AID &&
+          y.updateMemberLife(a.AID, b.life.canvas, a.hp, a.maxhp));
     }
-    function t(a) {
+    function q(a) {
       var b = A.get(a.AID);
       b && b.dialog.set(a.msg);
-      H.addText(a.msg, H.TYPE.PARTY);
+      O.addText(a.msg, O.TYPE.PARTY);
     }
-    function n(a) {
+    function k(a) {
       0 > a.xPos || 0 > a.yPos
         ? C.removePartyMemberMark(a.AID)
         : C.addPartyMemberMark(a.AID, a.xPos, a.yPos);
     }
     function g(a) {
-      z.setOptions(a.expOption, a.ItemPickupRule, a.ItemDivisionRule);
-      H.addText(
-        m.getMessage(291) +
+      y.setOptions(a.expOption, a.ItemPickupRule, a.ItemDivisionRule);
+      O.addText(
+        n.getMessage(291) +
           "  - " +
-          m.getMessage(292) +
+          n.getMessage(292) +
           "  : " +
-          m.getMessage(287 + a.expOption),
-        H.TYPE.INFO,
+          n.getMessage(287 + a.expOption),
+        O.TYPE.INFO,
       );
-      H.addText(
-        m.getMessage(291) +
+      O.addText(
+        n.getMessage(291) +
           "  - " +
-          m.getMessage(293) +
+          n.getMessage(293) +
           "  : " +
-          m.getMessage(289 + a.ItemPickupRule),
-        H.TYPE.INFO,
+          n.getMessage(289 + a.ItemPickupRule),
+        O.TYPE.INFO,
       );
-      H.addText(
-        m.getMessage(291) +
+      O.addText(
+        n.getMessage(291) +
           "  - " +
-          m.getMessage(738) +
+          n.getMessage(738) +
           "  : " +
-          m.getMessage(287 + a.ItemDivisionRule),
-        H.TYPE.INFO,
+          n.getMessage(287 + a.ItemDivisionRule),
+        O.TYPE.INFO,
       );
     }
-    function p(a) {
-      H.addText(m.getMessage(a.bRefuseJoinMsg ? 1325 : 1326), H.TYPE.INFO);
+    function t(a) {
+      O.addText(n.getMessage(a.bRefuseJoinMsg ? 1325 : 1326), O.TYPE.INFO);
     }
-    function k(a) {
+    function l(a) {
       function b(a) {
         return function () {
           var b = new u.CZ.PARTY_JOIN_REQ_ACK();
@@ -167,7 +167,7 @@ define(
       }
       var c = a.GRID;
       B.showPromptBox(
-        a.groupName + " " + m.getMessage(94),
+        a.groupName + " " + n.getMessage(94),
         "ok",
         "cancel",
         b(1),
@@ -176,7 +176,7 @@ define(
     }
     function f(a) {
       var b = 1,
-        c = H.TYPE.ERROR;
+        c = O.TYPE.ERROR;
       switch (a.answer) {
         case 0:
           b = 80;
@@ -186,7 +186,7 @@ define(
           break;
         case 2:
           b = 82;
-          c = H.TYPE.BLUE;
+          c = O.TYPE.BLUE;
           break;
         case 3:
           b = 83;
@@ -206,60 +206,60 @@ define(
         case 9:
           b = 1871;
       }
-      H.addText(m.getMessage(b).replace("%s", a.characterName), c);
+      O.addText(n.getMessage(b).replace("%s", a.characterName), c);
     }
-    var m = a("DB/DBManager"),
-      q = a("Engine/SessionStorage"),
+    var n = a("DB/DBManager"),
+      p = a("Engine/SessionStorage"),
       v = a("Network/NetworkManager"),
       u = a("Network/PacketStructure"),
       A = a("Renderer/EntityManager"),
       D = a("Renderer/MapRenderer"),
       B = a("UI/UIManager"),
-      H = a("UI/Components/ChatBox/ChatBox"),
+      O = a("UI/Components/ChatBox/ChatBox"),
       C = a("UI/Components/MiniMap/MiniMap"),
-      z = a("UI/Components/PartyFriends/PartyFriends"),
-      G = a("UI/Components/ItemObtain/ItemObtain"),
-      P = {},
-      N = "";
-    P.init = function () {
+      y = a("UI/Components/PartyFriends/PartyFriends"),
+      z = a("UI/Components/ItemObtain/ItemObtain"),
+      J = {},
+      I = "";
+    J.init = function () {
       v.hookPacket(u.ZC.NOTIFY_HP_TO_GROUPM, r);
       v.hookPacket(u.ZC.NOTIFY_HP_TO_GROUPM_R2, r);
-      v.hookPacket(u.ZC.NOTIFY_CHAT_PARTY, t);
+      v.hookPacket(u.ZC.NOTIFY_CHAT_PARTY, q);
       v.hookPacket(u.ZC.GROUPINFO_CHANGE, g);
       v.hookPacket(u.ZC.REQ_GROUPINFO_CHANGE_V2, g);
-      v.hookPacket(u.ZC.PARTY_CONFIG, p);
-      v.hookPacket(u.ZC.NOTIFY_POSITION_TO_GROUPM, n);
-      v.hookPacket(u.ZC.PARTY_JOIN_REQ, k);
+      v.hookPacket(u.ZC.PARTY_CONFIG, t);
+      v.hookPacket(u.ZC.NOTIFY_POSITION_TO_GROUPM, k);
+      v.hookPacket(u.ZC.PARTY_JOIN_REQ, l);
       v.hookPacket(u.ZC.PARTY_JOIN_REQ_ACK, f);
       v.hookPacket(u.ZC.ACK_REQ_JOIN_GROUP, f);
       v.hookPacket(u.ZC.GROUP_LIST, e);
       v.hookPacket(u.ZC.GROUP_LIST2, e);
       v.hookPacket(u.ZC.GROUP_LIST3, e);
-      v.hookPacket(u.ZC.ADD_MEMBER_TO_GROUP, l);
-      v.hookPacket(u.ZC.ADD_MEMBER_TO_GROUP2, l);
-      v.hookPacket(u.ZC.ADD_MEMBER_TO_GROUP3, l);
-      v.hookPacket(u.ZC.ADD_MEMBER_TO_GROUP4, l);
+      v.hookPacket(u.ZC.ADD_MEMBER_TO_GROUP, m);
+      v.hookPacket(u.ZC.ADD_MEMBER_TO_GROUP2, m);
+      v.hookPacket(u.ZC.ADD_MEMBER_TO_GROUP3, m);
+      v.hookPacket(u.ZC.ADD_MEMBER_TO_GROUP4, m);
       v.hookPacket(u.ZC.DELETE_MEMBER_FROM_GROUP, h);
       v.hookPacket(u.ZC.ACK_MAKE_GROUP, c);
       v.hookPacket(u.ZC.PARTY_JOIN_REQ_ACK_FROM_MASTER, d);
       v.hookPacket(u.ZC.PARTY_REQ_MASTER_TO_JOIN, b);
-      z.onExpelMember = P.onRequestExpel;
-      z.onRequestChangeLeader = P.onRequestChangeLeader;
-      z.onRequestLeave = P.onRequestLeave;
-      z.onRequestPartyCreation = P.onRequestCreation;
-      z.onRequestAddingMember = P.onRequestInvitation;
-      z.onRequestSettingUpdate = P.onRequestInfoUpdate;
+      y.onExpelMember = J.onRequestExpel;
+      y.onRequestChangeLeader = J.onRequestChangeLeader;
+      y.onRequestLeave = J.onRequestLeave;
+      y.onRequestPartyCreation = J.onRequestCreation;
+      y.onRequestAddingMember = J.onRequestInvitation;
+      y.onRequestSettingUpdate = J.onRequestInfoUpdate;
     };
-    P.onRequestCreationEasy = function (a) {
-      if (!q.hasParty) {
-        N = a;
+    J.onRequestCreationEasy = function (a) {
+      if (!p.hasParty) {
+        I = a;
         var b = new u.CZ.MAKE_GROUP();
         b.groupName = a;
         v.sendPacket(b);
       }
     };
-    P.onRequestCreation = function (a, b, c) {
-      if (!q.hasParty) {
+    J.onRequestCreation = function (a, b, c) {
+      if (!p.hasParty) {
         var d = new u.CZ.MAKE_GROUP2();
         d.groupName = a;
         this.ItemPickupRule = b;
@@ -267,16 +267,16 @@ define(
         v.sendPacket(d);
       }
     };
-    P.onRequestInvitation = function (a, b) {
-      if (q.hasParty && q.isPartyLeader) {
-        H.addText(
+    J.onRequestInvitation = function (a, b) {
+      if (p.hasParty && p.isPartyLeader) {
+        O.addText(
           b +
             " " +
-            m.getMessage(
+            n.getMessage(
               2059,
               " \u5df2\u7ecf\u6536\u5230\u60a8\u7684\u7ec4\u961f\u9080\u8bf7",
             ),
-          H.TYPE.BLUE,
+          O.TYPE.BLUE,
         );
         var c = new u.CZ.REQ_JOIN_GROUP();
         c.AID = a;
@@ -284,22 +284,22 @@ define(
         v.sendPacket(c);
       }
     };
-    P.onRequestLeave = function () {
-      if (q.hasParty) {
+    J.onRequestLeave = function () {
+      if (p.hasParty) {
         var a = new u.CZ.REQ_LEAVE_GROUP();
         v.sendPacket(a);
       }
     };
-    P.onRequestExpel = function (a, b) {
-      if (q.hasParty && q.isPartyLeader) {
+    J.onRequestExpel = function (a, b) {
+      if (p.hasParty && p.isPartyLeader) {
         var c = new u.CZ.REQ_EXPEL_GROUP_MEMBER();
         c.AID = a;
         c.characterName = b;
         v.sendPacket(c);
       }
     };
-    P.onRequestInfoUpdate = function (a, b, c) {
-      if (q.hasParty && q.isPartyLeader) {
+    J.onRequestInfoUpdate = function (a, b, c) {
+      if (p.hasParty && p.isPartyLeader) {
         var d = new u.CZ.GROUPINFO_CHANGE_V2();
         d.expOption = a;
         d.ItemPickupRule = b;
@@ -307,13 +307,13 @@ define(
         v.sendPacket(d);
       }
     };
-    P.onRequestChangeLeader = function (a) {
-      if (q.hasParty && q.isPartyLeader) {
+    J.onRequestChangeLeader = function (a) {
+      if (p.hasParty && p.isPartyLeader) {
         var b = new u.CZ.CHANGE_GROUP_MASTER();
         b.AID = a;
         v.sendPacket(b);
       }
     };
-    return P;
+    return J;
   },
 );

@@ -5,8 +5,8 @@ define(
   ),
   function (a) {
     function b() {
-      var a = k.ui.find(".name");
-      k.reqNameEdit(a.val());
+      var a = l.ui.find(".name");
+      l.reqNameEdit(a.val());
     }
     function c(a) {
       var b, c, d, e;
@@ -22,43 +22,43 @@ define(
       return b + c + d + e;
     }
     function d() {
-      k.ui.hide();
+      l.ui.hide();
     }
     var e = a("DB/DBManager"),
-      l = a("Core/Preferences"),
+      m = a("Core/Preferences"),
       h = a("Engine/SessionStorage"),
       r = a("Renderer/EntityManager"),
-      t = a("UI/UIManager"),
-      n = a("UI/UIComponent"),
+      q = a("UI/UIManager"),
+      k = a("UI/UIComponent"),
       g = a("UI/Components/Homunc/HomuncskillList"),
-      p = a("text!./HomuncInformations.html");
+      t = a("text!./HomuncInformations.html");
     a = a("text!./HomuncInformations.css");
-    var k = new n("HomuncInformations", p, a);
-    l.get("HomuncInformations", { x: 100, y: 200, show: !1 }, 1);
-    k.init = function () {
+    var l = new k("HomuncInformations", t, a);
+    m.get("HomuncInformations", { x: 100, y: 200, show: !1 }, 1);
+    l.init = function () {
       this.draggable(this.ui.find(".titlebar"));
       this.ui.find(".close").click(d);
       this.ui.find(".modify").click(b);
-      this.ui.find(".fired").click(k.reqFired);
-      this.ui.find(".feed").click(k.reqPetFeed);
+      this.ui.find(".fired").click(l.reqFired);
+      this.ui.find(".feed").click(l.reqPetFeed);
       this.ui.find(".skill").click(function () {
         g.ui.toggle();
         g.focus();
       });
       this.ui.hide();
     };
-    k.onRemove = function () {
+    l.onRemove = function () {
       h.homGID = null;
-      k.info = null;
+      l.info = null;
     };
-    k.onShortCut = function (a) {
+    l.onShortCut = function (a) {
       if (this.ui)
         switch (a.cmd) {
           case "TOGGLE":
             (this.ui.toggle(), this.ui.is(":visible") && this.focus());
         }
     };
-    k.update = function (a, b) {
+    l.update = function (a, b) {
       if (this.ui)
         switch (a) {
           case "aspd":
@@ -71,13 +71,13 @@ define(
             this.ui.find("." + a).text(b);
         }
     };
-    k.initData = function (a) {
+    l.initData = function (a) {
       var b = r.get(a.GID);
       if (b)
         switch (a.state) {
           case 0:
             h.homGID = a.GID;
-            h.homGID && k.append();
+            h.homGID && l.append();
             break;
           case 1:
             this.ui
@@ -105,11 +105,11 @@ define(
             this.ui.find(".accessory").text(e.getMessage(a.data ? 598 : 600));
         }
     };
-    k.setInformations = function (a) {
+    l.setInformations = function (a) {
       var b = r.get(h.homGID);
       b &&
         (a &&
-          ((k.info = a),
+          ((l.info = a),
           this.ui.find(".atak").text(a.atk),
           this.ui.find(".matak").text(a.Matk),
           this.ui.find(".hit").text(a.Matk),
@@ -166,11 +166,11 @@ define(
         -1 < b.life.hp &&
           -1 < b.life.hp_max &&
           (b.life.update(), (b.life.display = !0)),
-        k.WalkEnd());
+        l.WalkEnd());
     };
-    k.resetHom = function () {
+    l.resetHom = function () {
       var a = r.get(h.homGID),
-        b = k.info;
+        b = l.info;
       a &&
         ((a.attack_range = b.ATKRange),
         (a.life.hp = b.hp),
@@ -180,12 +180,12 @@ define(
         -1 < a.life.hp &&
           -1 < a.life.hp_max &&
           (a.life.update(), (a.life.display = !0)),
-        k.WalkEnd());
+        l.WalkEnd());
     };
-    k.reqNameEdit = function () {};
-    k.reqFired = function () {};
-    k.reqPetFeed = function () {};
-    k.WalkEnd = function () {};
-    return t.addComponent(k);
+    l.reqNameEdit = function () {};
+    l.reqFired = function () {};
+    l.reqPetFeed = function () {};
+    l.WalkEnd = function () {};
+    return q.addComponent(l);
   },
 );

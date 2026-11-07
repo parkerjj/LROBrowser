@@ -8,12 +8,12 @@ define(
       c = a("DB/logsTable"),
       d = a("Renderer/MapRenderer"),
       e = a("Network/PacketStructure"),
-      l = a("Network/NetworkManager"),
+      m = a("Network/NetworkManager"),
       h = a("Engine/SessionStorage"),
       r = a("UI/UIManager"),
-      t = a("UI/Components/MiniMap/MiniMap");
+      q = a("UI/Components/MiniMap/MiniMap");
     a("UI/Components/ChatBox/ChatBox");
-    var n = a("UI/Components/WorldMap/WorldMap"),
+    var k = a("UI/Components/WorldMap/WorldMap"),
       g = a("UI/Components/Inventory/Inventory");
     a("UI/Components/ItemObtain/ItemObtain");
     return {
@@ -25,19 +25,19 @@ define(
         var b = new e.CZ.WHISPER();
         b.receiver = a.cname;
         b.msg = a.msg;
-        l.sendPacket(b);
+        m.sendPacket(b);
       },
       SearchMob: function (a) {
-        n.select();
-        n.selectMob(a.cname);
+        k.select();
+        k.selectMob(a.cname);
       },
       SearchItem: function (a) {
-        n.select();
-        n.selectItem(a.cname);
+        k.select();
+        k.selectItem(a.cname);
       },
       SearchMap: function (a) {
-        n.select();
-        a.ename && n.selectMap(a.ename);
+        k.select();
+        a.ename && k.selectMap(a.ename);
       },
       getTrainingRoute: function (a) {
         a = c[b.nid].train;
@@ -66,7 +66,7 @@ define(
                 "ok",
                 "cancel",
                 function () {
-                  t.moving(1, c, a.x, a.y);
+                  q.moving(1, c, a.x, a.y);
                 },
               )
             : r.showPromptBox(
@@ -82,7 +82,7 @@ define(
                   b.y = a.y || 0;
                   b.type = 1;
                   b.itemid = 14527;
-                  l.sendPacket(b);
+                  m.sendPacket(b);
                 },
                 null,
               )
@@ -93,7 +93,7 @@ define(
               "ok",
               "cancel",
               function () {
-                t.moving(1, c, a.x, a.y);
+                q.moving(1, c, a.x, a.y);
               },
             );
       },
@@ -158,7 +158,7 @@ define(
       reqPetFeed: function (a) {
         a = new e.CZ.COMMAND_PET();
         a.cSub = 1;
-        l.sendPacket(a);
+        m.sendPacket(a);
       },
       reqCounterAttack: function (a) {
         h.counterAttack = !h.counterAttack;
@@ -169,21 +169,21 @@ define(
       SearchNpcByFunc: function (a) {
         if (a.cname) {
           for (
-            var d = 0, e = "", g = c[b.nid].guide, h = Object.keys(g), l = 0;
-            l < h.length;
-            l++
+            var d = 0, e = "", g = c[b.nid].guide, h = Object.keys(g), k = 0;
+            k < h.length;
+            k++
           )
-            g[h[l]].desc.includes(a.cname) &&
+            g[h[k]].desc.includes(a.cname) &&
               ((d = 1),
               (e =
                 "NPC\u540d\u5b57\u53eb" +
-                g[h[l]].npc +
+                g[h[k]].npc +
                 "\uff0c\u4f4d\u4e8e\u5730\u56fe" +
-                g[h[l]].path[0][0] +
+                g[h[k]].path[0][0] +
                 "\uff0cX\u5750\u6807" +
-                g[h[l]].path[0][1] +
+                g[h[k]].path[0][1] +
                 "\uff0cY\u5750\u6807" +
-                g[h[l]].path[0][2] +
+                g[h[k]].path[0][2] +
                 "\u662f\u8981\u524d\u5f80\u5417\uff1f"));
           if (1 == d) return e;
         }
@@ -192,7 +192,7 @@ define(
         if (a.cname && ((a = b.searchMob(a.cname)), 0 < a.length)) {
           var c = new e.CZ.REQUEST_CHAT();
           c.msg = h.Entity.display.name + " : @mi " + a[0].ID;
-          l.sendPacket(c);
+          m.sendPacket(c);
         }
       },
     };

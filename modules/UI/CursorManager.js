@@ -15,10 +15,10 @@ define(
         for (c = 0; c < d; ++c) b[c] = a.charCodeAt(c);
         return URL.createObjectURL(new Blob([b], { type: "image/png" }));
       }
-      var b = B.actions[n.ACTION.CLICK],
+      var b = B.actions[k.ACTION.CLICK],
         d = a(b.animations[0].layers[0].index),
         b = a(b.animations[1].layers[0].index),
-        f = a(B.actions[n.ACTION.DEFAULT].animations[0].layers[0].index);
+        e = a(B.actions[k.ACTION.DEFAULT].animations[0].layers[0].index);
       c("head").append(
         [
           '\x3cstyle type\x3d"text/css"\x3e',
@@ -26,8 +26,8 @@ define(
           "button:active { cursor: url(" + b + "), auto; }",
           ".event_add_cursor { cursor: url(" + d + "), auto; }",
           ".event_add_cursor:active { cursor: url(" + b + "), auto; }",
-          "input[type\x3dtext] { cursor: url(" + f + "), auto; }",
-          "textarea { cursor: url(" + f + "), auto; }",
+          "input[type\x3dtext] { cursor: url(" + e + "), auto; }",
+          "textarea { cursor: url(" + e + "), auto; }",
           "\x3c/style\x3e",
         ].join("\n"),
       );
@@ -35,11 +35,11 @@ define(
     var c = a("Utils/jquery"),
       d = a("Core/Client"),
       e = a("Core/MemoryManager"),
-      l = a("Preferences/Graphics"),
+      m = a("Preferences/Graphics"),
       h = a("Loaders/Sprite"),
       r = a("Loaders/Action"),
-      t = a("Preferences/Controls"),
-      n = {
+      q = a("Preferences/Controls"),
+      k = {
         ACTION: {
           DEFAULT: 0,
           TALK: 1,
@@ -55,62 +55,62 @@ define(
         magnetism: !0,
         blockMagnetism: !1,
       },
-      g = n.ACTION.DEFAULT,
-      p = 0,
-      k = !1,
+      g = k.ACTION.DEFAULT,
+      t = 0,
+      l = !1,
       f = 0,
-      m = !0,
-      q = -1,
+      n = !0,
+      p = -1,
       v = 0,
       u = 0,
       A = [],
       D,
       B,
-      H = {};
-    H[n.ACTION.DEFAULT] = {
+      O = {};
+    O[k.ACTION.DEFAULT] = {
       drawX: 1,
       drawY: 19,
       startX: 0,
       startY: 0,
       delayMult: 2,
     };
-    H[n.ACTION.TALK] = {
+    O[k.ACTION.TALK] = {
       drawX: 20,
       drawY: 40,
       startX: 20,
       startY: 20,
       delayMult: 1,
     };
-    H[n.ACTION.WARP] = {
+    O[k.ACTION.WARP] = {
       drawX: 10,
       drawY: 32,
       startX: 0,
       startY: 0,
       delayMult: 1,
     };
-    H[n.ACTION.ROTATE] = {
+    O[k.ACTION.ROTATE] = {
       drawX: 18,
       drawY: 26,
       startX: 10,
       startY: 0,
       delayMult: 1,
     };
-    H[n.ACTION.PICK] = {
+    O[k.ACTION.PICK] = {
       drawX: 20,
       drawY: 40,
       startX: 15,
       startY: 15,
       delayMult: 1,
     };
-    H[n.ACTION.TARGET] = {
+    O[k.ACTION.TARGET] = {
       drawX: 20,
       drawY: 50,
       startX: 20,
       startY: 28,
       delayMult: 0.5,
     };
-    var C, z, G, P;
-    n.init = function (c) {
+    var C, y, z, J;
+    k.init = function (c) {
       D
         ? c()
         : (d.getFiles(
@@ -125,44 +125,44 @@ define(
               e.remove(null, "data/sprite/cursors.spr");
               e.remove(null, "data/sprite/cursors.act");
               b();
-              var f, g, k, m, q, p, l, v, u, t, x, S, T, I, R;
-              v = document.createElement("canvas");
-              v.width = 50;
-              v.height = 50;
-              u = v.getContext("2d");
-              t = new z();
-              I = [];
+              var f, g, l, n, p, t, m, u, v, R, q, I, V, x, L;
+              u = document.createElement("canvas");
+              u.width = 50;
+              u.height = 50;
+              v = u.getContext("2d");
+              R = new y();
+              x = [];
               A = [];
-              R = [0, 0];
+              L = [0, 0];
               a = 0;
               for (g = B.actions.length; a < g; ++a)
                 for (
-                  q = B.actions[a],
-                    l = H[a] || H[n.ACTION.DEFAULT],
+                  p = B.actions[a],
+                    m = O[a] || O[k.ACTION.DEFAULT],
                     d = 0,
-                    k = q.animations.length;
-                  d < k;
+                    l = p.animations.length;
+                  d < l;
                   ++d
                 ) {
-                  p = q.animations[d];
-                  G.bind2DContext(u, l.drawX, l.drawY);
-                  u.clearRect(0, 0, 50, 50);
+                  t = p.animations[d];
+                  z.bind2DContext(v, m.drawX, m.drawY);
+                  v.clearRect(0, 0, 50, 50);
                   f = 0;
-                  for (m = p.layers.length; f < m; ++f)
-                    t.renderLayer(p.layers[f], D, D, 1, R, !1);
-                  T = v.toDataURL("image/png");
-                  f = I.indexOf(T);
-                  if (-1 < f) p.compiledStyleIndex = f;
+                  for (n = t.layers.length; f < n; ++f)
+                    R.renderLayer(t.layers[f], D, D, 1, L, !1);
+                  V = u.toDataURL("image/png");
+                  f = x.indexOf(V);
+                  if (-1 < f) t.compiledStyleIndex = f;
                   else {
-                    x = atob(T.replace(/^data[^,]+,/, ""));
-                    m = x.length;
-                    S = new Uint8Array(m);
-                    for (f = 0; f < m; ++f) S[f] = x.charCodeAt(f);
-                    p.compiledStyleIndex = A.length;
-                    I.push(T);
+                    q = atob(V.replace(/^data[^,]+,/, ""));
+                    n = q.length;
+                    I = new Uint8Array(n);
+                    for (f = 0; f < n; ++f) I[f] = q.charCodeAt(f);
+                    t.compiledStyleIndex = A.length;
+                    x.push(V);
                     A.push(
                       URL.createObjectURL(
-                        new Blob([S.buffer], { type: "image/png" }),
+                        new Blob([I.buffer], { type: "image/png" }),
                       ),
                     );
                   }
@@ -171,58 +171,58 @@ define(
             },
           ),
           (C = a("Renderer/EntityManager")),
-          (z = a("Renderer/Entity/Entity")),
-          (G = a("Renderer/SpriteRenderer")),
-          (P = a("Controls/MouseEventHandler")));
+          (y = a("Renderer/Entity/Entity")),
+          (z = a("Renderer/SpriteRenderer")),
+          (J = a("Controls/MouseEventHandler")));
     };
-    n.setType = function (a, b, c) {
-      n.freeze ||
+    k.setType = function (a, b, c) {
+      k.freeze ||
         ((g = a),
-        (p = Date.now()),
-        (k = !!b),
+        (t = Date.now()),
+        (l = !!b),
         "undefined" !== typeof c
-          ? ((f = c), (m = !1))
-          : ((f = c || 0), (m = !0)));
+          ? ((f = c), (n = !1))
+          : ((f = c || 0), (n = !0)));
     };
-    n.render = function (a) {
-      if (l.cursor && A.length) {
-        var b = H[g] || H[n.ACTION.DEFAULT],
+    k.render = function (a) {
+      if (m.cursor && A.length) {
+        var b = O[g] || O[k.ACTION.DEFAULT],
           c = B.actions[g],
           d = f,
           e = c.delay * b.delayMult,
           h = b.startX,
           b = b.startY;
-        m &&
-          ((a = ((a - p) / e) | 0),
-          (d = k
+        n &&
+          ((a = ((a - t) / e) | 0),
+          (d = l
             ? Math.min(a, c.animations.length - 1)
             : a % c.animations.length));
         if ((c = c.animations[d]))
           if (
-            (n.magnetism &&
-              !n.blockMagnetism &&
+            (k.magnetism &&
+              !k.blockMagnetism &&
               (a = C.getOverEntity()) &&
-              ((a.objecttype === z.TYPE_MOB && !0 === t.snap) ||
-                (a.objecttype === z.TYPE_ITEM && !0 === t.itemsnap)) &&
+              ((a.objecttype === y.TYPE_MOB && !0 === q.snap) ||
+                (a.objecttype === y.TYPE_ITEM && !0 === q.itemsnap)) &&
               ((h += Math.floor(
-                P.screen.x -
+                J.screen.x -
                   (a.boundingRect.x1 +
                     (a.boundingRect.x2 - a.boundingRect.x1) / 2),
               )),
               (b += Math.floor(
-                P.screen.y -
+                J.screen.y -
                   (a.boundingRect.y1 +
                     (a.boundingRect.y2 - a.boundingRect.y1) / 2),
               ))),
-            c.compiledStyleIndex !== q || h !== v || b !== u)
+            c.compiledStyleIndex !== p || h !== v || b !== u)
           )
-            ((q = c.compiledStyleIndex),
+            ((p = c.compiledStyleIndex),
               (v = h),
               (u = b),
               (document.body.style.cursor =
-                "url(" + A[q] + ") " + h + " " + b + ", auto"));
+                "url(" + A[p] + ") " + h + " " + b + ", auto"));
       }
     };
-    return n;
+    return k;
   },
 );

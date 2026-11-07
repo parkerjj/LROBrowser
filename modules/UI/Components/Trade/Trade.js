@@ -13,11 +13,11 @@ define(
       return d;
     }
     function c(a, b) {
-      a in G
-        ? H.addText(p.getMessage(51), H.TYPE.ERROR)
-        : 10 < P.length
-          ? H.addText(p.getMessage(297), H.TYPE.ERROR)
-          : ((G[a] = b), z.reqAddItem(a, b));
+      a in z
+        ? O.addText(t.getMessage(51), O.TYPE.ERROR)
+        : 10 < J.length
+          ? O.addText(t.getMessage(297), O.TYPE.ERROR)
+          : ((z[a] = b), y.reqAddItem(a, b));
     }
     function d(a) {
       a.stopImmediatePropagation();
@@ -25,16 +25,16 @@ define(
     }
     function e() {
       this.remove();
-      z.onCancel();
+      y.onCancel();
     }
-    function l() {
-      var a = parseInt(z.ui.find(".zeny.send").val(), 10) || 0,
-        a = Math.min(Math.max(0, a), m.zeny);
+    function m() {
+      var a = parseInt(y.ui.find(".zeny.send").val(), 10) || 0,
+        a = Math.min(Math.max(0, a), n.zeny);
       c(0, a);
-      z.onConclude();
+      y.onConclude();
     }
     function h() {
-      z.onTradeSubmit();
+      y.onTradeSubmit();
       this.ui.find(".trade.enabled").hide();
       this.ui.find(".trade.disabled").show();
     }
@@ -61,26 +61,26 @@ define(
       c(b.index, 1);
       return !1;
     }
-    function t() {
+    function q() {
       var a = parseInt(this.getAttribute("data-index"), 10);
-      if ((a = this.parentNode.className.match(/send/i) ? P[a] : N[a])) {
-        var b = k(this),
+      if ((a = this.parentNode.className.match(/send/i) ? J[a] : I[a])) {
+        var b = l(this),
           c = b.parent().position(),
-          d = z.ui.find(".overlay");
+          d = y.ui.find(".overlay");
         c.left += b.position().left;
         c.top += b.position().top;
         d.show();
         d.css({ top: c.top + 5, left: c.left + 30 });
-        d.text(p.getItemName(a));
+        d.text(t.getItemName(a));
         a.IsIdentified ? d.removeClass("grey") : d.addClass("grey");
       }
     }
-    function n() {
-      z.ui.find(".overlay").hide();
+    function k() {
+      y.ui.find(".overlay").hide();
     }
     function g(a) {
       var b = parseInt(this.getAttribute("data-index"), 10),
-        b = this.parentNode.className.match(/send/i) ? P[b] : N[b];
+        b = this.parentNode.className.match(/send/i) ? J[b] : I[b];
       if (!b) return d(a);
       if (D.uid === b.ITID) return (D.remove(), !1);
       D.append();
@@ -88,26 +88,26 @@ define(
       D.setItem(b);
       return d(a);
     }
-    var p = a("DB/DBManager"),
-      k = a("Utils/jquery"),
+    var t = a("DB/DBManager"),
+      l = a("Utils/jquery"),
       f = a("Core/Client"),
-      m = a("Engine/SessionStorage"),
-      q = a("Renderer/Renderer"),
+      n = a("Engine/SessionStorage"),
+      p = a("Renderer/Renderer"),
       v = a("UI/UIManager"),
       u = a("UI/UIComponent"),
       A = a("UI/Components/InputBox/InputBox"),
       D = a("UI/Components/ItemInfo/ItemInfo"),
       B = a("UI/Components/Inventory/Inventory"),
-      H = a("UI/Components/ChatBox/ChatBox"),
+      O = a("UI/Components/ChatBox/ChatBox"),
       C = a("text!./Trade.html");
     a = a("text!./Trade.css");
-    var z = new u("Trade", C, a),
-      G = {},
-      P = [],
-      N = [];
-    z.title = "";
-    z.init = function () {
-      this.ui.find(".ok.enabled").click(l);
+    var y = new u("Trade", C, a),
+      z = {},
+      J = [],
+      I = [];
+    y.title = "";
+    y.init = function () {
+      this.ui.find(".ok.enabled").click(m);
       this.ui.find(".trade.enabled").click(h.bind(this));
       this.ui.find(".cancel").click(e.bind(this));
       this.ui.on("mousedown", ".disabled", d).on("drop", r).on("dragover", d);
@@ -116,23 +116,23 @@ define(
       });
       this.ui
         .find(".box")
-        .on("mouseover", ".item", t)
-        .on("mouseout", ".item", n)
+        .on("mouseover", ".item", q)
+        .on("mouseout", ".item", k)
         .on("contextmenu", ".item", g);
       this.draggable(this.ui.find(".titlebar"));
     };
-    z.onAppend = function () {
+    y.onAppend = function () {
       this.onRemove();
       this.ui.find(".titlebar .title").text(this.title);
       this.ui.css({
-        top: (q.height - this.ui.height()) / 2,
-        left: (q.width - this.ui.width()) / 2,
+        top: (p.height - this.ui.height()) / 2,
+        left: (p.width - this.ui.width()) / 2,
       });
     };
-    z.onRemove = function () {
-      G = {};
-      N.length = 0;
-      P.length = 0;
+    y.onRemove = function () {
+      z = {};
+      I.length = 0;
+      J.length = 0;
       this.ui.find(".overlay").hide();
       this.ui.find(".ok.disabled, .trade.enabled").hide();
       this.ui.find(".ok.enabled, .trade.disabled").show();
@@ -144,26 +144,26 @@ define(
         .attr("disabled", !1);
       this.ui.find(".zeny.recv").text("0");
     };
-    z.addItemFromInventory = function (a, c) {
+    y.addItemFromInventory = function (a, c) {
       if (c)
-        if (0 === a) 0 < G[a] && this.ui.find(".zeny.send").val(b(G[a]));
+        if (0 === a) 0 < z[a] && this.ui.find(".zeny.send").val(b(z[a]));
         else {
-          c = k.extend({}, B.removeItem(a, G[a]));
-          var d = p.getItemInfo(c.ITID),
-            e = P.push(c) - 1,
+          c = l.extend({}, B.removeItem(a, z[a]));
+          var d = t.getItemInfo(c.ITID),
+            e = J.push(c) - 1,
             g = this.ui.find(".box.send");
-          c.count = G[a];
+          c.count = z[a];
           g.append(
             '\x3cdiv class\x3d"item" data-index\x3d"' +
               e +
               '"\x3e\x3cdiv class\x3d"icon"\x3e\x3c/div\x3e\x3cdiv class\x3d"amount"\x3e\x3cspan class\x3d"count"\x3e' +
-              (G[a] || 1) +
+              (z[a] || 1) +
               '\x3c/span\x3e\x3c/div\x3e\x3cspan class\x3d"name"\x3e' +
-              k.escape(p.getItemName(c)) +
+              l.escape(t.getItemName(c)) +
               "\x3c/span\x3e\x3c/div\x3e",
           );
           f.loadFile(
-            p.INTERFACE_PATH +
+            t.INTERFACE_PATH +
               "item/" +
               (c.IsIdentified
                 ? d.identifiedResourceName
@@ -177,13 +177,13 @@ define(
             }.bind(this),
           );
         }
-      else delete G[a];
+      else delete z[a];
     };
-    z.addItem = function (a) {
+    y.addItem = function (a) {
       if (0 === a.ITID) this.ui.find(".zeny.recv").text(b(a.count));
       else {
-        var c = p.getItemInfo(a.ITID),
-          d = N.push(a) - 1,
+        var c = t.getItemInfo(a.ITID),
+          d = I.push(a) - 1,
           e = this.ui.find(".box.recv");
         e.append(
           '\x3cdiv class\x3d"item" data-index\x3d"' +
@@ -191,11 +191,11 @@ define(
             '"\x3e\x3cdiv class\x3d"icon"\x3e\x3c/div\x3e\x3cdiv class\x3d"amount"\x3e' +
             a.count +
             '\x3c/div\x3e\x3cspan class\x3d"name"\x3e' +
-            k.escape(p.getItemName(a)) +
+            l.escape(t.getItemName(a)) +
             "\x3c/span\x3e\x3c/div\x3e",
         );
         f.loadFile(
-          p.INTERFACE_PATH +
+          t.INTERFACE_PATH +
             "item/" +
             (a.IsIdentified
               ? c.identifiedResourceName
@@ -210,7 +210,7 @@ define(
         );
       }
     };
-    z.conclude = function (a) {
+    y.conclude = function (a) {
       this.ui.find(".box." + a).addClass("disabled");
       "send" === a &&
         (this.ui.find(".ok.disabled").show(),
@@ -221,10 +221,10 @@ define(
         (this.ui.find(".trade.enabled").show(),
         this.ui.find(".trade.disabled").hide());
     };
-    z.onConclude = function () {};
-    z.onTradeSubmit = function () {};
-    z.reqAddItem = function () {};
-    z.onCancel = function () {};
-    return v.addComponent(z);
+    y.onConclude = function () {};
+    y.onTradeSubmit = function () {};
+    y.reqAddItem = function () {};
+    y.onCancel = function () {};
+    return v.addComponent(y);
   },
 );

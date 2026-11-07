@@ -10,12 +10,12 @@ define(
       if (1 > b.length) return !1;
       if ("/" === b[0])
         return (
-          q("Controls/ProcessCommand").call(g, b.substr(1)),
+          p("Controls/ProcessCommand").call(g, b.substr(1)),
           a.find(".send input[name\x3dmessage]").val(""),
           !0
         );
       if (isRestricted)
-        p.showMessageBox(
+        t.showMessageBox(
           "You are temporarily restricted from sending data.",
           "ok",
         );
@@ -28,13 +28,13 @@ define(
         sendCount > sendLimit)
       )
         ((isRestricted = !0),
-          p.showMessageBox(
+          t.showMessageBox(
             "Send limit exceeded. You are restricted for 10s.",
             "ok",
           ),
           setTimeout(function () {
             isRestricted = !1;
-            p.showMessageBox(
+            t.showMessageBox(
               "Restriction lifted. You can send data again.",
               "ok",
             );
@@ -54,13 +54,13 @@ define(
         f = 0,
         g;
       g = setInterval(function () {
-        var a = Math.floor((t.screen.x - c - 25) / 32),
-          g = Math.floor((t.screen.y - b - 20) / 32),
+        var a = Math.floor((q.screen.x - c - 25) / 32),
+          g = Math.floor((q.screen.y - b - 20) / 32),
           a = Math.min(Math.max(a, 7), 14),
           g = Math.min(Math.max(g, 3), 8);
         if (a !== e || g !== f) (d(a, g), (e = a), (f = g));
       }, 30);
-      l(window).one("mouseup", function (a) {
+      m(window).one("mouseup", function (a) {
         1 === a.which && clearInterval(g);
       });
     }
@@ -71,18 +71,18 @@ define(
       v.ui.find(".resize").css("height", 32 * b);
     }
     var e = a("Core/Preferences"),
-      l = a("Utils/jquery"),
+      m = a("Utils/jquery"),
       h = a("Renderer/Renderer"),
       r = a("Engine/SessionStorage"),
-      t = a("Controls/MouseEventHandler"),
-      n = a("Controls/KeyEventHandler"),
+      q = a("Controls/MouseEventHandler"),
+      k = a("Controls/KeyEventHandler"),
       g = a("UI/Components/ChatBox/ChatBox"),
-      p = a("UI/UIManager"),
-      k = a("UI/UIComponent"),
+      t = a("UI/UIManager"),
+      l = a("UI/UIComponent"),
       f = a("text!./ChatRoom.html"),
-      m = a("text!./ChatRoom.css"),
-      q = a,
-      v = new k("ChatRoom", f, m);
+      n = a("text!./ChatRoom.css"),
+      p = a,
+      v = new l("ChatRoom", f, n);
     v.title = "";
     v.limit = 20;
     v.type = 0;
@@ -140,14 +140,14 @@ define(
         a =
           this.members[b] == this.owner
             ? '\x3cspan class\x3d"owner"\x3e' +
-              l.escape(this.members[b]) +
+              m.escape(this.members[b]) +
               "\x3c/span\x3e\x3cbr/\x3e" +
               a
-            : a + (l.escape(this.members[b]) + "\x3cbr/\x3e");
+            : a + (m.escape(this.members[b]) + "\x3cbr/\x3e");
       this.ui.find(".members").html(a);
     };
     v.message = function (a, b) {
-      var c = l("\x3cdiv/\x3e");
+      var c = m("\x3cdiv/\x3e");
       c.text(a);
       b
         ? c.addClass(b)
@@ -162,9 +162,9 @@ define(
       return -1 < a ? (this.members.splice(a, 1), !0) : !1;
     };
     v.onKeyDown = function (a) {
-      return a.which === n.ENTER ? (b(), a.stopImmediatePropagation(), !1) : !0;
+      return a.which === k.ENTER ? (b(), a.stopImmediatePropagation(), !1) : !0;
     };
     v.exitRoom = function () {};
-    return p.addComponent(v);
+    return t.addComponent(v);
   },
 );

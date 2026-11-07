@@ -5,53 +5,53 @@ define(
   ),
   function (a) {
     function b(a) {
-      H.play("01.mp3");
-      Q = a;
-      P.connect(P.utils.longToIP(a.ip), a.port, function (a) {
+      O.play("01.mp3");
+      N = a;
+      J.connect(J.utils.longToIP(a.ip), a.port, function (a) {
         a
-          ? ((a = new N.CH.ENTER()),
-            (a.AID = z.AID),
-            (a.AuthCode = z.AuthCode),
-            (a.userLevel = z.UserLevel),
-            (a.Sex = z.Sex),
-            (a.clientType = z.LangType),
-            P.sendPacket(a),
-            P.read(function (a) {
-              z.AID = a.readLong();
+          ? ((a = new I.CH.ENTER()),
+            (a.AID = y.AID),
+            (a.AuthCode = y.AuthCode),
+            (a.userLevel = y.UserLevel),
+            (a.Sex = y.Sex),
+            (a.clientType = y.LangType),
+            J.sendPacket(a),
+            J.read(function (a) {
+              y.AID = a.readLong();
             }))
           : x.showErrorBox(A.getMessage(1));
       });
-      P.hookPacket(N.HC.ACCEPT_ENTER_NEO_UNION, d);
-      P.hookPacket(N.HC.ACCEPT_ENTER_NEO_UNION2, d);
-      P.hookPacket(N.HC.ACCEPT_ENTER2, e);
-      P.hookPacket(N.HC.REFUSE_ENTER, l);
-      P.hookPacket(N.HC.ACCEPT_MAKECHAR_NEO_UNION, k);
-      P.hookPacket(N.HC.ACCEPT_MAKECHAR, k);
-      P.hookPacket(N.HC.REFUSE_MAKECHAR, f);
-      P.hookPacket(N.HC.ACCEPT_DELETECHAR, n);
-      P.hookPacket(N.HC.REFUSE_DELETECHAR, t);
-      P.hookPacket(N.HC.NOTIFY_ZONESVR, q);
-      P.hookPacket(N.HC.NOTIFY_ZONESVR2, q);
-      P.hookPacket(N.HC.ACCEPT_ENTER_NEO_UNION_LIST, d);
-      P.hookPacket(N.HC.NOTIFY_ACCESSIBLE_MAPNAME, h);
-      P.hookPacket(N.HC.SECOND_PASSWD_LOGIN, v);
+      J.hookPacket(I.HC.ACCEPT_ENTER_NEO_UNION, d);
+      J.hookPacket(I.HC.ACCEPT_ENTER_NEO_UNION2, d);
+      J.hookPacket(I.HC.ACCEPT_ENTER2, e);
+      J.hookPacket(I.HC.REFUSE_ENTER, m);
+      J.hookPacket(I.HC.ACCEPT_MAKECHAR_NEO_UNION, l);
+      J.hookPacket(I.HC.ACCEPT_MAKECHAR, l);
+      J.hookPacket(I.HC.REFUSE_MAKECHAR, f);
+      J.hookPacket(I.HC.ACCEPT_DELETECHAR, k);
+      J.hookPacket(I.HC.REFUSE_DELETECHAR, q);
+      J.hookPacket(I.HC.NOTIFY_ZONESVR, p);
+      J.hookPacket(I.HC.NOTIFY_ZONESVR2, p);
+      J.hookPacket(I.HC.ACCEPT_ENTER_NEO_UNION_LIST, d);
+      J.hookPacket(I.HC.NOTIFY_ACCESSIBLE_MAPNAME, h);
+      J.hookPacket(I.HC.SECOND_PASSWD_LOGIN, v);
     }
     function c() {
-      M("Engine/LoginEngine").reload();
+      P("Engine/LoginEngine").reload();
     }
     function d(a) {
-      a.sex = z.Sex;
-      var b = new N.CZ.PING();
-      b.AID = z.AID;
-      P.setPing(function () {
-        P.sendPacket(b);
+      a.sex = y.Sex;
+      var b = new I.CZ.PING();
+      b.AID = y.AID;
+      J.setPing(function () {
+        J.sendPacket(b);
       });
       setTimeout(function () {
         K.noMapsame = 1;
         K.clean();
         x.getComponent("WinLoading").remove();
         E.onExitRequest = c;
-        E.onConnectRequest = m;
+        E.onConnectRequest = n;
         E.onCreateRequest = g;
         E.onDeleteRequest = r;
         E.append();
@@ -59,17 +59,17 @@ define(
       }, 1e3);
     }
     function e(a) {
-      var b = new N.CZ.PING();
-      b.AID = z.AID;
-      P.setPing(function () {
-        P.sendPacket(b);
+      var b = new I.CZ.PING();
+      b.AID = y.AID;
+      J.setPing(function () {
+        J.sendPacket(b);
       });
       K.noMapsame = 1;
       K.clean();
       x.getComponent("WinLoading").remove();
-      z.Character = a.entity;
+      y.Character = a.entity;
     }
-    function l(a) {
+    function m(a) {
       x.showErrorBox(A.getMessage(3));
     }
     function h(a) {
@@ -80,15 +80,15 @@ define(
     }
     function r(a) {
       function b() {
-        y.remove();
+        G.remove();
         e.remove();
         g.detach();
         D.clearTimeout(p);
-        t({ ErrorCode: -2 });
+        q({ ErrorCode: -2 });
       }
       function c(a) {
         f = a;
-        y.remove();
+        G.remove();
         e.remove();
         e = x.showMessageBox(
           A.getMessage(296).replace("%d", 10),
@@ -98,9 +98,9 @@ define(
           },
         );
         k = document.createElement("canvas");
-        m = k.getContext("2d");
+        l = k.getContext("2d");
         n = k.width = 240;
-        l = k.height = 15;
+        m = k.height = 15;
         k.style.marginTop = "10px";
         k.style.marginLeft = "20px";
         e.ui.append(k);
@@ -113,78 +113,78 @@ define(
         100 <= b
           ? (e.remove(),
             g.detach(),
-            (b = new N.CH.DELETE_CHAR()),
+            (b = new I.CH.DELETE_CHAR()),
             (b.GID = a),
             (b.key = f),
-            P.sendPacket(b))
+            J.sendPacket(b))
           : (e.ui
               .find(".text")
               .text(A.getMessage(296).replace("%d", Math.round(10 - b / 10))),
-            m.clearRect(0, 0, n, l),
-            (m.fillStyle = "rgb(0,255,255)"),
-            m.fillRect(0, 0, n, l),
-            (m.fillStyle = "rgb(140,140,140)"),
-            m.fillRect(1, 1, n - 2, l - 2),
-            (m.fillStyle = "rgb(66,99,165)"),
-            m.fillRect(2, 2, Math.round((b * (n - 4)) / 100), l - 4),
-            (m.fillStyle = "rgb(255,255,0)"),
-            m.fillText(b + "%", 0.5 * (n - m.measureText(b + "%").width), 12),
+            l.clearRect(0, 0, n, m),
+            (l.fillStyle = "rgb(0,255,255)"),
+            l.fillRect(0, 0, n, m),
+            (l.fillStyle = "rgb(140,140,140)"),
+            l.fillRect(1, 1, n - 2, m - 2),
+            (l.fillStyle = "rgb(66,99,165)"),
+            l.fillRect(2, 2, Math.round((b * (n - 4)) / 100), m - 4),
+            (l.fillStyle = "rgb(255,255,0)"),
+            l.fillText(b + "%", 0.5 * (n - l.measureText(b + "%").width), 12),
             (p = D.setTimeout(d, 30)));
       }
-      var e, f, g, h, k, m, n, l, p;
+      var e, f, g, h, k, l, n, m, p;
       e = x.showPromptBox(
         A.getMessage(19),
         "ok",
         "cancel",
         function () {
-          y.append();
-          y.setType("mail", !0);
-          y.ui.css("zIndex", 101);
-          y.onSubmitRequest = c;
+          G.append();
+          G.setType("mail", !0);
+          G.ui.css("zIndex", 101);
+          G.onSubmitRequest = c;
           e.append();
         },
         b,
       );
       g = u("\x3cdiv/\x3e").addClass("win_popup_overlay").appendTo("body");
     }
-    function t(a) {
+    function q(a) {
       E.deleteAnswer("undefined" === typeof a.ErrorCode ? -1 : a.ErrorCode);
     }
-    function n(a) {
+    function k(a) {
       E.deleteAnswer(-1);
     }
     function g(a) {
-      W = a;
+      S = a;
       E.remove();
-      L.setAccountSex(z.Sex);
-      L.onCharCreationRequest = p;
-      L.onExitRequest = function () {
-        L.remove();
+      F.setAccountSex(y.Sex);
+      F.onCharCreationRequest = t;
+      F.onExitRequest = function () {
+        F.remove();
         E.append();
       };
-      L.append();
+      F.append();
     }
-    function p(a, b, c, d, e, f, g, h, k, m, n) {
-      var l;
-      20120307 > I.value
-        ? ((l = new N.CH.MAKE_CHAR()),
-          (l.Str = b),
-          (l.Agi = c),
-          (l.Vit = d),
-          (l.Int = e),
-          (l.Dex = f),
-          (l.Luk = g))
-        : 20150401 > I.value
-          ? (l = new N.CH.MAKE_CHAR2())
-          : ((l = new N.CH.MAKE_CHAR3()), (l.sex = m), (l.job = n));
-      l.name = a;
-      l.head = h;
-      l.headPal = k;
-      l.CharNum = W;
-      P.sendPacket(l);
+    function t(a, b, c, d, e, f, g, h, l, k, n) {
+      var m;
+      20120307 > L.value
+        ? ((m = new I.CH.MAKE_CHAR()),
+          (m.Str = b),
+          (m.Agi = c),
+          (m.Vit = d),
+          (m.Int = e),
+          (m.Dex = f),
+          (m.Luk = g))
+        : 20150401 > L.value
+          ? (m = new I.CH.MAKE_CHAR2())
+          : ((m = new I.CH.MAKE_CHAR3()), (m.sex = k), (m.job = n));
+      m.name = a;
+      m.head = h;
+      m.headPal = l;
+      m.CharNum = S;
+      J.sendPacket(m);
     }
-    function k(a) {
-      L.remove();
+    function l(a) {
+      F.remove();
       E.addCharacter(a.charinfo);
       E.append();
     }
@@ -208,59 +208,59 @@ define(
       }
       x.showMessageBox(A.getMessage(a), "ok");
     }
-    function m(a) {
+    function n(a) {
       B.play("\u00b9\u00f6\u00c6\u00b0\u00bc\u00d2\u00b8\u00ae.wav");
       E.remove();
       x.getComponent("WinLoading").append();
-      z.Character = a;
-      var b = new N.CH.SELECT_CHAR();
+      y.Character = a;
+      var b = new I.CH.SELECT_CHAR();
       b.CharNum = a.CharNum;
-      P.sendPacket(b);
+      J.sendPacket(b);
     }
-    function q(a) {
-      z.GID = a.GID;
-      G.init(a.addr.ip, a.addr.port, a.mapName);
+    function p(a) {
+      y.GID = a.GID;
+      z.init(a.addr.ip, a.addr.port, a.mapName);
     }
     function v(a) {
-      if (z.Character) return !1;
-      F.ready = !1;
-      if (localStorage.getItem("CdGId") == a.AID) return ((F.ready = !0), !1);
-      F.remove();
+      if (y.Character) return !1;
+      H.ready = !1;
+      if (localStorage.getItem("CdGId") == a.AID) return ((H.ready = !0), !1);
+      H.remove();
       var b = a.state,
         c = 0;
-      F.setData(a.pincode);
-      F.onSubmitRequest = function (d, e) {
-        F.remove();
+      H.setData(a.pincode);
+      H.onSubmitRequest = function (d, e) {
+        H.remove();
         var f;
-        if (1 == F.step) (F.append(), (F.step = 2), F.setType(3));
-        else if (2 == F.step)
-          ((f = new N.CH.CHANGE_PIN()),
+        if (1 == H.step) (H.append(), (H.step = 2), H.setType(3));
+        else if (2 == H.step)
+          ((f = new I.CH.CHANGE_PIN()),
             (f.AID = a.AID),
             (f.old_pinCode = d),
             (f.new_pinCode = e),
-            P.sendPacket(f));
+            J.sendPacket(f));
         else if (b)
           switch (c) {
             case 1:
-              f = new N.CH.CHECK_PIN();
+              f = new I.CH.CHECK_PIN();
               f.AID = a.AID;
               f.pinCode = d;
-              P.sendPacket(f);
+              J.sendPacket(f);
               break;
             case 2:
             case 4:
-              ((f = new N.CH.CREATE_NEW_PIN()),
+              ((f = new I.CH.CREATE_NEW_PIN()),
                 (f.AID = a.AID),
                 (f.pinCode = d),
-                P.sendPacket(f));
+                J.sendPacket(f));
           }
       };
-      F.onCancelRequest = function (a) {
-        0 == F.step
-          ? (F.remove(),
+      H.onCancelRequest = function (a) {
+        0 == H.step
+          ? (H.remove(),
             u("#body-cover").removeClass("open"),
-            M("Engine/LoginEngine").reload())
-          : (F.remove(), F.append(), (F.step = 0), F.setType(1));
+            P("Engine/LoginEngine").reload())
+          : (H.remove(), H.append(), (H.step = 0), H.setType(1));
       };
       switch (b) {
         case 0:
@@ -268,8 +268,8 @@ define(
           return (
             (c = 3),
             u("#body-cover").removeClass("open"),
-            (F.step = 0),
-            (F.ready = !0),
+            (H.step = 0),
+            (H.ready = !0),
             localStorage.setItem("CdGId", a.AID),
             !1
           );
@@ -288,55 +288,55 @@ define(
           break;
         case 7:
           u("#body-cover").removeClass("open");
-          F.step = 0;
-          F.ready = !0;
+          H.step = 0;
+          H.ready = !0;
           localStorage.setItem("CdGId", a.AID);
           return;
         case 8:
           if (
             ((c = 1),
             x.showMessageBox("PIN\u7801\u4e0d\u6b63\u786e", "ok"),
-            !F.CheckTry())
+            !H.CheckTry())
           )
             return (u("#body-cover").removeClass("open"), !1);
       }
       setTimeout(function () {
         u("#body-cover").addClass("open");
-        F.append();
-        F.setType(c);
+        H.append();
+        H.setType(c);
       }, 1e3);
     }
     var u = a("Utils/jquery"),
       A = a("DB/DBManager"),
       D = a("Core/Events"),
       B = a("Audio/SoundManager"),
-      H = a("Audio/BGM"),
+      O = a("Audio/BGM"),
       C = a("Renderer/Renderer"),
-      z = a("Engine/SessionStorage"),
-      G = a("Engine/MapEngine"),
-      P = a("Network/NetworkManager"),
-      N = a("Network/PacketStructure"),
-      I = a("Network/PacketVerManager"),
+      y = a("Engine/SessionStorage"),
+      z = a("Engine/MapEngine"),
+      J = a("Network/NetworkManager"),
+      I = a("Network/PacketStructure"),
+      L = a("Network/PacketVerManager"),
       x = a("UI/UIManager"),
-      J = a("UI/Background"),
+      M = a("UI/Background"),
       E = a("UI/Components/CharSelect/CharSelect"),
-      L = a("UI/Components/CharCreate/CharCreate"),
-      y = a("UI/Components/InputBox/InputBox"),
-      F = a("UI/Components/PincodeBox/PincodeBox"),
+      F = a("UI/Components/CharCreate/CharCreate"),
+      G = a("UI/Components/InputBox/InputBox"),
+      H = a("UI/Components/PincodeBox/PincodeBox"),
       K = a("UI/Components/vbk/vbk"),
-      M = a,
-      Q = null,
-      W = 0;
+      P = a,
+      N = null,
+      S = 0;
     return {
       init: b,
       reload: function () {
-        P.close();
-        J.reload(function () {
+        J.close();
+        M.reload(function () {
           x.removeComponents();
           C.remove();
           x.getComponent("WinLoading").append();
           u("#header").show();
-          b(Q);
+          b(N);
         });
       },
     };

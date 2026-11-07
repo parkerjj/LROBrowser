@@ -8,48 +8,48 @@ define(
       c = a("Controls/KeyEventHandler"),
       d = a("Renderer/Renderer"),
       e = a("UI/UIManager"),
-      l = a("UI/UIComponent"),
+      m = a("UI/UIComponent"),
       h = a("Preferences/Controls"),
       r = a("UI/Components/WorldMap/WorldMap"),
-      t = a("text!./NpcBox.html");
+      q = a("text!./NpcBox.html");
     a = a("text!./NpcBox.css");
-    var n = new l("NpcBox", t, a),
+    var k = new m("NpcBox", q, a),
       g = !1,
-      p = 0;
-    n.needFocus = !1;
-    n.init = function () {
+      t = 0;
+    k.needFocus = !1;
+    k.init = function () {
       this.ui.css({
         zIndex: 99,
         top: 0.5 * (d.height - this.ui.height()) - 70,
         left: 0.5 * (d.width - this.ui.width()),
       });
-      this.ui.find(".next").click(n.next.bind(this));
-      this.ui.find(".close").click(n.close.bind(this));
+      this.ui.find(".next").click(k.next.bind(this));
+      this.ui.find(".close").click(k.close.bind(this));
       this.ui.find(".content").mousedown(function (a) {
         a.stopImmediatePropagation();
       });
       this.ui.on("click", ".smap", function (a) {
         r.select();
         r.selectMap(b(this).text());
-        n.close();
+        k.close();
         a.stopImmediatePropagation();
         return !1;
       });
       this.draggable();
     };
-    n.onAppend = function () {
+    k.onAppend = function () {
       h.talk = !0;
     };
-    n.onRemove = function () {
+    k.onRemove = function () {
       this.ui.find(".next").hide();
       this.ui.find(".close").hide();
       this.ui.find(".content").text("");
       g = h.talk = !1;
-      p = 0;
+      t = 0;
       var a = document.getElementById("cutin");
       a && document.body.removeChild(a);
     };
-    n.onKeyDown = function (a) {
+    k.onKeyDown = function (a) {
       switch (a.which) {
         case c.ENTER:
           if (this.ui.find(".next").is(":visible")) {
@@ -72,33 +72,33 @@ define(
       a.stopImmediatePropagation();
       return !1;
     };
-    n.setText = function (a, c) {
+    k.setText = function (a, c) {
       var d = this.ui.find(".content");
-      p = c;
+      t = c;
       g && ((g = !1), d.text(""));
       d.append(b("\x3cdiv/\x3e").text(a));
     };
-    n.addNext = function (a) {
-      p = a;
+    k.addNext = function (a) {
+      t = a;
       this.ui.find(".next").show();
     };
-    n.addClose = function (a) {
-      p = a;
+    k.addClose = function (a) {
+      t = a;
       this.ui.find(".close").show();
     };
-    n.next = function () {
+    k.next = function () {
       g = !0;
       this.ui.find(".next").hide();
-      this.onNextPressed(p);
+      this.onNextPressed(t);
     };
-    n.close = function () {
+    k.close = function () {
       g = !0;
       h.talk = !1;
       this.ui.find(".close").hide();
-      this.onClosePressed(p);
+      this.onClosePressed(t);
     };
-    n.onClosePressed = function () {};
-    n.onNextPressed = function () {};
-    return e.addComponent(n);
+    k.onClosePressed = function () {};
+    k.onNextPressed = function () {};
+    return e.addComponent(k);
   },
 );

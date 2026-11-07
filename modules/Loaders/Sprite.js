@@ -39,94 +39,94 @@ define("Loaders/Sprite", ["Utils/BinaryReader"], function (a) {
     var a = this.indexed_count,
       d = this.fp,
       e,
-      l,
+      m,
       h,
       r = this.frames;
     for (e = 0; e < a; ++e)
-      ((l = d.readUShort()),
+      ((m = d.readUShort()),
         (h = d.readUShort()),
         (r[e] = {
           type: b.TYPE_PAL,
-          width: l,
+          width: m,
           height: h,
-          data: new Uint8Array(d.buffer, d.tell(), l * h),
+          data: new Uint8Array(d.buffer, d.tell(), m * h),
         }),
-        d.seek(l * h, SEEK_CUR));
+        d.seek(m * h, SEEK_CUR));
   };
   b.prototype.readIndexedImageRLE = function () {
     var a = this.indexed_count,
       d = this.fp,
       e,
-      l,
+      m,
       h,
       r,
-      t,
-      n,
-      g,
-      p,
+      q,
       k,
+      g,
+      t,
+      l,
       f = this.frames;
     for (e = 0; e < a; ++e) {
-      l = d.readUShort();
+      m = d.readUShort();
       h = d.readUShort();
-      r = l * h;
+      r = m * h;
       r = new Uint8Array(r);
-      t = 0;
-      for (k = d.readUShort() + d.tell(); d.tell() < k;)
-        if (((n = d.readUByte()), (r[t++] = n), !n))
-          if ((g = d.readUByte())) for (p = 1; p < g; ++p) r[t++] = n;
-          else r[t++] = g;
-      f[e] = { type: b.TYPE_PAL, width: l, height: h, data: r };
+      q = 0;
+      for (l = d.readUShort() + d.tell(); d.tell() < l;)
+        if (((k = d.readUByte()), (r[q++] = k), !k))
+          if ((g = d.readUByte())) for (t = 1; t < g; ++t) r[q++] = k;
+          else r[q++] = g;
+      f[e] = { type: b.TYPE_PAL, width: m, height: h, data: r };
     }
   };
   b.prototype.readRgbaImage = function () {
     var a = this.rgba_count,
       d = this.rgba_index,
       e = this.fp,
-      l = this.frames,
+      m = this.frames,
       h,
       r,
-      t;
+      q;
     for (h = 0; h < a; ++h)
       ((r = e.readShort()),
-        (t = e.readShort()),
-        (l[h + d] = {
+        (q = e.readShort()),
+        (m[h + d] = {
           type: b.TYPE_RGBA,
           width: r,
-          height: t,
-          data: new Uint8Array(e.buffer, e.tell(), r * t * 4),
+          height: q,
+          data: new Uint8Array(e.buffer, e.tell(), r * q * 4),
         }),
-        e.seek(r * t * 4, SEEK_CUR));
+        e.seek(r * q * 4, SEEK_CUR));
   };
   b.prototype.switchToRGBA = function () {
     var a = this.frames,
       d,
       e,
-      l = this.indexed_count,
+      m = this.indexed_count,
       h,
       r,
-      t,
-      n,
+      q,
+      k,
       g,
-      p,
-      k = this.palette,
+      t,
+      l = this.palette,
       f,
-      m;
-    for (e = 0; e < l; ++e)
+      n;
+    for (e = 0; e < m; ++e)
       if (((d = a[e]), d.type === b.TYPE_PAL)) {
         h = d.data;
         r = d.width;
-        t = d.height;
-        p = new Uint8Array(r * t * 4);
-        for (g = 0; g < t; ++g)
-          for (n = 0; n < r; ++n)
-            ((f = 4 * h[n + g * r]),
-              (m = 4 * (n + (t - g - 1) * r)),
-              (p[m + 3] = k[f + 0]),
-              (p[m + 2] = k[f + 1]),
-              (p[m + 1] = k[f + 2]),
-              (p[m + 0] = f ? 255 : 0));
-        d.data = p;
+        q = d.height;
+        t = new Uint8Array(r * q * 4);
+        for (g = 0; g < q; ++g)
+          for (k = 0; k < r; ++k)
+            ((f = 4 * h[k + g * r]),
+              (n = 4 * (k + (q - g - 1) * r)),
+              (t[n + 3] = l[f + 0]),
+              (t[n + 2] = l[f + 1]),
+              (t[n + 1] = l[f + 2]),
+              (t[n + 0] = f ? 255 : 0));
+        d.data = t;
         d.type = b.TYPE_RGBA;
       }
     this.indexed_count = 0;
@@ -136,39 +136,39 @@ define("Loaders/Sprite", ["Utils/BinaryReader"], function (a) {
   b.prototype.getCanvasFromFrame = function (a) {
     var d = document.createElement("canvas"),
       c = d.getContext("2d"),
-      l,
+      m,
       h,
       r,
-      t,
-      n,
+      q,
+      k,
       g,
-      p;
-    l = this.frames[a];
-    if (0 >= l.width || 0 >= l.height) return null;
-    d.width = l.width;
-    d.height = l.height;
-    g = l.width;
-    p = l.height;
-    a = c.createImageData(l.width, l.height);
-    if (l.type === b.TYPE_RGBA)
-      for (r = 0; r < p; ++r)
+      t;
+    m = this.frames[a];
+    if (0 >= m.width || 0 >= m.height) return null;
+    d.width = m.width;
+    d.height = m.height;
+    g = m.width;
+    t = m.height;
+    a = c.createImageData(m.width, m.height);
+    if (m.type === b.TYPE_RGBA)
+      for (r = 0; r < t; ++r)
         for (h = 0; h < g; ++h)
-          ((t = 4 * (h + r * g)),
-            (n = 4 * (h + (p - r - 1) * g)),
-            (a.data[n + 0] = l.data[t + 3]),
-            (a.data[n + 1] = l.data[t + 2]),
-            (a.data[n + 2] = l.data[t + 1]),
-            (a.data[n + 3] = l.data[t + 0]));
+          ((q = 4 * (h + r * g)),
+            (k = 4 * (h + (t - r - 1) * g)),
+            (a.data[k + 0] = m.data[q + 3]),
+            (a.data[k + 1] = m.data[q + 2]),
+            (a.data[k + 2] = m.data[q + 1]),
+            (a.data[k + 3] = m.data[q + 0]));
     else {
-      var k = this.palette;
-      for (r = 0; r < p; ++r)
+      var l = this.palette;
+      for (r = 0; r < t; ++r)
         for (h = 0; h < g; ++h)
-          ((t = 4 * l.data[h + r * g]),
-            (n = 4 * (h + r * g)),
-            (a.data[n + 0] = k[t + 0]),
-            (a.data[n + 1] = k[t + 1]),
-            (a.data[n + 2] = k[t + 2]),
-            (a.data[n + 3] = t ? 255 : 0));
+          ((q = 4 * m.data[h + r * g]),
+            (k = 4 * (h + r * g)),
+            (a.data[k + 0] = l[q + 0]),
+            (a.data[k + 1] = l[q + 1]),
+            (a.data[k + 2] = l[q + 2]),
+            (a.data[k + 3] = q ? 255 : 0));
     }
     c.putImageData(a, 0, 0);
     return d;
@@ -177,56 +177,56 @@ define("Loaders/Sprite", ["Utils/BinaryReader"], function (a) {
     var a = this.frames,
       d,
       e,
-      l = a.length,
+      m = a.length,
       h,
       r,
-      t,
-      n,
-      g,
-      p,
+      q,
       k,
+      g,
+      t,
+      l,
       f,
-      m,
-      q = Math.pow,
+      n,
+      p = Math.pow,
       v = Math.ceil,
       u = Math.log,
       A = Math.floor,
       D,
-      B = Array(l);
-    for (e = 0; e < l; ++e) {
+      B = Array(m);
+    for (e = 0; e < m; ++e) {
       d = a[e];
       h = d.data;
       r = d.width;
-      t = d.height;
-      n = q(2, v(u(r) / u(2)));
-      g = q(2, v(u(t) / u(2)));
-      p = A(0.5 * (n - r));
-      k = A(0.5 * (g - t));
+      q = d.height;
+      k = p(2, v(u(r) / u(2)));
+      g = p(2, v(u(q) / u(2)));
+      t = A(0.5 * (k - r));
+      l = A(0.5 * (g - q));
       if (d.type === b.TYPE_PAL)
-        for (D = new Uint8Array(n * g), m = 0; m < t; ++m)
+        for (D = new Uint8Array(k * g), n = 0; n < q; ++n)
           for (f = 0; f < r; ++f)
-            ((D[(m + k) * n + (f + p)] = h[m * r + f]),
-              255 == this.palette[4 * h[m * r + f]] &&
-                255 == this.palette[4 * h[m * r + f] + 2] &&
-                0 == this.palette[4 * h[m * r + f] + 1] &&
-                (D[(m + k) * n + (f + p)] = 0));
+            ((D[(n + l) * k + (f + t)] = h[n * r + f]),
+              255 == this.palette[4 * h[n * r + f]] &&
+                255 == this.palette[4 * h[n * r + f] + 2] &&
+                0 == this.palette[4 * h[n * r + f] + 1] &&
+                (D[(n + l) * k + (f + t)] = 0));
       else
-        for (D = new Uint8Array(n * g * 4), m = 0; m < t; ++m)
+        for (D = new Uint8Array(k * g * 4), n = 0; n < q; ++n)
           for (f = 0; f < r; ++f)
-            ((D[4 * ((m + k) * n + (f + p)) + 0] =
-              h[4 * ((t - m - 1) * r + f) + 3]),
-              (D[4 * ((m + k) * n + (f + p)) + 1] =
-                h[4 * ((t - m - 1) * r + f) + 2]),
-              (D[4 * ((m + k) * n + (f + p)) + 2] =
-                h[4 * ((t - m - 1) * r + f) + 1]),
-              (D[4 * ((m + k) * n + (f + p)) + 3] =
-                h[4 * ((t - m - 1) * r + f) + 0]));
+            ((D[4 * ((n + l) * k + (f + t)) + 0] =
+              h[4 * ((q - n - 1) * r + f) + 3]),
+              (D[4 * ((n + l) * k + (f + t)) + 1] =
+                h[4 * ((q - n - 1) * r + f) + 2]),
+              (D[4 * ((n + l) * k + (f + t)) + 2] =
+                h[4 * ((q - n - 1) * r + f) + 1]),
+              (D[4 * ((n + l) * k + (f + t)) + 3] =
+                h[4 * ((q - n - 1) * r + f) + 0]));
       B[e] = {
         type: d.type,
-        width: n,
+        width: k,
         height: g,
         originalWidth: r,
-        originalHeight: t,
+        originalHeight: q,
         data: D,
       };
     }

@@ -12,30 +12,30 @@ define(
     }
     function c(a, b, c, d) {
       var e,
-        g = k.get("socketProxy", null);
+        g = l.get("socketProxy", null);
       e = new (
-        f.Is.APP ? D : C.isSupported() ? C : z.isSupported() ? z : g ? H : B
+        f.Is.APP ? D : C.isSupported() ? C : y.isSupported() ? y : g ? O : B
       )(a, b, g);
       e.isZone = !!d;
-      e.onClose = t;
+      e.onClose = q;
       e.onComplete = function (a) {
         a &&
-          (N && N.ping && clearInterval(N.ping),
+          (I && I.ping && clearInterval(I.ping),
           (e.onMessage = r),
-          P.push((N = e)),
+          J.push((I = e)),
           d && A.init());
         c.call(this, a);
       };
     }
     function d(a) {
       a = a.build();
-      N && N.isZone && A.process(a.view);
+      I && I.isZone && A.process(a.view);
       e(a.buffer);
     }
     function e(a) {
-      N && N.send(a);
+      I && I.send(a);
     }
-    function l(a, c) {
+    function m(a, c) {
       if (!a.id)
         throw Error(
           'NetworkManager::HookPacket() - Packet not yet register "' +
@@ -49,18 +49,18 @@ define(
     }
     function r(a) {
       var c, d, f, e;
-      I
-        ? ((f = new Uint8Array(I.length + a.byteLength)),
-          f.set(I, 0),
-          f.set(new Uint8Array(a), I.length),
+      L
+        ? ((f = new Uint8Array(L.length + a.byteLength)),
+          f.set(L, 0),
+          f.set(new Uint8Array(a), L.length),
           (e = f.buffer))
         : (e = a);
-      a = new m(e);
+      a = new n(e);
       h.callback && (h.callback(a), (h.callback = null));
       for (; a.tell() < a.length;) {
         f = a.tell();
         if (f + 2 > a.length) {
-          I = new Uint8Array(e, f, a.length - f);
+          L = new Uint8Array(e, f, a.length - f);
           return;
         }
         c = a.readUShort();
@@ -77,7 +77,7 @@ define(
         c = b.list[c];
         if (0 > c.size) {
           if (f + 4 >= a.length) {
-            I = new Uint8Array(e, f, a.length - f);
+            L = new Uint8Array(e, f, a.length - f);
             return;
           }
           d = a.readUShort();
@@ -85,7 +85,7 @@ define(
         f += d;
         if (f > a.length) {
           f = a.tell() - (0 > c.size ? 4 : 2);
-          I = new Uint8Array(e, f, a.length - f);
+          L = new Uint8Array(e, f, a.length - f);
           return;
         }
         c.instance
@@ -94,84 +94,84 @@ define(
         d && a.seek(f, SEEK_SET);
         c.callback && c.callback(c.instance);
       }
-      I = null;
+      L = null;
     }
-    function t() {
-      var a = P.indexOf(this);
-      this === N &&
+    function q() {
+      var a = J.indexOf(this);
+      this === I &&
         (console.warn(
           "[Network] \u4e0e\u670d\u52a1\u5668\u65ad\u5f00\u8fde\u63a5",
         ),
-        N.ping && clearInterval(N.ping),
-        G("UI/UIManager").showErrorBox(
+        I.ping && clearInterval(I.ping),
+        z("UI/UIManager").showErrorBox(
           "\u4e0e\u670d\u52a1\u5668\u65ad\u5f00\u8fde\u63a5",
         ));
-      -1 !== a && P.splice(a, 1);
+      -1 !== a && J.splice(a, 1);
     }
-    function n() {
+    function k() {
       var a;
-      N &&
-        (N.close(),
-        N.izZone && A.reset(),
-        N.ping && clearInterval(N.ping),
-        (a = P.indexOf(N)),
-        (N = null),
-        -1 !== a && P.splice(a, 1));
+      I &&
+        (I.close(),
+        I.izZone && A.reset(),
+        I.ping && clearInterval(I.ping),
+        (a = J.indexOf(I)),
+        (I = null),
+        -1 !== a && J.splice(a, 1));
     }
     function g(a) {
-      if (N)
+      if (I)
         for (
-          N.ping && clearInterval(N.ping), N.ping = setInterval(a, 15e3);
-          1 < P.length;
+          I.ping && clearInterval(I.ping), I.ping = setInterval(a, 15e3);
+          1 < J.length;
         )
-          N !== P[0] && (P[0].close(), P.splice(0, 1));
+          I !== J[0] && (J[0].close(), J.splice(0, 1));
     }
-    function p(a) {
+    function t(a) {
       var b = new ArrayBuffer(4),
         c = new Uint8Array(b);
       new Uint32Array(b)[0] = a;
       return Array.prototype.join.call(c, ".");
     }
-    var k = a("Core/Configs"),
+    var l = a("Core/Configs"),
       f = a("Core/Context"),
-      m = a("Utils/BinaryReader"),
-      q = a("./PacketVerManager"),
+      n = a("Utils/BinaryReader"),
+      p = a("./PacketVerManager"),
       v = a("./PacketVersions"),
       u = a("./PacketRegister"),
       A = a("./PacketCrypt"),
       D = a("./SocketHelpers/ChromeSocket"),
       B = a("./SocketHelpers/JavaSocket"),
-      H = a("./SocketHelpers/WebSocket"),
+      O = a("./SocketHelpers/WebSocket"),
       C = a("./SocketHelpers/TCPSocket"),
-      z = a("./SocketHelpers/NodeSocket"),
-      G = a,
-      P = [],
-      N = null,
-      I = null;
+      y = a("./SocketHelpers/NodeSocket"),
+      z = a,
+      J = [],
+      I = null,
+      L = null;
     b.list = [];
     h.callback = null;
     return (function () {
-      var a, f, k;
+      var a, f, l;
       a = Object.keys(v);
-      k = a.length;
-      for (f = 0; f < k; ++f) q.addSupport(a[f], v[a[f]]);
+      l = a.length;
+      for (f = 0; f < l; ++f) p.addSupport(a[f], v[a[f]]);
       a = Object.keys(u);
-      k = a.length;
-      for (f = 0; f < k; ++f) {
-        var m = a[f],
-          B = u[a[f]];
-        B.id = m;
-        b.list[m] = new b(B.name, B, B.size);
+      l = a.length;
+      for (f = 0; f < l; ++f) {
+        var n = a[f],
+          q = u[a[f]];
+        q.id = n;
+        b.list[n] = new b(q.name, q, q.size);
       }
       return {
         sendPacket: d,
         send: e,
         setPing: g,
         connect: c,
-        hookPacket: l,
-        close: n,
+        hookPacket: m,
+        close: k,
         read: h,
-        utils: { longToIP: p },
+        utils: { longToIP: t },
       };
     })();
   },

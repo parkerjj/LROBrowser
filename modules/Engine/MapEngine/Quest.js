@@ -5,7 +5,7 @@ define(
   ),
   function (a) {
     function b(a) {
-      0 >= a.questCount || (r.setList(a), t.updateQList());
+      0 >= a.questCount || (r.setList(a), q.updateQList());
     }
     function c(a) {
       r.addList({
@@ -16,37 +16,37 @@ define(
         quest_endTime: a.quest_endTime,
         quest_svrTime: a.quest_svrTime,
       });
-      t.updateQList();
+      q.updateQList();
     }
     function d(a) {
       r.delQuest(a.questID);
-      t.updateQList();
+      q.updateQList();
     }
     function e(a) {
       if (0 == a.count) return !1;
       for (var b = 0; b < a.count; b++) r.updateQuest(a.MobHuntList[b]);
-      t.updateQList();
+      q.updateQList();
     }
     a("DB/DBManager");
     a("UI/Components/ChatBox/ChatBox");
-    var l = a("Network/NetworkManager"),
+    var m = a("Network/NetworkManager"),
       h = a("Network/PacketStructure");
     a("Engine/SessionStorage");
     var r = a("UI/Components/Quest/Quest"),
-      t = a("UI/Components/miniQuest/miniQuest");
+      q = a("UI/Components/miniQuest/miniQuest");
     r.requestChangeQuestState = function (a, b) {
       var c = new h.CZ.ACTIVE_QUEST();
       c.questID = a;
       c.active = b;
-      l.sendPacket(c);
+      m.sendPacket(c);
     };
     return function () {
-      l.hookPacket(h.ZC.ALL_QUEST_LIST_V3, b);
-      l.hookPacket(h.ZC.ADD_QUEST, c);
-      l.hookPacket(h.ZC.ADD_QUEST_EX, c);
-      l.hookPacket(h.ZC.DEL_QUEST, d);
-      l.hookPacket(h.ZC.UPDATE_MISSION_HUNT, e);
-      l.hookPacket(h.ZC.UPDATE_MISSION_HUNT_EX, e);
+      m.hookPacket(h.ZC.ALL_QUEST_LIST_V3, b);
+      m.hookPacket(h.ZC.ADD_QUEST, c);
+      m.hookPacket(h.ZC.ADD_QUEST_EX, c);
+      m.hookPacket(h.ZC.DEL_QUEST, d);
+      m.hookPacket(h.ZC.UPDATE_MISSION_HUNT, e);
+      m.hookPacket(h.ZC.UPDATE_MISSION_HUNT_EX, e);
     };
   },
 );

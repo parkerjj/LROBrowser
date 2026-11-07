@@ -3,22 +3,22 @@ define("text", ["module"], function (a) {
     c,
     d,
     e,
-    l,
+    m,
     h = ["Msxml2.XMLHTTP", "Microsoft.XMLHTTP", "Msxml2.XMLHTTP.4.0"],
     r = /^\s*<\?xml(\s)+version=[\'\"](\d)*.(\d)*[\'\"](\s)*\?>/im,
-    t = /<body[^>]*>\s*([\s\S]+)\s*<\/body>/im,
-    n = "undefined" !== typeof location && location.href,
-    g = n && location.protocol && location.protocol.replace(/\:/, ""),
-    p = n && location.hostname,
-    k = n && (location.port || void 0),
+    q = /<body[^>]*>\s*([\s\S]+)\s*<\/body>/im,
+    k = "undefined" !== typeof location && location.href,
+    g = k && location.protocol && location.protocol.replace(/\:/, ""),
+    t = k && location.hostname,
+    l = k && (location.port || void 0),
     f = {},
-    m = (a.config && a.config()) || {};
+    n = (a.config && a.config()) || {};
   b = {
     version: "2.0.10",
     strip: function (a) {
       if (a) {
         a = a.replace(r, "");
-        var d = a.match(t);
+        var d = a.match(q);
         d && (a = d[1]);
       } else a = "";
       return a;
@@ -35,7 +35,7 @@ define("text", ["module"], function (a) {
         .replace(/[\u2029]/g, "\\u2029");
     },
     createXhr:
-      m.createXhr ||
+      n.createXhr ||
       function () {
         var a, d, b;
         if ("undefined" !== typeof XMLHttpRequest) return new XMLHttpRequest();
@@ -87,20 +87,20 @@ define("text", ["module"], function (a) {
     },
     finishLoad: function (a, d, c, e) {
       c = d ? b.strip(c) : c;
-      m.isBuild && (f[a] = c);
+      n.isBuild && (f[a] = c);
       e(c);
     },
     load: function (a, d, c, e) {
       if (e.isBuild && !e.inlineText) c();
       else {
-        m.isBuild = e.isBuild;
+        n.isBuild = e.isBuild;
         var f = b.parseName(a);
         e = f.moduleName + (f.ext ? "." + f.ext : "");
         var h = d.toUrl(e),
-          q = m.useXhr || b.useXhr;
+          p = n.useXhr || b.useXhr;
         0 === h.indexOf("empty:")
           ? c()
-          : !n || q(h, g, p, k)
+          : !k || p(h, g, t, l)
             ? b.get(
                 h,
                 function (d) {
@@ -126,27 +126,27 @@ define("text", ["module"], function (a) {
     writeFile: function (a, d, c, e, f) {
       d = b.parseName(d);
       var h = d.ext ? "." + d.ext : "",
-        m = d.moduleName + h,
-        q = c.toUrl(d.moduleName + h) + ".js";
+        n = d.moduleName + h,
+        p = c.toUrl(d.moduleName + h) + ".js";
       b.load(
-        m,
+        n,
         c,
         function (d) {
           d = function (a) {
-            return e(q, a);
+            return e(p, a);
           };
           d.asModule = function (a, d) {
-            return e.asModule(a, q, d);
+            return e.asModule(a, p, d);
           };
-          b.write(a, m, d, f);
+          b.write(a, n, d, f);
         },
         f,
       );
     },
   };
   if (
-    "node" === m.env ||
-    (!m.env &&
+    "node" === n.env ||
+    (!n.env &&
       "undefined" !== typeof process &&
       process.versions &&
       process.versions.node &&
@@ -162,7 +162,7 @@ define("text", ["module"], function (a) {
           b(D);
         }
       }));
-  else if ("xhr" === m.env || (!m.env && b.createXhr()))
+  else if ("xhr" === n.env || (!n.env && b.createXhr()))
     b.get = function (a, d, c, e) {
       var f = b.createXhr(),
         h;
@@ -170,7 +170,7 @@ define("text", ["module"], function (a) {
       if (e)
         for (h in e)
           e.hasOwnProperty(h) && f.setRequestHeader(h.toLowerCase(), e[h]);
-      if (m.onXhr) m.onXhr(f, a);
+      if (n.onXhr) n.onXhr(f, a);
       f.onreadystatechange = function (b) {
         if (
           4 === f.readyState &&
@@ -178,15 +178,15 @@ define("text", ["module"], function (a) {
           399 < b && 600 > b
             ? ((b = Error(a + " HTTP status: " + b)), (b.xhr = f), c(b))
             : d(f.responseText),
-          m.onXhrComplete)
+          n.onXhrComplete)
         )
-          m.onXhrComplete(f, a);
+          n.onXhrComplete(f, a);
       };
       f.send(null);
     };
   else if (
-    "rhino" === m.env ||
-    (!m.env && "undefined" !== typeof Packages && "undefined" !== typeof java)
+    "rhino" === n.env ||
+    (!n.env && "undefined" !== typeof Packages && "undefined" !== typeof java)
   )
     b.get = function (a, d) {
       var b,
@@ -215,8 +215,8 @@ define("text", ["module"], function (a) {
       d(f);
     };
   else if (
-    "xpconnect" === m.env ||
-    (!m.env &&
+    "xpconnect" === n.env ||
+    (!n.env &&
       "undefined" !== typeof Components &&
       Components.classes &&
       Components.interfaces)
@@ -224,12 +224,12 @@ define("text", ["module"], function (a) {
     ((d = Components.classes),
       (e = Components.interfaces),
       Components.utils["import"]("resource://gre/modules/FileUtils.jsm"),
-      (l = "@mozilla.org/windows-registry-key;1" in d),
+      (m = "@mozilla.org/windows-registry-key;1" in d),
       (b.get = function (a, b) {
         var c,
           f,
           h = {};
-        l && (a = a.replace(/\//g, "\\"));
+        m && (a = a.replace(/\//g, "\\"));
         a = new FileUtils.File(a);
         try {
           ((c = d["@mozilla.org/network/file-input-stream;1"].createInstance(

@@ -5,7 +5,7 @@ define(
   ),
   function (a) {
     function b(a, b) {
-      var c = q.getItemInfo(b.ITID),
+      var c = p.getItemInfo(b.ITID),
         d = a.find(".item[data-index\x3d" + b.index + "]:first");
       0 === b.count
         ? d.length && d.remove()
@@ -19,7 +19,7 @@ define(
                 "\x3c/div\x3e\x3c/div\x3e",
             ),
             v.loadFile(
-              q.INTERFACE_PATH +
+              p.INTERFACE_PATH +
                 "item/" +
                 (b.IsIdentified
                   ? c.identifiedResourceName
@@ -34,18 +34,18 @@ define(
             ));
     }
     function c(a, b) {
-      var c = q.getItemInfo(b.ITID),
+      var c = p.getItemInfo(b.ITID),
         d = a.find(".item[data-index\x3d" + b.index + "]:first");
       0 === b.count
         ? d.length && d.remove()
         : d.length
           ? d.find(".amount").text(isFinite(b.count) ? b.count : "")
-          : ((d = m("#PlayerStore .OutputWindow .item").eq(y)),
+          : ((d = n("#PlayerStore .OutputWindow .item").eq(G)),
             d.attr("data-index", b.index),
             d.find(".amount").html(isFinite(b.count) ? b.count : "1"),
-            d.find(".name").html(m.escape(q.getItemName(b))),
+            d.find(".name").html(n.escape(p.getItemName(b))),
             v.loadFile(
-              q.INTERFACE_PATH +
+              p.INTERFACE_PATH +
                 "item/" +
                 (b.IsIdentified
                   ? c.identifiedResourceName
@@ -58,7 +58,7 @@ define(
                 );
               },
             ),
-            y++);
+            G++);
     }
     function d(a, b) {
       b = Math.min(Math.max(b, 2), 9);
@@ -74,28 +74,28 @@ define(
           a = Math.min(Math.max(a, 2), 9);
         a !== e && (d(c, a), (e = a));
       }, 30);
-      m(window).on("mouseup.resize", function (a) {
-        1 === a.which && (clearInterval(f), m(window).off("mouseup.resize"));
+      n(window).on("mouseup.resize", function (a) {
+        1 === a.which && (clearInterval(f), n(window).off("mouseup.resize"));
       });
     }
-    function l(a, b, c, d) {
+    function m(a, b, c, d) {
       var e;
-      e = d ? (isFinite(J[a].count) ? J[a].count : 1) : E[a].count;
+      e = d ? (isFinite(M[a].count) ? M[a].count : 1) : E[a].count;
       1 < e
-        ? (z.append(),
-          z.setType("number", !1, e),
-          (z.onSubmitRequest = function (e) {
-            z.remove();
-            0 < e && F(b, c, d, a, e);
+        ? (y.append(),
+          y.setType("number", !1, e),
+          (y.onSubmitRequest = function (e) {
+            y.remove();
+            0 < e && H(b, c, d, a, e);
           }))
-        : F(b, c, d, a, e);
+        : H(b, c, d, a, e);
     }
     function h(a) {
       var b;
       a.stopImmediatePropagation();
       try {
         b = JSON.parse(a.originalEvent.dataTransfer.getData("Text"));
-      } catch (Q) {
+      } catch (N) {
         return !1;
       }
       if (
@@ -104,17 +104,17 @@ define(
         b.container === this.className
       )
         return !1;
-      l(
+      m(
         b.index,
-        m("." + b.container + " .content"),
-        m(this).find(".content"),
+        n("." + b.container + " .content"),
+        n(this).find(".content"),
         "OutputWindow" === this.className,
       );
       return !1;
     }
     function r(a) {
       var b = parseInt(this.parentNode.getAttribute("data-index"), 10),
-        b = J[b];
+        b = M[b];
       a.stopImmediatePropagation();
       if (!b) return !1;
       if (C.uid === b.ITID) return (C.remove(), !1);
@@ -123,36 +123,36 @@ define(
       C.setItem(b);
       return !1;
     }
-    function t() {
+    function q() {
       var a, b, c;
-      L !== I.Type.BUY &&
-        L !== I.Type.VENDING_STORE &&
-        ((a = I.ui.find(".InputWindow:first")),
-        m.contains(a.get(0), this)
-          ? ((b = a), (c = I.ui.find(".OutputWindow:first")))
-          : ((b = I.ui.find(".OutputWindow:first")), (c = a)),
-        l(
+      F !== L.Type.BUY &&
+        F !== L.Type.VENDING_STORE &&
+        ((a = L.ui.find(".InputWindow:first")),
+        n.contains(a.get(0), this)
+          ? ((b = a), (c = L.ui.find(".OutputWindow:first")))
+          : ((b = L.ui.find(".OutputWindow:first")), (c = a)),
+        m(
           parseInt(this.getAttribute("data-index"), 10),
           b.find(".content:first"),
           c.find(".content:first"),
           b === a,
         ));
     }
-    function n() {
+    function k() {
       var a = parseInt(this.getAttribute("data-index"), 10);
-      if ((a = P.getItemByIndex(a))) {
-        var b = m(this).position(),
-          c = m(this).parent().parent().parent().find(".overlay");
+      if ((a = J.getItemByIndex(a))) {
+        var b = n(this).position(),
+          c = n(this).parent().parent().parent().find(".overlay");
         c.show();
         c.css({ top: b.top - 20, left: b.left });
-        c.text(q.getItemName(a));
+        c.text(p.getItemName(a));
         a.IsIdentified ? c.removeClass("grey") : c.addClass("grey");
       }
     }
     function g() {
-      I.ui.find(".overlay").hide();
+      L.ui.find(".overlay").hide();
     }
-    function p(a) {
+    function t(a) {
       var b;
       a.originalEvent.wheelDelta
         ? ((b = a.originalEvent.wheelDelta / 120), window.opera && (b = -b))
@@ -160,11 +160,11 @@ define(
       this.scrollTop = 32 * Math.floor(this.scrollTop / 32) - 32 * b;
       return !1;
     }
-    function k(a) {
+    function l(a) {
       var b, c, d;
-      b = I.ui.find(".InputWindow:first").get(0);
-      c = I.ui.find(".OutputWindow:first").get(0);
-      b = (m.contains(b, this) ? b : c).className;
+      b = L.ui.find(".InputWindow:first").get(0);
+      c = L.ui.find(".OutputWindow:first").get(0);
+      b = (n.contains(b, this) ? b : c).className;
       c = new Image();
       d = this.firstChild.style.backgroundImage
         .match(/\(([^\)]+)/)[1]
@@ -186,14 +186,14 @@ define(
     function f() {
       x.select_all = !x.select_all;
       v.loadFile(
-        q.INTERFACE_PATH + "checkbox_" + (x.select_all ? 1 : 0) + ".bmp",
+        p.INTERFACE_PATH + "checkbox_" + (x.select_all ? 1 : 0) + ".bmp",
         function (a) {
           this.style.backgroundImage = "url(" + a + ")";
         }.bind(this),
       );
     }
-    var m = a("Utils/jquery"),
-      q = a("DB/DBManager");
+    var n = a("Utils/jquery"),
+      p = a("DB/DBManager");
     a("DB/Items/ItemType");
     var v = a("Core/Client"),
       u = a("Core/Preferences");
@@ -202,16 +202,16 @@ define(
     a("Controls/KeyEventHandler");
     var D = a("Preferences/Controls"),
       B = a("UI/UIManager"),
-      H = a("UI/UIComponent"),
+      O = a("UI/UIComponent"),
       C = a("UI/Components/ItemInfo/ItemInfo"),
-      z = a("UI/Components/InputBox/InputBox"),
-      G = a("UI/Components/ChatBox/ChatBox");
+      y = a("UI/Components/InputBox/InputBox"),
+      z = a("UI/Components/ChatBox/ChatBox");
     a("UI/Components/Inventory/Inventory");
-    var P = a("UI/Components/OnPushCart/OnPushCart"),
-      N = a("text!./PlayerStore.html");
+    var J = a("UI/Components/OnPushCart/OnPushCart"),
+      I = a("text!./PlayerStore.html");
     a = a("text!./PlayerStore.css");
-    var I = new H("PlayerStore", N, a);
-    I.mouseMode = H.MouseMode.FREEZE;
+    var L = new O("PlayerStore", I, a);
+    L.mouseMode = O.MouseMode.FREEZE;
     var x = u.get(
         "PlayerStore",
         {
@@ -222,11 +222,11 @@ define(
         },
         1,
       ),
-      J = [],
+      M = [],
       E = [],
-      L,
-      y = 0;
-    I.init = function () {
+      F,
+      G = 0;
+    L.init = function () {
       var a = this.ui,
         b = a.find(".InputWindow"),
         c = a.find(".OutputWindow"),
@@ -245,13 +245,13 @@ define(
         .find(
           ".InputWindow .container .content,.SaleWindow .container .content",
         )
-        .on("mouseover", ".item", n)
+        .on("mouseover", ".item", k)
         .on("mouseout", ".item", g);
       a.find(".content")
-        .on("mousewheel DOMMouseScroll", p)
+        .on("mousewheel DOMMouseScroll", t)
         .on("contextmenu", ".icon", r)
-        .on("dblclick", ".item", t)
-        .on("dragstart", ".item", k)
+        .on("dblclick", ".item", q)
+        .on("dragstart", ".item", l)
         .on("dragend", ".item", function () {
           delete window._OBJ_DRAG_;
         });
@@ -262,19 +262,19 @@ define(
           return !1;
         })
         .on("mousedown", function () {
-          I.focus();
+          L.focus();
         });
       this.draggable.call({ ui: b }, b.find(".titlebar"));
       this.draggable.call({ ui: c }, c.find(".titlebar"));
       this.draggable.call({ ui: d }, d.find(".titlebar"));
     };
-    I.onAppend = function () {
+    L.onAppend = function () {
       D.talk = !0;
       var a = this.ui.find(".InputWindow"),
         b = this.ui.find(".OutputWindow"),
         c = this.ui.find(".SaleWindow");
       v.loadFile(
-        q.INTERFACE_PATH + "checkbox_" + (x.select_all ? 1 : 0) + ".bmp",
+        p.INTERFACE_PATH + "checkbox_" + (x.select_all ? 1 : 0) + ".bmp",
         function (a) {
           this.ui
             .find(".selectall:first")
@@ -284,17 +284,17 @@ define(
       d(a.find(".content"), x.inputWindow.height);
       d(b.find(".content"), x.outputWindow.height);
       d(c.find(".content"), x.saleWindow.height);
-      a = m._data(window, "events").keydown;
+      a = n._data(window, "events").keydown;
       a.unshift(a.pop());
-      I.setList(P.list);
+      L.setList(J.list);
     };
-    I.onRemove = function () {
+    L.onRemove = function () {
       D.talk = !1;
       var a = this.ui.find(".InputWindow"),
         b = this.ui.find(".OutputWindow"),
         c = this.ui.find(".SaleWindow");
-      y = 0;
-      J.length = 0;
+      G = 0;
+      M.length = 0;
       E.length = 0;
       a.css({ top: "", left: "" });
       b.css({ top: "", left: "" });
@@ -303,9 +303,9 @@ define(
       a.show();
       b.show();
       c.hide();
-      I.onRemove2();
+      L.onRemove2();
     };
-    I.initList = function (a) {
+    L.initList = function (a) {
       var b, c;
       this.ui.find(".OutputWindow .content").empty();
       c = this.ui.find(".OutputWindow .content");
@@ -315,7 +315,7 @@ define(
           '\x3cdiv class\x3d"item" draggable\x3d"true" data-index\x3d""\x3e\x3cdiv class\x3d"icon"\x3e\x3c/div\x3e\x3cdiv class\x3d"amount"\x3e\x3c/div\x3e\x3cdiv class\x3d"name"\x3e\x3c/div\x3e\x3cdiv class\x3d"sale"\x3e\x3cspan\x3e\u552e\u4ef7:\x3c/span\x3e\x3cinput type\x3d"text" placeholder\x3d"0,000"/\x3e\x3c/div\x3e\x3c/div\x3e',
         );
     };
-    I.setList = function (a) {
+    L.setList = function (a) {
       var c, d, e, f;
       this.ui.find(".InputWindow .content").empty();
       f = this.ui.find(".InputWindow .content");
@@ -324,22 +324,22 @@ define(
         ("index" in a[c] || (a[c].index = c),
           (a[c].count = a[c].count || 1),
           (a[c].IsIdentified = !0),
-          (e = m.extend({}, a[c])),
+          (e = n.extend({}, a[c])),
           (e.count = 0),
           b(f, a[c]),
-          (J[a[c].index] = a[c]),
+          (M[a[c].index] = a[c]),
           (E[a[c].index] = e));
     };
-    I.initSuss = function (a) {
+    L.initSuss = function (a) {
       var c,
         d,
         e,
         f = "";
-      I.ui || I.append();
+      L.ui || L.append();
       this.ui.find(".SaleWindow .content").empty();
       e = this.ui.find(".SaleWindow .content");
-      m("#PlayerStore .SaleWindow .titlebar .text span").text(
-        m("#PlayerStore .OutputWindow .shopname input").val() ||
+      n("#PlayerStore .SaleWindow .titlebar .text span").text(
+        n("#PlayerStore .OutputWindow .shopname input").val() ||
           "\u6b22\u8fce\u5149\u4e34",
       );
       c = 0;
@@ -349,7 +349,7 @@ define(
           (a.itemList[c].IsIdentified = !0),
           (f +=
             "\x3cbr\x3e" +
-            m.escape(q.getItemName(a.itemList[c])) +
+            n.escape(p.getItemName(a.itemList[c])) +
             "\t\t:\t\t" +
             a.itemList[c].price +
             "\t\tZeny"),
@@ -357,15 +357,15 @@ define(
       this.ui.find(".InputWindow").hide();
       this.ui.find(".OutputWindow").hide();
       this.ui.find(".SaleWindow").show();
-      G.addText(
+      z.addText(
         "\x3d\x3d\x3d\x3d\x3d\x3d\x3d\x3d\x3d\x3d \u51fa\u552e\u5217\u8868 \x3d\x3d\x3d\x3d\x3d\x3d\x3d\x3d\x3d\x3d" +
           f,
-        G.TYPE.PRIVATE,
+        z.TYPE.PRIVATE,
       );
     };
-    I.submit = function () {
+    L.submit = function () {
       var a, b, c, d;
-      d = m("#PlayerStore .OutputWindow .shopname input").val();
+      d = n("#PlayerStore .OutputWindow .shopname input").val();
       a = [];
       c = E.length;
       for (b = 0; b < c; ++b)
@@ -373,7 +373,7 @@ define(
           E[b].count &&
           ((E[b].Price =
             parseInt(
-              m(
+              n(
                 "#PlayerStore .OutputWindow .item[data-index\x3d" +
                   E[b].index +
                   "]",
@@ -382,36 +382,36 @@ define(
                 .val(),
             ) || 1e7),
           a.push(E[b]));
-      I.onSubmit(a, d);
+      L.onSubmit(a, d);
     };
-    I.delitem2 = function (a) {
+    L.delitem2 = function (a) {
       var b = this.ui.find(
         ".SaleWindow .content .item[data-index\x3d" + a.index + "]:first",
       );
       a = b.find(".amount").text() - a.count;
       0 === a ? b.length && b.remove() : b.length && b.find(".amount").text(a);
     };
-    var F = (function () {
+    var H = (function () {
       var a = { ITID: 0, count: 0, Price: 0, index: 0 };
       return function (d, e, f, g, h) {
         if (f)
-          y > m("#PlayerStore .OutputWindow .item").length - 1 ||
-            ((E[g].count = Math.min(E[g].count + h, J[g].count)),
-            (a.ITID = J[g].ITID),
-            (a.count = J[g].count - E[g].count),
-            (a.IsIdentified = J[g].IsIdentified),
-            (a.index = J[g].index),
+          G > n("#PlayerStore .OutputWindow .item").length - 1 ||
+            ((E[g].count = Math.min(E[g].count + h, M[g].count)),
+            (a.ITID = M[g].ITID),
+            (a.count = M[g].count - E[g].count),
+            (a.IsIdentified = M[g].IsIdentified),
+            (a.index = M[g].index),
             c(d, a),
             c(e, E[g]));
         else if ((h = Math.min(h, E[g].count)))
           ((E[g].count -= h),
-            (a.ITID = J[g].ITID),
-            (a.count = J[g].count - E[g].count),
-            (a.index = J[g].index),
-            (a.IsIdentified = J[g].IsIdentified),
+            (a.ITID = M[g].ITID),
+            (a.count = M[g].count - E[g].count),
+            (a.index = M[g].index),
+            (a.IsIdentified = M[g].IsIdentified),
             (f = E[g]),
             (g = d.find(".item[data-index\x3d" + f.index + "]:first")),
-            y--,
+            G--,
             0 === f.count
               ? g.length &&
                 (g.remove(),
@@ -423,7 +423,7 @@ define(
             b(e, a));
       };
     })();
-    I.onSubmit = function () {};
-    return B.addComponent(I);
+    L.onSubmit = function () {};
+    return B.addComponent(L);
   },
 );

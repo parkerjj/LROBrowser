@@ -29,8 +29,8 @@ define(
         ? f.length && f.remove()
         : f.length
           ? f.find(".amount").text(isFinite(c.count) ? c.count : "")
-          : ((f = b(c.price, W === F.Type.VENDING_STORE)),
-            0 == V &&
+          : ((f = b(c.price, S === H.Type.VENDING_STORE)),
+            0 == R &&
               ("discountprice" in c && c.price !== c.discountprice
                 ? (f += " -\x3e " + b(c.discountprice))
                 : "overchargeprice" in c &&
@@ -49,7 +49,7 @@ define(
                     '\x3c/div\x3e\x3cdiv class\x3d"price"\x3e' +
                     f +
                     '\x3c/div\x3e\x3cdiv class\x3d"unity"\x3e' +
-                    (0 === V ? "Z" : 1 === V ? "J" : 2 === V ? "C" : "Z") +
+                    (0 === R ? "Z" : 1 === R ? "J" : 2 === R ? "C" : "Z") +
                     "\x3c/div\x3e\x3c/div\x3e",
                 )
               : a.append(
@@ -64,7 +64,7 @@ define(
                     '\x3c/div\x3e\x3cdiv class\x3d"price"\x3e' +
                     f +
                     '\x3c/div\x3e\x3cdiv class\x3d"unity"\x3e' +
-                    (0 === V ? "Z" : 1 === V ? "J" : 2 === V ? "C" : "Z") +
+                    (0 === R ? "Z" : 1 === R ? "J" : 2 === R ? "C" : "Z") +
                     "\x3c/div\x3e\x3c/div\x3e",
                 ),
             B.loadFile(
@@ -115,7 +115,7 @@ define(
     }
     function e(a, b, c) {
       c = A.getItemInfo(b.ITID);
-      L.getItemById(b.ITID);
+      F.getItemById(b.ITID);
       var d = a.find(".item[data-index\x3d" + b.index + "]:first");
       if (0 === b.count) d.length && d.remove();
       else if (!d.length) {
@@ -161,9 +161,9 @@ define(
         );
       }
     }
-    function l(a, b, c) {
+    function m(a, b, c) {
       c = A.getItemInfo(b.ITID);
-      L.getItemById(b.ITID);
+      F.getItemById(b.ITID);
       var d = a.find(".item[data-index\x3d" + b.index + "]:first");
       if (0 === b.count) d.length && d.remove();
       else if (!d.length) {
@@ -180,7 +180,7 @@ define(
               '\x3cdiv class\x3d"nitem"\x3e\x3c/div\x3e\x3c/div\x3e\x3cdiv class\x3d"price"\x3e' +
               d +
               '\x3c/div\x3e\x3cdiv class\x3d"unity"\x3e' +
-              (0 === V ? "Z" : 1 === V ? "J" : 2 === V ? "C" : "Z") +
+              (0 === R ? "Z" : 1 === R ? "J" : 2 === R ? "C" : "Z") +
               "\x3c/div\x3e\x3c/div\x3e",
           );
         B.loadFile(
@@ -224,13 +224,13 @@ define(
       b = Math.min(Math.max(b, 2), 9);
       a.css("height", 32 * b);
     }
-    function t(a) {
+    function q(a) {
       var b = a.position().top,
         c = a.find(".content:first"),
         d = 0,
         e;
       e = setInterval(function () {
-        var a = Math.floor((z.screen.y - b - 20) / 32),
+        var a = Math.floor((y.screen.y - b - 20) / 32),
           a = Math.min(Math.max(a, 2), 9);
         a !== d && (r(c, a), (d = a));
       }, 30);
@@ -238,17 +238,17 @@ define(
         1 === a.which && (clearInterval(e), u(window).off("mouseup.resize"));
       });
     }
-    function n(a, b, c, d) {
+    function k(a, b, c, d) {
       var e, f, g;
-      e = d ? M[a] : Q[a];
+      e = d ? P[a] : N[a];
       g =
         e.type !== D.WEAPON &&
         e.type !== D.EQUIP &&
         e.type !== D.PETEGG &&
         e.type !== D.PETEQUIP;
-      f = d ? (isFinite(M[a].count) ? M[a].count : 1) : Q[a].count;
+      f = d ? (isFinite(P[a].count) ? P[a].count : 1) : N[a].count;
       if (
-        (W === F.Type.BUY || W === F.Type.VENDING_STORE) &&
+        (S === H.Type.BUY || S === H.Type.VENDING_STORE) &&
         !g &&
         d &&
         c.find('.item[data-index\x3d"' + e.index + '"]:first').length
@@ -256,16 +256,16 @@ define(
         return !1;
       if (
         1 === e.count ||
-        (W === F.Type.SELL && K.select_all) ||
-        (W === F.Type.BUYING_STORE && K.select_all) ||
+        (S === H.Type.SELL && K.select_all) ||
+        (S === H.Type.BUYING_STORE && K.select_all) ||
         !g
       )
-        return (ba(b, c, d, a, isFinite(e.count) ? e.count : 1), !1);
-      J.append();
-      J.setType("number", !1, f);
-      J.onSubmitRequest = function (e) {
-        J.remove();
-        0 < e && ba(b, c, d, a, e);
+        return (ea(b, c, d, a, isFinite(e.count) ? e.count : 1), !1);
+      M.append();
+      M.setType("number", !1, f);
+      M.onSubmitRequest = function (e) {
+        M.remove();
+        0 < e && ea(b, c, d, a, e);
       };
     }
     function g(a) {
@@ -273,7 +273,7 @@ define(
       a.stopImmediatePropagation();
       try {
         b = JSON.parse(a.originalEvent.dataTransfer.getData("Text"));
-      } catch (da) {
+      } catch (ca) {
         return !1;
       }
       if (
@@ -282,14 +282,14 @@ define(
         b.container === this.className
       )
         return !1;
-      3 == W
-        ? n(
+      3 == S
+        ? k(
             b.index,
             u("." + b.container + " .content"),
             u(this).find(".content"),
             "OutputWindow2" === this.className,
           )
-        : n(
+        : k(
             b.index,
             u("." + b.container + " .content"),
             u(this).find(".content"),
@@ -297,10 +297,10 @@ define(
           );
       return !1;
     }
-    function p(a) {
+    function t(a) {
       var b = parseInt(this.getAttribute("data-index"), 10),
         c = parseInt(this.getAttribute("data-ITID"), 10);
-      (b = M[b]) || (b = { ITID: c, IsIdentified: !0 });
+      (b = P[b]) || (b = { ITID: c, IsIdentified: !0 });
       a.stopImmediatePropagation();
       if (!b) return !1;
       if (x.uid === b.ITID) return (x.remove(), !1);
@@ -309,15 +309,15 @@ define(
       x.setItem(b);
       return !1;
     }
-    function k() {
+    function l() {
       var a, b, c;
-      W !== F.Type.BUY &&
-        W !== F.Type.VENDING_STORE &&
-        ((a = F.ui.find(".InputWindow:first")),
+      S !== H.Type.BUY &&
+        S !== H.Type.VENDING_STORE &&
+        ((a = H.ui.find(".InputWindow:first")),
         u.contains(a.get(0), this)
-          ? ((b = a), (c = F.ui.find(".OutputWindow:first")))
-          : ((b = F.ui.find(".OutputWindow:first")), (c = a)),
-        n(
+          ? ((b = a), (c = H.ui.find(".OutputWindow:first")))
+          : ((b = H.ui.find(".OutputWindow:first")), (c = a)),
+        k(
           parseInt(this.getAttribute("data-index"), 10),
           b.find(".content:first"),
           c.find(".content:first"),
@@ -325,10 +325,10 @@ define(
         ));
     }
     function f() {
-      F.ui.find(".item.selected").removeClass("selected");
+      H.ui.find(".item.selected").removeClass("selected");
       u(this).addClass("selected");
     }
-    function m(a) {
+    function n(a) {
       var b;
       a.originalEvent.wheelDelta
         ? ((b = a.originalEvent.wheelDelta / 120), window.opera && (b = -b))
@@ -336,14 +336,14 @@ define(
       this.scrollTop = 32 * Math.floor(this.scrollTop / 32) - 32 * b;
       return !1;
     }
-    function q(a) {
+    function p(a) {
       var b, c, d, e;
-      b = F.ui.find(".InputWindow:first").get(0);
-      c = F.ui.find(".OutputWindow:first").get(0);
-      d = F.ui.find(".InputWindow2:first").get(0);
-      e = F.ui.find(".OutputWindow2:first").get(0);
+      b = H.ui.find(".InputWindow:first").get(0);
+      c = H.ui.find(".OutputWindow:first").get(0);
+      d = H.ui.find(".InputWindow2:first").get(0);
+      e = H.ui.find(".OutputWindow2:first").get(0);
       b =
-        3 == W
+        3 == S
           ? (u.contains(d, this) ? d : e).className
           : (u.contains(b, this) ? b : c).className;
       c = new Image();
@@ -378,21 +378,21 @@ define(
       A = a("DB/DBManager"),
       D = a("DB/Items/ItemType"),
       B = a("Core/Client"),
-      H = a("Core/Preferences"),
+      O = a("Core/Preferences"),
       C = a("Engine/SessionStorage"),
-      z = a("Controls/MouseEventHandler"),
-      G = a("Controls/KeyEventHandler"),
-      P = a("Preferences/Controls"),
-      N = a("UI/UIManager"),
-      I = a("UI/UIComponent"),
+      y = a("Controls/MouseEventHandler"),
+      z = a("Controls/KeyEventHandler"),
+      J = a("Preferences/Controls"),
+      I = a("UI/UIManager"),
+      L = a("UI/UIComponent"),
       x = a("UI/Components/ItemInfo/ItemInfo"),
-      J = a("UI/Components/InputBox/InputBox"),
+      M = a("UI/Components/InputBox/InputBox"),
       E = a("UI/Components/ChatBox/ChatBox"),
-      L = a("UI/Components/Inventory/Inventory"),
-      y = a("text!./NpcStore.html");
+      F = a("UI/Components/Inventory/Inventory"),
+      G = a("text!./NpcStore.html");
     a = a("text!./NpcStore.css");
-    var F = new I("NpcStore", y, a);
-    F.Type = {
+    var H = new L("NpcStore", G, a);
+    H.Type = {
       BUY: 0,
       SELL: 1,
       VENDING_STORE: 2,
@@ -400,8 +400,8 @@ define(
       BARTER_BUY: 4,
       BARTER_MARKET_BUY: 5,
     };
-    F.mouseMode = I.MouseMode.FREEZE;
-    var K = H.get(
+    H.mouseMode = L.MouseMode.FREEZE;
+    var K = O.get(
         "NpcStore",
         {
           inputWindow: { x: 40, y: 100, height: 7 },
@@ -413,10 +413,10 @@ define(
         },
         1.12,
       ),
-      M = [],
-      Q = [],
-      W;
-    F.init = function () {
+      P = [],
+      N = [],
+      S;
+    H.init = function () {
       var a = this.ui,
         b = a.find(".InputWindow"),
         c = a.find(".InputWindow2"),
@@ -424,8 +424,8 @@ define(
         e = a.find(".OutputWindow2"),
         h = this.ui.find(".ViewWindow");
       a.find(".btn.cancel").click(function () {
-        F.onSubmit([]);
-        F.remove();
+        H.onSubmit([]);
+        H.remove();
       });
       a.find(".btn.buy, .btn.sell").click(this.submit.bind(this));
       a.find(".selectall").mousedown(v);
@@ -433,18 +433,18 @@ define(
         event.stopImmediatePropagation();
       });
       b.find(".resize").mousedown(function () {
-        t(b);
+        q(b);
       });
       d.find(".resize").mousedown(function () {
-        t(d);
+        q(d);
       });
       a.find(".content")
-        .on("mousewheel DOMMouseScroll", m)
-        .on("contextmenu", ".item", p)
-        .on("dblclick", ".item", k)
+        .on("mousewheel DOMMouseScroll", n)
+        .on("contextmenu", ".item", t)
+        .on("dblclick", ".item", l)
         .on("mousedown", ".item", f)
-        .on("contextmenu", ".item .nicon", p)
-        .on("dragstart", ".item", q)
+        .on("contextmenu", ".item .nicon", t)
+        .on("dragstart", ".item", p)
         .on("dragend", ".item", function () {
           delete window._OBJ_DRAG_;
         });
@@ -455,7 +455,7 @@ define(
           return !1;
         })
         .on("mousedown", function () {
-          F.focus();
+          H.focus();
         });
       this.draggable.call({ ui: h }, h.find(".titlebar"));
       this.draggable.call({ ui: b }, b.find(".titlebar"));
@@ -463,8 +463,8 @@ define(
       this.draggable.call({ ui: e }, e.find(".titlebar"));
       this.draggable.call({ ui: d }, d.find(".titlebar"));
     };
-    F.onAppend = function () {
-      P.talk = !0;
+    H.onAppend = function () {
+      J.talk = !0;
       var a = this.ui.find(".ViewWindow"),
         b = this.ui.find(".InputWindow"),
         c = this.ui.find(".OutputWindow"),
@@ -486,15 +486,15 @@ define(
       a = u._data(window, "events").keydown;
       a.unshift(a.pop());
     };
-    F.onRemove = function () {
-      P.talk = !1;
+    H.onRemove = function () {
+      J.talk = !1;
       var a = this.ui.find(".InputWindow"),
         b = this.ui.find(".OutputWindow"),
         c = this.ui.find(".InputWindow2"),
         d = this.ui.find(".OutputWindow2"),
         e = this.ui.find(".ViewWindow");
-      M.length = 0;
-      V = Q.length = 0;
+      P.length = 0;
+      R = N.length = 0;
       e.css({ top: "", left: "" });
       a.css({ top: "", left: "" });
       b.css({ top: "", left: "" });
@@ -508,52 +508,52 @@ define(
         )
         .hide();
     };
-    F.onKeyDown = function (a) {
-      return a.which === G.ESCAPE
+    H.onKeyDown = function (a) {
+      return a.which === z.ESCAPE
         ? (this.remove(), a.stopImmediatePropagation(), !1)
         : !0;
     };
-    F.setType = function (a) {
+    H.setType = function (a) {
       switch (a) {
-        case F.Type.BUY:
-        case F.Type.BARTER_BUY:
-        case F.Type.BARTER_MARKET_BUY:
+        case H.Type.BUY:
+        case H.Type.BARTER_BUY:
+        case H.Type.BARTER_MARKET_BUY:
           this.ui.find(".WinSell, .WinVendingStore").hide();
           this.ui.find(".WinBuy").show();
           this.ui.find(".InputWindow, .OutputWindow").show();
           break;
-        case F.Type.SELL:
+        case H.Type.SELL:
           this.ui.find(".WinBuy, .WinVendingStore").hide();
           this.ui.find(".WinSell").show();
           this.ui.find(".InputWindow, .OutputWindow").show();
           break;
-        case F.Type.VENDING_STORE:
+        case H.Type.VENDING_STORE:
           this.ui.find(".WinVendingStore, .WinSell").hide();
           this.ui.find(".WinBuy").show();
           this.ui.find(".InputWindow, .OutputWindow").show();
           break;
-        case F.Type.BUYING_STORE:
+        case H.Type.BUYING_STORE:
           (this.ui.find(".WinBuy, .WinSell").hide(),
             this.ui.find(".WinSell").show(),
             this.ui.find(".ViewWindow,.InputWindow2,.OutputWindow2").show());
       }
-      W = a;
+      S = a;
     };
-    var V = 0;
-    F.setType_ = function (a) {
-      V = a;
+    var R = 0;
+    H.setType_ = function (a) {
+      R = a;
     };
-    F.setList = function (a) {
-      var b, f, g, h, k, m, n;
+    H.setList = function (a) {
+      var b, f, g, h, k, l, n;
       this.ui.find(".content").empty();
       this.ui.find(".total .result").text(0);
-      M.length = 0;
-      Q.length = 0;
+      P.length = 0;
+      N.length = 0;
       k = this.ui.find(".InputWindow .content");
-      m = this.ui.find(".ViewWindow .content");
+      l = this.ui.find(".ViewWindow .content");
       n = this.ui.find(".InputWindow2 .content");
-      switch (W) {
-        case F.Type.BUY:
+      switch (S) {
+        case H.Type.BUY:
           b = 0;
           for (f = a.length; b < f; ++b)
             ("index" in a[b] || (a[b].index = b),
@@ -562,10 +562,10 @@ define(
               (h = u.extend({}, a[b])),
               (h.count = 0),
               c(k, a[b]),
-              (M[a[b].index] = a[b]),
-              (Q[a[b].index] = h));
+              (P[a[b].index] = a[b]),
+              (N[a[b].index] = h));
           break;
-        case F.Type.VENDING_STORE:
+        case H.Type.VENDING_STORE:
           b = 0;
           for (f = a.length; b < f; ++b)
             ("index" in a[b] || (a[b].index = b),
@@ -574,13 +574,13 @@ define(
               (h = u.extend({}, a[b])),
               (h.count = 0),
               c(k, a[b]),
-              (M[a[b].index] = a[b]),
-              (Q[a[b].index] = h));
+              (P[a[b].index] = a[b]),
+              (N[a[b].index] = h));
           break;
-        case F.Type.SELL:
+        case H.Type.SELL:
           b = 0;
           for (f = a.length; b < f; ++b)
-            if ((g = L.getItemByIndex(a[b].index)))
+            if ((g = F.getItemByIndex(a[b].index)))
               ((g = u.extend({}, g)),
                 (g.price = a[b].price),
                 (g.overchargeprice = a[b].overchargeprice),
@@ -588,72 +588,72 @@ define(
                 (h = u.extend({}, g)),
                 (h.count = 0),
                 c(k, g),
-                (M[g.index] = g),
-                (Q[g.index] = h));
+                (P[g.index] = g),
+                (N[g.index] = h));
           break;
-        case F.Type.BUYING_STORE:
+        case H.Type.BUYING_STORE:
           b = 0;
           for (f = a.length; b < f; ++b)
-            ((g = L.getItemById(a[b].ITID)),
+            ((g = F.getItemById(a[b].ITID)),
               "index" in a[b] || (a[b].index = b),
-              c(m, a[b], W),
+              c(l, a[b], S),
               g &&
                 ((a[b].index = g.index),
                 (h = u.extend({}, a[b])),
                 (h.count = 0),
                 d(n, g),
-                (M[a[b].index] = g),
-                (Q[a[b].index] = h)));
+                (P[a[b].index] = g),
+                (N[a[b].index] = h)));
           break;
-        case F.Type.BARTER_BUY:
+        case H.Type.BARTER_BUY:
           b = 0;
           for (f = a.length; b < f; ++b)
             ("index" in a[b] || (a[b].index = b),
               (a[b].count = a[b].count || Infinity),
               (a[b].IsIdentified = !0),
-              (h = L.getItemById(a[b].currencyNameid)),
+              (h = F.getItemById(a[b].currencyNameid)),
               (a[b].invIndex = h ? h.index : -1),
               (h = u.extend({}, a[b])),
               (h.count = 0),
               e(k, a[b]),
-              (M[a[b].index] = a[b]),
-              (Q[a[b].index] = h));
+              (P[a[b].index] = a[b]),
+              (N[a[b].index] = h));
           break;
-        case F.Type.BARTER_MARKET_BUY:
+        case H.Type.BARTER_MARKET_BUY:
           for (b = 0, f = a.length; b < f; ++b)
             ("index" in a[b] || (a[b].index = b),
               (a[b].count = a[b].count || Infinity),
               (a[b].IsIdentified = !0),
               (h = u.extend({}, a[b])),
               (h.count = 0),
-              l(k, a[b]),
-              (M[a[b].index] = a[b]),
-              (Q[a[b].index] = h));
+              m(k, a[b]),
+              (P[a[b].index] = a[b]),
+              (N[a[b].index] = h));
       }
     };
-    F.submit = function () {
+    H.submit = function () {
       var a, b, c;
       a = [];
-      c = Q.length;
-      for (b = 0; b < c; ++b) Q[b] && Q[b].count && a.push(Q[b]);
-      F.onSubmit(a);
+      c = N.length;
+      for (b = 0; b < c; ++b) N[b] && N[b].count && a.push(N[b]);
+      H.onSubmit(a);
     };
-    F.calculateCost = function () {
+    H.calculateCost = function () {
       var a, b, c;
       c = 0;
-      b = Q.length;
+      b = N.length;
       for (a = 0; a < b; ++a)
-        Q[a] &&
+        N[a] &&
           (c =
-            4 == W
-              ? c + Q[a].currencyAmount * Q[a].count
+            4 == S
+              ? c + N[a].currencyAmount * N[a].count
               : c +
-                (Q[a].discountprice || Q[a].overchargeprice || Q[a].price) *
-                  Q[a].count);
+                (N[a].discountprice || N[a].overchargeprice || N[a].price) *
+                  N[a].count);
       this.ui.find(".total .result").text(c);
-      switch (V) {
+      switch (R) {
         case 0:
-          4 == W
+          4 == S
             ? this.ui.find(".total .unity").text("")
             : this.ui.find(".total .unity").text("Zeny");
           break;
@@ -665,54 +665,54 @@ define(
       }
       return c;
     };
-    F.calculateCost_ = function () {
+    H.calculateCost_ = function () {
       var a, b, c;
       c = 0;
-      b = Q.length;
+      b = N.length;
       for (a = 0; a < b; ++a)
-        Q[a] && (c += (Q[a].overchargeprice || Q[a].price) * Q[a].count);
+        N[a] && (c += (N[a].overchargeprice || N[a].price) * N[a].count);
       this.ui.find(".total .result").text(c);
       return c;
     };
-    var ba = (function () {
+    var ea = (function () {
       var a = { ITID: 0, count: 0, price: 0, index: 0 };
       return function (b, f, g, h, k) {
         if (g) {
           if (
-            ((0 == V && W === F.Type.BUY) || W === F.Type.VENDING_STORE) &&
-            F.calculateCost() + (M[h].discountprice || M[h].price) * k > C.zeny
+            ((0 == R && S === H.Type.BUY) || S === H.Type.VENDING_STORE) &&
+            H.calculateCost() + (P[h].discountprice || P[h].price) * k > C.zeny
           ) {
             E.addText(A.getMessage(55), E.TYPE.ERROR);
             return;
           }
-          Q[h].count = Math.min(Q[h].count + k, M[h].count);
-          a.ITID = M[h].ITID;
-          a.count = M[h].count - Q[h].count;
-          a.price = M[h].price;
-          a.index = M[h].index;
-          a.IsIdentified = M[h].IsIdentified;
-          4 == W
-            ? (e(b, a), e(f, Q[h]))
-            : (5 == W ? l(b, a) : c(b, a), c(f, Q[h]));
+          N[h].count = Math.min(N[h].count + k, P[h].count);
+          a.ITID = P[h].ITID;
+          a.count = P[h].count - N[h].count;
+          a.price = P[h].price;
+          a.index = P[h].index;
+          a.IsIdentified = P[h].IsIdentified;
+          4 == S
+            ? (e(b, a), e(f, N[h]))
+            : (5 == S ? m(b, a) : c(b, a), c(f, N[h]));
         } else {
-          k = Math.min(k, Q[h].count);
+          k = Math.min(k, N[h].count);
           if (!k) return;
-          Q[h].count -= k;
-          a.ITID = M[h].ITID;
-          a.count = M[h].count + Q[h].count;
-          a.price = M[h].price;
-          a.index = M[h].index;
-          a.IsIdentified = M[h].IsIdentified;
-          3 == W
-            ? (d(b, Q[h]), d(f, a))
-            : 5 == W
-              ? (l(b, Q[h]), l(f, a))
-              : (c(b, Q[h]), c(f, a));
+          N[h].count -= k;
+          a.ITID = P[h].ITID;
+          a.count = P[h].count + N[h].count;
+          a.price = P[h].price;
+          a.index = P[h].index;
+          a.IsIdentified = P[h].IsIdentified;
+          3 == S
+            ? (d(b, N[h]), d(f, a))
+            : 5 == S
+              ? (m(b, N[h]), m(f, a))
+              : (c(b, N[h]), c(f, a));
         }
-        0 == V ? F.calculateCost() : F.calculateCost_();
+        0 == R ? H.calculateCost() : H.calculateCost_();
       };
     })();
-    F.onSubmit = function () {};
-    return N.addComponent(F);
+    H.onSubmit = function () {};
+    return I.addComponent(H);
   },
 );

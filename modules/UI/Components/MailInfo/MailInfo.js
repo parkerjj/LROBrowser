@@ -7,38 +7,38 @@ define(
     function b() {
       var a = new h.CZ.MAIL_GET_ITEM();
       a.MailID = f.ui.attr("data-mailid");
-      l.sendPacket(a);
+      m.sendPacket(a);
     }
     function c() {
       var a = new h.CZ.REQ_MAIL_RETURN();
       a.MailID = f.ui.attr("data-mailid");
       a.ReceiveName = f.ui.find(".content .head span").html();
-      l.sendPacket(a);
+      m.sendPacket(a);
     }
     function d() {
       var a = new h.CZ.MAIL_DELETE();
       a.MailID = f.ui.attr("data-mailid");
-      l.sendPacket(a);
+      m.sendPacket(a);
     }
     var e = a("DB/DBManager"),
-      l = a("Network/NetworkManager"),
+      m = a("Network/NetworkManager"),
       h = a("Network/PacketStructure");
     a("DB/Items/ItemType");
     var r = a("Utils/jquery"),
-      t = a("Core/Client"),
-      n = a("Core/Preferences");
+      q = a("Core/Client"),
+      k = a("Core/Preferences");
     a("Renderer/Renderer");
     a("Controls/MouseEventHandler");
     var g = a("UI/UIManager"),
-      p = a("UI/UIComponent");
+      t = a("UI/UIComponent");
     a("UI/Components/InputBox/InputBox");
     a("UI/Components/ItemInfo/ItemInfo");
     a("UI/Components/ChatBox/ChatBox");
-    var k = a("text!./MailInfo.html");
+    var l = a("text!./MailInfo.html");
     a = a("text!./MailInfo.css");
-    var f = new p("MailInfo", k, a);
+    var f = new t("MailInfo", l, a);
     f.list = [];
-    n.get(
+    k.get(
       "MailInfo",
       { x: 200, y: 300, width: 6, height: 9, show: !0, reduce: !1 },
       1.1,
@@ -58,7 +58,7 @@ define(
       if (a.ITID) {
         var b = e.getItemInfo(a.ITID),
           c = this.ui.find(".content .bottom");
-        t.loadFile(
+        q.loadFile(
           e.INTERFACE_PATH + "item/" + b.identifiedResourceName + ".bmp",
           function (b) {
             c.append(

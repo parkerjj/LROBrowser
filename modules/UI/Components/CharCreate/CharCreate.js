@@ -5,8 +5,8 @@ define(
   ),
   function (a) {
     function b() {
-      q.onCharCreationRequest(
-        q.ui.find("input").val(),
+      p.onCharCreationRequest(
+        p.ui.find("input").val(),
         1,
         1,
         1,
@@ -21,7 +21,7 @@ define(
     }
     function c() {
       event.stopImmediatePropagation();
-      q.onExitRequest();
+      p.onExitRequest();
     }
     function d(a, b) {
       switch (a) {
@@ -52,7 +52,7 @@ define(
           u.entity.head = ((u.entity.head - 1) % 6) + 1;
           B.entity.headpalette = u.entity.headpalette;
           B.entity.head = u.entity.head;
-          q.ui
+          p.ui
             .find(".box_select")
             .removeClass("slot1 slot2 slot3")
             .addClass("slot" + (b ? 2 : 1));
@@ -62,8 +62,8 @@ define(
           ((u.entity.sex = b),
             (A.entity.sex = b),
             (D.entity.sex = b),
-            q.changeBackground(".chargen .male", b ? 1 : 0),
-            q.changeBackground(".chargen .female", b ? 0 : 1));
+            p.changeBackground(".chargen .male", b ? 1 : 0),
+            p.changeBackground(".chargen .female", b ? 0 : 1));
       }
       e();
     }
@@ -80,25 +80,25 @@ define(
       D.ctx.clearRect(0, 0, D.ctx.canvas.width, D.ctx.canvas.height);
       D.entity.renderEntity();
     }
-    var l = a("DB/DBManager"),
+    var m = a("DB/DBManager"),
       h = a("Core/Configs"),
       r = a("Renderer/Renderer"),
-      t = a("Controls/KeyEventHandler"),
-      n = a("Renderer/Entity/Entity"),
+      q = a("Controls/KeyEventHandler"),
+      k = a("Renderer/Entity/Entity"),
       g = a("Renderer/SpriteRenderer"),
-      p = a("Renderer/Camera"),
-      k = a("UI/UIManager"),
+      t = a("Renderer/Camera"),
+      l = a("UI/UIManager"),
       f = a("UI/UIComponent"),
-      m = a("text!./CharCreate.html");
+      n = a("text!./CharCreate.html");
     a = a("text!./CharCreate.css");
-    var q = new f("CharCreate", m, a),
+    var p = new f("CharCreate", n, a),
       v = 0,
-      u = { entity: new n(), ctx: null, render: !1, tick: 0 },
-      A = { entity: new n(), ctx: null, render: !1, tick: 0 },
-      D = { entity: new n(), ctx: null, render: !1, tick: 0 },
+      u = { entity: new k(), ctx: null, render: !1, tick: 0 },
+      A = { entity: new k(), ctx: null, render: !1, tick: 0 },
+      D = { entity: new k(), ctx: null, render: !1, tick: 0 },
       B = A;
     h.get("ClientVer");
-    q.init = function () {
+    p.init = function () {
       u.ctx = this.ui.find(".chargen canvas")[0].getContext("2d");
       A.ctx = this.ui.find(".human canvas")[0].getContext("2d");
       D.ctx = this.ui.find(".doram canvas")[0].getContext("2d");
@@ -136,10 +136,10 @@ define(
       this.ui.find(".make").on("click", b);
       h.get("doram") || this.ui.find(".doram").hide();
     };
-    q.setAccountSex = function (a) {
+    p.setAccountSex = function (a) {
       v = a;
     };
-    q.onAppend = function () {
+    p.onAppend = function () {
       u.render = !0;
       u.entity.set({ sex: v, job: 0, head: 2, action: 0 });
       A.render = !0;
@@ -160,35 +160,35 @@ define(
         direction: 1,
         action: 0,
       });
-      p.direction = 0;
+      t.direction = 0;
       d("class", 0);
       d("gender", v);
-      this.ui.find(".human .name").text(l.getMessage(3016));
-      this.ui.find(".human .desc").text(l.getMessage(3020));
-      this.ui.find(".human .jobs").text(l.getMessage(3017));
-      this.ui.find(".doram .name").text(l.getMessage(3018));
-      this.ui.find(".doram .desc").text(l.getMessage(3021));
-      this.ui.find(".doram .jobs").text(l.getMessage(3019));
+      this.ui.find(".human .name").text(m.getMessage(3016));
+      this.ui.find(".human .desc").text(m.getMessage(3020));
+      this.ui.find(".human .jobs").text(m.getMessage(3017));
+      this.ui.find(".doram .name").text(m.getMessage(3018));
+      this.ui.find(".doram .desc").text(m.getMessage(3021));
+      this.ui.find(".doram .jobs").text(m.getMessage(3019));
       this.ui.find("input").val("").focus();
       r.render(e);
     };
-    q.onRemove = function () {
+    p.onRemove = function () {
       r.stop(e);
     };
-    q.onKeyDown = function (a) {
-      return a.which === t.ESCAPE
+    p.onKeyDown = function (a) {
+      return a.which === q.ESCAPE
         ? (a.stopImmediatePropagation(), c(), !1)
-        : a.which === t.ENTER
+        : a.which === q.ENTER
           ? (a.stopImmediatePropagation(), b(), !1)
           : !0;
     };
-    q.highlight = function (a) {
+    p.highlight = function (a) {
       var b = this.ui.find("input");
       b.css("background-color", a ? "#F5A9BC" : "white");
       a && b.focus();
     };
-    q.onExitRequest = function () {};
-    q.onCharCreationRequest = function () {};
-    return k.addComponent(q);
+    p.onExitRequest = function () {};
+    p.onCharCreationRequest = function () {};
+    return l.addComponent(p);
   },
 );

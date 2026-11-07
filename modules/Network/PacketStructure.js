@@ -432,9 +432,9 @@ define("Network/PacketStructure", [
         c = new a(d);
       c.writeShort(200);
       c.writeShort(d);
-      var l,
+      var m,
         d = 0;
-      for (l = this.itemList.length; d < l; ++d)
+      for (m = this.itemList.length; d < m; ++d)
         (c.writeShort(this.itemList[d].count),
           c.writeULong(this.itemList[d].ITID));
     } else
@@ -444,8 +444,8 @@ define("Network/PacketStructure", [
           c.writeShort(200),
           c.writeShort(d),
           d = 0,
-          l = this.itemList.length;
-        d < l;
+          m = this.itemList.length;
+        d < m;
         ++d
       )
         (c.writeShort(this.itemList[d].count),
@@ -3112,7 +3112,7 @@ define("Network/PacketStructure", [
   };
   c.CZ.REQ_OPEN_BUYING_STORE.prototype.build = function () {
     if (20180704 <= b.value) {
-      var d, c, l;
+      var d, c, m;
       d = this.getPacketVersion();
       var h = 89 + 10 * this.ItemList.length,
         h = new a(h);
@@ -3121,15 +3121,15 @@ define("Network/PacketStructure", [
       h.view.setUint32(d[4], this.LimitZeny, !0);
       h.view.setUint8(d[5], this.result, !0);
       h.view.setString(d[6], this.storeName, 80);
-      l = d[7];
+      m = d[7];
       d = 0;
       for (c = this.ItemList.length; d < c; ++d)
-        (h.view.setUint32(l, this.ItemList[d]._id, !0),
-          (l += 4),
-          h.view.setInt16(l, this.ItemList[d]._count, !0),
-          (l += 2),
-          h.view.setInt32(l, this.ItemList[d]._price, !0),
-          (l += 4));
+        (h.view.setUint32(m, this.ItemList[d]._id, !0),
+          (m += 4),
+          h.view.setInt16(m, this.ItemList[d]._count, !0),
+          (m += 2),
+          h.view.setInt32(m, this.ItemList[d]._price, !0),
+          (m += 4));
     } else
       for (
         d = this.getPacketVersion(),
@@ -3140,18 +3140,18 @@ define("Network/PacketStructure", [
           h.view.setUint32(d[4], this.LimitZeny, !0),
           h.view.setUint8(d[5], this.result, !0),
           h.view.setString(d[6], this.storeName, 80),
-          l = d[7],
+          m = d[7],
           d = 0,
           c = this.ItemList.length;
         d < c;
         ++d
       )
-        (h.view.setUint16(l, this.ItemList[d]._id, !0),
-          (l += 2),
-          h.view.setInt16(l, this.ItemList[d]._count, !0),
-          (l += 2),
-          h.view.setInt32(l, this.ItemList[d]._price, !0),
-          (l += 4));
+        (h.view.setUint16(m, this.ItemList[d]._id, !0),
+          (m += 2),
+          h.view.setInt16(m, this.ItemList[d]._count, !0),
+          (m += 2),
+          h.view.setInt32(m, this.ItemList[d]._price, !0),
+          (m += 4));
     return h;
   };
   c.CZ.REQ_CLOSE_BUYING_STORE = function () {};
@@ -3177,7 +3177,7 @@ define("Network/PacketStructure", [
   };
   c.CZ.REQ_TRADE_BUYING_STORE.prototype.build = function () {
     if (20180704 <= b.value) {
-      var d, c, l;
+      var d, c, m;
       d = this.getPacketVersion();
       var h = 12 + 8 * this.ItemList.length,
         h = new a(h);
@@ -3185,15 +3185,15 @@ define("Network/PacketStructure", [
       h.view.setInt16(d[3], 12 + 8 * this.ItemList.length, !0);
       h.view.setUint32(d[4], this.makerAID, !0);
       h.view.setUint32(d[5], this.StoreID, !0);
-      l = d[6];
+      m = d[6];
       d = 0;
       for (c = this.ItemList.length; d < c; ++d)
-        (h.view.setUint16(l, this.ItemList[d].index, !0),
-          (l += 2),
-          h.view.setUint32(l, this.ItemList[d].id, !0),
-          (l += 4),
-          h.view.setInt16(l, this.ItemList[d].count, !0),
-          (l += 2));
+        (h.view.setUint16(m, this.ItemList[d].index, !0),
+          (m += 2),
+          h.view.setUint32(m, this.ItemList[d].id, !0),
+          (m += 4),
+          h.view.setInt16(m, this.ItemList[d].count, !0),
+          (m += 2));
     } else
       for (
         d = this.getPacketVersion(),
@@ -3203,18 +3203,18 @@ define("Network/PacketStructure", [
           h.view.setInt16(d[3], 12 + 6 * this.ItemList.length, !0),
           h.view.setUint32(d[4], this.makerAID, !0),
           h.view.setUint32(d[5], this.StoreID, !0),
-          l = d[6],
+          m = d[6],
           d = 0,
           c = this.ItemList.length;
         d < c;
         ++d
       )
-        (h.view.setUint16(l, this.ItemList[d].index, !0),
-          (l += 2),
-          h.view.setUint16(l, this.ItemList[d].id, !0),
-          (l += 2),
-          h.view.setInt16(l, this.ItemList[d].count, !0),
-          (l += 2));
+        (h.view.setUint16(m, this.ItemList[d].index, !0),
+          (m += 2),
+          h.view.setUint16(m, this.ItemList[d].id, !0),
+          (m += 2),
+          h.view.setInt16(m, this.ItemList[d].count, !0),
+          (m += 2));
     return h;
   };
   c.CA.OTP_AUTH_REQ = function () {
@@ -3702,15 +3702,15 @@ define("Network/PacketStructure", [
       c[d].location = a.readULong();
       c[d].currency_count = a.readULong();
       var e = c[d],
-        t = c[d].currency_count,
-        n,
-        g = Array(t);
-      for (n = 0; n < t; ++n)
-        ((g[n] = {}),
-          (g[n].ITID = a.readULong()),
-          (g[n].refine_level = a.readUShort()),
-          (g[n].amount = a.readULong()),
-          (g[n].type = a.readUShort()));
+        q = c[d].currency_count,
+        k,
+        g = Array(q);
+      for (k = 0; k < q; ++k)
+        ((g[k] = {}),
+          (g[k].ITID = a.readULong()),
+          (g[k].refine_level = a.readUShort()),
+          (g[k].amount = a.readULong()),
+          (g[k].type = a.readUShort()));
       e.currency_itemList = g;
     }
     this.itemList = c;
@@ -7499,8 +7499,8 @@ define("Network/PacketStructure", [
       c[d] = {};
       c[d].AID = a.readULong();
       c[d].Completed = a.readChar();
-      for (var e = c[d], t = Array(10), n = 0; 10 > n; ++n) t[n] = a.readLong();
-      e.Objectives = t;
+      for (var e = c[d], q = Array(10), k = 0; 10 > k; ++k) q[k] = a.readLong();
+      e.Objectives = q;
       c[d].endtime = a.readULong();
       c[d].rewarded = a.readChar();
     }
@@ -7518,8 +7518,8 @@ define("Network/PacketStructure", [
       c[b] = {};
       c[b].AID = a.readULong();
       c[b].Completed = a.readChar();
-      for (var e = c[b], t = Array(10), n = 0; 10 > n; ++n) t[n] = a.readLong();
-      e.Objectives = t;
+      for (var e = c[b], q = Array(10), k = 0; 10 > k; ++k) q[k] = a.readLong();
+      e.Objectives = q;
       c[b].endtime = a.readULong();
       c[b].rewarded = a.readChar();
     }
@@ -8211,14 +8211,14 @@ define("Network/PacketStructure", [
       c[b].quest_endTime = a.readLong();
       c[b].count = a.readShort();
       var e = c[b],
-        t,
-        n = Array(3);
-      for (t = 0; 3 > t; ++t)
-        ((n[t] = {}),
-          (n[t].mobGID = a.readULong()),
-          (n[t].huntCount = a.readShort()),
-          (n[t].mobName = a.readString(24)));
-      e.hunt = n;
+        q,
+        k = Array(3);
+      for (q = 0; 3 > q; ++q)
+        ((k[q] = {}),
+          (k[q].mobGID = a.readULong()),
+          (k[q].huntCount = a.readShort()),
+          (k[q].mobName = a.readString(24)));
+      e.hunt = k;
     }
     this.QuestMissionList = c;
   };
@@ -9359,9 +9359,9 @@ define("Network/PacketStructure", [
       c[b].Detail = {};
       c[b].Detail.Level = a.readShort();
       c[b].Detail.MapID = a.readShort();
-      for (var e = c[b].Detail, t = Array(6), n = 0; 6 > n; ++n)
-        t[n] = a.readShort();
-      e.Job = t;
+      for (var e = c[b].Detail, q = Array(6), k = 0; 6 > k; ++k)
+        q[k] = a.readShort();
+      e.Job = q;
     }
     this.Info = c;
   };
@@ -10085,19 +10085,19 @@ define("Network/PacketStructure", [
       d[c].quest_endTime = a.readLong();
       d[c].count = a.readShort();
       var e = d[c],
-        t = d[c].count,
-        n,
-        g = Array(t);
-      for (n = 0; n < t; ++n)
-        ((g[n] = {}),
-          (g[n].QID = a.readULong()),
-          (g[n].mobType = a.readULong()),
-          (g[n].mobGID = a.readULong()),
-          (g[n].levelMin = a.readShort()),
-          (g[n].levelMax = a.readShort()),
-          (g[n].huntCount = a.readShort()),
-          (g[n].maxCount = a.readShort()),
-          (g[n].mobName = a.readString(24)));
+        q = d[c].count,
+        k,
+        g = Array(q);
+      for (k = 0; k < q; ++k)
+        ((g[k] = {}),
+          (g[k].QID = a.readULong()),
+          (g[k].mobType = a.readULong()),
+          (g[k].mobGID = a.readULong()),
+          (g[k].levelMin = a.readShort()),
+          (g[k].levelMax = a.readShort()),
+          (g[k].huntCount = a.readShort()),
+          (g[k].maxCount = a.readShort()),
+          (g[k].mobName = a.readString(24)));
       e.hunt = g;
     }
     this.QuestList = d;

@@ -3,13 +3,13 @@ define("Core/Events", [], function () {
   var b = [],
     c = 0,
     d = 0;
-  a.setTimeout = function (a, l) {
+  a.setTimeout = function (a, m) {
     var e, r;
-    l = c + l;
-    r = { callback: a, tick: l, uid: d++ };
+    m = c + m;
+    r = { callback: a, tick: m, uid: d++ };
     a = 0;
     for (e = b.length; a < e; ++a)
-      if (l < b[a].tick) return (b.splice(a, 0, r), r.uid);
+      if (m < b[a].tick) return (b.splice(a, 0, r), r.uid);
     b.push(r);
     return r.uid;
   };

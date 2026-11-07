@@ -9,23 +9,23 @@ define(
     var c = a("Network/NetworkManager"),
       d = a("Network/PacketStructure"),
       e = a("DB/Status/StatusInfo"),
-      l = a("DB/DBManager");
+      m = a("DB/DBManager");
     a("Renderer/Renderer");
     var h = a("UI/UIManager"),
       r = a("UI/UIComponent"),
-      t = a("UI/Components/WorldMap/WorldMap"),
-      n = a("UI/Components/ItemInfo/ItemInfo"),
+      q = a("UI/Components/WorldMap/WorldMap"),
+      k = a("UI/Components/ItemInfo/ItemInfo"),
       g = a("text!./AchDescription.html");
     a = a("text!./AchDescription.css");
-    var p = new r("AchDescription", g, a);
-    p.uid = -1;
-    p.needFocus = !0;
-    p.onAppend = function () {};
-    p.onRemove = function () {};
-    p.init = function () {
+    var t = new r("AchDescription", g, a);
+    t.uid = -1;
+    t.needFocus = !0;
+    t.onAppend = function () {};
+    t.onRemove = function () {};
+    t.init = function () {
       this.ui.css({ zIndex: 65 });
       this.ui.on("click", function () {
-        p.remove();
+        t.remove();
         event.stopImmediatePropagation();
         return !1;
       });
@@ -34,58 +34,58 @@ define(
         return !1;
       });
       this.ui.find(".close").on("click", function () {
-        p.remove();
+        t.remove();
         event.stopImmediatePropagation();
         return !1;
       });
       this.ui.find(".btns .raward").on("click", function () {
         var a = new d.CZ.REQ_ACH_REWARD();
-        a.achievementID = p.uid;
+        a.achievementID = t.uid;
         c.sendPacket(a);
-        p.remove();
+        t.remove();
       });
       this.ui.find(".border").on("click", ".goto", function () {
-        t.select();
-        t.selectMap(b(this).text());
+        q.select();
+        q.selectMap(b(this).text());
         event.stopImmediatePropagation();
         return !1;
       });
       this.ui.find(".border").on("click", ".smob", function () {
-        t.select();
-        t.selectMob(b(this).text());
+        q.select();
+        q.selectMob(b(this).text());
         event.stopImmediatePropagation();
         return !1;
       });
       this.ui.find(".border").on("click", ".sitem", function () {
-        t.select();
-        t.selectItem(b(this).text());
+        q.select();
+        q.selectItem(b(this).text());
         event.stopImmediatePropagation();
         return !1;
       });
       this.ui.find(".border").on("click", ".item", function () {
         var a = parseInt(this.getAttribute("data-itid"), 10),
-          b = l.getItemInfo(a);
+          b = m.getItemInfo(a);
         b &&
-          (n.uid != a
-            ? (n.append(),
+          (k.uid != a
+            ? (k.append(),
               (b.ITID = a),
               (b.IsIdentified = 1),
-              (n.uid = a),
-              (n.item_ = b),
-              (n.type = "AchDescription"),
-              n.setItem(b))
-            : n.remove());
+              (k.uid = a),
+              (k.item_ = b),
+              (k.type = "AchDescription"),
+              k.setItem(b))
+            : k.remove());
       });
     };
-    p.setAch = function (a) {
+    t.setAch = function (a) {
       var c =
         a.title +
         (a.Completed ? "(\u5df2\u8fbe\u6210)" : "(\u672a\u8fbe\u6210)");
-      p.ui.find(".titlebar .text").text(c);
-      p.ui.find(".containers .details").html(a.content[0].details);
+      t.ui.find(".titlebar .text").text(c);
+      t.ui.find(".containers .details").html(a.content[0].details);
       c = Object.keys(a.resource[0]);
-      p.ui.find(".containers .content ul").empty();
-      p.ui
+      t.ui.find(".containers .content ul").empty();
+      t.ui
         .find(".containers .content ul")
         .append("\x3cp\x3e\u6761\u4ef6\uff1a\x3c/p\x3e");
       for (var d = 0; d < c.length; d++) {
@@ -100,11 +100,11 @@ define(
               a.resource[0][g].text +
               "\x3c/li\x3e",
           );
-        p.ui.find(".containers .content ul").append(g);
+        t.ui.find(".containers .content ul").append(g);
       }
       a.reward[0] &&
         (Object.keys(a.reward),
-        p.ui
+        t.ui
           .find(".containers .content ul")
           .append("\x3cp\x3e\u5956\u52b1\uff1a\x3c/p\x3e"),
         a.reward[0].buff &&
@@ -113,9 +113,9 @@ define(
               e[a.reward[0].buff].descript[0][0] +
               "\x3c/li\x3e",
           )),
-          p.ui.find(".containers .content ul").append(g)),
+          t.ui.find(".containers .content ul").append(g)),
         a.reward[0].item &&
-          (c = l.getItemInfo(a.reward[0].item)) &&
+          (c = m.getItemInfo(a.reward[0].item)) &&
           "Unknown Item" != c.identifiedDiSPlayName &&
           ((g = b(
             '\x3cli\x3e\u9053\u5177\uff1a\x3cspan class\x3d"item" data-itid\x3d"' +
@@ -124,11 +124,11 @@ define(
               c.identifiedDiSPlayName +
               "\x3c/span\x3e\x3c/li\x3e",
           )),
-          p.ui.find(".containers .content ul").append(g)));
+          t.ui.find(".containers .content ul").append(g)));
       a.Completed && 0 < a.reward.length && 0 == a.rewarded
-        ? p.ui.find(".btns .raward").show()
-        : p.ui.find(".btns .raward").hide();
+        ? t.ui.find(".btns .raward").show()
+        : t.ui.find(".btns .raward").hide();
     };
-    return h.addComponent(p);
+    return h.addComponent(t);
   },
 );

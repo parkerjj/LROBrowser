@@ -10,9 +10,9 @@ define("DB/Jobs/WeaponJobTable", ["./JobConst", "./JobNameTable"], function (
   }
   var d = {},
     e = Object.keys(b),
-    l,
+    m,
     h = e.length;
-  for (l = 0; l < h; ++l) d[e[l]] = b[e[l]];
+  for (m = 0; m < h; ++m) d[e[m]] = b[e[m]];
   c(a.NOVICE, a.NOVICE_H, a.NOVICE_B);
   c(a.SWORDMAN, a.SWORDMAN_H, a.SWORDMAN_B);
   c(a.MAGICIAN, a.MAGICIAN_H, a.MAGICIAN_B);

@@ -5,13 +5,13 @@ define("Renderer/Effects/Tiles", [
   "Utils/gl-matrix",
   "Core/Client",
 ], function (a, b, c, d, e) {
-  function l(a) {
+  function m(a) {
     return a && a.__esModule ? a : { default: a };
   }
   function h(a, b, c) {
     var d = a.createTexture();
-    n.default.loadFile(b.filename, function (e) {
-      t.default.load(e, function (e) {
+    k.default.loadFile(b.filename, function (e) {
+      q.default.load(e, function (e) {
         var f = b.size;
         e = document.createElement("canvas");
         e.width = e.height = f;
@@ -37,15 +37,15 @@ define("Renderer/Effects/Tiles", [
     a.flatTextureVertexShader =
       void 0;
   a.loadTexture = h;
-  var r = l(b),
-    t = l(c);
-  l(d);
-  var n = l(e),
+  var r = m(b),
+    q = m(c);
+  m(d);
+  var k = m(e),
     g = (a.flatTextureVertexShader =
       "\n        #version 100\n        #pragma vscode_glsllint_stage : vert\n        precision highp float;\n\n        attribute vec2 aPosition;\n        attribute vec2 aTextureCoord;\n        varying vec2 vTextureCoord;\n        uniform mat4 uModelViewMat;\n        uniform mat4 uProjectionMat;\n        uniform vec3 uPosition;\n\t\t    uniform float uSize;\n\t\t\n\n        void main(void) {\n            vec4 position  \x3d vec4(uPosition.x + 0.5, -uPosition.z, uPosition.y + 0.5, 1.0);\n            position      +\x3d vec4(aPosition.x * uSize, 0.0, aPosition.y * uSize, 0.0);\n            gl_Position    \x3d uProjectionMat * uModelViewMat * position;\n            gl_Position.z -\x3d 0.01;\n            vTextureCoord  \x3d aTextureCoord;\n        }\n"),
-    p = (a.flatTextureFragmentShader =
+    t = (a.flatTextureFragmentShader =
       "\n        #version 100\n        #pragma vscode_glsllint_stage : frag\n        precision highp float;\n        \n        varying vec2 vTextureCoord;\n        uniform sampler2D uDiffuse;\n        uniform float alpha;\n        \n        uniform bool  uFogUse;\n        uniform float uFogNear;\n        uniform float uFogFar;\n        uniform vec3  uFogColor;\n        \n            void main(void) {\n                vec4 texture \x3d texture2D( uDiffuse,  vTextureCoord.st );\n                if (texture.r \x3c 0.1 || texture.g \x3c 0.1 || texture.b \x3c 0.1) {\n                  discard;\n                }\n                texture.a \x3d alpha;\n                gl_FragColor \x3d texture;\n          \n          if (uFogUse) {\n            float depth     \x3d gl_FragCoord.z / gl_FragCoord.w;\n            float fogFactor \x3d smoothstep( uFogNear, uFogFar, depth );\n            gl_FragColor    \x3d mix( gl_FragColor, vec4( uFogColor, gl_FragColor.w ), fogFactor );\n          }\n        }\n"),
-    k = (a.FlatTexture = function (a) {
+    l = (a.FlatTexture = function (a) {
       var b =
         1 < arguments.length && void 0 !== arguments[1] ? arguments[1] : 64;
       return (function () {
@@ -57,7 +57,7 @@ define("Renderer/Effects/Tiles", [
           {
             key: "createShaderProgram",
             value: function (a) {
-              return r.default.createShaderProgram(a, g, p);
+              return r.default.createShaderProgram(a, g, t);
             },
           },
           {
@@ -202,6 +202,6 @@ define("Renderer/Effects/Tiles", [
         },
       ]);
       return d;
-    })(k(a));
+    })(l(a));
   };
 });

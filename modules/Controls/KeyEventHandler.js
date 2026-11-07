@@ -125,10 +125,10 @@ define("Controls/KeyEventHandler", ["Utils/jquery"], function (a) {
     writable: !1,
     enumerable: !1,
     value: function (a) {
-      var b, c, l;
+      var b, c, m;
       b = Object.keys(this);
-      l = b.length;
-      for (c = 0; c < l; ++c) if (this[b[c]] === a) return b[c];
+      m = b.length;
+      for (c = 0; c < m; ++c) if (this[b[c]] === a) return b[c];
       return "";
     },
   });

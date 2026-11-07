@@ -7,16 +7,16 @@ define(
     function b() {
       var a = u.ui.find(".container .itype option:selected").data("index"),
         b = u.ui.find(".container .iid"),
-        c = Object.keys(l[e.nid][a].nav);
+        c = Object.keys(m[e.nid][a].nav);
       b.empty();
       for (var d = 0; d < c.length; d++)
         b.append(
           "\x3coption data-index\x3d" +
             d +
             " data-id\x3d" +
-            l[e.nid][a].nav[d].id +
+            m[e.nid][a].nav[d].id +
             "\x3e" +
-            l[e.nid][a].nav[d].name +
+            m[e.nid][a].nav[d].name +
             "\x3c/option\x3e",
         );
     }
@@ -29,10 +29,10 @@ define(
         return (f.setMsg("\u5907\u6ce8\u5185\u5bb9\u4e0d\u4e3a\u7a7a"), !1);
       if (0 == this.type) {
         var a = new FormData();
-        a.append("AuthToken", n.AuthToken);
-        a.append("AID", n.AID);
-        a.append("GDID", n.Entity.GUID);
-        a.append("GID", n.GID);
+        a.append("AuthToken", k.AuthToken);
+        a.append("AID", k.AID);
+        a.append("GDID", k.Entity.GUID);
+        a.append("GID", k.GID);
         a.append(
           "WorldName",
           UrlTools.encode(u.ui.find(".container .mapname").text()),
@@ -66,7 +66,7 @@ define(
               : f.setMsg("\u62db\u52df\u4fe1\u606f\u6dfb\u52a0\u5931\u8d25");
           })
           .fail(function (a) {
-            p.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
+            t.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
           });
         this.remove();
       } else {
@@ -79,21 +79,21 @@ define(
     }
     a("Utils/jquery");
     var e = a("DB/DBManager"),
-      l = a("DB/AgencyTable"),
+      m = a("DB/AgencyTable"),
       h = a("Network/PacketStructure"),
       r = a("Network/NetworkManager"),
-      t = a("Renderer/MapRenderer"),
-      n = a("Engine/SessionStorage");
+      q = a("Renderer/MapRenderer"),
+      k = a("Engine/SessionStorage");
     a("Controls/KeyEventHandler");
     a("Renderer/Renderer");
     var g = a("Core/Preferences"),
-      p = a("UI/UIManager"),
-      k = a("UI/UIComponent"),
+      t = a("UI/UIManager"),
+      l = a("UI/UIComponent"),
       f = a("UI/Components/ItemObtain/ItemObtain"),
-      m = a("text!./PartyBookingReg.html"),
-      q = a("text!./PartyBookingReg.css"),
+      n = a("text!./PartyBookingReg.html"),
+      p = a("text!./PartyBookingReg.css"),
       v = a,
-      u = new k("PartyBookingReg", m, q);
+      u = new l("PartyBookingReg", n, p);
     u.title = "";
     u.limit = 20;
     u.type = 0;
@@ -112,15 +112,15 @@ define(
       this.draggable(this.ui.find(".titlebar"));
       this.ui.find(".del").on("click", function () {
         0 == u.type
-          ? p.showPromptBox(
+          ? t.showPromptBox(
               "\u786e\u5b9a\u5220\u9664\u62db\u52df\u4fe1\u606f\u5417?",
               "ok",
               "cancel",
               function () {
                 var a = new FormData();
-                a.append("AuthToken", n.AuthToken);
-                a.append("AID", n.Entity.GID);
-                a.append("GDID", n.Entity.GUID);
+                a.append("AuthToken", k.AuthToken);
+                a.append("AID", k.Entity.GID);
+                a.append("GDID", k.Entity.GUID);
                 a.append("WorldName", "lastro");
                 $.ajax({
                   url: "https://game.lastro.cn/" + e.webpath + "/party/del",
@@ -138,7 +138,7 @@ define(
                     v("UI/Components/PartyBooking/PartyBooking").reload();
                   })
                   .fail(function (a) {
-                    p.showMessageBox(
+                    t.showMessageBox(
                       "\u6570\u636e\u52a0\u8f7d\u5931\u8d25",
                       "ok",
                     );
@@ -146,7 +146,7 @@ define(
               },
               null,
             )
-          : p.showPromptBox(
+          : t.showPromptBox(
               "\u786e\u5b9a\u5173\u95ed\u526f\u672c\u5417?",
               "ok",
               "cancel",
@@ -162,7 +162,7 @@ define(
       this.type = a;
     };
     u.onAppend = function () {
-      var a = n.Entity;
+      var a = k.Entity;
       u.ui.find(".container .name").text(a.display.name);
       a = "";
       u.ui.find(".container .memo").val(a);
@@ -172,7 +172,7 @@ define(
           .text("\u521b\u5efa\u5192\u9669\u5bb6\u52df\u96c6"),
           u.ui.find(".container .mapinfo").show(),
           u.ui.find(".container .instance").hide(),
-          (a = t.currentMap),
+          (a = q.currentMap),
           this.ui.find(".mapinfo .mapname").text(a),
           (a = "[ " + e.getMapName(a) + " ] "),
           this.ui.find(".container .memo").val(a));
@@ -182,7 +182,7 @@ define(
           .text("\u521b\u5efa\u6e38\u620f\u526f\u672c");
         u.ui.find(".container .mapinfo").hide();
         u.ui.find(".container .instance").show();
-        var b = Object.keys(l[e.nid]),
+        var b = Object.keys(m[e.nid]),
           c = u.ui.find(".container .itype"),
           a = u.ui.find(".container .iid");
         c.empty();
@@ -191,19 +191,19 @@ define(
             "\x3coption data-index\x3d" +
               d +
               "\x3e" +
-              l[e.nid][d].name +
+              m[e.nid][d].name +
               "\x3c/option\x3e",
           );
-        b = Object.keys(l[e.nid][0].nav);
+        b = Object.keys(m[e.nid][0].nav);
         a.empty();
         for (d = 0; d < b.length; d++)
           a.append(
             "\x3coption data-index\x3d" +
               d +
               " data-id\x3d" +
-              l[e.nid][0].nav[d].id +
+              m[e.nid][0].nav[d].id +
               "\x3e" +
-              l[e.nid][0].nav[d].name +
+              m[e.nid][0].nav[d].name +
               "\x3c/option\x3e",
           );
         this.ui.find(".container .memo").val("\u65e0");
@@ -262,12 +262,12 @@ define(
             .text(UrlTools.decode(a.WorldName.replaceAll("%20", " "))));
       else {
         for (
-          var b = 0, c = 0, d = Object.keys(l[e.nid]), f = 0;
+          var b = 0, c = 0, d = Object.keys(m[e.nid]), f = 0;
           f < d.length;
           f++
         )
-          for (var g = Object.keys(l[e.nid][f].nav), h = 0; h < g.length; h++)
-            if (a.IID == l[e.nid][f].nav[h].id) {
+          for (var g = Object.keys(m[e.nid][f].nav), h = 0; h < g.length; h++)
+            if (a.IID == m[e.nid][f].nav[h].id) {
               b = f;
               c = h;
               break;
@@ -275,7 +275,7 @@ define(
         this.ui
           .find(".container .itype option[data-index\x3d" + b + "]")
           .prop("selected", "selected");
-        g = Object.keys(l[e.nid][b].nav);
+        g = Object.keys(m[e.nid][b].nav);
         d = u.ui.find(".container .iid");
         d.empty();
         for (f = 0; f < g.length; f++)
@@ -283,9 +283,9 @@ define(
             "\x3coption data-index\x3d" +
               f +
               " data-id\x3d" +
-              l[e.nid][b].nav[f].id +
+              m[e.nid][b].nav[f].id +
               "\x3e" +
-              l[e.nid][b].nav[f].name +
+              m[e.nid][b].nav[f].name +
               "\x3c/option\x3e",
           );
         this.ui
@@ -311,10 +311,10 @@ define(
     u.onCreateBookingLog = function (a) {
       1 == a.rs &&
         ((a = new FormData()),
-        a.append("AuthToken", n.AuthToken),
-        a.append("AID", n.AID),
-        a.append("GDID", n.Entity.GUID),
-        a.append("GID", n.GID),
+        a.append("AuthToken", k.AuthToken),
+        a.append("AID", k.AID),
+        a.append("GDID", k.Entity.GUID),
+        a.append("GID", k.GID),
         a.append("WorldName", "lastro"),
         a.append(
           "CharName",
@@ -348,16 +348,16 @@ define(
               : f.setMsg("\u526f\u672c\u6570\u636e\u6dfb\u52a0\u5931\u8d25");
           })
           .fail(function (a) {
-            p.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
+            t.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
           }),
         this.remove());
     };
     u.onDelBookingLog = function (a) {
       1 == a.rs
         ? ((a = new FormData()),
-          a.append("AuthToken", n.AuthToken),
-          a.append("AID", n.Entity.GID),
-          a.append("GDID", n.Entity.GUID),
+          a.append("AuthToken", k.AuthToken),
+          a.append("AID", k.Entity.GID),
+          a.append("GDID", k.Entity.GUID),
           a.append("WorldName", "lastro"),
           $.ajax({
             url: "https://game.lastro.cn/" + e.webpath + "/party/del",
@@ -374,7 +374,7 @@ define(
                 v("UI/Components/PartyBooking/PartyBooking").reload());
             })
             .fail(function (a) {
-              p.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
+              t.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
             }))
         : 2 == a.rs &&
           (u.remove(),
@@ -386,10 +386,10 @@ define(
         return (f.setMsg("\u5907\u6ce8\u5185\u5bb9\u4e0d\u4e3a\u7a7a"), !1);
       if (0 == this.type) {
         var a = new FormData();
-        a.append("AuthToken", n.AuthToken);
-        a.append("AID", n.AID);
-        a.append("GDID", n.Entity.GUID);
-        a.append("GID", n.GID);
+        a.append("AuthToken", k.AuthToken);
+        a.append("AID", k.AID);
+        a.append("GDID", k.Entity.GUID);
+        a.append("GID", k.GID);
         a.append(
           "WorldName",
           UrlTools.encode(u.ui.find(".container .mapname").text()),
@@ -423,14 +423,14 @@ define(
               : f.setMsg("\u62db\u52df\u4fe1\u606f\u4fee\u6539\u5931\u8d25");
           })
           .fail(function (a) {
-            p.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
+            t.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
           });
       } else
         ((a = new FormData()),
-          a.append("AuthToken", n.AuthToken),
-          a.append("AID", n.AID),
-          a.append("GDID", n.Entity.GUID),
-          a.append("GID", n.GID),
+          a.append("AuthToken", k.AuthToken),
+          a.append("AID", k.AID),
+          a.append("GDID", k.Entity.GUID),
+          a.append("GID", k.GID),
           a.append("WorldName", "lastro"),
           a.append(
             "CharName",
@@ -467,10 +467,10 @@ define(
                 : f.setMsg("\u526f\u672c\u6570\u636e\u4fee\u6539\u5931\u8d25");
             })
             .fail(function (a) {
-              p.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
+              t.showMessageBox("\u6570\u636e\u52a0\u8f7d\u5931\u8d25", "ok");
             }));
       this.remove();
     };
-    return p.addComponent(u);
+    return t.addComponent(u);
   },
 );

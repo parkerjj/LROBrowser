@@ -5,9 +5,9 @@ define("Core/Configs", [], function () {
     if ("object" === typeof b) {
       var d = Object.keys(b),
         c,
-        l;
+        m;
       c = 0;
-      for (l = d.length; c < l; ++c) a[d[c]] = b[d[c]];
+      for (m = d.length; c < m; ++c) a[d[c]] = b[d[c]];
     }
   })(window.ROConfig);
   return {

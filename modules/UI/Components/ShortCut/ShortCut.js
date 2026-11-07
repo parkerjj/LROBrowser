@@ -11,13 +11,13 @@ define(
       d(1);
     }
     function d(a) {
-      W.size = (W.size + a) % (Q + 1);
-      W.save();
-      K.ui.css("height", 34 * W.size);
-      1 >= W.size
+      S.size = (S.size + a) % (N + 1);
+      S.save();
+      K.ui.css("height", 34 * S.size);
+      1 >= S.size
         ? K.ui.find(".resize-up").hide()
         : K.ui.find(".resize-up").show();
-      4 == W.size
+      4 == S.size
         ? (K.ui.find(".resize-down").hide(),
           K.ui.find(".resize-down-disabled").show())
         : (K.ui.find(".resize-down").show(),
@@ -27,15 +27,15 @@ define(
       a.stopImmediatePropagation();
       return !1;
     }
-    function l(a) {
+    function m(a) {
       var b = K.ui,
         c = b.position().top,
         d = 0,
         f;
       f = setInterval(function () {
-        var a = Math.floor((H.screen.y - c) / 34 + 1),
-          a = Math.min(Math.max(a, 1), Q);
-        a !== d && (b.css("height", 34 * a), (W.size = a), W.save(), (d = a));
+        var a = Math.floor((O.screen.y - c) / 34 + 1),
+          a = Math.min(Math.max(a, 1), N);
+        a !== d && (b.css("height", 34 * a), (S.size = a), S.save(), (d = a));
       }, 30);
       u(window).on("mouseup.resize", function (a) {
         1 === a.which && (clearInterval(f), u(window).off("mouseup.resize"));
@@ -51,21 +51,21 @@ define(
       __list[a].count = d;
       if (b) {
         if (!d) return;
-        a = q.getSkillInfo(c);
+        a = p.getSkillInfo(c);
         c = a.Name;
         e = a.SkillName;
       } else {
-        a = P.getItemById(c);
+        a = J.getItemById(c);
         if (!a) return;
-        c = q.getItemInfo(c);
+        c = p.getItemInfo(c);
         c = a.IsIdentified
           ? c.identifiedResourceName
           : c.unidentifiedResourceName;
-        e = q.getItemName(a);
+        e = p.getItemName(a);
         d = a.type === v.WEAPON || a.type === v.EQUIP ? 1 : a.count;
         if (!d) return;
       }
-      A.loadFile(q.INTERFACE_PATH + "item/" + c + ".bmp", function (a) {
+      A.loadFile(p.INTERFACE_PATH + "item/" + c + ".bmp", function (a) {
         f.html(
           '\x3cdiv draggable\x3d"true" class\x3d"icon" data-isSkill\x3d"' +
             b +
@@ -101,7 +101,7 @@ define(
               (__list[e].count = 0),
               K.onChange(e, 0, 0, 0));
     }
-    function t(a) {
+    function q(a) {
       var b,
         c,
         d,
@@ -112,7 +112,7 @@ define(
         ((b = JSON.parse(a.originalEvent.dataTransfer.getData("Text"))),
           (c = b.data),
           (d = b.level));
-      } catch (oa) {
+      } catch (ka) {
         return !1;
       }
       if ("item" !== b.type && "skill" !== b.type) return !1;
@@ -144,7 +144,7 @@ define(
       }
       return !1;
     }
-    function n() {
+    function k() {
       delete window._OBJ_DRAG_;
       this.classList.remove("hide");
     }
@@ -166,32 +166,32 @@ define(
         ),
       );
     }
-    function p(a) {
+    function t(a) {
       var b = parseInt(this.parentNode.getAttribute("data-index"), 10),
         c = __list[b];
       a.stopImmediatePropagation();
       if (c.isSkill)
-        L.uid === __list[b].ID
-          ? L.remove()
-          : (L.append(), L.setSkill(__list[b].ID));
+        F.uid === __list[b].ID
+          ? F.remove()
+          : (F.append(), F.setSkill(__list[b].ID));
       else {
-        if (G.uid === __list[b].ID) return (G.remove(), !1);
-        G.append();
-        G.uid = __list[b].ID;
-        G.setItem(P.getItemById(__list[b].ID));
+        if (z.uid === __list[b].ID) return (z.remove(), !1);
+        z.append();
+        z.uid = __list[b].ID;
+        z.setItem(J.getItemById(__list[b].ID));
       }
       return !1;
     }
-    function k() {
+    function l() {
       var a = parseInt(this.parentNode.getAttribute("data-index"), 10),
         b = u(this).parent().find(".amount").text();
       f(a, b);
     }
     function f(a, b) {
       var c = __list[a];
-      y.remove();
-      if (S) return !1;
-      ba
+      G.remove();
+      if (U) return !1;
+      ea
         ? C.showMessageBox(
             "You are temporarily restricted from clicking.",
             "ok",
@@ -202,92 +202,92 @@ define(
           u("#NpcMenu").is(":visible") ||
           u("#WarpList").is(":visible") ||
           K.ui.find(".container[data-index\x3d" + a + "]").hasClass("cd") ||
-          (1 === V &&
+          (1 === R &&
             setTimeout(function () {
-              V = 0;
+              R = 0;
             }, 5e3),
-          30 < V
-            ? ((ba = !0),
+          30 < R
+            ? ((ea = !0),
               C.showMessageBox(
                 "Click limit exceeded. You are restricted for 10s.",
                 "ok",
               ),
               setTimeout(function () {
-                ba = !1;
+                ea = !1;
                 C.showMessageBox(
                   "Restriction lifted. You can click again.",
                   "ok",
                 );
               }, 1e4))
-            : ((S = !0),
+            : ((U = !0),
               setTimeout(
                 function () {
-                  S = !1;
+                  U = !1;
                 }.bind(this),
                 100,
               ),
               c.isSkill
                 ? "" == u("#SkillTargetSelection").html()
-                  ? y.remove()
+                  ? G.remove()
                   : (a = x.getSkillById(c.ID)) && a.level
                     ? x.useSkillID(c.ID, b)
-                    : (a = J.getSkillById(c.ID)) && a.level
-                      ? J.useSkillID(c.ID, b)
+                    : (a = M.getSkillById(c.ID)) && a.level
+                      ? M.useSkillID(c.ID, b)
                       : (a = E.getSkillById(c.ID)) &&
                         a.level &&
                         E.useSkillID(c.ID, b)
-                : (b = P.getItemById(__list[a].ID)) && P.useItem(b)));
+                : (b = J.getItemById(__list[a].ID)) && J.useItem(b)));
     }
-    function m() {
+    function n() {
       K.ui.css("height", 0);
-      W.size = 0;
-      W.save();
+      S.size = 0;
+      S.save();
     }
-    var q = a("DB/DBManager"),
+    var p = a("DB/DBManager"),
       v = a("DB/Items/ItemType"),
       u = a("Utils/jquery"),
       A = a("Core/Client"),
       D = a("Core/Preferences"),
       B = a("Renderer/Renderer"),
-      H = a("Controls/MouseEventHandler"),
+      O = a("Controls/MouseEventHandler"),
       C = a("UI/UIManager"),
-      z = a("UI/UIComponent"),
-      G = a("UI/Components/ItemInfo/ItemInfo"),
-      P = a("UI/Components/Inventory/Inventory"),
-      N = a("UI/Components/OnPushCart/OnPushCart"),
-      I = a("UI/Components/Guild/Guild"),
+      y = a("UI/UIComponent"),
+      z = a("UI/Components/ItemInfo/ItemInfo"),
+      J = a("UI/Components/Inventory/Inventory"),
+      I = a("UI/Components/OnPushCart/OnPushCart"),
+      L = a("UI/Components/Guild/Guild"),
       x = a("UI/Components/SkillList/SkillList"),
-      J = a("UI/Components/Mercenary/MercenaryskillList"),
+      M = a("UI/Components/Mercenary/MercenaryskillList"),
       E = a("UI/Components/Homunc/HomuncskillList"),
-      L = a("UI/Components/SkillDescription/SkillDescription"),
-      y = a("UI/Components/SkillTargetSelection/SkillTargetSelection"),
-      F = a("text!./ShortCut.html");
+      F = a("UI/Components/SkillDescription/SkillDescription"),
+      G = a("UI/Components/SkillTargetSelection/SkillTargetSelection"),
+      H = a("text!./ShortCut.html");
     a = a("text!./ShortCut.css");
-    var K = new z("ShortCut", F, a),
-      M = [],
-      Q = 0,
-      W = D.get("ShortCut", { x: 223, y: 0, size: 1 }, 1.1),
-      V = 0,
-      ba = !1;
+    var K = new y("ShortCut", H, a),
+      P = [],
+      N = 0,
+      S = D.get("ShortCut", { x: 223, y: 0, size: 1 }, 1.1),
+      R = 0,
+      ea = !1;
     K.init = function () {
-      this.ui.find(".resize").mousedown(l);
-      this.ui.find(".close").mousedown(e).click(m);
+      this.ui.find(".resize").mousedown(m);
+      this.ui.find(".close").mousedown(e).click(n);
       this.ui.find(".resize-up").on("click", b);
       this.ui.find(".resize-down").on("click", c);
       this.ui
-        .on("drop", ".container", t)
+        .on("drop", ".container", q)
         .on("dragover", ".container", e)
         .on("dragstart", ".icon", g)
-        .on("dragend", ".icon", n)
-        .on("dblclick", ".icon", k)
-        .on("contextmenu", ".icon", p)
+        .on("dragend", ".icon", k)
+        .on("dblclick", ".icon", l)
+        .on("contextmenu", ".icon", t)
         .on("mousedown", ".icon", function (a) {
           a.stopImmediatePropagation();
         });
-      1 >= W.size
+      1 >= S.size
         ? K.ui.find(".resize-up").hide()
         : K.ui.find(".resize-up").show();
-      4 == W.size
+      4 == S.size
         ? (K.ui.find(".resize-down").hide(),
           K.ui.find(".resize-down-disabled").show())
         : (K.ui.find(".resize-down").show(),
@@ -296,19 +296,19 @@ define(
     };
     K.onAppend = function () {
       this.ui.css({
-        top: Math.min(Math.max(0, W.y), B.height - this.ui.height()),
-        left: Math.min(Math.max(0, W.x), B.width - this.ui.width()),
-        height: 34 * W.size,
+        top: Math.min(Math.max(0, S.y), B.height - this.ui.height()),
+        left: Math.min(Math.max(0, S.x), B.width - this.ui.width()),
+        height: 34 * S.size,
       });
     };
     K.onRemove = function () {
-      W.y = parseInt(this.ui.css("top"), 10);
-      W.x = parseInt(this.ui.css("left"), 10);
-      W.size = Math.floor(parseInt(this.ui.css("height"), 10) / 34);
-      W.save();
+      S.y = parseInt(this.ui.css("top"), 10);
+      S.x = parseInt(this.ui.css("left"), 10);
+      S.size = Math.floor(parseInt(this.ui.css("height"), 10) / 34);
+      S.save();
     };
     K.clean = function () {
-      M.length = 0;
+      P.length = 0;
       this.ui.find(".container").empty();
     };
     K.onShortCut = (function () {
@@ -325,18 +325,18 @@ define(
               f(b, c);
               break;
             case "EXTEND":
-              ((W.size = (W.size + 1) % (Q + 1)),
-                W.save(),
-                this.ui.css("height", 34 * W.size));
+              ((S.size = (S.size + 1) % (N + 1)),
+                S.save(),
+                this.ui.css("height", 34 * S.size));
           }
       };
     })();
     K.setList = function (a) {
       var b, c, d, e;
-      M = a;
+      P = a;
       this.ui.find(".container .border").empty();
-      M.length = a.length;
-      Q = Math.min(4, Math.floor(a.length / 9));
+      P.length = a.length;
+      N = Math.min(4, Math.floor(a.length / 9));
       b = 0;
       for (c = a.length; b < c; ++b)
         ((e = 0),
@@ -350,11 +350,11 @@ define(
                     .text(a[b].count),
                 h(b, !0, a[b].ID, a[b].count)),
               0 == e &&
-                (d = J.getSkillById(a[b].ID)) &&
+                (d = M.getSkillById(a[b].ID)) &&
                 d.level &&
                 ((e = 1),
                 d.bSeperateLv &&
-                  J.ui
+                  M.ui
                     .find(".skill[data-index\x3d" + a[b].ID + "] .current")
                     .text(a[b].count),
                 h(b, !0, a[b].ID, a[b].count)),
@@ -379,7 +379,7 @@ define(
     };
     K.setPostdelay = function (a) {
       for (var b, c = 0; 18 > c; ++c)
-        if (M[c] && 1 == M[c].isSkill && M[c].ID == a.SKID) {
+        if (P[c] && 1 == P[c].isSkill && P[c].ID == a.SKID) {
           K.ui.find(".container[data-index\x3d" + c + "] ._cover").show();
           b = c;
           break;
@@ -392,7 +392,7 @@ define(
       d(1);
     };
     K.getList = function () {
-      return M;
+      return P;
     };
     K.addCooldown = function (a) {
       this.ui.find(".container").addClass("cd");
@@ -409,8 +409,8 @@ define(
       }, a);
     };
     K.addSkillCooldown = function (a, b) {
-      for (var c = -1, d = 0, e = M.length; d < e; ++d)
-        if (M[d].ID === a) {
+      for (var c = -1, d = 0, e = P.length; d < e; ++d)
+        if (P[d].ID === a) {
           c = d;
           break;
         }
@@ -433,16 +433,16 @@ define(
         }, b));
     };
     K.AddClickCount = function () {
-      V++;
+      R++;
     };
-    var S = !1;
-    P.onUpdateItem = function (a, b) {
+    var U = !1;
+    J.onUpdateItem = function (a, b) {
       K.setElement(!1, a, b);
     };
-    N.onUpdateItem = function (a, b) {
+    I.onUpdateItem = function (a, b) {
       K.setElement(!1, a, b);
     };
-    I.onUpdateSkill = function (a, b) {
+    L.onUpdateSkill = function (a, b) {
       K.setElement(!0, a, b);
     };
     x.onUpdateSkill = function (a, b) {

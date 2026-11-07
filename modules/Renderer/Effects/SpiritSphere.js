@@ -13,13 +13,13 @@ define(
     var c = a("Utils/WebGL"),
       d = a("Utils/Texture"),
       e = a("Utils/gl-matrix"),
-      l = a("Core/Client"),
+      m = a("Core/Client"),
       h = a("Renderer/Camera"),
       r,
-      t,
-      n,
+      q,
+      k,
       g = e.mat4,
-      p = (function () {
+      t = (function () {
         for (var a = [], b = 0; 5 > b; b++)
           a.push({ posMat: g.create(), texMat: g.create() });
         return a;
@@ -33,13 +33,13 @@ define(
     };
     b.renderBeforeEntities = !1;
     b.init = function (a) {
-      t = c.createShaderProgram(
+      q = c.createShaderProgram(
         a,
         "\n        #version 100\n        #pragma vscode_glsllint_stage : vert\n        precision highp float;\n\n        attribute vec2 aPosition;\n        attribute vec2 aTextureCoord;\n\n        varying vec2 vTextureCoord;\n\n        uniform mat4 uModelViewMat;\n        uniform mat4 uProjectionMat;\n        uniform mat4 uTextureRotMat;\n        uniform mat4 uRotationMat;\n\n        uniform float uCameraZoom;\n\n        uniform vec3 uPosition;\n        uniform float uSize;\n        uniform float uZIndex;\n\n        void main(void) {\n\n            vec4 position  \x3d vec4(uPosition.x + 0.5, -uPosition.z - 2.0, uPosition.y + 0.5, 1.0);\n            \n            vec4 pos2      \x3d vec4(aPosition.x * uSize, 0.0, aPosition.y * uSize, 0.0) * uTextureRotMat;\n            pos2.x        +\x3d 1.0;\n            position      +\x3d pos2 * uRotationMat;\n\n            gl_Position    \x3d uProjectionMat * uModelViewMat * position;\n            gl_Position.z -\x3d uZIndex / max(uCameraZoom, 1.0);\n\n            vTextureCoord  \x3d aTextureCoord;\n        }",
         "\n        #version 100\n        #pragma vscode_glsllint_stage : frag\n        precision highp float;    \n\n        varying vec2 vTextureCoord;\n\n        uniform vec4 uColor;\n        uniform sampler2D uDiffuse;\n        float tmp;\n\n        void main(void) {\n            vec4 texture \x3d texture2D( uDiffuse,  vTextureCoord.st );\n            \n            texture *\x3d uColor;\n            \n            /*if (texture.r \x3c 0.1 \x26\x26 texture.g \x3c 0.1 \x26\x26 texture.b \x3c 0.1) {\n               discard;\n            }*/\n            \n            gl_FragColor \x3d texture;\n\n        }",
       );
-      n = a.createBuffer();
-      a.bindBuffer(a.ARRAY_BUFFER, n);
+      k = a.createBuffer();
+      a.bindBuffer(a.ARRAY_BUFFER, k);
       a.bufferData(
         a.ARRAY_BUFFER,
         new Float32Array([
@@ -48,7 +48,7 @@ define(
         ]),
         a.STATIC_DRAW,
       );
-      l.loadFile("data/texture/effect/thunder_center.bmp", function (c) {
+      m.loadFile("data/texture/effect/thunder_center.bmp", function (c) {
         d.load(c, function () {
           var c = this.getContext("2d");
           c.save();
@@ -67,25 +67,25 @@ define(
     };
     b.free = function (a) {
       r && (a.deleteTexture(r), (r = null));
-      t && (a.deleteProgram(t), (t = null));
-      n && a.deleteBuffer(n);
+      q && (a.deleteProgram(q), (q = null));
+      k && a.deleteBuffer(k);
       this.ready = !1;
     };
     b.beforeRender = function (a, b, c, d, e) {
-      d = t.uniform;
-      var f = t.attribute;
-      a.useProgram(t);
-      for (var k, m, l = 0, q = p.length; l < q; l++) {
-        k = ((h.angle[0] - 90) * Math.PI) / 180;
+      d = q.uniform;
+      var f = q.attribute;
+      a.useProgram(q);
+      for (var l, n, m = 0, p = t.length; m < p; m++) {
+        l = ((h.angle[0] - 90) * Math.PI) / 180;
         var v = (h.angle[1] * Math.PI) / 180;
-        m = (2 * l * Math.PI) / p.length;
-        m -= (e / 64 / 180) * Math.PI;
-        var z = g.create();
-        g.rotateX(p[l].texMat, z, k);
-        g.rotateY(p[l].texMat, p[l].texMat, v - m);
-        k = p[l].posMat;
-        g.identity(k);
-        g.rotateY(k, k, m);
+        n = (2 * m * Math.PI) / t.length;
+        n -= (e / 64 / 180) * Math.PI;
+        var y = g.create();
+        g.rotateX(t[m].texMat, y, l);
+        g.rotateY(t[m].texMat, t[m].texMat, v - n);
+        l = t[m].posMat;
+        g.identity(l);
+        g.rotateY(l, l, n);
       }
       a.uniformMatrix4fv(d.uModelViewMat, !1, b);
       a.uniformMatrix4fv(d.uProjectionMat, !1, c);
@@ -94,19 +94,19 @@ define(
       a.uniform1i(d.uDiffuse, 0);
       a.enableVertexAttribArray(f.aPosition);
       a.enableVertexAttribArray(f.aTextureCoord);
-      a.bindBuffer(a.ARRAY_BUFFER, n);
+      a.bindBuffer(a.ARRAY_BUFFER, k);
       a.vertexAttribPointer(f.aPosition, 2, a.FLOAT, !1, 16, 0);
       a.vertexAttribPointer(f.aTextureCoord, 2, a.FLOAT, !1, 16, 8);
       a.depthMask(!0);
     };
     b.prototype.render = function (a, b) {
-      b = t.uniform;
+      b = q.uniform;
       a.uniform3fv(b.uPosition, this.position);
-      a.bindBuffer(a.ARRAY_BUFFER, n);
+      a.bindBuffer(a.ARRAY_BUFFER, k);
       a.blendFunc(a.SRC_ALPHA, a.ONE);
       a.uniform1f(b.uCameraZoom, h.zoom);
       for (var c, d = this.num; 0 < d; d--)
-        ((c = p[d % p.length]),
+        ((c = t[d % t.length]),
           a.uniformMatrix4fv(b.uTextureRotMat, !1, c.texMat),
           a.uniformMatrix4fv(b.uRotationMat, !1, c.posMat),
           10 < d
@@ -162,8 +162,8 @@ define(
     };
     b.afterRender = function (a) {
       a.blendFunc(a.SRC_ALPHA, a.ONE_MINUS_SRC_ALPHA);
-      a.disableVertexAttribArray(t.attribute.aPosition);
-      a.disableVertexAttribArray(t.attribute.aTextureCoord);
+      a.disableVertexAttribArray(q.attribute.aPosition);
+      a.disableVertexAttribArray(q.attribute.aTextureCoord);
     };
     return b;
   },

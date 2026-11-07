@@ -15,8 +15,8 @@ define(
               (a.effect.rand[1] - a.effect.rand[0]) * Math.random(),
           ),
         ));
-      G.add(
-        new p(
+      z.add(
+        new t(
           "data/texture/effect/" + b + ".str",
           a.Inst.position,
           a.Inst.startTick,
@@ -31,12 +31,12 @@ define(
         c = !1;
       b
         ? a.effect.attachedEntity ||
-          ((b = new q()),
+          ((b = new p()),
           (b.GID = -1),
           (b.position = a.Inst.position),
           (b.objecttype = b.constructor.TYPE_EFFECT),
           (c = !0))
-        : ((b = new q()),
+        : ((b = new p()),
           (b.GID = a.Init.ownerAID),
           (b.position = a.Inst.position),
           (b.objecttype = b.constructor.TYPE_EFFECT),
@@ -58,72 +58,72 @@ define(
     }
     var d = a("DB/Effects/EffectTable"),
       e = a("DB/Skills/SkillEffect"),
-      l = a("DB/Skills/SkillUnit"),
+      m = a("DB/Skills/SkillUnit"),
       h = a("DB/Skills/SkillUnitConst"),
       r = a("DB/Items/ItemEffect"),
-      t = a("Core/Events"),
-      n = a("Renderer/Effects/RsmViewer"),
+      q = a("Core/Events"),
+      k = a("Renderer/Effects/RsmViewer"),
       g = a("Renderer/Effects/Cylinder"),
-      p = a("Renderer/Effects/StrEffect"),
-      k = a("Renderer/Effects/TwoDEffect"),
+      t = a("Renderer/Effects/StrEffect"),
+      l = a("Renderer/Effects/TwoDEffect"),
       f = a("Renderer/Effects/ThreeDEffect"),
-      m = a("Renderer/Effects/GroundEffect"),
-      q = a("Renderer/Entity/Entity"),
+      n = a("Renderer/Effects/GroundEffect"),
+      p = a("Renderer/Entity/Entity"),
       v = a("Renderer/EntityManager"),
       u = a("Renderer/Renderer"),
       A = a("Renderer/Map/Altitude"),
       D = a("Audio/SoundManager"),
       B = a("Preferences/Map"),
-      H = a("Renderer/Effects/QuadHorn"),
+      O = a("Renderer/Effects/QuadHorn"),
       C,
+      y = {},
       z = {},
-      G = {},
-      P = 1;
-    G.init = function (a) {
+      J = 1;
+    z.init = function (a) {
       C = a;
     };
-    G.add = function (a, b) {
+    z.add = function (a, b) {
       if (C) {
-        var c = a.constructor._uid || (a.constructor._uid = P++);
-        c in z ||
-          ((z[c] = []),
+        var c = a.constructor._uid || (a.constructor._uid = J++);
+        c in y ||
+          ((y[c] = []),
           a.constructor.init && a.constructor.init(C),
           a.constructor.renderBeforeEntities ||
             (a.constructor.renderBeforeEntities = !1));
         a.init && a.init(C);
         a._Params = b;
-        z[c].push(a);
+        y[c].push(a);
       }
     };
-    G.remove = (function () {
+    z.remove = (function () {
       function a(a, b, c) {
         var d,
           e,
           f,
           g = Array.isArray(c) ? c : [c];
-        d = z[a];
+        d = y[a];
         f = d.length;
         for (e = 0; e < f; ++e)
           (!b || (b && d[e]._Params.Init.ownerAID === b)) &&
             (!c || (c && g.includes(d[e]._Params.Inst.effectID))) &&
             (d[e].free && d[e].free(C), d.splice(e, 1), e--, f--);
-        f || delete z[a];
+        f || delete y[a];
       }
       return function (b, c, d) {
-        if (b) b._uid in z && a(b._uid, c, d);
+        if (b) b._uid in y && a(b._uid, c, d);
         else {
           var e,
-            f = Object.keys(z);
+            f = Object.keys(y);
           b = 0;
           for (e = f.length; b < e; ++b) a(f[b], c, d);
         }
       };
     })();
-    G.removeSpirits = (function () {
+    z.removeSpirits = (function () {
       return function (a) {
         var b,
           c,
-          d = Object.keys(z);
+          d = Object.keys(y);
         b = 0;
         for (c = d.length; b < c; ++b) {
           var e = d[b],
@@ -131,20 +131,20 @@ define(
             g = [2011, 2012, 2013, 2014, 2015],
             h,
             k,
-            m,
+            l,
             n = Array.isArray(g) ? g : [g];
-          h = z[e];
-          m = h.length;
-          for (k = 0; k < m; ++k)
+          h = y[e];
+          l = h.length;
+          for (k = 0; k < l; ++k)
             (!f || (f && h[k]._Params.Init.ownerAID === f)) &&
               (!g || (g && n.includes(h[k]._Params.Inst.effectID))) &&
-              (h[k].free && h[k].free(C), h.splice(k, 1), k--, m--);
-          m || delete z[e];
+              (h[k].free && h[k].free(C), h.splice(k, 1), k--, l--);
+          l || delete y[e];
         }
       };
     })();
-    G.free = function (a) {
-      var b = Object.keys(z),
+    z.free = function (a) {
+      var b = Object.keys(y),
         c,
         d,
         e,
@@ -153,91 +153,91 @@ define(
         h;
       c = 0;
       for (f = b.length; c < f; ++c) {
-        g = z[b[c]];
+        g = y[b[c]];
         h = g[0].constructor;
         d = 0;
         for (e = g.length; d < e; ++d) g[d].free && g[d].free(a);
         h.free && h.free(a);
-        delete z[b[c]];
+        delete y[b[c]];
       }
     };
-    G.render = function (a, b, c, d, e, f) {
-      var g = Object.keys(z),
+    z.render = function (a, b, c, d, e, f) {
+      var g = Object.keys(y),
         h,
         k = g.length,
-        m,
-        n,
         l,
+        n,
+        m,
         p;
       for (h = 0; h < k; ++h)
-        if (((l = z[g[h]]), l.length)) {
+        if (((m = y[g[h]]), m.length)) {
           if (
-            ((p = l[0].constructor), p.renderBeforeEntities === f && p.ready)
+            ((p = m[0].constructor), p.renderBeforeEntities === f && p.ready)
           ) {
             p.beforeRender && p.beforeRender(a, b, c, d, e);
-            m = 0;
-            for (n = l.length; m < n; ++m) {
-              l[m].ready && l[m].render(a, e);
-              var q;
+            l = 0;
+            for (n = m.length; l < n; ++l) {
+              m[l].ready && m[l].render(a, e);
+              var t;
               a: {
-                q = l[m];
-                var t = q._Params;
+                t = m[l];
+                var q = t._Params;
                 if (
-                  (t.Inst.persistent || t.Inst.repeatEnd) &&
-                  !q._AlreadyRepeated
+                  (q.Inst.persistent || q.Inst.repeatEnd) &&
+                  !t._AlreadyRepeated
                 ) {
-                  var T = !1;
+                  var r = !1;
                   if (
-                    t.Inst.duration &&
-                    0 < t.Inst.duration &&
-                    u.tick > t.Inst.endTick + t.Inst.repeatDelay
+                    q.Inst.duration &&
+                    0 < q.Inst.duration &&
+                    u.tick > q.Inst.endTick + q.Inst.repeatDelay
                   ) {
                     if (
-                      !t.Inst.repeatEnd ||
-                      t.Inst.repeatEnd > t.Inst.endTick + t.Inst.repeatDelay
+                      !q.Inst.repeatEnd ||
+                      q.Inst.repeatEnd > q.Inst.endTick + q.Inst.repeatDelay
                     )
-                      T = t.Inst.endTick + t.Inst.repeatDelay;
+                      r = q.Inst.endTick + q.Inst.repeatDelay;
                   } else
-                    q.needCleanUp &&
-                      (!t.Inst.repeatEnd ||
-                        t.Inst.repeatEnd > u.tick + t.Inst.repeatDelay) &&
-                      (T = u.tick + t.Inst.repeatDelay);
-                  if (T) {
-                    G.spamEffect({
-                      effect: t.effect,
+                    t.needCleanUp &&
+                      (!q.Inst.repeatEnd ||
+                        q.Inst.repeatEnd > u.tick + q.Inst.repeatDelay) &&
+                      (r = u.tick + q.Inst.repeatDelay);
+                  if (r) {
+                    z.spamEffect({
+                      effect: q.effect,
                       Inst: {
-                        effectID: t.Inst.effectID,
-                        duplicateID: t.Inst.duplicateID,
-                        startTick: T,
+                        effectID: q.Inst.effectID,
+                        duplicateID: q.Inst.duplicateID,
+                        startTick: r,
                         noDelay: !0,
                       },
-                      Init: t.Init,
+                      Init: q.Init,
                     });
-                    q._AlreadyRepeated = !0;
-                    q = 1;
+                    t._AlreadyRepeated = !0;
+                    t = 1;
                     break a;
                   }
                 }
-                q = 0;
+                t = 0;
               }
-              n += q;
-              l[m].noLifeTime
-                ? v.get(l[m]._Params.Init.ownerAID) ||
-                  (l[m].free && l[m].free(a), l.splice(m, 1), m--, n--)
-                : l[m].needCleanUp &&
-                  (l[m].free && l[m].free(a), l.splice(m, 1), m--, n--);
+              n += t;
+              m[l].noLifeTime
+                ? v.get(m[l]._Params.Init.ownerAID) ||
+                  (m[l].free && m[l].free(a), m.splice(l, 1), l--, n--)
+                : m[l].needCleanUp &&
+                  (m[l].free && m[l].free(a), m.splice(l, 1), l--, n--);
             }
             p.afterRender && p.afterRender(a);
-            0 === n && (p.free && p.free(a), delete z[g[h]]);
+            0 === n && (p.free && p.free(a), delete y[g[h]]);
           }
-        } else delete z[g[h]];
+        } else delete y[g[h]];
     };
-    G.endRepeat = (function () {
+    z.endRepeat = (function () {
       function a(a, b, c) {
         var d,
           e,
           f = Array.isArray(c) ? c : [c];
-        a = z[a];
+        a = y[a];
         e = a.length;
         for (d = 0; d < e; ++d)
           (!b || (b && a[d]._Params.Init.ownerAID === b)) &&
@@ -247,16 +247,16 @@ define(
             a[d]._Params.Inst.repeatEnd && (a[d]._Params.Inst.repeatEnd = !1));
       }
       return function (b, c, d) {
-        if (b && b.name in z) a(b.name, c, d);
+        if (b && b.name in y) a(b.name, c, d);
         else {
           var e,
-            f = Object.keys(z);
+            f = Object.keys(y);
           b = 0;
           for (e = f.length; b < e; ++b) a(f[b], c, d);
         }
       };
     })();
-    G.spam = function (a) {
+    z.spam = function (a) {
       if (a && B.effect) {
         var b = {
             effectId: -1,
@@ -299,7 +299,7 @@ define(
               e < b[c].duplicate;
               ++e
             )
-              G.spamEffect({
+              z.spamEffect({
                 effect: b[c],
                 Inst: {
                   effectID: a.effectId,
@@ -311,7 +311,7 @@ define(
         }
       }
     };
-    G.spamEffect = function (a) {
+    z.spamEffect = function (a) {
       var d;
       a.Inst.position = a.Init.position;
       a.Inst.otherPosition = a.Init.otherPosition;
@@ -350,7 +350,7 @@ define(
                 (a.effect.rand[1] - a.effect.rand[0]) * Math.random(),
             ),
           )),
-        t.setTimeout(
+        q.setTimeout(
           function () {
             D.playPosition(d + ".wav", a.Inst.position);
           },
@@ -394,22 +394,22 @@ define(
           b(a);
           break;
         case "CYLINDER":
-          G.add(new g(a.effect, a.Inst, a.Init), a);
+          z.add(new g(a.effect, a.Inst, a.Init), a);
           break;
         case "2D":
-          G.add(new k(a.effect, a.Inst, a.Init), a);
+          z.add(new l(a.effect, a.Inst, a.Init), a);
           break;
         case "3D":
-          G.add(new f(a.effect, a.Inst, a.Init), a);
+          z.add(new f(a.effect, a.Inst, a.Init), a);
           break;
         case "QuadHorn":
-          G.add(new H(a.effect, a.Inst, a.Init), a);
+          z.add(new O(a.effect, a.Inst, a.Init), a);
           break;
         case "GROUND":
-          G.add(new m(a.effect, a.Inst, a.Init), a);
+          z.add(new n(a.effect, a.Inst, a.Init), a);
           break;
         case "TRAP":
-          G.add(new n(a.effect, a.Inst, a.Init), a);
+          z.add(new k(a.effect, a.Inst, a.Init), a);
           break;
         case "FUNC":
           a.effect.func &&
@@ -418,11 +418,11 @@ define(
               : a.effect.func.call(this, a));
       }
     };
-    G.spamSkillZone = function (a, b, c, f, g) {
+    z.spamSkillZone = function (a, b, c, f, g) {
       var k = v.get(g),
-        m = [h.UNT_ICEWALL, h.UNT_REVERBERATION],
+        l = [h.UNT_ICEWALL, h.UNT_REVERBERATION],
         n = [h.UNT_PRE_WARPPORTAL],
-        p = [
+        t = [
           h.UNT_TRAP,
           h.UNT_BLASTMINE,
           h.UNT_SKIDTRAP,
@@ -453,28 +453,28 @@ define(
           if (!k.groundEffectId) return;
           k = k.groundEffectId;
         } else {
-          if (!(a in l)) return;
-          k = l[a];
+          if (!(a in m)) return;
+          k = m[a];
         }
         if (k in d) {
-          var t = v.get(f),
+          var q = v.get(f),
             r = !1;
-          t ||
-            ((t = new q()),
-            (t.GID = f),
-            (t.position = [b, c, A.getCellHeight(b, c)]),
-            (t.hideShadow = !0),
-            (t.objecttype = p.includes(a)
-              ? t.constructor.TYPE_TRAP
-              : m.includes(a)
-                ? t.constructor.TYPE_UNIT
+          q ||
+            ((q = new p()),
+            (q.GID = f),
+            (q.position = [b, c, A.getCellHeight(b, c)]),
+            (q.hideShadow = !0),
+            (q.objecttype = t.includes(a)
+              ? q.constructor.TYPE_TRAP
+              : l.includes(a)
+                ? q.constructor.TYPE_UNIT
                 : n.includes(a)
-                  ? t.constructor.TYPE_WARP
-                  : t.constructor.TYPE_EFFECT),
-            (t.creatorGID = g),
+                  ? q.constructor.TYPE_WARP
+                  : q.constructor.TYPE_EFFECT),
+            (q.creatorGID = g),
             (r = !0));
-          r && v.add(t);
-          G.remove(null, f);
+          r && v.add(q);
+          z.remove(null, f);
           a = {
             effectId: k,
             ownerAID: f,
@@ -484,18 +484,18 @@ define(
             duration: -1,
             otherAID: g,
           };
-          G.spam(a);
+          z.spam(a);
         }
       }
     };
-    G.spamSkill = function (a, b, c, d, f) {
+    z.spamSkill = function (a, b, c, d, f) {
       if (a in e) {
         if (e[a].effectId) {
           var g = Array.isArray(e[a].effectId)
             ? e[a].effectId
             : [e[a].effectId];
           g.forEach(function (a) {
-            G.spam({
+            z.spam({
               effectId: a,
               ownerAID: b,
               position: c,
@@ -510,7 +510,7 @@ define(
             ? e[a].effectIdOnCaster
             : [e[a].effectIdOnCaster]),
           g.forEach(function (a) {
-            G.spam({
+            z.spam({
               effectId: a,
               ownerAID: f,
               position: c,
@@ -520,14 +520,14 @@ define(
           }));
       }
     };
-    G.spamSkillSuccess = function (a, b, c, d) {
+    z.spamSkillSuccess = function (a, b, c, d) {
       if (a in e) {
         if (e[a].successEffectId) {
           var f = Array.isArray(e[a].successEffectId)
             ? e[a].successEffectId
             : [e[a].successEffectId];
           f.forEach(function (a) {
-            G.spam({ effectId: a, ownerAID: b, startTick: c, otherAID: d });
+            z.spam({ effectId: a, ownerAID: b, startTick: c, otherAID: d });
           });
         }
         e[a].successEffectIdOnCaster &&
@@ -535,28 +535,28 @@ define(
             ? e[a].successEffectIdOnCaster
             : [e[a].successEffectIdOnCaster]),
           f.forEach(function (a) {
-            G.spam({ effectId: a, ownerAID: d, startTick: c, otherAID: b });
+            z.spam({ effectId: a, ownerAID: d, startTick: c, otherAID: b });
           }));
       }
     };
-    G.spamSkillHit = function (a, b, c, d) {
+    z.spamSkillHit = function (a, b, c, d) {
       a in e &&
         e[a].hitEffectId &&
         (Array.isArray(e[a].hitEffectId)
           ? e[a].hitEffectId
           : [e[a].hitEffectId]
         ).forEach(function (a) {
-          G.spam({ effectId: a, ownerAID: b, startTick: c, otherAID: d });
+          z.spam({ effectId: a, ownerAID: b, startTick: c, otherAID: d });
         });
     };
-    G.spamSkillBeforeHit = function (a, b, c, d) {
+    z.spamSkillBeforeHit = function (a, b, c, d) {
       if (a in e) {
         if (e[a].beforeHitEffectId) {
           var f = Array.isArray(e[a].beforeHitEffectId)
             ? e[a].beforeHitEffectId
             : [e[a].beforeHitEffectId];
           f.forEach(function (a) {
-            G.spam({ effectId: a, ownerAID: b, startTick: c, otherAID: d });
+            z.spam({ effectId: a, ownerAID: b, startTick: c, otherAID: d });
           });
         }
         e[a].beforeHitEffectIdOnCaster &&
@@ -564,28 +564,28 @@ define(
             ? e[a].beforeHitEffectIdOnCaster
             : [e[a].beforeHitEffectIdOnCaster]),
           f.forEach(function (a) {
-            G.spam({ effectId: a, ownerAID: d, startTick: c, otherAID: b });
+            z.spam({ effectId: a, ownerAID: d, startTick: c, otherAID: b });
           }));
       }
     };
-    G.spamSkillCast = function (a, b, c, d) {
+    z.spamSkillCast = function (a, b, c, d) {
       a in e &&
         e[a].beginCastEffectId &&
         (Array.isArray(e[a].beginCastEffectId)
           ? e[a].beginCastEffectId
           : [e[a].beginCastEffectId]
         ).forEach(function (a) {
-          G.spam({ effectId: a, ownerAID: b, startTick: c, otherAID: d });
+          z.spam({ effectId: a, ownerAID: b, startTick: c, otherAID: d });
         });
     };
-    G.spamItem = function (a, b, c, d, e) {
+    z.spamItem = function (a, b, c, d, e) {
       if (a in r) {
         if (r[a].effectId) {
           var f = Array.isArray(r[a].effectId)
             ? r[a].effectId
             : [r[a].effectId];
           f.forEach(function (a) {
-            G.spam({
+            z.spam({
               effectId: a,
               ownerAID: b,
               position: c,
@@ -600,7 +600,7 @@ define(
             ? r[a].effectIdOnCaster
             : [r[a].effectIdOnCaster]),
           f.forEach(function (a) {
-            G.spam({
+            z.spam({
               effectId: a,
               ownerAID: e,
               position: c,
@@ -610,6 +610,6 @@ define(
           }));
       }
     };
-    return G;
+    return z;
   },
 );

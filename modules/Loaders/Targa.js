@@ -1,68 +1,68 @@
 define("Loaders/Targa", [], function () {
   function a() {}
-  function b(a, b, c, d, e, k, f, m, q, v) {
-    var g, p, n;
+  function b(a, b, c, d, e, l, f, n, p, v) {
+    var g, k, t;
     g = 0;
-    for (n = e; n !== f; n += k)
-      for (p = m; p !== v; p += q, g++)
+    for (t = e; t !== f; t += l)
+      for (k = n; k !== v; k += p, g++)
         ((e = b[g]),
-          (a[4 * (p + d * n) + 3] = 255),
-          (a[4 * (p + d * n) + 2] = c[3 * e + 0]),
-          (a[4 * (p + d * n) + 1] = c[3 * e + 1]),
-          (a[4 * (p + d * n) + 0] = c[3 * e + 2]));
+          (a[4 * (k + d * t) + 3] = 255),
+          (a[4 * (k + d * t) + 2] = c[3 * e + 0]),
+          (a[4 * (k + d * t) + 1] = c[3 * e + 1]),
+          (a[4 * (k + d * t) + 0] = c[3 * e + 2]));
     return a;
   }
-  function c(a, b, c, d, e, k, f, m, q, v) {
-    var g, p;
+  function c(a, b, c, d, e, l, f, n, p, v) {
+    var g, k;
     c = 0;
-    for (p = e; p !== f; p += k)
-      for (g = m; g !== v; g += q, c += 2)
+    for (k = e; k !== f; k += l)
+      for (g = n; g !== v; g += p, c += 2)
         ((e = b[c + 0] | (b[c + 1] << 8)),
-          (a[4 * (g + d * p) + 0] = (e & 31744) >> 7),
-          (a[4 * (g + d * p) + 1] = (e & 992) >> 2),
-          (a[4 * (g + d * p) + 2] = (e & 31) >> 3),
-          (a[4 * (g + d * p) + 3] = e & 32768 ? 0 : 255));
+          (a[4 * (g + d * k) + 0] = (e & 31744) >> 7),
+          (a[4 * (g + d * k) + 1] = (e & 992) >> 2),
+          (a[4 * (g + d * k) + 2] = (e & 31) >> 3),
+          (a[4 * (g + d * k) + 3] = e & 32768 ? 0 : 255));
     return a;
   }
-  function d(a, b, c, d, e, k, f, m, q, v) {
+  function d(a, b, c, d, e, l, f, n, p, v) {
     var g;
     c = 0;
-    for (g = e; g !== f; g += k)
-      for (e = m; e !== v; e += q, c += 3)
+    for (g = e; g !== f; g += l)
+      for (e = n; e !== v; e += p, c += 3)
         ((a[4 * (e + d * g) + 3] = 255),
           (a[4 * (e + d * g) + 2] = b[c + 0]),
           (a[4 * (e + d * g) + 1] = b[c + 1]),
           (a[4 * (e + d * g) + 0] = b[c + 2]));
     return a;
   }
-  function e(a, b, c, d, e, k, f, m, q, v) {
+  function e(a, b, c, d, e, l, f, n, p, v) {
     var g;
     c = 0;
-    for (g = e; g !== f; g += k)
-      for (e = m; e !== v; e += q, c += 4)
+    for (g = e; g !== f; g += l)
+      for (e = n; e !== v; e += p, c += 4)
         ((a[4 * (e + d * g) + 2] = b[c + 0]),
           (a[4 * (e + d * g) + 1] = b[c + 1]),
           (a[4 * (e + d * g) + 0] = b[c + 2]),
           (a[4 * (e + d * g) + 3] = b[c + 3]));
     return a;
   }
-  function l(a, b, c, d, e, k, f, m, q, v) {
-    var g, p;
+  function m(a, b, c, d, e, l, f, n, p, v) {
+    var g, k;
     c = 0;
-    for (p = e; p !== f; p += k)
-      for (g = m; g !== v; g += q, c++)
+    for (k = e; k !== f; k += l)
+      for (g = n; g !== v; g += p, c++)
         ((e = b[c]),
-          (a[4 * (g + d * p) + 0] = e),
-          (a[4 * (g + d * p) + 1] = e),
-          (a[4 * (g + d * p) + 2] = e),
-          (a[4 * (g + d * p) + 3] = 255));
+          (a[4 * (g + d * k) + 0] = e),
+          (a[4 * (g + d * k) + 1] = e),
+          (a[4 * (g + d * k) + 2] = e),
+          (a[4 * (g + d * k) + 3] = 255));
     return a;
   }
-  function h(a, b, c, d, e, k, f, m, q, v) {
+  function h(a, b, c, d, e, l, f, n, p, v) {
     var g;
     c = 0;
-    for (g = e; g !== f; g += k)
-      for (e = m; e !== v; e += q, c += 2)
+    for (g = e; g !== f; g += l)
+      for (e = n; e !== v; e += p, c += 2)
         ((a[4 * (e + d * g) + 0] = b[c + 0]),
           (a[4 * (e + d * g) + 1] = b[c + 0]),
           (a[4 * (e + d * g) + 2] = b[c + 0]),
@@ -159,56 +159,56 @@ define("Loaders/Targa", [], function () {
       (c += d));
     var d = this.header.pixelDepth >> 3,
       e = this.header.width * this.header.height,
-      p = e * d;
+      t = e * d;
     if (this.header.hasEncoding) {
-      var k, f, m, q;
-      q = new Uint8Array(p);
-      m = new Uint8Array(d);
-      for (e = 0; e < p;)
-        if (((k = b[c++]), (f = (k & 127) + 1), k & 128)) {
-          for (k = 0; k < d; ++k) m[k] = b[c++];
-          for (k = 0; k < f; ++k) (q.set(m, e), (e += d));
-        } else for (f *= d, k = 0; k < f; ++k) q[e++] = b[c++];
-      this.imageData = q;
+      var l, f, n, p;
+      p = new Uint8Array(t);
+      n = new Uint8Array(d);
+      for (e = 0; e < t;)
+        if (((l = b[c++]), (f = (l & 127) + 1), l & 128)) {
+          for (l = 0; l < d; ++l) n[l] = b[c++];
+          for (l = 0; l < f; ++l) (p.set(n, e), (e += d));
+        } else for (f *= d, l = 0; l < f; ++l) p[e++] = b[c++];
+      this.imageData = p;
     } else
-      this.imageData = b.subarray(c, c + (this.header.hasColorMap ? e : p));
+      this.imageData = b.subarray(c, c + (this.header.hasColorMap ? e : t));
   };
   a.prototype.getImageData = function (r) {
-    var t = this.header.width,
-      n = this.header.height,
+    var q = this.header.width,
+      k = this.header.height,
       g = (this.header.flags & a.Origin.MASK) >> a.Origin.SHIFT,
-      p,
-      k,
+      t,
+      l,
       f,
-      m,
-      q;
+      n,
+      p;
     r ||
       (r = document
         ? document
             .createElement("canvas")
             .getContext("2d")
-            .createImageData(t, n)
-        : { width: t, height: n, data: new Uint8ClampedArray(t * n * 4) });
+            .createImageData(q, k)
+        : { width: q, height: k, data: new Uint8ClampedArray(q * k * 4) });
     g === a.Origin.TOP_LEFT || g === a.Origin.TOP_RIGHT
-      ? ((f = 0), (m = 1))
-      : ((f = n - 1), (n = m = -1));
+      ? ((f = 0), (n = 1))
+      : ((f = k - 1), (k = n = -1));
     g === a.Origin.TOP_LEFT || g === a.Origin.BOTTOM_LEFT
-      ? ((g = 0), (p = 1), (k = t))
-      : ((g = t - 1), (k = p = -1));
+      ? ((g = 0), (t = 1), (l = q))
+      : ((g = q - 1), (l = t = -1));
     switch (this.header.pixelDepth) {
       case 8:
-        q = this.header.isGreyColor ? l : b;
+        p = this.header.isGreyColor ? m : b;
         break;
       case 16:
-        q = this.header.isGreyColor ? h : c;
+        p = this.header.isGreyColor ? h : c;
         break;
       case 24:
-        q = d;
+        p = d;
         break;
       case 32:
-        q = e;
+        p = e;
     }
-    q(r.data, this.imageData, this.palette, t, f, m, n, g, p, k);
+    p(r.data, this.imageData, this.palette, q, f, n, k, g, t, l);
     return r;
   };
   a.prototype.getCanvas = function () {

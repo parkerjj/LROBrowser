@@ -7,7 +7,7 @@ define("Core/Thread", ["require", "Core/Configs"], function (a, b) {
   }
   var d = {},
     e = {},
-    l = 0,
+    m = 0,
     h = [],
     r = null;
   return {
@@ -15,7 +15,7 @@ define("Core/Thread", ["require", "Core/Configs"], function (a, b) {
       var a = { type: "", data: null, uid: 0 };
       return function (b, c, e) {
         var g = 0;
-        e && ((g = ++l), (d[g] = e));
+        e && ((g = ++m), (d[g] = e));
         a.type = b;
         a.data = c;
         a.uid = g;

@@ -26,7 +26,7 @@ define("Renderer/Entity/EntityDialog", [
     this.canvas.style.position = "absolute";
     this.canvas.style.zIndex = 1;
   }
-  var l = a.vec4,
+  var m = a.vec4,
     h = new Float32Array(4),
     r = new Float32Array(2);
   e.prototype.set = function (a, e) {
@@ -34,22 +34,22 @@ define("Renderer/Entity/EntityDialog", [
     this.tick = c.tick;
     this.display = !0;
     var g = this.ctx,
-      p = [],
-      k = 0,
+      k = [],
+      l = 0,
       f,
-      m,
-      q = e || "white";
+      n,
+      p = e || "white";
     for (g.font = "12px serif"; a.length;) {
       for (e = a.length; 250 < g.measureText(a.substr(0, e)).width;) e--;
-      m = a.substr(0, e);
+      n = a.substr(0, e);
       if (e !== a.length)
-        for (f = 0; -1 !== m.indexOf(" ", f);) f = m.indexOf(" ", f) + 1;
-      p.push(m.substr(0, f || m.length));
-      k = Math.max(k, g.measureText(p[p.length - 1]).width);
-      a = a.substr(p[p.length - 1].length, a.length);
+        for (f = 0; -1 !== n.indexOf(" ", f);) f = n.indexOf(" ", f) + 1;
+      k.push(n.substr(0, f || n.length));
+      l = Math.max(l, g.measureText(k[k.length - 1]).width);
+      a = a.substr(k[k.length - 1].length, a.length);
     }
-    g.canvas.width = 14 + k;
-    g.canvas.height = 8 + 17 * p.length;
+    g.canvas.width = 14 + l;
+    g.canvas.height = 8 + 17 * k.length;
     g.font = "12px serif";
     g.fillStyle = "rgba(0,0,0,0.4)";
     g.fillRect(0, 0, g.canvas.width, g.canvas.height);
@@ -57,11 +57,11 @@ define("Renderer/Entity/EntityDialog", [
     d(g, 0.5, 0.5, g.canvas.width - 1, g.canvas.height - 1, 2);
     g.stroke();
     e = 0;
-    for (f = p.length; e < f; ++e)
+    for (f = k.length; e < f; ++e)
       ((g.fillStyle = "black"),
-        g.fillText(p[e], 8, 17 + 17 * e),
-        (g.fillStyle = q),
-        g.fillText(p[e], 7, 16 + 17 * e));
+        g.fillText(k[e], 8, 17 + 17 * e),
+        (g.fillStyle = p),
+        g.fillText(k[e], 7, 16 + 17 * e));
     this.timeout && b.clearTimeout(this.timeout);
     this.timeout = b.setTimeout(
       function () {
@@ -88,7 +88,7 @@ define("Renderer/Entity/EntityDialog", [
     h[3] = 1;
     r[0] = c.width / 2;
     r[1] = c.height / 2;
-    l.transformMat4(h, h, a);
+    m.transformMat4(h, h, a);
     a = 0 === h[3] ? 1 : 1 / h[3];
     h[0] = r[0] + Math.round(r[0] * h[0] * a);
     h[1] = r[1] - Math.round(r[1] * h[1] * a);

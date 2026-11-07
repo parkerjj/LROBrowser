@@ -8,9 +8,9 @@ define(
       c = a("Core/Client"),
       d = a("UI/UIManager"),
       e = a("UI/UIComponent"),
-      l = a("text!./CardIllustration.html");
+      m = a("text!./CardIllustration.html");
     a = a("text!./CardIllustration.css");
-    e = new e("CardIllustration", l, a);
+    e = new e("CardIllustration", m, a);
     e.init = function () {
       this.ui.find(".close").click(this.remove.bind(this));
       this.draggable();

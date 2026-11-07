@@ -19,11 +19,11 @@ define(
           f.reqUnEquipPet();
           break;
         default:
-          var a = q[this.value];
+          var a = p[this.value];
           if (a) {
             for (var b = "", c = 1; c < a.length; c += 2)
               ((b +=
-                l.getItemInfo(a[c]).identifiedDiSPlayName + "*" + a[c + 1]),
+                m.getItemInfo(a[c]).identifiedDiSPlayName + "*" + a[c + 1]),
                 c + 2 < a.length && (b += "\uff0c"));
             g.showPromptBox(
               "\u8fdb\u5316\u9700\u8981\u6750\u6599(" +
@@ -51,18 +51,18 @@ define(
       a.stopImmediatePropagation();
       return !1;
     }
-    var l = a("DB/DBManager"),
+    var m = a("DB/DBManager"),
       h = a("DB/Pets/PetEvolution"),
       r = a("Core/Client"),
-      t = a("Core/Preferences"),
-      n = a("Renderer/Renderer"),
+      q = a("Core/Preferences"),
+      k = a("Renderer/Renderer"),
       g = a("UI/UIManager"),
-      p = a("UI/UIComponent"),
-      k = a("text!./PetInformations.html");
+      t = a("UI/UIComponent"),
+      l = a("text!./PetInformations.html");
     a = a("text!./PetInformations.css");
-    var f = new p("PetInformations", k, a),
-      m = t.get("PetInformations", { x: 100, y: 200, show: !1 }, 1),
-      q = {};
+    var f = new t("PetInformations", l, a),
+      n = q.get("PetInformations", { x: 100, y: 200, show: !1 }, 1),
+      p = {};
     f.init = function () {
       this.draggable(this.ui.find(".titlebar"));
       this.ui.find(".base").mousedown(e);
@@ -71,15 +71,15 @@ define(
       this.ui.find(".command").change(b);
       this.ui.hide();
       this.ui.css({
-        top: Math.min(Math.max(0, m.y), n.height - this.ui.height()),
-        left: Math.min(Math.max(0, m.x), n.width - this.ui.width()),
+        top: Math.min(Math.max(0, n.y), k.height - this.ui.height()),
+        left: Math.min(Math.max(0, n.x), k.width - this.ui.width()),
       });
     };
     f.onRemove = function () {
-      m.show = this.ui.is(":visible");
-      m.y = parseInt(this.ui.css("top"), 10);
-      m.x = parseInt(this.ui.css("left"), 10);
-      m.save();
+      n.show = this.ui.is(":visible");
+      n.y = parseInt(this.ui.css("top"), 10);
+      n.x = parseInt(this.ui.css("left"), 10);
+      n.save();
     };
     f.onShortCut = function (a) {
       if (this.ui)
@@ -89,15 +89,15 @@ define(
         }
     };
     f.setInformations = function (a) {
-      q = {};
+      p = {};
       this.ui.find(".command .evolution").remove();
       this.ui.find(".name").val(a.szName);
       this.ui.find(".level").text(a.nLevel);
       this.setHunger(a.nFullness);
       this.setIntimacy(a.nRelationship);
-      this.ui.find(".accessory").text(l.getMessage(a.ITID ? 598 : 600));
+      this.ui.find(".accessory").text(m.getMessage(a.ITID ? 598 : 600));
       r.loadFile(
-        l.getPetIllustPath(a.job),
+        m.getPetIllustPath(a.job),
         function (a) {
           this.ui.find(".content").css("backgroundImage", "url(" + a + ")");
         }.bind(this),
@@ -111,13 +111,13 @@ define(
             .find(".name, .modify")
             .removeClass("disabled")
             .attr("disabled", !1);
-      if ((q = h[a.job])) {
+      if ((p = h[a.job])) {
         a = this.ui.find(".command");
-        for (var b = Object.keys(q), c = 0; c < b.length; c++)
+        for (var b = Object.keys(p), c = 0; c < b.length; c++)
           a.append(
             jQuery("\x3coption/\x3e")
               .addClass("evolution")
-              .text("\u8fdb\u5316 - " + l.getmobData(b[c]).kName)
+              .text("\u8fdb\u5316 - " + m.getmobData(b[c]).kName)
               .val(b[c]),
           );
       }
@@ -126,7 +126,7 @@ define(
       this.ui
         .find(".intimacy")
         .text(
-          l.getMessage(
+          m.getMessage(
             100 > a ? 672 : 250 > a ? 673 : 600 > a ? 669 : 900 > a ? 674 : 675,
           ),
         );
@@ -135,7 +135,7 @@ define(
       this.ui
         .find(".hunger")
         .text(
-          l.getMessage(
+          m.getMessage(
             10 > a ? 667 : 25 > a ? 668 : 75 > a ? 669 : 90 > a ? 670 : 671,
           ),
         );

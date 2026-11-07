@@ -30,37 +30,37 @@ define(
         ? (c + a) >> 1
         : 0;
     }
-    var l = a("Utils/jquery"),
+    var m = a("Utils/jquery"),
       h = a("Core/Context"),
       r = a("Core/Events"),
-      t = a("Renderer/Camera"),
-      n = a("Controls/MouseEventHandler"),
+      q = a("Renderer/Camera"),
+      k = a("Controls/MouseEventHandler"),
       g = a("Controls/KeyEventHandler"),
-      p = {},
-      k = !1,
+      t = {},
+      l = !1,
       f,
-      m,
-      q,
+      n,
+      p,
       v,
       u,
       A = -1;
-    p.init = function () {};
+    t.init = function () {};
     var D = (function () {
       var a = !1;
       return function () {
         a ||
-          ((l.fn.focus = function () {}),
-          (l.fn.select = function () {}),
+          ((m.fn.focus = function () {}),
+          (m.fn.select = function () {}),
           (a = !0));
       };
     })();
     a = (function () {
       function a() {
-        if (!k) {
+        if (!l) {
           A = -1;
-          if (p.onTouchStart) p.onTouchStart();
-          if (!u && p.onTouchEnd) p.onTouchEnd();
-          n.intersect = u;
+          if (t.onTouchStart) t.onTouchStart();
+          if (!u && t.onTouchEnd) t.onTouchEnd();
+          k.intersect = u;
         }
       }
       return function (d) {
@@ -69,10 +69,10 @@ define(
         d.stopImmediatePropagation();
         -1 < A && (r.clearTimeout(A), (A = -1));
         if (1 < v.length)
-          return ((f = b(v)), (m = c(v)), (q = t.angle[1]), (k = !0), !1);
-        n.screen.x = v[0].pageX;
-        n.screen.y = v[0].pageY;
-        u = n.intersect = !0;
+          return ((f = b(v)), (n = c(v)), (p = q.angle[1]), (l = !0), !1);
+        k.screen.x = v[0].pageX;
+        k.screen.y = v[0].pageY;
+        u = k.intersect = !0;
         A = r.setTimeout(a, 200);
         return !1;
       };
@@ -80,41 +80,41 @@ define(
     if (800 >= Math.max(screen.availHeight, screen.availWidth))
       if (h.Is.APP) h.requestFullScreen();
       else
-        l(window).on("click", function () {
+        m(window).on("click", function () {
           h.isFullScreen() || h.requestFullScreen();
         });
-    l(window)
+    m(window)
       .on("touchstart", a)
       .on("touchend", function (a) {
-        if (k) ((k = !1), (g.SHIFT = !1), t.rotate(!1), t.save());
+        if (l) ((l = !1), (g.SHIFT = !1), q.rotate(!1), q.save());
         else if (-1 < A) u = !1;
         else {
-          if (p.onTouchEnd) p.onTouchEnd();
-          n.intersect = !1;
+          if (t.onTouchEnd) t.onTouchEnd();
+          k.intersect = !1;
         }
       })
       .on("touchmove", function (a) {
         a.stopImmediatePropagation();
-        var p = a.originalEvent.touches;
-        n.screen.x = p[0].pageX;
-        n.screen.y = p[0].pageY;
-        if (k) {
-          a = b(p) - f;
-          var h = c(p) - m + q,
-            l = Math.abs(d(v, p)),
-            p = Math.abs(e(v, p));
-          !t.action.active && (10 < l || 10 < p)
-            ? ((g.SHIFT = p > l), t.rotate(!0))
+        var h = a.originalEvent.touches;
+        k.screen.x = h[0].pageX;
+        k.screen.y = h[0].pageY;
+        if (l) {
+          a = b(h) - f;
+          var t = c(h) - n + p,
+            m = Math.abs(d(v, h)),
+            h = Math.abs(e(v, h));
+          !q.action.active && (10 < m || 10 < h)
+            ? ((g.SHIFT = h > m), q.rotate(!0))
             : (10 < Math.abs(a) &&
-                ((t.zoomFinal += 0.1 * a),
-                (t.zoomFinal = Math.min(
-                  t.zoomFinal,
-                  Math.abs(t.altitudeTo - t.altitudeFrom) * t.MAX_ZOOM,
+                ((q.zoomFinal += 0.1 * a),
+                (q.zoomFinal = Math.min(
+                  q.zoomFinal,
+                  Math.abs(q.altitudeTo - q.altitudeFrom) * q.MAX_ZOOM,
                 )),
-                (t.zoomFinal = Math.max(t.zoomFinal, 2))),
-              h && (t.angleFinal[1] = h));
+                (q.zoomFinal = Math.max(q.zoomFinal, 2))),
+              t && (q.angleFinal[1] = t));
         }
       });
-    return p;
+    return t;
   },
 );

@@ -4,10 +4,10 @@ define(
     " ",
   ),
   function (a) {
-    function b(a, b, c, d, t) {
+    function b(a, b, c, d, q) {
       this.lineCheck = !0;
       this.AID = d;
-      this.tAID = t;
+      this.tAID = q;
       this.position = a;
       this._position = b;
       this.alpha = c.alphaMax ? c.alphaMax : 1;
@@ -72,7 +72,7 @@ define(
     b.free = function (a) {
       d && (a.deleteProgram(d), (d = null));
     };
-    b.beforeRender = function (a, b, c, r, t) {
+    b.beforeRender = function (a, b, c, r, q) {
       r = d.uniform;
       a.useProgram(d);
       a.uniformMatrix4fv(r.uModelViewMat, !1, b);

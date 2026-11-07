@@ -66,58 +66,58 @@ define("Renderer/Entity/EntityAttachments", [
     var a = new Float32Array(4),
       b = new Float32Array([1, 1, 1, 1]);
     return function (d) {
-      var e, h;
-      h = this.list.length;
+      var e, k;
+      k = this.list.length;
       a.set(this.entity.effectColor);
       this.entity.effectColor.set(b);
-      for (e = 0; e < h; ++e)
+      for (e = 0; e < k; ++e)
         this.renderAttachment(this.list[e], d) &&
-          (this.removeIndex(e), e--, h--);
+          (this.removeIndex(e), e--, k--);
       c.depth = 0;
       this.entity.effectColor.set(a);
     };
   })();
   e.prototype.renderAttachment = (function () {
     var b = new Int16Array(2);
-    return function (e, l) {
-      if (!(e.startTick > l)) {
+    return function (e, m) {
+      if (!(e.startTick > m)) {
         var h,
-          n,
+          k,
           g,
-          p,
-          k = !1;
-        n = a.loadFile(e.spr);
+          t,
+          l = !1;
+        k = a.loadFile(e.spr);
         g = a.loadFile(e.act);
-        if (!n || !g) return k;
+        if (!k || !g) return l;
         this.entity.effectColor[3] = e.opacity;
         e.position
           ? e.position && (b = e.position)
           : (b[1] = e.head ? -100 : 0);
-        p = e.direction
+        t = e.direction
           ? (d.direction + this.entity.direction + 8) % 8
           : e.frame;
-        p %= g.actions.length;
-        h = g.actions[p].animations;
-        g = e.delay || g.actions[p].delay;
+        t %= g.actions.length;
+        h = g.actions[t].animations;
+        g = e.delay || g.actions[t].delay;
         c.depth = e.depth;
         "animationId" in e
-          ? (l = h[e.animationId].layers)
+          ? (m = h[e.animationId].layers)
           : e.repeat
-            ? (l = h[Math.floor((l - e.startTick) / g) % h.length].layers)
+            ? (m = h[Math.floor((m - e.startTick) / g) % h.length].layers)
             : 0 < e.duplicate
-              ? ((g = Math.floor((l - e.startTick) / g) % h.length),
-                (l = h[g].layers),
+              ? ((g = Math.floor((m - e.startTick) / g) % h.length),
+                (m = h[g].layers),
                 g == h.length - 1 && e.duplicate--)
               : ((g = Math.min(
-                  Math.floor((l - e.startTick) / g),
+                  Math.floor((m - e.startTick) / g),
                   h.length - 1,
                 )),
-                (l = h[g].layers),
-                g !== h.length - 1 || e.stopAtEnd || (k = !0));
+                (m = h[g].layers),
+                g !== h.length - 1 || e.stopAtEnd || (l = !0));
         e = 0;
-        for (h = l.length; e < h; ++e)
-          this.entity.renderLayer(l[e], n, n, 1, b, !1);
-        return k;
+        for (h = m.length; e < h; ++e)
+          this.entity.renderLayer(m[e], k, k, 1, b, !1);
+        return l;
       }
     };
   })();

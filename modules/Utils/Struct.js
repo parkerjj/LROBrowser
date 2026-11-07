@@ -5,12 +5,12 @@ define("Utils/Struct", [], function () {
       c,
       d = 0,
       e,
-      l,
+      m,
       h,
       r,
-      t = {};
-    l = arguments.length;
-    for (c = 0; c < l; ++c) {
+      q = {};
+    m = arguments.length;
+    for (c = 0; c < m; ++c) {
       a = arguments[c].match(
         /(unsigned\s)?(bool|char|short|int|long|float|double)\s([a-zA-Z0-9_-]+)(\[(\d+)\])?;?/,
       );
@@ -52,9 +52,9 @@ define("Utils/Struct", [], function () {
       }
       r = "get" + (b ? "U" + r : r.charAt(0).toUpperCase() + r.substr(1));
       d += e * a;
-      t[h] = { func: r, count: a };
+      q[h] = { func: r, count: a };
     }
-    this._list = t;
+    this._list = q;
     this.size = d;
   };
 });

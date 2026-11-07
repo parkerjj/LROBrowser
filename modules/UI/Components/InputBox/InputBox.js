@@ -13,12 +13,12 @@ define(
     var c = a("Utils/jquery"),
       d = a("Renderer/Renderer"),
       e = a("Controls/KeyEventHandler"),
-      l = a("DB/DBManager"),
+      m = a("DB/DBManager"),
       h = a("UI/UIManager"),
       r = a("UI/UIComponent"),
-      t = a("text!./InputBox.html");
+      q = a("text!./InputBox.html");
     a = a("text!./InputBox.css");
-    r = new r("InputBox", t, a);
+    r = new r("InputBox", q, a);
     r.needFocus = !1;
     r.init = function () {
       this.ui.css("zIndex", 99);
@@ -54,7 +54,7 @@ define(
       switch (a) {
         case "number":
           this.ui.addClass("number");
-          this.ui.find(".text").text(l.getMessage(1259));
+          this.ui.find(".text").text(m.getMessage(1259));
           this.ui.find("input").attr("type", "text");
           c = c || "";
           break;
@@ -70,7 +70,7 @@ define(
           break;
         case "mail":
           (this.ui.removeClass("number"),
-            this.ui.find(".text").text(l.getMessage(300)),
+            this.ui.find(".text").text(m.getMessage(300)),
             this.ui.find("input").attr("type", "password"));
       }
       "undefined" !== typeof c && this.ui.find("input").val(c).select();

@@ -27,7 +27,7 @@ define(
     }
     function d(a, b, c, d, e) {
       var f = this.walk.path;
-      c = l.search(a | 0, b | 0, c | 0, d | 0, e || 0, f);
+      c = m.search(a | 0, b | 0, c | 0, d | 0, e || 0, f);
       this.walk.index = 2;
       this.walk.total = 2 * c;
       !c ||
@@ -51,15 +51,15 @@ define(
         c = b.path,
         d = b.index,
         e = b.total,
-        l,
+        m,
         u,
         A,
         D = h.tick;
       if (d < e) {
         for (; d < e;) {
-          l = c[d + 0] - b.pos[0];
+          m = c[d + 0] - b.pos[0];
           u = c[d + 1] - b.pos[1];
-          A = l && u ? b.speed / 0.7 : b.speed;
+          A = m && u ? b.speed / 0.7 : b.speed;
           if (D - b.tick <= A) break;
           b.tick += A;
           b.pos[0] = c[d + 0];
@@ -69,17 +69,17 @@ define(
         c = Math.min(A, D - b.tick);
         b.index = d;
         c || (c = 150);
-        a[0] = b.pos[0] + l / (A / c);
+        a[0] = b.pos[0] + m / (A / c);
         a[1] = b.pos[1] + u / (A / c);
         a[2] = r.getCellHeight(a[0], a[1]);
         this._position[0] = a[0];
         this._position[1] = a[1];
         this._position[2] = a[2] + 3;
-        t.Entity.GID == this.GID &&
-          n.setPosition(Math.round(a[0]), Math.round(a[1]));
+        q.Entity.GID == this.GID &&
+          k.setPosition(Math.round(a[0]), Math.round(a[1]));
         if (d < e) {
           this.direction =
-            g[(0 < l ? 1 : 0 > l ? -1 : 0) + 1][
+            g[(0 < m ? 1 : 0 > m ? -1 : 0) + 1][
               (0 < u ? 1 : 0 > u ? -1 : 0) + 1
             ];
           return;
@@ -99,13 +99,13 @@ define(
       this._position[0] = a[0];
       this._position[1] = a[1];
       this._position[2] = a[2] + 3;
-      t.Entity.GID == this.GID && n.setPosition(a[0], a[1]);
+      q.Entity.GID == this.GID && k.setPosition(a[0], a[1]);
     }
-    var l = a("Utils/PathFinding"),
+    var m = a("Utils/PathFinding"),
       h = a("Renderer/Renderer"),
       r = a("Renderer/Map/Altitude"),
-      t = a("Engine/SessionStorage"),
-      n = a("UI/Components/MiniMap/MiniMap"),
+      q = a("Engine/SessionStorage"),
+      k = a("UI/Components/MiniMap/MiniMap"),
       g = [
         [1, 2, 3],
         [0, 0, 4],

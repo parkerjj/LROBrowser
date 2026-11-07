@@ -20,20 +20,20 @@ define(
       a("./EntityAttachments").call(this);
       a("./EntityAnimations").call(this);
       this.boundingRect = { x1: 0, y1: 0, x2: 0, y2: 0 };
-      this.matrix = n.create();
-      this.position = t.create();
-      this._position = t.create();
+      this.matrix = k.create();
+      this.position = q.create();
+      this._position = q.create();
       b && (this.clean(), this.set(b));
     }
     var c = a("Renderer/Renderer"),
       d = a("Renderer/Map/Altitude"),
       e = a("Engine/SessionStorage"),
-      l = a("Core/Configs"),
+      m = a("Core/Configs"),
       h = a("Core/Client"),
       r = a("Utils/gl-matrix"),
-      t = r.vec3,
-      n = r.mat4;
-    l.get("ClientVer");
+      q = r.vec3,
+      k = r.mat4;
+    m.get("ClientVer");
     b.TYPE_EFFECT = -3;
     b.TYPE_UNKNOWN = -2;
     b.TYPE_WARP = -1;
@@ -149,7 +149,7 @@ define(
     b.prototype.ghost = { xSize: 1, ySize: 1 };
     b.prototype.set = function (g) {
       if ("GoldpointManager" == g.name) return ((e.goldpcid = g.GID), !1);
-      var p, k, f;
+      var k, l, f;
       this.direction = 4;
       this.setAction({
         action: this.ACTION.IDLE,
@@ -163,10 +163,10 @@ define(
       this.sex = g.hasOwnProperty("sex") ? g.sex : this._sex;
       this.job = g.hasOwnProperty("job") ? g.job : this._job;
       this.clothes = 0;
-      p = Object.keys(g);
-      f = p.length;
-      for (k = 0; k < f; ++k)
-        switch (p[k]) {
+      k = Object.keys(g);
+      f = k.length;
+      for (l = 0; l < f; ++l)
+        switch (k[l]) {
           case "objecttype":
             this.objecttype = 45 === g.job ? b.TYPE_WARP : g.objecttype;
             a("./EntityAction").call(this);
@@ -262,10 +262,10 @@ define(
                   (this.effectColor[2] = 1));
             break;
           default:
-            (b.prototype.hasOwnProperty(p[k]) ||
-              b.prototype.hasOwnProperty("_" + p[k])) &&
-              this[p[k]] != g[p[k]] &&
-              (this[p[k]] = g[p[k]]);
+            (b.prototype.hasOwnProperty(k[l]) ||
+              b.prototype.hasOwnProperty("_" + k[l])) &&
+              this[k[l]] != g[k[l]] &&
+              (this[k[l]] = g[k[l]]);
         }
       -1 < this.life.hp &&
         -1 < this.life.hp_max &&

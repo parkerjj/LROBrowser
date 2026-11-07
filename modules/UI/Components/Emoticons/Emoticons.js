@@ -6,15 +6,15 @@ define(
   function (a) {
     function b(a) {
       return function () {
-        this.className.match(/disabled/) || q.movePage(a);
+        this.className.match(/disabled/) || p.movePage(a);
       };
     }
     function c() {
-      q.ui.hide();
+      p.ui.hide();
     }
     function d() {
       var a = this.getAttribute("data-index");
-      (a = l.names[a]) &&
+      (a = m.names[a]) &&
         !f.ui.find(".battlemode").is(":visible") &&
         f.ui
           .find(".input .message")
@@ -22,54 +22,54 @@ define(
           .select();
     }
     function e() {
-      if (G)
-        p.showMessageBox("You are temporarily restricted from clicking.", "ok");
+      if (z)
+        t.showMessageBox("You are temporarily restricted from clicking.", "ok");
       else if (
-        (z++,
-        1 === z &&
+        (y++,
+        1 === y &&
           setTimeout(function () {
-            z = 0;
+            y = 0;
           }, 5e3),
-        30 < z)
+        30 < y)
       )
-        ((G = !0),
-          p.showMessageBox(
+        ((z = !0),
+          t.showMessageBox(
             "Click limit exceeded. You are restricted for 10s.",
             "ok",
           ),
           setTimeout(function () {
-            G = !1;
-            p.showMessageBox("Restriction lifted. You can click again.", "ok");
+            z = !1;
+            t.showMessageBox("Restriction lifted. You can click again.", "ok");
           }, 1e4));
       else {
         var a = this.getAttribute("data-index"),
-          a = l.names[a];
+          a = m.names[a];
         f.ui.find(".input .message").val("/" + a);
         f.submit();
       }
     }
-    var l = a("DB/Emotions"),
+    var m = a("DB/Emotions"),
       h = a("Core/Client"),
       r = a("Core/Preferences"),
-      t = a("Renderer/Renderer"),
-      n = a("Renderer/SpriteRenderer"),
+      q = a("Renderer/Renderer"),
+      k = a("Renderer/SpriteRenderer"),
       g = a("Renderer/Entity/Entity"),
-      p = a("UI/UIManager"),
-      k = a("UI/UIComponent"),
+      t = a("UI/UIManager"),
+      l = a("UI/UIComponent"),
       f = a("UI/Components/ChatBox/ChatBox"),
-      m = a("text!./Emoticons.html");
+      n = a("text!./Emoticons.html");
     a = a("text!./Emoticons.css");
-    var q = new k("Emoticons", m, a),
+    var p = new l("Emoticons", n, a),
       v = 0,
       u = 0,
-      A = Object.keys(l.order).length,
+      A = Object.keys(m.order).length,
       D,
       B,
-      H = new g(),
+      O = new g(),
       C = r.get("Emoticons", { x: 600, y: 200, show: !1 }, 1),
-      z = 0,
-      G = !1;
-    q.init = function () {
+      y = 0,
+      z = !1;
+    p.init = function () {
       h.loadFiles(
         [
           "data/sprite/\u00c0\u00cc\u00c6\u00d1\u00c6\u00ae/emotion.act",
@@ -97,20 +97,20 @@ define(
       this.ui.find(".next").click(b(1));
       this.draggable(this.ui.find(".titlebar"));
     };
-    q.onAppend = function () {
+    p.onAppend = function () {
       this.ui.hide();
       this.ui.css({
-        top: Math.min(Math.max(0, C.y), (t.height - this.ui.height()) / 2),
-        left: Math.min(Math.max(0, C.x), (t.width - this.ui.width()) / 2),
+        top: Math.min(Math.max(0, C.y), (q.height - this.ui.height()) / 2),
+        left: Math.min(Math.max(0, C.x), (q.width - this.ui.width()) / 2),
       });
     };
-    q.onRemove = function () {
+    p.onRemove = function () {
       C.show = this.ui.is(":visible");
       C.y = parseInt(this.ui.css("top"), 10);
       C.x = parseInt(this.ui.css("left"), 10);
       C.save();
     };
-    q.movePage = function (a) {
+    p.movePage = function (a) {
       this.ui.find(".prev, .next").removeClass("disabled");
       v += a;
       0 >= v && (this.ui.find(".prev").addClass("disabled"), (v = 0));
@@ -129,24 +129,24 @@ define(
         c = b.getContext("2d");
         b.width = 40;
         b.height = 40;
-        d = l.order[f];
+        d = m.order[f];
         b.setAttribute("data-index", d);
         d = D.actions[d].animations;
         d = d[Math.floor(d.length / 5)];
         d = d.layers;
         e = d.length;
-        n.bind2DContext(c, 20 - d[0].pos[0], 40 - d[0].pos[1]);
-        for (c = 0; c < e; ++c) H.renderLayer(d[c], B, B, 1, h, !1);
+        k.bind2DContext(c, 20 - d[0].pos[0], 40 - d[0].pos[1]);
+        for (c = 0; c < e; ++c) O.renderLayer(d[c], B, B, 1, h, !1);
         a.append(b);
         f++;
       }
     };
-    q.onShortCut = function (a) {
+    p.onShortCut = function (a) {
       switch (a.cmd) {
         case "TOGGLE":
           (this.ui.toggle(), this.ui.is(":visible") && this.focus());
       }
     };
-    return p.addComponent(q);
+    return t.addComponent(p);
   },
 );

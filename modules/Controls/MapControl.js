@@ -8,11 +8,11 @@ define(
       a = (a && a.which) || 1;
       D.moveAction = null;
       if (f.intersect && !f.padOn)
-        switch (((P = Date.now()), a)) {
+        switch (((J = Date.now()), a)) {
           case 1:
-            if (m.SHIFT) {
+            if (n.SHIFT) {
               D.Entity.lookTo(f.world.x, f.world.y);
-              a = new H.CZ.CHANGE_DIRECTION();
+              a = new O.CZ.CHANGE_DIRECTION();
               a.headDir = D.Entity.headDir;
               a.dir = D.Entity.direction;
               C.sendPacket(a);
@@ -23,7 +23,7 @@ define(
               c = A.get(D.mercGID),
               d = !1;
             a && a != b && (a.onFocusEnd(), A.setFocusEntity(null));
-            if (m.ALT && c) {
+            if (n.ALT && c) {
               if (
                 b &&
                 b != D.Entity &&
@@ -33,7 +33,7 @@ define(
                 d)
               )
                 break;
-              a = new H.CZ.REQUEST_MOVENPC();
+              a = new O.CZ.REQUEST_MOVENPC();
               a.GID = D.mercGID;
               a.dest[0] = f.world.x;
               a.dest[1] = f.world.y;
@@ -51,9 +51,9 @@ define(
             }
             break;
           case 3:
-            ((z[0] = f.screen.x),
-              (z[1] = f.screen.y),
-              n.setType(n.ACTION.ROTATE),
+            ((y[0] = f.screen.x),
+              (y[1] = f.screen.y),
+              k.setType(k.ACTION.ROTATE),
               u.rotate(!0));
         }
     }
@@ -66,9 +66,9 @@ define(
               b.onMouseUp();
               if ("touchend" == a.type)
                 if (
-                  P + 600 < Date.now() &&
-                  z[0] === f.screen.x &&
-                  z[1] === f.screen.y
+                  J + 600 < Date.now() &&
+                  y[0] === f.screen.x &&
+                  y[1] === f.screen.y
                 ) {
                   if ((b = A.getOverEntity()) && b !== D.Entity)
                     b.onContextMenu();
@@ -81,10 +81,10 @@ define(
             break;
           case 3:
             if (
-              (n.setType(n.ACTION.DEFAULT),
+              (k.setType(k.ACTION.DEFAULT),
               u.rotate(!1),
-              z[0] === f.screen.x &&
-                z[1] === f.screen.y &&
+              y[0] === f.screen.x &&
+                y[1] === f.screen.y &&
                 (b = A.getOverEntity()) &&
                 b !== D.Entity)
             )
@@ -102,64 +102,64 @@ define(
       a.stopImmediatePropagation();
       return !1;
     }
-    function l(a) {
+    function m(a) {
       var b, c;
       try {
         c = JSON.parse(a.originalEvent.dataTransfer.getData("Text"));
-      } catch (J) {}
+      } catch (M) {}
       a.stopImmediatePropagation();
       if (!c) return !1;
-      c.from && t.getComponent(c.from).ui.trigger("mouseleave");
+      c.from && q.getComponent(c.from).ui.trigger("mouseleave");
       if ("item" !== c.type || "Inventory" !== c.from) return !1;
-      if (k.ui.is(":visible"))
-        return (p.addText(r.getMessage(189), p.TYPE.ERROR), !1);
+      if (l.ui.is(":visible"))
+        return (t.addText(r.getMessage(189), t.TYPE.ERROR), !1);
       b = c.data;
       if (1 < b.count)
         (g.append(),
           g.setType("number", !1, b.count),
           (g.onSubmitRequest = function (a) {
             g.remove();
-            G.onRequestDropItem(b.index, parseInt(a, 10));
+            z.onRequestDropItem(b.index, parseInt(a, 10));
           }));
-      else G.onRequestDropItem(b.index, 1);
+      else z.onRequestDropItem(b.index, 1);
       return !1;
     }
     var h = a("Utils/jquery"),
       r = a("DB/DBManager"),
-      t = a("UI/UIManager"),
-      n = a("UI/CursorManager"),
+      q = a("UI/UIManager"),
+      k = a("UI/CursorManager"),
       g = a("UI/Components/InputBox/InputBox"),
-      p = a("UI/Components/ChatBox/ChatBox"),
-      k = a("UI/Components/Equipment/Equipment"),
+      t = a("UI/Components/ChatBox/ChatBox"),
+      l = a("UI/Components/Equipment/Equipment"),
       f = a("Controls/MouseEventHandler"),
-      m = a("Controls/KeyEventHandler"),
-      q = a("Core/Mobile"),
+      n = a("Controls/KeyEventHandler"),
+      p = a("Core/Mobile"),
       v = a("Renderer/Renderer"),
       u = a("Renderer/Camera"),
       A = a("Renderer/EntityManager"),
       D = a("Engine/SessionStorage"),
       B = a("Preferences/Controls"),
-      H = a("Network/PacketStructure"),
+      O = a("Network/PacketStructure"),
       C = a("Network/NetworkManager");
     a("Controls/ScreenShot");
-    var z = new Int16Array(2),
-      G = {},
-      P = 0;
-    G.onRequestWalk = function () {};
-    G.onRequestStopWalk = function () {};
-    G.onRequestDropItem = function () {};
-    G.init = function () {
-      q.init();
-      q.onTouchStart = b.bind(this);
-      q.onTouchEnd = c.bind(this);
+    var y = new Int16Array(2),
+      z = {},
+      J = 0;
+    z.onRequestWalk = function () {};
+    z.onRequestStopWalk = function () {};
+    z.onRequestDropItem = function () {};
+    z.init = function () {
+      p.init();
+      p.onTouchStart = b.bind(this);
+      p.onTouchEnd = c.bind(this);
       h(v.canvas)
         .on("mousewheel DOMMouseScroll", d)
         .on("dragover", e)
-        .on("drop", l.bind(this));
+        .on("drop", m.bind(this));
       h(window)
         .on("mousedown.map", b.bind(this))
         .on("mouseup.map", c.bind(this));
     };
-    return G;
+    return z;
   },
 );
