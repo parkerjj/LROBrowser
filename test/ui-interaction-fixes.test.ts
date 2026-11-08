@@ -164,6 +164,35 @@ interface QuickTool {
   recordRecentQuickPlace(place: object): void; selectQuickPlace(place: object): void;
 }
 
+describe('nid=3 quick teleport guide', () => {
+  const tools = region('src/UI/Components/LastROTools/LastROTools.js');
+  const body = tools.slice(tools.indexOf('LastROTools.lastroFilterForProfile'), tools.indexOf('LastROTools.loadQuickRoutes = function'));
+  const guide = {
+    kafra: { group: '首都功能服务', npc: '卡普拉', outset: ['prontera', 149, 89], path: [['prontera', 149, 89]] },
+    para: { group: '首都功能服务', npc: '乐园团', outset: ['moc_para01', 27, 30], path: [['moc_para01', 27, 30]] },
+    hunt: { group: '首都功能服务', npc: '挖宝', outset: ['pay_fild11', 125, 175], path: [['pay_fild11', 125, 175]] },
+    geffen: { group: '城市与交通枢纽', npc: '吉芬', outset: ['geffen', 132, 66], path: [['geffen', 132, 66]] },
+  };
+  const izlude = { 0: { npc: '胖大海', desc: '签到', outset: ['izlude', 127, 162], path: [['izlude', 125, 144]] } };
+  function run(nid: number) {
+    const tool: { lastroGuideForProfile?: (this: unknown, guide: object) => Record<string, unknown> } = {};
+    const context = vm.createContext({ LastROTools: tool, Configs: { get: () => nid }, Object, Number,
+      LastROTeleportPresets: { profiles: { 3: { npc: izlude } } } });
+    vm.runInContext(body, context);
+    return tool.lastroGuideForProfile!.call(tool, guide);
+  }
+
+  it('replaces prontera services with izlude NPCs on nid=3 and keeps other routes', () => {
+    const result = run(3);
+    expect(Object.keys(result)).toEqual(['izlude0', 'hunt', 'geffen']);
+    expect(result.izlude0).toMatchObject({ group: '伊斯鲁得功能服务', outset: ['izlude', 127, 162] });
+  });
+
+  it('leaves other servers untouched', () => {
+    expect(run(5)).toBe(guide);
+  });
+});
+
 describe('named quick teleport points', () => {
   const tools = region('src/UI/Components/LastROTools/LastROTools.js');
   const start = tools.indexOf('const LASTRO_QUICK_PLACE_STORAGE_KEY');

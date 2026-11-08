@@ -301231,6 +301231,35 @@ var init_LastROTools = __esmMin(() => {
       return true;
     } catch { return false; }
   };
+  // nid=3 (三转服) 的功能 NPC 集中在 izlude；prontera 版常用地点对其坐标不正确。
+  // 洞穴、任务、野外与各城市入口保持不变，只替换 prontera/乐园团服务入口。
+  LastROTools.lastroFilterForProfile = function lastroFilterForProfile(entries) {
+    if (Number(Configs.get("lastroNid", 0)) !== 3) return entries;
+    return Object.fromEntries(
+      Object.entries(entries || {}).filter(
+        ([, entry]) =>
+          !(
+            entry?.group === "首都功能服务" &&
+            ["prontera", "moc_para01"].includes(entry?.outset?.[0])
+          ),
+      ),
+    );
+  };
+  LastROTools.lastroGuideForProfile = function lastroGuideForProfile(guide) {
+    if (Number(Configs.get("lastroNid", 0)) !== 3) return guide;
+    const npc =
+      typeof LastROTeleportPresets !== "undefined"
+        ? LastROTeleportPresets.profiles?.[3]?.npc
+        : null;
+    if (!npc) return guide;
+    const izlude = Object.fromEntries(
+      Object.entries(npc).map(([id, entry]) => [
+        `izlude${id}`,
+        { ...entry, group: "伊斯鲁得功能服务" },
+      ]),
+    );
+    return { ...izlude, ...this.lastroFilterForProfile(guide) };
+  };
   LastROTools.loadQuickRoutes = function loadQuickRoutes() {
     if (this._quickLoaded) return;
     this._quickLoaded = true;
@@ -301265,6 +301294,7 @@ var init_LastROTools = __esmMin(() => {
           ),
         ]),
     );
+    this._quickRoutes.guide = this.lastroGuideForProfile(this._quickRoutes.guide);
     this._quickRoutes.custom = {};
     this.renderQuickRoutes();
   };
