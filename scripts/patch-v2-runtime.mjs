@@ -1748,6 +1748,14 @@ globalThis.KoreEngineNativeAction = (action) => {
     if (!PACKET?.CZ?.NOTIFY_LOADINFO) return false;
     return sendKoreEnginePacket(action, new PACKET.CZ.NOTIFY_LOADINFO());
   }
+  if (action.type === "PetFeed" || action.type === "PetReturnToEgg") {
+    // CZ_COMMAND_PET（0x01A1）：cSub 1 喂食、3 回蛋。饲料由服务器从背包里找，没有就回 0x01A3 失败，
+    // 由 KE 决定要不要让宠物回蛋；Host 只编码发送。
+    if (!PACKET?.CZ?.COMMAND_PET) return false;
+    const packet = new PACKET.CZ.COMMAND_PET();
+    packet.cSub = action.type === "PetFeed" ? 1 : 3;
+    return sendKoreEnginePacket(action, packet);
+  }
   if (action.type === "StorageClose") {
     // OpenKore sendStorageClose：服务端仓库没关时，后续的飞空艇请求会被静默忽略。
     if (!PACKET?.CZ?.CLOSE_STORE) return false;

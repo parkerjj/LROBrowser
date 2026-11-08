@@ -401,7 +401,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     if (state.actions.length > 50) state.actions.splice(0, state.actions.length - 50);
   };
   const supportedActionTypes = new Set(['MoveTo', 'Attack', 'Sit', 'Stand', 'Equip', 'Unequip', 'UseSkillOnTarget', 'UseSkillSelf', 'UseSkillAt', 'UseItem', 'Pickup', 'DropItem',
-    'StorageTransfer', 'StorageClose', 'NpcTalk', 'NpcMenu', 'NpcContinue', 'NpcClose', 'NpcNumber', 'NpcText', 'NpcShopSelect', 'ShopBuy', 'ShopSell', 'PrivateAirship', 'SelectWarpPoint', 'Restart', 'ToggleServerAutoFight', 'ToggleServerFollow', 'RequestServerSettings']);
+    'StorageTransfer', 'StorageClose', 'NpcTalk', 'NpcMenu', 'NpcContinue', 'NpcClose', 'NpcNumber', 'NpcText', 'NpcShopSelect', 'ShopBuy', 'ShopSell', 'PrivateAirship', 'SelectWarpPoint', 'Restart', 'ToggleServerAutoFight', 'ToggleServerFollow', 'RequestServerSettings', 'PetFeed', 'PetReturnToEgg']);
   const validActionPayload = action => {
     if (!supportedActionTypes.has(action.type)) return 'unsupported-action';
     const gid = value => validU32(value) && value > 0;
@@ -449,7 +449,9 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       case 'Restart':
       case 'ToggleServerAutoFight':
       case 'ToggleServerFollow':
-      case 'RequestServerSettings': return null;
+      case 'RequestServerSettings':
+      case 'PetFeed':
+      case 'PetReturnToEgg': return null;
       default: return 'unsupported-action';
     }
   };

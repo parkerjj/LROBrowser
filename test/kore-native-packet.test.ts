@@ -257,6 +257,33 @@ test('RequestServerSettings asks the server for the settings snapshot with the 2
   expect(send({}).result).toBe(false);
 });
 
+test('PetFeed and PetReturnToEgg send CZ.COMMAND_PET with sub-command 1 and 3', async () => {
+  const runtime = await readFile('generated/runtime/Online.js', 'utf8');
+  const actionAssignment = extractRuntimeNode(runtime, { kind: 'assignment', name: 'globalThis.KoreEngineNativeAction' });
+  const packetHelper = extractRuntimeNode(runtime, { kind: 'function', name: 'sendKoreEnginePacket' });
+  class FakeCommandPet { cSub = 0; build() { return new Uint8Array([0xa1, 0x01, this.cSub]); } }
+  const send = (type: string, packets: Record<string, unknown>) => {
+    const sent: FakeCommandPet[] = [];
+    const createSender = new Function('globalThis', 'sendKoreNativePacket', 'Network',
+      'PacketVerManager_default', 'PACKET', 'SessionStorage_default', '_socket',
+      'lastroVendingShoppingActive', 'lastroMovementUnavailable',
+      `${packetHelper}\n${actionAssignment}\nreturn globalThis.KoreEngineNativeAction;`);
+    const nativeAction = createSender(runtimePage(), (_action: unknown, packet: FakeCommandPet) => { sent.push(packet); return true; },
+      { sendPacket() {} }, { value: 20211103 }, { CZ: packets }, {}, null, () => false, () => false);
+    return { result: nativeAction({ type }), sent };
+  };
+
+  const feed = send('PetFeed', { COMMAND_PET: FakeCommandPet });
+  expect(feed.result).toBe(true);
+  expect(feed.sent).toHaveLength(1);
+  expect(feed.sent[0]!.cSub).toBe(1);
+  const home = send('PetReturnToEgg', { COMMAND_PET: FakeCommandPet });
+  expect(home.result).toBe(true);
+  expect(home.sent[0]!.cSub).toBe(3);
+  // 封包类缺失时不发，Host 如实返回失败。
+  expect(send('PetFeed', {}).result).toBe(false);
+});
+
 test('UseSkillAt is sent as the ground-skill packet for the packet version', async () => {
   const runtime = await readFile('generated/runtime/Online.js', 'utf8');
   const actionAssignment = extractRuntimeNode(runtime, { kind: 'assignment', name: 'globalThis.KoreEngineNativeAction' });
