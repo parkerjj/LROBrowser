@@ -1098,7 +1098,7 @@ export function patchRuntimeToolsPanels(source) {
     shouldConfirmTeleport: () => typeof getLastroTeleportConfirmationEnabled !== "function" || getLastroTeleportConfirmationEnabled(),
     getPresetRoutes: () => {
       const catalog = LastROTeleportPresets.profiles[Configs.get("clientVer", 0)];
-      return catalog ? { ...catalog, custom: { ...LastROTeleportPresets.upstreamCustomRoutes, ...catalog.custom } } : {};
+      return catalog ? { ...catalog, custom: { ...LastROTools.lastroFilterForProfile(LastROTeleportPresets.upstreamCustomRoutes), ...catalog.custom } } : {};
     },
     getProfile: () => Configs.get("lastroNid", 0),
     getCurrentLocation: () => {
