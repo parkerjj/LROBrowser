@@ -1,4 +1,5 @@
 mod report;
+mod resource_protocol;
 
 #[derive(serde::Serialize)]
 struct Args { auto: bool, duration_s: u64 }
@@ -21,6 +22,11 @@ fn report(app: tauri::AppHandle, json: String) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .register_asynchronous_uri_scheme_protocol("lro", |_ctx, request, responder| {
+            tauri::async_runtime::spawn(async move {
+                responder.respond(resource_protocol::handle(request).await);
+            });
+        })
         .invoke_handler(tauri::generate_handler![probe_args, report])
         .run(tauri::generate_context!())
         .expect("tauri run");
