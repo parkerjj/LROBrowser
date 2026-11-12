@@ -35,3 +35,22 @@ test('barter lists expose the packet quota as the remaining stock count', () => 
   );
   assert.equal((bundle.match(/title="\$\{_escapeHTML\(formatBarterTitle\(item\)\)\}"/g) || []).length, 2);
 });
+
+test('a shorter skill cast never replaces a longer cast bar still in progress', () => {
+  const start = bundle.indexOf('function shouldKeepCurrentCast(');
+  assert.notEqual(start, -1);
+  const keep = new Function(`${bundle.slice(start, bundle.indexOf('\n}\n', start) + 3)}; return shouldKeepCurrentCast;`)();
+  const now = 10000;
+  const casting = { display: true, tick: now - 500, delay: 3000 }; // 2.5 s left
+  assert.equal(keep(casting, 300, now), true);
+  assert.equal(keep(casting, 2500, now), false);
+  assert.equal(keep(casting, 4000, now), false);
+  assert.equal(keep({ ...casting, display: false }, 300, now), false);
+  assert.equal(keep({ display: true, tick: now - 4000, delay: 3000 }, 300, now), false); // expired, not yet rendered away
+
+  const handler = bundle.slice(bundle.indexOf('function onEntityCastSkill(pkt)'));
+  assert.match(
+    handler.slice(0, 1200),
+    /if \(!hideCastBar && !shouldKeepCurrentCast\(srcEntity\.cast, pkt\.delayTime, Date\.now\(\)\)\)\s*srcEntity\.cast\.set\(pkt\.delayTime\);/
+  );
+});
