@@ -305669,6 +305669,13 @@ function onEntityUseSkillToAttack(pkt) {
     );
 }
 /**
+ * LastRO: a unit casts one skill at a time and cancels are sent explicitly
+ * (ZC_DISPEL), so a shorter cast must not replace a longer bar still running.
+ */
+function shouldKeepCurrentCast(cast, delay, now) {
+  return cast.display && cast.tick + cast.delay > now + delay;
+}
+/**
  * Cast a skill to someone
  * @param {object} pkt - pkt PACKET.ZC.USESKILL_ACK
  */
@@ -305688,7 +305695,8 @@ function onEntityCastSkill(pkt) {
   };
   if (pkt.delayTime) {
     hideCastBar = pkt.SKID in SkillEffect && SkillEffect[pkt.SKID].hideCastBar;
-    if (!hideCastBar) srcEntity.cast.set(pkt.delayTime);
+    if (!hideCastBar && !shouldKeepCurrentCast(srcEntity.cast, pkt.delayTime, Date.now()))
+      srcEntity.cast.set(pkt.delayTime);
     isPlay = false;
     next = false;
   }
