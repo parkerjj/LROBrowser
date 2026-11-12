@@ -54,7 +54,7 @@
 | 项 | 选择 | 定的人 |
 | --- | --- | --- |
 | 应用名 | 沿用 IWA：显示名“LRO进阶客户端”，安装包文件名用 ASCII 前缀 `LRO-Client` | 我 |
-| 永久标识 | Tauri `identifier` 与 Android 包名均为 `ro.ltsd.lroclient`；Android 新生成一把专用 release keystore，不复用 KoreEngine 的 `kore-release.keystore`（两者是不同应用）。这三项发布后不能再改，否则更新链断开、WebView 数据目录变化导致账号丢失 | 我 |
+| 永久标识 | Tauri `identifier`（即 macOS bundle identifier，Windows 安装目录与数据目录也由它决定）与 Android 包名均为 `com.ioft.lroclient`（用户指定）；Android 新生成一把专用 release keystore，不复用 KoreEngine 的 `kore-release.keystore`（两者是不同应用）。这三项发布后不能再改，否则更新链断开、WebView 数据目录变化导致账号丢失 | 用户（标识）/ 我（新 keystore） |
 | 外壳 | Tauri 2（系统 WebView：Windows WebView2、macOS WKWebView、Android System WebView） | 用户 |
 | 连接器 | Rust 重写（TCP 直连、中转 WebSocket、官方登录 HTTP、资源 HTTP） | 用户 |
 | Windows 包 | NSIS `.exe`，按当前用户安装（无需管理员），**不签名** | 用户（不签名）/ 我（按当前用户安装） |
