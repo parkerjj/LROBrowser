@@ -3,6 +3,8 @@ const { invoke } = window.__TAURI__.core;
 export async function runProbes() {
   const results = {};
   results.ua = navigator.userAgent;
+  results.relay = await invoke('relay_probe', { userAgent: null });
+  results.relayWithWebviewUa = await invoke('relay_probe', { userAgent: navigator.userAgent });
   results.coi = crossOriginIsolated;
   results.sabMain = typeof SharedArrayBuffer;
   const lroUrl = (rootId, path) => window.__TAURI__.core.convertFileSrc(`${rootId}/${path}`, 'lro');

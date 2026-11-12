@@ -1,3 +1,4 @@
+mod relay;
 mod report;
 mod resource_protocol;
 
@@ -27,7 +28,7 @@ pub fn run() {
                 responder.respond(resource_protocol::handle(request).await);
             });
         })
-        .invoke_handler(tauri::generate_handler![probe_args, report])
+        .invoke_handler(tauri::generate_handler![probe_args, report, relay::relay_probe])
         .run(tauri::generate_context!())
         .expect("tauri run");
 }
