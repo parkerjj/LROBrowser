@@ -25,9 +25,9 @@ export async function runProbes(args) {
 
   results.webgl = await webglBench();
 
-  const childCount = Number(params.get('children') ?? 3);
-  await invoke('open_probe_windows', { count: childCount, duration_s: args.duration_s, durationS: args.duration_s });
-  const own = await measureTimers(args.duration_s);
+  const childCount = args.children;
+  if (childCount > 0) await invoke('open_probe_windows', { count: childCount, durationS: args.duration_s });
+  const own = await measureTimers(args.duration_s, (t) => invoke('report_tick', { json: JSON.stringify(t) }));
   let kids = [];
   for (let i = 0; i < 120 && kids.length < childCount; i++) { kids = await invoke('child_results'); if (kids.length < childCount) await sleep(1000); }
   const windows = kids.map(([label, json]) => ({ label, ...JSON.parse(json) }));

@@ -3,15 +3,24 @@ mod report;
 mod resource_protocol;
 
 #[derive(serde::Serialize)]
-struct Args { auto: bool, duration_s: u64 }
+struct Args { auto: bool, duration_s: u64, children: u32 }
 
 #[tauri::command]
 fn probe_args() -> Args {
     let argv: Vec<String> = std::env::args().collect();
     let duration_s = argv.iter()
         .find_map(|a| a.strip_prefix("--probe-duration-s=").and_then(|v| v.parse().ok()))
+        .or_else(|| std::env::var("PROBE_DURATION_S").ok().and_then(|v| v.parse().ok()))
         .unwrap_or(60);
-    Args { auto: argv.iter().any(|a| a == "--probe-auto"), duration_s }
+    let auto = argv.iter().any(|a| a == "--probe-auto") || std::env::var("PROBE_AUTO").is_ok();
+    // Android 只做单窗口。
+    let children = if cfg!(target_os = "android") { 0 } else { 3 };
+    Args { auto, duration_s, children }
+}
+
+#[tauri::command]
+fn report_tick(json: String) {
+    println!("PROBE_TICK {json}");
 }
 
 #[tauri::command]
@@ -60,7 +69,7 @@ pub fn run() {
                 responder.respond(resource_protocol::handle(request).await);
             });
         })
-        .invoke_handler(tauri::generate_handler![probe_args, report, relay::relay_probe, report_child, child_results, open_probe_windows])
+        .invoke_handler(tauri::generate_handler![probe_args, report, relay::relay_probe, report_tick, report_child, child_results, open_probe_windows])
         .run(tauri::generate_context!())
         .expect("tauri run");
 }
