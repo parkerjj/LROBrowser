@@ -16,7 +16,7 @@
 
 **目标**
 
-- Windows 提供 `.exe` 安装包（NSIS），macOS 提供 `.dmg`，Android 提供 `.apk`。
+- Windows 提供 `.exe` 安装包（NSIS），macOS 提供 `.dmg`，Android 提供 `.apk`，Linux 提供 `.deb` 和 `.rpm`（用户 2026-11-12 追加，见 §6.1）。
 - 三个原生版本都能在应用内检查新版本并完成更新，玩家不需要访问任何特殊页面。
 - 原生版本的游戏连接、官方登录 HTTP 和资源下载全部由 Rust 实现（以下称“Rust 连接器”），不受浏览器跨域与中转 Origin 白名单限制。三个服务器（App服、二转、三转）都应能用。
 - 安装包与现有 swbn 一样上传到 GitHub Release 和 R2。
@@ -24,7 +24,7 @@
 **非目标**
 
 - iOS 原生应用。iOS 只提供现有网页版 `https://game.ltsd.ro`（版权原因不上架 App Store）。
-- Linux 桌面安装包（不在本次范围）。
+- AppImage（用户明确不要）。
 - Windows 代码签名（没有免费方案，用户决定不签）。
 - 游戏 JS 的单独热更新：每次发布都是整包更新（我的决定，见 §7）。
 - 从 IWA 迁移已保存的账号：原生版是新的存储来源，玩家需要重新添加账号（我的决定）。
@@ -60,6 +60,7 @@
 | Windows 包 | NSIS `.exe`，按当前用户安装（无需管理员），**不签名** | 用户（不签名）/ 我（按当前用户安装） |
 | macOS 包 | `.dmg`，Developer ID 签名并公证，universal（Apple 芯片和 Intel 共用一个包） | 用户（签名）/ 我（universal） |
 | Android 包 | `.apk`，release keystore 签名，仅 `arm64-v8a`，最低 Android 8.0 | 我 |
+| Linux 包 | `.deb` + `.rpm`，不出 AppImage；面向国产桌面系统（银河麒麟、统信 UOS）的新手用户，以“双击 .deb 即安装”为一键安装方式。详见 §6.1 | 用户（deb+rpm、不要 AppImage）/ 我（其余） |
 | 桌面自动更新 | `tauri-plugin-updater`，Tauri 更新签名（minisign）校验 | 我 |
 | Android 自动更新 | 自研：读清单 → 下载 apk → 校验 → 调起系统安装器（参照 KoreEngine） | 我 |
 | 发布位置 | GitHub Release + R2，与 swbn 一致 | 用户 |
@@ -134,6 +135,13 @@ rust-toolchain.toml          固定 Rust 版本（与 KoreEngine 一致：1.99.0
 - KE 包的引入方式与 IWA 构建一致（`pnpm ke:local` / CI 中下载 KE release），打进安装包。
 - §5.4 的资源响应必须带 `Cross-Origin-Resource-Policy`，否则 COEP 会拦截。
 
+### 5.6.1 各平台 SharedArrayBuffer 的预期与兜底
+
+- Windows（WebView2，Chromium）、Android（System WebView，Chromium）：在跨源隔离下标准支持 `SharedArrayBuffer`，预期可用；Android 需要确认 Tauri 在 Android 上确实给页面加了 COOP/COEP 响应头（§9 第 1 项验证）。
+- macOS（WKWebView）：Safari 15.2 起在跨源隔离下支持。
+- Linux（WebKitGTK）：默认关闭，用 `JSC_useSharedArrayBuffer=true` 打开（见 §6.1）。
+- **如果某个平台验证后仍不可用**：该平台的 KoreEngine 显示“不可用”（与现有 IWA 的行为一致），游戏本体照常可玩；不为此降低 KE 的架构要求。是否值得为该平台另做一个无 SAB 的 KE 版本，由用户另行决定。
+
 ### 5.7 安全边界
 
 - Tauri capabilities 只开放：`net_open/net_send/net_close`、`http_request`、更新相关命令、`lro` 协议，以及 `opener` 插件的“用系统浏览器打开 https 链接”。不开启文件系统、shell 等插件。
@@ -181,6 +189,24 @@ Android 只做单开。
 Android `versionCode` 从提交数推出（例如 `100000000 + 提交数`），保证单调递增，并与 apk 内一致。
 
 macOS 的 Developer ID 证书、App Store Connect API Key 与 KoreEngine 使用的是同一个开发者账号，可以复用同名 secret 的值（`MACOS_CERTIFICATE_P12_BASE64`、`MACOS_CERTIFICATE_PASSWORD`、`MACOS_SIGNING_IDENTITY`、`ASC_KEY_ID`、`ASC_ISSUER_ID`、`ASC_PRIVATE_KEY`），由用户在本仓库的 `production` Environment 里配置。
+
+### 6.1 Linux 打包（用户追加；其中带“待核实”的是我凭记忆写的，不是已验证事实）
+
+**目标用户**：大量是政府机关用户，用银河麒麟（Kylin）或统信 UOS，电脑新手，要求一键安装。
+
+**包格式**
+- `.deb`：主力。麒麟桌面版和统信 UOS 都是 Debian 系（待核实具体基线版本），双击 `.deb` 会打开系统自带的软件包安装器，点一下“安装”即可，这就是一键安装。下载页只放这一种“双击就能装”的说明，不要求新手使用终端。
+- `.rpm`：给 Fedora、openSUSE、openEuler、麒麟服务器版等 RPM 系系统。
+- 不做 AppImage、Flatpak、Snap（用户不要 AppImage；Flatpak 和 Snap 在这类系统上通常没有预装，新手无法使用）。
+- 命名：`LRO-Client-<版本>-linux-<架构>.deb` / `.rpm`，架构为 `amd64`/`x86_64`、`arm64`/`aarch64`。
+
+**CPU 架构（待核实）**：国产机器常见飞腾、鲲鹏（arm64）、兆芯、海光（x86_64）、龙芯（loongarch64）。首发支持 x86_64 和 arm64；龙芯（Rust 有 `loongarch64-unknown-linux-gnu` 目标，但 Tauri/WebKitGTK 在该架构的可用性待查）不承诺，是否支持取决于 §9 第 9 项的结果。
+
+**最大风险（待核实）**：Tauri 2 的 Linux 版要求系统提供 `libwebkit2gtk-4.1`。我记忆中麒麟 V10 和 UOS 20 的软件源里只有较老的 `4.0` 版，如果属实，Tauri 2 的 deb 在这些系统上装不上或跑不起来。这可能让“Tauri + deb”对目标用户整体不成立，必须在写任何正式代码前，用一台真实的目标机器核实（§9 第 9 项）。备选方向在 §9 第 9 项里列出，到时需要用户决定。
+
+**自动更新**：Tauri 的更新插件在 Linux 只支持 AppImage，不支持 deb/rpm，所以 Linux 自己实现（我的决定）：应用检查 `native/latest.json` 的 Linux 条目 → 下载新的 `.deb`/`.rpm` 到缓存目录 → 校验 SHA-256 与 Tauri 更新签名 → 通过系统图形授权对话框（`pkexec`）调用 `dpkg -i` / `rpm -U` 安装 → 提示重启。包管理器的自动更新（自建 apt/yum 仓库）留作以后的优化，不在首发范围。
+
+**KoreEngine 与 SharedArrayBuffer**：WebKitGTK 默认关闭 `SharedArrayBuffer`，即使 `crossOriginIsolated` 为 true 也是如此（本机实测：主线程和 Worker 里都是 `undefined`）。用环境变量 `JSC_useSharedArrayBuffer=true` 启动后主线程和 Worker 都可用（本机实测，WebKitGTK 2.54.2）。因此 Linux 版必须在创建 WebView 之前由程序自己设置该环境变量（`std::env::set_var`，放在 `main` 最开头），不需要玩家操作。目标系统上较老的 WebKitGTK 是否认这个选项，待核实（§9 第 9 项）。
 
 Windows 不签名的玩家体验：首次运行安装包会出现 SmartScreen“Windows 已保护你的电脑”，需点“更多信息 → 仍要运行”。下载页需写明这一步。自动更新由已安装的应用下载并静默执行安装包，一般不再出现该提示（需在实机上确认，见 §9）。
 
@@ -236,6 +262,7 @@ R2 上新增 `native/` 前缀（公开地址沿用 `https://client.ltsd.ro/`）�
 5. **未签名包的自动更新**：Windows 上由应用触发的更新安装是否还会弹 SmartScreen。
 6. **Android 后台保持在线（风险最高）**：按 §5.10 配置后，切到后台并锁屏 30 分钟，游戏连接不断开、心跳正常、KE 持续行动。分别在原生 Android 和至少一款国产 ROM 上测试。
 7. **桌面窗口不被节流**：Windows 和 macOS 上，一个窗口最小化或被完全遮挡 30 分钟，期间游戏连接不断开、KE 持续行动；同时开 3 个窗口时资源占用可接受。
+9. **Linux 目标系统可行性（最先做，需要用户提供一台目标机器）**：在一台真实的麒麟 V10 / 统信 UOS 机器上运行 `cat /etc/os-release; uname -m; apt policy libwebkit2gtk-4.1-0 libwebkit2gtk-4.0-37; dpkg -l | grep -i webkit`，并用探针的 deb 实际安装、运行。如果系统没有 `libwebkit2gtk-4.1`，需要回来和用户决定备选方案，不要自行选择。可能的备选：（a）让 deb 自带所需的 WebKitGTK 4.1 及依赖库（体积很大，维护成本高）；（b）在这类系统上改用系统自带的 Chromium 系浏览器（如 QtWebEngine/Chromium）作为壳；（c）这类用户继续使用网页版。
 8. **中转握手**：Rust 用标准 Chrome UA + 官网 Origin 握手 `wss://port.lastro.cn` 返回 101（可先用现有 `LASTRO_TLS_LIVE=1 npx vitest run test/direct-tls-live.test.ts` 对照）。
 
 spike 代码不进入正式分支历史；结论写入本文档。
