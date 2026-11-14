@@ -152,7 +152,12 @@ rust-toolchain.toml          固定 Rust 版本（与 KoreEngine 一致：1.99.0
   - 有 SAB 的环境（IWA、Windows、Linux）继续用 `SharedRingQueue`，行为不变。
   - 没有 SAB 的环境（Android、macOS）自动改用普通内存的 `RingQueue`，KE 照常运行，不显示“不可用”。
   - 改动点（计划 2 中实现）：KE 仓库 `runtime/kore-worker.mjs` 的 `ensureResidentQueues()` 按 `SharedArrayBuffer`+`Atomics` 是否可用选择 `shared`；RoBrowser 的 `kore-integration.mjs` 去掉“无 SAB 即不可用”的拦截，把当前使用的队列模式写入状态供调试。KE 需要重新构建并发版（Worker 文件进了包清单哈希）；KE 的加密 Rust 核心不用改。
-  - 必须先实测：用 KE 的 `test/worker-smoke.html`（真实 Worker + WASM）在 `shared:false` 下跑通，再在 Android 真机和 macOS 上各验证一次 KE 能启动并持续决策。验证前不对外承诺 Android/macOS 支持 KE。
+  - **实测结果（2026-11-14，在 KE 的 git 导出副本里验证，KE 仓库本身未改动）**：
+    - 把 `ensureResidentQueues()` 改成 `shared: false` 后，KE 现有的 `kore-worker`、`shared-queue`、`worker-scheduler` 三组测试：SAB 模式 26 项通过；普通队列模式 25 项通过、1 项失败。失败的是“超过 64KB 的输出会被丢弃并报 `queue-record-too-large`”，这是 SAB 槽位大小的限制，普通队列没有此上限，输出照常送达，属预期差异（正式实现时让该测试按模式区分）。消息顺序、背压、Worker 崩溃恢复相关测试在两种模式下都通过。
+    - 唤醒延迟（用 KE 的真实 `kore-worker.mjs` + 模拟 Runtime，Node worker_threads，每次 3000 个事件，跑 3 轮）：“主线程发出 → Worker 把事件交给 Runtime”的中位数，SAB 模式 16–24 微秒，普通队列 12–17 微秒；p99 SAB 91–103 微秒，普通 46–64 微秒。普通队列不劣于 SAB 模式。
+    - 代码核查：Worker 里没有 `setInterval`，唯一的定时器是按 Rust 给出的下一个到期时间设置的一次性 `setTimeout`，满足“无轮询”的要求。
+    - 附带收益：SAB 队列每个槽位 64KB，KE 提交记录里提到会占约 96MB 共享内存；普通队列没有这项占用。
+    - **没有验证的部分**：带真实 WASM 的端到端运行。KE 的 Worker 需要先完成 LTSD 授权握手才能解密核心，这是授权保护的路径，不能也不应该在测试里绕过。因此 Rust 侧的真实决策延迟、以及在 Android WebView / macOS WKWebView 里的实际表现，仍需在正式实现后用真实账号实机验证。
   - 这也让 Linux 不再必须设置 `JSC_useSharedArrayBuffer=true`；该环境变量保留作为可选项即可。
 
 ### 5.7 安全边界
