@@ -19,6 +19,7 @@
 - `keQueueMode` 取值只有 `auto`、`shared`、`plain`。默认值：IWA 与 web 为 `auto`（行为与现在完全一致），原生版（`native` 构建目标）为 `plain`。
 - 向后兼容：KE 包的 `schedulerCapabilities` 新增 `plainQueues`；RoBrowser 遇到不带该能力的旧包且当前环境没有 SAB 时，仍然显示“不可用”。
 - 测试里不要提交任何密钥或个人路径。
+- **本计划的自动化测试无法使用真实授权**：生产 LTSD 只接受从 KE `main` 经 CI 正式发布并登记过的构建，本地构建的包（`local-debug`）会被拒绝（`KE_BUILD_REJECTED`，见 KE `docs/standalone-runbook.md`）。因此本计划只能验证到“真实 `kore-worker.mjs` + 模拟 Runtime”这一层；带真实 WASM 和真实账号的验证，要等 KE 的改动随一次正式发布出去（合入 KE `main`、CI 登记、发布 release），再用 `pnpm dev`（它会拉取最新 release 包）测试。是否发布、何时发布由用户决定，本计划不触发任何发布。默认 `auto` 让 IWA 行为不变，这是发布风险可控的前提。
 
 ## 重点检查项（计划里没有专门任务覆盖的失败场景）
 
@@ -149,4 +150,5 @@
 - [ ] **Step 1：** RoBrowser 仓库：`pnpm test`。预期：全部通过（改动前基线为 4595 项通过）。
 - [ ] **Step 2：** `pnpm build` 与 `pnpm build:web`，然后 `git diff --stat` 确认没有生成物被意外加入；与改动前对比 `dist/` 与 `dist-web/` 的文件清单一致（本计划不改变任何打包输出）。
 - [ ] **Step 3：** KE 仓库（独立工作树）：`node --test tests/*.mjs test/build-local.test.mjs` 全部通过；再设置 `KE_TEST_QUEUE_MODE=plain` 重跑 `tests/worker-scheduler.test.mjs tests/kore-worker.test.mjs`，全部通过。
-- [ ] **Step 4：** 把两个仓库的提交列表、测试数字和延迟基准数值整理成一段报告写入设计文档 §13（用 `docs(spec)` 提交到 `feat/tauri-native`），并告诉用户：KE 仓库的 `feat/ke-queue-mode` 分支已准备好，是否推送、是否发布新的 KE 版本由用户决定。
+- [ ] **Step 4：** 在 KE 发布之前，**不要**把本计划标成“已在真实环境验证”。报告里要明确写出：已验证的是 Node 夹具层（真实 Worker 文件 + 模拟 Runtime），未验证的是真实 WASM、真实授权、Android/macOS 网页引擎。
+- [ ] **Step 5：** 把两个仓库的提交列表、测试数字和延迟基准数值整理成一段报告写入设计文档 §13（用 `docs(spec)` 提交到 `feat/tauri-native`），并告诉用户：KE 仓库的 `feat/ke-queue-mode` 分支已准备好，是否推送、是否发布新的 KE 版本由用户决定。
