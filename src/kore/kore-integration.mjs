@@ -1,4 +1,5 @@
 // Public, optional host. Only the passive inbound map stream crosses this boundary.
+import { keBuildTarget, resolveKeQueueMode } from './ke-queue-mode.mjs';
 import { createMapResourceProvider } from './map-resource-provider.mjs';
 import { createKoreConfigStore } from './kore-config-store.mjs';
 import { createKoreLtsdClient } from './kore-ltsd-client.mjs';
@@ -1661,10 +1662,17 @@ export function createKorePanel({ page, host }) {
     } };
 }
 
+// 访问 localStorage 本身可能抛异常（无痕窗口、站点数据被禁用），读不到就当没有。
+function safeLocalStorage(page) {
+  try { return page.localStorage ?? null; } catch { return null; }
+}
+
 export function startOptionalKore(options) {
   try {
     const page = globalThis;
-    const host = createKoreIntegration({ ...options, page, manifest: page.LastROExecutableManifest });
+    const queueMode = options?.queueMode
+      ?? resolveKeQueueMode({ buildTarget: keBuildTarget(page), storage: safeLocalStorage(page) });
+    const host = createKoreIntegration({ ...options, queueMode, page, manifest: page.LastROExecutableManifest });
     // The M7 shell mounts the panel inside LastROTools; the old debug details
     // panel is kept only through the exported createKorePanel() for tooling.
     page.KoreEngine = host; void host.start(); return host;
