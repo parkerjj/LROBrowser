@@ -159,6 +159,8 @@ rust-toolchain.toml          固定 Rust 版本（与 KoreEngine 一致：1.99.0
     - 附带收益：SAB 队列每个槽位 64KB，KE 提交记录里提到会占约 96MB 共享内存；普通队列没有这项占用。
     - **没有验证的部分**：带真实 WASM 的端到端运行。KE 的 Worker 需要先完成 LTSD 授权握手才能解密核心，这是授权保护的路径，不能也不应该在测试里绕过。因此 Rust 侧的真实决策延迟、以及在 Android WebView / macOS WKWebView 里的实际表现，仍需在正式实现后用真实账号实机验证。
   - 这也让 Linux 不再必须设置 `JSC_useSharedArrayBuffer=true`；该环境变量保留作为可选项即可。
+  - **队列模式开关（用户 2026-11-14 决定：IWA 也可以彻底不用 SAB，代码保留，用开关控制）**：设置项 `keQueueMode`，取值 `auto`（有 SAB 用共享队列，没有就用普通队列）、`shared`（强制共享队列，没有 SAB 则 KE 不可用）、`plain`（强制普通队列，即使有 SAB 也不用）。KE 的 `SharedRingQueue` 与 SAB 相关代码一律不删。默认值（我的决定）：IWA 与 web 为 `auto`，行为与现在完全一致；原生版（native）为 `plain`。把 IWA 默认值改成 `plain`，要等用真实账号在 IWA 里验证过一轮之后再单独决定。测试人员可用 `localStorage['lro.keQueueMode']` 覆盖默认值。
+  - **向后兼容**：KE 包的 `schedulerCapabilities` 新增 `plainQueues`。RoBrowser 遇到不带该能力的旧 KE 包，且当前环境没有 SAB 时，仍然标为“不可用”（与现在一致），不会误用旧包。
 
 ### 5.7 安全边界
 
