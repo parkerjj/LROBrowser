@@ -193,12 +193,12 @@
 - Consumes: Task 6 的 `createNativeSocketFactories`；现有 `openEncryptedHttpStreams` 的返回类型（阅读 `src/resources/direct-http-resource.ts` 第 328 行起，`native-tls-streams.ts` 必须返回同样形状的值）。
 - Produces: `openNativeTlsStreams(host: string, port: number, options?): ReturnType<typeof openEncryptedHttpStreams>`：内部用 `NativeSocket({ kind: 'tls', … })` 包成一对 `ReadableStream`/`WritableStream`，背压与关闭语义对齐现有实现。
 - Produces: `createNativeResourceFetch(base: URL | string): typeof fetch`：把 `https://game.lastro.cn/ro/client_re/<path>` 与 `https://rodata.ltsd.ro/ro/client_re/<path>` 改写成 `lro` 协议地址并调用全局 `fetch`；其他地址一律抛错。协议基地址在 Worker 中由 `self.location` 推导：`location.protocol` 为 `https:` → `https://lro.localhost/`，`http:` → `http://lro.localhost/`，其余 → `lro://localhost/`；路径用原始（未整段编码）形式拼接。
-- Produces: 在 `native` 目标下的引导行为：`LastRODirectSocketsSupported = true`；`LastRODirectSocketFactory = factories.direct`；`LastRORelaySocketFactory = factories.relay`；`sendLastROLoginPost` / `prepareLastROLoginSession` / `requestLastROPartyOverTLS` 使用 `openNativeTlsStreams`；`refreshOfficialOnlineProfiles` 的 `fetcher` 指向 `lro://…/official/ro/Online.js`；`LastROResourceRoots` 使用与 IWA 相同的两个根。`IS_WEB_BUILD` 为真时的分支保持原样不动。
+- Produces: 在 `native` 目标下的引导行为：`globalThis.LastRONativeBuild = true`（计划 2 的 `keBuildTarget()` 靠它识别原生版，从而让 KE 默认使用普通队列；`kore-integration.mjs` 是纯 `.mjs`，读不到 `build-target.ts`）；`LastRODirectSocketsSupported = true`；`LastRODirectSocketFactory = factories.direct`；`LastRORelaySocketFactory = factories.relay`；`sendLastROLoginPost` / `prepareLastROLoginSession` / `requestLastROPartyOverTLS` 使用 `openNativeTlsStreams`；`refreshOfficialOnlineProfiles` 的 `fetcher` 指向 `lro://…/official/ro/Online.js`；`LastROResourceRoots` 使用与 IWA 相同的两个根。`IS_WEB_BUILD` 为真时的分支保持原样不动。
 
 - [ ] **Step 1：** 失败测试：
   - `native-resource-fetch`：两个官方根被改写成预期的 `lro` 地址（三种 `location.protocol` 各一例）；非官方地址、可执行扩展名地址抛错；路径中的空格和中文被正确百分号编码一次（不重复编码）。
   - `native-tls-streams`：用假 `NativeSocket` 验证写入、读取、关闭，以及对端关闭后读端结束。
-  - `native-bootstrap`：stub `__LASTRO_BUILD_TARGET__='native'`、假 `window.__TAURI__`，执行引导中受影响的部分，断言上面列出的全局都被设置，且 `iwa` 目标下行为不变（`LastRODirectSocketFactory` 仍是 `createDirectSocket`）。
+  - `native-bootstrap`（也断言 `LastRONativeBuild === true`，且 `iwa` 目标下它不是 `true`）：stub `__LASTRO_BUILD_TARGET__='native'`、假 `window.__TAURI__`，执行引导中受影响的部分，断言上面列出的全局都被设置，且 `iwa` 目标下行为不变（`LastRODirectSocketFactory` 仍是 `createDirectSocket`）。
 - [ ] **Step 2：** 运行这三个测试文件，预期失败。
 - [ ] **Step 3：** 实现；`lastro-login-http.ts` 的改动只增加一个可选参数并默认使用现有函数。
 - [ ] **Step 4：** 运行 `pnpm vitest run test/native-*.test.ts test/direct-tcp-socket.test.ts test/direct-http-resource.test.ts test/chat-map-*.test.ts`，再运行 `pnpm test`。预期：全部通过（基线 4595 项）。`pnpm typecheck`。
