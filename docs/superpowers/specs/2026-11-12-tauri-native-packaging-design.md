@@ -295,3 +295,25 @@ spike 代码不进入正式分支历史；结论写入本文档。
 - Android 横屏/全屏策略与软键盘处理。
 - R2 上“最新版”固定下载地址的具体实现方式。
 - `NativeSocket` 的事件批量合并策略（只要保序、及时交付即可）。
+
+## 13. 技术验证结论（持续更新；探针代码在本地分支 `spike/tauri-native`，不合入）
+
+### 已完成（2026-11-12 / 11-14）
+
+| §9 项 | 平台 | 结论 |
+| --- | --- | --- |
+| 1 跨源隔离 | Linux（WebKitGTK 2.54.2） | `crossOriginIsolated` 为 true，但 `SharedArrayBuffer` 默认不存在；设 `JSC_useSharedArrayBuffer=true` 后主线程和 Worker 都可用。**通过（需程序自己设环境变量）** |
+| 1 跨源隔离 | **Android（真机 小米 23124RA7EO，Android 15，System WebView 157）** | **不通过。** 页面响应头确实带了 `COOP: same-origin`、`COEP: require-corp`，`http://tauri.localhost` 和 `https://tauri.localhost` 两种来源都试过，`crossOriginIsolated` 始终为 false，`SharedArrayBuffer` 不存在。我找不到绕过办法；我记得 Chromium Android WebView 没有实现跨源隔离，但未核实 |
+| 2 Worker 访问自定义协议 | Linux、Android | 通过：`fetch` 自定义协议返回 200（3769 字节），不允许的 root 返回 403，COEP 不拦截 |
+| 3 WebGL | Linux（Xvfb）、Android（真机亮屏） | WebGL2 可用，约 60fps（简单压测，不代表真实大地图） |
+| 6 Android 后台在线 | **Android 真机** | **通过。** 开启保活（前台服务 `specialUse` + `PARTIAL_WAKE_LOCK` + `RENDERER_PRIORITY_IMPORTANT`），锁屏 30 分钟：每分钟都有心跳，主线程最大间隔 1023ms，Worker 1007ms。**对照组**（不开这三项）：进程仍在，但 18 分钟内没有任何心跳，说明页面被冻结。注意：三项措施没有拆开单测，不知道是哪一项起决定作用；只在一台小米手机（HyperOS）上测过一次 |
+| 7 桌面窗口不被节流 | Linux（Xvfb，无窗口管理器） | 初步通过（4 个窗口 120 秒，最大间隔 ≤2 秒）；Xvfb 里“最小化”可能没有真正生效，需 Windows/macOS 结果确认 |
+| 8 中转握手 | Linux、Android | 通过：Rust 握手返回 101；用 WebView 自带标识（含 Android 的 `; wv`）也返回 101，所以“必须改用 Chrome 标识”的担心在 2026-11-14 并未出现，仍保留统一 Chrome 标识作为保险 |
+
+### 未完成
+- 4（Windows 交叉编译）、5（未签名更新的 SmartScreen）、1/2/7 在 Windows 和 macOS 上的结果：待 CI 与实机。
+- 3 在 macOS 上的渲染性能：待实机。
+- 9（国产 Linux 的 WebKitGTK 4.1）：待有目标机器。
+
+### 对设计的影响，需要用户决定
+**Android 上 KoreEngine 无法运行（SharedArrayBuffer 缺失）。** 按 §5.6.1 的约定，Android 版暂时显示“KE 不可用”，游戏本体不受影响。可选方向（待用户决定，不要自行选择）：（a）接受 Android 版没有 KE；（b）为 Android 做一个不依赖 SAB 的 KE 版本；（c）Android 上用 KoreEngine 现有的原生 Android 应用做挂机，本应用只做游戏本体。
