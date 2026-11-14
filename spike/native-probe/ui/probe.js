@@ -11,6 +11,8 @@ export async function runProbes(args) {
   results.relay = await invoke('relay_probe', { userAgent: null });
   results.relayWithWebviewUa = await invoke('relay_probe', { userAgent: navigator.userAgent });
   results.coi = crossOriginIsolated;
+  results.origin = location.origin;
+  try { const r = await fetch(location.href); results.pageHeaders = { coop: r.headers.get('cross-origin-opener-policy'), coep: r.headers.get('cross-origin-embedder-policy') }; } catch (e) { results.pageHeaders = String(e); }
   results.sabMain = typeof SharedArrayBuffer;
   const lroUrl = (rootId, path) => convertFileSrc(`${rootId}/${path}`, 'lro');
   const worker = new Worker('probe-worker.js');

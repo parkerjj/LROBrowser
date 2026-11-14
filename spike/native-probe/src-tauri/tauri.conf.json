@@ -6,7 +6,7 @@
   "build": { "frontendDist": "../ui" },
   "app": {
     "withGlobalTauri": true,
-    "windows": [{ "label": "main", "title": "probe", "url": "index.html", "width": 900, "height": 700 }],
+    "windows": [{ "label": "main", "useHttpsScheme": true, "title": "probe", "url": "index.html", "width": 900, "height": 700 }],
     "security": {
       "csp": null,
       "headers": {

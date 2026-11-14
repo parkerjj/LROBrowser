@@ -19,13 +19,27 @@ fn probe_args() -> Args {
 }
 
 #[tauri::command]
-fn report_tick(json: String) {
+fn report_tick(app: tauri::AppHandle, json: String) {
     println!("PROBE_TICK {json}");
+    append_log(&app, &format!("PROBE_TICK {json}"));
+}
+
+/// 追加到应用数据目录的 probe.log（Android 上用 `adb shell run-as <包名> cat files/probe.log` 读取）。
+fn append_log(app: &tauri::AppHandle, line: &str) {
+    use std::io::Write;
+    use tauri::Manager;
+    if let Ok(dir) = app.path().app_data_dir() {
+        let _ = std::fs::create_dir_all(&dir);
+        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(dir.join("probe.log")) {
+            let _ = writeln!(f, "{} {line}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0));
+        }
+    }
 }
 
 #[tauri::command]
 fn report(app: tauri::AppHandle, json: String) {
     report::emit(&json);
+    append_log(&app, &format!("PROBE_REPORT {json}"));
     if probe_args().auto { app.exit(0); }
 }
 
@@ -42,6 +56,7 @@ fn child_results(children: tauri::State<Children>) -> Vec<(String, String)> {
 }
 
 /// 再开 count 个窗口：依次为 normal、minimized、hidden 循环。
+#[cfg(desktop)]
 #[tauri::command]
 async fn open_probe_windows(app: tauri::AppHandle, count: u32, duration_s: u64) -> Result<(), String> {
     use tauri::{WebviewUrl, WebviewWindowBuilder};
@@ -60,10 +75,15 @@ async fn open_probe_windows(app: tauri::AppHandle, count: u32, duration_s: u64) 
     Ok(())
 }
 
+#[cfg(mobile)]
+#[tauri::command]
+async fn open_probe_windows(_count: u32, _duration_s: u64) -> Result<(), String> { Ok(()) }
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .manage(Children::default())
+        .setup(|app| { append_log(app.handle(), "PROBE_START"); Ok(()) })
         .register_asynchronous_uri_scheme_protocol("lro", |_ctx, request, responder| {
             tauri::async_runtime::spawn(async move {
                 responder.respond(resource_protocol::handle(request).await);
