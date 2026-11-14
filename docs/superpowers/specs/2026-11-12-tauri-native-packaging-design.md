@@ -142,6 +142,8 @@ rust-toolchain.toml          固定 Rust 版本（与 KoreEngine 一致：1.99.0
 - Linux（WebKitGTK）：默认关闭，用 `JSC_useSharedArrayBuffer=true` 打开（见 §6.1）。
 - **KE 的 SAB 依赖也许可以去掉（2026-11-14 读 KE 源码得出，尚未实测；用户提醒当初采用 SAB 方案另有原因，**这个原因我没有在文档和提交记录里找到，所以下面的结论都是待验证的假设**）**：
   - 能查到的历史：M4 人工测试发现 AI 迟滞（固定 100/250ms tick）→ M5 重构设计（`docs/milestones/plans/KoreEngine-M5-Rust-Thread-Scheduler-Redesign.md`）选了“Rust 常驻线程 + SAB 环形队列 + `Atomics.wait`”，并写明“是否支持单线程事件驱动降级应另行确认”。实际落地（2026-10-16 起）是 Worker 内事件驱动 + one-shot 定时器，没有用 WASM 线程，SAB 队列留了下来。没有找到“非 SAB 模式试过并失败”的记录。
+  - **用户确认的原因（2026-11-14）**：更早的设计是 KE 按时间轮询客户端有没有新封包，用户明确否决，因为太慢、不够智能；要求封包抵达后立刻唤醒 KE 开始工作。所以 SAB 方案的本意是“事件驱动、无轮询”，而不是 SAB 本身。无 SAB 的普通队列模式**同样必须事件驱动**：主线程收到封包 → `postMessage` 立即唤醒 Worker → 处理；需要等待的任务用 Rust 给出的下一个到期时间设一次性定时器，不得出现任何固定间隔的轮询。
+  - **普通队列模式的硬验收标准**：（a）代码里没有 `setInterval` 或固定间隔的 KE 轮询；（b）用 KE 的 `test/worker-smoke.html` 在 `shared:false` 下测“封包到达 → 发出动作”的延迟，不得明显劣于共享队列模式（两种模式用同一批封包对比，数值写进本文档）；（c）消息顺序、背压、Worker 重建后的恢复行为通过 KE 现有的 `tests/worker-scheduler.test.mjs` 与 `tests/shared-queue.test.mjs` 在两种模式下都通过。
   - KE 的 `runtime/shared-queue.mjs` 里，`SharedRingQueue` 只是把 SAB 当作固定槽位的环形存储，队列由 `kore-worker.mjs` 的 `ensureResidentQueues()` 在 **Worker 内部创建、只在 Worker 内读写**（源码注释原话：“队列只在 Worker 内读写，所以不需要放进共享内存”）。主线程通过 `postMessage` 把事件发给 Worker，Worker 收到后入队再处理，没有跨线程的 `Atomics.wait/notify`。
   - KE 的 WASM 没有用线程或共享内存（构建参数里没有 atomics，只有路径重映射）。
   - `BridgeQueues` 本身已经有 `shared: false` 选项，对应普通内存的 `RingQueue`，两者的方法一致（`push`、`drain`、`replaceFirstByKey`、`stats` 等）。现在只是默认值是 `shared = true`，并且 RoBrowser 的 `src/kore/kore-integration.mjs`（约第 1159 行）在没有 SAB 时直接把 KE 标成“不可用”。
