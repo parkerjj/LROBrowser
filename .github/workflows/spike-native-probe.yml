@@ -1,0 +1,104 @@
+name: Spike native probe
+
+# 一次性技术验证，只存在于 spike/tauri-native 分支，永不合入。
+on:
+  push:
+    branches: [spike/tauri-native]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PROBE_DURATION_S: "300"
+
+jobs:
+  windows-build:
+    name: Cross-compile Windows installer on Linux
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      XWIN_ACCEPT_LICENSE: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Install NSIS and LLVM
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends nsis lld llvm clang
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install 1.99.0 --profile minimal --target x86_64-pc-windows-msvc
+          rustup default 1.99.0
+      - name: Install cargo-xwin and Tauri CLI
+        run: |
+          cargo install cargo-xwin --locked
+          cargo install tauri-cli --version "^2" --locked
+      - name: Build NSIS installer
+        working-directory: spike/native-probe/src-tauri
+        run: cargo tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc --bundles nsis
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: native-probe-setup
+          path: spike/native-probe/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+          if-no-files-found: error
+          retention-days: 7
+
+  windows-run:
+    name: Install and run on Windows
+    needs: windows-build
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: native-probe-setup
+          path: setup
+      - name: Silent install, run probe, collect report
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem setup -Filter *.exe | Select-Object -First 1
+          Start-Process $setup.FullName -ArgumentList '/S' -Wait
+          $exe = Get-ChildItem "$env:LOCALAPPDATA" -Recurse -Filter native-probe.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $exe) { throw 'installed exe not found' }
+          Remove-Item "$env:TEMP\lro-probe-report.json" -ErrorAction SilentlyContinue
+          $p = Start-Process $exe.FullName -ArgumentList '--probe-auto', "--probe-duration-s=$env:PROBE_DURATION_S" -PassThru
+          if (-not $p.WaitForExit(($env:PROBE_DURATION_S -as [int]) * 1000 + 240000)) { $p.Kill(); throw 'probe timed out' }
+          if (-not (Test-Path "$env:TEMP\lro-probe-report.json")) { throw 'no report file' }
+          Copy-Item "$env:TEMP\lro-probe-report.json" probe-report-windows.json
+          Get-Content probe-report-windows.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: probe-report-windows
+          path: probe-report-windows.json
+          if-no-files-found: error
+
+  macos-run:
+    name: Build and run on macOS
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Install Rust toolchain and Tauri CLI
+        run: |
+          rustup toolchain install 1.99.0 --profile minimal --target aarch64-apple-darwin --target x86_64-apple-darwin
+          rustup default 1.99.0
+          cargo install tauri-cli --version "^2" --locked
+      - name: Build universal app
+        working-directory: spike/native-probe/src-tauri
+        run: cargo tauri build --target universal-apple-darwin --bundles app
+      - name: Ad-hoc sign, run probe, collect report
+        run: |
+          APP=$(find spike/native-probe/src-tauri/target -name 'native-probe.app' -maxdepth 6 | head -1)
+          codesign --force --deep -s - "$APP"
+          rm -f "$TMPDIR/lro-probe-report.json"
+          "$APP/Contents/MacOS/native-probe" --probe-auto --probe-duration-s=$PROBE_DURATION_S
+          test -s "$TMPDIR/lro-probe-report.json"
+          cp "$TMPDIR/lro-probe-report.json" probe-report-macos.json
+          cat probe-report-macos.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: probe-report-macos
+          path: probe-report-macos.json
+          if-no-files-found: error
