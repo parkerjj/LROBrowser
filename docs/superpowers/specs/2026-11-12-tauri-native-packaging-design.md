@@ -140,7 +140,17 @@ rust-toolchain.toml          固定 Rust 版本（与 KoreEngine 一致：1.99.0
 - Windows（WebView2，Chromium）、Android（System WebView，Chromium）：在跨源隔离下标准支持 `SharedArrayBuffer`，预期可用；Android 需要确认 Tauri 在 Android 上确实给页面加了 COOP/COEP 响应头（§9 第 1 项验证）。
 - macOS（WKWebView）：Safari 15.2 起在跨源隔离下支持。
 - Linux（WebKitGTK）：默认关闭，用 `JSC_useSharedArrayBuffer=true` 打开（见 §6.1）。
-- **如果某个平台验证后仍不可用**：该平台的 KoreEngine 显示“不可用”（与现有 IWA 的行为一致），游戏本体照常可玩；不为此降低 KE 的架构要求。是否值得为该平台另做一个无 SAB 的 KE 版本，由用户另行决定。
+- **KE 的 SAB 依赖其实可以去掉（2026-11-14 读 KE 源码得出，尚未实测）**：
+  - KE 的 `runtime/shared-queue.mjs` 里，`SharedRingQueue` 只是把 SAB 当作固定槽位的环形存储，队列由 `kore-worker.mjs` 的 `ensureResidentQueues()` 在 **Worker 内部创建、只在 Worker 内读写**（源码注释原话：“队列只在 Worker 内读写，所以不需要放进共享内存”）。主线程通过 `postMessage` 把事件发给 Worker，Worker 收到后入队再处理，没有跨线程的 `Atomics.wait/notify`。
+  - KE 的 WASM 没有用线程或共享内存（构建参数里没有 atomics，只有路径重映射）。
+  - `BridgeQueues` 本身已经有 `shared: false` 选项，对应普通内存的 `RingQueue`，两者的方法一致（`push`、`drain`、`replaceFirstByKey`、`stats` 等）。现在只是默认值是 `shared = true`，并且 RoBrowser 的 `src/kore/kore-integration.mjs`（约第 1159 行）在没有 SAB 时直接把 KE 标成“不可用”。
+  - `Online.js` 自己对 SAB 没有依赖（只是类型判断）。
+- **决定（用户 2026-11-14）：KE 做成双链路。**
+  - 有 SAB 的环境（IWA、Windows、Linux）继续用 `SharedRingQueue`，行为不变。
+  - 没有 SAB 的环境（Android、macOS）自动改用普通内存的 `RingQueue`，KE 照常运行，不显示“不可用”。
+  - 改动点（计划 2 中实现）：KE 仓库 `runtime/kore-worker.mjs` 的 `ensureResidentQueues()` 按 `SharedArrayBuffer`+`Atomics` 是否可用选择 `shared`；RoBrowser 的 `kore-integration.mjs` 去掉“无 SAB 即不可用”的拦截，把当前使用的队列模式写入状态供调试。KE 需要重新构建并发版（Worker 文件进了包清单哈希）；KE 的加密 Rust 核心不用改。
+  - 必须先实测：用 KE 的 `test/worker-smoke.html`（真实 Worker + WASM）在 `shared:false` 下跑通，再在 Android 真机和 macOS 上各验证一次 KE 能启动并持续决策。验证前不对外承诺 Android/macOS 支持 KE。
+  - 这也让 Linux 不再必须设置 `JSC_useSharedArrayBuffer=true`；该环境变量保留作为可选项即可。
 
 ### 5.7 安全边界
 
@@ -327,9 +337,7 @@ spike 代码不进入正式分支历史；结论写入本文档。
 - 9（国产 Linux 的 WebKitGTK 4.1）：待有目标机器。
 - 7 在真实 Windows/macOS 桌面上的长时间最小化：CI 结果通过，仍建议实机抽查一次。
 
-### 对设计的影响，需要用户决定
-**1. Android 上 KoreEngine 无法运行（SharedArrayBuffer 缺失）。** 按 §5.6.1 的约定，Android 版暂时显示“KE 不可用”，游戏本体不受影响。可选方向（待用户决定，不要自行选择）：（a）接受 Android 版没有 KE；（b）为 Android 做一个不依赖 SAB 的 KE 版本；（c）Android 上用 KoreEngine 现有的原生 Android 应用做挂机，本应用只做游戏本体。
+### 对设计的影响（已有结论）
+**Android、macOS 没有 SharedArrayBuffer，但 KE 并不真正需要它**——见 §5.6.1。用户已决定把 KE 改成双链路（有 SAB 用共享队列，没有就用普通队列），此前列出的“接受没有 KE / 另做 KE / 用原生 KE 应用”三个方向作废。待实测确认。
 
-**2. macOS 上 KoreEngine 目前也无法运行**（见上表，原因疑似自定义协议非安全上下文）。我倾向先做一个小实验：macOS 改用本机 `http://localhost` 提供页面，看跨源隔离能否成立。如果成立，macOS 的 KE 可以保留；这个实验需要你同意后再做，因为它会引入本机 HTTP 服务（需限定只监听 127.0.0.1 且校验请求），与“不新增 proxy / bridge”的原则有张力。
-
-**3. 已证实：Android 必须保活措施才能后台在线；macOS 必须统一 Chrome 标识才能过中转。** 这两条已经是正式设计的硬要求，不再是可选项。
+**已证实：Android 必须保活措施才能后台在线；macOS 必须统一 Chrome 标识才能过中转。** 这两条已经是正式设计的硬要求，不再是可选项。
