@@ -310,10 +310,26 @@ spike 代码不进入正式分支历史；结论写入本文档。
 | 7 桌面窗口不被节流 | Linux（Xvfb，无窗口管理器） | 初步通过（4 个窗口 120 秒，最大间隔 ≤2 秒）；Xvfb 里“最小化”可能没有真正生效，需 Windows/macOS 结果确认 |
 | 8 中转握手 | Linux、Android | 通过：Rust 握手返回 101；用 WebView 自带标识（含 Android 的 `; wv`）也返回 101，所以“必须改用 Chrome 标识”的担心在 2026-11-14 并未出现，仍保留统一 Chrome 标识作为保险 |
 
+### Windows 与 macOS（GitHub 托管 runner，运行 `Spike native probe`，每次 300 秒）
+
+| §9 项 | Windows（WebView2，Chrome 156） | macOS（WKWebView，universal 包，ad-hoc 签名） |
+| --- | --- | --- |
+| 1 跨源隔离 / SAB | **通过**：页面来源 `https://tauri.localhost`，`crossOriginIsolated` true，主线程和 Worker 都有 `SharedArrayBuffer` | **不通过**：COOP/COEP 头已带上，但页面来源是 `tauri://localhost`（自定义协议），`crossOriginIsolated` false，`SharedArrayBuffer` 不存在。我推测是自定义协议不被当作安全上下文，未验证；可尝试的方向：改由本机 `http://localhost` 提供页面（如 `tauri-plugin-localhost`），待验证 |
+| 2 Worker 访问自定义协议 | 通过（200 / 3769 字节，非法 root 403） | 通过 |
+| 3 WebGL | WebGL2，64fps（简单压测） | WebGL2，58–60fps（runner 软件渲染，不代表真机） |
+| 4 Windows 交叉编译 | **通过**：Linux 上 cargo-xwin + NSIS 成功出安装包，在 Windows runner 上静默安装并启动成功 | — |
+| 7 窗口不被节流 | **通过**：正常/最小化/隐藏窗口，主线程与 Worker 最大间隔都 ≤1016ms | **通过（有保留）**：第二次运行三个窗口最大间隔 ≤2206ms；第一次运行时最小化窗口没有回报。runner 无真实桌面交互，不能完全代表真机 |
+| 8 中转握手 | Rust 101；WebView 自带 UA 也是 101 | Rust 101（第一次运行曾超时 15 秒，重跑正常，判断为偶发）；**用 WKWebView 自带 UA 返回 403，证实 macOS 必须使用统一的 Chrome 标识** |
+
 ### 未完成
-- 4（Windows 交叉编译）、5（未签名更新的 SmartScreen）、1/2/7 在 Windows 和 macOS 上的结果：待 CI 与实机。
-- 3 在 macOS 上的渲染性能：待实机。
+- 5（未签名应用自更新是否触发 SmartScreen）：需要真实 Windows 电脑，清单见探针分支 `spike/native-probe/MANUAL-CHECKS.md`。
+- 3 的真实大地图渲染性能：等正式实现后验收。
 - 9（国产 Linux 的 WebKitGTK 4.1）：待有目标机器。
+- 7 在真实 Windows/macOS 桌面上的长时间最小化：CI 结果通过，仍建议实机抽查一次。
 
 ### 对设计的影响，需要用户决定
-**Android 上 KoreEngine 无法运行（SharedArrayBuffer 缺失）。** 按 §5.6.1 的约定，Android 版暂时显示“KE 不可用”，游戏本体不受影响。可选方向（待用户决定，不要自行选择）：（a）接受 Android 版没有 KE；（b）为 Android 做一个不依赖 SAB 的 KE 版本；（c）Android 上用 KoreEngine 现有的原生 Android 应用做挂机，本应用只做游戏本体。
+**1. Android 上 KoreEngine 无法运行（SharedArrayBuffer 缺失）。** 按 §5.6.1 的约定，Android 版暂时显示“KE 不可用”，游戏本体不受影响。可选方向（待用户决定，不要自行选择）：（a）接受 Android 版没有 KE；（b）为 Android 做一个不依赖 SAB 的 KE 版本；（c）Android 上用 KoreEngine 现有的原生 Android 应用做挂机，本应用只做游戏本体。
+
+**2. macOS 上 KoreEngine 目前也无法运行**（见上表，原因疑似自定义协议非安全上下文）。我倾向先做一个小实验：macOS 改用本机 `http://localhost` 提供页面，看跨源隔离能否成立。如果成立，macOS 的 KE 可以保留；这个实验需要你同意后再做，因为它会引入本机 HTTP 服务（需限定只监听 127.0.0.1 且校验请求），与“不新增 proxy / bridge”的原则有张力。
+
+**3. 已证实：Android 必须保活措施才能后台在线；macOS 必须统一 Chrome 标识才能过中转。** 这两条已经是正式设计的硬要求，不再是可选项。
