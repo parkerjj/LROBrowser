@@ -1,4 +1,4 @@
-import { expect, test, vi } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import { createKoreIntegration, createKorePanel, formatKoreDiagnosticLine, formatKoreSections, loadKorePackage, validateKoreManifest } from '../src/kore/kore-integration.mjs';
 import { bridgeRecord, packageFixture, TestWorkerStub as FakeWorker } from './kore-fixture';
@@ -915,4 +915,76 @@ test('disconnect keeps close code and the recent send rate for post-mortem', asy
   // 新连接开始后清掉上一次的断线记录。
   host.beginMapConnection();
   expect(host.state.disconnect).toBeNull();
+});
+
+const PLAIN_CAPABLE = ['fourQueues', 'oneShotDeadline', 'residentExecutor', 'plainQueues'];
+afterEach(() => { vi.unstubAllGlobals(); });
+
+async function queueModeHost(options: { queueMode?: 'auto' | 'shared' | 'plain'; capabilities?: string[]; withSab?: boolean }) {
+  const fixture = packageFixture('lastro-20211103', {}, 2, 2, options.capabilities);
+  const worker = new FakeWorker();
+  const page = Object.assign(pageFor(fixture), options.withSab === false ? { crossOriginIsolated: false } : {});
+  if (options.withSab === false) vi.stubGlobal('SharedArrayBuffer', undefined);
+  const host = createKoreIntegration({ page, manifest: fixture.executable, createWorker: () => worker,
+    ...(options.queueMode ? { queueMode: options.queueMode } : {}) });
+  await host.start();
+  return { fixture, worker, host };
+}
+
+test('queueMode is forwarded to the Worker in residentInit', async () => {
+  const { worker } = await queueModeHost({ queueMode: 'plain', capabilities: PLAIN_CAPABLE });
+  expect(worker.messages[0]).toMatchObject({ type: 'residentInit', queueMode: 'plain' });
+});
+
+test('queueMode defaults to auto', async () => {
+  const { worker } = await queueModeHost({});
+  expect(worker.messages[0]).toMatchObject({ type: 'residentInit', queueMode: 'auto' });
+});
+
+test('without SharedArrayBuffer a plainQueues package starts in auto mode', async () => {
+  const { worker, host } = await queueModeHost({ queueMode: 'auto', capabilities: PLAIN_CAPABLE, withSab: false });
+  expect(host.state.status).not.toBe('unavailable');
+  expect(worker.messages[0]).toMatchObject({ type: 'residentInit', queueMode: 'auto' });
+});
+
+test('without SharedArrayBuffer an old package stays unavailable', async () => {
+  const { worker, host } = await queueModeHost({ queueMode: 'auto', withSab: false });
+  expect(host.state).toMatchObject({ status: 'unavailable', degradedReason: 'shared-array-buffer-unavailable' });
+  expect(worker.messages).toHaveLength(0);
+});
+
+test('shared mode without SharedArrayBuffer is unavailable even for a plainQueues package', async () => {
+  const { worker, host } = await queueModeHost({ queueMode: 'shared', capabilities: PLAIN_CAPABLE, withSab: false });
+  expect(host.state).toMatchObject({ status: 'unavailable', degradedReason: 'shared-array-buffer-unavailable' });
+  expect(worker.messages).toHaveLength(0);
+});
+
+test('plain mode on an old package is unsupported and never silently ignored', async () => {
+  const { worker, host } = await queueModeHost({ queueMode: 'plain' });
+  expect(host.state).toMatchObject({ status: 'unavailable', degradedReason: 'plain-queues-unsupported' });
+  expect(worker.messages).toHaveLength(0);
+});
+
+test('state.queueMode follows the ready capabilities', async () => {
+  const { fixture, worker, host } = await queueModeHost({ queueMode: 'plain', capabilities: PLAIN_CAPABLE });
+  expect(host.state.queueMode).toBeNull();
+  const init = worker.messages[0]!;
+  worker.reply({ runtimeSessionId: init.runtimeSessionId, requestId: init.requestId, type: 'ready', packageId: fixture.manifest.packageId,
+    worldReady: false, capabilities: { mapStream: true, queueMode: 'plain' } });
+  expect(host.state.queueMode).toBe('plain');
+});
+
+test('a ready message from an older Worker without queueMode is treated as shared', async () => {
+  const { fixture, worker, host } = await queueModeHost({});
+  const init = worker.messages[0]!;
+  worker.reply({ runtimeSessionId: init.runtimeSessionId, requestId: init.requestId, type: 'ready', packageId: fixture.manifest.packageId,
+    worldReady: false, capabilities: { mapStream: true } });
+  expect(host.state.queueMode).toBe('shared');
+});
+
+test('validateKoreManifest accepts the legacy and the plainQueues capability lists but nothing else', async () => {
+  await expect(validateKoreManifest(packageFixture('lastro-20211103', {}, 2, 2).manifest)).resolves.toBeTruthy();
+  await expect(validateKoreManifest(packageFixture('lastro-20211103', {}, 2, 2, PLAIN_CAPABLE).manifest)).resolves.toBeTruthy();
+  await expect(validateKoreManifest(packageFixture('lastro-20211103', {}, 2, 2, ['plainQueues']).manifest)).rejects.toThrow('incompatible-package');
+  await expect(validateKoreManifest(packageFixture('lastro-20211103', {}, 2, 2, [...PLAIN_CAPABLE, 'surprise']).manifest)).rejects.toThrow('incompatible-package');
 });

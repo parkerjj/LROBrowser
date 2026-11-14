@@ -9,7 +9,10 @@ const idPattern = /^[a-f0-9]{64}$/;
 const metadataFields = ['schemaVersion', 'engineVersion', 'bridgeApiVersion', 'schedulerCapabilities', 'packetver', 'profile', 'commitSha', 'sourceDirty', 'mode', 'toolVersions', 'buildId', 'chunks', 'files'];
 const mapDataCapabilities = { abiVersion: 1, dataFormatVersion: 1, fieldpackVersion: '2.0.5' };
 const exactObject = (value, expected) => value && JSON.stringify(canonical(value)) === JSON.stringify(canonical(expected));
-const schedulerCapabilities = ['fourQueues', 'oneShotDeadline', 'residentExecutor'];
+// plainQueues：Worker 可以用普通内存队列运行（不依赖 SharedArrayBuffer）。旧包没有这一项，两种清单都接受。
+const legacySchedulerCapabilities = ['fourQueues', 'oneShotDeadline', 'residentExecutor'];
+const schedulerCapabilities = [...legacySchedulerCapabilities, 'plainQueues'];
+const QUEUE_MODES = ['auto', 'shared', 'plain'];
 const MAX_PENDING_GAME_CHUNKS = 512;
 const MAX_PENDING_GAME_BYTES = 2 * 1024 * 1024;
 const MAX_RESIDENT_IN_FLIGHT_EVENTS = 256;
@@ -62,7 +65,7 @@ export async function validateKoreManifest(manifest) {
     || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(manifest.buildId ?? '')
     || !Array.isArray(manifest.files) || !idPattern.test(manifest.packageId)) throw Error('incompatible-package');
   if (!Array.isArray(manifest.schedulerCapabilities)
-    || JSON.stringify(manifest.schedulerCapabilities) !== JSON.stringify(schedulerCapabilities)) throw Error('incompatible-package');
+    || ![legacySchedulerCapabilities, schedulerCapabilities].some(list => JSON.stringify(manifest.schedulerCapabilities) === JSON.stringify(list))) throw Error('incompatible-package');
   const paths = new Set();
   for (const file of manifest.files) {
     safePackagePath(file.path);
@@ -157,12 +160,13 @@ export async function loadKorePackage({ page = globalThis, manifest, signal, ver
   };
 }
 
-export function createKoreIntegration({ page = globalThis, manifest, createWorker = url => new page.Worker(url, { type: 'module' }), onWorkerReleased = () => {}, onChange = () => {}, mapResourceProvider = null, ltsdClient = null, serverFieldsFolder = 'EP15.1', restartPolicy = {} }) {
+export function createKoreIntegration({ page = globalThis, manifest, createWorker = url => new page.Worker(url, { type: 'module' }), onWorkerReleased = () => {}, onChange = () => {}, mapResourceProvider = null, ltsdClient = null, serverFieldsFolder = 'EP15.1', restartPolicy = {}, queueMode = 'auto' }) {
+  if (!QUEUE_MODES.includes(queueMode)) throw new RangeError('invalid-queue-mode');
   const state = {
     status: 'absent', packageId: null, mode: null, runtimeGeneration: 0,
     profile: KORE_PROTOCOL_PROFILE, gameSessionId: null, connectionGeneration: null,
     streamStatus: 'idle', worldReady: false, mapResourceState: 'idle', currentMapView: null,
-    receivedBytes: 0, sentBytes: 0, degradedReason: null, logs: [], errorLog: [],
+    receivedBytes: 0, sentBytes: 0, degradedReason: null, queueMode: null, logs: [], errorLog: [],
     runtimeStatus: null, lastDiagnostic: null, lastCommandResult: null,
     configIdentity: null,
     bootSession: null,
@@ -992,6 +996,8 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       }
       coreReady = true;
       state.status = 'runtime-ready';
+      // 旧 Worker 的 ready 里没有 queueMode，它只会使用共享队列。
+      state.queueMode = capabilities?.queueMode === 'plain' ? 'plain' : 'shared';
       state.packageId = message.packageId ?? packageInfo?.manifest?.packageId ?? null;
       state.mode = packageInfo?.manifest?.mode ?? null;
       state.worldReady = message.worldReady === true;
@@ -1156,14 +1162,21 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
       }
       session = typeof page.crypto?.randomUUID === 'function' ? page.crypto.randomUUID() : `ke-${Date.now()}-${Math.random()}`;
       runtimeGeneration += 1; state.runtimeGeneration = runtimeGeneration;
-      if (page.crossOriginIsolated === false
-        && !(typeof globalThis.SharedArrayBuffer === 'function' && typeof globalThis.Atomics === 'object')) {
-        state.status = 'unavailable'; state.degradedReason = 'shared-array-buffer-unavailable'; log('error', state.degradedReason); return;
+      // 队列模式：shared 需要 SharedArrayBuffer；plain 需要 KE 包声明 plainQueues；
+      // auto 在没有 SAB 时同样需要 plainQueues（旧包保持“不可用”，不会被误用）。
+      const hasSab = page.crossOriginIsolated !== false
+        || (typeof globalThis.SharedArrayBuffer === 'function' && typeof globalThis.Atomics === 'object');
+      const plainCapable = packageInfo.manifest.schedulerCapabilities?.includes('plainQueues') === true;
+      const unavailableReason = queueMode === 'plain' && !plainCapable ? 'plain-queues-unsupported'
+        : (queueMode === 'shared' || (queueMode === 'auto' && !plainCapable)) && !hasSab ? 'shared-array-buffer-unavailable'
+        : null;
+      if (unavailableReason) {
+        state.status = 'unavailable'; state.degradedReason = unavailableReason; log('error', state.degradedReason); return;
       }
       attachWorker(createWorker(packageInfo.workerUrl));
       postWorker({ type: 'residentInit', expectedPackageId: packageInfo.manifest.packageId,
         bridgeApiVersion: packageInfo.manifest.bridgeApiVersion, packetver: packageInfo.manifest.packetver,
-        startMs: 0, executor: 'resident', runtimeGeneration });
+        startMs: 0, executor: 'resident', runtimeGeneration, queueMode });
       if (heartbeatTimer === null && page.setInterval) heartbeatTimer = page.setInterval(() => postWorker({ type: 'heartbeatRequest', sentAt: Date.now() }), HEARTBEAT_INTERVAL_MS);
     } catch (error) {
       const reason = String(error?.message ?? error);
