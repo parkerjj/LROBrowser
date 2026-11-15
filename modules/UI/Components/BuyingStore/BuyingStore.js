@@ -331,9 +331,9 @@ define(
       f = this.ui.find(".InputWindow .content");
       c = 0;
       for (d = a.length; c < d; ++c)
-        ("index" in a[c] || (a[c].index = c),
+        a[c].IsIdentified &&
+          ("index" in a[c] || (a[c].index = c),
           (a[c].count = a[c].count || 1),
-          (a[c].IsIdentified = !0),
           (e = n.extend({}, a[c])),
           (e.count = 0),
           b(f, a[c]),
