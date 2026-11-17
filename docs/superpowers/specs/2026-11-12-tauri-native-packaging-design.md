@@ -351,3 +351,25 @@ spike 代码不进入正式分支历史；结论写入本文档。
 **Android、macOS 没有 SharedArrayBuffer，但 KE 并不真正需要它**——见 §5.6.1。用户已决定把 KE 改成双链路（有 SAB 用共享队列，没有就用普通队列），此前列出的“接受没有 KE / 另做 KE / 用原生 KE 应用”三个方向作废。待实测确认。
 
 **已证实：Android 必须保活措施才能后台在线；macOS 必须统一 Chrome 标识才能过中转。** 这两条已经是正式设计的硬要求，不再是可选项。
+
+### 计划 2（KE 队列模式 `keQueueMode`）实施结果（2026-11-17，Windows 开发机）
+
+**提交**
+- KE 仓库，本地分支 `feat/ke-queue-mode`（未推送，未发布）：`e89e621` resolveQueueMode；`2a7b4a8` Worker 的 `residentInit` 支持 `queueMode`，附延迟基准脚本；`35525de` 构建清单声明 `plainQueues`；`a59adf1` Worker 端清单校验同时接受新旧能力列表（`35525de` 漏改了这里，导致 `the Worker accepts both the legacy and the plainQueues capability lists` 失败）。
+- RoBrowser，`feat/tauri-native`：`2d8ce40` 去掉“无 SAB 即不可用”的拦截；`c98d438` `keQueueMode` 开关（原生版默认 `plain`，IWA/web 默认 `auto`，可用 `localStorage['lro.keQueueMode']` 覆盖）。
+
+**测试**
+- KE：`node --test tests/*.mjs test/build-local.test.mjs` 120 项，114 通过，6 跳过，0 失败；`KE_TEST_QUEUE_MODE=plain` 下 `worker-scheduler` + `kore-worker` 30 项，25 通过，5 跳过，0 失败。Worker 里没有 `setInterval`。
+- RoBrowser：`pnpm test` 4602 通过，13 失败，4 跳过。其中 12 项在 `Development`（`4d6f083`）上同样失败，是 Windows 环境的老问题（路径分隔符、符号链接、tar 解包，集中在 `archive-online-js`、`core-assets`、`import-v2-snapshot`、`kore-release`、`local-server`）；另 1 项（`local-server` 端口占用）在全量负载下超时，单独运行通过。本计划没有引入新的失败。`pnpm typecheck`、`pnpm audit:iwa`、`git diff --check` 通过；改动文件的 eslint 无错误。
+- 打包输出：分别在 `4d6f083` 和本分支上执行 `pnpm build` 与 web 构建，比较 `dist/`、`dist-web/` 的 sha256 清单。差异只有预期的三处（两个目录相同）：新增 `runtime/ke-queue-mode.mjs`，`runtime/kore-integration.mjs` 有改动，`core/executable-assets.json` 随之更新。其余文件逐字节一致。
+
+**延迟基准**（`node scripts/bench-queue-latency.mjs --n 3000`，各 3 次，单位 µs）
+
+| 模式 | wake p50 / p95 / p99 | ack p50 / p95 / p99 |
+| --- | --- | --- |
+| shared | 29–34 / 83–118 / 164–193 | 31–38 / 92–129 / 180–213 |
+| plain | 22–23 / 58–62 / 112–117 | 24–25 / 67–71 / 130–136 |
+
+普通队列比共享队列更快，结论与 2026-11-14 在 Linux 上的实测一致。
+
+**验证范围**：只验证到 Node 夹具层，即真实的 `kore-worker.mjs` 加模拟的 Runtime。**未验证**：真实 WASM、真实授权（本地构建的包会被 LTSD 拒绝），以及 Android/macOS 的网页引擎。计划 2 Task 3 Step 3 的本地 debug 包构建在 Windows 上没有做，因为缺 `.tools/bin/wasm-bindgen` 0.2.129 和 binaryen 133；清单内容由 `test/build-local.test.mjs` 覆盖。这些要等 KE 的改动随一次正式发布出去后，再用 `pnpm dev` 实测。
