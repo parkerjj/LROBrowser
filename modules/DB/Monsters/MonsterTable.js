@@ -1645,7 +1645,7 @@ define("DB/Monsters/MonsterTable", [], function () {
     1960: "G_ENTWEIHEN",
     1961: "G_ENTWEIHEN",
     1962: "ANTONIO",
-    1963: "\u00bb\u00f5\u00c7\u00d8\u00c0\u00ce\u00c7\u00fc",
+    1963: "CHUNG_E",
     1964: "Nightmare",
     1965: "Wild_Rose",
     1966: "DOPPELGANGER",
