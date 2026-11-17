@@ -355,7 +355,7 @@ spike 代码不进入正式分支历史；结论写入本文档。
 ### 计划 2（KE 队列模式 `keQueueMode`）实施结果（2026-11-17，Windows 开发机）
 
 **提交**
-- KE 仓库，本地分支 `feat/ke-queue-mode`（未推送，未发布）：`e89e621` resolveQueueMode；`2a7b4a8` Worker 的 `residentInit` 支持 `queueMode`，附延迟基准脚本；`35525de` 构建清单声明 `plainQueues`；`a59adf1` Worker 端清单校验同时接受新旧能力列表（`35525de` 漏改了这里，导致 `the Worker accepts both the legacy and the plainQueues capability lists` 失败）。
+- KE 仓库：2026-11-17 已合入 `Development`（合并提交 `afd1964`，已推送，未发布 release），原分支 `feat/ke-queue-mode` 已删除。包含：`e89e621` resolveQueueMode；`2a7b4a8` Worker 的 `residentInit` 支持 `queueMode`，附延迟基准脚本；`35525de` 构建清单声明 `plainQueues`；`a59adf1` Worker 端清单校验同时接受新旧能力列表（`35525de` 漏改了这里，导致 `the Worker accepts both the legacy and the plainQueues capability lists` 失败）。
 - RoBrowser，`feat/tauri-native`：`2d8ce40` 去掉“无 SAB 即不可用”的拦截；`c98d438` `keQueueMode` 开关（原生版默认 `plain`，IWA/web 默认 `auto`，可用 `localStorage['lro.keQueueMode']` 覆盖）。
 
 **测试**
@@ -371,5 +371,7 @@ spike 代码不进入正式分支历史；结论写入本文档。
 | plain | 22–23 / 58–62 / 112–117 | 24–25 / 67–71 / 130–136 |
 
 普通队列比共享队列更快，结论与 2026-11-14 在 Linux 上的实测一致。
+
+**上线顺序（不能影响线上 KE 与 RoBrowser）**：线上 RoBrowser（`main`）的 `validateKoreManifest` 只接受旧的三项能力列表。为此 KE 另加了提交 `5ff2434`：新构建的清单**暂时仍只声明旧列表**（`ADVERTISED_SCHEDULER_CAPABILITIES`），Worker 和 build-local 的校验同时接受两种列表。所以 KE 照常发布对线上没有影响：Worker 收不到 `queueMode` 就按 `auto` 处理，行为不变；`ready.capabilities` 多出的 `queueMode` 字段，线上版本不检查。原生版真正用上 plain 队列之前，按顺序做两步：① RoBrowser 发布一个包含 `2d8ce40` 的版本，校验同时接受两种列表，对 IWA 行为没有影响；② 之后再把 KE 的 `ADVERTISED_SCHEDULER_CAPABILITIES` 切换为含 `plainQueues` 的列表，并随 KE 正式发布。顺序反过来会让线上 IWA 判定 KE 包不兼容。
 
 **验证范围**：只验证到 Node 夹具层，即真实的 `kore-worker.mjs` 加模拟的 Runtime。**未验证**：真实 WASM、真实授权（本地构建的包会被 LTSD 拒绝），以及 Android/macOS 的网页引擎。计划 2 Task 3 Step 3 的本地 debug 包构建在 Windows 上没有做，因为缺 `.tools/bin/wasm-bindgen` 0.2.129 和 binaryen 133；清单内容由 `test/build-local.test.mjs` 覆盖。这些要等 KE 的改动随一次正式发布出去后，再用 `pnpm dev` 实测。
