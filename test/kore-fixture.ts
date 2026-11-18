@@ -6,7 +6,7 @@ function canonical(value: unknown): unknown {
   if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : 1).map(([key, item]) => [key, canonical(item)]));
   return value;
 }
-export function packageFixture(profile = 'lastro-20211103', extraFiles: Record<string, string> = {}, bridgeApiVersion: 1 | 2 = 2, schemaVersion: 1 | 2 | 3 = 2) {
+export function packageFixture(profile = 'lastro-20211103', extraFiles: Record<string, string> = {}, bridgeApiVersion: 1 | 2 = 2, schemaVersion: 1 | 2 | 3 = 2, schedulerCapabilities: string[] = ['fourQueues', 'oneShotDeadline', 'residentExecutor']) {
   const payload = schemaVersion === 1 ? new Map<string, Uint8Array>([
     ['kore-worker.mjs', new TextEncoder().encode('export {};')],
     ['kore_wasm.js', new TextEncoder().encode('export default function init() {}')],
@@ -31,7 +31,7 @@ export function packageFixture(profile = 'lastro-20211103', extraFiles: Record<s
   const coreBytes = payload.get('core.wasm.enc');
   const metadata = {
     schemaVersion, engineVersion: '0.1.0', bridgeApiVersion,
-    ...(bridgeApiVersion === 2 ? { schedulerCapabilities: ['fourQueues', 'oneShotDeadline', 'residentExecutor'] } : {}),
+    ...(bridgeApiVersion === 2 ? { schedulerCapabilities } : {}),
     packetver: 20211103,
     profile, commitSha: null, sourceDirty: true, mode: 'debug',
     toolVersions: { rust: '1.99.0', wasmBindgen: '0.2.129', binaryen: null },

@@ -139,3 +139,21 @@ test('a crash without an active map connection only re-announces the session', a
   expect(host.state.recovery?.stage).toBe('idle');
   expect(page.KoreEngineNativeAction).not.toHaveBeenCalled();
 });
+
+test('a rebuilt Worker receives the same queueMode as the first one', async () => {
+  const fixture = packageFixture('lastro-20211103', {}, 2, 2, ['fourQueues', 'oneShotDeadline', 'residentExecutor', 'plainQueues']);
+  const workers: WorkerStub[] = [];
+  const page = Object.assign(new EventTarget(), {
+    location: { href: 'http://localhost/' }, fetch: fixture.fetch, performance: { now: () => 1 }, crypto: globalThis.crypto,
+  });
+  const host = createKoreIntegration({
+    page, manifest: fixture.executable, restartPolicy: FAST, queueMode: 'plain',
+    createWorker: () => { const worker = new WorkerStub(); workers.push(worker); return worker; },
+  });
+  await host.start();
+  const first = workers[0]!;
+  expect(first.messages[0]).toMatchObject({ type: 'residentInit', queueMode: 'plain' });
+  first.reply({ runtimeSessionId: first.messages[0]!.runtimeSessionId, type: 'fault', message: 'unreachable', fatal: true, retryable: true });
+  await vi.waitFor(() => expect(workers).toHaveLength(2));
+  expect(workers[1]!.messages[0]).toMatchObject({ type: 'residentInit', queueMode: 'plain' });
+});
