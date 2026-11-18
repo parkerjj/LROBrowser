@@ -1,4 +1,4 @@
 [[permission]]
 identifier = "allow-game-commands"
-description = "Allows local game windows to open and use their own game connections."
-commands.allow = ["net_open", "net_send", "net_close", "open_game_window"]
+description = "Allows local game windows to use their own connections, open another window, and open official KE pages."
+commands.allow = ["net_open", "net_send", "net_close", "open_game_window", "open_ke_ltsd_url"]

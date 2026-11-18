@@ -4,6 +4,7 @@
 import { renderConsole } from './kore-panel-console.mjs';
 import { authorizationGuide } from './kore-auth-guide.mjs';
 import { copyText } from './kore-clipboard.mjs';
+import { openKoreLtsdPage } from './kore-ltsd-client.mjs';
 
 // Entries with a `mode` form the mode switch (the active one is highlighted from KE's own
 // answer); the rest are plain one-shot commands.
@@ -128,7 +129,7 @@ export function createKoreWindow({
   const configEdit = element(document, 'button', 'kore-button kore-config-edit', '编辑配置 ↗');
   configEdit.type = 'button';
   configEdit.title = '在 LTSD 打开配置编辑页（新标签页）';
-  configEdit.addEventListener('click', () => { page.open?.('https://ltsd.ro/ke', '_blank', 'noopener,noreferrer'); });
+  configEdit.addEventListener('click', () => { void openKoreLtsdPage(page, 'https://ltsd.ro/ke'); });
   const configRetry = element(document, 'button', 'kore-button kore-config-retry', '同步并重载');
   configRetry.type = 'button';
   configRetry.title = '从 LTSD 拉取最新配置并重新加载 KoreEngine';
@@ -356,7 +357,11 @@ export function createKoreWindow({
         expiryNode.title = expiry.toLocaleString();
         onboardingContent.append(expiryNode);
       }
-      authButton('打开 LTSD 批准页', 'kore-auth-primary kore-auth-open', () => host.openLtsdApproval?.());
+      authButton('打开 LTSD 批准页', 'kore-auth-primary kore-auth-open', async event => {
+        const button = event.currentTarget;
+        const opened = await host.openLtsdApproval?.();
+        if (page.LastRONativeBuild === true) button.textContent = opened ? '打开 LTSD 批准页' : '浏览器未打开，点此重试';
+      });
       authButton('复制验证码', 'kore-auth-secondary kore-auth-copy', event => {
         const button = event.currentTarget;
         void copyText(page, String(auth.userCode ?? '')).then(copied => { button.textContent = copied ? '已复制' : '复制失败'; });
@@ -374,7 +379,7 @@ export function createKoreWindow({
       status(phase === 'loading-profile' ? '正在获取 LTSD 活动配置…' : '配置已获取，正在让 KoreEngine 执行 reload all…');
     } else if (phase === 'profile-missing') {
       status('前往 LTSD 为当前角色创建并启用一套配置。');
-      authButton('前往 LTSD 配置', 'kore-auth-primary', () => page.open?.('https://ltsd.ro/ke', '_blank', 'noopener,noreferrer'));
+      authButton('前往 LTSD 配置', 'kore-auth-primary', () => { void openKoreLtsdPage(page, 'https://ltsd.ro/ke'); });
       authButton('重新检查', 'kore-auth-secondary', () => { void host.refreshConfiguration?.(); });
     } else if (phase === 'profile-unavailable') {
       status('配置接口暂时失败；成功同步过的配置会按账号和角色保存在本地。');
@@ -389,7 +394,7 @@ export function createKoreWindow({
       const modeLabel = startCommand === 'manual' ? '半自动' : '自动';
       status(`已使用 ${quotaCount} 个实例额度`);
       const buyButton = authButton('＋ 购买更多实例额度', 'kore-auth-primary kore-quota-buy', () => {
-        page.open?.('https://ltsd.ro/ke/buy', '_blank', 'noopener,noreferrer');
+        void openKoreLtsdPage(page, 'https://ltsd.ro/ke/buy');
       });
       buyButton.title = '在 LTSD 购买更多实例额度';
       const instances = Array.isArray(auth.detail?.active_instances)

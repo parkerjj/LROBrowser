@@ -167,9 +167,9 @@ native/rust-toolchain.toml   固定 Rust 版本（与 KoreEngine 一致：1.99.0
 
 ### 5.7 安全边界
 
-- 计划 3 的 Tauri capabilities 只向本地游戏窗口开放 `net_open`、`net_send`、`net_close`、`open_game_window`。`lro` 协议另有来源、请求方法和路径检查。更新命令与系统浏览器入口按后续发布计划处理。
+- 计划 3 的 Tauri capabilities 只向本地游戏窗口开放 `net_open`、`net_send`、`net_close`、`open_game_window` 与 `open_ke_ltsd_url`。`lro` 协议另有来源、请求方法和路径检查。更新命令按后续发布计划处理。
 - 设置 CSP：`script-src 'self'`（加 Tauri 必需项与 `wasm-unsafe-eval`），`connect-src` 含自身、`lro` 协议、Tauri IPC 和 `https://ltsd.ro`。前端现在直接请求 `https://ltsd.ro/api/v1/ke`（KE 授权，`src/kore/kore-ltsd-client.mjs`）和 `https://ltsd.ro/api/v1/market/search`（市场查询，`src/assistant/lro-market-api.mjs`），该站 CORS 为 `*`，保持直连即可，不经过 Rust（我的决定）。
-- 前端里的外部链接（`window.open` 打开 `ltsd.ro/ke` 等）在原生版中改为交给 `opener` 插件，用系统默认浏览器打开，只允许 `https:` 链接（我的决定）。
+- KE 的批准页、配置页和购买页由 `open_ke_ltsd_url` 交给系统默认浏览器。Rust 校验 `https://ltsd.ro` 和对应页面路径。网页和 IWA 继续调用原有浏览器打开方式。
 - Rust 端对所有命令参数做白名单校验（主机、端口范围、URL 前缀），拒绝任意主机访问，避免网页侧被注入代码后把应用变成任意端口扫描或代理工具。
 - TLS 一律校验证书（rustls + webpki-roots 或平台根证书）。
 

@@ -33,6 +33,27 @@ impl fmt::Display for PolicyError {
 
 impl std::error::Error for PolicyError {}
 
+pub fn validate_ke_ltsd_url(value: &str) -> Result<Url, PolicyError> {
+    let invalid = || PolicyError::Forbidden("only official LTSD KE pages can be opened");
+    let url = Url::parse(value).map_err(|_| invalid())?;
+    let valid_path = match url.path() {
+        "/ke/device" => true,
+        "/ke" | "/ke/buy" => url.query().is_none(),
+        _ => false,
+    };
+    if url.scheme() != "https"
+        || url.host_str() != Some("ltsd.ro")
+        || url.port().is_some()
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.fragment().is_some()
+        || !valid_path
+    {
+        return Err(invalid());
+    }
+    Ok(url)
+}
+
 pub fn is_public_ip(ip: IpAddr) -> bool {
     match ip {
         IpAddr::V4(ip) => {
@@ -265,6 +286,29 @@ pub fn resolve_lro_path(raw_path: &str) -> Result<String, PolicyError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ke_ltsd_opener_allows_only_the_official_ke_pages() {
+        for url in [
+            "https://ltsd.ro/ke",
+            "https://ltsd.ro/ke/buy",
+            "https://ltsd.ro/ke/device?code=BCDF-GHJK",
+        ] {
+            assert!(validate_ke_ltsd_url(url).is_ok(), "{url}");
+        }
+        for url in [
+            "http://ltsd.ro/ke",
+            "https://ltsd.ro.example/ke",
+            "https://example@ltsd.ro/ke",
+            "https://ltsd.ro:8443/ke",
+            "https://ltsd.ro/ke/device#other",
+            "https://ltsd.ro/ke?next=https://example.invalid",
+            "https://ltsd.ro/api/v1/ke",
+            "file:///C:/Windows/notepad.exe",
+        ] {
+            assert!(validate_ke_ltsd_url(url).is_err(), "{url}");
+        }
+    }
     use std::net::IpAddr;
 
     #[test]

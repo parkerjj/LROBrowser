@@ -39,6 +39,7 @@ Linux 的二进制在 `native/src-tauri/target/debug/lro_client`，Windows 文�
 ## KE 与排错
 
 - 原生版的 KE 默认使用事件驱动的 `plain` 队列。需要在构建时打入清单声明 `plainQueues` 的正式 KE 包，并使用已授权的 LTSD 账号。已有下载权限的开发环境可先在仓库根目录运行 `pnpm ke:local --sync-release`，再重建原生版。
+- 「打开 LTSD 批准页」会启动系统默认浏览器。批准后返回客户端，等待 KE 完成授权。
 - 若窗口提示核心清单加载失败，先在仓库根目录重跑 `pnpm build:native`，再重新生成二进制。`dist-native/` 中应有 `index.html`、`play.html` 和 `core/executable-assets.json`。
 - 若登录画面正常但传统模式失败，可在 `native/src-tauri` 运行本机的 Rust 传输测试。在 PowerShell 设 `$env:LASTRO_RELAY_LIVE = '1'` 后运行 `cargo test --locked live_relay`，可单独检查官方中转握手。该测试只连接并关闭，不发送账号数据。
 - 若地图或素材加载失败，记录服务器、地图名、资源错误和发生时间。反馈时省略账号、密码、Cookie 和令牌。

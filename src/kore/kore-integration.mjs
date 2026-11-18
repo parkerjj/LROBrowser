@@ -2,7 +2,7 @@
 import { keBuildTarget, resolveKeQueueMode } from './ke-queue-mode.mjs';
 import { createMapResourceProvider } from './map-resource-provider.mjs';
 import { createKoreConfigStore } from './kore-config-store.mjs';
-import { createKoreLtsdClient } from './kore-ltsd-client.mjs';
+import { createKoreLtsdClient, openKoreLtsdPage } from './kore-ltsd-client.mjs';
 import { copyText } from './kore-clipboard.mjs';
 export const KORE_PROTOCOL_PROFILE = 'lastro-20211103';
 const compatibleProfiles = new Set([KORE_PROTOCOL_PROFILE, 'lastro-2x']);
@@ -1348,8 +1348,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     },
     openLtsdApproval() {
       const url = state.authorization.verificationUriComplete;
-      if (!url) return false;
-      try { return Boolean(page.open?.(url, '_blank', 'noopener,noreferrer')); } catch { return false; }
+      return url ? openKoreLtsdPage(page, url) : false;
     },
     cancelLtsdLogin() {
       stopDevicePolling();
