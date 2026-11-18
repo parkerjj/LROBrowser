@@ -89,13 +89,19 @@ describe('early standalone startup diagnostic', () => {
     h.dom.window.close();
   });
 
-  it('renders before app module startup and survives #app replacement', () => {
+  it('keeps diagnostics hidden during startup and reports failures outside the app mount', () => {
+    const beforeScript = new JSDOM(html);
+    expect(beforeScript.window.document.getElementById('lastro-startup-screen')?.hidden).toBe(true);
+    beforeScript.window.close();
     const h = harness();
-    expect(h.get('lastro-startup-screen').hidden).toBe(false);
+    expect(h.get('lastro-startup-screen').hidden).toBe(true);
     h.api.phase('加载游戏运行时 Online.js');
+    expect(h.get('lastro-startup-screen').hidden).toBe(true);
     h.get('app').replaceChildren();
+    h.api.fail('启动失败', new Error('missing runtime'));
     expect(h.get('lastro-startup-phase').textContent).toContain('Online.js');
     expect(h.get('lastro-startup-screen').isConnected).toBe(true);
+    expect(h.get('lastro-startup-screen').hidden).toBe(false);
     h.api.ready();
     expect(h.get('lastro-startup-screen').hidden).toBe(true);
     expect(h.timers.size).toBe(0);
@@ -121,6 +127,9 @@ describe('early standalone startup diagnostic', () => {
     warning!.run();
     expect(h.get('lastro-startup-message').textContent).toContain('25 秒');
     expect(h.get('lastro-startup-copy').hidden).toBe(false);
+    expect(h.get('lastro-startup-screen').hidden).toBe(false);
+    h.api.phase('初始化图形');
+    expect(h.get('lastro-startup-screen').hidden).toBe(true);
     h.api.ready();
     expect(h.get('lastro-startup-screen').hidden).toBe(true);
     h.dom.window.close();

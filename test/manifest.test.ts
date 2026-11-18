@@ -37,11 +37,10 @@ describe('Phase A IWA', () => {
     expect(shell).toContain("title.textContent = 'LRO进阶客户端(Powered by LTSD.Ro)';");
   });
 
-  it('starts with a dependency-free page that redirects to the game after two seconds', async () => {
+  it('starts with a silent, dependency-free page that redirects to the game immediately', async () => {
     const document = new DOMParser().parseFromString(await readFile('index.html', 'utf8'), 'text/html');
-    expect(document.querySelector('meta[http-equiv="refresh"]')?.getAttribute('content')).toBe('2; url=/play.html');
-    expect(document.querySelector('a[href="/play.html"]')?.textContent).toBeTruthy();
-    expect(document.body.textContent).toContain('启动入口已加载');
+    expect(document.querySelector('meta[http-equiv="refresh"]')?.getAttribute('content')).toBe('0; url=/play.html');
+    expect(document.body.textContent?.trim()).toBe('');
     expect(document.querySelectorAll('script, style, link, img, iframe').length).toBe(0);
   });
 
