@@ -2,6 +2,8 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
 #[cfg(desktop)]
+use tauri::Manager;
+#[cfg(desktop)]
 use tauri::menu::{MenuBuilder, SubmenuBuilder};
 
 use std::borrow::Cow;
@@ -10,6 +12,9 @@ use tauri::{
     http::{HeaderValue, Request, Response, header},
     utils::config::WindowConfig,
 };
+
+#[cfg(desktop)]
+use crate::window_size;
 
 fn game_window_config(app: &AppHandle) -> std::io::Result<&WindowConfig> {
     app.config()
@@ -40,9 +45,37 @@ fn fix_embedded_mime(request: Request<Vec<u8>>, response: &mut Response<Cow<'sta
 }
 
 fn build_game_window(app: &AppHandle, config: &WindowConfig) -> tauri::Result<()> {
-    WebviewWindowBuilder::from_config(app, config)?
-        .on_web_resource_request(fix_embedded_mime)
-        .build()?;
+    let builder =
+        WebviewWindowBuilder::from_config(app, config)?.on_web_resource_request(fix_embedded_mime);
+    #[cfg(desktop)]
+    let saved_size = app.state::<window_size::WindowSizes>().current();
+    #[cfg(desktop)]
+    let builder = match saved_size {
+        Some(size) => builder
+            .inner_size(f64::from(size.width), f64::from(size.height))
+            .prevent_overflow(),
+        None => builder,
+    };
+    #[cfg(target_os = "windows")]
+    let builder = if saved_size.is_some() {
+        builder.visible(false)
+    } else {
+        builder
+    };
+    let window = builder.build()?;
+    #[cfg(target_os = "windows")]
+    if let Some(size) = saved_size {
+        if let Err(error) = window_size::restore_with_menu(&window, size) {
+            eprintln!("failed to restore window size: {error}");
+        }
+        if config.visible {
+            window.show()?;
+        }
+    }
+    #[cfg(desktop)]
+    window_size::track(&window);
+    #[cfg(mobile)]
+    let _ = window;
     Ok(())
 }
 

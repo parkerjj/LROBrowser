@@ -1,6 +1,8 @@
 mod net;
 mod policy;
 mod resource_protocol;
+#[cfg(desktop)]
+mod window_size;
 mod windows;
 
 use tauri::{Manager, webview::PageLoadEvent};
@@ -27,6 +29,8 @@ pub fn run() {
         )
         .manage(net::registry::ConnectionRegistry::default())
         .setup(|app| {
+            #[cfg(desktop)]
+            app.manage(window_size::WindowSizes::load(app.handle()));
             windows::create_main_window(app.handle())?;
             Ok(())
         })
@@ -51,6 +55,12 @@ pub fn run() {
             windows::open_game_window,
             open_ke_ltsd_url,
         ])
-        .run(tauri::generate_context!())
-        .expect("failed to run LRO Client");
+        .build(tauri::generate_context!())
+        .expect("failed to build LRO Client")
+        .run(|_app, _event| {
+            #[cfg(desktop)]
+            if matches!(_event, tauri::RunEvent::Exit) {
+                _app.state::<window_size::WindowSizes>().save();
+            }
+        });
 }
