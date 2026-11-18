@@ -141,8 +141,32 @@ export function patchRuntimeWebGLLifecycle(source) {
       _writeFbo = null;
     }`);
   source = replaceStaticClassMethodBody(source, 'PostProcess', 'prepare', `{\n      _activeEffects = _effects.filter((e) => e.isActive());\n      if (_activeEffects.length > 0) this.validateBuffers(gl);\n      else this.releaseBuffers(gl);\n      _effects.forEach((module) => {\n        if (!_activeEffects.includes(module) && module.releaseFbo) module.releaseFbo(gl);\n      });\n      if (_activeEffects.length > 0)\n        PostProcess.beforeRenderPass(gl, _writeFbo);\n      else PostProcess.beforeRenderPass(gl, null);\n    }`);
-  source = replaceStaticClassMethodBody(source, 'PostProcess', 'validateBuffers', `{\n      if (_activeEffects.length === 0) {\n        this.releaseBuffers(gl);\n        return;\n      }\n      const scale = GraphicsSettings.performanceMode ? 0.75 : 1;\n      const scaledWidth = Math.floor(gl.canvas.width * scale);\n      const scaledHeight = Math.floor(gl.canvas.height * scale);\n      if (\n        !_readFbo ||\n        _readFbo.width !== scaledWidth ||\n        _readFbo.height !== scaledHeight\n      ) {\n        _readFbo = this.createFbo(gl, scaledWidth, scaledHeight, _readFbo);\n        _writeFbo = this.createFbo(gl, scaledWidth, scaledHeight, _writeFbo);\n      }\n    }`);
-  source = replaceStaticClassMethodBody(source, 'PostProcess', 'recreateFbo', `{\n      const activeEffects = _effects.filter((module) => module.isActive());\n      _activeEffects = activeEffects;\n      if (activeEffects.length === 0) {\n        this.releaseBuffers(gl);\n        _effects.forEach((module) => module.releaseFbo?.(gl));\n        return;\n      }\n      const scale = GraphicsSettings.performanceMode ? 0.75 : 1;\n      const scaledWidth = Math.floor(width * scale);\n      const scaledHeight = Math.floor(height * scale);\n      _readFbo = this.createFbo(gl, scaledWidth, scaledHeight, _readFbo);\n      _writeFbo = this.createFbo(gl, scaledWidth, scaledHeight, _writeFbo);\n      activeEffects.forEach((module) => {\n        if (module.recreateFbo) module.recreateFbo(gl, scaledWidth, scaledHeight);\n      });\n      _effects.filter((module) => !activeEffects.includes(module)).forEach((module) => module.releaseFbo?.(gl));\n    }`);
+  source = replaceStaticClassMethodBody(source, 'PostProcess', 'validateBuffers', `{
+      if (_activeEffects.length === 0) {
+        this.releaseBuffers(gl);
+        return;
+      }
+      const { width, height } = gl.canvas;
+      if (!_readFbo || _readFbo.width !== width || _readFbo.height !== height) {
+        _readFbo = this.createFbo(gl, width, height, _readFbo);
+        _writeFbo = this.createFbo(gl, width, height, _writeFbo);
+      }
+    }`);
+  source = replaceStaticClassMethodBody(source, 'PostProcess', 'recreateFbo', `{
+      const activeEffects = _effects.filter((module) => module.isActive());
+      _activeEffects = activeEffects;
+      if (activeEffects.length === 0) {
+        this.releaseBuffers(gl);
+        _effects.forEach((module) => module.releaseFbo?.(gl));
+        return;
+      }
+      _readFbo = this.createFbo(gl, width, height, _readFbo);
+      _writeFbo = this.createFbo(gl, width, height, _writeFbo);
+      activeEffects.forEach((module) => {
+        if (module.recreateFbo) module.recreateFbo(gl, width, height);
+      });
+      _effects.filter((module) => !activeEffects.includes(module)).forEach((module) => module.releaseFbo?.(gl));
+    }`);
   source = insertStaticClassMethod(source, 'Bloom', 'recreateFbo', `static releaseFbo(gl) {
       if (!_internalFbo) return;
       if (gl.isTexture(_internalFbo.texture)) gl.deleteTexture(_internalFbo.texture);

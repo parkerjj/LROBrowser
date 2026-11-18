@@ -11937,8 +11937,13 @@ var init_MemoryManager = __esmMin(() => {
           processed < maxProcess &&
           deadline.timeRemaining() > 0
         ) {
-          MemoryManager.remove(gl, _filesToClean[_cleanIndex]);
-          files.push(_filesToClean[_cleanIndex]);
+          const filename = _filesToClean[_cleanIndex];
+          const item = _memory[filename];
+          // Sprites can become active while they wait for an idle slot.
+          if (item?.complete && item.lastTimeUsed < tick) {
+            MemoryManager.remove(gl, filename);
+            files.push(filename);
+          }
           _cleanIndex++;
           processed++;
         }
@@ -85636,16 +85641,14 @@ var init_PostProcess = __esmMin(() => {
      * Ensures Ping-Pong buffers are created and resized if necessary.
      */
     static validateBuffers(gl) {
-      const scale = GraphicsSettings.performanceMode ? 0.75 : 1;
-      const scaledWidth = Math.floor(gl.canvas.width * scale);
-      const scaledHeight = Math.floor(gl.canvas.height * scale);
+      const { width, height } = gl.canvas;
       if (
         !_readFbo ||
-        _readFbo.width !== scaledWidth ||
-        _readFbo.height !== scaledHeight
+        _readFbo.width !== width ||
+        _readFbo.height !== height
       ) {
-        _readFbo = this.createFbo(gl, scaledWidth, scaledHeight, _readFbo);
-        _writeFbo = this.createFbo(gl, scaledWidth, scaledHeight, _writeFbo);
+        _readFbo = this.createFbo(gl, width, height, _readFbo);
+        _writeFbo = this.createFbo(gl, width, height, _writeFbo);
       }
     }
     /**
@@ -85679,14 +85682,11 @@ var init_PostProcess = __esmMin(() => {
      * Recreates the FBO when the window size changes
      */
     static recreateFbo(gl, width, height) {
-      const scale = GraphicsSettings.performanceMode ? 0.75 : 1;
-      const scaledWidth = Math.floor(width * scale);
-      const scaledHeight = Math.floor(height * scale);
-      _readFbo = this.createFbo(gl, scaledWidth, scaledHeight, _readFbo);
-      _writeFbo = this.createFbo(gl, scaledWidth, scaledHeight, _writeFbo);
+      _readFbo = this.createFbo(gl, width, height, _readFbo);
+      _writeFbo = this.createFbo(gl, width, height, _writeFbo);
       _effects.forEach((module) => {
         if (module.recreateFbo)
-          module.recreateFbo(gl, scaledWidth, scaledHeight);
+          module.recreateFbo(gl, width, height);
       });
     }
     /**
@@ -85745,6 +85745,9 @@ var init_PostProcess = __esmMin(() => {
      * @returns {Object|null}
      */
     static createFramebuffer(gl, width, height, oldfbo) {
+      let fbo;
+      let texture;
+      let rbo;
       try {
         if (oldfbo) {
           if (gl.isTexture(oldfbo.texture)) gl.deleteTexture(oldfbo.texture);
@@ -85752,9 +85755,9 @@ var init_PostProcess = __esmMin(() => {
           if (gl.isFramebuffer(oldfbo.framebuffer))
             gl.deleteFramebuffer(oldfbo.framebuffer);
         }
-        const fbo = gl.createFramebuffer();
+        fbo = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-        const texture = gl.createTexture();
+        texture = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texImage2D(
           gl.TEXTURE_2D,
@@ -85778,7 +85781,7 @@ var init_PostProcess = __esmMin(() => {
           texture,
           0,
         );
-        const rbo = gl.createRenderbuffer();
+        rbo = gl.createRenderbuffer();
         gl.bindRenderbuffer(gl.RENDERBUFFER, rbo);
         gl.renderbufferStorage(
           gl.RENDERBUFFER,
@@ -85816,6 +85819,9 @@ var init_PostProcess = __esmMin(() => {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.bindTexture(gl.TEXTURE_2D, null);
         gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+        if (fbo) gl.deleteFramebuffer(fbo);
+        if (texture) gl.deleteTexture(texture);
+        if (rbo) gl.deleteRenderbuffer(rbo);
         return null;
       }
     }
@@ -196028,6 +196034,7 @@ function oncartoonEdgeSlope() {
 function onTogglePerformanceMode() {
   GraphicsSettings.performanceMode = !!this.checked;
   GraphicsSettings.save();
+  Renderer.resize();
 }
 function onUpdateAreaView() {
   GraphicsSettings.viewArea = parseInt(this.value);
@@ -196093,6 +196100,8 @@ function onResetToDefaults() {
       GraphicsSettings[key] = defaultSettings[key];
   });
   GraphicsSettings.save();
+  Configs.set("quality", GraphicsSettings.quality);
+  Renderer.resize();
   GraphicsOption.onAppend();
 }
 var GraphicsOption, _preferences$32, GraphicsOption_default;
@@ -226754,13 +226763,10 @@ var init_Bloom = __esmMin(() => {
      */
     static render(gl, inputTexture, outputFbo) {
       if (!_buffer$13 || !_programs.prefilter || !Bloom.isActive()) return;
-      const scale = GraphicsSettings.performanceMode ? 0.75 : 1;
-      const scaledWidth = Math.floor(gl.canvas.width * scale);
-      const scaledHeight = Math.floor(gl.canvas.height * scale);
       _internalFbo = PostProcess.createFbo(
         gl,
-        scaledWidth,
-        scaledHeight,
+        gl.canvas.width,
+        gl.canvas.height,
         _internalFbo,
         GraphicsSettings.performanceMode
           ? _downsampleFactorPerformance
@@ -227250,83 +227256,6 @@ var init_Cartoon = __esmMin(() => {
   };
 });
 //#endregion
-//#region src/Renderer/Effects/Shaders/GLSL/CommonUpsampling.fs?raw
-var CommonUpsampling_default;
-var init_CommonUpsampling = __esmMin(() => {
-  CommonUpsampling_default =
-    "#version 300 es\r\nprecision mediump float;\r\nuniform sampler2D uSceneTexture;\r\n\r\nin vec2 vUv;\r\nout vec4 fragColor;\r\n\r\nvoid main() {\r\n	vec3 original = texture(uSceneTexture, vUv).rgb; \r\n	fragColor = vec4(original, 1.0);\r\n}";
-});
-//#endregion
-//#region src/Renderer/Effects/Shaders/Upsampling.js
-var _program$9, _buffer$7, Upsampling;
-var init_Upsampling = __esmMin(() => {
-  init_Graphics();
-  init_WebGL();
-  init_PostProcess();
-  init_Common();
-  init_CommonUpsampling();
-  Upsampling = class Upsampling {
-    /**
-     * Renders the Upsampling effect
-     * @param {WebGLRenderingContext} gl - WebGL Context
-     * @param {WebGLTexture} inputTexture - Low resolution scene texture
-     * @param {WebGLFramebuffer} outputFramebuffer - Destination (Screen or next effect)
-     */
-    static render(gl, inputTexture, outputFbo) {
-      if (!_buffer$7 || !_program$9 || !Upsampling.isActive()) return;
-      PostProcess.beforeRenderPass(gl, outputFbo);
-      gl.useProgram(_program$9);
-      gl.bindBuffer(gl.ARRAY_BUFFER, _buffer$7);
-      const posLoc = _program$9.attribute.aPosition;
-      gl.enableVertexAttribArray(posLoc);
-      gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, inputTexture);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.uniform1i(_program$9.uniform.uSceneTexture, 0);
-      gl.drawArrays(gl.TRIANGLES, 0, 6);
-      PostProcess.afterRenderPass(gl);
-    }
-    /**
-     * Initializes shaders and buffers
-     */
-    static init(gl) {
-      if (!gl) return;
-      try {
-        _program$9 = WebGL_default.createShaderProgram(
-          gl,
-          Common_default,
-          CommonUpsampling_default,
-        );
-      } catch (e) {
-        console.error("Error compiling Upsampling shader.", e);
-        return;
-      }
-      const quadVertices = new Float32Array([
-        -1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1,
-      ]);
-      _buffer$7 = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, _buffer$7);
-      gl.bufferData(gl.ARRAY_BUFFER, quadVertices, gl.STATIC_DRAW);
-    }
-    /** @returns {boolean} always false here */
-    static isActive() {
-      return GraphicsSettings.performanceMode;
-    }
-    /** @returns {WebGLProgram} The loaded shader program (returning one for validation check) */
-    static program() {
-      return _program$9;
-    }
-    /** Clears memory references */
-    static clean(gl) {
-      _program$9 = null;
-      if (_buffer$7) gl.deleteBuffer(_buffer$7);
-      _buffer$7 = null;
-    }
-  };
-});
-//#endregion
 //#region src/Renderer/MapRenderer.js
 var MapRenderer_exports = /* @__PURE__ */ __exportAll({
   default: () => MapRenderer,
@@ -227435,7 +227364,6 @@ function registerPostProcessModules(gl) {
   PostProcess.register(Vibrance, gl);
   PostProcess.register(VerticalFlip, gl);
   PostProcess.register(Blind, gl);
-  PostProcess.register(Upsampling, gl);
 }
 /**
  * Once the map finished to load
@@ -227569,7 +227497,6 @@ var init_MapRenderer = __esmMin(() => {
   init_Vibrance();
   init_Cartoon();
   init_Blind();
-  init_Upsampling();
   init_WebGL();
   mat4$11 = gl_matrix_default.mat4;
   _pos$6 = /* @__PURE__ */ new Uint16Array(2);
@@ -228527,27 +228454,29 @@ var init_Renderer = __esmMin(() => {
      */
     static resize() {
       if (this.contextLost || !this.gl) return;
-      let width, height;
       const dpr = window.devicePixelRatio || 1;
-      width = window.innerWidth || document.body.offsetWidth;
-      height = window.innerHeight || document.body.offsetHeight;
+      const width = window.innerWidth || document.body.offsetWidth;
+      const height = window.innerHeight || document.body.offsetHeight;
+      if (!width || !height) return;
       Mouse.screen.width = this.width = width;
       Mouse.screen.height = this.height = height;
       const quality = Configs.get("quality", 100) / 100;
-      width *= quality;
-      height *= quality;
-      this.canvas.width = width * dpr;
-      this.canvas.height = height * dpr;
+      // The browser scales the smaller 3D canvas to the same UI coordinates.
+      const scale = dpr * quality * (GraphicsSettings.performanceMode ? 0.75 : 1);
+      const drawWidth = Math.max(1, Math.floor(width * scale));
+      const drawHeight = Math.max(1, Math.floor(height * scale));
+      if (this.canvas.width !== drawWidth) this.canvas.width = drawWidth;
+      if (this.canvas.height !== drawHeight) this.canvas.height = drawHeight;
       this.canvas.style.width = this.width + "px";
       this.canvas.style.height = this.height + "px";
       try {
-        this.gl.viewport(0, 0, width * dpr, height * dpr);
+        this.gl.viewport(0, 0, drawWidth, drawHeight);
       } catch (e) {
         console.error("Viewport resize failed", e);
       }
       mat4$9.perspective(this.vFov, width / height, 1, 1e3, Camera.projection);
       Background.resize(this.width, this.height);
-      PostProcess.recreateFbo(this.gl, width * dpr, height * dpr);
+      PostProcess.recreateFbo(this.gl, drawWidth, drawHeight);
       __vitePreload(
         () =>
           Promise.resolve()
