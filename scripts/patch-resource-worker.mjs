@@ -172,8 +172,20 @@ async function main() {
       }));
     },
   };
+  const nativeResourceProtocol = {
+    name: 'lastro-native-resource-protocol',
+    setup(bundle) {
+      bundle.onResolve({ filter: /^\.\/(?:direct-http-resource|resource-resolver)$/ }, ({ importer, path: source, resolveDir }) => {
+        if (path.basename(importer) === 'runtime-resource-loader.ts') {
+          const adapter = source === './direct-http-resource' ? 'native-resource-fetch.ts' : 'native-worker-resource-resolver.ts';
+          return { path: path.join(resolveDir, adapter) };
+        }
+      });
+    },
+  };
+  const plugins = process.env.LASTRO_BUILD_TARGET === 'native' ? [nativeResourceProtocol] : [nativeWebCrypto, reflectMetadataLite];
   await build({ entryPoints: [resourceLoaderEntry], bundle: true, format: 'iife',
-    ...(process.env.LASTRO_BUILD_TARGET === 'web' ? {} : { plugins: [nativeWebCrypto, reflectMetadataLite] }),
+    ...(process.env.LASTRO_BUILD_TARGET === 'web' ? {} : { plugins }),
     globalName: 'LastROResources', target: 'es2022', outfile: path.join(output, 'lastro-resource-loader.js') });
   await writeFile(path.join(output, 'ThreadEventHandler.js'), worker);
   await writeFile(path.join(output, 'LastROThreadEventHandler.js'), handler);

@@ -2,6 +2,7 @@ import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { IndexedDbResourceCache, MemoryResourceCache } from '../src/resources/resource-cache';
 import { buildResourcePathCandidates, DEFAULT_RESOURCE_ROOTS, ResourceResolutionError, ResourceSourceHealth, resolvePassiveResource, type ResourceFetchInit } from '../src/resources/resource-resolver';
+import { resolvePassiveResource as resolveNativePassiveResource } from '../src/resources/native-worker-resource-resolver';
 import { mapBinaryFixture } from './map-binary-fixture';
 
 function response(status: number, bytes = new Uint8Array([1, 2]).buffer, contentType = 'application/octet-stream'): Response {
@@ -492,6 +493,22 @@ describe('resource download deadlines', () => {
       .then(value => ({ value }), error => ({ error }));
 
     await vi.advanceTimersByTimeAsync(90_000);
+    await expect(outcome).resolves.toEqual({ value: bytes });
+  });
+
+  it('lets a buffering native transport enforce the upstream stall deadline', async () => {
+    vi.useFakeTimers();
+    const bytes = downloadFixture('gnd');
+    const fetch = vi.fn(async (_url: string, init?: RequestInit) => {
+      await new Promise<void>(resolve => setTimeout(resolve, 35_000));
+      if (init?.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      return response(200, bytes);
+    });
+    const outcome = resolveNativePassiveResource('data/ein_fild04.gnd', {
+      cache: new MemoryResourceCache(), fetch: fetch as typeof globalThis.fetch,
+    }).then(value => ({ value }), error => ({ error }));
+
+    await vi.advanceTimersByTimeAsync(35_000);
     await expect(outcome).resolves.toEqual({ value: bytes });
   });
 
