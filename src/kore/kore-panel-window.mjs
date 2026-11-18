@@ -272,10 +272,13 @@ export function createKoreWindow({
       return;
     }
     const phase = String(auth.phase ?? 'signed-out');
-    const quotaExceeded = phase === 'quota-exceeded';
+    const runtimeStatus = host.state.status;
+    const runtimeBlockReason = runtimeStatus === 'absent' ? 'package-not-bundled'
+      : runtimeStatus === 'unavailable' ? host.state.degradedReason ?? 'package-unavailable' : null;
+    const quotaExceeded = !runtimeBlockReason && phase === 'quota-exceeded';
     // 运行中手动“同步并重载”会经过 loading-profile/loading-runtime；此时保留控制台，不退回首次接入界面。
     const syncing = ['loading-profile', 'loading-runtime'].includes(phase);
-    const showRuntime = phase === 'ready' || phase === 'starting-license' || (syncing && runtimeShown);
+    const showRuntime = !runtimeBlockReason && (phase === 'ready' || phase === 'starting-license' || (syncing && runtimeShown));
     runtimeShown = showRuntime;
     onboarding.hidden = showRuntime;
     runtimeView.hidden = !showRuntime;
@@ -299,7 +302,7 @@ export function createKoreWindow({
     onboarding.dataset.phase = phase;
     const user = auth.user && typeof auth.user === 'object' ? auth.user : null;
     const hasAccount = Boolean(user);
-    const beforeCore = host?.state?.status !== 'runtime-ready';
+    const beforeCore = runtimeStatus !== 'runtime-ready';
     const step = hasAccount ? (['waiting-character', 'waiting-bind', 'binding-character'].includes(phase) || (phase === 'error' && beforeCore) ? 2 : 3) : 1;
     for (const [index, node] of stepNodes.entries()) {
       node.dataset.state = index + 1 < step ? 'complete' : index + 1 === step ? 'current' : 'upcoming';
@@ -307,8 +310,8 @@ export function createKoreWindow({
     const accountName = String(user?.displayName ?? user?.display_name ?? '');
     const status = text => onboardingContent.append(element(document, 'p', 'kore-onboarding-status', text));
     // 后台运行环境已停止时，即使授权阶段没有错误码也必须说明原因，不能让用户对着不动的面板干等。
-    const workerFailed = host?.state?.status === 'failed';
-    const errorCode = auth.error ?? (workerFailed ? host.state.degradedReason ?? 'worker-stopped' : null);
+    const workerFailed = runtimeStatus === 'failed';
+    const errorCode = runtimeBlockReason ?? auth.error ?? (workerFailed ? host.state.degradedReason ?? 'worker-stopped' : null);
     const baseGuide = authorizationGuide(errorCode, { stalled: auth.stalled === true });
     // LTSD 返回的在线实例数就是当前占用的名额：额度用完时直接告诉用户上限是几个。
     const quotaCount = Array.isArray(auth.detail?.active_instances) ? auth.detail.active_instances.length : 0;
@@ -333,9 +336,16 @@ export function createKoreWindow({
       'device-denied': '设备授权未批准',
       error: '连接未完成',
     };
-    onboardingTitle.textContent = quotaExceeded ? '实例额度' : phaseTitle[phase] ?? '连接 KoreEngine';
-    onboardingLead.textContent = quotaExceeded ? '' : hasAccount ? `LTSD 账号：${accountName}` : '通过 LTSD.ro 登录，然后同步当前角色配置。';
+    onboardingTitle.textContent = runtimeBlockReason ? 'KoreEngine 暂不可用' : quotaExceeded ? '实例额度' : phaseTitle[phase] ?? '连接 KoreEngine';
+    onboardingLead.textContent = hasAccount && !quotaExceeded ? `LTSD 账号：${accountName}`
+      : runtimeBlockReason || quotaExceeded ? '' : '通过 LTSD.ro 登录，然后同步当前角色配置。';
     onboarding.classList.toggle('kore-onboarding-quota', quotaExceeded);
+
+    if (runtimeBlockReason) {
+      authButton('复制错误信息', 'kore-auth-secondary kore-auth-copy-error', event => copyDiagnostics(event, errorCode));
+      if (hasAccount) authButton('退出 LTSD', 'kore-auth-link', () => { void host.logoutLtsd?.(); });
+      return;
+    }
 
     if (phase === 'signed-out' || phase === 'device-expired' || phase === 'device-denied' || phase === 'error') {
       if (!auth.error) status(phase === 'device-expired' ? '请重新申请设备验证码。'
