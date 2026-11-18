@@ -1,0 +1,66 @@
+name: Native build check
+
+on:
+  pull_request:
+    paths:
+      - 'native/**'
+      - 'src/**'
+      - 'scripts/**'
+      - 'test/native-*.test.ts'
+      - 'vite.config.ts'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/native-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: Test and build Linux
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Install Tauri system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev
+      - name: Install Rust and Clippy
+        run: rustup toolchain install 1.99.0 --profile minimal --component clippy
+      - name: Build native frontend
+        run: pnpm build:native
+      - name: Test and lint Rust
+        working-directory: native/src-tauri
+        run: |
+          cargo test --locked
+          cargo clippy --locked --all-targets -- -D warnings
+      - name: Build the Linux executable
+        working-directory: native
+        run: pnpm dlx @tauri-apps/cli@2.12.5 build --debug --no-bundle -- --locked
+
+  windows-cross:
+    name: Cross-compile Windows
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      XWIN_ACCEPT_LICENSE: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Install LLVM and the Windows Rust target
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang lld llvm
+          rustup toolchain install 1.99.0 --profile minimal --target x86_64-pc-windows-msvc
+          cargo +1.99.0 install cargo-xwin --locked
+      - name: Build the Windows executable
+        working-directory: native
+        run: pnpm dlx @tauri-apps/cli@2.12.5 build --debug --no-bundle --runner cargo-xwin --target x86_64-pc-windows-msvc -- --locked

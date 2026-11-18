@@ -80,11 +80,14 @@ native/                      Tauri 工程（独立 Cargo workspace）
     capabilities/            Tauri 权限声明（只开放本项目用到的命令）
     src/
       main.rs / lib.rs
-      net/                   Rust 连接器：tcp.rs、relay_ws.rs、http.rs、tls 配置
+      net/                   Rust 连接器：tcp.rs、relay.rs、registry.rs、命令与 TLS 配置
+      policy.rs              官方目的地、连接类型和资源路径白名单
       resource_protocol.rs   自定义协议：资源下载
+      windows.rs             桌面窗口与单实例入口
       update/                Android 更新逻辑（桌面用插件）
     gen/android/             tauri android init 生成的工程（提交）
-rust-toolchain.toml          固定 Rust 版本（与 KoreEngine 一致：1.99.0）
+native/rust-toolchain.toml   固定 Rust 版本（与 KoreEngine 一致：1.99.0）
+.github/workflows/native-build.yml     只构建的 Linux 和 Windows 交叉编译检查
 .github/workflows/native-release.yml   新增，独立于 ci-release.yml
 ```
 
@@ -93,7 +96,7 @@ rust-toolchain.toml          固定 Rust 版本（与 KoreEngine 一致：1.99.0
 `src/runtime/build-target.ts` 的 `ClientBuildTarget` 从 `'iwa' | 'web'` 扩展为 `'iwa' | 'web' | 'native'`。新增 `pnpm build:native`（`LASTRO_BUILD_TARGET=native`，输出到 `dist-native/`），Tauri 以它为前端目录打包。`vite.config.ts` 的 `packageRuntime` 增加 `native` 分支：
 
 - 不输出 IWA 的 `.well-known/manifest.webmanifest`。
-- 可执行资源清单与 IWA 相同，全部打进安装包。
+- 与 IWA 共用可执行资产清单格式和打包规则，原生专用 Worker 由 Rust 资源协议适配器构建并记录自己的哈希。所有可执行资源均打进应用包。
 - 资源根地址：原生版两个来源都可用（`game.lastro.cn` 优先，`rodata.ltsd.ro` 备用），与 IWA 的 `DEFAULT_RESOURCE_ROOTS` 一致，只是请求走 §5.4 的自定义协议。
 
 `iwa` 和 `web` 两个目标的产物必须与改动前**逐字节一致**（或差异可解释），作为“不影响现有发布”的验收依据。
@@ -104,9 +107,9 @@ rust-toolchain.toml          固定 Rust 版本（与 KoreEngine 一致：1.99.0
 
 原生版新增一个 `NativeSocket implements LegacyClientSocket`，两个工厂在 `native` 目标下都返回它：
 
-- JS 通过 Tauri 命令 `net_open({ mode: 'direct' | 'relay', host, port })` 打开连接，并传入一个 Tauri `Channel` 用于接收数据。Rust 返回连接 id。
+- JS 通过 Tauri 命令 `net_open({ kind: 'tcp' | 'tls' | 'relay', host, port, onEvent })` 打开连接。`onEvent` 是 Tauri `Channel`。中转模式的 `host` 是完整官方中转 URL，Rust 返回连接 id。
 - `send(buffer)` → `net_send(id, bytes)`；`close()` → `net_close(id)`。
-- Rust 通过 Channel 推送三类事件：`open`、`data(bytes)`、`close(error?)`，分别映射到 `onComplete(true)`、`onMessage`、`onClose`（连接失败映射到 `onComplete(false)`）。
+- Rust 通过同一个有序 Channel 交付 `open`、`failed`、`closed` 状态以及原始二进制帧。二进制帧在 JS 侧是 `ArrayBuffer`，数据先于最终关闭事件交付。
 - `direct`：tokio `TcpStream`，关闭 Nagle（`set_nodelay(true)`）。
 - `relay`：rustls + `tokio-tungstenite` 连接 `wss://port.lastro.cn/<host>:<port>`，握手带 `Origin: https://game.lastro.cn`、`Referer` 和 UA，与 `relay-websocket.ts` 当前行为一致。UA 用 Rust 内置的一个标准桌面 Chrome UA 字符串，不用 WebView 自带的 UA（我的决定）：WKWebView 的 UA 不含 `Safari/Version`，Android WebView 的 UA 带 `; wv`，可能被中转判为非浏览器而返回 403；IWA 运行在 Chrome 里，实际发出的本来就是 Chrome UA，所以这样与 IWA 效果相同。资源和登录 HTTP 的 UA 同样使用这个字符串；地址白名单规则（只允许 `*.lastro.cn` 的 `wss:`、无用户名密码/查询/片段）也照搬。
 - 必须保持 IWA 已经处理好的语义：发送严格保序；`isZone`、`handoffPending` 等字段由 JS 侧维护不变；关闭时先把已收到的数据交付完再报告关闭。现有 `test/direct-tcp-socket.test.ts` 的行为用例应当对 `NativeSocket` 同样成立。
@@ -117,17 +120,17 @@ rust-toolchain.toml          固定 Rust 版本（与 KoreEngine 一致：1.99.0
 
 资源由 Worker 里的 `runtime-resource-loader` 下载。Tauri 的命令调用只在主窗口可用，Worker 里调用不到，所以资源走**自定义 URI 协议**，Worker 照常用 `fetch()`：
 
-- Rust 注册异步协议 `lro`（各平台实际 URL 形态由 Tauri 决定：Windows/Android 为 `http://lro.localhost/…`，macOS 为 `lro://localhost/…`；JS 用 Tauri 提供的 `convertFileSrc` 同类方法拼地址，不要手写）。
+- Rust 注册异步协议 `lro`。Windows 在 HTTPS 应用协议下使用 `https://lro.localhost/…`，WebKit 应用协议下使用 `lro://localhost/…`。Worker 无法调用 Tauri API，因此资源适配器按 Worker 的 `location.protocol` 选择 URI 形态，并保留资源路径的原始百分号编码。
 - 请求路径 `/<root-id>/<逻辑路径>`，`root-id` 只能是 `lastro` 或 `rodata`，Rust 映射到两个白名单来源，其余一律 403。逻辑路径照搬 `resource-policy.ts` 的规范化与分类规则，只放行被动资源扩展名。
-- Rust 用 `reqwest`（rustls）连接池请求真实地址，请求头与 `officialWebHeaders` 一致（官网 Origin、Referer、UA）；把状态码和响应体（流式）原样返回，并加上 `Access-Control-Allow-Origin: *` 与 `Cross-Origin-Resource-Policy: cross-origin`，使跨源隔离页面可以读取。
+- Rust 用 `reqwest`（rustls）连接池请求真实地址，携带官网 Origin、Referer 与 UA。保留上游状态码，分段读取响应体并限制在 256 MiB，再交给 Tauri。协议响应带 CORS、CORP 和 `nosniff`，拒绝外部来源和重定向。
 - `game.lastro.cn` 对部分不存在的路径返回伪成功 HTML。现有的 `map-binary-validation` 和回退逻辑保留在 JS 侧，Rust 不做内容判断。
-- JS 侧 `native` 目标下的 `fetch` 实现只是把真实 URL 改写为 `lro` 协议地址；超时、对冲请求、来源测速、负缓存、地图停滞超时等逻辑保持在 `resource-resolver.ts` 不变。
+- JS 侧 `native` 目标把真实 URL 改写为 `lro` 协议地址，沿用资源解析、来源测速、对冲请求和负缓存。Tauri 提交缓冲完成的响应，地图下载由 Rust 检查 30 秒上游停滞，JS 保留五分钟总时限。Rust 最多并行处理八个上游下载，当 WebView 放弃请求时，已启动的下载可能继续到完成或超时。
 
 ### 5.5 官方登录 HTTP
 
-`src/network/lastro-login-http.ts` 现在在 TCPSocket 上用 JS TLS 访问 `https://game.lastro.cn`（`/?r=pc/index` 取 cookie 和 CSRF，再提交登录检查）。原生版新增 Tauri 命令 `http_request({ method, url, headers, body })`，由 Rust 的 reqwest 执行，并只允许 `https://game.lastro.cn`。`lastro-login-http.ts` 增加一个可注入的传输层：`native` 目标走该命令，IWA 保持现状。Cookie 由 JS 侧按现有逻辑自行携带，Rust 不保存 cookie。
+`src/network/lastro-login-http.ts` 在 IWA 中继续使用 TCPSocket 和 JS TLS。原生版通过 `openNativeTlsStreams` 调用 `net_open` 的 `tls` 模式，Rust 只对 `game.lastro.cn:443` 建立通过证书校验的 TLS 连接。JS 继续负责 HTTP 编解码、Yii cookie、CSRF 和登录辅助请求。Rust 传输层不保存账号或 cookie。
 
-`src/servers/online-profile-cache.ts` 从 `https://game.lastro.cn/ro/Online.js` 拉取服务器地址和封包密钥（只解析、不执行，IWA 中是单独审核过的例外）。原生版允许 `http_request` 额外以 GET 访问这一个固定路径，行为与 IWA 相同（我的决定）。`http_request` 的白名单因此是：`game.lastro.cn` 的登录相关路径 + `GET /ro/Online.js`，其余拒绝。
+`src/servers/online-profile-cache.ts` 可从 `https://game.lastro.cn/ro/Online.js` 提取服务器配置。原生版通过 `lro` 协议的 `/official/ro/Online.js` 固定路由读取，最多读取 4 MiB，作为纯文本交给既有解析器。原生窗口执行的是随应用打包的 `/runtime/Online.js`。
 
 ### 5.6 KoreEngine 与跨源隔离
 
@@ -164,7 +167,7 @@ rust-toolchain.toml          固定 Rust 版本（与 KoreEngine 一致：1.99.0
 
 ### 5.7 安全边界
 
-- Tauri capabilities 只开放：`net_open/net_send/net_close`、`http_request`、更新相关命令、`lro` 协议，以及 `opener` 插件的“用系统浏览器打开 https 链接”。不开启文件系统、shell 等插件。
+- 计划 3 的 Tauri capabilities 只向本地游戏窗口开放 `net_open`、`net_send`、`net_close`、`open_game_window`。`lro` 协议另有来源、请求方法和路径检查。更新命令与系统浏览器入口按后续发布计划处理。
 - 设置 CSP：`script-src 'self'`（加 Tauri 必需项与 `wasm-unsafe-eval`），`connect-src` 含自身、`lro` 协议、Tauri IPC 和 `https://ltsd.ro`。前端现在直接请求 `https://ltsd.ro/api/v1/ke`（KE 授权，`src/kore/kore-ltsd-client.mjs`）和 `https://ltsd.ro/api/v1/market/search`（市场查询，`src/assistant/lro-market-api.mjs`），该站 CORS 为 `*`，保持直连即可，不经过 Rust（我的决定）。
 - 前端里的外部链接（`window.open` 打开 `ltsd.ro/ke` 等）在原生版中改为交给 `opener` 插件，用系统默认浏览器打开，只允许 `https:` 链接（我的决定）。
 - Rust 端对所有命令参数做白名单校验（主机、端口范围、URL 前缀），拒绝任意主机访问，避免网页侧被注入代码后把应用变成任意端口扫描或代理工具。
@@ -179,8 +182,8 @@ rust-toolchain.toml          固定 Rust 版本（与 KoreEngine 一致：1.99.0
 采用**一个进程、多个游戏窗口**：
 
 - 每个窗口是一个完整、独立的游戏实例（各自加载页面、各自登录），共用同一份 IndexedDB 账号数据，与 IWA 同时开多个窗口的效果一致。
-- 开新窗口的入口：应用内菜单/快捷键“新窗口”；再次双击应用图标时，用 `tauri-plugin-single-instance` 把请求转交给已运行的进程并打开一个新窗口（macOS 默认只聚焦已有实例，这样处理后行为与 Windows 一致）。
-- Rust 连接器中的每个连接都记录所属窗口；窗口关闭时关闭它名下的所有连接。命令只能操作本窗口打开的连接。
+- 使用「窗口」菜单的「新开窗口」，或再次启动客户端，均由现有进程创建新的游戏窗口。
+- Rust 连接器中的每个连接都记录所属窗口。窗口关闭或顶层页面重新加载时清理它名下的连接。命令只能操作本窗口打开的连接。
 - 现有的多开优化（后台窗口限 20fps、关闭 MSAA，见 `Online.js` 与 `kore-render-toggle.mjs`）依赖 `document.hasFocus()`，在每个窗口内照常生效，不需改动。
 - **未聚焦、被遮挡或最小化的窗口必须继续运行**（定时器、收发包、KE 不能被暂停）。在 Tauri 中关闭 WebView 的后台节流（`backgroundThrottling` 设为 disabled），各平台实际效果需在 §9 验证。
 - 自动更新安装前需要退出整个进程。提示条上说明“将关闭所有游戏窗口”，由玩家确认后才执行。
@@ -305,7 +308,7 @@ spike 代码不进入正式分支历史；结论写入本文档。
 
 - 允许 Tauri 原生外壳与其中的 Rust 连接器（直连、中转、HTTP）；依旧禁止 Electron、自建代理服务器、NodeSocket。
 - 原生版的可执行文件同样必须打进安装包内清单；远程被动资源来源不变。
-- “Phase A 不执行自动更新、生产签名”一条改为：原生版允许应用内自动更新，签名密钥只存在于 Actions secret。
+- 原生版的应用内更新在专门的发布阶段启用。Phase A 继续只做本地验证，签名密钥只存在于 Actions 的 `production` Environment secrets。
 
 ## 12. 留给构建者决定的
 
@@ -375,3 +378,11 @@ spike 代码不进入正式分支历史；结论写入本文档。
 **上线顺序（不能影响线上 KE 与 RoBrowser）**：线上 RoBrowser（`main`）的 `validateKoreManifest` 只接受旧的三项能力列表。为此 KE 另加了提交 `5ff2434`：新构建的清单**暂时仍只声明旧列表**（`ADVERTISED_SCHEDULER_CAPABILITIES`），Worker 和 build-local 的校验同时接受两种列表。所以 KE 照常发布对线上没有影响：Worker 收不到 `queueMode` 就按 `auto` 处理，行为不变；`ready.capabilities` 多出的 `queueMode` 字段，线上版本不检查。原生版真正用上 plain 队列之前，按顺序做两步：① RoBrowser 发布一个包含 `2d8ce40` 的版本，校验同时接受两种列表，对 IWA 行为没有影响；② 之后再把 KE 的 `ADVERTISED_SCHEDULER_CAPABILITIES` 切换为含 `plainQueues` 的列表，并随 KE 正式发布。顺序反过来会让线上 IWA 判定 KE 包不兼容。
 
 **验证范围**：只验证到 Node 夹具层，即真实的 `kore-worker.mjs` 加模拟的 Runtime。**未验证**：真实 WASM、真实授权（本地构建的包会被 LTSD 拒绝），以及 Android/macOS 的网页引擎。计划 2 Task 3 Step 3 的本地 debug 包构建在 Windows 上没有做，因为缺 `.tools/bin/wasm-bindgen` 0.2.129 和 binaryen 133；清单内容由 `test/build-local.test.mjs` 覆盖。这些要等 KE 的改动随一次正式发布出去后，再用 `pnpm dev` 实测。
+
+### 计划 3 的 Windows 测试版本（2026-11-18）
+
+- 已生成 Windows 调试可执行文件。在实际 WebView2 内打开账号界面，验证两处官方资源源均能下载资源，官方配置脚本按纯文本读取，可执行资源请求被拦截。通过 Tauri IPC 取得官方 TLS 的 `HTTP/1.1 200 OK` 二进制响应。App服 TCP 与二转官方 WebSocket 中转均建立了连接，测试没有发送账号数据。
+- 刷新后旧连接 ID 失效。同一进程中的三个窗口分别通过初次启动、`open_game_window` 和再次执行程序打开。注册表测试覆盖窗口隔离和销毁清理。
+- Rust 测试 27 项通过，Clippy 通过。前端聚焦测试 488 项通过，TypeScript、ESLint 和 IWA 审计通过。Web 产物逐文件与基线一致。IWA 的差异只有登录 HTTP、游戏入口与中转三个相互引用的 Vite JS chunk 和引用新文件名的 `play.html`。IWA 的其他产物及可执行资源清单均与基线一致。
+- Windows 全量前端测试为 4,652 项通过、4 项跳过、8 项失败。其中 6 项归档、符号链接和 TAR 用例在原生实现前也失败，另外 2 项本地服务器用例超时。
+- Windows 手册位于 `docs/native/dev-guide.md`。用户进图、多账号同时在线、最小化后的游戏行为、真实 KE 授权及 Linux 图形环境验收待测。Windows 测试版本未暂存正式 KE 包。构建工作流已通过本地 YAML 解析。
