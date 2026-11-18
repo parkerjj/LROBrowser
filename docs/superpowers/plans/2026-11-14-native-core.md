@@ -47,16 +47,18 @@
 **Interfaces:**
 - Produces: `src/runtime/build-target.ts`：`export type ClientBuildTarget = 'iwa' | 'web' | 'native'`；`export const IS_NATIVE_BUILD: boolean`；`IS_WEB_BUILD` 语义不变（仅 `web` 为真）。
 - Produces: `vite.config.ts`：`packageRuntime(target: 'iwa' | 'web' | 'native', root?)`；环境变量 `LASTRO_BUILD_TARGET=native` 选择 native；`native` 目标：不输出 `.well-known/manifest.webmanifest` 与 `<link rel="manifest">`（与 web 相同）、不生成 `200.html`、不改写 `worldmap/sources.json`（保持 `game.lastro.cn`）、可执行资源清单与 iwa 相同。
-- Produces: `package.json` 脚本 `build:native`：`LASTRO_BUILD_TARGET=native pnpm prepare:runtime && LASTRO_BUILD_TARGET=native vite build --outDir dist-native`（写法参照现有 `build:web`）。
+- Produces: `package.json` 脚本 `build:native`：`pnpm prepare:runtime --native && vite build --mode native --outDir dist-native`。Windows 和 Linux 共用同一命令，运行时准备和 Vite 都明确选择 `native`。Vite 也接受 `LASTRO_BUILD_TARGET=native`。
 - Produces: Tauri 配置：`identifier: "com.ioft.lroclient"`、`productName: "LRO进阶客户端"`、`build.frontendDist: "../../dist-native"`、`app.windows[0]` 带 `useHttpsScheme: true`、`app.security.headers` 设置 `Cross-Origin-Opener-Policy: same-origin` 与 `Cross-Origin-Embedder-Policy: require-corp`、`bundle.active: false`（打包留给计划 4）。
 - Produces: `lib.rs` 暴露 `pub fn run()`，`#[cfg_attr(mobile, tauri::mobile_entry_point)]`；crate 名 `lro_client`，`[lib] crate-type = ["staticlib","cdylib","rlib"]`。
 
-- [ ] **Step 1：** 记录改动前的基线：`pnpm build` 与 `pnpm build:web` 后，把 `find dist dist-web -type f | sort | xargs sha256sum` 保存到临时文件（放在本会话 scratchpad 目录）。
-- [ ] **Step 2：** 写失败的测试 `test/native-build-target.test.ts`：（a）`CLIENT_BUILD_TARGET` 在未定义 `__LASTRO_BUILD_TARGET__` 时为 `'iwa'`；（b）参照现有覆盖 `packageRuntime('web')` 的测试（用 `grep -ln packageRuntime test` 找到）写 `packageRuntime('native')` 的用例：产物无 `.well-known`、无 `200.html`、`worldmap/sources.json` 仍含 `https://game.lastro.cn/`、`index.html` 不含 `rel="manifest"`；（c）`IS_WEB_BUILD` 在 native 下为 `false`、`IS_NATIVE_BUILD` 为 `true`（用 `vi.stubGlobal('__LASTRO_BUILD_TARGET__', 'native')` + 动态 import 重新加载模块）。运行 `pnpm vitest run test/native-build-target.test.ts`，预期失败。
-- [ ] **Step 3：** 实现 `build-target.ts`、`vite.config.ts`、`package.json` 的改动。
-- [ ] **Step 4：** 创建 Tauri 工程骨架（参考探针的 `Cargo.toml` / `tauri.conf.json`，去掉所有探针命令，`run()` 里只有 `tauri::Builder::default()` 和 `generate_context!`）。`cd native/src-tauri && cargo +1.99.0 check --locked`。预期：通过。
-- [ ] **Step 5：** 再次运行 `pnpm vitest run test/native-build-target.test.ts`，预期通过；运行 `pnpm build && pnpm build:web`，再次计算哈希清单并与 Step 1 对比。预期：完全一致（若有差异必须逐项解释，不能忽略）。运行 `pnpm build:native`，预期生成 `dist-native/`，其中有 `index.html`、`play.html`。
-- [ ] **Step 6：** 提交（`feat(native): Tauri 工程骨架与 native 构建目标`）。
+- [x] **Step 1：** 记录改动前的基线：`pnpm build` 与 `pnpm build:web` 后，把 `find dist dist-web -type f | sort | xargs sha256sum` 保存到临时文件（放在本会话 scratchpad 目录）。
+- [x] **Step 2：** 写失败的测试 `test/native-build-target.test.ts`：（a）`CLIENT_BUILD_TARGET` 在未定义 `__LASTRO_BUILD_TARGET__` 时为 `'iwa'`；（b）参照现有覆盖 `packageRuntime('web')` 的测试（用 `grep -ln packageRuntime test` 找到）写 `packageRuntime('native')` 的用例：产物无 `.well-known`、无 `200.html`、`worldmap/sources.json` 仍含 `https://game.lastro.cn/`、`index.html` 不含 `rel="manifest"`；（c）`IS_WEB_BUILD` 在 native 下为 `false`、`IS_NATIVE_BUILD` 为 `true`（用 `vi.stubGlobal('__LASTRO_BUILD_TARGET__', 'native')` + 动态 import 重新加载模块）。运行 `pnpm vitest run test/native-build-target.test.ts`，预期失败。
+- [x] **Step 3：** 实现 `build-target.ts`、`vite.config.ts`、`package.json` 的改动。
+- [x] **Step 4：** 创建 Tauri 工程骨架（参考探针的 `Cargo.toml` / `tauri.conf.json`，去掉所有探针命令，`run()` 里只有 `tauri::Builder::default()` 和 `generate_context!`）。`cd native/src-tauri && cargo +1.99.0 check --locked`。预期：通过。
+- [x] **Step 5：** 再次运行 `pnpm vitest run test/native-build-target.test.ts`，预期通过；运行 `pnpm build && pnpm build:web`，再次计算哈希清单并与 Step 1 对比。预期：完全一致（若有差异必须逐项解释，不能忽略）。运行 `pnpm build:native`，预期生成 `dist-native/`，其中有 `index.html`、`play.html`。
+- [x] **Step 6：** 提交（`feat(native): Tauri 工程骨架与 native 构建目标`）。
+
+Windows 开发机验证了 Rust 1.99.0 `cargo check --locked` 和 Tauri 开发窗口。使用 Tauri CLI 从 `native/` 执行 `pnpm dlx @tauri-apps/cli@2.12.5 dev --no-dev-server -- --locked`，可先构建前端，再通过 Tauri 的应用协议加载 `dist-native/`。IWA 和 Web 的 4,226 个文件与改动前的 SHA-256 比对全部一致，原生可执行资产清单与 IWA 一致。
 
 ### Task 2：Rust 校验策略模块 `policy`（纯函数）
 

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "LRO进阶客户端",
+  "version": "0.1.0",
+  "identifier": "com.ioft.lroclient",
+  "build": {
+    "beforeDevCommand": { "script": "pnpm build:native", "cwd": "..", "wait": true },
+    "beforeBuildCommand": { "script": "pnpm build:native", "cwd": ".." },
+    "frontendDist": "../../dist-native"
+  },
+  "app": {
+    "windows": [{ "label": "main", "title": "LRO进阶客户端", "useHttpsScheme": true }],
+    "security": {
+      "headers": {
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Embedder-Policy": "require-corp"
+      }
+    }
+  },
+  "bundle": { "active": false, "icon": ["icons/icon.ico", "icons/icon.png", "icons/icon.icns"] }
+}

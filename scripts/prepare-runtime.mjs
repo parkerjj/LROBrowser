@@ -8,6 +8,8 @@ import { importCoreAssets } from './import-core-assets.mjs';
 import { patchNavigationWorker } from './lastro-navigation-worker.mjs';
 import { withKoreLock, mergeKorePackage } from './kore-local.mjs';
 
+if (process.argv.includes('--native')) process.env.LASTRO_BUILD_TARGET = 'native';
+
 const execFileAsync = promisify(execFile);
 const repo = fileURLToPath(new URL('../', import.meta.url));
 const generated = path.join(repo, 'generated');

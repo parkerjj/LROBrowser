@@ -10,12 +10,13 @@ import { packagedAssetPath, REQUIRED_HEADERS } from './scripts/iwa-security.mjs'
 import { safePackagePath, validateKoreManifest, validateKorePointer } from './src/kore/kore-integration.mjs';
 import { validateLegacyFieldpack } from './scripts/kore-local.mjs';
 import { isLocalRequest, resolveStagedResource } from './scripts/dev-resource-security.mjs';
+import type { ClientBuildTarget } from './src/runtime/build-target';
 
 export function stripViteClientInjection(html: string): string {
   return html.replace(/<script\b(?=[^>]*\bsrc=["'][^"']*\/@vite\/client["'])[^>]*>\s*<\/script>\s*/g, '');
 }
 
-export function packageRuntime(target: 'iwa' | 'web', root = process.cwd()): Plugin {
+export function packageRuntime(target: ClientBuildTarget, root = process.cwd()): Plugin {
   async function selectedKoreManifest() {
     const active = path.resolve(root, 'generated/core/ke/active.json');
     if (!existsSync(active)) return null;
@@ -70,12 +71,12 @@ export function packageRuntime(target: 'iwa' | 'web', root = process.cwd()): Plu
       order: 'post',
       handler: (html) => {
         const transformed = stripViteClientInjection(html);
-        return target === 'web' ? transformed.replace(/\s*<link rel="manifest"[^>]*>/i, '') : transformed;
+        return target === 'iwa' ? transformed : transformed.replace(/\s*<link rel="manifest"[^>]*>/i, '');
       },
     },
     generateBundle(_options, bundle) {
+      if (target !== 'iwa') delete bundle['.well-known/manifest.webmanifest'];
       if (target === 'web') {
-        delete bundle['.well-known/manifest.webmanifest'];
         const index = bundle['index.html'];
         if (index && index.type === 'asset') this.emitFile({ type: 'asset', fileName: '200.html', source: index.source });
       }
@@ -91,9 +92,9 @@ export function packageRuntime(target: 'iwa' | 'web', root = process.cwd()): Plu
         if (!existsSync(source)) throw new Error(`Missing core asset: ${file.path}`);
         if (file.path === 'runtime/Online.js') continue;
         let bytes: Uint8Array = readFileSync(source);
-        // Web Bundles store bodies uncompressed. Lua/LUB tables shrink ~85% and are
-        // inflated by the worker resource loader; KE keeps its own content hashes.
-        if (target === 'iwa' && (file.kind === 'lua' || file.kind === 'lub') && !file.path.startsWith('ke/')) {
+        // IWA and native share the compressed Lua/LUB inventory. The worker inflates
+        // these files, while KE keeps its own content hashes.
+        if (target !== 'web' && (file.kind === 'lua' || file.kind === 'lub') && !file.path.startsWith('ke/')) {
           bytes = gzipSync(bytes, { level: 9 });
           Object.assign(file, { bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'), encoding: 'gzip' });
         }
@@ -102,7 +103,7 @@ export function packageRuntime(target: 'iwa' | 'web', root = process.cwd()): Plu
       this.emitFile({ type: 'asset', fileName: 'core/executable-assets.json', source: JSON.stringify(manifest, null, 2) + '\n' });
     },
     async writeBundle(options) {
-      const outputDirectory = path.resolve(options.dir ?? (target === 'web' ? 'dist-web' : 'dist'));
+      const outputDirectory = path.resolve(options.dir ?? (target === 'iwa' ? 'dist' : `dist-${target}`));
       const selected = await selectedKoreManifest();
       if (selected?.schemaVersion === 3) {
         // Vite copies public first. Keep tracked compatibility sources, omit them from new packages.
@@ -114,8 +115,9 @@ export function packageRuntime(target: 'iwa' | 'web', root = process.cwd()): Plu
         await rmAsync(path.join(outputDirectory, 'ke/map'), { recursive: true, force: true });
         await cp(source, path.join(outputDirectory, 'ke/map/fieldpack-2.0.5'), { recursive: true });
       }
-      if (target !== 'web') return;
+      if (target === 'iwa') return;
       await rmAsync(path.join(outputDirectory, '.well-known'), { recursive: true, force: true });
+      if (target !== 'web') return;
       await copyFile(path.join(outputDirectory, 'index.html'), path.join(outputDirectory, '200.html'));
       const worldMapSources = path.join(outputDirectory, 'worldmap/sources.json');
       const sourceText = await readFile(worldMapSources, 'utf8');
@@ -175,35 +177,37 @@ function browserReflectMetadataLite(): Plugin {
   };
 }
 
-const buildTarget = process.env.LASTRO_BUILD_TARGET === 'web' ? 'web' : 'iwa';
-
-export default defineConfig({
-  base: './',
-  define: { __LASTRO_BUILD_TARGET__: JSON.stringify(buildTarget) },
-  plugins: [browserTlsCrypto(), browserReflectMetadataLite(), packageRuntime(buildTarget)],
-  optimizeDeps: { entries: ['play.html'], exclude: ['/runtime/Online.js'] },
-  build: {
-    target: 'es2022', sourcemap: false,
-    rollupOptions: {
-      input: { index: path.resolve('index.html'), play: path.resolve('play.html') },
-      external: ['/runtime/Online.js'],
+export default defineConfig(({ mode }) => {
+  const requestedTarget = mode === 'native' ? mode : process.env.LASTRO_BUILD_TARGET;
+  const buildTarget = requestedTarget === 'web' || requestedTarget === 'native' ? requestedTarget : 'iwa';
+  return {
+    base: './',
+    define: { __LASTRO_BUILD_TARGET__: JSON.stringify(buildTarget) },
+    plugins: [browserTlsCrypto(), browserReflectMetadataLite(), packageRuntime(buildTarget)],
+    optimizeDeps: { entries: ['play.html'], exclude: ['/runtime/Online.js'] },
+    build: {
+      target: 'es2022', sourcemap: false,
+      rollupOptions: {
+        input: { index: path.resolve('index.html'), play: path.resolve('play.html') },
+        external: ['/runtime/Online.js'],
+      },
     },
-  },
-  server: {
-    host: '127.0.0.1',
-    hmr: false,
-    fs: { strict: true, allow: [path.resolve('.')], deny: ['**/.env', '**/.env.*', '**/*.{crt,pem,key}', '**/.git/**', '**/.local/**', '**/.codex/**', '**/.agents/**', '**/.npmrc', '**/.netrc'] },
-    headers: REQUIRED_HEADERS,
-  },
-  test: {
-    include: ['test/**/*.test.ts'],
-    // Native-bundle AST fixtures are slow under CI parallel workers; allow 60s per test.
-    testTimeout: 60000,
-    // Public GitHub ubuntu-24.04 runners have 4 vCPUs / 16 GB RAM.
-    // Use all 4 cores in CI, rather than the previous half-CPU (2-worker) cap.
-    // Locally, remain conservative with large TypeScript AST fixtures.
-    maxWorkers: process.env.CI
-      ? Math.min(4, os.availableParallelism())
-      : Math.max(2, Math.min(8, Math.floor(os.availableParallelism() / 2), Math.floor(os.totalmem() / (4 * 1024 ** 3)))),
-  },
+    server: {
+      host: '127.0.0.1',
+      hmr: false,
+      fs: { strict: true, allow: [path.resolve('.')], deny: ['**/.env', '**/.env.*', '**/*.{crt,pem,key}', '**/.git/**', '**/.local/**', '**/.codex/**', '**/.agents/**', '**/.npmrc', '**/.netrc'] },
+      headers: REQUIRED_HEADERS,
+    },
+    test: {
+      include: ['test/**/*.test.ts'],
+      // Native-bundle AST fixtures are slow under CI parallel workers; allow 60s per test.
+      testTimeout: 60000,
+      // Public GitHub ubuntu-24.04 runners have 4 vCPUs / 16 GB RAM.
+      // Use all 4 cores in CI, rather than the previous half-CPU (2-worker) cap.
+      // Locally, remain conservative with large TypeScript AST fixtures.
+      maxWorkers: process.env.CI
+        ? Math.min(4, os.availableParallelism())
+        : Math.max(2, Math.min(8, Math.floor(os.availableParallelism() / 2), Math.floor(os.totalmem() / (4 * 1024 ** 3)))),
+    },
+  };
 });
