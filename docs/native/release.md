@@ -17,13 +17,10 @@
 | --- | --- |
 | Variable | `NATIVE_UPDATER_PUBLIC_KEY` 为 Tauri signer 生成的 `.pub` 文件内容，随客户端打包 |
 | Secrets | `TAURI_SIGNING_PRIVATE_KEY` 和有口令时的 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` |
-| macOS 签名 Secrets | `MACOS_CERTIFICATE_P12_BASE64`、`MACOS_CERTIFICATE_PASSWORD`、`MACOS_SIGNING_IDENTITY` |
-| macOS 公证 Secrets | `APPLE_ID`、`APPLE_APP_SPECIFIC_PASSWORD`、`APPLE_TEAM_ID` |
+| macOS Secrets | `MACOS_CERTIFICATE_P12_BASE64`、`MACOS_CERTIFICATE_PASSWORD`、`MACOS_SIGNING_IDENTITY`、`ASC_KEY_ID`、`ASC_ISSUER_ID`、`ASC_PRIVATE_KEY` |
 | 既有配置 | `KE_REPOSITORY_READ_TOKEN`，以及 IWA 当前使用的 `R2_ACCOUNT_ID`、`R2_BUCKET`、`R2_ENDPOINT`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY` |
 
 Windows 安装包沿用既定的不做 Authenticode 签名方案，供更新的文件仍写入 Tauri 签名。macOS 安装包还需要 Developer ID 签名和公证。Linux 使用 Tauri Updater 对 DEB／RPM 的安装支持，系统授权由 Linux 软件包安装机制处理。连续版本使用同一个 updater 公钥。
-
-`APPLE_APP_SPECIFIC_PASSWORD` 使用 Apple 账户为 LROBrowser 公证生成的 App 专用密码。`APPLE_TEAM_ID` 使用签发 Developer ID Application 证书的团队 ID。
 
 ## 验收
 
