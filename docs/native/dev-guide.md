@@ -46,3 +46,6 @@ Linux 的二进制在 `native/src-tauri/target/debug/lro_client`，Windows 文�
 - 若窗口提示核心清单加载失败，先在仓库根目录重跑 `pnpm build:native`，再重新生成二进制。`dist-native/` 中应有 `index.html`、`play.html` 和 `core/executable-assets.json`。
 - 若登录画面正常但传统模式失败，可在 `native/src-tauri` 运行本机的 Rust 传输测试。在 PowerShell 设 `$env:LASTRO_RELAY_LIVE = '1'` 后运行 `cargo test --locked live_relay`，可单独检查官方中转握手。该测试只连接并关闭，不发送账号数据。
 - 若地图或素材加载失败，记录服务器、地图名、资源错误和发生时间。反馈时省略账号、密码、Cookie 和令牌。
+## 发行配置
+
+桌面构建矩阵、R2 地址、签名和更新验收见 [Native 桌面发布](release.md)。

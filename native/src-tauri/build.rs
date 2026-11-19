@@ -1,3 +1,14 @@
 fn main() {
     tauri_build::build();
+
+    // tauri-build already links this resource into the app binary. Make it
+    // available to the library tests as well, without linking it twice into the app.
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows")
+        && std::env::var("CARGO_CFG_TARGET_ENV").as_deref() == Ok("msvc")
+    {
+        println!(
+            "cargo::rustc-link-search=native={}",
+            std::env::var("OUT_DIR").expect("Cargo provides OUT_DIR to the build script")
+        );
+    }
 }

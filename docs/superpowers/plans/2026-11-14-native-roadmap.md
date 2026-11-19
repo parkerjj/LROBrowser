@@ -9,7 +9,7 @@
 | 1 | 技术验证 spike | 设计文档第 13 节的结论 | 完成 |
 | 2 | **KE 队列模式开关** `keQueueMode`（KE 仓库 + RoBrowser） | 没有 SharedArrayBuffer 的环境里 KE 照常运行；IWA 行为不变 | 代码完成（夹具层验证，见设计文档 §13）；真实环境验证要等 KE 正式发布 |
 | 3 | **原生核心**：Tauri 工程、Rust 连接器、`native` 构建目标、前端接入、窗口与多开 | Linux 开发机和 Windows 上能 `cargo tauri dev` 玩起来 | 已写：`2026-11-14-native-core.md` |
-| 4 | 桌面打包与自动更新：Windows NSIS、macOS dmg（签名+公证）、Linux deb/rpm、更新清单、`native-release.yml` | 三个桌面平台的安装包，应用内自动更新，发布到 GitHub Release 与 R2 | 计划 3 完成后再写 |
+| 4 | 桌面打包与自动更新：Windows NSIS、macOS dmg（签名+公证）、Linux deb/rpm、更新清单、`native-release.yml` | 三个桌面平台的安装包，应用内自动更新，发布到 GitHub Release 与 R2 | [实施计划](2026-11-19-native-desktop-release.md) |
 | 5 | Android：保活前台服务、自更新、apk 签名与发布 | 可安装的 apk，后台保持在线，应用内更新 | 计划 3 完成后再写 |
 | 6 | 国产 Linux（麒麟、统信）适配 | deb 在目标系统可装可用，或按用户决定的备选方案 | **被阻塞**：需要一台目标机器（设计文档 §9 第 9 项） |
 

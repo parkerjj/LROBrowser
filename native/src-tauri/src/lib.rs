@@ -1,12 +1,23 @@
 mod net;
 mod policy;
 mod resource_protocol;
+#[cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))]
+mod updater;
 #[cfg(desktop)]
 mod window_size;
 mod windows;
 
 use tauri::{Manager, webview::PageLoadEvent};
 use tauri_plugin_opener::OpenerExt;
+
+// The Windows test harness also loads Tauri's Common Controls v6 imports.
+#[cfg(all(test, target_os = "windows", target_env = "msvc"))]
+#[link(
+    name = "resource.lib",
+    kind = "static",
+    modifiers = "-bundle,+verbatim"
+)]
+unsafe extern "C" {}
 
 #[tauri::command]
 async fn open_ke_ltsd_url(app: tauri::AppHandle, url: String) -> Result<(), String> {
@@ -32,6 +43,8 @@ pub fn run() {
             #[cfg(desktop)]
             app.manage(window_size::WindowSizes::load(app.handle()));
             windows::create_main_window(app.handle())?;
+            #[cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))]
+            updater::start(app.handle());
             Ok(())
         })
         .on_window_event(|window, event| {
