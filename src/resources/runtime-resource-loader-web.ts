@@ -2,6 +2,7 @@ import { createResourceCache } from './resource-cache';
 import { createResourceScheduler, resourcePriority } from './resource-scheduler';
 import { normalizeResourcePath } from './resource-policy';
 import { resolvePassiveResource, WEB_RESOURCE_ROOTS } from './resource-resolver';
+export { getAssetDecoder, preloadAssetDecoder, requiresAssetDecoder } from '../runtime/asset-decoder';
 
 export interface PackageResourceEntry { readonly path: string; }
 

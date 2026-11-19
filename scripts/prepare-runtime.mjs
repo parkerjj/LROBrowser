@@ -9,6 +9,7 @@ import { patchNavigationWorker } from './lastro-navigation-worker.mjs';
 import { withKoreLock, mergeKorePackage } from './kore-local.mjs';
 
 if (process.argv.includes('--native')) process.env.LASTRO_BUILD_TARGET = 'native';
+if (process.argv.includes('--web')) process.env.LASTRO_BUILD_TARGET = 'web';
 
 const execFileAsync = promisify(execFile);
 const repo = fileURLToPath(new URL('../', import.meta.url));
@@ -41,10 +42,18 @@ await withKoreLock(repo, async () => {
     await readFile(path.join(moduleRoot, 'PathFindingWorker.js'), 'utf8'),
   ));
 
+  const targetDir = path.join(generated, 'rust-asset-target');
+  await execFileAsync('cargo', [
+    '+1.99.0', 'build', '--locked', '--release', '--target', 'wasm32-unknown-unknown',
+    '--manifest-path', path.join(repo, 'crates/lro-asset-decode/Cargo.toml'),
+    '--target-dir', targetDir,
+  ], { cwd: repo });
+  const assetDecoderPath = path.join(targetDir, 'wasm32-unknown-unknown', 'release', 'lro_asset_decode.wasm');
   const manifest = await importCoreAssets({
     coreRoot,
     moduleRoot,
     runtimePath: patchedRuntime,
+    assetDecoderPath,
     output: path.join(generated, 'core'),
   });
 

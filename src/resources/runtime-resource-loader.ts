@@ -3,6 +3,7 @@ import { createResourceScheduler, resourcePriority } from './resource-scheduler'
 import { createDirectHttpFetch } from './direct-http-resource';
 import { normalizeResourcePath } from './resource-policy';
 import { resolvePassiveResource, ResourceSourceHealth, RESOURCE_HEDGE_DELAY_MS } from './resource-resolver';
+export { getAssetDecoder, preloadAssetDecoder, requiresAssetDecoder } from '../runtime/asset-decoder';
 
 export interface PackageResourceEntry { readonly path: string; readonly encoding?: string; }
 

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, expect, test, vi } from 'vitest';
 import { getAvailableServerProfile } from '../src/servers/server-profiles';
+import { readFile } from 'node:fs/promises';
 
 vi.mock('/runtime/Online.js', () => ({}));
 vi.mock('../src/network/lastro-login-http', () => ({
@@ -8,6 +9,13 @@ vi.mock('../src/network/lastro-login-http', () => ({
   requestLastROPartyOverTLS: vi.fn(async () => ({})),
   sendLastROLoginPost: vi.fn(async () => undefined),
 }));
+
+async function runtimeFiles(url: string | URL | Request) {
+  const path = String(url);
+  if (path.endsWith('executable-assets.json')) return Response.json({ files: [{ path: 'wasm/lro-asset-decode.wasm', kind: 'wasm' }] });
+  if (path.endsWith('lro-asset-decode.wasm')) return new Response(Uint8Array.from(await readFile('generated/core/wasm/lro-asset-decode.wasm')));
+  return new Response(null, { status: 404 });
+}
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -18,8 +26,7 @@ afterEach(() => {
 test('the native bootstrap installs its own transports before loading the game', async () => {
   vi.stubGlobal('__LASTRO_BUILD_TARGET__', 'native');
   vi.stubGlobal('__TAURI__', { core: { invoke: vi.fn(), Channel: class {} } });
-  const fetcher = vi.fn<typeof fetch>(async (url) => String(url).endsWith('executable-assets.json')
-    ? Response.json({ files: [] }) : new Response(null, { status: 404 }));
+  const fetcher = vi.fn<typeof fetch>(runtimeFiles);
   vi.stubGlobal('fetch', fetcher);
   const { bootstrapV2Client } = await import('../src/runtime/client-bootstrap');
   const { prepareLastROLoginSession } = await import('../src/network/lastro-login-http');
@@ -40,7 +47,7 @@ test('the native bootstrap installs its own transports before loading the game',
 test('the IWA bootstrap continues to use its existing direct socket factory', async () => {
   vi.stubGlobal('__LASTRO_BUILD_TARGET__', 'iwa');
   vi.stubGlobal('LastRONativeBuild', undefined);
-  vi.stubGlobal('fetch', vi.fn(async () => Response.json({ files: [] })));
+  vi.stubGlobal('fetch', vi.fn(runtimeFiles));
   const { bootstrapV2Client } = await import('../src/runtime/client-bootstrap');
   const { createDirectSocket } = await import('../src/network/socket-factory');
   await bootstrapV2Client({ mount: document.body, profile: getAvailableServerProfile('lastro-2x'),

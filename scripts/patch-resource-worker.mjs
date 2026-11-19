@@ -77,7 +77,15 @@ export function patchResourceWorker(source) {
   }
   output = replaceOnce(output,
     'case"SET_HOST":"/"!==e.data.substr(-1)&&(e.data+="/"),se.remoteClient=e.data;break;',
-    'case"SET_HOST":"/"!==e.data.substr(-1)&&(e.data+="/"),se.remoteClient=e.data;break;case"SET_EXECUTABLE_MANIFEST":se.lastroExecutableManifest=LastROResources.snapshotPackageManifest(e.data?.files);break;');
+    'case"SET_HOST":"/"!==e.data.substr(-1)&&(e.data+="/"),se.remoteClient=e.data;break;case"SET_EXECUTABLE_MANIFEST":se.lastroExecutableManifest=LastROResources.snapshotPackageManifest(e.data?.files);se.lastroAssetDecoderReady=LastROResources.preloadAssetDecoder(se.lastroExecutableManifest,new URL("../core/",self.location.href));void se.lastroAssetDecoderReady.catch(()=>{});break;');
+  output = replaceOnce(output,
+    't.ondata=function(t,e){postMessage({type:t,data:e})}',
+    `t.ondata=function(type,data){
+      const moved = type === "MAP_ALTITUDE" ? [data.cells.buffer]
+        : type === "MAP_GROUND" ? [data.lightmap.buffer, data.tileColor.buffer, data.shadowMap.buffer, data.mesh.buffer, data.waterMesh.buffer]
+        : type === "MAP_MODELS" ? [data.buffer.buffer] : [];
+      postMessage({type,data},moved);
+    }`);
   return patchElectronRequireFallbacks(output);
 }
 
@@ -96,8 +104,11 @@ export function patchResourceHandler(source) {
     '    getCharset: () => se.resourcePathCharset,',
     '  });',
     '  se.getHTTP = function getLastROHTTP(filename, callback) {',
-    '    loadResource(filename).then(',
-    '      (bytes) => callback(bytes),',
+    '    const ready = LastROResources.requiresAssetDecoder(filename)',
+    '      ? (se.lastroAssetDecoderReady ?? Promise.reject(new Error("asset-decoder-manifest-not-ready")))',
+    '      : undefined;',
+    '    Promise.all([loadResource(filename), ready]).then(',
+    '      ([bytes]) => callback(bytes),',
     '      (error) => callback(null, error.message)',
     '    );',
     '  };',

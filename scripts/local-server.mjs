@@ -17,7 +17,7 @@ export const SERVER_DIRECTORY = path.join(SERVER_ROOT, '.local', 'local-server')
 export const SERVER_STATE_PATH = path.join(SERVER_DIRECTORY, 'process.json');
 export const SERVER_LOG_PATH = path.join(SERVER_DIRECTORY, 'server.log');
 const executeFile = promisify(execFile);
-const runtimeFiles = ['generated/runtime/Online.js', 'generated/runtime/LastROThreadEventHandler.js', 'generated/core/executable-assets.json'];
+const runtimeFiles = ['generated/runtime/Online.js', 'generated/runtime/LastROThreadEventHandler.js', 'generated/core/executable-assets.json', 'generated/core/wasm/lro-asset-decode.wasm'];
 const readyCache = new Map();
 
 export function runtimeReady(root = SERVER_ROOT) {
@@ -28,7 +28,7 @@ export function runtimeReady(root = SERVER_ROOT) {
     const cached = readyCache.get(filename);
     if (cached?.key === key) return cached.ready;
     const manifest = JSON.parse(readFileSync(filename, 'utf8'));
-    const ready = Array.isArray(manifest.files) && manifest.files.length > 0;
+    const ready = Array.isArray(manifest.files) && manifest.files.some(file => file.path === 'wasm/lro-asset-decode.wasm' && file.kind === 'wasm');
     readyCache.set(filename, { key, ready }); return ready;
   } catch { return false; }
 }
@@ -54,6 +54,7 @@ export async function runtimeNeedsPreparation(root = SERVER_ROOT) {
     return false;
   }
   for (const directory of ['vendor/v2', 'vendor/core', 'src/accounts', 'src/resources', 'src/runtime']) if (await newer(path.join(root, directory))) return true;
+  if (await newer(path.join(root, 'crates/lro-asset-decode'), name => /\.(?:rs|toml|lock)$/.test(name))) return true;
   if (statSync(path.join(root, 'config/core-asset-roots.json')).mtimeMs > preparedAt) return true;
   return newer(path.join(root, 'scripts'), name => /^(?:patch-|lastro-|prepare-runtime\.|import-core-assets\.)/.test(name) && /\.(?:mjs|json)$/.test(name));
 }

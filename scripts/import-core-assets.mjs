@@ -81,7 +81,7 @@ async function addFile(entries, destinations, source, destination, kind, output)
   entries.push({ path: destination, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'), kind });
 }
 
-export async function importCoreAssets({ coreRoot, moduleRoot, runtimePath, output }) {
+export async function importCoreAssets({ coreRoot, moduleRoot, runtimePath, assetDecoderPath, output }) {
   const core = requireAbsolute(coreRoot, 'core-root');
   const modules = requireAbsolute(moduleRoot ?? path.join(repo, 'vendor/v2'), 'module-root');
   const destinationRoot = path.resolve(output ?? path.join(repo, 'generated/core'));
@@ -123,6 +123,11 @@ export async function importCoreAssets({ coreRoot, moduleRoot, runtimePath, outp
   if (runtimePath) {
     await addFile(entries, destinations, path.join(path.dirname(runtimePath), 'lastro-resource-loader.js'),
       'runtime/lastro-resource-loader.js', 'runtime', destinationRoot);
+  }
+  if (assetDecoderPath) {
+    const file = requireAbsolute(assetDecoderPath, 'asset-decoder');
+    if (!(await lstat(file)).isFile()) fail('asset-decoder-file-invalid', file);
+    await addFile(entries, destinations, file, 'wasm/lro-asset-decode.wasm', 'wasm', destinationRoot);
   }
   entries.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
   const manifest = { files: entries };

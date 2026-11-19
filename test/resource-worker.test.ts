@@ -20,7 +20,8 @@ async function loadWorker(responses: Array<Response | Error>, manifest: string[]
     se: {
       resourcePathCharset: 'gbk',
       lastroResourceRoots: ['https://game.lastro.cn/ro/client_re/', 'https://rodata.ltsd.ro/ro/client_re/'],
-      lastroExecutableManifest: manifest.map((path) => ({ path }))
+      lastroExecutableManifest: manifest.map((path) => ({ path })),
+      lastroAssetDecoderReady: Promise.resolve(),
     },
     self: { location: { href: 'https://iwa.invalid/runtime/LastROThreadEventHandler.js' } },
     fetch: (url: string) => {
@@ -257,7 +258,7 @@ describe('LastRO resource worker', () => {
         water: {}, textures: [], models: [],
         compile: () => {
           if (path.endsWith('.' + kind)) throw new Error(`invalid ${kind} data`);
-          return {};
+          return { ground: { textures: [] } };
         },
       }) },
       subject: { setProgress() {}, ondata() {}, loadGroundTextures: (_world: unknown, _ground: unknown, callback: () => void) => callback(), onload: (...args: unknown[]) => calls.push(args) },

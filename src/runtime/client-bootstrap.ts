@@ -7,6 +7,7 @@ import { IS_NATIVE_BUILD, IS_WEB_BUILD } from './build-target';
 import { nativeResourceBaseUrl } from '../resources/native-resource-fetch';
 import { getAvailableServerProfile } from '../servers/server-profiles';
 import { resolveOfficialServerProfile, refreshOfficialOnlineProfiles } from '../servers/online-profile-cache';
+import { getAssetDecoder, preloadAssetDecoder } from './asset-decoder';
 
 export interface BootstrapOptions {
   assistantEnabled?: boolean;
@@ -40,6 +41,7 @@ declare global {
   var LastROResolveServerConnection: ((profile: Record<string, unknown>) => Record<string, unknown>) | undefined;
   var LastROResourceRoots: readonly string[] | undefined;
   var LastROExecutableManifest: ExecutableAssetManifest | undefined;
+  var LastROAssetDecoder: ReturnType<typeof getAssetDecoder> | undefined;
 }
 
 const IWA_RESOURCE_ROOTS = Object.freeze([
@@ -145,6 +147,8 @@ export async function bootstrapV2Client(options: BootstrapOptions): Promise<void
   }
   globalThis.LastROResourceRoots = IS_WEB_BUILD ? WEB_RESOURCE_ROOTS : IWA_RESOURCE_ROOTS;
   globalThis.LastROExecutableManifest = manifest;
+  await preloadAssetDecoder(manifest.files, new URL('/core/', window.location.href));
+  globalThis.LastROAssetDecoder = getAssetDecoder();
   globalThis.LastROStartupDiagnostics?.phase('加载游戏运行时 Online.js');
   await import(/* @vite-ignore */ '/runtime/Online.js');
 }

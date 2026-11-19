@@ -13,7 +13,11 @@ function region(path) {
   if (start < 0) throw new Error('Missing native loader ' + path);
   return source.slice(start, source.indexOf('//#endregion', start));
 }
-const context = { ArrayBuffer, Uint8Array, TextDecoder, window: {}, CodepageManager: { decode: bytes => new TextDecoder('gb18030').decode(bytes) } };
+const decoder = await build({ entryPoints: ['src/runtime/asset-decoder.ts'], bundle: true, write: false, platform: 'node', format: 'esm' });
+const { createAssetDecoder } = await import('data:text/javascript;base64,' + Buffer.from(decoder.outputFiles[0].text).toString('base64'));
+const { instance } = await globalThis.WebAssembly.instantiate(await readFile('generated/core/wasm/lro-asset-decode.wasm'));
+const context = { ArrayBuffer, Uint8Array, TextDecoder, window: {}, LastROAssetDecoder: createAssetDecoder(instance.exports),
+  CodepageManager: { decode: bytes => new TextDecoder('gb18030').decode(bytes) } };
 context.window = context;
 const loaders = runInNewContext(`
   const __esmMin=fn=>{let ready=false;return()=>{if(!ready){ready=true;fn()}}};

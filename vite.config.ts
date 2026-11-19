@@ -178,7 +178,7 @@ function browserReflectMetadataLite(): Plugin {
 }
 
 export default defineConfig(({ mode }) => {
-  const requestedTarget = mode === 'native' ? mode : process.env.LASTRO_BUILD_TARGET;
+  const requestedTarget = mode === 'native' || mode === 'web' ? mode : process.env.LASTRO_BUILD_TARGET;
   const buildTarget = requestedTarget === 'web' || requestedTarget === 'native' ? requestedTarget : 'iwa';
   return {
     base: './',

@@ -54,6 +54,8 @@ function region(path) {
   return runtime.slice(begin, end);
 }
 const targaSource = region('src/Loaders/Targa.js');
+const previewDecoder = await build({ entryPoints: ['src/runtime/asset-decoder.ts'], bundle: true, write: false, platform: 'browser', format: 'esm' });
+const decoderModule = previewDecoder.outputFiles[0].text;
 const cardSource = await readFile('generated/core/runtime/lastro-card-collection-ui.mjs', 'utf8');
 const cardAst = ts.createSourceFile('card-menu.mjs', cardSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
 const cardFunctions = cardAst.statements.filter(node => ts.isFunctionDeclaration(node) && ['resolveMenuButtonTagName', 'installLastROCardMenuButton'].includes(node.name?.text)).map(node => node.getText(cardAst).replace(/^export\s+/, ''));
@@ -78,7 +80,9 @@ const tgaAssets = [...assets].filter(asset => asset.endsWith('.tga'));
 if (tgaAssets.length) {
   const bundle = await build({ entryPoints: ['src/resources/resource-resolver.ts'], bundle: true, write: false, platform: 'node', format: 'esm' });
   const resolver = await import('data:text/javascript;base64,' + Buffer.from(bundle.outputFiles[0].text).toString('base64'));
-  const targaContext = vm.createContext({ Uint8Array, __esmMin: fn => fn });
+  const { createAssetDecoder } = await import('data:text/javascript;base64,' + Buffer.from(decoderModule).toString('base64'));
+  const { instance } = await globalThis.WebAssembly.instantiate(await readFile('generated/core/wasm/lro-asset-decode.wasm'));
+  const targaContext = vm.createContext({ Uint8Array, LastROAssetDecoder: createAssetDecoder(instance.exports), __esmMin: fn => fn });
   vm.runInContext(targaSource + '\ninit_Targa();', targaContext);
   for (const asset of tgaAssets) {
     const filename = createHash('sha256').update(asset).digest('hex').slice(0, 24) + '.tga';
@@ -280,6 +284,9 @@ const nativeConfigs = {};
 for (const [name, text] of Object.entries(configs)) nativeConfigs[name] = vm.runInNewContext('(' + text + ')', values);
 const js = [
   'import { setLastROInnerHTML } from "./basic-info-trusted-dom.mjs";',
+  'import { createAssetDecoder } from "./basic-info-decoder.mjs";',
+  'const wasm = await fetch("./core/wasm/lro-asset-decode.wasm");',
+  'globalThis.LastROAssetDecoder = createAssetDecoder((await WebAssembly.instantiate(await wasm.arrayBuffer())).instance.exports);',
   'const values = ' + JSON.stringify(values) + ';', 'const nativeConfigs = ' + JSON.stringify(nativeConfigs) + ';',
   'const manifest = ' + JSON.stringify(manifest) + ';', 'const sourceHash = ' + JSON.stringify(sourceHash) + ';', 'const assetDirectory = "basic-info-assets";',
   'const messages = ' + JSON.stringify(messageContext.messages) + ';', 'const lastroUiMessages = ' + JSON.stringify(uiMessages) + ';',
@@ -294,6 +301,7 @@ const js = [
 const syntax = ts.createSourceFile('basic-info-preview.js', js, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
 if (syntax.parseDiagnostics.length) throw new Error('Invalid BasicInfo fixture: ' + syntax.parseDiagnostics.map(diagnostic => diagnostic.messageText).join('; '));
 await writeFile('generated/basic-info-preview.js', js);
+await writeFile('generated/basic-info-decoder.mjs', decoderModule);
 await writeFile('generated/basic-info-trusted-dom.mjs', await readFile('src/runtime/lastro-trusted-dom.mjs', 'utf8'));
 const fields = [['hp', 'HP'], ['maxhp', 'HP 上限'], ['sp', 'SP'], ['maxsp', 'SP 上限'], ['ap', 'AP'], ['maxap', 'AP 上限'], ['blvl', 'Base Lv'], ['jlvl', 'Job Lv'], ['bexp', 'Base EXP %'], ['jexp', 'Job EXP %'], ['weight', '负重原始值'], ['maxweight', '负重上限原始值'], ['zeny', '金币']];
 await writeFile('generated/basic-info-preview.html', `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LASTRO 原生基本信息预览</title><link rel="stylesheet" href="/fonts/misans.css">

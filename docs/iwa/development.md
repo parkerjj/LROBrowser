@@ -4,6 +4,8 @@ Phase A 只支持本机手动安装和测试。生产 manifest 不包含 `update
 
 源码和运行资源边界：`vendor/v2/` 管理 `Online.js`、Worker、LastRO `*.mjs` 模块及其回归测试；`vendor/core/` 管理 Lua/LUB、WASM、启动数据和字体。`generated/` 仅由 `pnpm prepare:runtime` 生成 patched runtime、Worker 和资源清单，属于可删除的构建中间目录，不是源代码来源。外部 `ROWeb` 目录不参与默认命令。
 
+构建 IWA、Web 和 Native 前端都需要 Rust 1.99.0 的 `wasm32-unknown-unknown` 目标。先运行 `rustup toolchain install 1.99.0 --profile minimal --target wasm32-unknown-unknown`。构建会将资源解码器和它的哈希一起写入安装包清单。
+
 在 Linux 上运行：
 
 ```bash
