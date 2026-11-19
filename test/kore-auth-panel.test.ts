@@ -31,6 +31,25 @@ test('a signed-out player sees LTSD login before gameplay controls', async () =>
   view.destroy();
 });
 
+test('a client without a bundled runtime explains the missing package after LTSD login', () => {
+  const { view } = mount({ phase: 'waiting-character', user: { displayName: 'Fixture account' } }, 'absent');
+
+  expect(view.element.textContent).toContain('当前客户端未包含 KoreEngine');
+  expect(view.element.textContent).toContain('Fixture account');
+  expect(view.element.textContent).not.toContain('等待 LastRO 角色');
+  expect(view.element.textContent).toContain('复制错误信息');
+  view.destroy();
+});
+
+test('an outdated native package reports its queue compatibility problem', () => {
+  const { view } = mount({ phase: 'waiting-character', user: { displayName: 'Fixture account' } },
+    'unavailable', 'plain-queues-unsupported');
+
+  expect(view.element.textContent).toContain('当前 KE 包不支持普通队列');
+  expect(view.element.textContent).not.toContain('等待 LastRO 角色');
+  view.destroy();
+});
+
 test('device approval presents the matching code and opens the verified LTSD page', () => {
   const expiresAt = Date.now() + 60_000;
   const { host, view } = mount({ phase: 'awaiting-approval', userCode: 'BCDF-GHJK',

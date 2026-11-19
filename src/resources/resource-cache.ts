@@ -73,7 +73,8 @@ export class IndexedDbResourceCache implements ResourceCache {
       const request = database.transaction('resources', 'readonly').objectStore('resources').get(path);
       request.onsuccess = () => {
         const entry = request.result as IndexedDbRecord | undefined;
-        resolve(entry ? { ...entry, bytes: copyBytes(entry.bytes) } : null);
+        // IndexedDB returns an independent structured clone, including the buffer.
+        resolve(entry ?? null);
       };
       request.onerror = () => reject(request.error ?? new Error('IndexedDB read failed'));
     });

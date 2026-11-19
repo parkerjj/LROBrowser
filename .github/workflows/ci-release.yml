@@ -44,6 +44,7 @@ jobs:
         env:
           LASTRO_TLS_LIVE: "1"
         run: pnpm exec vitest run test/direct-tls-live.test.ts --testTimeout 30000
+      - run: rustup toolchain install 1.99.0 --profile minimal --target wasm32-unknown-unknown
       - run: pnpm prepare:runtime
       - name: Unit test suite (each file runs once)
         run: pnpm exec vitest run --exclude test/release-smoke.test.ts
@@ -59,6 +60,7 @@ jobs:
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
+      - run: rustup toolchain install 1.99.0 --profile minimal --target wasm32-unknown-unknown
       - run: pnpm build
       - name: Audit IWA CI distribution
         run: pnpm audit:iwa
@@ -119,6 +121,7 @@ jobs:
           path: ${{ runner.temp }}/ke-release
       - name: Import verified KE package
         run: node scripts/kore-local.mjs --import-package "$RUNNER_TEMP/ke-release/package" --release-metadata "$RUNNER_TEMP/ke-release/release.json"
+      - run: rustup toolchain install 1.99.0 --profile minimal --target wasm32-unknown-unknown
       - run: pnpm build
       - run: pnpm minify:release
       - name: Compute IWA version (1.<本仓库提交数 + KE 提交数>.<commit date yyMMdd, Asia/Shanghai>)
@@ -245,6 +248,7 @@ jobs:
           path: ${{ runner.temp }}/ke-release
       - name: Import verified KE package
         run: node scripts/kore-local.mjs --import-package "$RUNNER_TEMP/ke-release/package" --release-metadata "$RUNNER_TEMP/ke-release/release.json"
+      - run: rustup toolchain install 1.99.0 --profile minimal --target wasm32-unknown-unknown
       - run: pnpm build:web
         env:
           KE_REQUIRE_PACKAGE: '1'

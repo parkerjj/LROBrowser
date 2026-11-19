@@ -36,7 +36,7 @@ describe('independent local client server', () => {
     expect(response.headers.get('cross-origin-embedder-policy')).toBe('require-corp');
     expect(response.headers.get('cross-origin-resource-policy')).toBe('same-origin');
     const html = await response.text();
-    expect(html).toContain('2; url=/play.html');
+    expect(html).toContain('0; url=/play.html');
     expect(html).not.toContain('<script');
     const play = await globalThis.fetch(url + '/play.html');
     expect(play.status).toBe(200);

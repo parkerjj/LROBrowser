@@ -1,0 +1,388 @@
+# 原生安装包（Tauri）与应用内自动更新 设计
+
+日期：2026-11-12
+分支：`feat/tauri-native`（从 `Development` 拉出，开发期间不合回 `Development`；完成后按平时流程合入 `Development` 再进 `main`，由 `main` 首次正式发布。不设 beta/测试通道）
+
+## 1. 为什么要做
+
+现在的分发方式是 IWA（Chrome Isolated Web App），玩家侧问题：
+
+- 只能在 Chrome 里装，并且要在开发者模式下打开若干 flag，步骤繁琐，普通玩家很难装上。
+- 更新只能去 `chrome://iwa-dev` 手动点 Update，应用自己没法检查和安装新版本。
+
+目标是换成玩家熟悉的安装方式：**下载安装包 → 双击安装 → 之后自动更新**。
+
+## 2. 目标 / 非目标 / 反目标
+
+**目标**
+
+- Windows 提供 `.exe` 安装包（NSIS），macOS 提供 `.dmg`，Android 提供 `.apk`，Linux 提供 `.deb` 和 `.rpm`（用户 2026-11-12 追加，见 §6.1）。
+- 三个原生版本都能在应用内检查新版本并完成更新，玩家不需要访问任何特殊页面。
+- 原生版本的游戏连接、官方登录 HTTP 和资源下载全部由 Rust 实现（以下称“Rust 连接器”），不受浏览器跨域与中转 Origin 白名单限制。三个服务器（App服、二转、三转）都应能用。
+- 安装包与现有 swbn 一样上传到 GitHub Release 和 R2。
+
+**非目标**
+
+- iOS 原生应用。iOS 只提供现有网页版 `https://game.ltsd.ro`（版权原因不上架 App Store）。
+- AppImage（用户明确不要）。
+- Windows 代码签名（没有免费方案，用户决定不签）。
+- 游戏 JS 的单独热更新：每次发布都是整包更新（我的决定，见 §7）。
+- 从 IWA 迁移已保存的账号：原生版是新的存储来源，玩家需要重新添加账号（我的决定）。
+- Android 多开（只做桌面多开）。
+- beta / 测试更新通道（用户决定，直接由 `main` 正式发布）。
+
+**反目标（出现即视为失败，即便功能能跑）**
+
+- 改坏或替换现有 IWA 与 web 的构建、发布流程。它们必须原样保留，原生版本是平行新增。
+- 引入 Electron（体积大，用户明确否决）。
+- 新增自建的中转服务器或网络代理服务。Rust 连接器在玩家本机进程内运行，不是服务器。
+- 从远程加载可执行代码（JS/MJS/WASM/Lua/LUB）。可执行文件必须打进安装包，与 IWA 现有规则一致。
+- 把签名私钥、keystore、Apple 凭据提交进仓库（仓库是公开的）。
+
+## 3. 约束
+
+- 仓库 `parkerjj/LROBrowser` 是**公开**仓库，没有开源许可证。所有密钥只能放在 GitHub Actions 的 `production` Environment secret 里。公开仓库可以免费使用 GitHub 托管的 macOS 构建机。
+- 现有规则依然有效：远程被动资源只允许 `https://game.lastro.cn` 和 `https://rodata.ltsd.ro` 两个来源；可执行文件按 `core/executable-assets.json` 清单打包。
+- 官方中转 `wss://port.lastro.cn/<host>:<port>` 只接受 `Origin: https://game.lastro.cn`（或 `https://game.ltsd.ro`）且 UA 像浏览器的握手。IWA 现在的做法是自己在 TLS 上完成 WebSocket 握手，并带官网 Origin 和宿主 UA（见 `src/network/relay-websocket.ts`）。原生版沿用这个已获批准的做法。
+- 二转、三转的直连已被 GM 关闭，`0x0AC4` 下发的角色服务器地址是 `127.0.0.1:24322`，只能经由中转连接。所以原生版必须同时支持“直连”和“中转”两种模式，规则与 IWA 相同：App服直连，二转和三转走中转。
+- `game.lastro.cn` 不返回任何 CORS 头（2026-11-12 实测：带 `Origin: https://game.ltsd.ro` 请求 `clientinfo.xml` 返回 200 但无 `Access-Control-Allow-Origin`，OPTIONS 预检返回 405）。网页版因此继续使用 `rodata.ltsd.ro` 镜像。原生版由 Rust 下载，不受影响。
+- KoreEngine（KE）的常驻 Worker 依赖 `SharedArrayBuffer`，页面必须开启跨源隔离（`Cross-Origin-Opener-Policy: same-origin`、`Cross-Origin-Embedder-Policy: require-corp`），否则 KE 显示不可用。
+- 版本号沿用 `scripts/build-release-metadata.mjs` 的格式 `1.<提交数>.<YYMMDD>`，它也是合法的 semver。原生版与同一提交的 IWA 使用相同版本号。
+
+## 4. 已定的技术选型
+
+| 项 | 选择 | 定的人 |
+| --- | --- | --- |
+| 应用名 | 沿用 IWA：显示名“LRO进阶客户端”，安装包文件名用 ASCII 前缀 `LRO-Client` | 我 |
+| 永久标识 | Tauri `identifier`（即 macOS bundle identifier，Windows 安装目录与数据目录也由它决定）与 Android 包名均为 `com.ioft.lroclient`（用户指定）；Android 新生成一把专用 release keystore，不复用 KoreEngine 的 `kore-release.keystore`（两者是不同应用）。这三项发布后不能再改，否则更新链断开、WebView 数据目录变化导致账号丢失 | 用户（标识）/ 我（新 keystore） |
+| 外壳 | Tauri 2（系统 WebView：Windows WebView2、macOS WKWebView、Android System WebView） | 用户 |
+| 连接器 | Rust 重写（TCP 直连、中转 WebSocket、官方登录 HTTP、资源 HTTP） | 用户 |
+| Windows 包 | NSIS `.exe`，按当前用户安装（无需管理员），**不签名** | 用户（不签名）/ 我（按当前用户安装） |
+| macOS 包 | `.dmg`，Developer ID 签名并公证，universal（Apple 芯片和 Intel 共用一个包） | 用户（签名）/ 我（universal） |
+| Android 包 | `.apk`，release keystore 签名，仅 `arm64-v8a`，最低 Android 8.0 | 我 |
+| Linux 包 | `.deb` + `.rpm`，不出 AppImage；面向国产桌面系统（银河麒麟、统信 UOS）的新手用户，以“双击 .deb 即安装”为一键安装方式。详见 §6.1 | 用户（deb+rpm、不要 AppImage）/ 我（其余） |
+| 桌面自动更新 | `tauri-plugin-updater`，Tauri 更新签名（minisign）校验 | 我 |
+| Android 自动更新 | 自研：读清单 → 下载 apk → 校验 → 调起系统安装器（参照 KoreEngine） | 我 |
+| 发布位置 | GitHub Release + R2，与 swbn 一致 | 用户 |
+| 网页版 | 不变：`game.ltsd.ro`，中转 + `rodata.ltsd.ro` | 用户 |
+
+说明：Rust 编译成 WASM 后在浏览器里同样不能开 TCP，也同样受 CORS 限制，所以 Rust 连接器只服务三个原生版本，对网页版没有帮助。
+
+## 5. 架构
+
+### 5.1 仓库布局（我的决定，构建者可微调）
+
+```text
+native/                      Tauri 工程（独立 Cargo workspace）
+  src-tauri/
+    Cargo.toml / Cargo.lock  固定版本，构建一律 --locked
+    tauri.conf.json          产品名、identifier、窗口、bundle、updater 公钥、安全头
+    capabilities/            Tauri 权限声明（只开放本项目用到的命令）
+    src/
+      main.rs / lib.rs
+      net/                   Rust 连接器：tcp.rs、relay.rs、registry.rs、命令与 TLS 配置
+      policy.rs              官方目的地、连接类型和资源路径白名单
+      resource_protocol.rs   自定义协议：资源下载
+      windows.rs             桌面窗口与单实例入口
+      update/                Android 更新逻辑（桌面用插件）
+    gen/android/             tauri android init 生成的工程（提交）
+native/rust-toolchain.toml   固定 Rust 版本（与 KoreEngine 一致：1.99.0）
+.github/workflows/native-build.yml     只构建的 Linux 和 Windows 交叉编译检查
+.github/workflows/native-release.yml   新增，独立于 ci-release.yml
+```
+
+### 5.2 前端构建目标
+
+`src/runtime/build-target.ts` 的 `ClientBuildTarget` 从 `'iwa' | 'web'` 扩展为 `'iwa' | 'web' | 'native'`。新增 `pnpm build:native`（`LASTRO_BUILD_TARGET=native`，输出到 `dist-native/`），Tauri 以它为前端目录打包。`vite.config.ts` 的 `packageRuntime` 增加 `native` 分支：
+
+- 不输出 IWA 的 `.well-known/manifest.webmanifest`。
+- 与 IWA 共用可执行资产清单格式和打包规则，原生专用 Worker 由 Rust 资源协议适配器构建并记录自己的哈希。所有可执行资源均打进应用包。
+- 资源根地址：原生版两个来源都可用（`game.lastro.cn` 优先，`rodata.ltsd.ro` 备用），与 IWA 的 `DEFAULT_RESOURCE_ROOTS` 一致，只是请求走 §5.4 的自定义协议。
+
+`iwa` 和 `web` 两个目标的产物必须与改动前**逐字节一致**（或差异可解释），作为“不影响现有发布”的验收依据。
+
+### 5.3 游戏连接（主线程）
+
+现在的接入点：`client-bootstrap.ts` 设置 `globalThis.LastRODirectSocketFactory`（IWA 用 `TCPSocket` 实现的 `DirectTcpSocket`）和 `LastRORelaySocketFactory`（IWA 在 TCPSocket + JS TLS 上手工完成 WebSocket 握手）。`Online.js` 只依赖 `LegacyClientSocket` 接口（`src/network/client-socket.ts`）。
+
+原生版新增一个 `NativeSocket implements LegacyClientSocket`，两个工厂在 `native` 目标下都返回它：
+
+- JS 通过 Tauri 命令 `net_open({ kind: 'tcp' | 'tls' | 'relay', host, port, onEvent })` 打开连接。`onEvent` 是 Tauri `Channel`。中转模式的 `host` 是完整官方中转 URL，Rust 返回连接 id。
+- `send(buffer)` → `net_send(id, bytes)`；`close()` → `net_close(id)`。
+- Rust 通过同一个有序 Channel 交付 `open`、`failed`、`closed` 状态以及原始二进制帧。二进制帧在 JS 侧是 `ArrayBuffer`，数据先于最终关闭事件交付。
+- `direct`：tokio `TcpStream`，关闭 Nagle（`set_nodelay(true)`）。
+- `relay`：rustls + `tokio-tungstenite` 连接 `wss://port.lastro.cn/<host>:<port>`，握手带 `Origin: https://game.lastro.cn`、`Referer` 和 UA，与 `relay-websocket.ts` 当前行为一致。UA 用 Rust 内置的一个标准桌面 Chrome UA 字符串，不用 WebView 自带的 UA（我的决定）：WKWebView 的 UA 不含 `Safari/Version`，Android WebView 的 UA 带 `; wv`，可能被中转判为非浏览器而返回 403；IWA 运行在 Chrome 里，实际发出的本来就是 Chrome UA，所以这样与 IWA 效果相同。资源和登录 HTTP 的 UA 同样使用这个字符串；地址白名单规则（只允许 `*.lastro.cn` 的 `wss:`、无用户名密码/查询/片段）也照搬。
+- 必须保持 IWA 已经处理好的语义：发送严格保序；`isZone`、`handoffPending` 等字段由 JS 侧维护不变；关闭时先把已收到的数据交付完再报告关闭。现有 `test/direct-tcp-socket.test.ts` 的行为用例应当对 `NativeSocket` 同样成立。
+
+连接模式的选择规则沿用 `lastro-account-login.mjs`：原生版视为“支持直连”（`LastRODirectSocketsSupported = true`），App服直连，二转/三转中转。
+
+### 5.4 资源下载（Worker 内）
+
+资源由 Worker 里的 `runtime-resource-loader` 下载。Tauri 的命令调用只在主窗口可用，Worker 里调用不到，所以资源走**自定义 URI 协议**，Worker 照常用 `fetch()`：
+
+- Rust 注册异步协议 `lro`。Windows 在 HTTPS 应用协议下使用 `https://lro.localhost/…`，WebKit 应用协议下使用 `lro://localhost/…`。Worker 无法调用 Tauri API，因此资源适配器按 Worker 的 `location.protocol` 选择 URI 形态，并保留资源路径的原始百分号编码。
+- 请求路径 `/<root-id>/<逻辑路径>`，`root-id` 只能是 `lastro` 或 `rodata`，Rust 映射到两个白名单来源，其余一律 403。逻辑路径照搬 `resource-policy.ts` 的规范化与分类规则，只放行被动资源扩展名。
+- Rust 用 `reqwest`（rustls）连接池请求真实地址，携带官网 Origin、Referer 与 UA。保留上游状态码，分段读取响应体并限制在 256 MiB，再交给 Tauri。协议响应带 CORS、CORP 和 `nosniff`，拒绝外部来源和重定向。
+- `game.lastro.cn` 对部分不存在的路径返回伪成功 HTML。现有的 `map-binary-validation` 和回退逻辑保留在 JS 侧，Rust 不做内容判断。
+- JS 侧 `native` 目标把真实 URL 改写为 `lro` 协议地址，沿用资源解析、来源测速、对冲请求和负缓存。Tauri 提交缓冲完成的响应，地图下载由 Rust 检查 30 秒上游停滞，JS 保留五分钟总时限。Rust 最多并行处理八个上游下载，当 WebView 放弃请求时，已启动的下载可能继续到完成或超时。
+
+### 5.5 官方登录 HTTP
+
+`src/network/lastro-login-http.ts` 在 IWA 中继续使用 TCPSocket 和 JS TLS。原生版通过 `openNativeTlsStreams` 调用 `net_open` 的 `tls` 模式，Rust 只对 `game.lastro.cn:443` 建立通过证书校验的 TLS 连接。JS 继续负责 HTTP 编解码、Yii cookie、CSRF 和登录辅助请求。Rust 传输层不保存账号或 cookie。
+
+`src/servers/online-profile-cache.ts` 可从 `https://game.lastro.cn/ro/Online.js` 提取服务器配置。原生版通过 `lro` 协议的 `/official/ro/Online.js` 固定路由读取，最多读取 4 MiB，作为纯文本交给既有解析器。原生窗口执行的是随应用打包的 `/runtime/Online.js`。
+
+### 5.6 KoreEngine 与跨源隔离
+
+- 在 `tauri.conf.json` 的 `app.security.headers` 里为前端资源设置 COOP `same-origin` 和 COEP `require-corp`，使 `crossOriginIsolated === true`。
+- KE 包的引入方式与 IWA 构建一致（`pnpm ke:local` / CI 中下载 KE release），打进安装包。
+- §5.4 的资源响应必须带 `Cross-Origin-Resource-Policy`，否则 COEP 会拦截。
+
+### 5.6.1 各平台 SharedArrayBuffer 的预期与兜底
+
+- Windows（WebView2，Chromium）、Android（System WebView，Chromium）：在跨源隔离下标准支持 `SharedArrayBuffer`，预期可用；Android 需要确认 Tauri 在 Android 上确实给页面加了 COOP/COEP 响应头（§9 第 1 项验证）。
+- macOS（WKWebView）：Safari 15.2 起在跨源隔离下支持。
+- Linux（WebKitGTK）：默认关闭，用 `JSC_useSharedArrayBuffer=true` 打开（见 §6.1）。
+- **KE 的 SAB 依赖也许可以去掉（2026-11-14 读 KE 源码得出，尚未实测；用户提醒当初采用 SAB 方案另有原因，**这个原因我没有在文档和提交记录里找到，所以下面的结论都是待验证的假设**）**：
+  - 能查到的历史：M4 人工测试发现 AI 迟滞（固定 100/250ms tick）→ M5 重构设计（`docs/milestones/plans/KoreEngine-M5-Rust-Thread-Scheduler-Redesign.md`）选了“Rust 常驻线程 + SAB 环形队列 + `Atomics.wait`”，并写明“是否支持单线程事件驱动降级应另行确认”。实际落地（2026-10-16 起）是 Worker 内事件驱动 + one-shot 定时器，没有用 WASM 线程，SAB 队列留了下来。没有找到“非 SAB 模式试过并失败”的记录。
+  - **用户确认的原因（2026-11-14）**：更早的设计是 KE 按时间轮询客户端有没有新封包，用户明确否决，因为太慢、不够智能；要求封包抵达后立刻唤醒 KE 开始工作。所以 SAB 方案的本意是“事件驱动、无轮询”，而不是 SAB 本身。无 SAB 的普通队列模式**同样必须事件驱动**：主线程收到封包 → `postMessage` 立即唤醒 Worker → 处理；需要等待的任务用 Rust 给出的下一个到期时间设一次性定时器，不得出现任何固定间隔的轮询。
+  - **普通队列模式的硬验收标准**：（a）代码里没有 `setInterval` 或固定间隔的 KE 轮询；（b）用 KE 的 `test/worker-smoke.html` 在 `shared:false` 下测“封包到达 → 发出动作”的延迟，不得明显劣于共享队列模式（两种模式用同一批封包对比，数值写进本文档）；（c）消息顺序、背压、Worker 重建后的恢复行为通过 KE 现有的 `tests/worker-scheduler.test.mjs` 与 `tests/shared-queue.test.mjs` 在两种模式下都通过。
+  - KE 的 `runtime/shared-queue.mjs` 里，`SharedRingQueue` 只是把 SAB 当作固定槽位的环形存储，队列由 `kore-worker.mjs` 的 `ensureResidentQueues()` 在 **Worker 内部创建、只在 Worker 内读写**（源码注释原话：“队列只在 Worker 内读写，所以不需要放进共享内存”）。主线程通过 `postMessage` 把事件发给 Worker，Worker 收到后入队再处理，没有跨线程的 `Atomics.wait/notify`。
+  - KE 的 WASM 没有用线程或共享内存（构建参数里没有 atomics，只有路径重映射）。
+  - `BridgeQueues` 本身已经有 `shared: false` 选项，对应普通内存的 `RingQueue`，两者的方法一致（`push`、`drain`、`replaceFirstByKey`、`stats` 等）。现在只是默认值是 `shared = true`，并且 RoBrowser 的 `src/kore/kore-integration.mjs`（约第 1159 行）在没有 SAB 时直接把 KE 标成“不可用”。
+  - `Online.js` 自己对 SAB 没有依赖（只是类型判断）。
+- **决定（用户 2026-11-14）：KE 做成双链路。**
+  - 有 SAB 的环境（IWA、Windows、Linux）继续用 `SharedRingQueue`，行为不变。
+  - 没有 SAB 的环境（Android、macOS）自动改用普通内存的 `RingQueue`，KE 照常运行，不显示“不可用”。
+  - 改动点（计划 2 中实现）：KE 仓库 `runtime/kore-worker.mjs` 的 `ensureResidentQueues()` 按 `SharedArrayBuffer`+`Atomics` 是否可用选择 `shared`；RoBrowser 的 `kore-integration.mjs` 去掉“无 SAB 即不可用”的拦截，把当前使用的队列模式写入状态供调试。KE 需要重新构建并发版（Worker 文件进了包清单哈希）；KE 的加密 Rust 核心不用改。
+  - **实测结果（2026-11-14，在 KE 的 git 导出副本里验证，KE 仓库本身未改动）**：
+    - 把 `ensureResidentQueues()` 改成 `shared: false` 后，KE 现有的 `kore-worker`、`shared-queue`、`worker-scheduler` 三组测试：SAB 模式 26 项通过；普通队列模式 25 项通过、1 项失败。失败的是“超过 64KB 的输出会被丢弃并报 `queue-record-too-large`”，这是 SAB 槽位大小的限制，普通队列没有此上限，输出照常送达，属预期差异（正式实现时让该测试按模式区分）。消息顺序、背压、Worker 崩溃恢复相关测试在两种模式下都通过。
+    - 唤醒延迟（用 KE 的真实 `kore-worker.mjs` + 模拟 Runtime，Node worker_threads，每次 3000 个事件，跑 3 轮）：“主线程发出 → Worker 把事件交给 Runtime”的中位数，SAB 模式 16–24 微秒，普通队列 12–17 微秒；p99 SAB 91–103 微秒，普通 46–64 微秒。普通队列不劣于 SAB 模式。
+    - 代码核查：Worker 里没有 `setInterval`，唯一的定时器是按 Rust 给出的下一个到期时间设置的一次性 `setTimeout`，满足“无轮询”的要求。
+    - 附带收益：SAB 队列每个槽位 64KB，KE 提交记录里提到会占约 96MB 共享内存；普通队列没有这项占用。
+    - **没有验证的部分**：带真实 WASM 的端到端运行。KE 的 Worker 需要先完成 LTSD 授权握手才能解密核心，这是授权保护的路径，不能也不应该在测试里绕过。因此 Rust 侧的真实决策延迟、以及在 Android WebView / macOS WKWebView 里的实际表现，仍需在正式实现后用真实账号实机验证。
+  - 这也让 Linux 不再必须设置 `JSC_useSharedArrayBuffer=true`；该环境变量保留作为可选项即可。
+  - **队列模式开关（用户 2026-11-14 决定：IWA 也可以彻底不用 SAB，代码保留，用开关控制）**：设置项 `keQueueMode`，取值 `auto`（有 SAB 用共享队列，没有就用普通队列）、`shared`（强制共享队列，没有 SAB 则 KE 不可用）、`plain`（强制普通队列，即使有 SAB 也不用）。KE 的 `SharedRingQueue` 与 SAB 相关代码一律不删。默认值（我的决定）：IWA 与 web 为 `auto`，行为与现在完全一致；原生版（native）为 `plain`。把 IWA 默认值改成 `plain`，要等用真实账号在 IWA 里验证过一轮之后再单独决定。测试人员可用 `localStorage['lro.keQueueMode']` 覆盖默认值。
+  - **向后兼容**：KE 包的 `schedulerCapabilities` 新增 `plainQueues`。RoBrowser 遇到不带该能力的旧 KE 包，且当前环境没有 SAB 时，仍然标为“不可用”（与现在一致），不会误用旧包。
+
+### 5.7 安全边界
+
+- 计划 3 的 Tauri capabilities 只向本地游戏窗口开放 `net_open`、`net_send`、`net_close`、`open_game_window` 与 `open_ke_ltsd_url`。`lro` 协议另有来源、请求方法和路径检查。更新命令按后续发布计划处理。
+- 设置 CSP：`script-src 'self'`（加 Tauri 必需项与 `wasm-unsafe-eval`），`connect-src` 含自身、`lro` 协议、Tauri IPC 和 `https://ltsd.ro`。前端现在直接请求 `https://ltsd.ro/api/v1/ke`（KE 授权，`src/kore/kore-ltsd-client.mjs`）和 `https://ltsd.ro/api/v1/market/search`（市场查询，`src/assistant/lro-market-api.mjs`），该站 CORS 为 `*`，保持直连即可，不经过 Rust（我的决定）。
+- KE 的批准页、配置页和购买页由 `open_ke_ltsd_url` 交给系统默认浏览器。Rust 校验 `https://ltsd.ro` 和对应页面路径。网页和 IWA 继续调用原有浏览器打开方式。
+- Rust 端对所有命令参数做白名单校验（主机、端口范围、URL 前缀），拒绝任意主机访问，避免网页侧被注入代码后把应用变成任意端口扫描或代理工具。
+- TLS 一律校验证书（rustls + webpki-roots 或平台根证书）。
+
+### 5.8 账号存储
+
+继续使用 IndexedDB 账号管理流程，不改实现。原生版的存储随应用的 WebView 数据目录保存，卸载应用会丢失（与 IWA 卸载行为相同）。不做从 IWA 的迁移。
+
+### 5.9 桌面多开（用户要求支持；方式是我的决定）
+
+采用**一个进程、多个游戏窗口**：
+
+- 每个窗口是一个完整、独立的游戏实例（各自加载页面、各自登录），共用同一份 IndexedDB 账号数据，与 IWA 同时开多个窗口的效果一致。
+- 使用「窗口」菜单的「新开窗口」，或再次启动客户端，均由现有进程创建新的游戏窗口。
+- Rust 连接器中的每个连接都记录所属窗口。窗口关闭或顶层页面重新加载时清理它名下的连接。命令只能操作本窗口打开的连接。
+- 现有的多开优化（后台窗口限 20fps、关闭 MSAA，见 `Online.js` 与 `kore-render-toggle.mjs`）依赖 `document.hasFocus()`，在每个窗口内照常生效，不需改动。
+- **未聚焦、被遮挡或最小化的窗口必须继续运行**（定时器、收发包、KE 不能被暂停）。在 Tauri 中关闭 WebView 的后台节流（`backgroundThrottling` 设为 disabled），各平台实际效果需在 §9 验证。
+- 自动更新安装前需要退出整个进程。提示条上说明“将关闭所有游戏窗口”，由玩家确认后才执行。
+
+Android 只做单开。
+
+### 5.10 Android 后台保持在线（用户要求）
+
+切到后台或锁屏后，游戏连接和 KE 必须继续运行：
+
+- 应用切到后台时启动一个前台服务，显示常驻通知（例如“LRO进阶客户端 正在保持在线”，可点回应用；断线或玩家主动退出后停止服务）。服务类型用 `specialUse`（apk 不经应用商店审核；`dataSync` 在 Android 15 有每日 6 小时上限，不适合）。
+- 需要的权限：`FOREGROUND_SERVICE`、`FOREGROUND_SERVICE_SPECIAL_USE`、`POST_NOTIFICATIONS`（Android 13+ 首次运行时向玩家申请）、`WAKE_LOCK`。另外引导玩家把应用加入“电池优化白名单”（`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`），并在说明里提示部分国产 ROM 还需手动允许“后台运行/自启动”。
+- 前台服务只能保证进程不被杀，**不能保证 WebView 里的 JS 继续运行**。还需要：不调用 `WebView.onPause()`/`pauseTimers()`；把 WebView 的渲染进程优先级设为 `RENDERER_PRIORITY_IMPORTANT` 且不随不可见而降低；持有 partial WakeLock。即便如此，Chromium 仍可能节流后台页面的定时器，这是本项目风险最高的一项，必须在 §9 先验证。
+- Rust 侧连接本身不受 WebView 暂停影响，但游戏心跳和 KE 决策都在 JS/Worker 里，所以 JS 能否持续运行决定了这项能否成立。
+
+如果 §9 验证证明 WebView 无法在后台可靠运行，需要回来找用户决定替代方案（例如把后台挂机交给 KE 原生 Android 版），不要自行降级。
+
+## 6. 打包与签名
+
+| 平台 | 构建机 | 产物 | 签名 |
+| --- | --- | --- | --- |
+| Windows | `ubuntu-24.04`，`cargo-xwin` 交叉编译 `x86_64-pc-windows-msvc`，Linux 版 NSIS（KoreEngine 已验证同一套工具链） | `LRO-Client-<版本>-windows-x64-setup.exe` | 不签名。WebView2 用 Tauri 默认的在线引导安装（Win10/11 基本自带） |
+| macOS | GitHub 托管 macOS 构建机 | `LRO-Client-<版本>-macos-universal.dmg` | Tauri 内置流程：Developer ID 证书签名 + App Store Connect API Key 公证并装订（stapling） |
+| Android | `ubuntu-24.04`，Android SDK/NDK + `tauri android build --apk --target aarch64` | `LRO-Client-<版本>-android-arm64.apk` | release keystore（Actions secret 解码到临时文件，用完删除） |
+
+Android `versionCode` 从提交数推出（例如 `100000000 + 提交数`），保证单调递增，并与 apk 内一致。
+
+macOS 的 Developer ID 证书、App Store Connect API Key 与 KoreEngine 使用的是同一个开发者账号，可以复用同名 secret 的值（`MACOS_CERTIFICATE_P12_BASE64`、`MACOS_CERTIFICATE_PASSWORD`、`MACOS_SIGNING_IDENTITY`、`ASC_KEY_ID`、`ASC_ISSUER_ID`、`ASC_PRIVATE_KEY`），由用户在本仓库的 `production` Environment 里配置。
+
+### 6.1 Linux 打包（用户追加；其中带“待核实”的是我凭记忆写的，不是已验证事实）
+
+**目标用户**：大量是政府机关用户，用银河麒麟（Kylin）或统信 UOS，电脑新手，要求一键安装。
+
+**包格式**
+- `.deb`：主力。麒麟桌面版和统信 UOS 都是 Debian 系（待核实具体基线版本），双击 `.deb` 会打开系统自带的软件包安装器，点一下“安装”即可，这就是一键安装。下载页只放这一种“双击就能装”的说明，不要求新手使用终端。
+- `.rpm`：给 Fedora、openSUSE、openEuler、麒麟服务器版等 RPM 系系统。
+- 不做 AppImage、Flatpak、Snap（用户不要 AppImage；Flatpak 和 Snap 在这类系统上通常没有预装，新手无法使用）。
+- 命名：`LRO-Client-<版本>-linux-<架构>.deb` / `.rpm`，架构为 `amd64`/`x86_64`、`arm64`/`aarch64`。
+
+**CPU 架构（待核实）**：国产机器常见飞腾、鲲鹏（arm64）、兆芯、海光（x86_64）、龙芯（loongarch64）。首发支持 x86_64 和 arm64；龙芯（Rust 有 `loongarch64-unknown-linux-gnu` 目标，但 Tauri/WebKitGTK 在该架构的可用性待查）不承诺，是否支持取决于 §9 第 9 项的结果。
+
+**最大风险（待核实）**：Tauri 2 的 Linux 版要求系统提供 `libwebkit2gtk-4.1`。我记忆中麒麟 V10 和 UOS 20 的软件源里只有较老的 `4.0` 版，如果属实，Tauri 2 的 deb 在这些系统上装不上或跑不起来。这可能让“Tauri + deb”对目标用户整体不成立，必须在写任何正式代码前，用一台真实的目标机器核实（§9 第 9 项）。备选方向在 §9 第 9 项里列出，到时需要用户决定。
+
+**自动更新**：Tauri 的更新插件在 Linux 只支持 AppImage，不支持 deb/rpm，所以 Linux 自己实现（我的决定）：应用检查 `native/latest.json` 的 Linux 条目 → 下载新的 `.deb`/`.rpm` 到缓存目录 → 校验 SHA-256 与 Tauri 更新签名 → 通过系统图形授权对话框（`pkexec`）调用 `dpkg -i` / `rpm -U` 安装 → 提示重启。包管理器的自动更新（自建 apt/yum 仓库）留作以后的优化，不在首发范围。
+
+**KoreEngine 与 SharedArrayBuffer**：WebKitGTK 默认关闭 `SharedArrayBuffer`，即使 `crossOriginIsolated` 为 true 也是如此（本机实测：主线程和 Worker 里都是 `undefined`）。用环境变量 `JSC_useSharedArrayBuffer=true` 启动后主线程和 Worker 都可用（本机实测，WebKitGTK 2.54.2）。因此 Linux 版必须在创建 WebView 之前由程序自己设置该环境变量（`std::env::set_var`，放在 `main` 最开头），不需要玩家操作。目标系统上较老的 WebKitGTK 是否认这个选项，待核实（§9 第 9 项）。
+
+Windows 不签名的玩家体验：首次运行安装包会出现 SmartScreen“Windows 已保护你的电脑”，需点“更多信息 → 仍要运行”。下载页需写明这一步。自动更新由已安装的应用下载并静默执行安装包，一般不再出现该提示（需在实机上确认，见 §9）。
+
+## 7. 自动更新
+
+**整包更新**：每次发布都出新安装包，游戏 JS/资源清单随安装包一起更新，不做单独的前端热更新。理由：实现最简单，桌面端 Tauri 更新是后台下载、关闭重启即生效，体验足够；代价是每次小修也要下载完整安装包（预计十几到几十 MB，以实测为准）。
+
+### 7.1 更新清单
+
+R2 上新增 `native/` 前缀（公开地址沿用 `https://client.ltsd.ro/`）：
+
+- `native/latest.json`：Tauri updater 格式，覆盖 `windows-x86_64`、`darwin-aarch64`、`darwin-x86_64` 三个平台键（后两个都指向同一个 universal 更新包）。每项包含 `url` 和 Tauri 更新签名 `signature`。
+- `native/android.json`：沿用 KoreEngine `releases.json` 中 android 条目的字段（`version`、`versionCode`、`url`、`sha256`、`size`、`minOs`、`notes`、`publishedAt`），外加 `signature`（用同一把 Tauri 更新私钥对 apk 签出的 minisign 签名），使 Android 与桌面使用同一把更新密钥校验。
+- 安装包和更新包放在 `native/<版本>/` 下。
+
+### 7.2 桌面端（Windows / macOS）
+
+- 启动后检查一次，之后每 6 小时检查一次（我的决定）。发现新版本时在登录界面或游戏内用一个非阻塞提示条显示版本号和更新说明，玩家点“立即更新”后下载、安装并重启。正在游戏中不强制打断。
+- 公钥写在 `tauri.conf.json`；私钥只在 Actions secret `TAURI_SIGNING_PRIVATE_KEY`（及口令）中。
+- Windows NSIS 更新采用 passive 模式（显示进度、无需交互）。
+
+### 7.3 Android
+
+参照 KoreEngine `android/` 的现有实现（清单读取、`versionCode` 比较、大小与 SHA-256 校验）：
+
+1. 拉取 `native/android.json`（只允许 HTTPS），比较 `versionCode`。
+2. 下载 apk 到应用私有缓存目录，校验大小、SHA-256 和 minisign 签名。
+3. 通过 `FileProvider` 调起系统安装器（需要 `REQUEST_INSTALL_PACKAGES` 权限）。首次会要求玩家授权“允许安装未知应用”，界面上给出引导。
+4. 安装器会校验新 apk 与已装 apk 的签名证书一致，因此 release keystore 一旦确定就不能更换。
+
+检查时机与提示方式同桌面端。
+
+## 8. 发布流程
+
+新增 `.github/workflows/native-release.yml`，**不修改** `ci-release.yml`：
+
+- 触发：`main` 分支 push 和手动运行（与 IWA 正式发布条件一致）。其他分支只构建、不发布（便于在 `feat/tauri-native` 上验证）。
+- 三个平台各自独立构建，互不等待。
+- 发布前像 IWA 一样检查“当前 main 仍是本次提交”，避免旧提交覆盖新版本。
+- 每个平台构建成功后：上传到 GitHub Release `native-<版本>`（各平台往同一个 Release 追加文件，附 `.sha256`），并上传到 R2 `native/<版本>/`。
+- 三个平台都发布后，由最后一个汇总 job 生成并上传 `native/latest.json` 和 `native/android.json`。清单写入使用 concurrency 锁，避免并发覆盖。某个平台失败时，清单里保留该平台的上一版本条目。
+- 新增 secrets（`production` Environment）：`TAURI_SIGNING_PRIVATE_KEY`、`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`、`ANDROID_KEYSTORE_BASE64`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD`，以及 §6 列出的 macOS 证书与 ASC secret。R2 secret 复用现有的。
+- 用户需在 `game.ltsd.ro` 或 GitHub Release 说明里提供三个平台的下载链接（下载页的具体形式留给构建者，最小方案是 Release 说明加 R2 固定地址 `native/latest/…` 的重定向或复制）。
+
+## 9. 先做的技术验证（spike）
+
+正式实现前，先用一个最小 Tauri 工程在三个平台上验证以下几点，任何一项不成立都要回来调整设计：
+
+1. **跨源隔离**：设置 COOP/COEP 后，WebView2、WKWebView、Android System WebView 中 `crossOriginIsolated === true`，`SharedArrayBuffer` 可用，KE Worker 能启动。Android WebView 风险最高。
+2. **Worker 访问自定义协议**：三个平台的 Dedicated Worker 中 `fetch` 自定义协议地址可用，且在 COEP 下不被拦截。
+3. **渲染性能**：WKWebView 与 Android WebView 上 WebGL 地图渲染帧率可接受（以一张大地图为基准，与 Chrome 对比）。
+4. **Windows 交叉编译**：Linux 上 `tauri build` 生成可安装、可启动的 NSIS 包（需 Windows 实机验证）。
+5. **未签名包的自动更新**：Windows 上由应用触发的更新安装是否还会弹 SmartScreen。
+6. **Android 后台保持在线（风险最高）**：按 §5.10 配置后，切到后台并锁屏 30 分钟，游戏连接不断开、心跳正常、KE 持续行动。分别在原生 Android 和至少一款国产 ROM 上测试。
+7. **桌面窗口不被节流**：Windows 和 macOS 上，一个窗口最小化或被完全遮挡 30 分钟，期间游戏连接不断开、KE 持续行动；同时开 3 个窗口时资源占用可接受。
+9. **Linux 目标系统可行性（最先做，需要用户提供一台目标机器）**：在一台真实的麒麟 V10 / 统信 UOS 机器上运行 `cat /etc/os-release; uname -m; apt policy libwebkit2gtk-4.1-0 libwebkit2gtk-4.0-37; dpkg -l | grep -i webkit`，并用探针的 deb 实际安装、运行。如果系统没有 `libwebkit2gtk-4.1`，需要回来和用户决定备选方案，不要自行选择。可能的备选：（a）让 deb 自带所需的 WebKitGTK 4.1 及依赖库（体积很大，维护成本高）；（b）在这类系统上改用系统自带的 Chromium 系浏览器（如 QtWebEngine/Chromium）作为壳；（c）这类用户继续使用网页版。
+8. **中转握手**：Rust 用标准 Chrome UA + 官网 Origin 握手 `wss://port.lastro.cn` 返回 101（可先用现有 `LASTRO_TLS_LIVE=1 npx vitest run test/direct-tls-live.test.ts` 对照）。
+
+spike 代码不进入正式分支历史；结论写入本文档。
+
+## 10. 验收标准
+
+- 三个平台安装包都能在实机上安装、启动、登录 App服（直连）和二转/三转（中转）并进入地图，资源能从 `game.lastro.cn` 加载，失败时回退到 `rodata.ltsd.ro`。
+- KE 在三个平台可启动（若 §9-1 验证某平台不可行，该平台显示 KE 不可用，作为已知限制写入下载说明）。
+- 从版本 N 安装后发布 N+1，三个平台都能在应用内完成更新并保留账号数据。不设测试通道：首个正式版 N 从 `main` 发布后，以下一次 `main` 发布 N+1 作为更新验收（用户决定；现有用户都在用 IWA，IWA 照常自动更新，原生版是平行发布，不影响他们）。
+- 桌面端可同时开至少 3 个窗口分别登录不同账号，最小化或遮挡的窗口保持在线。
+- Android 切到后台并锁屏 30 分钟后仍保持在线，常驻通知可见，回到应用画面正常。
+- 篡改更新包或清单签名时，客户端拒绝安装。
+- `pnpm build`、`pnpm build:web` 的产物与改动前一致；`ci-release.yml` 未改动；现有测试全部通过。
+- 新增 Rust 连接器有单元测试（地址白名单、协议路径校验、中转握手请求头），`NativeSocket` 通过与 `DirectTcpSocket` 相同的行为用例。
+- 仓库中不存在任何私钥、keystore、口令。
+
+## 11. 需要同步修改的仓库规则
+
+`AGENTS.md` 需更新（由本分支一并提交）：
+
+- 允许 Tauri 原生外壳与其中的 Rust 连接器（直连、中转、HTTP）；依旧禁止 Electron、自建代理服务器、NodeSocket。
+- 原生版的可执行文件同样必须打进安装包内清单；远程被动资源来源不变。
+- 原生版的应用内更新在专门的发布阶段启用。Phase A 继续只做本地验证，签名密钥只存在于 Actions 的 `production` Environment secrets。
+
+## 12. 留给构建者决定的
+
+- Tauri 插件与 crate 的具体版本（全部锁定、`--locked` 构建）。
+- 提示条的具体 UI 与文案（复用现有 UI 相关的 mjs 模块，遵守 `AGENTS.md` 中“优先复用已有模块”的要求）。
+- 窗口初始尺寸、是否记住窗口位置、应用图标的来源（可从现有 IWA 图标生成）。
+- Android 横屏/全屏策略与软键盘处理。
+- R2 上“最新版”固定下载地址的具体实现方式。
+- `NativeSocket` 的事件批量合并策略（只要保序、及时交付即可）。
+
+## 13. 技术验证结论（持续更新；探针代码在本地分支 `spike/tauri-native`，不合入）
+
+### 已完成（2026-11-12 / 11-14）
+
+| §9 项 | 平台 | 结论 |
+| --- | --- | --- |
+| 1 跨源隔离 | Linux（WebKitGTK 2.54.2） | `crossOriginIsolated` 为 true，但 `SharedArrayBuffer` 默认不存在；设 `JSC_useSharedArrayBuffer=true` 后主线程和 Worker 都可用。**通过（需程序自己设环境变量）** |
+| 1 跨源隔离 | **Android（真机 小米 23124RA7EO，Android 15，System WebView 157）** | **不通过。** 页面响应头确实带了 `COOP: same-origin`、`COEP: require-corp`，`http://tauri.localhost` 和 `https://tauri.localhost` 两种来源都试过，`crossOriginIsolated` 始终为 false，`SharedArrayBuffer` 不存在。我找不到绕过办法；我记得 Chromium Android WebView 没有实现跨源隔离，但未核实 |
+| 2 Worker 访问自定义协议 | Linux、Android | 通过：`fetch` 自定义协议返回 200（3769 字节），不允许的 root 返回 403，COEP 不拦截 |
+| 3 WebGL | Linux（Xvfb）、Android（真机亮屏） | WebGL2 可用，约 60fps（简单压测，不代表真实大地图） |
+| 6 Android 后台在线 | **Android 真机** | **通过。** 开启保活（前台服务 `specialUse` + `PARTIAL_WAKE_LOCK` + `RENDERER_PRIORITY_IMPORTANT`），锁屏 30 分钟：每分钟都有心跳，主线程最大间隔 1023ms，Worker 1007ms。**对照组**（不开这三项）：进程仍在，但 18 分钟内没有任何心跳，说明页面被冻结。注意：三项措施没有拆开单测，不知道是哪一项起决定作用；只在一台小米手机（HyperOS）上测过一次 |
+| 7 桌面窗口不被节流 | Linux（Xvfb，无窗口管理器） | 初步通过（4 个窗口 120 秒，最大间隔 ≤2 秒）；Xvfb 里“最小化”可能没有真正生效，需 Windows/macOS 结果确认 |
+| 8 中转握手 | Linux、Android | 通过：Rust 握手返回 101；用 WebView 自带标识（含 Android 的 `; wv`）也返回 101，所以“必须改用 Chrome 标识”的担心在 2026-11-14 并未出现，仍保留统一 Chrome 标识作为保险 |
+
+### Windows 与 macOS（GitHub 托管 runner，运行 `Spike native probe`，每次 300 秒）
+
+| §9 项 | Windows（WebView2，Chrome 156） | macOS（WKWebView，universal 包，ad-hoc 签名） |
+| --- | --- | --- |
+| 1 跨源隔离 / SAB | **通过**：页面来源 `https://tauri.localhost`，`crossOriginIsolated` true，主线程和 Worker 都有 `SharedArrayBuffer` | **不通过**：COOP/COEP 头已带上，但页面来源是 `tauri://localhost`（自定义协议），`crossOriginIsolated` false，`SharedArrayBuffer` 不存在。我推测是自定义协议不被当作安全上下文，未验证；可尝试的方向：改由本机 `http://localhost` 提供页面（如 `tauri-plugin-localhost`），待验证 |
+| 2 Worker 访问自定义协议 | 通过（200 / 3769 字节，非法 root 403） | 通过 |
+| 3 WebGL | WebGL2，64fps（简单压测） | WebGL2，58–60fps（runner 软件渲染，不代表真机） |
+| 4 Windows 交叉编译 | **通过**：Linux 上 cargo-xwin + NSIS 成功出安装包，在 Windows runner 上静默安装并启动成功 | — |
+| 7 窗口不被节流 | **通过**：正常/最小化/隐藏窗口，主线程与 Worker 最大间隔都 ≤1016ms | **通过（有保留）**：第二次运行三个窗口最大间隔 ≤2206ms；第一次运行时最小化窗口没有回报。runner 无真实桌面交互，不能完全代表真机 |
+| 8 中转握手 | Rust 101；WebView 自带 UA 也是 101 | Rust 101（第一次运行曾超时 15 秒，重跑正常，判断为偶发）；**用 WKWebView 自带 UA 返回 403，证实 macOS 必须使用统一的 Chrome 标识** |
+
+### 未完成
+- 5（未签名应用自更新是否触发 SmartScreen）：需要真实 Windows 电脑，清单见探针分支 `spike/native-probe/MANUAL-CHECKS.md`。
+- 3 的真实大地图渲染性能：等正式实现后验收。
+- 9（国产 Linux 的 WebKitGTK 4.1）：待有目标机器。
+- 7 在真实 Windows/macOS 桌面上的长时间最小化：CI 结果通过，仍建议实机抽查一次。
+
+### 对设计的影响（已有结论）
+**Android、macOS 没有 SharedArrayBuffer，但 KE 并不真正需要它**——见 §5.6.1。用户已决定把 KE 改成双链路（有 SAB 用共享队列，没有就用普通队列），此前列出的“接受没有 KE / 另做 KE / 用原生 KE 应用”三个方向作废。待实测确认。
+
+**已证实：Android 必须保活措施才能后台在线；macOS 必须统一 Chrome 标识才能过中转。** 这两条已经是正式设计的硬要求，不再是可选项。
+
+### 计划 2（KE 队列模式 `keQueueMode`）实施结果（2026-11-17，Windows 开发机）
+
+**提交**
+- KE 仓库：2026-11-17 已合入 `Development`（合并提交 `afd1964`，已推送，未发布 release），原分支 `feat/ke-queue-mode` 已删除。包含：`e89e621` resolveQueueMode；`2a7b4a8` Worker 的 `residentInit` 支持 `queueMode`，附延迟基准脚本；`35525de` 构建清单声明 `plainQueues`；`a59adf1` Worker 端清单校验同时接受新旧能力列表（`35525de` 漏改了这里，导致 `the Worker accepts both the legacy and the plainQueues capability lists` 失败）。
+- RoBrowser，`feat/tauri-native`：`2d8ce40` 去掉“无 SAB 即不可用”的拦截；`c98d438` `keQueueMode` 开关（原生版默认 `plain`，IWA/web 默认 `auto`，可用 `localStorage['lro.keQueueMode']` 覆盖）。
+
+**测试**
+- KE：`node --test tests/*.mjs test/build-local.test.mjs` 120 项，114 通过，6 跳过，0 失败；`KE_TEST_QUEUE_MODE=plain` 下 `worker-scheduler` + `kore-worker` 30 项，25 通过，5 跳过，0 失败。Worker 里没有 `setInterval`。
+- RoBrowser：`pnpm test` 4602 通过，13 失败，4 跳过。其中 12 项在 `Development`（`4d6f083`）上同样失败，是 Windows 环境的老问题（路径分隔符、符号链接、tar 解包，集中在 `archive-online-js`、`core-assets`、`import-v2-snapshot`、`kore-release`、`local-server`）；另 1 项（`local-server` 端口占用）在全量负载下超时，单独运行通过。本计划没有引入新的失败。`pnpm typecheck`、`pnpm audit:iwa`、`git diff --check` 通过；改动文件的 eslint 无错误。
+- 打包输出：分别在 `4d6f083` 和本分支上执行 `pnpm build` 与 web 构建，比较 `dist/`、`dist-web/` 的 sha256 清单。差异只有预期的三处（两个目录相同）：新增 `runtime/ke-queue-mode.mjs`，`runtime/kore-integration.mjs` 有改动，`core/executable-assets.json` 随之更新。其余文件逐字节一致。
+
+**延迟基准**（`node scripts/bench-queue-latency.mjs --n 3000`，各 3 次，单位 µs）
+
+| 模式 | wake p50 / p95 / p99 | ack p50 / p95 / p99 |
+| --- | --- | --- |
+| shared | 29–34 / 83–118 / 164–193 | 31–38 / 92–129 / 180–213 |
+| plain | 22–23 / 58–62 / 112–117 | 24–25 / 67–71 / 130–136 |
+
+普通队列比共享队列更快，结论与 2026-11-14 在 Linux 上的实测一致。
+
+**上线顺序（不能影响线上 KE 与 RoBrowser）**：线上 RoBrowser（`main`）的 `validateKoreManifest` 只接受旧的三项能力列表。为此 KE 另加了提交 `5ff2434`：新构建的清单**暂时仍只声明旧列表**（`ADVERTISED_SCHEDULER_CAPABILITIES`），Worker 和 build-local 的校验同时接受两种列表。所以 KE 照常发布对线上没有影响：Worker 收不到 `queueMode` 就按 `auto` 处理，行为不变；`ready.capabilities` 多出的 `queueMode` 字段，线上版本不检查。原生版真正用上 plain 队列之前，按顺序做两步：① RoBrowser 发布一个包含 `2d8ce40` 的版本，校验同时接受两种列表，对 IWA 行为没有影响；② 之后再把 KE 的 `ADVERTISED_SCHEDULER_CAPABILITIES` 切换为含 `plainQueues` 的列表，并随 KE 正式发布。顺序反过来会让线上 IWA 判定 KE 包不兼容。
+
+**验证范围**：只验证到 Node 夹具层，即真实的 `kore-worker.mjs` 加模拟的 Runtime。**未验证**：真实 WASM、真实授权（本地构建的包会被 LTSD 拒绝），以及 Android/macOS 的网页引擎。计划 2 Task 3 Step 3 的本地 debug 包构建在 Windows 上没有做，因为缺 `.tools/bin/wasm-bindgen` 0.2.129 和 binaryen 133；清单内容由 `test/build-local.test.mjs` 覆盖。这些要等 KE 的改动随一次正式发布出去后，再用 `pnpm dev` 实测。
+
+### 计划 3 的 Windows 测试版本（2026-11-18）
+
+- 已生成 Windows 调试可执行文件。在实际 WebView2 内打开账号界面，验证两处官方资源源均能下载资源，官方配置脚本按纯文本读取，可执行资源请求被拦截。通过 Tauri IPC 取得官方 TLS 的 `HTTP/1.1 200 OK` 二进制响应。App服 TCP 与二转官方 WebSocket 中转均建立了连接，测试没有发送账号数据。
+- 刷新后旧连接 ID 失效。同一进程中的三个窗口分别通过初次启动、`open_game_window` 和再次执行程序打开。注册表测试覆盖窗口隔离和销毁清理。
+- Rust 测试 27 项通过，Clippy 通过。前端聚焦测试 488 项通过，TypeScript、ESLint 和 IWA 审计通过。Web 产物逐文件与基线一致。IWA 的差异只有登录 HTTP、游戏入口与中转三个相互引用的 Vite JS chunk 和引用新文件名的 `play.html`。IWA 的其他产物及可执行资源清单均与基线一致。
+- Windows 全量前端测试为 4,652 项通过、4 项跳过、8 项失败。其中 6 项归档、符号链接和 TAR 用例在原生实现前也失败，另外 2 项本地服务器用例超时。
+- Windows 手册位于 `docs/native/dev-guide.md`。用户进图、多账号同时在线、最小化后的游戏行为、真实 KE 授权及 Linux 图形环境验收待测。Windows 测试版本未暂存正式 KE 包。构建工作流已通过本地 YAML 解析。

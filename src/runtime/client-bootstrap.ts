@@ -3,9 +3,11 @@ import type { LastROLoginPhase } from '../network/lastro-login-http';
 import type { AvailableServerProfile } from '../servers/server-profile';
 import { buildClientConfig, type ClientCredentials, type V2ClientConfig } from './client-config';
 import { installDebugAccessGuard } from './debug-access';
-import { IS_WEB_BUILD } from './build-target';
+import { IS_NATIVE_BUILD, IS_WEB_BUILD } from './build-target';
+import { nativeResourceBaseUrl } from '../resources/native-resource-fetch';
 import { getAvailableServerProfile } from '../servers/server-profiles';
 import { resolveOfficialServerProfile, refreshOfficialOnlineProfiles } from '../servers/online-profile-cache';
+import { getAssetDecoder, preloadAssetDecoder } from './asset-decoder';
 
 export interface BootstrapOptions {
   assistantEnabled?: boolean;
@@ -35,9 +37,11 @@ declare global {
   var LastROPartyHttpRequest: ((nid: number, action: 'list' | 'get' | 'info' | 'search' | 'add' | 'del', form: FormData) => Promise<Record<string, unknown>>) | undefined;
   var LastRODirectSocketsSupported: boolean | undefined;
   var LastROWebBuild: boolean | undefined;
+  var LastRONativeBuild: boolean | undefined;
   var LastROResolveServerConnection: ((profile: Record<string, unknown>) => Record<string, unknown>) | undefined;
   var LastROResourceRoots: readonly string[] | undefined;
   var LastROExecutableManifest: ExecutableAssetManifest | undefined;
+  var LastROAssetDecoder: ReturnType<typeof getAssetDecoder> | undefined;
 }
 
 const IWA_RESOURCE_ROOTS = Object.freeze([
@@ -68,6 +72,7 @@ async function loadExecutableManifest(): Promise<ExecutableAssetManifest> {
 export async function bootstrapV2Client(options: BootstrapOptions): Promise<void> {
   if (options.runtimeUrl !== undefined && options.runtimeUrl !== '/runtime/Online.js') throw new Error('只能加载客户端内置运行程序');
   globalThis.LastROWebBuild = IS_WEB_BUILD;
+  if (IS_NATIVE_BUILD) globalThis.LastRONativeBuild = true;
   let sendLastROLoginPost: ((phase: LastROLoginPhase, nid: number, username: string, password: string) => void) | undefined;
   let prepareLastROLoginSession: (() => Promise<void>) | undefined;
   globalThis.LastRODirectSocketsSupported = IS_WEB_BUILD ? false : undefined;
@@ -91,22 +96,39 @@ export async function bootstrapV2Client(options: BootstrapOptions): Promise<void
   };
   globalThis.ROConfig = buildClientConfig(options.profile, options.credentials, { assistantEnabled: options.assistantEnabled });
   // Do not block the UI or load downloaded scripts as executable code.
-  if (!IS_WEB_BUILD) void refreshOfficialOnlineProfiles().catch(() => undefined);
+  if (IS_NATIVE_BUILD) {
+    const url = new URL('official/ro/Online.js', nativeResourceBaseUrl());
+    void refreshOfficialOnlineProfiles({ fetcher: () => fetch(url, { credentials: 'omit', redirect: 'error' }) }).catch(() => undefined);
+  } else if (!IS_WEB_BUILD) void refreshOfficialOnlineProfiles().catch(() => undefined);
   const mount = options.mount;
   globalThis.LastROStartupDiagnostics?.phase('读取核心资源清单');
   const manifest = await loadExecutableManifest();
   if (!IS_WEB_BUILD) {
     globalThis.LastROStartupDiagnostics?.phase('加载网络模块');
-    const socketFactory = await import('../network/socket-factory');
-    const loginHttp = await import('../network/lastro-login-http');
-    const relaySocket = await import('../network/relay-websocket');
-    globalThis.LastRODirectSocketsSupported = socketFactory.isDirectSocketsSupported();
-    globalThis.LastRODirectSocketFactory = options.socketFactory ?? socketFactory.createDirectSocket;
-    // The official relay rejects the isolated-app:// Origin of native WebSockets.
-    if (globalThis.LastRODirectSocketsSupported) globalThis.LastRORelaySocketFactory = url => relaySocket.createRelaySocket(url);
-    sendLastROLoginPost = loginHttp.sendLastROLoginPost;
-    globalThis.LastROPartyHttpRequest = (nid, action, form) => loginHttp.requestLastROPartyOverTLS(nid, action, form);
-    prepareLastROLoginSession = loginHttp.prepareLastROLoginSession;
+    if (IS_NATIVE_BUILD) {
+      const [socket, loginHttp, tls] = await Promise.all([
+        import('../network/native-socket'), import('../network/lastro-login-http'), import('../network/native-tls-streams'),
+      ]);
+      const factories = socket.createNativeSocketFactories();
+      const httpOptions = { openStreams: tls.openNativeTlsStreams };
+      globalThis.LastRODirectSocketsSupported = true;
+      globalThis.LastRODirectSocketFactory = options.socketFactory ?? factories.direct;
+      globalThis.LastRORelaySocketFactory = factories.relay;
+      sendLastROLoginPost = (phase, nid, username, password) => loginHttp.sendLastROLoginPost(phase, nid, username, password, httpOptions);
+      globalThis.LastROPartyHttpRequest = (nid, action, form) => loginHttp.requestLastROPartyOverTLS(nid, action, form, httpOptions);
+      prepareLastROLoginSession = () => loginHttp.prepareLastROLoginSession(httpOptions);
+    } else {
+      const socketFactory = await import('../network/socket-factory');
+      const loginHttp = await import('../network/lastro-login-http');
+      const relaySocket = await import('../network/relay-websocket');
+      globalThis.LastRODirectSocketsSupported = socketFactory.isDirectSocketsSupported();
+      globalThis.LastRODirectSocketFactory = options.socketFactory ?? socketFactory.createDirectSocket;
+      // The official relay rejects the isolated-app:// Origin of browser WebSockets.
+      if (globalThis.LastRODirectSocketsSupported) globalThis.LastRORelaySocketFactory = url => relaySocket.createRelaySocket(url);
+      sendLastROLoginPost = loginHttp.sendLastROLoginPost;
+      globalThis.LastROPartyHttpRequest = (nid, action, form) => loginHttp.requestLastROPartyOverTLS(nid, action, form);
+      prepareLastROLoginSession = loginHttp.prepareLastROLoginSession;
+    }
     globalThis.LastROLoginRegistration = (phase, nid, username, password) => {
       void Promise.resolve(sendLastROLoginPost?.(phase, nid, username, password)).catch(() => {
         // Never include credentials, request bodies or server responses in UI/logs.
@@ -125,6 +147,8 @@ export async function bootstrapV2Client(options: BootstrapOptions): Promise<void
   }
   globalThis.LastROResourceRoots = IS_WEB_BUILD ? WEB_RESOURCE_ROOTS : IWA_RESOURCE_ROOTS;
   globalThis.LastROExecutableManifest = manifest;
+  await preloadAssetDecoder(manifest.files, new URL('/core/', window.location.href));
+  globalThis.LastROAssetDecoder = getAssetDecoder();
   globalThis.LastROStartupDiagnostics?.phase('加载游戏运行时 Online.js');
   await import(/* @vite-ignore */ '/runtime/Online.js');
 }

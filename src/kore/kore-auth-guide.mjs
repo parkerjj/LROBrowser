@@ -51,6 +51,16 @@ const GUIDES = {
     cause: '未能取得当前角色的账号、角色或服务器编号，请重新登录游戏角色。',
     steps: ['退回选角界面，重新进入游戏', RETRY, COPY],
   },
+  'package-not-bundled': {
+    title: '当前客户端未包含 KoreEngine',
+    cause: 'LTSD 登录与角色绑定是两个步骤。客户端需要内置 KE 运行包才能绑定角色。',
+    steps: ['使用包含对应 KE 发布包的客户端版本'],
+  },
+  'plain-queues-unsupported': {
+    title: '当前 KE 包不支持普通队列',
+    cause: '当前客户端需要支持普通队列的 KE 运行包。',
+    steps: ['更新到内置兼容 KE 发布包的客户端版本'],
+  },
   'reload-all-not-sent': {
     title: '配置已取得，但没能交给 KoreEngine',
     cause: '配置同步完成后，KoreEngine 没有收到“重新加载配置”的命令。',

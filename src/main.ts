@@ -22,7 +22,6 @@ void bootstrapV2Client({ mount: root, profile, assistantEnabled, credentials: { 
     return;
   }
   // The independent diagnostic script itself may have failed to load.
-  document.getElementById('lastro-startup-screen')?.setAttribute('hidden', '');
   root.replaceChildren();
   const message = document.createElement('p');
   message.setAttribute('role', 'alert');

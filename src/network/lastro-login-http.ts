@@ -1,5 +1,6 @@
 import type { makeTLSClient } from '@reclaimprotocol/tls';
 import { openEncryptedHttpStreams } from '../resources/direct-http-resource';
+import { IS_NATIVE_BUILD } from '../runtime/build-target';
 
 const LASTRO_LOGIN_HOST = 'game.lastro.cn';
 const LASTRO_LOGIN_PORT = 443;
@@ -20,11 +21,18 @@ export interface LastROLoginRequest {
 
 export interface LastROLoginHttpOptions {
   TCPSocket?: DirectTcpConstructor;
+  openStreams?: OpenLoginStreams;
   openTimeoutMs?: number;
   readTimeoutMs?: number;
   /** Test seam; production uses the bundled browser WebCrypto TLS client. */
   tlsClientFactory?: typeof makeTLSClient;
 }
+
+type OpenedLoginStreams = Awaited<ReturnType<typeof openEncryptedHttpStreams>>;
+type OpenLoginStreams = (host: string, port: number, options: {
+  timeoutMs: number;
+  signal: AbortSignal;
+}) => Promise<OpenedLoginStreams>;
 
 interface LastROLoginSession {
   cookie: string;
@@ -156,8 +164,8 @@ function parseResponse(bytes: Uint8Array): RawHttpResponse {
 }
 
 async function readResponse(
-  native: DirectTcpConnection,
-  connection: { readable: ReadableStream<Uint8Array>; writable: WritableStream<Uint8Array> },
+  native: { close(): void | Promise<void> },
+  connection: OpenedLoginStreams,
   request: Uint8Array,
   readTimeoutMs: number,
 ): Promise<RawHttpResponse> {
@@ -183,6 +191,40 @@ async function readResponse(
     writer.releaseLock();
     try { await native.close(); } catch { /* best effort */ }
   }
+}
+
+async function withNativeLoginStreams<T>(
+  openStreams: OpenLoginStreams,
+  options: LastROLoginHttpOptions,
+  handle: (connection: OpenedLoginStreams, timeoutMs: number, close: () => void) => Promise<T>,
+): Promise<T> {
+  const lifetime = new AbortController();
+  const close = () => lifetime.abort();
+  try {
+    const streams = await openStreams(LASTRO_LOGIN_HOST, LASTRO_LOGIN_PORT, {
+      timeoutMs: Math.max(1, options.openTimeoutMs ?? DEFAULT_OPEN_TIMEOUT_MS), signal: lifetime.signal,
+    });
+    return await handle(streams, Math.max(1, options.readTimeoutMs ?? DEFAULT_READ_TIMEOUT_MS), close);
+  } finally {
+    close();
+  }
+}
+
+const nativeSessionCache = /* @__PURE__ */ new WeakMap<OpenLoginStreams, Promise<LastROLoginSession>>();
+
+function getNativeLoginSession(openStreams: OpenLoginStreams, options: LastROLoginHttpOptions): Promise<LastROLoginSession> {
+  const cached = nativeSessionCache.get(openStreams);
+  if (cached) return cached;
+  const session = withNativeLoginStreams(openStreams, options, async (connection, timeout, close) => {
+    const response = await readResponse({ close }, connection, buildBootstrapRequest(), timeout);
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`LastRO login HTTP bootstrap failed (${response.status})`);
+    }
+    return { cookie: parseCsrfCookie(response.headers), csrfToken: parseCsrfToken(response.body) };
+  });
+  nativeSessionCache.set(openStreams, session);
+  void session.catch(() => nativeSessionCache.delete(openStreams));
+  return session;
 }
 
 function buildBootstrapRequest(): Uint8Array {
@@ -257,6 +299,10 @@ function getLastROLoginSession(
 }
 
 export async function prepareLastROLoginSession(options: LastROLoginHttpOptions = {}): Promise<void> {
+  if (IS_NATIVE_BUILD && options.openStreams) {
+    await getNativeLoginSession(options.openStreams, options);
+    return;
+  }
   const constructorForSocket = options.TCPSocket ?? globalThis.TCPSocket;
   if (!constructorForSocket) throw new Error('Direct TCP is unavailable');
   await getLastROLoginSession(constructorForSocket, options);
@@ -319,6 +365,19 @@ export async function sendLastROLoginPost(
   password: string,
   options: LastROLoginHttpOptions = {},
 ): Promise<void> {
+  if (IS_NATIVE_BUILD && options.openStreams) {
+    const session = await getNativeLoginSession(options.openStreams, options);
+    const request = buildLastROLoginRequest(phase, nid, username, password, session);
+    return withNativeLoginStreams(options.openStreams, options, async ({ writable }, timeout) => {
+      const writer = writable.getWriter();
+      try {
+        await waitFor(writer.write(request.bytes), timeout, 'LastRO login TLS write timeout');
+        await writer.close();
+      } finally {
+        writer.releaseLock();
+      }
+    });
+  }
   const constructorForSocket = options.TCPSocket ?? globalThis.TCPSocket;
   if (!constructorForSocket) throw new Error('Direct TCP is unavailable');
   const session = await getLastROLoginSession(constructorForSocket, options);
@@ -362,8 +421,9 @@ export async function requestLastROPartyOverTLS(
 ): Promise<Record<string, unknown>> {
   if (!['list', 'get', 'info', 'search', 'add', 'del'].includes(action)) throw new Error('Unknown recruitment action');
   if (typeof FormData === 'undefined' || !(fields instanceof FormData)) throw new Error('Invalid recruitment multipart fields');
+  const openStreams = IS_NATIVE_BUILD ? options.openStreams : undefined;
   const ctor = options.TCPSocket ?? globalThis.TCPSocket;
-  if (!ctor) throw new Error('Direct TCP is unavailable for LastRO recruitment');
+  if (!ctor && !openStreams) throw new Error('Direct TCP is unavailable for LastRO recruitment');
   const path = `/${nid === 5 ? 'webserver2' : 'webserver'}/party/${action}`;
   // Match the fields sent by LastRO's actual Online.js. The recruitment API
   // authenticates with AuthToken; adding unrelated Yii login CSRF state can
@@ -389,7 +449,11 @@ export async function requestLastROPartyOverTLS(
   const head = new TextEncoder().encode(headers.join('\r\n') + '\r\n\r\n');
   const bytes = new Uint8Array(head.length + body.length);
   bytes.set(head); bytes.set(body, head.length);
-  const native = new ctor(LASTRO_LOGIN_HOST, LASTRO_LOGIN_PORT, { noDelay: true, keepAliveDelay: 60_000 });
+  if (IS_NATIVE_BUILD && openStreams) {
+    return withNativeLoginStreams(openStreams, options, async (connection, timeout, close) =>
+      parsePartyResponse(await readResponse({ close }, connection, bytes, timeout), action, nid));
+  }
+  const native = new ctor!(LASTRO_LOGIN_HOST, LASTRO_LOGIN_PORT, { noDelay: true, keepAliveDelay: 60_000 });
   void native.closed.catch(() => undefined);
   try {
     const openTimeout = Math.max(1, options.openTimeoutMs ?? DEFAULT_OPEN_TIMEOUT_MS);
@@ -411,4 +475,14 @@ export async function requestLastROPartyOverTLS(
   } finally {
     try { await native.close(); } catch { /* readResponse handles normal close */ }
   }
+}
+
+function parsePartyResponse(response: RawHttpResponse, action: string, nid: number): Record<string, unknown> {
+  if (response.status < 200 || response.status >= 300) {
+    const detail = new TextDecoder().decode(response.body).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 240);
+    throw new Error(`LastRO recruitment HTTP ${response.status}${detail ? ': ' + detail : ''} (action=${action}, nid=${nid})`);
+  }
+  const data: unknown = JSON.parse(new TextDecoder().decode(response.body));
+  if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Invalid recruitment JSON response');
+  return data as Record<string, unknown>;
 }

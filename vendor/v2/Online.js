@@ -11937,8 +11937,13 @@ var init_MemoryManager = __esmMin(() => {
           processed < maxProcess &&
           deadline.timeRemaining() > 0
         ) {
-          MemoryManager.remove(gl, _filesToClean[_cleanIndex]);
-          files.push(_filesToClean[_cleanIndex]);
+          const filename = _filesToClean[_cleanIndex];
+          const item = _memory[filename];
+          // Sprites can become active while they wait for an idle slot.
+          if (item?.complete && item.lastTimeUsed < tick) {
+            MemoryManager.remove(gl, filename);
+            files.push(filename);
+          }
           _cleanIndex++;
           processed++;
         }
@@ -79313,323 +79318,28 @@ var init_SessionStorage = __esmMin(() => {
 });
 //#endregion
 //#region src/Loaders/Targa.js
-/**
- * Check the header of TGA file to detect errors
- *
- * @param {object} tga header structure
- * @throws Error
- */
-function checkHeader(header) {
-  if (header.imageType === Targa.Type.NO_DATA)
-    throw new Error("Targa::checkHeader() - No data");
-  if (header.hasColorMap) {
-    if (
-      header.colorMapLength > 256 ||
-      header.colorMapDepth !== 24 ||
-      header.colorMapType !== 1
-    )
-      throw new Error(
-        "Targa::checkHeader() - Invalid colormap for indexed type",
-      );
-  } else if (header.colorMapType)
-    throw new Error(
-      "Targa::checkHeader() - Why does the image contain a palette ?",
-    );
-  if (header.width <= 0 || header.height <= 0)
-    throw new Error("Targa::checkHeader() - Invalid image size");
-  if (
-    header.pixelDepth !== 8 &&
-    header.pixelDepth !== 16 &&
-    header.pixelDepth !== 24 &&
-    header.pixelDepth !== 32
-  )
-    throw new Error(
-      `Targa::checkHeader() - Invalid pixel size "${header.pixelDepth}"`,
-    );
-}
-/**
- * Decode RLE compression
- *
- * @param {Uint8Array} data
- * @param {number} offset in data to start loading RLE
- * @param {number} pixel count
- * @param {number} output buffer size
- */
-function decodeRLE(data, offset, pixelSize, outputSize) {
-  let pos, c, count, i;
-  const output = new Uint8Array(outputSize);
-  const pixels = new Uint8Array(pixelSize);
-  pos = 0;
-  while (pos < outputSize) {
-    c = data[offset++];
-    count = (c & 127) + 1;
-    if (c & 128) {
-      for (i = 0; i < pixelSize; ++i) pixels[i] = data[offset++];
-      for (i = 0; i < count; ++i) {
-        output.set(pixels, pos);
-        pos += pixelSize;
-      }
-    } else {
-      count *= pixelSize;
-      for (i = 0; i < count; ++i) output[pos++] = data[offset++];
-    }
-  }
-  return output;
-}
 var Targa;
 var init_Targa = __esmMin(() => {
   Targa = class Targa {
-    constructor() {}
-    /**
-     * @var {object} TGA type constants
-     */
-    static Type = {
-      NO_DATA: 0,
-      INDEXED: 1,
-      RGB: 2,
-      GREY: 3,
-      RLE_INDEXED: 9,
-      RLE_RGB: 10,
-      RLE_GREY: 11,
-    };
-    /**
-     * @var {object} TGA origin constants
-     */
-    static Origin = {
-      BOTTOM_LEFT: 0,
-      BOTTOM_RIGHT: 1,
-      TOP_LEFT: 2,
-      TOP_RIGHT: 3,
-      SHIFT: 4,
-      MASK: 48,
-    };
-    /**
-     * Open a targa file using XHR, be aware with Cross Domain files...
-     *
-     * @param {string} path - Path of the filename to load
-     * @param {function} callback - callback to trigger when the file is loaded
-     */
-    open(path, callback) {
-      const tga = this;
-      const req = new XMLHttpRequest();
-      req.responseType = "arraybuffer";
-      req.open("GET", path, true);
-      req.onload = function () {
-        if (this.status === 200) {
-          tga.load(new Uint8Array(req.response));
-          if (callback) callback.call(tga);
-        }
-      };
-      req.send(null);
-    }
-    /**
-     * Load and parse a TGA file
-     *
-     * @param {Uint8Array} data - TGA file buffer array
-     */
     load(data) {
-      let offset = 0;
-      if (data.length < 18)
-        throw new Error("Targa::load() - Not enough data to contain header");
-      this.header = {
-        idLength: data[offset++],
-        colorMapType: data[offset++],
-        imageType: data[offset++],
-        colorMapIndex: data[offset++] | (data[offset++] << 8),
-        colorMapLength: data[offset++] | (data[offset++] << 8),
-        colorMapDepth: data[offset++],
-        offsetX: data[offset++] | (data[offset++] << 8),
-        offsetY: data[offset++] | (data[offset++] << 8),
-        width: data[offset++] | (data[offset++] << 8),
-        height: data[offset++] | (data[offset++] << 8),
-        pixelDepth: data[offset++],
-        flags: data[offset++],
-      };
-      this.header.hasEncoding =
-        this.header.imageType === Targa.Type.RLE_INDEXED ||
-        this.header.imageType === Targa.Type.RLE_RGB ||
-        this.header.imageType === Targa.Type.RLE_GREY;
-      this.header.hasColorMap =
-        this.header.imageType === Targa.Type.RLE_INDEXED ||
-        this.header.imageType === Targa.Type.INDEXED;
-      this.header.isGreyColor =
-        this.header.imageType === Targa.Type.RLE_GREY ||
-        this.header.imageType === Targa.Type.GREY;
-      checkHeader(this.header);
-      offset += this.header.idLength;
-      if (offset >= data.length) throw new Error("Targa::load() - No data");
-      if (this.header.hasColorMap) {
-        const colorMapSize =
-          this.header.colorMapLength * (this.header.colorMapDepth >> 3);
-        this.palette = data.subarray(offset, offset + colorMapSize);
-        offset += colorMapSize;
-      }
-      const pixelSize = this.header.pixelDepth >> 3;
-      const imageSize = this.header.width * this.header.height;
-      const pixelTotal = imageSize * pixelSize;
-      if (this.header.hasEncoding)
-        this.imageData = decodeRLE(data, offset, pixelSize, pixelTotal);
-      else
-        this.imageData = data.subarray(
-          offset,
-          offset + (this.header.hasColorMap ? imageSize : pixelTotal),
-        );
+      const { width, height, data: pixels } = globalThis.LastROAssetDecoder.decodeTga(data);
+      this.header = { width, height };
+      this.pixels = pixels;
     }
-    /**
-     * Return a ImageData object from a TGA file
-     *
-     * @param {object} imageData - Optional ImageData to work with
-     * @returns {object} imageData
-     */
     getImageData(imageData) {
-      const width = this.header.width;
-      const height = this.header.height;
-      if (!imageData)
-        imageData = {
-          width,
-          height,
-          data: new Uint8ClampedArray(width * height * 4),
-        };
-      const origin =
-        (this.header.flags & Targa.Origin.MASK) >> Targa.Origin.SHIFT;
-      let x_start, x_step, x_end, y_start, y_step, y_end;
-      if (
-        origin === Targa.Origin.TOP_LEFT ||
-        origin === Targa.Origin.TOP_RIGHT
-      ) {
-        y_start = 0;
-        y_step = 1;
-        y_end = height;
-      } else {
-        y_start = height - 1;
-        y_step = -1;
-        y_end = -1;
-      }
-      if (
-        origin === Targa.Origin.TOP_LEFT ||
-        origin === Targa.Origin.BOTTOM_LEFT
-      ) {
-        x_start = 0;
-        x_step = 1;
-        x_end = width;
-      } else {
-        x_start = width - 1;
-        x_step = -1;
-        x_end = -1;
-      }
-      const data = imageData.data;
-      const input = this.imageData;
-      const buffer32 = new Uint32Array(data.buffer);
-      let i = 0;
-      switch (this.header.pixelDepth) {
-        case 8:
-          if (this.header.isGreyColor)
-            for (let y = y_start; y !== y_end; y += y_step) {
-              const rowOffset = y * width;
-              for (let x = x_start; x !== x_end; x += x_step) {
-                const v = input[i++];
-                buffer32[rowOffset + x] =
-                  (255 << 24) | (v << 16) | (v << 8) | v;
-              }
-            }
-          else {
-            const colormap = this.palette;
-            for (let y = y_start; y !== y_end; y += y_step) {
-              const rowOffset = y * width;
-              for (let x = x_start; x !== x_end; x += x_step) {
-                const idx = input[i++] * 3;
-                const b = colormap[idx + 0];
-                const g = colormap[idx + 1];
-                const r = colormap[idx + 2];
-                buffer32[rowOffset + x] =
-                  (255 << 24) | (b << 16) | (g << 8) | r;
-              }
-            }
-          }
-          break;
-        case 16:
-          if (this.header.isGreyColor)
-            for (let y = y_start; y !== y_end; y += y_step) {
-              const rowOffset = y * width;
-              for (let x = x_start; x !== x_end; x += x_step) {
-                const intensity = input[i++];
-                const alpha = input[i++];
-                buffer32[rowOffset + x] =
-                  (alpha << 24) |
-                  (intensity << 16) |
-                  (intensity << 8) |
-                  intensity;
-              }
-            }
-          else
-            for (let y = y_start; y !== y_end; y += y_step) {
-              const rowOffset = y * width;
-              for (let x = x_start; x !== x_end; x += x_step) {
-                const color = input[i] | (input[i + 1] << 8);
-                i += 2;
-                const r = (color & 31744) >> 7;
-                const g = (color & 992) >> 2;
-                const b = (color & 31) << 3;
-                const a = color & 32768 ? 255 : 0;
-                buffer32[rowOffset + x] = (a << 24) | (b << 16) | (g << 8) | r;
-              }
-            }
-          break;
-        case 24:
-          for (let y = y_start; y !== y_end; y += y_step) {
-            const rowOffset = y * width;
-            for (let x = x_start; x !== x_end; x += x_step) {
-              const b = input[i++];
-              const g = input[i++];
-              const r = input[i++];
-              buffer32[rowOffset + x] = (255 << 24) | (b << 16) | (g << 8) | r;
-            }
-          }
-          break;
-        case 32: {
-          const MAGENTA_MASK = 16711935;
-          const PIXEL_MASK = 16777215;
-          for (let y = y_start; y !== y_end; y += y_step) {
-            const rowOffset = y * width;
-            for (let x = x_start; x !== x_end; x += x_step) {
-              const pixel =
-                (input[i + 3] << 24) |
-                (input[i] << 16) |
-                (input[i + 1] << 8) |
-                input[i + 2];
-              i += 4;
-              buffer32[rowOffset + x] =
-                (pixel & PIXEL_MASK) === MAGENTA_MASK ? 0 : pixel;
-            }
-          }
-          break;
-        }
-      }
+      const { width, height } = this.header;
+      if (!imageData) return { width, height, data: this.pixels.slice() };
+      imageData.data.set(this.pixels);
       return imageData;
     }
-    /**
-     * Return a canvas with the TGA render on it
-     *
-     * @returns {object} CanvasElement
-     */
     getCanvas() {
       const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      const imageData = ctx.createImageData(
-        this.header.width,
-        this.header.height,
-      );
       canvas.width = this.header.width;
       canvas.height = this.header.height;
-      ctx.putImageData(this.getImageData(imageData), 0, 0);
+      const ctx = canvas.getContext("2d");
+      ctx.putImageData(this.getImageData(ctx.createImageData(canvas.width, canvas.height)), 0, 0);
       return canvas;
     }
-    /**
-     * Return a dataURI of the TGA file
-     *
-     * @param {string} type - Optional image content-type to output (default: image/png)
-     * @returns {string} url
-     */
     getDataURL(type) {
       return this.getCanvas().toDataURL(type || "image/png");
     }
@@ -79761,102 +79471,19 @@ var init_Sprite = __esmMin(() => {
      *
      * @param {ArrayBuffer} data - file content
      */
-    load(data) {
-      this.fp = new BinaryReader(data);
-      this.header = this.fp.readBinaryString(2);
-      this.version = this.fp.readUByte() / 10 + this.fp.readUByte();
-      if (this.header != "SP")
-        throw new Error(
-          `SPR::load() - Incorrect header "${this.header}", must be "SP"`,
-        );
-      this.indexed_count = this.fp.readUShort();
-      this._indexed_count = this.indexed_count + 0;
-      if (this.version > 1.1) this.rgba_count = this.fp.readUShort();
-      this.frames = new Array(this.indexed_count + this.rgba_count);
-      this.rgba_index = this.indexed_count;
-      if (this.version < 2.1) this.readIndexedImage();
-      else this.readIndexedImageRLE();
-      this.readRgbaImage();
-      if (this.version > 1)
-        this.palette = new Uint8Array(
-          this.fp.buffer,
-          this.fp.length - 1024,
-          1024,
-        );
-    }
+    load(data) { Object.assign(this, globalThis.LastROAssetDecoder.decodeSpr(data)); }
     /**
      * Parse SPR indexed images
      */
-    readIndexedImage() {
-      const pal_count = this.indexed_count;
-      const fp = this.fp;
-      let i, width, height;
-      const frames = this.frames;
-      for (i = 0; i < pal_count; ++i) {
-        width = fp.readUShort();
-        height = fp.readUShort();
-        frames[i] = {
-          type: SPR.TYPE_PAL,
-          width,
-          height,
-          data: new Uint8Array(fp.buffer, fp.tell(), width * height),
-        };
-        fp.seek(width * height, SEEK_CUR);
-      }
-    }
+
     /**
      * Parse SPR indexed images encoded with RLE
      */
-    readIndexedImageRLE() {
-      const pal_count = this.indexed_count;
-      const fp = this.fp;
-      let i, width, height, size, data, index, c, count, j, end;
-      const frames = this.frames;
-      for (i = 0; i < pal_count; ++i) {
-        width = fp.readUShort();
-        height = fp.readUShort();
-        size = width * height;
-        data = new Uint8Array(size);
-        index = 0;
-        end = fp.readUShort() + fp.tell();
-        while (fp.tell() < end) {
-          c = fp.readUByte();
-          data[index++] = c;
-          if (!c) {
-            count = fp.readUByte();
-            if (!count) data[index++] = count;
-            else for (j = 1; j < count; ++j) data[index++] = c;
-          }
-        }
-        frames[i] = {
-          type: SPR.TYPE_PAL,
-          width,
-          height,
-          data,
-        };
-      }
-    }
+
     /**
      * Parse SPR rgba images
      */
-    readRgbaImage() {
-      const rgba = this.rgba_count;
-      const index = this.rgba_index;
-      const fp = this.fp;
-      const frames = this.frames;
-      let i, width, height;
-      for (i = 0; i < rgba; ++i) {
-        width = fp.readShort();
-        height = fp.readShort();
-        frames[i + index] = {
-          type: SPR.TYPE_RGBA,
-          width,
-          height,
-          data: new Uint8Array(fp.buffer, fp.tell(), width * height * 4),
-        };
-        fp.seek(width * height * 4, SEEK_CUR);
-      }
-    }
+
     /**
      * Builds a 32-bit palette lookup table.
      *
@@ -79944,7 +79571,7 @@ var init_Sprite = __esmMin(() => {
       const imageData = ctx.createImageData(width, height);
       const data32 = new Uint32Array(imageData.data.buffer);
       if (frame.type === SPR.TYPE_RGBA) {
-        const frameData32 = new Uint32Array(frame.data.buffer);
+        const frameData32 = new Uint32Array(frame.data.buffer, frame.data.byteOffset, frame.data.byteLength / 4);
         for (let y = 0; y < height; ++y) {
           const srcRow = y * width;
           const dstRow = (height - y - 1) * width;
@@ -80068,112 +79695,19 @@ var init_Action = __esmMin(() => {
      *
      * @param {ArrayBuffer} data
      */
-    load(data) {
-      let i, count;
-      this.fp = new BinaryReader(data);
-      this.header = this.fp.readBinaryString(2);
-      if (this.header !== "AC")
-        throw new Error(
-          `ACT::load() - Incorrect header "${this.header}", must be "AC"`,
-        );
-      this.version = this.fp.readUByte() / 10 + this.fp.readUByte();
-      this.readActions();
-      if (this.version >= 2.1) {
-        count = this.fp.readLong();
-        this.sounds.length = count;
-        for (i = 0; i < count; ++i)
-          this.sounds[i] = this.fp.readBinaryString(40);
-        if (this.version >= 2.2)
-          for (i = 0, count = this.actions.length; i < count; ++i)
-            this.actions[i].delay = this.fp.readFloat() * 25;
-      }
-    }
+    load(data) { Object.assign(this, globalThis.LastROAssetDecoder.decodeAct(data)); }
     /**
      * Load Action part of ACT file
      */
-    readActions() {
-      let i;
-      const count = this.fp.readUShort();
-      const actions = this.actions;
-      this.fp.seek(10, SEEK_CUR);
-      actions.length = count;
-      for (i = 0; i < count; ++i)
-        actions[i] = {
-          animations: this.readAnimations(),
-          delay: 150,
-        };
-    }
+
     /**
      *	Load Animation part in ACT file
      */
-    readAnimations() {
-      const fp = this.fp;
-      let i;
-      const count = fp.readULong();
-      const anim = new Array(count);
-      for (i = 0; i < count; ++i) {
-        fp.seek(32, SEEK_CUR);
-        anim[i] = this.readLayers();
-      }
-      return anim;
-    }
+
     /**
      * Load ACT Layers
      */
-    readLayers() {
-      const fp = this.fp;
-      let count = fp.readULong();
-      const layers = new Array(count);
-      let layer;
-      const version = this.version;
-      let i;
-      for (i = 0; i < count; ++i) {
-        layer = layers[i] = {
-          pos: [fp.readLong(), fp.readLong()],
-          index: fp.readLong(),
-          is_mirror: fp.readLong(),
-          scale: [1, 1],
-          color: [1, 1, 1, 1],
-          angle: 0,
-          spr_type: 0,
-          width: 0,
-          height: 0,
-        };
-        if (version >= 2) {
-          layer.color[0] = fp.readUByte() / 255;
-          layer.color[1] = fp.readUByte() / 255;
-          layer.color[2] = fp.readUByte() / 255;
-          layer.color[3] = fp.readUByte() / 255;
-          layer.scale[0] = fp.readFloat();
-          layer.scale[1] = version <= 2.3 ? layer.scale[0] : fp.readFloat();
-          layer.angle = fp.readLong();
-          layer.spr_type = fp.readLong();
-          if (version >= 2.5) {
-            layer.width = fp.readLong();
-            layer.height = fp.readLong();
-          }
-        }
-      }
-      const sound = version >= 2 ? fp.readLong() : -1;
-      const pos = [];
-      if (version >= 2.3) {
-        count = fp.readLong();
-        pos.length = count;
-        for (i = 0; i < count; ++i) {
-          fp.seek(4, SEEK_CUR);
-          pos[i] = {
-            x: fp.readLong(),
-            y: fp.readLong(),
-          };
-          fp.seek(4, SEEK_CUR);
-        }
-      }
-      return {
-        layers,
-        sound,
-        pos,
-      };
-    }
+
     /**
      * Make it transferable in worker context
      */
@@ -85636,16 +85170,14 @@ var init_PostProcess = __esmMin(() => {
      * Ensures Ping-Pong buffers are created and resized if necessary.
      */
     static validateBuffers(gl) {
-      const scale = GraphicsSettings.performanceMode ? 0.75 : 1;
-      const scaledWidth = Math.floor(gl.canvas.width * scale);
-      const scaledHeight = Math.floor(gl.canvas.height * scale);
+      const { width, height } = gl.canvas;
       if (
         !_readFbo ||
-        _readFbo.width !== scaledWidth ||
-        _readFbo.height !== scaledHeight
+        _readFbo.width !== width ||
+        _readFbo.height !== height
       ) {
-        _readFbo = this.createFbo(gl, scaledWidth, scaledHeight, _readFbo);
-        _writeFbo = this.createFbo(gl, scaledWidth, scaledHeight, _writeFbo);
+        _readFbo = this.createFbo(gl, width, height, _readFbo);
+        _writeFbo = this.createFbo(gl, width, height, _writeFbo);
       }
     }
     /**
@@ -85679,14 +85211,11 @@ var init_PostProcess = __esmMin(() => {
      * Recreates the FBO when the window size changes
      */
     static recreateFbo(gl, width, height) {
-      const scale = GraphicsSettings.performanceMode ? 0.75 : 1;
-      const scaledWidth = Math.floor(width * scale);
-      const scaledHeight = Math.floor(height * scale);
-      _readFbo = this.createFbo(gl, scaledWidth, scaledHeight, _readFbo);
-      _writeFbo = this.createFbo(gl, scaledWidth, scaledHeight, _writeFbo);
+      _readFbo = this.createFbo(gl, width, height, _readFbo);
+      _writeFbo = this.createFbo(gl, width, height, _writeFbo);
       _effects.forEach((module) => {
         if (module.recreateFbo)
-          module.recreateFbo(gl, scaledWidth, scaledHeight);
+          module.recreateFbo(gl, width, height);
       });
     }
     /**
@@ -85745,6 +85274,9 @@ var init_PostProcess = __esmMin(() => {
      * @returns {Object|null}
      */
     static createFramebuffer(gl, width, height, oldfbo) {
+      let fbo;
+      let texture;
+      let rbo;
       try {
         if (oldfbo) {
           if (gl.isTexture(oldfbo.texture)) gl.deleteTexture(oldfbo.texture);
@@ -85752,9 +85284,9 @@ var init_PostProcess = __esmMin(() => {
           if (gl.isFramebuffer(oldfbo.framebuffer))
             gl.deleteFramebuffer(oldfbo.framebuffer);
         }
-        const fbo = gl.createFramebuffer();
+        fbo = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-        const texture = gl.createTexture();
+        texture = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texImage2D(
           gl.TEXTURE_2D,
@@ -85778,7 +85310,7 @@ var init_PostProcess = __esmMin(() => {
           texture,
           0,
         );
-        const rbo = gl.createRenderbuffer();
+        rbo = gl.createRenderbuffer();
         gl.bindRenderbuffer(gl.RENDERBUFFER, rbo);
         gl.renderbufferStorage(
           gl.RENDERBUFFER,
@@ -85816,6 +85348,9 @@ var init_PostProcess = __esmMin(() => {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.bindTexture(gl.TEXTURE_2D, null);
         gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+        if (fbo) gl.deleteFramebuffer(fbo);
+        if (texture) gl.deleteTexture(texture);
+        if (rbo) gl.deleteRenderbuffer(rbo);
         return null;
       }
     }
@@ -196028,6 +195563,7 @@ function oncartoonEdgeSlope() {
 function onTogglePerformanceMode() {
   GraphicsSettings.performanceMode = !!this.checked;
   GraphicsSettings.save();
+  Renderer.resize();
 }
 function onUpdateAreaView() {
   GraphicsSettings.viewArea = parseInt(this.value);
@@ -196093,6 +195629,8 @@ function onResetToDefaults() {
       GraphicsSettings[key] = defaultSettings[key];
   });
   GraphicsSettings.save();
+  Configs.set("quality", GraphicsSettings.quality);
+  Renderer.resize();
   GraphicsOption.onAppend();
 }
 var GraphicsOption, _preferences$32, GraphicsOption_default;
@@ -218882,147 +218420,7 @@ var init_Model = __esmMin(() => {
      * @param {object} fp BinaryReader
      * @param {boolean} only
      */
-    constructor(rsm, fp, only) {
-      let i, j, k, count;
-      const version = rsm.version;
-      let posKeyframes, scaleKeyFrames, textureKeyFrameGroup;
-      let textures = [];
-      this.main = rsm;
-      this.is_only = only;
-      if (version >= 2.2) {
-        this.name = fp.readBinaryString(fp.readLong());
-        this.parentname = fp.readBinaryString(fp.readLong());
-      } else {
-        this.name = fp.readBinaryString(40);
-        this.parentname = fp.readBinaryString(40);
-      }
-      count = fp.readLong();
-      textures = new Array(count);
-      for (i = 0; i < count; i++)
-        textures[i] =
-          version >= 2.3 ? fp.readBinaryString(fp.readLong()) : fp.readLong();
-      this.mat3 = [
-        fp.readFloat(),
-        fp.readFloat(),
-        fp.readFloat(),
-        fp.readFloat(),
-        fp.readFloat(),
-        fp.readFloat(),
-        fp.readFloat(),
-        fp.readFloat(),
-        fp.readFloat(),
-      ];
-      this.offset = [fp.readFloat(), fp.readFloat(), fp.readFloat()];
-      if (version >= 2.2) {
-        this.pos = [0, 0, 0];
-        this.rotangle = 0;
-        this.rotaxis = [0, 0, 0];
-        this.scale = [1, 1, 1];
-        this.flip = [1, -1, 1];
-      } else {
-        this.pos = [fp.readFloat(), fp.readFloat(), fp.readFloat()];
-        this.rotangle = fp.readFloat();
-        this.rotaxis = [fp.readFloat(), fp.readFloat(), fp.readFloat()];
-        this.scale = [fp.readFloat(), fp.readFloat(), fp.readFloat()];
-        this.flip = [1, 1, 1];
-      }
-      count = fp.readLong();
-      const vertices = new Array(count);
-      for (i = 0; i < count; ++i)
-        vertices[i] = [fp.readFloat(), fp.readFloat(), fp.readFloat()];
-      count = fp.readLong();
-      const tvertices = new Float32Array(count * 6);
-      for (i = 0, j = 0; i < count; ++i, j += 6) {
-        if (version >= 1.2) {
-          tvertices[j + 0] = fp.readUByte() / 255;
-          tvertices[j + 1] = fp.readUByte() / 255;
-          tvertices[j + 2] = fp.readUByte() / 255;
-          tvertices[j + 3] = fp.readUByte() / 255;
-        }
-        tvertices[j + 4] = fp.readFloat() * 0.98 + 0.01;
-        tvertices[j + 5] = fp.readFloat() * 0.98 + 0.01;
-      }
-      count = fp.readLong();
-      const faces = new Array(count);
-      for (i = 0; i < count; ++i) {
-        let len = -1;
-        if (version >= 2.2) len = fp.readLong();
-        faces[i] = {
-          vertidx: [fp.readUShort(), fp.readUShort(), fp.readUShort()],
-          tvertidx: [fp.readUShort(), fp.readUShort(), fp.readUShort()],
-          texid: fp.readUShort(),
-          padding: fp.readUShort(),
-          twoSide: fp.readLong(),
-        };
-        if (version >= 1.2) {
-          faces[i].smoothGroup = fp.readLong();
-          if (len > 24) faces[i].smoothGroup_1 = fp.readLong();
-          if (len > 28) faces[i].smoothGroup_2 = fp.readLong();
-          if (len > 32) fp.seek(len - 32, SEEK_CUR);
-        }
-      }
-      if (version >= 1.6) {
-        count = fp.readLong();
-        scaleKeyFrames = new Array(count);
-        for (i = 0; i < count; i++)
-          scaleKeyFrames[i] = {
-            Frame: fp.readLong(),
-            Scale: [fp.readFloat(), fp.readFloat(), fp.readFloat()],
-            Data: fp.readFloat(),
-          };
-      }
-      count = fp.readLong();
-      const rotKeyframes = new Array(count);
-      for (i = 0; i < count; ++i)
-        rotKeyframes[i] = {
-          frame: fp.readLong(),
-          q: [fp.readFloat(), fp.readFloat(), fp.readFloat(), fp.readFloat()],
-        };
-      if (version >= 2.2) {
-        count = fp.readLong();
-        posKeyframes = new Array(count);
-        for (i = 0; i < count; ++i)
-          posKeyframes[i] = {
-            frame: fp.readLong(),
-            px: fp.readFloat(),
-            py: fp.readFloat(),
-            pz: fp.readFloat(),
-            Data: fp.readLong(),
-          };
-      }
-      if (version >= 2.3) {
-        count = fp.readLong();
-        textureKeyFrameGroup = new Array(count);
-        for (i = 0; i < count; ++i) {
-          const textureId = fp.readLong();
-          const amountTextureAnimations = fp.readLong();
-          if (!textureKeyFrameGroup[i]) textureKeyFrameGroup[i] = [];
-          if (!textureKeyFrameGroup[i][textureId])
-            textureKeyFrameGroup[i][textureId] = [];
-          for (j = 0; j < amountTextureAnimations; ++j) {
-            const type = fp.readLong();
-            const amountFrames = fp.readLong();
-            if (!textureKeyFrameGroup[i][textureId][type])
-              textureKeyFrameGroup[i][textureId][type] = [];
-            for (k = 0; k < amountFrames; ++k)
-              textureKeyFrameGroup[i][textureId][type].push({
-                frame: fp.readLong(),
-                offset: fp.readFloat(),
-              });
-          }
-        }
-      }
-      this.box = new RSM.Box();
-      this.matrix = mat4$15.create();
-      this.textures = textures;
-      this.vertices = vertices;
-      this.tvertices = tvertices;
-      this.faces = faces;
-      this.rotKeyframes = rotKeyframes;
-      this.posKeyframes = posKeyframes;
-      this.scaleKeyFrames = scaleKeyFrames;
-      this.textureKeyFrameGroup = textureKeyFrameGroup;
-    }
+
     /**
      * Calculate node bounding box
      *
@@ -219076,14 +218474,6 @@ var init_Model = __esmMin(() => {
     compile(instance_matrix) {
       const modelViewMat = mat4$15.create();
       const normalMat = mat4$15.create();
-      const textures = this.textures;
-      const faces = this.faces;
-      const vertices = this.vertices;
-      const mesh = {};
-      const mesh_size = [];
-      const shadeGroup = new Array(32);
-      const shadeGroupUsed = new Array(32);
-      let i, x, y, z, count;
       const matrix = mat4$15.create();
       mat4$15.identity(matrix);
       mat4$15.translate(matrix, matrix, [
@@ -219096,51 +218486,7 @@ var init_Model = __esmMin(() => {
       mat4$15.multiply(matrix, matrix, mat3$2.toMat4(this.mat3));
       mat4$15.multiply(modelViewMat, instance_matrix, matrix);
       mat4$15.extractRotation(normalMat, modelViewMat);
-      count = vertices.length;
-      const vert = new Float32Array(count * 3);
-      for (i = 0; i < count; ++i) {
-        x = vertices[i][0];
-        y = vertices[i][1];
-        z = vertices[i][2];
-        vert[i * 3 + 0] =
-          modelViewMat[0] * x +
-          modelViewMat[4] * y +
-          modelViewMat[8] * z +
-          modelViewMat[12];
-        vert[i * 3 + 1] =
-          modelViewMat[1] * x +
-          modelViewMat[5] * y +
-          modelViewMat[9] * z +
-          modelViewMat[13];
-        vert[i * 3 + 2] =
-          modelViewMat[2] * x +
-          modelViewMat[6] * y +
-          modelViewMat[10] * z +
-          modelViewMat[14];
-      }
-      const face_normal = new Float32Array(faces.length * 3);
-      for (i = 0, count = textures.length; i < count; ++i)
-        mesh_size[textures[i]] = 0;
-      for (i = 0, count = faces.length; i < count; ++i)
-        mesh_size[textures[faces[i].texid]]++;
-      for (i = 0, count = textures.length; i < count; ++i)
-        mesh[textures[i]] = new Float32Array(mesh_size[textures[i]] * 9 * 3);
-      switch (this.main.shadeType) {
-        default:
-        case RSM.SHADING.NONE:
-          this.calcNormal_NONE(face_normal);
-          this.generate_mesh_FLAT(vert, face_normal, mesh);
-          break;
-        case RSM.SHADING.FLAT:
-          this.calcNormal_FLAT(face_normal, normalMat, shadeGroupUsed);
-          this.generate_mesh_FLAT(vert, face_normal, mesh);
-          break;
-        case RSM.SHADING.SMOOTH:
-          this.calcNormal_FLAT(face_normal, normalMat, shadeGroupUsed);
-          this.calcNormal_SMOOTH(face_normal, shadeGroupUsed, shadeGroup);
-          this.generate_mesh_SMOOTH(vert, shadeGroup, mesh);
-      }
-      return mesh;
+      return globalThis.LastROAssetDecoder.modelMesh(this,modelViewMat,normalMat,this.main.shadeType,this.main.alpha);
     }
     /**
      * Compile Node at a specific animation frame
@@ -219152,14 +218498,6 @@ var init_Model = __esmMin(() => {
     compileAtFrame(instance_matrix, frame, animLen) {
       const modelViewMat = mat4$15.create();
       const normalMat = mat4$15.create();
-      const textures = this.textures;
-      const faces = this.faces;
-      const vertices = this.vertices;
-      const mesh = {};
-      const mesh_size = [];
-      const shadeGroup = new Array(32);
-      const shadeGroupUsed = new Array(32);
-      let i, x, y, z, count;
       const matrix = mat4$15.create();
       mat4$15.identity(matrix);
       mat4$15.translate(matrix, matrix, [
@@ -219185,61 +218523,14 @@ var init_Model = __esmMin(() => {
       mat4$15.multiply(matrix, matrix, mat3$2.toMat4(this.mat3));
       mat4$15.multiply(modelViewMat, instance_matrix, matrix);
       mat4$15.extractRotation(normalMat, modelViewMat);
-      count = vertices.length;
-      const vert = new Float32Array(count * 3);
-      for (i = 0; i < count; ++i) {
-        x = vertices[i][0];
-        y = vertices[i][1];
-        z = vertices[i][2];
-        vert[i * 3 + 0] =
-          modelViewMat[0] * x +
-          modelViewMat[4] * y +
-          modelViewMat[8] * z +
-          modelViewMat[12];
-        vert[i * 3 + 1] =
-          modelViewMat[1] * x +
-          modelViewMat[5] * y +
-          modelViewMat[9] * z +
-          modelViewMat[13];
-        vert[i * 3 + 2] =
-          modelViewMat[2] * x +
-          modelViewMat[6] * y +
-          modelViewMat[10] * z +
-          modelViewMat[14];
-      }
-      const face_normal = new Float32Array(faces.length * 3);
-      for (i = 0, count = textures.length; i < count; ++i)
-        mesh_size[textures[i]] = 0;
-      for (i = 0, count = faces.length; i < count; ++i)
-        mesh_size[textures[faces[i].texid]]++;
-      for (i = 0, count = textures.length; i < count; ++i)
-        mesh[textures[i]] = new Float32Array(mesh_size[textures[i]] * 9 * 3);
-      switch (this.main.shadeType) {
-        default:
-        case RSM.SHADING.NONE:
-          this.calcNormal_NONE(face_normal);
-          this.generate_mesh_FLAT(vert, face_normal, mesh);
-          break;
-        case RSM.SHADING.FLAT:
-          this.calcNormal_FLAT(face_normal, normalMat, shadeGroupUsed);
-          this.generate_mesh_FLAT(vert, face_normal, mesh);
-          break;
-        case RSM.SHADING.SMOOTH:
-          this.calcNormal_FLAT(face_normal, normalMat, shadeGroupUsed);
-          this.calcNormal_SMOOTH(face_normal, shadeGroupUsed, shadeGroup);
-          this.generate_mesh_SMOOTH(vert, shadeGroup, mesh);
-      }
-      return mesh;
+      return globalThis.LastROAssetDecoder.modelMesh(this,modelViewMat,normalMat,this.main.shadeType,this.main.alpha);
     }
     /**
      * Generate default normals
      *
      * @param {Float32Array[]} out
      */
-    calcNormal_NONE(out) {
-      let i, count;
-      for (i = 1, count = out.length; i < count; i += 3) out[i] = -1;
-    }
+
     /**
      * Generate FLAT normals
      *
@@ -219247,38 +218538,7 @@ var init_Model = __esmMin(() => {
      * @param {mat4} normalMat
      * @param {Array} groupUsed
      */
-    calcNormal_FLAT(out, normalMat, groupUsed) {
-      let i, j, count;
-      let face;
-      const temp_vec = vec3$4.create();
-      const faces = this.faces;
-      const vertices = this.vertices;
-      for (i = 0, j = 0, count = faces.length; i < count; ++i, j += 3) {
-        face = faces[i];
-        vec3$4.calcNormal(
-          vertices[face.vertidx[0]],
-          vertices[face.vertidx[1]],
-          vertices[face.vertidx[2]],
-          temp_vec,
-        );
-        out[j] =
-          normalMat[0] * temp_vec[0] +
-          normalMat[4] * temp_vec[1] +
-          normalMat[8] * temp_vec[2] +
-          normalMat[12];
-        out[j + 1] =
-          normalMat[1] * temp_vec[0] +
-          normalMat[5] * temp_vec[1] +
-          normalMat[9] * temp_vec[2] +
-          normalMat[13];
-        out[j + 2] =
-          normalMat[2] * temp_vec[0] +
-          normalMat[6] * temp_vec[1] +
-          normalMat[10] * temp_vec[2] +
-          normalMat[14];
-        groupUsed[face.smoothGroup] = true;
-      }
-    }
+
     /**
      * Generate smooth normals
      *
@@ -219286,40 +218546,7 @@ var init_Model = __esmMin(() => {
      * @param {Array} groupUsed
      * @param {Array} group
      */
-    calcNormal_SMOOTH(normal, groupUsed, group) {
-      let i, j, k, l, v, x, y, z, len;
-      const size = this.vertices.length;
-      const faces = this.faces;
-      let face, norm;
-      const count = faces.length;
-      for (j = 0; j < 32; ++j) {
-        if (!groupUsed[j]) continue;
-        group[j] = new Float32Array(size * 3);
-        norm = group[j];
-        for (v = 0, l = 0; v < size; ++v, l += 3) {
-          x = 0;
-          y = 0;
-          z = 0;
-          for (i = 0, k = 0; i < count; ++i, k += 3) {
-            face = faces[i];
-            if (
-              face.smoothGroup === j &&
-              (face.vertidx[0] === v ||
-                face.vertidx[1] === v ||
-                face.vertidx[2] === v)
-            ) {
-              x += normal[k];
-              y += normal[k + 1];
-              z += normal[k + 2];
-            }
-          }
-          len = 1 / Math.sqrt(x * x + y * y + z * z);
-          norm[l] = x * len;
-          norm[l + 1] = y * len;
-          norm[l + 2] = z * len;
-        }
-      }
-    }
+
     /**
      * Generate Mesh (with normals type FLAT)
      *
@@ -219327,39 +218554,7 @@ var init_Model = __esmMin(() => {
      * @param {Float32Array[]} norm
      * @param {Array} mesh
      */
-    generate_mesh_FLAT(vert, norm, mesh) {
-      let a, b, o, i, j, k, t, count;
-      const faces = this.faces;
-      const textures = this.textures;
-      const tver = this.tvertices;
-      const alpha = this.main.alpha;
-      const offset = [];
-      let face, idx, tidx, out;
-      for (i = 0, count = textures.length; i < count; ++i)
-        offset[textures[i]] = 0;
-      for (i = 0, o = 0, k = 0, count = faces.length; i < count; ++i, k += 3) {
-        face = faces[i];
-        idx = face.vertidx;
-        tidx = face.tvertidx;
-        t = textures[face.texid];
-        out = mesh[t];
-        o = offset[t];
-        for (j = 0; j < 3; j++, o += 9) {
-          a = idx[j] * 3;
-          b = tidx[j] * 6;
-          out[o + 0] = vert[a + 0];
-          out[o + 1] = vert[a + 1];
-          out[o + 2] = vert[a + 2];
-          out[o + 3] = norm[k + 0];
-          out[o + 4] = norm[k + 1];
-          out[o + 5] = norm[k + 2];
-          out[o + 6] = tver[b + 4];
-          out[o + 7] = tver[b + 5];
-          out[o + 8] = alpha;
-        }
-        offset[t] = o;
-      }
-    }
+
     /**
      * Generate Mesh (with normals type SMOOTH)
      *
@@ -219367,40 +218562,7 @@ var init_Model = __esmMin(() => {
      * @param {Array} shadeGroup
      * @param {Array} mesh
      */
-    generate_mesh_SMOOTH(vert, shadeGroup, mesh) {
-      let a, b, o, i, j, t, count;
-      const faces = this.faces;
-      const textures = this.textures;
-      const tver = this.tvertices;
-      const alpha = this.main.alpha;
-      const offset = [];
-      let norm, face, idx, tidx, out;
-      for (i = 0, count = textures.length; i < count; ++i)
-        offset[textures[i]] = 0;
-      for (i = 0, o = 0, count = faces.length; i < count; ++i) {
-        face = faces[i];
-        norm = shadeGroup[face.smoothGroup];
-        idx = face.vertidx;
-        tidx = face.tvertidx;
-        t = textures[face.texid];
-        out = mesh[t];
-        o = offset[t];
-        for (j = 0; j < 3; j++, o += 9) {
-          a = idx[j] * 3;
-          b = tidx[j] * 6;
-          out[o + 0] = vert[a + 0];
-          out[o + 1] = vert[a + 1];
-          out[o + 2] = vert[a + 2];
-          out[o + 3] = norm[a + 0];
-          out[o + 4] = norm[a + 1];
-          out[o + 5] = norm[a + 2];
-          out[o + 6] = tver[b + 4];
-          out[o + 7] = tver[b + 5];
-          out[o + 8] = alpha;
-        }
-        offset[t] = o;
-      }
-    }
+
   };
   RSM = class RSM {
     constructor(data) {
@@ -219424,95 +218586,7 @@ var init_Model = __esmMin(() => {
      * @param {ArrayBuffer} data
      */
     load(data) {
-      let i, count;
-      let posKeyframes;
-      let mainNodeName = null;
-      const textures = [];
-      const additionalTextures = [];
-      const fp = new BinaryReader(data);
-      const header = fp.readBinaryString(4);
-      if (header !== "GRSM" && header !== "GRSX")
-        throw new Error(
-          `RSM::load() - Incorrect header "${header}", must be "GRSM"`,
-        );
-      this.version = fp.readByte() + fp.readByte() / 10;
-      this.animLen = fp.readLong();
-      this.shadeType = fp.readLong();
-      this.main_node = null;
-      this.alpha = this.version >= 1.4 ? fp.readUByte() / 255 : 1;
-      if (this.version >= 2.3) {
-        this.frameRatePerSecond = fp.readFloat();
-        count = fp.readLong();
-        for (i = 0; i < count; i++)
-          textures.push(fp.readBinaryString(fp.readLong()));
-      } else if (this.version >= 2.2) {
-        this.frameRatePerSecond = fp.readFloat();
-        count = fp.readLong();
-        for (i = 0; i < count; ++i)
-          additionalTextures.push(fp.readBinaryString(fp.readLong()));
-        count = fp.readLong();
-        for (i = 0; i < count; i++)
-          textures.push(fp.readBinaryString(fp.readLong()));
-      } else {
-        fp.seek(16, SEEK_CUR);
-        count = fp.readLong();
-        for (i = 0; i < count; ++i)
-          additionalTextures.push(fp.readBinaryString(40));
-        mainNodeName = fp.readBinaryString(40);
-        textures.push(mainNodeName);
-      }
-      count = fp.readLong();
-      const nodes = new Array(count);
-      for (i = 0; i < count; ++i) {
-        nodes[i] = new RSM.Node(this, fp, count === 1);
-        if (mainNodeName && nodes[i].name === mainNodeName)
-          this.main_node = nodes[i];
-      }
-      if (this.main_node === null) this.main_node = nodes[0];
-      if (this.version < 1.6) {
-        count = fp.readLong();
-        posKeyframes = new Array(count);
-        for (i = 0; i < count; ++i)
-          posKeyframes[i] = {
-            frame: fp.readLong(),
-            px: fp.readFloat(),
-            py: fp.readFloat(),
-            pz: fp.readFloat(),
-            data: fp.readFloat(),
-          };
-        this.posKeyframes = posKeyframes;
-      } else this.posKeyframes = [];
-      count = fp.offset >= fp.length ? 0 : fp.readLong();
-      const volumebox = new Array(count);
-      for (i = 0; i < count; ++i)
-        volumebox[i] = {
-          size: [fp.readFloat(), fp.readFloat(), fp.readFloat()],
-          pos: [fp.readFloat(), fp.readFloat(), fp.readFloat()],
-          rot: [fp.readFloat(), fp.readFloat(), fp.readFloat()],
-          flag: this.version >= 1.3 ? fp.readLong() : 0,
-        };
-      this.textures = additionalTextures;
-      this.nodes = nodes;
-      if (this.version >= 2.3) {
-        for (i = 0; i < this.main_node.textures.length; i++)
-          if (!this.textures.includes(this.main_node.textures[i])) {
-            const texture = this.main_node.textures[i];
-            this.textures.push(texture);
-            this.main_node.textures[i] = this.textures.indexOf(texture);
-          }
-        this.nodes.forEach((node) => {
-          for (i = 0; i < node.textures.length; i++)
-            if (typeof node.textures[i] !== "number") {
-              const texture = node.textures[i];
-              if (!this.textures.includes(texture)) this.textures.push(texture);
-              node.textures[i] = this.textures.indexOf(texture);
-            }
-        });
-      }
-      this.volumebox = volumebox;
-      this.instances = [];
-      this.box = new RSM.Box();
-      this.calcBoundingBox();
+      globalThis.LastROAssetDecoder.loadRsm(data, this, RSM.Node.prototype, () => new RSM.Box(), () => mat4$15.create());
     }
     /**
      * Create a model instance
@@ -219750,167 +218824,29 @@ function getScaleAtFrame(scaleKeyFrames, frame, animLen) {
 /**
  * Calculate normals (NONE type)
  */
-function calcNormal_NONE(out) {
-  for (let i = 1, count = out.length; i < count; i += 3) out[i] = -1;
-}
+
 /**
  * Calculate normals (FLAT type)
  */
-function calcNormal_FLAT(node, out, normalMat, groupUsed) {
-  let i, j, count;
-  let face;
-  const temp_vec = vec3$3.create();
-  const faces = node.faces;
-  const vertices = node.vertices;
-  for (i = 0, j = 0, count = faces.length; i < count; ++i, j += 3) {
-    face = faces[i];
-    vec3$3.calcNormal(
-      vertices[face.vertidx[0]],
-      vertices[face.vertidx[1]],
-      vertices[face.vertidx[2]],
-      temp_vec,
-    );
-    out[j] =
-      normalMat[0] * temp_vec[0] +
-      normalMat[4] * temp_vec[1] +
-      normalMat[8] * temp_vec[2] +
-      normalMat[12];
-    out[j + 1] =
-      normalMat[1] * temp_vec[0] +
-      normalMat[5] * temp_vec[1] +
-      normalMat[9] * temp_vec[2] +
-      normalMat[13];
-    out[j + 2] =
-      normalMat[2] * temp_vec[0] +
-      normalMat[6] * temp_vec[1] +
-      normalMat[10] * temp_vec[2] +
-      normalMat[14];
-    if (face.smoothGroup !== void 0) groupUsed[face.smoothGroup] = true;
-  }
-}
+
 /**
  * Calculate normals (SMOOTH type)
  */
-function calcNormal_SMOOTH(node, normal, groupUsed, group) {
-  let i, j, k, l, v, x, y, z, len;
-  const size = node.vertices.length;
-  const faces = node.faces;
-  let face, norm;
-  const count = faces.length;
-  for (j = 0; j < 32; ++j) {
-    if (!groupUsed[j]) continue;
-    group[j] = new Float32Array(size * 3);
-    norm = group[j];
-    for (v = 0, l = 0; v < size; ++v, l += 3) {
-      x = 0;
-      y = 0;
-      z = 0;
-      for (i = 0, k = 0; i < count; ++i, k += 3) {
-        face = faces[i];
-        if (
-          face.smoothGroup === j &&
-          (face.vertidx[0] === v ||
-            face.vertidx[1] === v ||
-            face.vertidx[2] === v)
-        ) {
-          x += normal[k];
-          y += normal[k + 1];
-          z += normal[k + 2];
-        }
-      }
-      len = 1 / Math.sqrt(x * x + y * y + z * z);
-      if (!isFinite(len)) len = 1;
-      norm[l] = x * len;
-      norm[l + 1] = y * len;
-      norm[l + 2] = z * len;
-    }
-  }
-}
+
 /**
  * Generate mesh (FLAT normals)
  */
-function generate_mesh_FLAT(node, vert, norm, mesh) {
-  let a, b, o, i, j, k, t, count;
-  const faces = node.faces;
-  const textures = node.textures;
-  const tver = node.tvertices;
-  const alpha = node.main.alpha;
-  const offset = [];
-  let face, idx, tidx, out;
-  for (i = 0, count = textures.length; i < count; ++i) offset[textures[i]] = 0;
-  for (i = 0, o = 0, k = 0, count = faces.length; i < count; ++i, k += 3) {
-    face = faces[i];
-    idx = face.vertidx;
-    tidx = face.tvertidx;
-    t = textures[face.texid];
-    out = mesh[t];
-    o = offset[t];
-    for (j = 0; j < 3; j++, o += 9) {
-      a = idx[j] * 3;
-      b = tidx[j] * 6;
-      out[o + 0] = vert[a + 0];
-      out[o + 1] = vert[a + 1];
-      out[o + 2] = vert[a + 2];
-      out[o + 3] = norm[k + 0];
-      out[o + 4] = norm[k + 1];
-      out[o + 5] = norm[k + 2];
-      out[o + 6] = tver[b + 4];
-      out[o + 7] = tver[b + 5];
-      out[o + 8] = alpha;
-    }
-    offset[t] = o;
-  }
-}
+
 /**
  * Generate mesh (SMOOTH normals)
  */
-function generate_mesh_SMOOTH(node, vert, shadeGroup, mesh) {
-  let a, b, o, i, j, t, count;
-  const faces = node.faces;
-  const textures = node.textures;
-  const tver = node.tvertices;
-  const alpha = node.main.alpha;
-  const offset = [];
-  let norm, face, idx, tidx, out;
-  for (i = 0, count = textures.length; i < count; ++i) offset[textures[i]] = 0;
-  for (i = 0, o = 0, count = faces.length; i < count; ++i) {
-    face = faces[i];
-    norm = shadeGroup[face.smoothGroup];
-    idx = face.vertidx;
-    tidx = face.tvertidx;
-    t = textures[face.texid];
-    out = mesh[t];
-    o = offset[t];
-    for (j = 0; j < 3; j++, o += 9) {
-      a = idx[j] * 3;
-      b = tidx[j] * 6;
-      out[o + 0] = vert[a + 0];
-      out[o + 1] = vert[a + 1];
-      out[o + 2] = vert[a + 2];
-      out[o + 3] = norm[a + 0];
-      out[o + 4] = norm[a + 1];
-      out[o + 5] = norm[a + 2];
-      out[o + 6] = tver[b + 4];
-      out[o + 7] = tver[b + 5];
-      out[o + 8] = alpha;
-    }
-    offset[t] = o;
-  }
-}
+
 /**
  * Compile a node at a specific animation frame
  */
 function compileNodeAtFrame(node, instanceMatrix, frame, animLen) {
   const modelViewMat = mat4$14.create();
   const normalMat = mat4$14.create();
-  const textures = node.textures;
-  const faces = node.faces;
-  const vertices = node.vertices;
-  const mesh = {};
-  const mesh_size = [];
-  const shadeGroup = new Array(32);
-  const shadeGroupUsed = new Array(32);
-  let i, x, y, z, count;
   const matrix = mat4$14.create();
   mat4$14.identity(matrix);
   mat4$14.translate(matrix, matrix, [
@@ -219936,51 +218872,7 @@ function compileNodeAtFrame(node, instanceMatrix, frame, animLen) {
   mat4$14.multiply(matrix, matrix, mat3$1.toMat4(node.mat3));
   mat4$14.multiply(modelViewMat, instanceMatrix, matrix);
   mat4$14.extractRotation(normalMat, modelViewMat);
-  count = vertices.length;
-  const vert = new Float32Array(count * 3);
-  for (i = 0; i < count; ++i) {
-    x = vertices[i][0];
-    y = vertices[i][1];
-    z = vertices[i][2];
-    vert[i * 3 + 0] =
-      modelViewMat[0] * x +
-      modelViewMat[4] * y +
-      modelViewMat[8] * z +
-      modelViewMat[12];
-    vert[i * 3 + 1] =
-      modelViewMat[1] * x +
-      modelViewMat[5] * y +
-      modelViewMat[9] * z +
-      modelViewMat[13];
-    vert[i * 3 + 2] =
-      modelViewMat[2] * x +
-      modelViewMat[6] * y +
-      modelViewMat[10] * z +
-      modelViewMat[14];
-  }
-  const face_normal = new Float32Array(faces.length * 3);
-  for (i = 0, count = textures.length; i < count; ++i)
-    mesh_size[textures[i]] = 0;
-  for (i = 0, count = faces.length; i < count; ++i)
-    mesh_size[textures[faces[i].texid]]++;
-  for (i = 0, count = textures.length; i < count; ++i)
-    mesh[textures[i]] = new Float32Array(mesh_size[textures[i]] * 9 * 3);
-  switch (node.main.shadeType) {
-    default:
-    case 0:
-      calcNormal_NONE(face_normal);
-      generate_mesh_FLAT(node, vert, face_normal, mesh);
-      break;
-    case 1:
-      calcNormal_FLAT(node, face_normal, normalMat, shadeGroupUsed);
-      generate_mesh_FLAT(node, vert, face_normal, mesh);
-      break;
-    case 2:
-      calcNormal_FLAT(node, face_normal, normalMat, shadeGroupUsed);
-      calcNormal_SMOOTH(node, face_normal, shadeGroupUsed, shadeGroup);
-      generate_mesh_SMOOTH(node, vert, shadeGroup, mesh);
-  }
-  return mesh;
+  return globalThis.LastROAssetDecoder.modelMesh(node,modelViewMat,normalMat,node.main.shadeType,node.main.alpha,true);
 }
 /**
  * Rebuild mesh buffer at current frame
@@ -226754,13 +225646,10 @@ var init_Bloom = __esmMin(() => {
      */
     static render(gl, inputTexture, outputFbo) {
       if (!_buffer$13 || !_programs.prefilter || !Bloom.isActive()) return;
-      const scale = GraphicsSettings.performanceMode ? 0.75 : 1;
-      const scaledWidth = Math.floor(gl.canvas.width * scale);
-      const scaledHeight = Math.floor(gl.canvas.height * scale);
       _internalFbo = PostProcess.createFbo(
         gl,
-        scaledWidth,
-        scaledHeight,
+        gl.canvas.width,
+        gl.canvas.height,
         _internalFbo,
         GraphicsSettings.performanceMode
           ? _downsampleFactorPerformance
@@ -227250,83 +226139,6 @@ var init_Cartoon = __esmMin(() => {
   };
 });
 //#endregion
-//#region src/Renderer/Effects/Shaders/GLSL/CommonUpsampling.fs?raw
-var CommonUpsampling_default;
-var init_CommonUpsampling = __esmMin(() => {
-  CommonUpsampling_default =
-    "#version 300 es\r\nprecision mediump float;\r\nuniform sampler2D uSceneTexture;\r\n\r\nin vec2 vUv;\r\nout vec4 fragColor;\r\n\r\nvoid main() {\r\n	vec3 original = texture(uSceneTexture, vUv).rgb; \r\n	fragColor = vec4(original, 1.0);\r\n}";
-});
-//#endregion
-//#region src/Renderer/Effects/Shaders/Upsampling.js
-var _program$9, _buffer$7, Upsampling;
-var init_Upsampling = __esmMin(() => {
-  init_Graphics();
-  init_WebGL();
-  init_PostProcess();
-  init_Common();
-  init_CommonUpsampling();
-  Upsampling = class Upsampling {
-    /**
-     * Renders the Upsampling effect
-     * @param {WebGLRenderingContext} gl - WebGL Context
-     * @param {WebGLTexture} inputTexture - Low resolution scene texture
-     * @param {WebGLFramebuffer} outputFramebuffer - Destination (Screen or next effect)
-     */
-    static render(gl, inputTexture, outputFbo) {
-      if (!_buffer$7 || !_program$9 || !Upsampling.isActive()) return;
-      PostProcess.beforeRenderPass(gl, outputFbo);
-      gl.useProgram(_program$9);
-      gl.bindBuffer(gl.ARRAY_BUFFER, _buffer$7);
-      const posLoc = _program$9.attribute.aPosition;
-      gl.enableVertexAttribArray(posLoc);
-      gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, inputTexture);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.uniform1i(_program$9.uniform.uSceneTexture, 0);
-      gl.drawArrays(gl.TRIANGLES, 0, 6);
-      PostProcess.afterRenderPass(gl);
-    }
-    /**
-     * Initializes shaders and buffers
-     */
-    static init(gl) {
-      if (!gl) return;
-      try {
-        _program$9 = WebGL_default.createShaderProgram(
-          gl,
-          Common_default,
-          CommonUpsampling_default,
-        );
-      } catch (e) {
-        console.error("Error compiling Upsampling shader.", e);
-        return;
-      }
-      const quadVertices = new Float32Array([
-        -1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1,
-      ]);
-      _buffer$7 = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, _buffer$7);
-      gl.bufferData(gl.ARRAY_BUFFER, quadVertices, gl.STATIC_DRAW);
-    }
-    /** @returns {boolean} always false here */
-    static isActive() {
-      return GraphicsSettings.performanceMode;
-    }
-    /** @returns {WebGLProgram} The loaded shader program (returning one for validation check) */
-    static program() {
-      return _program$9;
-    }
-    /** Clears memory references */
-    static clean(gl) {
-      _program$9 = null;
-      if (_buffer$7) gl.deleteBuffer(_buffer$7);
-      _buffer$7 = null;
-    }
-  };
-});
-//#endregion
 //#region src/Renderer/MapRenderer.js
 var MapRenderer_exports = /* @__PURE__ */ __exportAll({
   default: () => MapRenderer,
@@ -227435,7 +226247,6 @@ function registerPostProcessModules(gl) {
   PostProcess.register(Vibrance, gl);
   PostProcess.register(VerticalFlip, gl);
   PostProcess.register(Blind, gl);
-  PostProcess.register(Upsampling, gl);
 }
 /**
  * Once the map finished to load
@@ -227569,7 +226380,6 @@ var init_MapRenderer = __esmMin(() => {
   init_Vibrance();
   init_Cartoon();
   init_Blind();
-  init_Upsampling();
   init_WebGL();
   mat4$11 = gl_matrix_default.mat4;
   _pos$6 = /* @__PURE__ */ new Uint16Array(2);
@@ -228527,27 +227337,29 @@ var init_Renderer = __esmMin(() => {
      */
     static resize() {
       if (this.contextLost || !this.gl) return;
-      let width, height;
       const dpr = window.devicePixelRatio || 1;
-      width = window.innerWidth || document.body.offsetWidth;
-      height = window.innerHeight || document.body.offsetHeight;
+      const width = window.innerWidth || document.body.offsetWidth;
+      const height = window.innerHeight || document.body.offsetHeight;
+      if (!width || !height) return;
       Mouse.screen.width = this.width = width;
       Mouse.screen.height = this.height = height;
       const quality = Configs.get("quality", 100) / 100;
-      width *= quality;
-      height *= quality;
-      this.canvas.width = width * dpr;
-      this.canvas.height = height * dpr;
+      // The browser scales the smaller 3D canvas to the same UI coordinates.
+      const scale = dpr * quality * (GraphicsSettings.performanceMode ? 0.75 : 1);
+      const drawWidth = Math.max(1, Math.floor(width * scale));
+      const drawHeight = Math.max(1, Math.floor(height * scale));
+      if (this.canvas.width !== drawWidth) this.canvas.width = drawWidth;
+      if (this.canvas.height !== drawHeight) this.canvas.height = drawHeight;
       this.canvas.style.width = this.width + "px";
       this.canvas.style.height = this.height + "px";
       try {
-        this.gl.viewport(0, 0, width * dpr, height * dpr);
+        this.gl.viewport(0, 0, drawWidth, drawHeight);
       } catch (e) {
         console.error("Viewport resize failed", e);
       }
       mat4$9.perspective(this.vFov, width / height, 1, 1e3, Camera.projection);
       Background.resize(this.width, this.height);
-      PostProcess.recreateFbo(this.gl, width * dpr, height * dpr);
+      PostProcess.recreateFbo(this.gl, drawWidth, drawHeight);
       __vitePreload(
         () =>
           Promise.resolve()
@@ -271016,7 +269828,7 @@ function loadWeaponTable(filename, callback, onEnd) {
 									end  
 								end  
 							end  
-							
+
 							-- Process WeaponHitWaveNameTable  (seems like gravity is still using the hardcoded sound files)
 							-- uncomment this if you want to use the custom sound files
 							--if type(WeaponHitWaveNameTable) == "table" then  
@@ -271037,7 +269849,7 @@ function loadWeaponTable(filename, callback, onEnd) {
 									end  
 								end  
 							end  
-							
+
 							return true, "success"  
 						end  
 						main_weapontable()  
@@ -271158,7 +269970,7 @@ function loadSkillInfoList(filename, callback, onEnd) {
 							if not SKILL_INFO_LIST then  
 								return false, "Error: SKILL_INFO_LIST is nil or not a table"  
 							end  
-						
+
 							for skillId, skillData in pairs(SKILL_INFO_LIST) do 
 								local resName = skillData[1] or "" 
 								local skillName = skillData.SkillName or ""  
@@ -271172,7 +269984,7 @@ function loadSkillInfoList(filename, callback, onEnd) {
 								if not result then  
 									return false, msg  
 								end
-								
+
 								if skillData._NeedSkillList then  
 									for _, req in ipairs(skillData._NeedSkillList) do  
 										if req[1] and req[2] then  
@@ -271180,7 +269992,7 @@ function loadSkillInfoList(filename, callback, onEnd) {
 										end  
 									end  
 								end  
-								
+
 								if skillData.NeedSkillList then  
 									for jobId, reqList in pairs(skillData.NeedSkillList) do  
 										if reqList then  
@@ -271327,7 +270139,7 @@ function loadSkillTreeViewData(filename, callback, onEnd) {
         };
         lua.doStringSync(`
 						JobSkillTab = {}
-					
+
 						function JobSkillTab.ChangeSkillTabName(in_job, in_1sttab, in_2ndtab, in_3rdtab, in_4thtab)
 							local tbl = {
 								job = in_job,
@@ -271360,14 +270172,14 @@ function loadSkillTreeViewData(filename, callback, onEnd) {
 							if not SKILL_TREEVIEW_FOR_JOB then    
 								return false, "Error: SKILL_TREEVIEW_FOR_JOB is nil or not a table"    
 							end    
-					
+
 							for jobId, skillData in pairs(SKILL_TREEVIEW_FOR_JOB) do      
 								local beforeJob = JOB_INHERIT_LIST[jobId] or nil  
 								result, msg = AddSkillTreeView(jobId, beforeJob)      
 								if not result then      
 									return false, msg      
 								end   
-								
+
 								for pos, skillId in pairs(skillData) do    
 									result, msg = AddSkillToJob(jobId, pos, skillId)    
 									if not result then    
@@ -271377,7 +270189,7 @@ function loadSkillTreeViewData(filename, callback, onEnd) {
 							end    
 							return true, "good"    
 						end    
-						
+
 						main_skillTreeView()    
 					`);
       } catch (error) {
@@ -271504,7 +270316,7 @@ function loadStateIconInfo(basePath, callback, onEnd) {
 									mergeSC(k, v)
 								end
 							end
-							
+
 							local mt = getmetatable(__EFST_IDS_ORIGINAL)
 							if mt and type(mt.__index) == "table" then
 								for k, v in pairs(mt.__index) do
@@ -288573,7 +287385,7 @@ var init_html2canvas = __esmMin(() => {
 	@license html2canvas v0.34 <[external reference removed]>
 	Copyright (c) 2011 Niklas von Hertzen. All rights reserved.
 	[external reference removed]
-	
+
 	Released under MIT License
 	*/
   (function (window, document, undefined) {

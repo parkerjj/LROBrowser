@@ -2,6 +2,7 @@ import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { IndexedDbResourceCache, MemoryResourceCache } from '../src/resources/resource-cache';
 import { buildResourcePathCandidates, DEFAULT_RESOURCE_ROOTS, ResourceResolutionError, ResourceSourceHealth, resolvePassiveResource, type ResourceFetchInit } from '../src/resources/resource-resolver';
+import { resolvePassiveResource as resolveNativePassiveResource } from '../src/resources/native-worker-resource-resolver';
 import { mapBinaryFixture } from './map-binary-fixture';
 
 function response(status: number, bytes = new Uint8Array([1, 2]).buffer, contentType = 'application/octet-stream'): Response {
@@ -267,6 +268,25 @@ describe('passive resource resolver', () => {
     vi.unstubAllGlobals();
   });
 
+  it('reuses the buffer clone returned by IndexedDB and allows it to be transferred', async () => {
+    vi.stubGlobal('indexedDB', new IDBFactory());
+    const path = 'data/sprite/example.spr';
+    const cache = new IndexedDbResourceCache('lastro-transfer-' + Math.random());
+    const bytes = new ArrayBuffer(64 * 1024);
+    await cache.put(path, bytes, { sourceUrl: DEFAULT_RESOURCE_ROOTS[0] + path });
+    const slice = vi.spyOn(ArrayBuffer.prototype, 'slice');
+    try {
+      const first = (await cache.match(path))!;
+      const clones = slice.mock.contexts.filter(context => context instanceof ArrayBuffer && context.byteLength === bytes.byteLength);
+      expect(clones).toHaveLength(0);
+      structuredClone(first.bytes, { transfer: [first.bytes] });
+      expect((await cache.match(path))?.bytes.byteLength).toBe(bytes.byteLength);
+    } finally {
+      slice.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it.each(['data/texture/item/potion.bmp', 'data/sprite/poring.spr', 'data/sprite/poring.act'])('reuses persistent world-map resource %s without another server fetch', async path => {
     vi.stubGlobal('indexedDB', new IDBFactory());
     try {
@@ -492,6 +512,22 @@ describe('resource download deadlines', () => {
       .then(value => ({ value }), error => ({ error }));
 
     await vi.advanceTimersByTimeAsync(90_000);
+    await expect(outcome).resolves.toEqual({ value: bytes });
+  });
+
+  it('lets a buffering native transport enforce the upstream stall deadline', async () => {
+    vi.useFakeTimers();
+    const bytes = downloadFixture('gnd');
+    const fetch = vi.fn(async (_url: string, init?: RequestInit) => {
+      await new Promise<void>(resolve => setTimeout(resolve, 35_000));
+      if (init?.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      return response(200, bytes);
+    });
+    const outcome = resolveNativePassiveResource('data/ein_fild04.gnd', {
+      cache: new MemoryResourceCache(), fetch: fetch as typeof globalThis.fetch,
+    }).then(value => ({ value }), error => ({ error }));
+
+    await vi.advanceTimersByTimeAsync(35_000);
     await expect(outcome).resolves.toEqual({ value: bytes });
   });
 

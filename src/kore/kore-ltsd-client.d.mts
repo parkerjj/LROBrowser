@@ -30,6 +30,11 @@ export interface KoreLtsdClient {
   hasToken(): boolean;
 }
 export const LTSD_TOKEN_STORAGE_KEY: 'kore-ltsd-token';
+export function openKoreLtsdPage(page: {
+  LastRONativeBuild?: boolean;
+  __TAURI__?: { core?: { invoke?: (command: string, args: { url: string }) => Promise<unknown> } };
+  open?: (url: string, target: string, features: string) => unknown;
+}, url: string): boolean | Promise<boolean>;
 export function createKoreLtsdClient(options?: {
   page?: { localStorage?: Storage; fetch?: typeof fetch };
   fetchImpl?: typeof fetch;

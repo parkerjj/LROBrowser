@@ -2,7 +2,7 @@ import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist/**', 'dist-web/**', 'generated/**', 'release/**', '.tools/**', '.superpowers/**', 'vendor/**'] },
+  { ignores: ['dist/**', 'dist-web/**', 'dist-native/**', 'native/src-tauri/target/**', 'generated/**', 'release/**', '.tools/**', '.superpowers/**', 'vendor/**'] },
   js.configs.recommended,
   { files: ['scripts/lro-local/*.mjs'], languageOptions: { globals: Object.fromEntries(
     ['fetch', 'URL', 'AbortSignal', 'Response', 'process', 'Buffer', 'console'].map(name => [name, 'readonly']),

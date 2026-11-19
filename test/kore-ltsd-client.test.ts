@@ -1,5 +1,24 @@
 import { expect, test, vi } from 'vitest';
-import { createKoreLtsdClient } from '../src/kore/kore-ltsd-client.mjs';
+import { createKoreLtsdClient, openKoreLtsdPage } from '../src/kore/kore-ltsd-client.mjs';
+
+test('native authorization opens its complete LTSD URL through Tauri', async () => {
+  const url = 'https://ltsd.ro/ke/device?code=BCDF-GHJK';
+  const invoke = vi.fn(async () => undefined);
+  const open = vi.fn();
+  const page = { LastRONativeBuild: true, __TAURI__: { core: { invoke } }, open };
+  await expect(openKoreLtsdPage(page, url)).resolves.toBe(true);
+  expect(invoke).toHaveBeenCalledWith('open_ke_ltsd_url', { url });
+  expect(open).not.toHaveBeenCalled();
+  invoke.mockRejectedValueOnce(new Error('no default browser'));
+  await expect(openKoreLtsdPage(page, url)).resolves.toBe(false);
+});
+
+test('LTSD links in the browser keep opening a separate tab', () => {
+  const url = 'https://ltsd.ro/ke';
+  const open = vi.fn(() => ({}));
+  expect(openKoreLtsdPage({ open }, url)).toBe(true);
+  expect(open).toHaveBeenCalledWith(url, '_blank', 'noopener,noreferrer');
+});
 
 function createHarness(responses: Array<{ status: number; body?: unknown }>) {
   const values = new Map<string, string>();

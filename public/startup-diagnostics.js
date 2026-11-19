@@ -4,7 +4,7 @@
   // Loaded before the module graph: even a failed main.ts import leaves a visible diagnosis.
   var startedAt = Date.now();
   var phaseName = '等待启动脚本';
-  var message = '正在准备游戏客户端…';
+  var message = '';
   var detail = '';
   var failed = false;
   var finished = false;
@@ -50,23 +50,21 @@
     return '请关闭客户端窗口后重新打开，并确认 Chrome 与客户端均为最新版本。若仍无法启动，请复制诊断信息发送给开发者。不要清除已保存账号或站点数据。';
   }
   function show() {
-    if (finished) return;
     var screen = element('lastro-startup-screen');
     if (!screen) return;
-    screen.hidden = false;
-    element('lastro-startup-heading').textContent = failed ? '客户端启动异常' : '正在启动客户端';
+    if (finished || (!failed && !delayed)) {
+      screen.hidden = true;
+      return;
+    }
+    element('lastro-startup-heading').textContent = failed ? '客户端启动异常' : '客户端启动耗时较长';
     element('lastro-startup-phase').textContent = '当前阶段：' + phaseName;
     element('lastro-startup-message').textContent = message;
     var technical = element('lastro-startup-detail');
     technical.hidden = !detail;
     technical.textContent = detail;
-    var help = element('lastro-startup-help');
-    if (help) {
-      help.hidden = !failed && !delayed;
-      help.textContent = failed || delayed ? guidance() : '';
-    }
-    element('lastro-startup-copy').hidden = !failed && !delayed;
-    screen.dataset.state = failed ? 'error' : delayed ? 'slow' : 'loading';
+    element('lastro-startup-help').textContent = guidance();
+    screen.dataset.state = failed ? 'error' : 'slow';
+    screen.hidden = false;
   }
   function stopTimers() {
     window.clearTimeout(warningTimer);
@@ -153,11 +151,11 @@
   function phase(name) {
     if (finished || failed) return;
     phaseName = String(name).slice(0, 120);
-    message = '正在加载，请稍候…';
+    message = '';
     detail = '';
     remember('phase', phaseName);
-    show();
     watch();
+    show();
   }
   function fail(reason, error) {
     if (finished || failed) return;
@@ -183,7 +181,7 @@
   }
   function report() {
     return [
-      'LRO 启动诊断', '阶段：' + phaseName, '状态：' + (failed ? '异常' : delayed ? '超时/缓慢' : '加载中'),
+      'LRO 启动诊断', '阶段：' + phaseName, '状态：' + (failed ? '异常' : '超时/缓慢'),
       '说明：' + message, '建议：' + guidance(), '错误：' + (detail || '无明确异常'), '经过（相对时间）：',
       timeline.join('\n'), '浏览器：' + navigator.userAgent
     ].join('\n');

@@ -38,6 +38,17 @@ function validApprovalUrl(value) {
   } catch { return false; }
 }
 
+export function openKoreLtsdPage(page, url) {
+  try {
+    if (page.LastRONativeBuild === true) {
+      const core = page.__TAURI__?.core;
+      if (typeof core?.invoke !== 'function') return false;
+      return core.invoke('open_ke_ltsd_url', { url }).then(() => true, () => false);
+    }
+    return Boolean(page.open?.(url, '_blank', 'noopener,noreferrer'));
+  } catch { return false; }
+}
+
 export function createKoreLtsdClient({
   page = globalThis,
   fetchImpl = page.fetch?.bind(page),

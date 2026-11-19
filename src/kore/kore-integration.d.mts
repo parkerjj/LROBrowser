@@ -87,7 +87,7 @@ export interface KoreIntegration {
   refreshConfiguration(identity?: { profile: string; aid: number; cid: number; nid: number }): Promise<{ status: string; cached?: boolean; updatedAt?: number | null; error?: string | null }>;
   retryAuthorization(): Promise<boolean>;
   getAuthorizationDiagnostics(): string;
-  beginLtsdLogin(): Promise<boolean>; openLtsdApproval(): boolean; cancelLtsdLogin(): void; logoutLtsd(): Promise<boolean>;
+  beginLtsdLogin(): Promise<boolean>; openLtsdApproval(): boolean | Promise<boolean>; cancelLtsdLogin(): void; logoutLtsd(): Promise<boolean>;
   reloadConfig(target?: string): boolean; debugCommand(command: string): boolean; sendCommand(command: string, extraFields?: Record<string, unknown>): boolean;
   sendCommandText(text: string, options?: { silent?: boolean }): boolean;
   onCommandOutput(listener: (output: KoreCommandOutput) => void): () => void;

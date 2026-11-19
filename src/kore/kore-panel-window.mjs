@@ -4,6 +4,7 @@
 import { renderConsole } from './kore-panel-console.mjs';
 import { authorizationGuide } from './kore-auth-guide.mjs';
 import { copyText } from './kore-clipboard.mjs';
+import { openKoreLtsdPage } from './kore-ltsd-client.mjs';
 
 // Entries with a `mode` form the mode switch (the active one is highlighted from KE's own
 // answer); the rest are plain one-shot commands.
@@ -128,7 +129,7 @@ export function createKoreWindow({
   const configEdit = element(document, 'button', 'kore-button kore-config-edit', '编辑配置 ↗');
   configEdit.type = 'button';
   configEdit.title = '在 LTSD 打开配置编辑页（新标签页）';
-  configEdit.addEventListener('click', () => { page.open?.('https://ltsd.ro/ke', '_blank', 'noopener,noreferrer'); });
+  configEdit.addEventListener('click', () => { void openKoreLtsdPage(page, 'https://ltsd.ro/ke'); });
   const configRetry = element(document, 'button', 'kore-button kore-config-retry', '同步并重载');
   configRetry.type = 'button';
   configRetry.title = '从 LTSD 拉取最新配置并重新加载 KoreEngine';
@@ -271,10 +272,13 @@ export function createKoreWindow({
       return;
     }
     const phase = String(auth.phase ?? 'signed-out');
-    const quotaExceeded = phase === 'quota-exceeded';
+    const runtimeStatus = host.state.status;
+    const runtimeBlockReason = runtimeStatus === 'absent' ? 'package-not-bundled'
+      : runtimeStatus === 'unavailable' ? host.state.degradedReason ?? 'package-unavailable' : null;
+    const quotaExceeded = !runtimeBlockReason && phase === 'quota-exceeded';
     // 运行中手动“同步并重载”会经过 loading-profile/loading-runtime；此时保留控制台，不退回首次接入界面。
     const syncing = ['loading-profile', 'loading-runtime'].includes(phase);
-    const showRuntime = phase === 'ready' || phase === 'starting-license' || (syncing && runtimeShown);
+    const showRuntime = !runtimeBlockReason && (phase === 'ready' || phase === 'starting-license' || (syncing && runtimeShown));
     runtimeShown = showRuntime;
     onboarding.hidden = showRuntime;
     runtimeView.hidden = !showRuntime;
@@ -298,7 +302,7 @@ export function createKoreWindow({
     onboarding.dataset.phase = phase;
     const user = auth.user && typeof auth.user === 'object' ? auth.user : null;
     const hasAccount = Boolean(user);
-    const beforeCore = host?.state?.status !== 'runtime-ready';
+    const beforeCore = runtimeStatus !== 'runtime-ready';
     const step = hasAccount ? (['waiting-character', 'waiting-bind', 'binding-character'].includes(phase) || (phase === 'error' && beforeCore) ? 2 : 3) : 1;
     for (const [index, node] of stepNodes.entries()) {
       node.dataset.state = index + 1 < step ? 'complete' : index + 1 === step ? 'current' : 'upcoming';
@@ -306,8 +310,8 @@ export function createKoreWindow({
     const accountName = String(user?.displayName ?? user?.display_name ?? '');
     const status = text => onboardingContent.append(element(document, 'p', 'kore-onboarding-status', text));
     // 后台运行环境已停止时，即使授权阶段没有错误码也必须说明原因，不能让用户对着不动的面板干等。
-    const workerFailed = host?.state?.status === 'failed';
-    const errorCode = auth.error ?? (workerFailed ? host.state.degradedReason ?? 'worker-stopped' : null);
+    const workerFailed = runtimeStatus === 'failed';
+    const errorCode = runtimeBlockReason ?? auth.error ?? (workerFailed ? host.state.degradedReason ?? 'worker-stopped' : null);
     const baseGuide = authorizationGuide(errorCode, { stalled: auth.stalled === true });
     // LTSD 返回的在线实例数就是当前占用的名额：额度用完时直接告诉用户上限是几个。
     const quotaCount = Array.isArray(auth.detail?.active_instances) ? auth.detail.active_instances.length : 0;
@@ -332,9 +336,16 @@ export function createKoreWindow({
       'device-denied': '设备授权未批准',
       error: '连接未完成',
     };
-    onboardingTitle.textContent = quotaExceeded ? '实例额度' : phaseTitle[phase] ?? '连接 KoreEngine';
-    onboardingLead.textContent = quotaExceeded ? '' : hasAccount ? `LTSD 账号：${accountName}` : '通过 LTSD.ro 登录，然后同步当前角色配置。';
+    onboardingTitle.textContent = runtimeBlockReason ? 'KoreEngine 暂不可用' : quotaExceeded ? '实例额度' : phaseTitle[phase] ?? '连接 KoreEngine';
+    onboardingLead.textContent = hasAccount && !quotaExceeded ? `LTSD 账号：${accountName}`
+      : runtimeBlockReason || quotaExceeded ? '' : '通过 LTSD.ro 登录，然后同步当前角色配置。';
     onboarding.classList.toggle('kore-onboarding-quota', quotaExceeded);
+
+    if (runtimeBlockReason) {
+      authButton('复制错误信息', 'kore-auth-secondary kore-auth-copy-error', event => copyDiagnostics(event, errorCode));
+      if (hasAccount) authButton('退出 LTSD', 'kore-auth-link', () => { void host.logoutLtsd?.(); });
+      return;
+    }
 
     if (phase === 'signed-out' || phase === 'device-expired' || phase === 'device-denied' || phase === 'error') {
       if (!auth.error) status(phase === 'device-expired' ? '请重新申请设备验证码。'
@@ -356,7 +367,11 @@ export function createKoreWindow({
         expiryNode.title = expiry.toLocaleString();
         onboardingContent.append(expiryNode);
       }
-      authButton('打开 LTSD 批准页', 'kore-auth-primary kore-auth-open', () => host.openLtsdApproval?.());
+      authButton('打开 LTSD 批准页', 'kore-auth-primary kore-auth-open', async event => {
+        const button = event.currentTarget;
+        const opened = await host.openLtsdApproval?.();
+        if (page.LastRONativeBuild === true) button.textContent = opened ? '打开 LTSD 批准页' : '浏览器未打开，点此重试';
+      });
       authButton('复制验证码', 'kore-auth-secondary kore-auth-copy', event => {
         const button = event.currentTarget;
         void copyText(page, String(auth.userCode ?? '')).then(copied => { button.textContent = copied ? '已复制' : '复制失败'; });
@@ -374,7 +389,7 @@ export function createKoreWindow({
       status(phase === 'loading-profile' ? '正在获取 LTSD 活动配置…' : '配置已获取，正在让 KoreEngine 执行 reload all…');
     } else if (phase === 'profile-missing') {
       status('前往 LTSD 为当前角色创建并启用一套配置。');
-      authButton('前往 LTSD 配置', 'kore-auth-primary', () => page.open?.('https://ltsd.ro/ke', '_blank', 'noopener,noreferrer'));
+      authButton('前往 LTSD 配置', 'kore-auth-primary', () => { void openKoreLtsdPage(page, 'https://ltsd.ro/ke'); });
       authButton('重新检查', 'kore-auth-secondary', () => { void host.refreshConfiguration?.(); });
     } else if (phase === 'profile-unavailable') {
       status('配置接口暂时失败；成功同步过的配置会按账号和角色保存在本地。');
@@ -389,7 +404,7 @@ export function createKoreWindow({
       const modeLabel = startCommand === 'manual' ? '半自动' : '自动';
       status(`已使用 ${quotaCount} 个实例额度`);
       const buyButton = authButton('＋ 购买更多实例额度', 'kore-auth-primary kore-quota-buy', () => {
-        page.open?.('https://ltsd.ro/ke/buy', '_blank', 'noopener,noreferrer');
+        void openKoreLtsdPage(page, 'https://ltsd.ro/ke/buy');
       });
       buyButton.title = '在 LTSD 购买更多实例额度';
       const instances = Array.isArray(auth.detail?.active_instances)
