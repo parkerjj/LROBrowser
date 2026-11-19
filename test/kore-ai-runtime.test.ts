@@ -5,7 +5,7 @@ import { bridgeRecord, objectRecord, packageFixture, TestWorkerStub as WorkerStu
 async function setup(native: (action: unknown) => boolean = () => true) {
   const fixture = packageFixture('lastro-20211103', {}, 2); const worker = new WorkerStub();
   const page = Object.assign(new EventTarget(), { location: { href: 'http://localhost/' }, fetch: fixture.fetch,
-    performance: { now: () => 1 }, crypto: globalThis.crypto, KoreEngineNativeAction: vi.fn(native) });
+    performance: { now: (): number => 1 }, crypto: globalThis.crypto, KoreEngineNativeAction: vi.fn(native) });
   const host = createKoreIntegration({ page, manifest: fixture.executable, createWorker: () => worker }); await host.start();
   const init = worker.messages[0]!; worker.reply({ runtimeSessionId: init.runtimeSessionId, type: 'ready', packageId: fixture.manifest.packageId, worldReady: false, capabilities: { mapStream: true } });
   const gameSessionId = host.beginGameSession(7, 'prontera.gat'); const connectionGeneration = host.beginMapConnection();
@@ -46,5 +46,25 @@ test('native action rejection is returned as an ActionResult event', async () =>
   worker.reply({ runtimeSessionId: worker.messages[0]!.runtimeSessionId, type: 'outputs', outputs: [{ kind: 'action', action }] });
   const result = worker.messages.find(message => message.type === 'queue' && bridgeRecord(message).kind === 'actionResult');
   expect(bridgeRecord(result!)).toMatchObject({ requestId: 77, accepted: false, reason: 'native-action-rejected' });
+  host.dispose();
+});
+
+test('KE send timing uses the transport clock and stays compatible with older workers', async () => {
+  const { host, worker, page, gameSessionId, connectionGeneration } = await setup();
+  let now = 10;
+  page.performance.now = () => now;
+  page.KoreEngineNativeAction.mockImplementation(() => { now += 2; return true; });
+  const runtimeSessionId = worker.messages[0]!.runtimeSessionId;
+  const action = { runtimeSessionId, gameSessionId, connectionGeneration, controlGeneration: 0,
+    taskIntentGeneration: 1, type: 'UseSkillOnTarget', skillId: 382, level: 5, targetGid: 9001 };
+  for (const reportSentAtMs of [undefined, true]) {
+    worker.reply({ runtimeSessionId, type: 'outputs', outputs: [
+      { kind: 'action', action: { ...action, requestId: reportSentAtMs ? 2 : 1, reportSentAtMs } },
+    ] });
+  }
+  const results = worker.messages.filter(message => message.type === 'queue' && bridgeRecord(message).kind === 'actionResult').map(bridgeRecord);
+  expect(results[0]).toMatchObject({ requestId: 1, accepted: true });
+  expect(results[0]).not.toHaveProperty('sentAtMs');
+  expect(results[1]).toMatchObject({ requestId: 2, accepted: true, sentAtMs: 14 });
   host.dispose();
 });

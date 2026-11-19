@@ -387,9 +387,10 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     flushIngress();
     return context.bridgeSequence;
   };
-  const postActionResult = (action, accepted, reason) => {
+  const postActionResult = (action, accepted, reason, sentAtMs) => {
     if (!Number.isSafeInteger(action?.requestId) || action.requestId <= 0) return;
     const fields = { requestId: action?.requestId ?? null, routeId: action?.routeId ?? null, accepted: accepted === true, reason: reason ?? null };
+    if (Number.isFinite(sentAtMs)) fields.sentAtMs = sentAtMs;
     const overrides = {
       gameSessionId: action?.gameSessionId,
       connectionGeneration: action?.connectionGeneration,
@@ -397,7 +398,7 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     };
     postEvent('actionResult', fields, 'control', overrides);
   };
-  const ACTION_CONTEXT_KEYS = new Set(['type', 'requestId', 'routeId', 'runtimeSessionId', 'gameSessionId', 'connectionGeneration', 'controlGeneration', 'taskIntentGeneration', 'nextDeadlineMs']);
+  const ACTION_CONTEXT_KEYS = new Set(['type', 'requestId', 'routeId', 'runtimeSessionId', 'gameSessionId', 'connectionGeneration', 'controlGeneration', 'taskIntentGeneration', 'nextDeadlineMs', 'reportSentAtMs']);
   const recordAction = (action, accepted, reason) => {
     const detail = Object.entries(action && typeof action === 'object' ? action : {})
       .filter(([key]) => !ACTION_CONTEXT_KEYS.has(key)).map(([key, value]) => `${key}=${value}`).join(' ');
@@ -481,9 +482,10 @@ export function createKoreIntegration({ page = globalThis, manifest, createWorke
     } catch (error) {
       reason = String(error?.message ?? error);
     }
+    const sentAtMs = accepted && action.reportSentAtMs === true ? trafficNow() : undefined;
     recordAction(action, accepted, reason);
     if (!accepted) log('warn', `action rejected: ${action.type} #${action.requestId} (${reason})`);
-    postActionResult(action, accepted, reason);
+    postActionResult(action, accepted, reason, sentAtMs);
   };
   const recordDiagnostic = diagnostic => {
     state.lastDiagnostic = diagnostic;
