@@ -1,67 +1,127 @@
 name: Native desktop release
 
 on:
-  push:
+  workflow_run:
+    workflows: [IWA CI & Release]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
+    inputs:
+      iwa_run_id:
+        description: Main IWA workflow run ID with a published IWA release
+        required: true
+        type: string
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: native-release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
+  prepare:
+    name: Resolve the production IWA source and version
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+        ((github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'failure') &&
+         github.event.workflow_run.head_repository.full_name == github.repository &&
+         (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch')))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      commit: ${{ steps.source.outputs.commit }}
+      run-id: ${{ steps.source.outputs.run-id }}
+      ke-artifact-id: ${{ steps.source.outputs.ke-artifact-id }}
+      version: ${{ steps.version.outputs.value }}
+    steps:
+      - name: Verify the upstream run and resolve its artifacts
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IWA_RUN_ID: ${{ github.event.workflow_run.id || inputs.iwa_run_id }}
+        run: |
+          [[ "$IWA_RUN_ID" =~ ^[1-9][0-9]*$ ]] || { echo 'Expected a numeric IWA workflow run ID.' >&2; exit 1; }
+          run=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$IWA_RUN_ID")
+          commit=$(jq -er --arg repo "$GITHUB_REPOSITORY" '
+            select(.path == ".github/workflows/ci-release.yml" and .head_branch == "main" and
+              .head_repository.full_name == $repo and .status == "completed" and
+              (.conclusion == "success" or .conclusion == "failure") and
+              (.event == "push" or .event == "workflow_dispatch")) | .head_sha
+          ' <<< "$run") || { echo 'Expected a completed same-repository main IWA release run.' >&2; exit 1; }
+          current_main=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
+          [[ "$commit" =~ ^[0-9a-f]{40}$ && "$commit" == "$current_main" ]] || { echo 'Refusing stale main Native release.' >&2; exit 1; }
+          # An unrelated web deployment failure does not prevent Native publishing.
+          jobs=$(gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/actions/runs/$IWA_RUN_ID/jobs?filter=all&per_page=100")
+          jq -e --arg commit "$commit" '
+            [.[].jobs[] | select(.name == "Sign & publish IWA release" and .head_sha == $commit)]
+            | max_by(.completed_at, .id) | .conclusion == "success"
+          ' <<< "$jobs" > /dev/null || { echo 'The selected run did not publish the IWA release.' >&2; exit 1; }
+          artifact_id() {
+            local name="$1" id
+            id=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$IWA_RUN_ID/artifacts?name=$name" --jq '.artifacts[] | select(.expired == false) | .id')
+            [[ "$id" =~ ^[1-9][0-9]*$ ]] || { echo "Expected one retained IWA artifact named $name." >&2; return 1; }
+            echo "$id"
+          }
+          ke_artifact_id=$(artifact_id verified-ke-release)
+          iwa_artifact_id=$(artifact_id iwa-production-bundle)
+          {
+            echo "commit=$commit"
+            echo "run-id=$IWA_RUN_ID"
+            echo "ke-artifact-id=$ke_artifact_id"
+            echo "iwa-artifact-id=$iwa_artifact_id"
+          } >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ steps.source.outputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.source.outputs.run-id }}
+          artifact-ids: ${{ steps.source.outputs.ke-artifact-id }}
+          path: ${{ runner.temp }}/native-ke
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.source.outputs.run-id }}
+          artifact-ids: ${{ steps.source.outputs.iwa-artifact-id }}
+          path: ${{ runner.temp }}/native-iwa
+      - name: Confirm the IWA version matches the source and KoreEngine
+        id: version
+        env:
+          NATIVE_COMMIT: ${{ steps.source.outputs.commit }}
+        run: |
+          test -s "$RUNNER_TEMP/native-iwa/lastro-v2-$NATIVE_COMMIT.wbn"
+          ke_count=$(jq -er '.commitCount | select(type == "number" and . == floor and . > 0)' "$RUNNER_TEMP/native-ke/release.json")
+          source_count=$(git rev-list --count "$NATIVE_COMMIT")
+          commit_date=$(TZ=Asia/Shanghai git show -s --format=%cd --date=format-local:%y%m%d "$NATIVE_COMMIT")
+          expected="1.$(( source_count + ke_count )).$commit_date"
+          version=$(jq -er '.bundleVersion' "$RUNNER_TEMP/native-iwa/audit-report.json")
+          [[ "$version" == "$expected" ]] || { echo "IWA version $version differs from expected version $expected." >&2; exit 1; }
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+
   preflight:
     name: Check Native release code
-    if: github.ref == 'refs/heads/main'
+    needs: prepare
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          ref: ${{ needs.prepare.outputs.commit }}
           persist-credentials: false
       - uses: ./.github/actions/setup
       - run: pnpm lint
       - run: pnpm typecheck
       - run: node --test test/publish-native-r2.node.mjs
 
-  prepare:
-    name: Prepare the Native release inputs
-    needs: preflight
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-24.04
-    environment: production
-    timeout-minutes: 15
-    outputs:
-      version: ${{ steps.version.outputs.value }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup
-      - name: Allocate the desktop version
-        id: version
-        run: |
-          for part in "$GITHUB_RUN_NUMBER" "$GITHUB_RUN_ATTEMPT"; do
-            [[ "$part" =~ ^[1-9][0-9]{0,4}$ && "$part" -le 65535 ]]
-          done
-          echo "value=1.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
-      - name: Download and validate the KoreEngine Release
-        env:
-          KE_REPOSITORY_READ_TOKEN: ${{ secrets.KE_REPOSITORY_READ_TOKEN }}
-        run: node scripts/kore-local.mjs --download-release --out "$RUNNER_TEMP/native-ke"
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-        with:
-          name: native-ke-${{ steps.version.outputs.value }}
-          path: ${{ runner.temp }}/native-ke/
-          if-no-files-found: error
-          retention-days: 3
-
   build:
     name: Package Native ${{ matrix.platform }}
-    needs: prepare
+    needs: [prepare, preflight]
     runs-on: ${{ matrix.runner }}
     environment: production
     timeout-minutes: 90
@@ -98,11 +158,14 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          ref: ${{ needs.prepare.outputs.commit }}
           persist-credentials: false
       - uses: ./.github/actions/setup
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
-          name: native-ke-${{ needs.prepare.outputs.version }}
+          github-token: ${{ github.token }}
+          run-id: ${{ needs.prepare.outputs.run-id }}
+          artifact-ids: ${{ needs.prepare.outputs.ke-artifact-id }}
           path: ${{ runner.temp }}/native-ke
       - name: Import the verified KoreEngine package
         run: node scripts/kore-local.mjs --import-package "$RUNNER_TEMP/native-ke/package" --release-metadata "$RUNNER_TEMP/native-ke/release.json"
@@ -111,7 +174,7 @@ jobs:
         run: |
           sudo apt-get update
           if [[ "$TARGET_PLATFORM" == windows-* ]]; then
-            sudo apt-get install -y --no-install-recommends clang lld llvm nsis
+            sudo apt-get install -y --no-install-recommends clang lld llvm nsis python3-pefile
           else
             sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev rpm
           fi
@@ -177,6 +240,11 @@ jobs:
           runner=()
           if [[ "$TARGET_PLATFORM" == windows-* ]]; then runner=(--runner cargo-xwin); fi
           pnpm dlx @tauri-apps/cli@2.12.5 build --no-bundle --ci --config "$RUNNER_TEMP/native-release.json" --target "$RUST_TARGET" "${runner[@]}" -- --locked
+      - name: Set Windows executable fixed version metadata
+        if: matrix.platform == 'windows-x64'
+        run: |
+          /usr/bin/python3 .github/actions/native-release/windows-version.py prepare-app \
+            "$CARGO_TARGET_DIR/$RUST_TARGET/release/lro_client.exe"
       - name: Bundle and sign Windows or Linux updater artifacts
         if: runner.os == 'Linux'
         working-directory: native
@@ -185,6 +253,18 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           : "${TAURI_SIGNING_PRIVATE_KEY:?Missing Tauri update signing key in the production environment}"
+          if [[ "$TARGET_PLATFORM" == windows-* ]]; then
+            export NATIVE_MAKENSIS
+            NATIVE_MAKENSIS=$(command -v makensis)
+            tools="$RUNNER_TEMP/native-nsis-bin"
+            mkdir -p "$tools"
+            cat > "$tools/makensis" <<'SH'
+          #!/bin/bash
+          exec /usr/bin/python3 "$GITHUB_WORKSPACE/.github/actions/native-release/windows-version.py" compile-nsis "$@"
+          SH
+            chmod +x "$tools/makensis"
+            export PATH="$tools:$PATH"
+          fi
           pnpm dlx @tauri-apps/cli@2.12.5 bundle --ci --config "$RUNNER_TEMP/native-release.json" --target "$RUST_TARGET" --bundles "$TARGET_BUNDLES"
       - name: Sign, notarize and bundle the macOS updater artifacts
         if: runner.os == 'macOS'
@@ -246,7 +326,11 @@ jobs:
             fi
           }
           case "$TARGET_PLATFORM" in
-            windows-x64) collect "$prefix-windows-x64-setup.exe" yes "$bundle"/nsis/*-setup.exe ;;
+            windows-x64)
+              collect "$prefix-windows-x64-setup.exe" yes "$bundle"/nsis/*-setup.exe
+              /usr/bin/python3 .github/actions/native-release/windows-version.py verify \
+                "$RUNNER_TEMP/native-release/$prefix-windows-x64-setup.exe"
+              ;;
             macos-universal)
               collect "$prefix-macos-universal.dmg" no "$bundle"/dmg/*.dmg
               collect "$prefix-macos-universal.app.tar.gz" yes "$bundle"/macos/*.app.tar.gz
@@ -282,9 +366,11 @@ jobs:
     timeout-minutes: 25
     env:
       NATIVE_VERSION: ${{ needs.prepare.outputs.version }}
+      NATIVE_COMMIT: ${{ needs.prepare.outputs.commit }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          ref: ${{ needs.prepare.outputs.commit }}
           persist-credentials: false
       - uses: ./.github/actions/setup
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
@@ -303,8 +389,8 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: |
           current_main=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
-          [[ "$current_main" == "$GITHUB_SHA" ]] || { echo 'Refusing stale main Native release.' >&2; exit 1; }
-          node scripts/publish-native-r2.mjs --release-dir "$RUNNER_TEMP/native-release" --version "$NATIVE_VERSION" --commit "$GITHUB_SHA"
+          [[ "$current_main" == "$NATIVE_COMMIT" ]] || { echo 'Refusing stale main Native release.' >&2; exit 1; }
+          node scripts/publish-native-r2.mjs --release-dir "$RUNNER_TEMP/native-release" --version "$NATIVE_VERSION" --commit "$NATIVE_COMMIT"
       - name: Confirm the public update feeds match the release
         run: |
           node --input-type=module <<'NODE'
@@ -335,15 +421,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           current_main=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
-          [[ "$current_main" == "$GITHUB_SHA" ]] || { echo 'Refusing stale main Native release.' >&2; exit 1; }
+          [[ "$current_main" == "$NATIVE_COMMIT" ]] || { echo 'Refusing stale main Native release.' >&2; exit 1; }
           tag="native-$NATIVE_VERSION"
           files=("$RUNNER_TEMP/native-release"/*)
           if release=$(gh release view "$tag" --json isDraft,targetCommitish); then
-            [[ "$(jq -r .targetCommitish <<< "$release")" == "$GITHUB_SHA" ]]
+            [[ "$(jq -r .targetCommitish <<< "$release")" == "$NATIVE_COMMIT" ]]
             if [[ "$(jq -r .isDraft <<< "$release")" == true ]]; then
               gh release upload "$tag" "${files[@]}" --clobber
               gh release edit "$tag" --draft=false --latest=false
             fi
           else
-            gh release create "$tag" "${files[@]}" --target "$GITHUB_SHA" --title "Native $NATIVE_VERSION" --generate-notes --latest=false
+            gh release create "$tag" "${files[@]}" --target "$NATIVE_COMMIT" --title "Native $NATIVE_VERSION" --generate-notes --latest=false
           fi

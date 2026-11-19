@@ -150,6 +150,33 @@ describe('Native R2 publisher', () => {
     assert.deepEqual(r2.writes, writes);
   });
 
+  it('promotes a shared IWA version from the original Native feed and advertises desktop installers', async () => {
+    const release = await fixture('1.1025.261120');
+    const r2 = mockR2();
+    // The first public Native manifests had no installer links.
+    for (const key of [desktopKey, linuxKey]) {
+      r2.put(key, Buffer.from('{"version":"1.2.1"}'));
+    }
+    await publishNativeRelease({ ...release, client: r2.client });
+    const desktop = r2.manifest(desktopKey);
+    const linux = r2.manifest(linuxKey);
+    assert.equal(desktop.version, release.version);
+    assert.equal(linux.version, release.version);
+    assert.equal(linux.installers, undefined);
+    assert.deepEqual(Object.keys(desktop.installers).sort(), ['darwin-universal', 'windows-x86_64']);
+    const { url, size, sha256 } = desktop.platforms['windows-x86_64'];
+    assert.deepEqual(desktop.installers['windows-x86_64'], { url, size, sha256 });
+    assert.match(desktop.platforms['darwin-aarch64'].url, /\.app\.tar\.gz$/);
+    const dmg = desktop.installers['darwin-universal'];
+    const dmgKey = `native/${release.version}/LRO-Client-${release.version}-macos-universal.dmg`;
+    assert.deepEqual(dmg, {
+      url: `https://client.ltsd.ro/${dmgKey}`,
+      size: r2.store.get(dmgKey).Body.length,
+      sha256: r2.store.get(dmgKey).Metadata.sha256,
+    });
+    assert.ok(r2.writes.indexOf(dmgKey) < r2.writes.indexOf(desktopKey));
+  });
+
   it('will not replace a newer feed published concurrently', async () => {
     const release = await fixture();
     const r2 = mockR2();

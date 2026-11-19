@@ -27,6 +27,11 @@ async fn open_ke_ltsd_url(app: tauri::AppHandle, url: String) -> Result<(), Stri
         .map_err(|error| error.to_string())
 }
 
+#[tauri::command]
+fn native_update_version(app: tauri::AppHandle) -> String {
+    app.package_info().version.to_string()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default();
@@ -67,6 +72,9 @@ pub fn run() {
             net::net_close,
             windows::open_game_window,
             open_ke_ltsd_url,
+            native_update_version,
+            #[cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))]
+            updater::native_check_update,
         ])
         .build(tauri::generate_context!())
         .expect("failed to build LRO Client")

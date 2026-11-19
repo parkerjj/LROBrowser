@@ -50,6 +50,7 @@ interface HarnessOptions {
   readTimeoutMs?: number;
   nativeFetch?: typeof globalThis.fetch;
   allowOfficialProfileScript?: boolean;
+  allowNativeUpdateManifest?: boolean;
 }
 
 function harness(options: HarnessOptions = {}) {
@@ -82,6 +83,7 @@ function harness(options: HarnessOptions = {}) {
     ...(options.readTimeoutMs === undefined ? {} : { readTimeoutMs: options.readTimeoutMs }),
     ...(options.nativeFetch === undefined ? {} : { nativeFetch: options.nativeFetch }),
     ...(options.allowOfficialProfileScript === undefined ? {} : { allowOfficialProfileScript: options.allowOfficialProfileScript }),
+    ...(options.allowNativeUpdateManifest === undefined ? {} : { allowNativeUpdateManifest: options.allowNativeUpdateManifest }),
   });
   return { fetch, requests, constructorArgs, close, controller, opened, readable, writable };
 }
@@ -256,6 +258,30 @@ describe('Direct HTTP resource transport', () => {
     expect(allowed.constructorArgs).toEqual([['game.lastro.cn', 443, { noDelay: true, keepAliveDelay: 60_000 }]]);
     expect(tlsCertificateVerification).toHaveBeenLastCalledWith(true);
     await expect(allowed.fetch('https://game.lastro.cn/ro/not-allowed.js')).rejects.toThrow('passive resource paths');
+  });
+
+  it('reads only the opted-in Native manifest over verified TLS without game headers or credentials', async () => {
+    const url = 'https://client.ltsd.ro/native/latest.json';
+    const body = ascii('{"version":"1.2.1"}');
+    const response = responseBytes('HTTP/1.1 200 OK', ['Content-Type: application/json',
+      `Content-Length: ${body.byteLength}`], body);
+    await expect(harness().fetch(url)).rejects.toThrow('approved resource origins');
+
+    const h = harness({ response: [response], allowNativeUpdateManifest: true });
+    await expect(h.fetch('https://client.ltsd.ro/native/linux.json')).rejects.toThrow('approved resource origins');
+    await expect(h.fetch(`${url}?redirect=/other`)).rejects.toThrow('approved resource origins');
+    expect(h.constructorArgs).toEqual([]);
+    h.opened.resolve({ readable: h.readable, writable: h.writable });
+
+    const result = await h.fetch(url, { headers: { Cookie: 'fixture-secret' } });
+    expect(await result.json()).toEqual({ version: '1.2.1' });
+    expect(h.constructorArgs).toEqual([['client.ltsd.ro', 443, { noDelay: true, keepAliveDelay: 60_000 }]]);
+    expect(tlsCertificateVerification).toHaveBeenLastCalledWith(true);
+    const request = new TextDecoder().decode(h.requests[0]);
+    expect(request).toContain('GET /native/latest.json HTTP/1.1\r\n');
+    expect(request).toContain('Host: client.ltsd.ro\r\n');
+    expect(request).toContain('Cache-Control: no-cache\r\n');
+    expect(request).not.toMatch(/Origin:|Referer:|Cookie:|fixture-secret/);
   });
 
   it('rejects URL credentials and non-GET resource requests before opening a socket', async () => {

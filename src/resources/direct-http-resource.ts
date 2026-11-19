@@ -7,6 +7,9 @@ const RESOURCE_ROOTS = new Map([
   ['https://rodata.ltsd.ro', 'rodata.ltsd.ro'],
 ]);
 
+export const NATIVE_UPDATE_MANIFEST_URL = 'https://client.ltsd.ro/native/latest.json';
+const MAX_UPDATE_MANIFEST_BYTES = 64 * 1024;
+
 const REQUEST_HEADERS = [
   ['Accept', '*/*'],
   ['Accept-Encoding', 'identity'],
@@ -39,6 +42,8 @@ interface DirectHttpOptions {
   idleTimeoutMs?: number;
   /** Restrict the extra executable-text path to the reviewed metadata downloader. */
   allowOfficialProfileScript?: boolean;
+  /** The IWA login notice may read the pinned public Native update manifest. */
+  allowNativeUpdateManifest?: boolean;
   /** Test seam: production always uses the bundled TLS 1.2/1.3 client. */
   tlsClientFactory?: typeof makeTLSClient;
 }
@@ -637,12 +642,11 @@ export function createDirectHttpFetch(options: DirectHttpOptions = {}): typeof g
   const maxBodyBytes = Math.max(1, options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES);
   const maxConnections = Math.max(1, options.maxConnections ?? DEFAULT_MAX_CONNECTIONS);
   const idleTimeoutMs = Math.max(1, options.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS);
-  const buildRequest = (pathname: string, host: string, connection?: 'close') => new TextEncoder().encode([
+  const buildRequest = (pathname: string, host: string, connection?: 'close', updateManifest = false) => new TextEncoder().encode([
     `GET ${pathname} HTTP/1.1`,
     `Host: ${host}`,
     ...REQUEST_HEADERS.map(([name, value]) => `${name}: ${value}`),
-    ...officialWebHeaders(),
-    `Referer: ${OFFICIAL_WEB_ORIGIN}/ro/api.html`,
+    ...(updateManifest ? ['Cache-Control: no-cache'] : [...officialWebHeaders(), `Referer: ${OFFICIAL_WEB_ORIGIN}/ro/api.html`]),
     ...(connection ? [`Connection: ${connection}`] : []),
     '',
     '',
@@ -688,12 +692,14 @@ export function createDirectHttpFetch(options: DirectHttpOptions = {}): typeof g
   };
   return (async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const url = asUrl(input);
-    const host = RESOURCE_ROOTS.get(url.origin);
+    const updateManifest = options.allowNativeUpdateManifest === true && url.href === NATIVE_UPDATE_MANIFEST_URL;
+    const host = updateManifest ? url.hostname : RESOURCE_ROOTS.get(url.origin);
     if (!host) throw new Error('Direct HTTP only permits approved resource origins');
     if (url.username || url.password) throw new Error('Public resource requests cannot include credentials');
     const officialProfileRequest = options.allowOfficialProfileScript === true
       && url.origin === 'https://game.lastro.cn' && url.pathname === '/ro/Online.js';
-    if ((!officialProfileRequest && !url.pathname.startsWith('/ro/client_re/')) || url.search || url.hash) {
+    const verifiedMetadata = officialProfileRequest || updateManifest;
+    if ((!verifiedMetadata && !url.pathname.startsWith('/ro/client_re/')) || url.search || url.hash) {
       throw new Error('Direct HTTP only permits passive resource paths');
     }
     if (requestMethod(input, init) !== 'GET' || init?.body !== undefined) {
@@ -710,7 +716,7 @@ export function createDirectHttpFetch(options: DirectHttpOptions = {}): typeof g
       });
     }
     if (!constructorForSocket) throw new Error('Direct TCP is unavailable');
-    if (!officialProfileRequest) {
+    if (!verifiedMetadata) {
       const parsed = await fetchPooled(url.pathname, signal, (init as ResourceFetchInit | undefined)?.onProgress);
       const body = parsed.status === 204 || parsed.status === 205 || parsed.status === 304 ? null : parsed.body;
       return new Response(body, { status: parsed.status, statusText: parsed.statusText, headers: parsed.headers });
@@ -721,17 +727,17 @@ export function createDirectHttpFetch(options: DirectHttpOptions = {}): typeof g
     try {
       const connection = await waitFor(native.opened, openTimeoutMs, signal, 'open');
       opened = true;
-      const request = buildRequest(url.pathname, host, 'close');
+      const request = buildRequest(url.pathname, host, 'close', updateManifest);
       // Keep TLS bundled in the IWA worker, never load code from a remote URL.
       const encrypted = await openEncryptedHttpStreams(native, connection, host, {
         tlsClientFactory: options.tlsClientFactory,
         timeoutMs: openTimeoutMs,
-        // Online.js contains server addresses and packet keys: unlike images,
-        // metadata must be authenticated before influencing game connections.
-        verifyServerCertificate: officialProfileRequest,
+        // These documents supply connection details or installer URLs.
+        verifyServerCertificate: true,
         signal,
       });
-      const parsed = await readResponse(native, encrypted, request, { readTimeoutMs, maxHeaderBytes, maxBodyBytes, signal });
+      const bodyLimit = updateManifest ? Math.min(MAX_UPDATE_MANIFEST_BYTES, maxBodyBytes) : maxBodyBytes;
+      const parsed = await readResponse(native, encrypted, request, { readTimeoutMs, maxHeaderBytes, maxBodyBytes: bodyLimit, signal });
       const body = parsed.status === 204 || parsed.status === 205 || parsed.status === 304 ? null : parsed.body;
       return new Response(body, { status: parsed.status, statusText: parsed.statusText, headers: parsed.headers });
     } catch (error) {
