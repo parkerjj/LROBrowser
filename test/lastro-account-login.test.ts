@@ -10,7 +10,7 @@ import { getAvailableServerProfile } from '../src/servers/server-profiles';
 
 // The runtime module is deliberately shipped as an executable MJS asset.
 // @ts-expect-error Runtime MJS is validated by the Vite bundle and this focused test.
-import { decorateLastROLoginStyles, decorateLastROLoginTemplate, installLastROLogin, beforeLastROLoginConnect, afterLastROLoginPassword, compareLastROVersions, selectLastROUpdate } from '../src/runtime/lastro-account-login.mjs';
+import { decorateLastROLoginStyles, decorateLastROLoginTemplate, installLastROLogin, beforeLastROLoginConnect, afterLastROLoginPassword } from '../src/runtime/lastro-account-login.mjs';
 
 describe('LastRO native login integration', () => {
   async function savedLogin() {
@@ -227,12 +227,21 @@ describe('LastRO native login integration', () => {
 });
 
 describe('LastRO login version badge', () => {
-  const UPDATES = 'https://client.ltsd.ro/updates.json';
-  const published = { versions: [
-    { version: '0.1.102', src: 'https://client.ltsd.ro/releases/0.1.102/lastro-v2-a.swbn', channels: ['default'] },
-    { version: '0.1.91', src: 'https://client.ltsd.ro/releases/0.1.91/lastro-v2-b.swbn', channels: ['default'] },
-    { version: '0.1.66', src: 'https://client.ltsd.ro/releases/0.1.66/lastro-v2-c.swbn', channels: ['default'] },
-  ], channels: { default: { name: 'Stable' } } };
+  const UPDATES = 'https://client.ltsd.ro/native/latest.json';
+  const windows = 'https://client.ltsd.ro/native/1.2.1/LRO-Client-1.2.1-windows-x64-setup.exe';
+  const mac = 'https://client.ltsd.ro/native/1.2.1/LRO-Client-1.2.1-macos-universal.dmg';
+  const macUpdater = 'https://client.ltsd.ro/native/1.2.1/LRO-Client-1.2.1-macos-universal.app.tar.gz';
+  const installer = (url: string) => ({ url, sha256: 'a'.repeat(64), size: 4000 });
+  const signed = (url: string) => ({ ...installer(url), signature: 'c2lnbmF0dXJl' });
+  const legacy = {
+    version: '1.2.1', notes: 'LRO进阶客户端 1.2.1', pub_date: '2026-11-19T21:13:13.000Z',
+    platforms: {
+      'windows-x86_64': signed(windows),
+      'darwin-aarch64': signed(macUpdater),
+      'darwin-x86_64': signed(macUpdater),
+    },
+  };
+  const published = { ...legacy, installers: { 'windows-x86_64': installer(windows), 'darwin-universal': installer(mac) } };
   const reply = (body: unknown) => ({ ok: true, json: async () => body });
   function mount(installed: string | null, updates: () => Promise<unknown> = async () => reply(published)) {
     vi.stubGlobal('indexedDB', new IDBFactory());
@@ -248,59 +257,76 @@ describe('LastRO login version badge', () => {
     document.body.append(host);
     installLastROLogin({ root, component: {}, configs: { get: (key: keyof typeof config) => config[key], getServer: () => config.servers[0] } });
     const box = root.querySelector<HTMLElement>('[data-lastro-version]')!;
-    return { host, root, box, fetchMock, badge: box.querySelector<HTMLElement>('[data-lastro-version-badge]')!,
+    return { host, root, box, fetchMock, badge: box.querySelector<HTMLButtonElement>('[data-lastro-version-badge]')!,
       detail: box.querySelector<HTMLElement>('[data-lastro-update-detail]')! };
   }
   afterEach(() => { document.body.innerHTML = ''; vi.unstubAllGlobals(); });
 
-  it('compares dotted versions numerically', () => {
-    expect(compareLastROVersions('0.1.102', '0.1.91')).toBeGreaterThan(0);
-    expect(compareLastROVersions('0.1.66', '0.1.66')).toBe(0);
-    expect(compareLastROVersions('0.2', '0.1.99')).toBeGreaterThan(0);
-  });
-
-  it('selects the newest default-channel https package from the project host only', () => {
-    expect(selectLastROUpdate(published)).toEqual({ version: '0.1.102', src: published.versions[0]!.src });
-    const hostile = { versions: [
-      { version: '9.9.9', src: 'https://evil.example/x.swbn', channels: ['default'] },
-      { version: '9.9.8', src: 'http://client.ltsd.ro/x.swbn', channels: ['default'] },
-      { version: '9.9.7', src: 'https://client.ltsd.ro/x.swbn', channels: ['beta'] },
-      { version: 'v9', src: 'https://client.ltsd.ro/x.swbn', channels: ['default'] },
-      { version: '0.1.5', src: 'https://client.ltsd.ro/ok.swbn', channels: ['default'] },
-    ] };
-    expect(selectLastROUpdate(hostile)).toEqual({ version: '0.1.5', src: 'https://client.ltsd.ro/ok.swbn' });
-    expect(selectLastROUpdate({})).toBeNull(); expect(selectLastROUpdate(null)).toBeNull();
-  });
-
-  it('shows the installed version and a prominent, expandable notice when a newer package is published', async () => {
-    const { box, badge, detail, root, fetchMock } = mount('0.1.91');
+  it.each(['1.200.261119', '1.2.1'])('offers both Native installers when the installed IWA version is %s', async (current) => {
+    const { box, badge, detail, fetchMock } = mount(current);
     await vi.waitFor(() => expect(box.dataset.update).toBe('available'));
     expect(box.hidden).toBe(false);
-    expect(badge.textContent).toBe('v0.1.91 · 发现新版本 v0.1.102');
+    expect(badge.textContent).toContain(`v${current}`);
+    expect(badge.textContent).toContain('原生客户端 v1.2.1');
     expect(fetchMock).toHaveBeenCalledWith(UPDATES, expect.objectContaining({ credentials: 'omit' }));
-    const download = root.querySelector<HTMLAnchorElement>('[data-lastro-update-download]')!;
-    expect(download.href).toBe(published.versions[0]!.src); expect(download.rel).toContain('noopener');
-    expect(detail.hidden).toBe(true); badge.click(); expect(detail.hidden).toBe(false);
-    expect(detail.textContent).toContain('chrome://iwa-dev'); badge.click(); expect(detail.hidden).toBe(true);
-  });
-
-  it('copies the install page address because web content cannot open chrome:// pages', async () => {
-    const writeText = vi.fn(async () => undefined);
-    const { box, badge, root } = mount('0.1.66');
-    vi.stubGlobal('navigator', { clipboard: { writeText } });
-    await vi.waitFor(() => expect(box.dataset.update).toBe('available'));
+    expect(badge.getAttribute('aria-expanded')).toBe('false');
+    expect(detail.hidden).toBe(true);
     badge.click();
-    const copy = root.querySelector<HTMLButtonElement>('[data-lastro-action="copy-install-page"]')!;
-    copy.click();
-    await vi.waitFor(() => expect(copy.textContent).toBe('已复制，请粘贴到地址栏'));
-    expect(writeText).toHaveBeenCalledExactlyOnceWith('chrome://iwa-dev');
+    expect(badge.getAttribute('aria-expanded')).toBe('true');
+    expect(detail.hidden).toBe(false);
+    expect(detail.textContent).toContain('v1.2.1');
+    expect(detail.textContent).toContain('使用原有游戏账号登录');
+    expect(detail.textContent).not.toContain('chrome://iwa-dev');
+    const links = [...detail.querySelectorAll<HTMLAnchorElement>('a[href]')];
+    expect(links.map(link => link.href)).toEqual([windows, mac]);
+    expect(links[0]?.textContent).toContain('.exe');
+    expect(links[1]?.textContent).toContain('.dmg');
+    expect(links.every(link => link.rel.includes('noopener'))).toBe(true);
+    badge.click();
+    expect(detail.hidden).toBe(true);
   });
 
-  it('shows only the version when the installed package is current', async () => {
-    const { box, badge, fetchMock } = mount('0.1.102');
-    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledWith(UPDATES, expect.anything()));
-    await new Promise(resolve => setTimeout(resolve, 0));
-    expect(badge.textContent).toBe('v0.1.102'); expect(box.dataset.update).toBeUndefined();
+  it('uses the legacy release feed to offer a DMG and the Windows setup executable', async () => {
+    const { box, detail } = mount('1.200.261119', async () => reply(legacy));
+    await vi.waitFor(() => expect(box.dataset.update).toBe('available'));
+    expect([...detail.querySelectorAll<HTMLAnchorElement>('a[href]')].map(link => link.href)).toEqual([windows, mac]);
+  });
+
+  it('reads the installer feed through the IWA release transport when it is available', async () => {
+    vi.stubGlobal('LastROFetchNativeUpdateManifest', async () => reply(legacy));
+    const { box, detail, fetchMock } = mount('1.200.261119', async () => { throw new TypeError('CORS'); });
+    await vi.waitFor(() => expect(box.dataset.update).toBe('available'));
+    expect([...detail.querySelectorAll<HTMLAnchorElement>('a[href]')].map(link => link.href)).toEqual([windows, mac]);
+    expect(fetchMock).not.toHaveBeenCalledWith(UPDATES, expect.anything());
+  });
+
+  it.each([
+    { ...installer(macUpdater) },
+    { ...installer(mac.replace('client.ltsd.ro', 'client.ltsd.ro.example')) },
+    { ...installer(mac.replace('/1.2.1/', '/1.2.2/')) },
+    { ...installer(`${mac}?download=1`) },
+    { ...installer(mac.replace('client.ltsd.ro', 'client.ltsd.ro:8443')) },
+    { ...installer(mac), sha256: 'invalid' },
+    { ...installer(mac), size: 0 },
+  ])('excludes invalid explicit macOS installers without using the legacy fallback (%j)', async (descriptor) => {
+    const manifest = { ...published, installers: { ...published.installers, 'darwin-universal': descriptor } };
+    const { box, detail } = mount('1.200.261119', async () => reply(manifest));
+    await vi.waitFor(() => expect(box.dataset.update).toBe('available'));
+    expect([...detail.querySelectorAll<HTMLAnchorElement>('a[href]')].map(link => link.href)).toEqual([windows]);
+  });
+
+  it('does not derive a DMG from an invalid legacy Mac updater descriptor', async () => {
+    const manifest = {
+      ...legacy,
+      platforms: {
+        'windows-x86_64': legacy.platforms['windows-x86_64'],
+        'darwin-aarch64': signed(macUpdater.replace('/1.2.1/', '/1.2.2/')),
+        'darwin-x86_64': { ...signed(macUpdater), signature: '' },
+      },
+    };
+    const { box, detail } = mount('1.200.261119', async () => reply(manifest));
+    await vi.waitFor(() => expect(box.dataset.update).toBe('available'));
+    expect([...detail.querySelectorAll<HTMLAnchorElement>('a[href]')].map(link => link.href)).toEqual([windows]);
   });
 
   it('does not report an update for the unreleased placeholder version', async () => {
@@ -309,7 +335,7 @@ describe('LastRO login version badge', () => {
     expect(badge.textContent).toBe('v0.1.0'); expect(fetchMock).not.toHaveBeenCalledWith(UPDATES, expect.anything());
   });
 
-  it('keeps the version visible and stays quiet when the update list cannot be read', async () => {
+  it('keeps the version visible without installer links when the release feed cannot be read', async () => {
     const { box, badge, fetchMock } = mount('0.1.91', async () => { throw new TypeError('Failed to fetch'); });
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledWith(UPDATES, expect.anything()));
     await new Promise(resolve => setTimeout(resolve, 0));
@@ -325,5 +351,53 @@ describe('LastRO login version badge', () => {
     const web = mount('0.1.91');
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(web.box.hidden).toBe(true); expect(web.fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('uses the Native app version and checks for updates through Tauri on demand', async () => {
+    vi.stubGlobal('LastRONativeBuild', true);
+    let complete: (result: string) => void = () => undefined;
+    const pending = new Promise<string>(resolve => { complete = resolve; });
+    const invoke = vi.fn((command: string) => {
+      if (command === 'native_update_version') return Promise.resolve('1.12.261119');
+      if (command === 'native_check_update') return pending;
+      throw new Error(`Unexpected Native command ${command}`);
+    });
+    vi.stubGlobal('__TAURI__', { core: { invoke } });
+    const { box, badge, detail, fetchMock, root } = mount('0.1.0');
+    await vi.waitFor(() => expect(badge.textContent).toBe('v1.12.261119'));
+    expect(box.hidden).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(invoke).toHaveBeenCalledTimes(1);
+    const check = root.querySelector<HTMLButtonElement>('[data-lastro-action="check-native-update"]')!;
+    expect(check.textContent).toBe('检查客户端更新');
+    expect(check.hidden).toBe(false);
+    check.click();
+    check.click();
+    expect(check.disabled).toBe(true);
+    expect(detail.hidden).toBe(false);
+    expect(detail.textContent).toContain('正在检查');
+    expect(invoke).toHaveBeenCalledTimes(2);
+    complete('up-to-date');
+    await vi.waitFor(() => expect(detail.textContent).toContain('已是最新版本'));
+    expect(check.disabled).toBe(false);
+  });
+
+  it.each([
+    { result: 'update-offered', message: '请查看更新提示' },
+    { result: 'busy', message: '正在检查或安装更新' },
+    { result: null, message: '服务器暂时不可用' },
+  ])('shows the updater outcome and re-enables the action ($message)', async ({ result, message }) => {
+    vi.stubGlobal('LastRONativeBuild', true);
+    vi.stubGlobal('__TAURI__', { core: { invoke: async (command: string) => {
+      if (command === 'native_update_version') return '1.2.1';
+      if (command === 'native_check_update' && result !== null) return result;
+      throw '服务器暂时不可用';
+    } } });
+    const { badge, detail, root } = mount('0.1.0');
+    await vi.waitFor(() => expect(badge.textContent).toBe('v1.2.1'));
+    const check = root.querySelector<HTMLButtonElement>('[data-lastro-action="check-native-update"]')!;
+    check.click();
+    await vi.waitFor(() => expect(detail.textContent).toContain(message));
+    expect(check.disabled).toBe(false);
   });
 });

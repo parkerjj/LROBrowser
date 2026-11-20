@@ -20,8 +20,8 @@ const feedCache = 'no-store, max-age=0';
 const utf8 = new TextDecoder('utf-8', { fatal: true });
 
 const packages = [
-  { suffix: 'windows-x64-setup.exe', type: 'application/octet-stream', platforms: ['windows-x86_64'] },
-  { suffix: 'macos-universal.dmg', type: 'application/x-apple-diskimage', platforms: [] },
+  { suffix: 'windows-x64-setup.exe', type: 'application/octet-stream', platforms: ['windows-x86_64'], installer: 'windows-x86_64' },
+  { suffix: 'macos-universal.dmg', type: 'application/x-apple-diskimage', platforms: [], installer: 'darwin-universal' },
   { suffix: 'macos-universal.app.tar.gz', type: 'application/gzip', platforms: ['darwin-aarch64', 'darwin-x86_64'] },
   { suffix: 'linux-amd64.deb', type: 'application/vnd.debian.binary-package', platforms: ['linux-x86_64-deb'] },
   { suffix: 'linux-arm64.deb', type: 'application/vnd.debian.binary-package', platforms: ['linux-aarch64-deb'] },
@@ -30,12 +30,11 @@ const packages = [
 ];
 
 function versionParts(version) {
-  // Keep every component within the Windows version-resource limit.
-  if (typeof version !== 'string' || !/^(?:0|[1-9]\d{0,4})(?:\.(?:0|[1-9]\d{0,4})){2}$/.test(version)) {
+  if (typeof version !== 'string' || !/^(?:0|[1-9]\d*)(?:\.(?:0|[1-9]\d*)){2}$/.test(version)) {
     throw new Error('Invalid Native release version');
   }
   const parts = version.split('.').map(Number);
-  if (parts.some(part => part > 65535)) throw new Error('Native release version exceeds the Windows limit');
+  if (!parts.every(Number.isSafeInteger)) throw new Error('Native release version exceeds the safe integer range');
   return parts;
 }
 
@@ -107,7 +106,7 @@ async function prepareRelease({ directory, version, commit, notes, publishedAt, 
   const date = new Date(publishedAt);
   if (!Number.isFinite(date.getTime())) throw new Error('Invalid Native release timestamp');
   const common = { version, notes: notes ?? `LRO进阶客户端 ${version}`, pub_date: date.toISOString() };
-  const desktop = { ...common, platforms: {} };
+  const desktop = { ...common, platforms: {}, installers: {} };
   const linux = { ...common, platforms: {} };
   const key = loadPublicKey(publicKey);
   const assets = [];
@@ -125,11 +124,13 @@ async function prepareRelease({ directory, version, commit, notes, publishedAt, 
     generated[`${filename}.sha256`] = checksum;
     assets.push({ objectKey: `${objectKey}.sha256`, bytes: checksum, type: textType });
 
+    const download = { url: new URL(objectKey, cdn).href, sha256: hash, size: bytes.length };
+    if (item.installer) desktop.installers[item.installer] = download;
     if (item.platforms.length) {
       const signature = (await readPackage(`${file}.sig`)).toString('utf8').trim();
       checkTauriSignature({ signature, bytes, publicKey: key, version, filename });
       assets.push({ objectKey: `${objectKey}.sig`, bytes: Buffer.from(signature), type: textType });
-      const platform = { url: new URL(objectKey, cdn).href, signature, sha256: hash, size: bytes.length };
+      const platform = { ...download, signature };
       const feed = item.suffix.startsWith('linux-') ? linux : desktop;
       for (const platformKey of item.platforms) feed.platforms[platformKey] = platform;
     }

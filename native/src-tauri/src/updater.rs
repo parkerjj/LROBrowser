@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use serde_json::Value;
 use tauri::{
@@ -7,7 +7,7 @@ use tauri::{
 };
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 use tauri_plugin_updater::{Config, Update, UpdaterExt};
-use tokio::sync::oneshot;
+use tokio::sync::{Mutex, OwnedMutexGuard, oneshot};
 use url::Url;
 
 const UPDATE_HOST: &str = "client.ltsd.ro";
@@ -15,6 +15,30 @@ const MAIN_FEED: &str = "https://client.ltsd.ro/native/latest.json";
 const LINUX_FEED: &str = "https://client.ltsd.ro/native/linux.json";
 const CHECK_INTERVAL: Duration = Duration::from_secs(6 * 60 * 60);
 const CHECK_TIMEOUT: Duration = Duration::from_secs(20);
+
+struct UpdaterState {
+    suffix: &'static str,
+    active: Arc<Mutex<()>>,
+}
+
+impl UpdaterState {
+    fn new(suffix: &'static str) -> Self {
+        Self {
+            suffix,
+            active: Arc::new(Mutex::new(())),
+        }
+    }
+
+    fn try_start(&self) -> Option<OwnedMutexGuard<()>> {
+        Arc::clone(&self.active).try_lock_owned().ok()
+    }
+}
+
+enum CheckOutcome {
+    Busy,
+    UpToDate,
+    UpdateOffered(async_runtime::JoinHandle<()>),
+}
 
 // Release packaging injects the key and endpoint. The default local Tauri
 // configuration has neither setting and makes no network requests for updates.
@@ -58,18 +82,52 @@ pub(crate) fn start(app: &AppHandle) {
         eprintln!("Native updater initialization failed: {error}");
         return;
     }
+    app.manage(UpdaterState::new(suffix));
 
     let app = app.clone();
     async_runtime::spawn(async move {
         loop {
-            match check(&app, suffix).await {
-                Ok(Some(update)) => apply_if_confirmed(&app, update).await,
-                Ok(None) => {}
-                Err(error) => eprintln!("Native update check failed: {error}"),
+            if let Ok(CheckOutcome::UpdateOffered(task)) = check_for_update(&app).await
+                && let Err(error) = task.await
+            {
+                eprintln!("Native update task failed: {error}");
             }
             tokio::time::sleep(CHECK_INTERVAL).await;
         }
     });
+}
+
+#[tauri::command]
+pub(crate) async fn native_check_update(app: AppHandle) -> Result<&'static str, String> {
+    Ok(match check_for_update(&app).await? {
+        CheckOutcome::Busy => "busy",
+        CheckOutcome::UpToDate => "up-to-date",
+        CheckOutcome::UpdateOffered(_) => "update-offered",
+    })
+}
+
+async fn check_for_update(app: &AppHandle) -> Result<CheckOutcome, String> {
+    let state = app
+        .try_state::<UpdaterState>()
+        .ok_or("当前客户端未启用应用内更新。")?;
+    let Some(active) = state.try_start() else {
+        return Ok(CheckOutcome::Busy);
+    };
+    let update = check(app, state.suffix).await.map_err(|error| {
+        eprintln!("Native update check failed: {error}");
+        "暂时无法检查客户端更新，请稍后重试。"
+    })?;
+    let Some(update) = update else {
+        return Ok(CheckOutcome::UpToDate);
+    };
+
+    let app = app.clone();
+    let task = async_runtime::spawn(async move {
+        // Hold the shared slot through the final dialog or installation.
+        let _active = active;
+        apply_if_confirmed(&app, update).await;
+    });
+    Ok(CheckOutcome::UpdateOffered(task))
 }
 
 fn package_suffix(os: &str, arch: &str, bundle: Option<BundleType>) -> Option<&'static str> {
@@ -168,7 +226,7 @@ async fn apply_if_confirmed(app: &AppHandle, update: Update) {
     let bytes = match update.download(|_, _| {}, || {}).await {
         Ok(bytes) => bytes,
         Err(error) => {
-            show_error(app, "下载或校验更新失败", error);
+            show_error(app, "下载或校验更新失败", error).await;
             return;
         }
     };
@@ -202,16 +260,20 @@ async fn apply_if_confirmed(app: &AppHandle, update: Update) {
             #[cfg(not(target_os = "windows"))]
             app.request_restart();
         }
-        Ok(Err(error)) => show_error(app, "安装更新失败", error),
-        Err(error) => show_error(app, "安装更新失败", error),
+        Ok(Err(error)) => show_error(app, "安装更新失败", error).await,
+        Err(error) => show_error(app, "安装更新失败", error).await,
     }
 }
 
-fn show_error(app: &AppHandle, title: &str, error: impl std::fmt::Display) {
+async fn show_error(app: &AppHandle, title: &str, error: impl std::fmt::Display) {
     eprintln!("{title}: {error}");
+    let (dismissed, response) = oneshot::channel();
     dialog(app, title, "请稍后重试。当前客户端仍可继续使用。")
         .kind(MessageDialogKind::Error)
-        .show(|_| {});
+        .show(move |_| {
+            let _ = dismissed.send(());
+        });
+    let _ = response.await;
 }
 
 #[cfg(test)]
@@ -242,6 +304,15 @@ mod tests {
         config["requireSignedVersion"] = json!(true);
         config["pubkey"] = json!("");
         assert!(!enabled(Some(&config), LINUX_FEED));
+    }
+
+    #[test]
+    fn manual_and_automatic_operations_share_one_slot() {
+        let state = UpdaterState::new("windows-x64-setup.exe");
+        let active = state.try_start().unwrap();
+        assert!(state.try_start().is_none());
+        drop(active);
+        assert!(state.try_start().is_some());
     }
 
     #[test]
@@ -284,6 +355,14 @@ mod tests {
             );
         }
 
+        let full_version = "1.1025.261120";
+        let windows = Url::parse(
+            "https://client.ltsd.ro/native/1.1025.261120/LRO-Client-1.1025.261120-windows-x64-setup.exe",
+        )
+        .unwrap();
+        assert!(allowed_download(&windows, full_version, bundle));
+        assert!(!allowed_download(&windows, "1.1025.261121", bundle));
+
         let arm_deb =
             Url::parse("https://client.ltsd.ro/native/1.2.3/LRO-Client-1.2.3-linux-arm64.deb")
                 .unwrap();
@@ -307,7 +386,7 @@ mod tests {
             Some(&keypair.pk),
             &keypair.sk,
             PACKAGE,
-            Some("timestamp:1\tfile:update.exe\tversion:1.2.4"),
+            Some("timestamp:1\tfile:update.exe\tversion:1.1025.261120"),
             None,
         )
         .unwrap();
@@ -332,11 +411,11 @@ mod tests {
                     (bytes.to_vec(), "application/octet-stream")
                 } else {
                     let (version, file) = match path {
-                        "/older" => ("1.2.2", "installer"),
-                        "/current" => ("1.2.3", "installer"),
-                        "/new" => ("1.2.4", "installer"),
-                        "/tampered" => ("1.2.4", "modified"),
-                        "/wrong-version" => ("1.2.5", "installer"),
+                        "/older" => ("1.1024.65535", "installer"),
+                        "/current" => ("1.1025.65535", "installer"),
+                        "/new" => ("1.1025.261120", "installer"),
+                        "/tampered" => ("1.1025.261120", "modified"),
+                        "/wrong-version" => ("1.1025.261121", "installer"),
                         _ => panic!("unexpected fixture request: {path}"),
                     };
                     let platform = json!({ "url": format!("{fixture_origin}/{file}"), "signature": signature });
@@ -362,7 +441,7 @@ mod tests {
         });
 
         let mut app_context = tauri::test::mock_context(tauri::test::noop_assets());
-        app_context.package_info_mut().version = "1.2.3".parse().unwrap();
+        app_context.package_info_mut().version = "1.1025.65535".parse().unwrap();
         app_context.config_mut().plugins.0.insert(
             "updater".into(),
             json!({
@@ -392,7 +471,7 @@ mod tests {
         }
         for target in [target, "linux-aarch64-deb", "darwin-aarch64"] {
             let update = at("new", target).check().await.unwrap().unwrap();
-            assert_eq!(update.version, "1.2.4");
+            assert_eq!(update.version, "1.1025.261120");
             assert_eq!(update.download(|_, _| {}, || {}).await.unwrap(), PACKAGE);
         }
         let tampered = at("tampered", target).check().await.unwrap().unwrap();

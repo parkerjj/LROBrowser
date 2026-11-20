@@ -2,54 +2,55 @@ import { createEncryptedAccountStorage, validateAccountCredentials } from '../ac
 import { saveLoginPreferences } from './login-preferences.mjs';
 
 const UNAVAILABLE_REASON = 'App服协议参数尚未完成验证';
-// Chrome performs the real IWA update from the manifest's update_manifest_url. This
-// is only the in-app notice for installs that Chrome did not update.
-const UPDATE_MANIFEST_URL = 'https://client.ltsd.ro/updates.json';
-const UPDATE_PACKAGE_HOST = 'client.ltsd.ro';
-const UPDATE_CHANNEL = 'default';
-// Web content cannot navigate to chrome:// pages, so the address is only copied for the user.
-const IWA_INSTALL_PAGE = 'chrome://iwa-dev';
-// Unreleased builds keep the placeholder manifest version and must not report an update.
+const NATIVE_UPDATE_MANIFEST = 'https://client.ltsd.ro/native/latest.json';
+// Unreleased IWA builds keep the placeholder manifest version.
 const UNRELEASED_VERSION = '0.1.0';
 let activeLogin;
 const installed = new WeakMap();
 const VERSION_PATTERN = /^\d+(?:\.\d+)*$/;
-export function compareLastROVersions(left, right) {
-  const a = String(left).split('.').map(Number), b = String(right).split('.').map(Number);
-  for (let index = 0; index < Math.max(a.length, b.length); index += 1) {
-    const diff = (a[index] ?? 0) - (b[index] ?? 0);
-    if (diff) return diff;
-  }
-  return 0;
+const NATIVE_RELEASE_VERSION = /^(?:0|[1-9]\d*)(?:\.(?:0|[1-9]\d*)){2}$/;
+
+function nativeArtifactUrl(version, suffix) {
+  return new globalThis.URL(`${version}/LRO-Client-${version}-${suffix}`, NATIVE_UPDATE_MANIFEST).href;
 }
-/** Highest version published on the channel, or null when the manifest has no usable entry. */
-export function selectLastROUpdate(manifest, channel = UPDATE_CHANNEL) {
-  let best = null;
-  for (const entry of Array.isArray(manifest?.versions) ? manifest.versions : []) {
-    if (typeof entry?.version !== 'string' || !VERSION_PATTERN.test(entry.version)
-      || !Array.isArray(entry.channels) || !entry.channels.includes(channel)) continue;
-    let src;
-    try { src = new globalThis.URL(entry.src); } catch { continue; }
-    if (src.protocol !== 'https:' || src.hostname !== UPDATE_PACKAGE_HOST || src.username || src.password) continue;
-    if (!best || compareLastROVersions(entry.version, best.version) > 0) best = { version: entry.version, src: src.href };
-  }
-  return best;
+
+function isNativeArtifact(entry, url) {
+  return entry?.url === url && typeof entry.sha256 === 'string' && /^[a-f\d]{64}$/i.test(entry.sha256)
+    && Number.isSafeInteger(entry.size) && entry.size > 0;
 }
+
+function isNativeUpdaterArtifact(entry, url) {
+  return isNativeArtifact(entry, url) && typeof entry.signature === 'string' && entry.signature.trim() !== '';
+}
+
+function selectNativeInstallers(manifest) {
+  const version = manifest?.version;
+  if (typeof version !== 'string' || !NATIVE_RELEASE_VERSION.test(version)) return null;
+  const windows = nativeArtifactUrl(version, 'windows-x64-setup.exe');
+  const mac = nativeArtifactUrl(version, 'macos-universal.dmg');
+  if (Object.hasOwn(manifest, 'installers')) {
+    return {
+      version,
+      windows: isNativeArtifact(manifest.installers?.['windows-x86_64'], windows) ? windows : null,
+      mac: isNativeArtifact(manifest.installers?.['darwin-universal'], mac) ? mac : null,
+    };
+  }
+  // Older feeds list the universal Mac updater archive; its matching DMG is the installer.
+  const macUpdater = nativeArtifactUrl(version, 'macos-universal.app.tar.gz');
+  return {
+    version,
+    windows: isNativeUpdaterArtifact(manifest.platforms?.['windows-x86_64'], windows) ? windows : null,
+    mac: ['darwin-aarch64', 'darwin-x86_64'].some(platform =>
+      isNativeUpdaterArtifact(manifest.platforms?.[platform], macUpdater)) ? mac : null,
+  };
+}
+
 async function readInstalledVersion() {
   const response = await globalThis.fetch('/.well-known/manifest.webmanifest', { cache: 'no-store' });
   const version = response.ok ? (await response.json())?.version : undefined;
   return typeof version === 'string' && VERSION_PATTERN.test(version) ? version : null;
 }
-async function copyText(text) {
-  try { await globalThis.navigator.clipboard.writeText(text); return true; } catch { /* Fall back below. */ }
-  const { document } = globalThis;
-  const area = document.createElement('textarea');
-  area.value = text;
-  area.setAttribute('readonly', '');
-  area.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none';
-  document.body.append(area);
-  try { area.select(); return document.execCommand('copy') === true; } catch { return false; } finally { area.remove(); }
-}
+
 export function beforeLastROLoginConnect(username, password) {
   try { validateAccountCredentials(username, password); } catch { return false; }
   return activeLogin?.before(username, password) ?? false;
@@ -110,13 +111,16 @@ export function decorateLastROLoginTemplate(name, htmlText) {
     + '<span class="lastro-dedication-heart" aria-hidden="true">♥</span>'
     + '</footer>'
     + '<div class="lastro-version" data-lastro-version hidden>'
-    + '<div class="lastro-update-detail" data-lastro-update-detail hidden>'
-    + '<p data-lastro-update-text></p>'
-    + '<div class="lastro-account-toolbar">'
-    + '<a class="lastro-update-download" data-lastro-update-download target="_blank" rel="noopener noreferrer">下载新版安装包</a>'
-    + `<button type="button" data-lastro-action="copy-install-page">复制 ${IWA_INSTALL_PAGE}</button>`
+    + '<div class="lastro-version-controls">'
+    + '<button type="button" class="lastro-version-badge" data-lastro-version-badge disabled hidden></button>'
+    + '<button type="button" class="lastro-version-badge" data-lastro-action="check-native-update" hidden>检查客户端更新</button>'
+    + '</div>'
+    + '<div class="lastro-update-detail" id="lastro-update-detail" data-lastro-update-detail hidden>'
+    + '<p data-lastro-update-text></p><p data-lastro-native-update-status role="status"></p>'
+    + '<div class="lastro-account-toolbar" data-lastro-update-downloads hidden>'
+    + '<a data-lastro-update-download="windows" target="_blank" rel="noopener noreferrer" hidden>Windows（.exe）</a>'
+    + '<a data-lastro-update-download="mac" target="_blank" rel="noopener noreferrer" hidden>macOS（.dmg）</a>'
     + '</div></div>'
-    + '<button type="button" class="lastro-version-badge" data-lastro-version-badge></button>'
     + '</div></section>';
   return `${cleaned.slice(0, closingIndex)}${panel}${cleaned.slice(closingIndex)}`;
 }
@@ -176,13 +180,18 @@ export function decorateLastROLoginStyles(name, cssText) {
 .lastro-dedication-text strong { color: #c74c70; font-weight: 600; }
 .lastro-dedication-heart { flex: none; color: #ec7090; font: 20px/1 Arial, sans-serif; }
 .lastro-version { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); z-index: 30; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; font: 12px/1.4 "Segoe UI", "Microsoft YaHei", sans-serif; }
-.lastro-version[hidden], .lastro-update-detail[hidden] { display: none; }
-.lastro-login-panel .lastro-version-badge { min-height: 24px; padding: 2px 12px; border: 1px solid rgba(255, 255, 255, .85); border-radius: 12px; background: rgba(255, 250, 252, .9); color: #735766; font-size: 12px; cursor: default; }
-.lastro-login-panel .lastro-version[data-update="available"] .lastro-version-badge { border-color: #e8590c; background: #e8590c; color: #fff; font-weight: 600; cursor: pointer; animation: lastro-update-pulse 1.6s ease-in-out infinite; }
+.lastro-version[hidden], .lastro-version [hidden] { display: none; }
+.lastro-version-controls { display: flex; max-width: calc(100vw - 32px); flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.lastro-login-panel .lastro-version-badge { min-height: 24px; padding: 2px 12px; border: 1px solid rgba(255, 255, 255, .85); border-radius: 12px; background: rgba(255, 250, 252, .9); color: #735766; font-size: 12px; }
+.lastro-login-panel [data-lastro-version-badge]:disabled { opacity: 1; border-color: rgba(255, 255, 255, .85); color: #735766; }
+.lastro-login-panel .lastro-version[data-update="available"] .lastro-version-badge { border-color: #e8590c; background: #e8590c; color: #fff; font-weight: 600; animation: lastro-update-pulse 1.6s ease-in-out infinite; }
 @keyframes lastro-update-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(232, 89, 12, .55); } 50% { box-shadow: 0 0 0 8px rgba(232, 89, 12, 0); } }
-.lastro-update-detail { width: 300px; max-width: calc(100vw - 32px); box-sizing: border-box; padding: 12px; border: 1px solid #f0c9a8; border-radius: 8px; background: #fff; box-shadow: 0 4px 16px rgba(0, 0, 0, .18); color: #243447; }
-.lastro-update-detail p { margin: 0; white-space: pre-line; }
+.lastro-update-detail { order: -1; width: 300px; max-width: calc(100vw - 32px); box-sizing: border-box; padding: 12px; border: 1px solid #f0c9a8; border-radius: 8px; background: #fff; box-shadow: 0 4px 16px rgba(0, 0, 0, .18); color: #243447; }
+.lastro-update-detail p { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
 .lastro-update-detail .lastro-account-toolbar a { flex: 1; box-sizing: border-box; min-height: 28px; padding: 4px 10px; border: 1px solid #4a90d9; border-radius: 6px; background: #4a90d9; color: #fff; font-weight: 600; text-align: center; text-decoration: none; }
+@media (prefers-reduced-motion: reduce) {
+  .lastro-login-panel .lastro-version[data-update="available"] .lastro-version-badge { animation: none; }
+}
 @media (max-width: 760px), (max-height: 560px) {
   :host { top: 16px; left: calc(50% - 140px); }
   #WinLogin { top: 0; }
@@ -643,40 +652,89 @@ export function installLastROLogin({ root, component, configs, onAssistantProfil
   void showVersion(panel);
 }
 
-/** Show the installed version bottom-right and flag a newer published IWA package. */
+async function showNativeVersion(box, badge, detail) {
+  const check = box.querySelector('[data-lastro-action="check-native-update"]');
+  const status = detail.querySelector('[data-lastro-native-update-status]');
+  const core = globalThis.__TAURI__?.core;
+  if (!check || !status || typeof core?.invoke !== 'function') return;
+  box.hidden = false;
+  check.hidden = false;
+  check.addEventListener('click', async () => {
+    if (check.disabled) return;
+    check.disabled = true;
+    detail.hidden = false;
+    status.textContent = '正在检查客户端更新…';
+    try {
+      const result = await core.invoke('native_check_update');
+      switch (result) {
+        case 'up-to-date': status.textContent = '当前客户端已是最新版本。'; break;
+        case 'update-offered': status.textContent = '已找到新版本，请查看更新提示。'; break;
+        case 'busy': status.textContent = '客户端正在检查或安装更新。'; break;
+        default: status.textContent = '无法确认客户端更新状态，请稍后重试。';
+      }
+    } catch (error) {
+      const message = typeof error === 'string' ? error : error?.message;
+      status.textContent = message ? `检查更新失败。${message}` : '检查更新失败，请稍后重试。';
+    } finally {
+      check.disabled = false;
+    }
+  });
+  try {
+    const current = await core.invoke('native_update_version');
+    if (typeof current === 'string' && current) {
+      badge.textContent = `v${current}`;
+      badge.hidden = false;
+    }
+  } catch { /* Older development shells may not know this command. */ }
+}
+
 async function showVersion(panel) {
+  if (globalThis.LastROWebBuild === true) return;
   const box = panel.querySelector('[data-lastro-version]');
   const badge = panel.querySelector('[data-lastro-version-badge]');
   const detail = panel.querySelector('[data-lastro-update-detail]');
+  if (!box || !badge || !detail) return;
+  if (globalThis.LastRONativeBuild === true) {
+    await showNativeVersion(box, badge, detail);
+    return;
+  }
   const text = panel.querySelector('[data-lastro-update-text]');
-  const download = panel.querySelector('[data-lastro-update-download]');
-  const copy = panel.querySelector('[data-lastro-action="copy-install-page"]');
-  // The web build is replaced on reload; only an installed IWA can be out of date.
-  if (!box || !badge || !detail || !text || !download || !copy || globalThis.LastROWebBuild === true) return;
+  const downloads = panel.querySelector('[data-lastro-update-downloads]');
+  if (!text || !downloads) return;
   let current;
   try { current = await readInstalledVersion(); } catch { return; }
   if (!current) return;
   badge.textContent = `v${current}`;
+  badge.hidden = false;
   box.hidden = false;
   if (current === UNRELEASED_VERSION) return;
   let latest;
   try {
-    const response = await globalThis.fetch(UPDATE_MANIFEST_URL, { cache: 'no-store', credentials: 'omit' });
-    latest = response.ok ? selectLastROUpdate(await response.json()) : null;
+    const response = typeof globalThis.LastROFetchNativeUpdateManifest === 'function'
+      ? await globalThis.LastROFetchNativeUpdateManifest()
+      : await globalThis.fetch(NATIVE_UPDATE_MANIFEST, { cache: 'no-store', credentials: 'omit', redirect: 'error' });
+    latest = response.ok ? selectNativeInstallers(await response.json()) : null;
   } catch { return; }
-  if (!latest || compareLastROVersions(latest.version, current) <= 0) return;
+  if (!latest || (!latest.windows && !latest.mac)) return;
   box.dataset.update = 'available';
-  badge.textContent = `v${current} · 发现新版本 v${latest.version}`;
+  badge.textContent = `v${current} · 原生客户端 v${latest.version} 可下载`;
+  badge.disabled = false;
   badge.setAttribute('aria-expanded', 'false');
-  text.textContent = `当前版本 v${current}，最新版本 v${latest.version}。\n`
-    + `Chrome 没有自动更新时：先下载新版安装包，再在浏览器地址栏打开 ${IWA_INSTALL_PAGE}（应用无法直接打开该页面），按页面提示安装。`;
-  download.href = latest.src;
+  badge.setAttribute('aria-controls', detail.id);
+  const instructions = [`原生客户端 v${latest.version}`];
+  if (latest.windows) instructions.push('在 Windows 上打开 .exe 并按提示安装。');
+  if (latest.mac) instructions.push('在 macOS 上打开 .dmg，将客户端拖到「应用程序」。');
+  instructions.push('安装后可使用原有游戏账号登录。');
+  text.textContent = instructions.join('\n');
+  downloads.hidden = false;
+  for (const link of downloads.querySelectorAll('[data-lastro-update-download]')) {
+    const url = latest[link.dataset.lastroUpdateDownload];
+    if (!url) continue;
+    link.href = url;
+    link.hidden = false;
+  }
   badge.addEventListener('click', () => {
     detail.hidden = !detail.hidden;
     badge.setAttribute('aria-expanded', String(!detail.hidden));
-  });
-  copy.addEventListener('click', async () => {
-    const copied = await copyText(IWA_INSTALL_PAGE);
-    copy.textContent = copied ? '已复制，请粘贴到地址栏' : `复制失败，请手动输入 ${IWA_INSTALL_PAGE}`;
   });
 }

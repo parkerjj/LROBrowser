@@ -5,6 +5,7 @@ import { buildClientConfig, type ClientCredentials, type V2ClientConfig } from '
 import { installDebugAccessGuard } from './debug-access';
 import { IS_NATIVE_BUILD, IS_WEB_BUILD } from './build-target';
 import { nativeResourceBaseUrl } from '../resources/native-resource-fetch';
+import { createDirectHttpFetch, NATIVE_UPDATE_MANIFEST_URL } from '../resources/direct-http-resource';
 import { getAvailableServerProfile } from '../servers/server-profiles';
 import { resolveOfficialServerProfile, refreshOfficialOnlineProfiles } from '../servers/online-profile-cache';
 import { getAssetDecoder, preloadAssetDecoder } from './asset-decoder';
@@ -38,6 +39,7 @@ declare global {
   var LastRODirectSocketsSupported: boolean | undefined;
   var LastROWebBuild: boolean | undefined;
   var LastRONativeBuild: boolean | undefined;
+  var LastROFetchNativeUpdateManifest: (() => Promise<Response>) | undefined;
   var LastROResolveServerConnection: ((profile: Record<string, unknown>) => Record<string, unknown>) | undefined;
   var LastROResourceRoots: readonly string[] | undefined;
   var LastROExecutableManifest: ExecutableAssetManifest | undefined;
@@ -78,6 +80,7 @@ export async function bootstrapV2Client(options: BootstrapOptions): Promise<void
   globalThis.LastRODirectSocketsSupported = IS_WEB_BUILD ? false : undefined;
   globalThis.LastRODirectSocketFactory = undefined;
   globalThis.LastRORelaySocketFactory = undefined;
+  globalThis.LastROFetchNativeUpdateManifest = undefined;
   globalThis.LastROPartyHttpRequest = undefined;
   installDebugAccessGuard(window);
   globalThis.LastROResolveServerConnection = (candidate) => {
@@ -124,7 +127,11 @@ export async function bootstrapV2Client(options: BootstrapOptions): Promise<void
       globalThis.LastRODirectSocketsSupported = socketFactory.isDirectSocketsSupported();
       globalThis.LastRODirectSocketFactory = options.socketFactory ?? socketFactory.createDirectSocket;
       // The official relay rejects the isolated-app:// Origin of browser WebSockets.
-      if (globalThis.LastRODirectSocketsSupported) globalThis.LastRORelaySocketFactory = url => relaySocket.createRelaySocket(url);
+      if (globalThis.LastRODirectSocketsSupported) {
+        globalThis.LastRORelaySocketFactory = url => relaySocket.createRelaySocket(url);
+        const fetchUpdate = createDirectHttpFetch({ allowNativeUpdateManifest: true });
+        globalThis.LastROFetchNativeUpdateManifest = () => fetchUpdate(NATIVE_UPDATE_MANIFEST_URL);
+      }
       sendLastROLoginPost = loginHttp.sendLastROLoginPost;
       globalThis.LastROPartyHttpRequest = (nid, action, form) => loginHttp.requestLastROPartyOverTLS(nid, action, form);
       prepareLastROLoginSession = loginHttp.prepareLastROLoginSession;

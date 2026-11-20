@@ -1,6 +1,6 @@
 import { connect, type Socket } from 'node:net';
 import { describe, expect, it } from 'vitest';
-import { createDirectHttpFetch } from '../src/resources/direct-http-resource';
+import { createDirectHttpFetch, NATIVE_UPDATE_MANIFEST_URL } from '../src/resources/direct-http-resource';
 import { prepareLastROLoginSession } from '../src/network/lastro-login-http';
 import { createRelaySocket } from '../src/network/relay-websocket';
 
@@ -98,3 +98,15 @@ describe('official HTTPS via raw TCP and JavaScript TLS', () => {
     });
   }, 30_000);
 });
+
+it.skipIf(process.env.LASTRO_RELEASE_TLS_LIVE !== '1')('reads the public Native release manifest with authenticated TLS', async () => {
+  const fetch = createDirectHttpFetch({
+    allowNativeUpdateManifest: true,
+    TCPSocket: LiveSocketShim as unknown as DirectTcpConstructor,
+  });
+  const response = await fetch(NATIVE_UPDATE_MANIFEST_URL);
+  expect(response.status).toBe(200);
+  const manifest = await response.json();
+  expect(manifest.version).toMatch(/^\d+\.\d+\.\d+$/);
+  expect(manifest.platforms['windows-x86_64'].url).toMatch(/-windows-x64-setup\.exe$/);
+}, 20_000);
