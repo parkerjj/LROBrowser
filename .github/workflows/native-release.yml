@@ -52,7 +52,7 @@ jobs:
               (.event == "push" or .event == "workflow_dispatch")) | .head_sha
           ' <<< "$run") || { echo 'Expected a completed same-repository main IWA release run.' >&2; exit 1; }
           current_main=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
-          [[ "$commit" =~ ^[0-9a-f]{40}$ && "$commit" == "$current_main" ]] || { echo 'Refusing stale main Native release.' >&2; exit 1; }
+          [[ "$commit" =~ ^[0-9a-f]{40}$ && "$commit" == "$GITHUB_SHA" && "$commit" == "$current_main" ]] || { echo 'Refusing stale or mismatched main Native release.' >&2; exit 1; }
           # An unrelated web deployment failure does not prevent Native publishing.
           jobs=$(gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/actions/runs/$IWA_RUN_ID/jobs?filter=all&per_page=100")
           jq -e --arg commit "$commit" '
@@ -75,7 +75,6 @@ jobs:
           } >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ steps.source.outputs.commit }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
@@ -106,20 +105,21 @@ jobs:
 
   preflight:
     name: Check Native release code
-    if: github.event_name == 'workflow_run'
     needs: prepare
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ needs.prepare.outputs.commit }}
           persist-credentials: false
-      - uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4
+      - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
         with:
-          node-version-file: '.nvmrc'
-      - uses: pnpm/action-setup@v4
-      - run: pnpm --version
+          version: 12.4.2
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: '.node-version'
+          package-manager-cache: false
+      - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck
       - run: node --test test/publish-native-r2.node.mjs
@@ -163,7 +163,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ needs.prepare.outputs.commit }}
           persist-credentials: false
       - uses: ./.github/actions/setup
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
@@ -375,7 +374,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ needs.prepare.outputs.commit }}
           persist-credentials: false
       - uses: ./.github/actions/setup
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
