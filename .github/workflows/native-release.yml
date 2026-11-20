@@ -115,7 +115,11 @@ jobs:
         with:
           ref: ${{ needs.prepare.outputs.commit }}
           persist-credentials: false
-      - uses: ./.github/actions/setup
+      - uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4
+        with:
+          node-version-file: '.nvmrc'
+      - uses: pnpm/action-setup@v4
+      - run: pnpm --version
       - run: pnpm lint
       - run: pnpm typecheck
       - run: node --test test/publish-native-r2.node.mjs
