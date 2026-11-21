@@ -1,5 +1,5 @@
 import type { makeTLSClient } from '@reclaimprotocol/tls';
-import { openEncryptedHttpStreams } from '../resources/direct-http-resource';
+import { decodeChunkedBody, openEncryptedHttpStreams } from '../resources/direct-http-resource';
 import { IS_NATIVE_BUILD } from '../runtime/build-target';
 
 const LASTRO_LOGIN_HOST = 'game.lastro.cn';
@@ -94,41 +94,9 @@ function joinBytes(chunks: readonly Uint8Array[], maxBytes: number): Uint8Array 
   return bytes;
 }
 
-function parseChunkedBody(body: Uint8Array): Uint8Array {
-  const chunks: Uint8Array[] = [];
-  let offset = 0;
-  let total = 0;
-  while (true) {
-    const lineEnd = findBytes(body, [13, 10], offset);
-    if (lineEnd < 0) throw new Error('LastRO login HTTP chunk size is incomplete');
-    const sizeLine = ascii(body.subarray(offset, lineEnd));
-    const sizeMatch = /^([0-9a-f]+)(?:;.*)?$/i.exec(sizeLine);
-    if (!sizeMatch) throw new Error('LastRO login HTTP chunk size is invalid');
-    const size = Number.parseInt(sizeMatch[1]!, 16);
-    if (!Number.isSafeInteger(size)) throw new Error('LastRO login HTTP chunk size is invalid');
-    offset = lineEnd + 2;
-    if (size === 0) {
-      if (body[offset] === 13 && body[offset + 1] === 10) return joinBytes(chunks, MAX_RESPONSE_BYTES);
-      const trailerEnd = findBytes(body, [13, 10, 13, 10], offset);
-      if (trailerEnd < 0) throw new Error('LastRO login HTTP chunk trailers are incomplete');
-      return joinBytes(chunks, MAX_RESPONSE_BYTES);
-    }
-    if (size > MAX_RESPONSE_BYTES - total || offset + size + 2 > body.byteLength) {
-      throw new Error('LastRO login HTTP response body is too large or incomplete');
-    }
-    chunks.push(body.slice(offset, offset + size));
-    total += size;
-    offset += size;
-    if (body[offset] !== 13 || body[offset + 1] !== 10) {
-      throw new Error('LastRO login HTTP chunk terminator is missing');
-    }
-    offset += 2;
-  }
-}
-
-function parseResponse(bytes: Uint8Array): RawHttpResponse {
+function parseResponse(bytes: Uint8Array, eof: boolean, requireFraming: boolean): RawHttpResponse | null {
   const separator = findBytes(bytes, [13, 10, 13, 10]);
-  if (separator < 0) throw new Error('LastRO login HTTP response headers are incomplete');
+  if (separator < 0) return null;
   const lines = ascii(bytes.subarray(0, separator)).split('\r\n');
   const statusLine = lines.shift();
   const statusMatch = statusLine ? /^HTTP\/1\.[01] ([1-5][0-9]{2})(?: (.*))?$/.exec(statusLine) : null;
@@ -146,21 +114,34 @@ function parseResponse(bytes: Uint8Array): RawHttpResponse {
   const rawBody = bytes.subarray(separator + 4);
   const transferEncoding = headers.get('transfer-encoding')?.join(',').toLowerCase();
   const contentEncoding = headers.get('content-encoding')?.join(',').toLowerCase();
+  const contentLengths = headers.get('content-length');
   if (contentEncoding && contentEncoding !== 'identity') {
     throw new Error(`LastRO login HTTP content encoding is unsupported: ${contentEncoding}`);
   }
-  if (transferEncoding === 'chunked') return { status: Number(statusMatch[1]), headers, body: parseChunkedBody(rawBody) };
-  if (transferEncoding) throw new Error(`LastRO login HTTP transfer encoding is unsupported: ${transferEncoding}`);
-  const contentLength = headers.get('content-length')?.at(-1);
-  if (contentLength !== undefined) {
-    if (!/^\d+$/.test(contentLength)) throw new Error('LastRO login HTTP content length is invalid');
-    const expected = Number(contentLength);
-    if (!Number.isSafeInteger(expected) || expected > MAX_RESPONSE_BYTES || rawBody.byteLength !== expected) {
+  const status = Number(statusMatch[1]);
+  if (status === 204 || status === 304) return { status, headers, body: new Uint8Array() };
+  if (transferEncoding) {
+    if (transferEncoding !== 'chunked' || contentLengths) throw new Error('LastRO login HTTP transfer encoding is invalid');
+    const decoded = decodeChunkedBody(rawBody, MAX_RESPONSE_BYTES);
+    if (!decoded) return null;
+    if (decoded.consumed !== rawBody.byteLength) throw new Error('Unexpected bytes after LastRO login HTTP response');
+    return { status, headers, body: decoded.body };
+  }
+  if (contentLengths) {
+    const expectedText = contentLengths[0]!;
+    if (!/^\d+$/.test(expectedText) || contentLengths.some(value => value !== expectedText)) {
+      throw new Error('LastRO login HTTP content length is invalid');
+    }
+    const expected = Number(expectedText);
+    if (!Number.isSafeInteger(expected) || expected > MAX_RESPONSE_BYTES || rawBody.byteLength > expected) {
       throw new Error('LastRO login HTTP content length does not match the response body');
     }
+    if (rawBody.byteLength < expected) return null;
+  } else {
+    if (requireFraming) throw new Error('LastRO Native HTTP response has no body framing');
+    if (!eof) return null;
   }
-  if (rawBody.byteLength > MAX_RESPONSE_BYTES) throw new Error('LastRO login HTTP response body is too large');
-  return { status: Number(statusMatch[1]), headers, body: rawBody.slice() };
+  return { status, headers, body: rawBody.slice() };
 }
 
 async function readResponse(
@@ -168,6 +149,7 @@ async function readResponse(
   connection: OpenedLoginStreams,
   request: Uint8Array,
   readTimeoutMs: number,
+  requireFraming = false,
 ): Promise<RawHttpResponse> {
   const reader = connection.readable.getReader();
   const writer = connection.writable.getWriter();
@@ -177,13 +159,17 @@ async function readResponse(
     await waitFor(writer.write(request), readTimeoutMs, 'LastRO login HTTP write timeout');
     while (true) {
       const result = await waitFor(reader.read(), readTimeoutMs, 'LastRO login HTTP read timeout');
-      if (result.done) break;
-      if (!result.value) continue;
-      total += result.value.byteLength;
-      if (total > MAX_RESPONSE_BYTES) throw new Error('LastRO login HTTP response is too large');
-      chunks.push(result.value.slice());
+      if (result.value?.byteLength) {
+        total += result.value.byteLength;
+        if (total > MAX_RESPONSE_BYTES) throw new Error('LastRO login HTTP response is too large');
+        chunks.push(result.value.slice());
+      }
+      // LastRO can end TCP without a TLS close_notify. A framed response is
+      // complete as soon as its declared length or final chunk arrives.
+      const response = parseResponse(joinBytes(chunks, MAX_RESPONSE_BYTES), result.done, requireFraming);
+      if (response) return response;
+      if (result.done) throw new Error('LastRO login HTTP response ended before the full message arrived');
     }
-    return parseResponse(joinBytes(chunks, MAX_RESPONSE_BYTES));
   } finally {
     await reader.cancel().catch(() => undefined);
     reader.releaseLock();
@@ -216,7 +202,7 @@ function getNativeLoginSession(openStreams: OpenLoginStreams, options: LastROLog
   const cached = nativeSessionCache.get(openStreams);
   if (cached) return cached;
   const session = withNativeLoginStreams(openStreams, options, async (connection, timeout, close) => {
-    const response = await readResponse({ close }, connection, buildBootstrapRequest(), timeout);
+    const response = await readResponse({ close }, connection, buildBootstrapRequest(), timeout, true);
     if (response.status < 200 || response.status >= 300) {
       throw new Error(`LastRO login HTTP bootstrap failed (${response.status})`);
     }
@@ -451,7 +437,7 @@ export async function requestLastROPartyOverTLS(
   bytes.set(head); bytes.set(body, head.length);
   if (IS_NATIVE_BUILD && openStreams) {
     return withNativeLoginStreams(openStreams, options, async (connection, timeout, close) =>
-      parsePartyResponse(await readResponse({ close }, connection, bytes, timeout), action, nid));
+      parsePartyResponse(await readResponse({ close }, connection, bytes, timeout, true), action, nid));
   }
   const native = new ctor!(LASTRO_LOGIN_HOST, LASTRO_LOGIN_PORT, { noDelay: true, keepAliveDelay: 60_000 });
   void native.closed.catch(() => undefined);

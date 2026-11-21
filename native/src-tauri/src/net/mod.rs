@@ -45,6 +45,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> ByteStream for T {}
 
 enum Transport {
     Stream(Box<dyn ByteStream>),
+    Tls(Box<dyn ByteStream>),
     Relay(Box<relay::RelaySocket>),
 }
 
@@ -63,7 +64,8 @@ impl Transport {
         on_data: impl Fn(Vec<u8>) -> Result<(), String>,
     ) -> Result<(), String> {
         match self {
-            Self::Stream(stream) => tcp::run(stream, writes, on_data).await,
+            Self::Stream(stream) => tcp::run(stream, writes, on_data, false).await,
+            Self::Tls(stream) => tcp::run(stream, writes, on_data, true).await,
             Self::Relay(socket) => relay::run(*socket, writes, on_data).await,
         }
     }
@@ -79,7 +81,9 @@ async fn connect(kind: NetKind, host: String, port: u16) -> Result<Transport, St
         }
         NetKind::Tls => {
             validate_tls_target(&host, port).map_err(|error| error.to_string())?;
-            tcp::connect_tls(&host, port).await.map(Transport::stream)
+            tcp::connect_tls(&host, port)
+                .await
+                .map(|stream| Transport::Tls(Box::new(stream)))
         }
         NetKind::Relay => {
             let target = validate_relay_url(&host).map_err(|error| error.to_string())?;

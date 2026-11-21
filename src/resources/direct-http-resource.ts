@@ -113,7 +113,7 @@ function joinBytes(chunks: readonly Uint8Array[], maxBytes: number): Uint8Array 
 }
 
 /** Returns null while the chunked body is still incomplete; throws when it is invalid. */
-function decodeChunkedBody(body: Uint8Array, maxBodyBytes: number): { body: Uint8Array; consumed: number } | null {
+export function decodeChunkedBody(body: Uint8Array, maxBodyBytes: number): { body: Uint8Array; consumed: number } | null {
   const chunks: Uint8Array[] = [];
   let offset = 0;
   let total = 0;

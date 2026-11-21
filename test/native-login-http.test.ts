@@ -47,3 +47,33 @@ test('native party requests can read a JSON response without a TCPSocket global'
   await expect(requestLastROPartyOverTLS(5, 'list', new FormData(), { openStreams })).resolves.toEqual({ items: [] });
   expect(write).toHaveBeenCalledWith(expect.stringMatching(/^POST \/webserver2\/party\/list /));
 });
+
+test.each([
+  ['Content-Length: 10', '{"Type":1}'],
+  ['Transfer-Encoding: chunked', 'a\r\n{"Type":1}\r\n0\r\n\r\n'],
+])('native party replies complete by HTTP framing (%s)', async (header, body) => {
+  vi.stubGlobal('__LASTRO_BUILD_TARGET__', 'native');
+  const { requestLastROPartyOverTLS } = await import('../src/network/lastro-login-http');
+  const chunks = [`HTTP/1.1 200 OK\r\n${header}\r`, `\n\r\n${body.slice(0, 5)}`, body.slice(5)];
+  const openStreams = async () => ({
+    readable: new ReadableStream<Uint8Array>({
+      pull(controller) {
+        const chunk = chunks.shift();
+        if (chunk === undefined) controller.error(new Error('TLS peer closed without close_notify'));
+        else controller.enqueue(new TextEncoder().encode(chunk));
+      },
+    }, { highWaterMark: 0 }),
+    writable: new WritableStream<Uint8Array>(),
+  });
+  await expect(requestLastROPartyOverTLS(5, 'add', new FormData(), { openStreams })).resolves.toEqual({ Type: 1 });
+});
+
+test.each([
+  ['Content-Length: 11\r\n', /ended before the full message/],
+  ['', /no body framing/],
+])('Native EOF alone cannot validate a party response (%s)', async (header, message) => {
+  vi.stubGlobal('__LASTRO_BUILD_TARGET__', 'native');
+  const { requestLastROPartyOverTLS } = await import('../src/network/lastro-login-http');
+  const openStreams = async () => streams(`HTTP/1.1 200 OK\r\n${header}\r\n{"Type":1}`, () => {});
+  await expect(requestLastROPartyOverTLS(5, 'info', new FormData(), { openStreams })).rejects.toThrow(message);
+});

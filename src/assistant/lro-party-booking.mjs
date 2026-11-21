@@ -230,7 +230,7 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
   const getSession = () => modules.get('Engine/SessionStorage');
   const getPacket = () => modules.get('Network/PacketStructure');
   const getNetwork = () => modules.get('Network/NetworkManager');
-  const getNid = () => Number(page.ROConfig?.clientVer ?? page.ROConfig?.lastroNid ?? 3);
+  const getClientVer = () => Number(modules.get('Core/Configs')?.get('clientVer') ?? page.ROConfig?.clientVer ?? page.ROConfig?.lastroNid ?? 3);
   const partyLeader = () => {
     const members = modules.get('UI/Components/PartyFriends/PartyFriends')?.lroReadParty?.() || [];
     const leader = members.find(member => Number(member.role ?? member.Role) === 0);
@@ -246,7 +246,7 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
     return Array.isArray(data) ? data.filter(x => x && Number.isSafeInteger(Number(x.iid)) && Number(x.iid) > 0 && typeof x.name === 'string').slice(0, 200) : [];
   } catch { return []; } };
   const catalog = () => {
-    const merged = new Map(getLastROAgencyCatalog(getNid()).map(row => [row.iid, row]));
+    const merged = new Map(getLastROAgencyCatalog(getClientVer()).map(row => [row.iid, row]));
     for (const row of customCatalog()) merged.set(Number(row.iid), { ...(merged.get(Number(row.iid)) || {}), ...row });
     return [...merged.values()];
   };
@@ -336,10 +336,10 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
     busy = true; status('正在同步官方募集信息…');
     try {
       const session = getSession();
-      const reply = await requestParty(page, session, getNid(), action, { Memo: memo }, encode);
+      const reply = await requestParty(page, session, getClientVer(), action, { Memo: memo }, encode);
       rows = (Array.isArray(reply.data) ? reply.data : []).map(parseEntry).filter(Boolean);
       pageIndex = 0; renderRows();
-      const mine = await requestParty(page, session, getNid(), 'get', {}, encode);
+      const mine = await requestParty(page, session, getClientVer(), 'get', {}, encode);
       own = mine.data ? parseEntry(mine.data) : null;
       ui('[data-action="create"]').hidden = Boolean(own);
       status('已同步 ' + rows.length + ' 条募集信息');
@@ -349,8 +349,10 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
   async function details(item) {
     status('正在读取募集详情…');
     try {
-      const response = await requestParty(page, getSession(), getNid(), 'info', { QueryAID: item.aid }, encode);
-      selected = parseEntry(response.data);
+      const response = await requestParty(page, getSession(), getClientVer(), 'info', { QueryAID: item.aid }, encode);
+      // The official client keeps the list's target IDs and uses info for display details.
+      selected = response.data && typeof response.data === 'object' && !Array.isArray(response.data)
+        ? parseEntry({ ...response.data, AID: item.aid, GID: item.cid }) : null;
       if (!selected) throw new Error('该募集已失效');
       showView('details');
       const data = selected;
@@ -474,7 +476,7 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
       } else {
         const old = own;
         if (!old) throw new Error('没有可修改的募集记录');
-        const result = await requestParty(page, getSession(), getNid(), 'add',
+        const result = await requestParty(page, getSession(), getClientVer(), 'add',
           fields({ ...value, map: old.map, iid: old.iid }, old.type), encode);
         if (Number(result.Type) !== 1) throw new Error('官方募集服务拒绝修改');
         showView(''); await load();
@@ -485,7 +487,7 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
     if (!own || !page.confirm('确定要关闭你的募集信息吗？')) return;
     try {
       if (own.type === 0) {
-        const result = await requestParty(page, getSession(), getNid(), 'del', {}, encode);
+        const result = await requestParty(page, getSession(), getClientVer(), 'del', {}, encode);
         if (Number(result.Type) !== 1) throw new Error('服务端没有确认关闭');
         showView(''); await load();
       } else {
@@ -504,7 +506,7 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
       const value = pending.value; pending = null; clearPending();
       if (Number(result.rs) !== 1) { status('游戏服务器拒绝创建副本（结果码：' + result.rs + '）'); return; }
       try {
-        const created = await requestParty(page, getSession(), getNid(), 'add',
+        const created = await requestParty(page, getSession(), getClientVer(), 'add',
           fields(value, 1), encode);
         if (Number(created.Type) !== 1) throw new Error('副本已创建，但募集登记失败；可尝试编辑或刷新');
         showView(''); await load();
@@ -514,7 +516,7 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
       if (![1, 2].includes(Number(result.rs))) { status('服务器拒绝关闭副本（结果码：' + result.rs + '）'); return; }
       try {
         if (Number(result.rs) === 1) {
-          const reply = await requestParty(page, getSession(), getNid(), 'del', {}, encode);
+          const reply = await requestParty(page, getSession(), getClientVer(), 'del', {}, encode);
           if (Number(reply.Type) !== 1) throw new Error('副本已关闭，但募集公告删除失败');
         }
         showView(''); await load();
