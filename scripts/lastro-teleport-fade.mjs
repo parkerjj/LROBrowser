@@ -74,7 +74,9 @@ export function patchRuntimeTeleportFade(source) {
   }
   findCallbacks(setMap[0]);
   if (callbacks.length !== 1 || !ts.isArrowFunction(callbacks[0]) || !ts.isBlock(callbacks[0].body)) fail();
-  const statements = callbacks[0].body.statements;
+  const body = callbacks[0].body.statements;
+  const guarded = body.find(ts.isTryStatement);
+  const statements = guarded?.tryBlock.statements ?? body;
   const render = statements.filter(node => ts.isExpressionStatement(node) && ts.isCallExpression(node.expression)
     && node.expression.expression.getText(file) === 'Renderer.render');
   if (render.length !== 1 || !statements.some(node => node.getText(file) === 'MapRenderer.onLoad();')) fail();
@@ -82,7 +84,9 @@ export function patchRuntimeTeleportFade(source) {
   if (guard.length !== 1 || !setMap[0].body.getText(file).includes('stripMapExtension(this.currentMap) !== stripMapExtension(mapname)')) fail();
   const drawn = onRender[0].body.statements.filter(node => node.getText(file) === 'PostProcess.render(gl);');
   if (drawn.length !== 1 || drawn[0] !== onRender[0].body.statements.at(-1)) fail();
-  edits.push({ at: render[0].getStart(file), text: 'LastROTeleportFade.play();\n        ' });
+  const renderAt = render[0].getStart(file);
+  const indent = region.slice(region.lastIndexOf('\n', renderAt) + 1, renderAt);
+  edits.push({ at: renderAt, text: `LastROTeleportFade.play();\n${indent}` });
   edits.push({ at: guard[0].end, text: '\n      LastROTeleportFade.reset();' });
   edits.push({ at: free[0].body.getStart(file) + 1, text: '\n      LastROTeleportFade.reset();' });
   edits.push({ at: drawn[0].end, text: '\n      LastROTeleportFade.reveal();' });

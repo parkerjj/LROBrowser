@@ -120,9 +120,9 @@ export function patchRuntimeHalloweenWorld(source) {
     getGroundHeight: (x, y) => Altitude.getCellHeight(x, y),
   });
   globalThis.lastroHalloweenWorldRuntime.onMapLoaded({ mp3: lastroBaseBgm });`);
-  const readyAnchor = '    Renderer.render(MapRenderer.onRender);\n    Mouse.intersect = true;';
+  const readyAnchor = '      Renderer.render(MapRenderer.onRender);\n      Mouse.intersect = true;';
   if (count(output, readyAnchor) !== 1) fail('anchor:halloween-world-ready');
-  return output.replace(readyAnchor, `${readyAnchor}\n    globalThis.lastroHalloweenPortraitLoader2026 ??= (${createMonsterPortraitLoader.toString()})(Client, id => DB.getBodyPath(id, 0), document);\n    globalThis.LastROHalloweenEffects?.setMonsterPortraitLoader?.(globalThis.lastroHalloweenPortraitLoader2026);`);
+  return output.replace(readyAnchor, `${readyAnchor}\n      globalThis.lastroHalloweenPortraitLoader2026 ??= (${createMonsterPortraitLoader.toString()})(Client, id => DB.getBodyPath(id, 0), document);\n      globalThis.LastROHalloweenEffects?.setMonsterPortraitLoader?.(globalThis.lastroHalloweenPortraitLoader2026);`);
 }
 
 export function patchRuntimeWebGLLifecycle(source) {
@@ -141,11 +141,11 @@ export function patchRuntimeWebGLLifecycle(source) {
       _writeFbo = null;
     }`);
   source = replaceStaticClassMethodBody(source, 'PostProcess', 'prepare', `{
-      this.recreateFbo(gl, gl.canvas.width, gl.canvas.height);
+      this.recreateFbo(gl, gl.drawingBufferWidth, gl.drawingBufferHeight);
       this.beforeRenderPass(gl, _activeEffects.length > 0 ? _writeFbo : null);
     }`);
   source = replaceOnce(source, '    static validateBuffers(gl) {',
-    '    static validateBuffers(gl, width = gl.canvas.width, height = gl.canvas.height) {');
+    '    static validateBuffers(gl, width, height) {');
   source = replaceStaticClassMethodBody(source, 'PostProcess', 'validateBuffers', `{
       const retry = this._bufferRetry;
       if (retry?.width === width && retry.height === height && performance.now() < retry.at) return false;
@@ -161,7 +161,7 @@ export function patchRuntimeWebGLLifecycle(source) {
       return Boolean(ready);
     }`);
   source = replaceStaticClassMethodBody(source, 'PostProcess', 'recreateFbo', `{
-      _activeEffects = _effects.filter((module) => module.isActive());
+      _activeEffects = width && height ? _effects.filter((module) => module.isActive()) : [];
       if (_activeEffects.length === 0) this._bufferRetry = null;
       else if (!this.validateBuffers(gl, width, height)) _activeEffects = [];
       if (_activeEffects.length === 0) this.releaseBuffers(gl);

@@ -97,8 +97,8 @@ export function installLastroCardDeck(component, deps) {
     return card.id === 4646 && card.tab === 6 ? 5 : card.tab;
   }
   function definitionError(cards) {
-    if (!cleanPreset(cards)) return '卡册最多8张，同一卡片不能重复加入';
-    if (cards.some(card => cardState(card) < 0)) return '卡片分类不明确，无法保存或激活';
+    if (!cleanPreset(cards)) return '方案最多 8 张卡片，同一卡片只能加入一次';
+    if (cards.some(card => cardState(card) < 0)) return '卡片分类不明确，无法使用此方案';
     return null;
   }
   function definitionsFor(id) {
@@ -242,7 +242,7 @@ export function installLastroCardDeck(component, deps) {
   }
   component.rechargeList = function (packet) {
     session();
-    if (!fullSnapshot(packet)) { invalidate(); status('卡册状态尚未完整同步'); render(); return false; }
+    if (!fullSnapshot(packet)) { invalidate(); status('卡片典藏数据尚未同步'); render(); return false; }
     const lastActive = active, lastCards = copyCards(activeCards);
     invalidate(); component._data = getDefaults();
     const result = nativeFull.call(this, packet);
@@ -273,9 +273,9 @@ export function installLastroCardDeck(component, deps) {
   };
   component.sendAction = function (action, values) {
     if (!['recharge', 'add-deck', 'cancel'].includes(action)) return nativeSend.call(this, action, values);
-    if (!usable() || busy) { status(busy || unresolved ? '正在等待服务器确认，请稍候' : '卡册状态尚未完整同步'); return false; }
+    if (!usable() || busy) { status(busy || unresolved ? '正在等待服务器确认，请稍候' : '卡片典藏数据尚未同步'); return false; }
     if (action !== 'recharge') {
-      if (!editable()) { status('请先点击激活当前卡册，等待服务器确认后再编辑'); return false; }
+      if (!editable()) { status('使用此方案后可调整卡组'); return false; }
       if (!values || !integer(values.cardid, 1, 0xffffffff)) return false;
       const cards = confirmedDeck();
       if (action === 'cancel') {
@@ -296,7 +296,7 @@ export function installLastroCardDeck(component, deps) {
         const confirmed = confirmedDeck();
         if (confirmed) {
           drafts[index - 1] = copyCards(confirmed); activeCards = copyCards(confirmed);
-          status('服务器已确认「' + names[index - 1] + '」的修改，请保存卡册');
+          status('卡组已更新，可保存到「' + names[index - 1] + '」');
         } else status('卡册内容尚未完整确认，请重新同步');
       } else if (!result && ready) status(failure || '服务器未确认卡片操作，未保存修改');
       render();
@@ -306,7 +306,7 @@ export function installLastroCardDeck(component, deps) {
   component.selectDeckPreset = function (index) {
     session(); if (!validIndex(index) || busy || unresolved) return false;
     selected = index;
-    status('已选择「' + names[index - 1] + '」，请先激活再编辑，服务器确认后保存');
+    status((activeIndex() === index ? '当前方案' : '预览') + '「' + names[index - 1] + '」');
     render(); return true;
   };
   component.renameDeckPreset = async function (index, value) {
@@ -326,7 +326,7 @@ export function installLastroCardDeck(component, deps) {
   };
   component.saveDeckPreset = async function (index) {
     if (!validIndex(index) || !usable() || busy || !preferences) return false;
-    if (!editable(index)) { status('请先激活当前卡册，等待服务器确认后再保存'); return false; }
+    if (!editable(index)) { status('使用此方案后可保存卡组'); return false; }
     const cards = copyCards(confirmedDeck());
     const token = epoch, task = {}; busy = task; selected = index; render();
     const next = preferenceSnapshot();
@@ -352,7 +352,7 @@ export function installLastroCardDeck(component, deps) {
       return success;
     }
     if (!usable() || busy) {
-      const reason = busy || unresolved ? '正在等待服务器确认' : '卡册状态尚未完整同步';
+      const reason = busy || unresolved ? '正在等待服务器确认' : '卡片典藏数据尚未同步';
       status(reason); return notify(false, reason);
     }
     if (!target) { status('「' + name + '」未保存'); return notify(false, '尚未保存'); }
@@ -363,12 +363,12 @@ export function installLastroCardDeck(component, deps) {
       status('套卡包含尚未充能或已变更的卡片，无法切换'); return notify(false, '卡片未充能或已变更');
     }
     if (requireVerified && !verified(index)) {
-      const reason = '请先手动激活，等待服务器确认并保存';
+      const reason = '请先在卡片典藏使用并保存此方案';
       status('「' + name + '」' + reason); return notify(false, reason);
     }
     const before = deck();
     if (before.length > 8 || new Set(before).size !== before.length || before.length && !recordDeck()) {
-      status('当前卡组分类不明确，请重新登录同步卡册状态'); return notify(false, '当前卡组分类不明确');
+      status('无法确认当前卡组的卡片分类，请重新登录'); return notify(false, '当前卡组分类不明确');
     }
     selected = index;
     const token = epoch, task = {}; busy = task; render();

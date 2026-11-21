@@ -67,7 +67,7 @@ test("category actions follow recharge state", () => {
 
 test("search actions remove deck cards and delegate the rest", () => {
 	const deckHit = resolveSearchCardAction({ tab: 0, level: 1, state: 2 });
-	assert.equal(deckHit.badgeText, "卡组生效");
+	assert.equal(deckHit.badgeText, "已加入卡组");
 	assert.equal(deckHit.action.action, "cancel");
 	assert.equal(deckHit.action.kind, "btn-ghost-danger");
 

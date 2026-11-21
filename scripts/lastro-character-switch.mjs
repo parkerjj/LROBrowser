@@ -168,8 +168,8 @@ const lastroNpcSpawnGate = (${createLastroNpcSpawnGate.toString()})({
     'function onEntityVanish(pkt) {\n  lastroNpcSpawnGate.vanish(pkt.GID);', 'npc-vanish');
   map = once(map, 'function cleanGameUI() {',
     'function cleanGameUI() {\n  lastroNpcSpawnGate.reset();', 'npc-cleanup');
-  renderer = once(renderer, '    MapRenderer.onLoad();\n    Sky_default.setUpCloudData();',
-    '    MapRenderer.onLoad();\n    if (MapRenderer.loading) return;\n    Sky_default.setUpCloudData();', 'obsolete-render');
+  renderer = once(renderer, '      MapRenderer.onLoad();\n      Sky_default.setUpCloudData();',
+    '      MapRenderer.onLoad();\n      if (MapRenderer.loading) return;\n      Sky_default.setUpCloudData();', 'obsolete-render');
   let result = source.slice(0, renderStart) + renderer + source.slice(renderEnd);
   const updatedMapStart = result.indexOf(mapMarker), updatedMapEnd = result.indexOf('//#endregion', updatedMapStart);
   result = result.slice(0, updatedMapStart) + map + result.slice(updatedMapEnd);
