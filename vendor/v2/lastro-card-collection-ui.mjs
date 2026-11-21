@@ -18,11 +18,11 @@ const cardCss = `
 .cc-nav button.active { color: #fff; background: #2c3a4e; border-left-color: #e8b84b; font-weight: 600; }
 .cc-nav button .cnt { float: right; font-size: 10.5px; color: #7d8ea3; }
 .cc-nav button.active .cnt { color: #e8b84b; }
-.cc-rail-foot { padding: 10px 12px; border-top: 1px solid rgba(148,168,196,.12); font-size: 10.5px; color: #7d8ea3; line-height: 1.6; }
 .cc-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .cc-top { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid rgba(148,168,196,.12); }
 .cc-top h1 { font-size: 17px; font-weight: 700; white-space: nowrap; }
 .cc-top .sub { margin-top: 2px; font-size: 11px; color: #7d8ea3; }
+.cc-top .sub:empty { display: none; }
 .cc-search { margin-left: auto; display: flex; width: 260px; height: 30px; border: 1px solid #3a4a60; border-radius: 6px; background: #10161f; overflow: hidden; }
 .cc-search input { flex: 1; min-width: 0; padding: 0 10px; border: none; outline: none; background: transparent; color: #e6ecf4; font: inherit; font-size: 12px; }
 .cc-search input::placeholder { color: #7d8ea3; }
@@ -36,21 +36,8 @@ button:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(232,184,75,.45)
 .cc-body::-webkit-scrollbar { width: 9px; }
 .cc-body::-webkit-scrollbar-thumb { background: #33445c; border-radius: 99px; border: 2px solid #1a212d; }
 .cc-body::-webkit-scrollbar-track { background: transparent; }
-.deck-banner { display: grid; grid-template-columns: minmax(0,1fr) 300px; gap: 12px; padding: 11px 13px; border: 1px solid rgba(148,168,196,.12); border-radius: 8px; background: #202a38; }
-.deck-rules { font-size: 11.5px; line-height: 1.75; color: #9db0c5; }
-.deck-rules b { color: #e8b84b; font-weight: 600; }
-.deck-rules .slots { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
-.deck-rules .slots span { padding: 1px 8px; border: 1px solid rgba(148,168,196,.22); border-radius: 99px; font-size: 10.5px; color: #7d8ea3; }
-.deck-meta { display: flex; flex-direction: column; gap: 7px; padding-left: 12px; border-left: 1px solid rgba(148,168,196,.12); }
-.meta-chip { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 9px; border: 1px solid rgba(148,168,196,.22); border-radius: 6px; background: #18202c; font-size: 11.5px; color: #9db0c5; }
-.meta-chip .dot { display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; background: #7d8ea3; }
-.meta-chip b { font-weight: 600; color: #e6ecf4; }
-.meta-chip.on .dot { background: #63d68e; }
-.meta-chip.on b { color: #63d68e; }
-.cap-row { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 8px; }
-.cap-bar { height: 5px; border: 1px solid rgba(148,168,196,.12); border-radius: 99px; background: #10161f; overflow: hidden; }
-.cap-bar i { display: block; height: 100%; background: #e8b84b; border-radius: 99px; }
 .sec-h { display: flex; align-items: baseline; gap: 9px; margin: 16px 2px 9px; }
+.cc-body > .sec-h:first-child { margin-top: 0; }
 .sec-h h2 { font-size: 13.5px; }
 .sec-h .n { font-size: 11px; color: #e8b84b; }
 .sec-h .hint { margin-left: auto; font-size: 10.5px; color: #7d8ea3; }
@@ -84,19 +71,15 @@ button:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(232,184,75,.45)
 .level-step button { width: 28px; height: 28px; border: 1px solid rgba(148,168,196,.22); border-radius: 6px; background: #26313f; color: #9db0c5; font-size: 13px; cursor: pointer; }
 .level-step button:hover { color: #e8b84b; border-color: rgba(232,184,75,.45); }
 .level-step .lvl { min-width: 86px; text-align: center; font-size: 12.5px; font-weight: 600; }
-.lvl-state { padding: 2px 9px; border: 1px solid rgba(148,168,196,.22); border-radius: 99px; color: #7d8ea3; font-size: 10.5px; }
-.lvl-state.on { color: #63d68e; border-color: rgba(99,214,142,.4); }
 .seg { margin-left: auto; display: flex; border: 1px solid rgba(148,168,196,.22); border-radius: 6px; overflow: hidden; }
 .seg button { padding: 5px 13px; border: none; background: #18202c; color: #7d8ea3; font: inherit; font-size: 11.5px; cursor: pointer; }
 .seg button.active { background: #2c3a4e; color: #fff; box-shadow: inset 0 -2px 0 #e8b84b; }
-.cat-tip { margin: 8px 2px 0; font-size: 11px; color: #7d8ea3; }
-.cat-tip b { color: #e8b84b; font-weight: 600; }
 .cc-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 16px; border-top: 1px solid rgba(148,168,196,.12); font-size: 11px; color: #7d8ea3; }
 .cc-foot .pages { display: flex; align-items: center; gap: 8px; }
 .cc-foot .pages button { min-width: 24px; height: 22px; padding: 0 7px; border: 1px solid rgba(148,168,196,.22); border-radius: 5px; background: #26313f; color: #9db0c5; font: inherit; font-size: 11px; cursor: pointer; }
 .cc-foot .pages button:hover { color: #e8b84b; border-color: rgba(232,184,75,.45); }
 .cc-foot .pages button:disabled { opacity: .45; cursor: default; color: #7d8ea3; border-color: rgba(148,168,196,.22); background: #26313f; }
-@media (max-width: 960px) { .slot-grid { grid-template-columns: repeat(4, 1fr); } .deck-banner { grid-template-columns: 1fr; } .deck-meta { padding-left: 0; border-left: none; padding-top: 10px; border-top: 1px solid rgba(148,168,196,.12); } }
+@media (max-width: 960px) { .slot-grid { grid-template-columns: repeat(4, 1fr); } }
 @media (max-width: 640px) { .cc-rail { flex-basis: 96px; } .card-grid { grid-template-columns: repeat(2, 1fr); } .cc-search { width: 150px; } }
 `;
 
@@ -105,11 +88,10 @@ const cardHtml = `<div class="cc-backdrop"></div>
 	<aside class="cc-rail">
 		<div class="cc-brand">卡片典藏<small>CARD COLLECTION</small></div>
 		<nav class="cc-nav" data-tabs></nav>
-		<div class="cc-rail-foot">卡组上限 8 张<br>同类装备仅 1 张生效</div>
 	</aside>
 	<section class="cc-main">
 		<header class="cc-top">
-			<div><h1 data-view-title>我的卡组</h1><div class="sub" data-view-sub>已加入的卡片与已充能待加入卡片</div></div>
+			<div><h1 data-view-title>我的卡组</h1><div class="sub" data-view-sub></div></div>
 			<div class="cc-search"><input type="search" data-search placeholder="搜索卡片名称或 ID" aria-label="搜索卡片名称或 ID"><button type="button" data-action="search">搜索</button></div>
 			<button type="button" class="cc-close" data-action="close" aria-label="关闭">✕</button>
 		</header>
@@ -141,7 +123,7 @@ export function resolveCategoryCardAction(entry) {
 // can be removed directly; everything else follows the category rules.
 export function resolveSearchCardAction(entry) {
 	if (entry.tab === 0) {
-		return { badgeText: "卡组生效", badgeKind: "indeck", action: { action: "cancel", label: "移除", kind: "btn-ghost-danger", tab: 0, level: 1 } };
+		return { badgeText: "已加入卡组", badgeKind: "indeck", action: { action: "cancel", label: "移除", kind: "btn-ghost-danger", tab: 0, level: 1 } };
 	}
 	return resolveCategoryCardAction(entry);
 }
@@ -343,39 +325,9 @@ export function createCardCollectionComponent(deps) {
 		const fragment = document.createDocumentFragment();
 		const overview = getCardDeckOverview(this._data, { itemNames: (id) => this.cardName(id) });
 
-		const banner = document.createElement("div");
-		banner.className = "deck-banner";
-		const rules = document.createElement("div");
-		rules.className = "deck-rules";
-		rules.innerHTML = "卡片加入卡组后，<b>自动绑定指定类型装备并激活效果</b>，无需手动激活。卡组最多添加 <b>8</b> 张卡片，与装备上相同的卡片仅有一张生效，支持精炼与套卡效果。<div class=\"slots\"><span>头饰 ×1</span><span>武器 / 盾牌 ×2</span><span>铠甲 ×1</span><span>披肩 ×1</span><span>鞋类 ×1</span><span>饰品 ×2</span></div>";
-		const metaWrap = document.createElement("div");
-		metaWrap.className = "deck-meta";
-		const activateChip = document.createElement("div");
-		activateChip.className = `meta-chip${overview.activate ? " on" : ""}`;
-		activateChip.innerHTML = `<span><span class="dot"></span>效果状态</span><b>${overview.activate ? "已激活" : "未激活"}（服务器）</b>`;
-		const enableChip = document.createElement("div");
-		enableChip.className = `meta-chip${overview.enable ? " on" : ""}`;
-		enableChip.innerHTML = `<span><span class="dot"></span>卡组状态</span><b>${overview.enable ? "已启用" : "未启用"}（服务器）</b>`;
-		const capChip = document.createElement("div");
-		capChip.className = "meta-chip cap-row";
-		capChip.innerHTML = `<span>卡组容量</span><b>${overview.deckCount} / 8</b>`;
-		const capBar = document.createElement("div");
-		capBar.className = "cap-bar";
-		const capFill = document.createElement("i");
-		capFill.style.width = `${(overview.deckCount / overview.capacity) * 100}%`;
-		capBar.appendChild(capFill);
-		capChip.appendChild(capBar);
-		metaWrap.append(activateChip, enableChip, capChip);
-		banner.append(rules, metaWrap);
-		fragment.appendChild(banner);
-
 		const slotHead = document.createElement("div");
 		slotHead.className = "sec-h";
-		slotHead.innerHTML = `<h2>卡组槽位</h2><span class="n">${overview.deckCount} / 8</span>`;
-		const slotHint = document.createElement("span");
-		slotHint.className = "hint";
-		slotHint.textContent = "移除后卡片回到“已充能 · 待加入”列表";
-		slotHead.appendChild(slotHint);
+		slotHead.innerHTML = `<h2>当前卡组</h2><span class="n">${overview.deckCount} / ${overview.capacity}</span>`;
 		fragment.appendChild(slotHead);
 
 		const slotGrid = document.createElement("div");
@@ -385,7 +337,7 @@ export function createCardCollectionComponent(deps) {
 			if (entry) {
 				const tabLabel = CARD_CONNECTION_TABS[entry.tab]?.label || "我的卡组";
 				slotGrid.appendChild(this.createCardNode(entry, {
-					badgeText: "卡组生效",
+					badgeText: "已加入卡组",
 					badgeKind: "indeck",
 					meta: `${tabLabel} · 第${entry.level}页`,
 					action: { action: "cancel", label: "移除", kind: "btn-ghost-danger", tab: 0, level: 1 }
@@ -401,11 +353,7 @@ export function createCardCollectionComponent(deps) {
 
 		const waitHead = document.createElement("div");
 		waitHead.className = "sec-h";
-		waitHead.innerHTML = `<h2>已充能 · 待加入卡组</h2><span class="n">${overview.awaiting.length} 张</span>`;
-		const waitHint = document.createElement("span");
-		waitHint.className = "hint";
-		waitHint.textContent = "汇总自所有装备分类 · 点击“加入卡组”放入空槽位";
-		waitHead.appendChild(waitHint);
+		waitHead.innerHTML = `<h2>可加入卡组</h2><span class="n">${overview.awaiting.length} 张</span>`;
 		fragment.appendChild(waitHead);
 
 		if (overview.awaiting.length) {
@@ -414,7 +362,7 @@ export function createCardCollectionComponent(deps) {
 			for (const entry of overview.awaiting) {
 				const tabLabel = CARD_CONNECTION_TABS[entry.tab]?.label || "";
 				grid.appendChild(this.createCardNode(entry, {
-					badgeText: "已充能 · 未激活",
+					badgeText: "已充能",
 					badgeKind: "charged",
 					meta: `${tabLabel} · 第${entry.level}页`,
 					action: { action: "add-deck", label: "加入卡组", kind: "btn-gold", tab: entry.tab, level: entry.level }
@@ -424,15 +372,13 @@ export function createCardCollectionComponent(deps) {
 		} else {
 			const empty = document.createElement("div");
 			empty.className = "empty-box";
-			empty.innerHTML = "当前没有已充能但未加入卡组的卡片。<br>可在各 <b>装备分类</b> 页中对卡片进行 <b>充能</b>，充能后将在此处显示并可一键加入卡组。";
+			empty.textContent = "没有可加入的已充能卡片。";
 			fragment.appendChild(empty);
 		}
 		return fragment;
 	};
 	component.renderCategory = function renderCategory() {
 		const fragment = document.createDocumentFragment();
-		const tabLabel = CARD_CONNECTION_TABS.find((tab) => tab.id === this._tab)?.label || "";
-		const levelInfo = this._data?.data?.[this._tab]?.data?.[this._level];
 		const result = listCardEntries(this._data, {
 			tab: this._tab,
 			level: this._level,
@@ -448,9 +394,6 @@ export function createCardCollectionComponent(deps) {
 		const keys = this.levelKeys();
 		const levelIndex = Math.max(0, keys.indexOf(this._level));
 		step.innerHTML = `<button type="button" data-step="-1" ${levelIndex <= 0 ? "disabled" : ""} aria-label="上一页">‹</button><div class="lvl">第 ${this._level} 页</div><button type="button" data-step="1" ${levelIndex >= keys.length - 1 ? "disabled" : ""} aria-label="下一页">›</button>`;
-		const levelState = document.createElement("span");
-		levelState.className = `lvl-state${levelInfo?.activate ? " on" : ""}`;
-		levelState.textContent = `本页效果：${levelInfo?.activate ? "已激活" : "未激活"}`;
 		const seg = document.createElement("div");
 		seg.className = "seg";
 		for (const filter of CARD_FILTERS) {
@@ -461,13 +404,8 @@ export function createCardCollectionComponent(deps) {
 			button.textContent = filter.label;
 			seg.appendChild(button);
 		}
-		toolbar.append(step, levelState, seg);
+		toolbar.append(step, seg);
 		fragment.appendChild(toolbar);
-
-		const tip = document.createElement("div");
-		tip.className = "cat-tip";
-		tip.innerHTML = `本页 <b>8 张卡片全部充能</b>后，服务器将 <b>自动激活本页效果</b>（共 ${getCardLevelCount(this._data, this._tab)} 页，可用左上角箭头翻页）。`;
-		fragment.appendChild(tip);
 
 		if (result.entries.length) {
 			const grid = document.createElement("div");
@@ -550,7 +488,7 @@ export function createCardCollectionComponent(deps) {
 		const title = root.querySelector("[data-view-title]");
 		const sub = root.querySelector("[data-view-sub]");
 		if (title) title.textContent = this._search ? "搜索结果" : (CARD_CONNECTION_TABS.find((tab) => tab.id === this._tab)?.label || "卡片典藏");
-		if (sub) sub.textContent = this._search ? "跨全部装备分类搜索" : (this._tab === 0 ? "已加入的卡片与已充能待加入卡片" : `${CARD_CONNECTION_TABS.find((tab) => tab.id === this._tab)?.label || ""}分类 · 按页浏览（每页 8 张）`);
+		if (sub) sub.textContent = this._search ? "跨全部装备分类搜索" : (this._tab === 0 ? "" : "按页浏览（每页 8 张）");
 		const pages = root.querySelector("[data-pages]");
 		if (pages) {
 			if (this._search) {
@@ -590,13 +528,9 @@ export function createCardCollectionComponent(deps) {
 		}
 	};
 	component.sendAction = function sendAction(action, values) {
-		if (action === "activate" || action === "enable") {
-			this.setStatus("激活效果和启用卡组由服务器根据已加入的卡片自动处理");
-			return false;
-		}
 		const constructors = { recharge: PACKET.CZ.REQUEST_CARDCONNECTION_RECHARGE, "add-deck": PACKET.CZ.REQUEST_CARDCONNECTION_ADDMYDECK, cancel: PACKET.CZ.REQUEST_CARDCONNECTION_CANCEL };
 		const Ctor = constructors[action];
-		if (!Ctor || !Network?.sendPacket) { this.setStatus("当前服务器未启用卡片典藏"); return false; }
+		if (!Ctor || !Network?.sendPacket) { this.setStatus("暂时无法进行卡片操作"); return false; }
 		const fields = buildCardConnectionAction(action, values);
 		const pkt = new Ctor(); Object.assign(pkt, fields); Network.sendPacket(pkt);
 		this.setStatus(`已发送${action === "recharge" ? "充能" : action === "add-deck" ? "加入卡组" : "移除"}请求，等待服务器响应`);

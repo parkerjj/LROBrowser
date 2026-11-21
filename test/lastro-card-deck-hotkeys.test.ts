@@ -353,6 +353,25 @@ describe('native card deck shortcut settings', () => {
 });
 
 describe('repeated native keyboard dispatch with confirmed card state', () => {
+  it('shows the current deck count and previews a scheme without displaying effect status', () => {
+    const f = liveDeckFixture({ altKey: true }), ui = f.openUI();
+    expect(ui.root.querySelector('.deck-banner')).toBeNull();
+    expect(ui.root.querySelector('.sec-h h2')?.textContent).toBe('当前卡组');
+    expect(ui.slot(1).querySelector('small')?.textContent).toBe('当前方案');
+
+    ui.slot(3).click();
+    expect(ui.root.querySelector('[data-tab="0"] .cnt')?.textContent).toBe('1/8');
+    expect(ui.root.querySelector('.sec-h h2')?.textContent).toBe('预览 · 卡册 3');
+    expect(ui.activate().textContent).toBe('清空并使用');
+    expect(ui.root.querySelector('[data-body]')?.textContent).not.toMatch(/效果状态|卡册状态|激活/);
+    expect(ui.root.querySelector('[data-status]')?.textContent).not.toContain('激活');
+    expect(f.sent).not.toHaveBeenCalled();
+
+    ui.slot(2).click();
+    expect(ui.activate().textContent).toBe('使用方案');
+    expect(ui.activate().disabled).toBe(false);
+  });
+
   it('reports waiting for native Alt shortcuts while one shared lock protects every ACK and preference save', async () => {
     const f = liveDeckFixture({ altKey: true }), ui = f.openUI();
     const manual = vi.spyOn(f.card, 'activateDeckPreset');
@@ -459,7 +478,7 @@ describe('repeated native keyboard dispatch with confirmed card state', () => {
     f.ack(); await flush(); expect(f.sent).toHaveBeenCalledOnce(); expect(f.notify).toHaveBeenCalledOnce();
     expect(f.api.getActivePreset()).toBeNull();
     f.press(2); await flush(); expect(await f.switchDeck.mock.results.at(-1)!.value).toBe(false);
-    expect(f.sent).toHaveBeenCalledOnce(); expect(f.notify.mock.calls.at(-1)?.[3]).toBe('卡册状态尚未完整同步');
+    expect(f.sent).toHaveBeenCalledOnce(); expect(f.notify.mock.calls.at(-1)?.[3]).toBe('卡片典藏数据尚未同步');
     f.sync(); f.press(2); f.ack(); await flush(); f.ack(); await flush();
     expect(await f.switchDeck.mock.results.at(-1)!.value).toBe(true);
     expect(f.api.isBusy()).toBe(false); expect(f.api.getActivePreset()).toBe(2);
@@ -536,7 +555,7 @@ describe('repeated native keyboard dispatch with confirmed card state', () => {
     expect(f.sent).not.toHaveBeenCalled(); expect(f.deck()).toEqual([4010]); expect(f.api.isBusy()).toBe(false);
     expect(f.notify).toHaveBeenCalledOnce();
     expect(f.notify.mock.calls[0]?.slice(0, 3)).toEqual([false, 2, '卡册 2']);
-    expect(f.notify.mock.calls[0]?.[3]).toMatch(/手动|激活/);
+    expect(f.notify.mock.calls[0]?.[3]).toBe('请先在卡片典藏使用并保存此方案');
   });
 
   it('allows repeated Alt+1 and Alt+2 only after both exact saved contents have completed manual server activation', async () => {

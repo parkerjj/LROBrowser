@@ -247,7 +247,7 @@ describe('explicit activation before server-confirmed editing', () => {
     expect(f.api.canEdit()).toBe(false); expect(f.api.canSave()).toBe(false);
     expect(add(f, unique(f.defaults, B))).toBe(false); expect(remove(f, A)).toBe(false);
     expect(await f.component.saveDeckPreset(2)).toBe(false);
-    expect(f.status()).toContain('激活'); expect(f.component.switchDeckPreset(2)).toBe(false);
+    expect(f.status()).toBe('使用此方案后可保存卡组'); expect(f.component.switchDeckPreset(2)).toBe(false);
     expect(f.deck()).toEqual([A]); expect(f.api.getPresets()).toEqual([null, null, null, null]);
     expect(f.sent).not.toHaveBeenCalled(); expect(f.save).not.toHaveBeenCalled(); expect(f.component.append).not.toHaveBeenCalled();
   });
@@ -659,7 +659,7 @@ describe('shortcut eligibility follows the server-confirmed card content', () =>
     const f = fixture({ preferences: presets, activePreset: 2, activeCards: presets[1]! });
     expect(f.api.isVerified(1)).toBe(true); expect(f.api.isVerified(2)).toBe(false);
     expect(await f.component.switchDeckPreset(2, { requireVerified: true })).toBe(false);
-    expect(f.notify).toHaveBeenCalledWith(false, 2, '卡册 2', '请先手动激活，等待服务器确认并保存');
+    expect(f.notify).toHaveBeenCalledWith(false, 2, '卡册 2', '请先在卡片典藏使用并保存此方案');
     expect(f.sent).not.toHaveBeenCalled(); expect(f.save).not.toHaveBeenCalled(); expect(f.deck()).toEqual([A]);
   });
 

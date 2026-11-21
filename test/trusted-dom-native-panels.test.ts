@@ -138,7 +138,8 @@ describe('packaged native panels through the real HTML boundary', () => {
     expect(root.querySelector('aside .cc-nav')?.children).toHaveLength(8);
     expect(root.querySelector('footer [data-status]')?.textContent).toBe('就绪');
     expect(root.querySelectorAll('.slot-empty')).toHaveLength(8);
-    expect(root.querySelector('.deck-rules')?.textContent).toContain('卡组最多添加 8 张卡片');
+    expect(root.querySelector('.deck-banner')).toBeNull();
+    expect(root.querySelector('.sec-h .n')?.textContent).toBe('0 / 8');
     expect(component._host.isConnected).toBe(false);
     expect(Client.loadFile).not.toHaveBeenCalled();
   });
@@ -156,11 +157,12 @@ describe('packaged native panels through the real HTML boundary', () => {
     component.renderCards();
     expect(root.querySelector('.slot-grid .card .nm')?.textContent).toBe(`测试卡片 ${id}`);
     expect(root.querySelector('.card-grid [data-card-action="add-deck"]')).not.toBeNull();
-    expect(root.querySelectorAll('.meta-chip.on')).toHaveLength(2);
+    expect(root.querySelector('.slot-grid .badge')?.textContent).toBe('已加入卡组');
+    expect(root.querySelector('[data-body]')?.textContent).not.toMatch(/效果状态|卡组状态|激活|启用/);
     for (let tab = 1; tab < 8; tab++) {
       expect(() => component.switchTab(tab)).not.toThrow();
       expect(root.querySelectorAll('.card-grid .card')).toHaveLength(8);
-      expect(root.querySelector('.cat-tip')?.textContent).toContain('8 张卡片全部充能');
+      expect(root.querySelector('[data-body]')?.textContent).not.toMatch(/本页效果|激活/);
       expect(root.querySelector('[data-pages]')?.textContent).toContain('第 1 /');
     }
     const search = root.querySelector<HTMLInputElement>('[data-search]')!;
