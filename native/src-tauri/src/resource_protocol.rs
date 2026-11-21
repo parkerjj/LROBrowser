@@ -3,7 +3,7 @@ use futures_util::future::{AbortHandle, AbortRegistration, Abortable};
 use std::{
     collections::{HashMap, hash_map::Entry},
     sync::{LazyLock, Mutex},
-    time::Duration,
+    time::{Duration, Instant},
 };
 use tauri::http::{HeaderValue, Method, Request, Response, StatusCode, header};
 use tokio::sync::Semaphore;
@@ -15,33 +15,67 @@ const MAX_RESOURCE_BYTES: usize = 256 * 1024 * 1024;
 const MAX_ONLINE_BYTES: usize = 4 * 1024 * 1024;
 const MAX_OFFICIAL_DOWNLOADS: u32 = 8;
 static OFFICIAL_DOWNLOADS: Semaphore = Semaphore::const_new(MAX_OFFICIAL_DOWNLOADS as usize);
+const EARLY_CANCEL_TTL: Duration = Duration::from_secs(30);
+const MAX_EARLY_CANCELLATIONS: usize = 1_024;
 type DownloadKey = (String, String);
 
 #[derive(Default)]
-struct DownloadRequests(Mutex<HashMap<DownloadKey, AbortHandle>>);
+struct DownloadEntries {
+    active: HashMap<DownloadKey, AbortHandle>,
+    cancelled: HashMap<DownloadKey, Instant>,
+}
+
+#[derive(Default)]
+struct DownloadRequests(Mutex<DownloadEntries>);
 
 impl DownloadRequests {
-    fn start(&self, key: DownloadKey) -> Option<AbortRegistration> {
+    fn start(&self, key: DownloadKey) -> Result<AbortRegistration, StatusCode> {
         let mut requests = self.0.lock().expect("resource requests mutex poisoned");
-        let Entry::Vacant(slot) = requests.entry(key) else {
-            return None;
+        if requests
+            .cancelled
+            .get(&key)
+            .is_some_and(|expiry| *expiry > Instant::now())
+        {
+            return Err(StatusCode::GONE);
+        }
+        requests.cancelled.remove(&key);
+        let Entry::Vacant(slot) = requests.active.entry(key) else {
+            return Err(StatusCode::CONFLICT);
         };
         let (abort, registration) = AbortHandle::new_pair();
         slot.insert(abort);
-        Some(registration)
+        Ok(registration)
     }
 
     fn cancel(&self, key: &DownloadKey) {
-        let requests = self.0.lock().expect("resource requests mutex poisoned");
-        if let Some(abort) = requests.get(key) {
+        let mut requests = self.0.lock().expect("resource requests mutex poisoned");
+        if let Some(abort) = requests.active.get(key) {
             abort.abort();
+            return;
         }
+        // WebView may deliver the independent cancellation fetch before the download.
+        let now = Instant::now();
+        requests.cancelled.retain(|_, expiry| *expiry > now);
+        if requests.cancelled.len() >= MAX_EARLY_CANCELLATIONS
+            && !requests.cancelled.contains_key(key)
+            && let Some(oldest) = requests
+                .cancelled
+                .iter()
+                .min_by_key(|(_, expiry)| *expiry)
+                .map(|(key, _)| key.clone())
+        {
+            requests.cancelled.remove(&oldest);
+        }
+        requests
+            .cancelled
+            .insert(key.clone(), now + EARLY_CANCEL_TTL);
     }
 
     fn finish(&self, key: &DownloadKey) {
         self.0
             .lock()
             .expect("resource requests mutex poisoned")
+            .active
             .remove(key);
     }
 }
@@ -81,12 +115,17 @@ pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder
             }
             if let Some(id) = request.uri().query().and_then(query_download_id) {
                 let key = key(id);
-                let Some(registration) = REQUESTS.start(key.clone()) else {
-                    responder.respond(error_response(
-                        StatusCode::CONFLICT,
-                        "Resource request already active",
-                    ));
-                    return;
+                let registration = match REQUESTS.start(key.clone()) {
+                    Ok(registration) => registration,
+                    Err(status) => {
+                        let reason = if status == StatusCode::GONE {
+                            "Resource request cancelled"
+                        } else {
+                            "Resource request already active"
+                        };
+                        responder.respond(error_response(status, reason));
+                        return;
+                    }
                 };
                 download = Some((key, registration));
             }
@@ -395,6 +434,17 @@ mod tests {
         mirror_server.await.unwrap();
     }
 
+    #[test]
+    fn cancellation_before_download_prevents_work_from_starting_for_that_window() {
+        let requests = DownloadRequests::default();
+        let id = "0123456789abcdef0123456789abcdef";
+        let key = ("main".to_owned(), id.to_owned());
+        requests.cancel(&key);
+        assert_eq!(requests.start(key.clone()).err(), Some(StatusCode::GONE));
+        assert_eq!(requests.start(key).err(), Some(StatusCode::GONE));
+        assert!(requests.start(("other".to_owned(), id.to_owned())).is_ok());
+    }
+
     #[tokio::test]
     async fn cancelling_a_download_closes_its_upstream_only_for_its_window() {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -421,7 +471,10 @@ mod tests {
         let id = "0123456789abcdef0123456789abcdef";
         let key = ("main".to_owned(), id.to_owned());
         let registration = requests.start(key.clone()).unwrap();
-        assert!(requests.start(key.clone()).is_none());
+        assert_eq!(
+            requests.start(key.clone()).err(),
+            Some(StatusCode::CONFLICT)
+        );
         let mut download = tokio::spawn(async move {
             let client = resource_client(false).unwrap();
             let path = format!("/lastro/data/map.gat?request={id}");
@@ -452,7 +505,7 @@ mod tests {
             .unwrap()
             .unwrap();
         requests.finish(&key);
-        assert!(requests.start(key).is_some());
+        assert!(requests.start(key).is_ok());
     }
 
     #[tokio::test]

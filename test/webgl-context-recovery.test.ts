@@ -39,6 +39,52 @@ describe('WebGL resource pressure and context recovery', () => {
     expect(revokeObjectURL).toHaveBeenCalledExactlyOnceWith(source);
   });
 
+  it('keeps completed textures from an old map out of the current terrain atlas', () => {
+    const ground = extractVendorRegion('src/Renderer/Map/Ground.js');
+    const drawn: string[] = [];
+    const canvas = { width: 0, height: 0, getContext: () => ({
+      drawImage: (name: string) => drawn.push(String(name)), clearRect: () => { drawn.length = 0; },
+    }) };
+    const callbacks = new Map<string, (success: boolean) => void>();
+    const uploads: string[][] = [];
+    const gl = { createTexture: () => ({}), bindTexture() {}, texParameteri() {}, deleteTexture() {},
+      NO_ERROR: 0, getError: () => 0, isContextLost: () => false,
+      texImage2D() { uploads.push(drawn.slice()); } };
+    runInNewContext(`${ground}\ninit_Ground();
+      initTextures(gl, ['old', 'old-bad']);
+      Ground_default.free(gl);
+      initTextures(gl, ['current']);
+      callbacks.get('current')(true);
+      callbacks.get('old')(true);
+      callbacks.get('old-bad')(false);`, {
+      gl, callbacks, document: { createElement: () => canvas },
+      init_WebGL() {}, init_Texture() {}, init_Map() {}, init_Configs() {}, init_Ground$2() {}, init_Ground$1() {},
+      WebGL_default: { toPowerOfTwo: (size: number) => 2 ** Math.ceil(Math.log2(size)) },
+      Configs: { get: () => false },
+      Texture: { load: (name: string, draw: (success: boolean, index: number) => void, index: number) => {
+        callbacks.set(name, success => draw.call(name, success, index));
+      } },
+      __esmMin: (fn: () => void) => fn,
+    });
+    expect(uploads).toEqual([['current', 'current']]);
+  });
+
+  it.each(['allocation', 'upload'])('reports terrain atlas %s failures reported by WebGL', failure => {
+    const upload = extractRuntimeNode(extractVendorRegion('src/Renderer/Map/Ground.js'), {
+      kind: 'function', name: 'onTextureAtlasComplete',
+    });
+    const uploadAtlas = runInNewContext(`let _textureAtlas = null; (${upload})`, { Configs: { get: () => false } });
+    let error = 0;
+    const gl = {
+      NO_ERROR: 0, isContextLost: () => false,
+      createTexture: () => failure === 'allocation' ? null : {},
+      bindTexture() {}, texParameteri() {}, deleteTexture() {},
+      texImage2D() { error = 1285; },
+      getError() { const flag = error; error = 0; return flag; },
+    };
+    expect(() => uploadAtlas(gl, { width: 512, height: 512 })).toThrow(`Terrain atlas ${failure} failed`);
+  });
+
   it('continues without an optional post-processing effect whose shader initialization fails', async () => {
     const post = extractVendorRegion('src/Renderer/Effects/PostProcess.js', await runtimeSource());
     const gl = {

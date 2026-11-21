@@ -168616,7 +168616,9 @@ function initTileColor2(gl, tilescolor, width, height) {
  * @param {Object} gl context
  * @param {Array} textures 's filename
  */
-function initTextures(gl, textures) {
+function initTextures(gl, textures, onFailure) {
+  const load = {};
+  _textureAtlasLoad = load;
   const count = textures.length;
   const textureCols = Math.round(Math.sqrt(count));
   const atlasWidth = WebGL_default.toPowerOfTwo(textureCols * 258);
@@ -168633,13 +168635,19 @@ function initTextures(gl, textures) {
   procCtx$2.clearRect(0, 0, atlasWidth, atlasHeight);
   let loaded = 0;
   function onTextureCompleteBuildAtlas(success, index) {
-    if (success) {
-      const x = (index % textureCols) * 258;
-      const y = Math.floor(index / textureCols) * 258;
-      procCtx$2.drawImage(this, x + 0, y + 0, 258, 258);
-      procCtx$2.drawImage(this, x + 1, y + 1, 256, 256);
+    if (_textureAtlasLoad !== load) return;
+    try {
+      if (success) {
+        const x = (index % textureCols) * 258;
+        const y = Math.floor(index / textureCols) * 258;
+        procCtx$2.drawImage(this, x + 0, y + 0, 258, 258);
+        procCtx$2.drawImage(this, x + 1, y + 1, 256, 256);
+      }
+      if (++loaded === count) onTextureAtlasComplete(gl, procCanvas$2);
+    } catch (error) {
+      _textureAtlasLoad = null;
+      onFailure(error);
     }
-    if (++loaded === count) onTextureAtlasComplete(gl, procCanvas$2);
   }
   for (let i = 0; i < count; ++i)
     Texture.load(textures[i], onTextureCompleteBuildAtlas, i);
@@ -168651,12 +168659,29 @@ function initTextures(gl, textures) {
  * @param {object} atlas - canvas texture
  */
 function onTextureAtlasComplete(gl, atlas) {
+  if (gl.isContextLost()) return;
+  // Error flags can outlive the frame that set them. Isolate this map upload.
+  for (let i = 0; i < 8; i++) {
+    const previous = gl.getError();
+    if (previous === gl.NO_ERROR) break;
+    console.debug("[Ground] WebGL error before terrain atlas upload", previous);
+  }
   if (!_textureAtlas) _textureAtlas = gl.createTexture();
+  if (!_textureAtlas) {
+    if (gl.isContextLost()) return;
+    throw new Error("Terrain atlas allocation failed");
+  }
   gl.bindTexture(gl.TEXTURE_2D, _textureAtlas);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, atlas);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
   if (Configs.get("enableMipmap")) gl.generateMipmap(gl.TEXTURE_2D);
+  const error = gl.getError();
+  if (error !== gl.NO_ERROR && !gl.isContextLost()) {
+    gl.deleteTexture(_textureAtlas);
+    _textureAtlas = null;
+    throw new Error(`Terrain atlas upload failed (WebGL ${error})`);
+  }
 }
 /**
  * Prepare ground data
@@ -168664,7 +168689,7 @@ function onTextureAtlasComplete(gl, atlas) {
  * @param {object} gl context
  * @param {object} data - ground
  */
-function init$12(gl, data) {
+function init$12(gl, data, onFailure) {
   _vertCount$1 = data.meshVertCount;
   _width = data.width;
   data.height;
@@ -168680,7 +168705,7 @@ function init$12(gl, data) {
   gl.bufferData(gl.ARRAY_BUFFER, data.mesh, gl.STATIC_DRAW);
   initLightmap(gl, data.lightmap, data.lightmapSize);
   initTileColor(gl, data.tileColor, data.width, data.height);
-  initTextures(gl, data.textures);
+  initTextures(gl, data.textures, onFailure);
 }
 /**
  * Clean texture/buffer from memory
@@ -168688,6 +168713,7 @@ function init$12(gl, data) {
  * @param {object} gl context
  */
 function free$7(gl) {
+  _textureAtlasLoad = null;
   if (_lightmap) {
     gl.deleteTexture(_lightmap);
     _lightmap = null;
@@ -168737,6 +168763,7 @@ var procCanvas$2,
   _lightmap,
   _tileColor,
   _textureAtlas,
+  _textureAtlasLoad,
   _shadowMap,
   _vertCount$1,
   _width,
@@ -226218,11 +226245,11 @@ function onWorldComplete(data) {
 /**
  * Received ground data from Thread
  */
-function onGroundComplete(data) {
+function onGroundComplete(data, onFailure) {
   const gl = Renderer.getContext();
   this.water.mesh = data.waterMesh;
   this.water.vertCount = data.waterVertCount;
-  Ground_default.init(gl, data);
+  Ground_default.init(gl, data, onFailure);
   Water_default.init(gl, this.water);
   this.sounds.forEach((sound) => {
     const tmp = -sound.pos[1];
@@ -226349,7 +226376,8 @@ function onMapComplete(success, error, graphicsStage) {
     UIManager.showErrorBox(lastroMapDiagnostic.message).ui.css("zIndex", 1e3);
     return;
   }
-  const worldResource = this.currentMap.replace(/\.gat$/i, ".rsw");
+  const mapName = this.currentMap;
+  const worldResource = mapName.replace(/\.gat$/i, ".rsw");
   try {
     const mapInfo = DB.getMap(worldResource);
     BGM.play((mapInfo && mapInfo.mp3) || "01.mp3");
@@ -226374,6 +226402,7 @@ function onMapComplete(success, error, graphicsStage) {
     return;
   }
   Background.remove(() => {
+    if (MapRenderer.currentMap !== mapName) return;
     try {
       MapRenderer.loading = false;
       MapRenderer.onLoad();
@@ -226494,12 +226523,18 @@ var init_MapRenderer = __esmMin(() => {
         const filename = mapname.replace(/\.gat$/i, ".rsw");
         Background.setLoading(function () {
           let graphicsFailure;
+          let completed = false;
           const receive = (type, stage, handler) => Thread.hook(type, (data) => {
             if (graphicsFailure) return;
-            try {
-              handler.call(MapRenderer, data);
-            } catch (error) {
+            const reportFailure = (error) => {
+              if (graphicsFailure || MapRenderer.currentMap !== mapname) return;
               graphicsFailure = { error, stage };
+              if (completed) onMapComplete.call(MapRenderer, false, error, stage);
+            };
+            try {
+              handler.call(MapRenderer, data, reportFailure);
+            } catch (error) {
+              reportFailure(error);
             }
           });
           Thread.hook("MAP_PROGRESS", onProgressUpdate.bind(MapRenderer));
@@ -226511,6 +226546,7 @@ var init_MapRenderer = __esmMin(() => {
           MapRenderer.free();
           Renderer.remove();
           Thread.send("LOAD_MAP", filename, (success, error) => {
+            completed = true;
             if (graphicsFailure) {
               onMapComplete.call(MapRenderer, false, graphicsFailure.error, graphicsFailure.stage);
             } else {
@@ -226526,11 +226562,17 @@ var init_MapRenderer = __esmMin(() => {
       EffectManager.free(gl);
       JoystickUI_default.onRestore();
       Mouse.intersect = false;
+      const currentMap = this.currentMap;
       Background.remove(() => {
-        MapRenderer.onLoad();
-        Sky_default.setUpCloudData();
-        Renderer.render(MapRenderer.onRender);
-        Mouse.intersect = true;
+        if (MapRenderer.currentMap !== currentMap) return;
+        try {
+          MapRenderer.onLoad();
+          Sky_default.setUpCloudData();
+          Renderer.render(MapRenderer.onRender);
+          Mouse.intersect = true;
+        } catch (error) {
+          onMapComplete.call(MapRenderer, false, error, "显示地图");
+        }
       });
     }
     /**

@@ -102,12 +102,14 @@ describe('map load failure recovery', () => {
     expect(f.popup).toHaveBeenCalledWith(expect.stringContaining('显示地图'));
   });
 
-  it('keeps a ground upload error from being masked by a successful worker completion', () => {
+  it.each(['inline', 'deferred'])('reports %s ground upload errors even when the Worker succeeds', timing => {
     const renderer = extractRuntimeNode(source, { region: 'src/Renderer/MapRenderer.js', kind: 'class', name: 'MapRenderer' });
     const received = new Map<string, (...args: unknown[]) => void>();
     const finish = vi.fn(), onModels = vi.fn();
     const uploadError = new Error('ground shader unavailable');
-    const execute = new Function('Thread', 'onMapComplete', 'onModelsComplete', 'uploadError', `
+    let reportFailure: ((error: Error) => void) | undefined;
+    const deferUpload = timing === 'deferred' ? (report: (error: Error) => void) => { reportFailure = report; } : undefined;
+    const execute = new Function('Thread', 'onMapComplete', 'onModelsComplete', 'uploadError', 'deferUpload', `
       const Map_default = {};
       const Cursor = {ACTION:{DEFAULT:0},setType(){}};
       const BGM = {stop(){}}, SoundManager = {stop(){}};
@@ -115,7 +117,10 @@ describe('map load failure recovery', () => {
       const Background = {setLoading: callback => callback()};
       const onProgressUpdate = () => {}, onWorldComplete = () => {};
       const onAltitudeComplete = () => {}, onAnimatedModelComplete = () => {};
-      const onGroundComplete = () => { throw uploadError; };
+      const onGroundComplete = (_data, report) => {
+        if (deferUpload) deferUpload(report);
+        else throw uploadError;
+      };
       const MapRenderer = ${renderer};
       MapRenderer.free = () => {};
       ${extractRuntimeNode(source, { region: 'src/Renderer/MapRenderer.js', kind: 'function', name: 'stripMapExtension' })}
@@ -123,13 +128,43 @@ describe('map load failure recovery', () => {
     `);
     execute({ hook: (type: string, callback: (...args: unknown[]) => void) => received.set(type, callback),
       send: (type: string, _file: string, callback: (...args: unknown[]) => void) => received.set(type, callback),
-    }, finish, onModels, uploadError);
+    }, finish, onModels, uploadError, deferUpload);
 
     expect(() => received.get('MAP_GROUND')!({})).not.toThrow();
-    received.get('MAP_MODELS')!({});
     received.get('LOAD_MAP')!(true, null);
+    if (reportFailure) {
+      expect(finish).toHaveBeenCalledExactlyOnceWith(true, null);
+      finish.mockClear();
+      reportFailure(uploadError);
+      reportFailure(uploadError);
+    }
+    received.get('MAP_MODELS')!({});
     expect(onModels).not.toHaveBeenCalled();
     expect(finish).toHaveBeenCalledExactlyOnceWith(false, uploadError, '上传地形');
+  });
+
+  it('reports a scene error when returning to the same map', () => {
+    const region = 'src/Renderer/MapRenderer.js';
+    const renderer = extractRuntimeNode(source, { region, kind: 'class', name: 'MapRenderer' });
+    const strip = extractRuntimeNode(source, { region, kind: 'function', name: 'stripMapExtension' });
+    const enterError = new Error('same-map scene failed');
+    const finish = vi.fn(), render = vi.fn();
+    const move = new Function('onMapComplete', 'enterError', 'render', `
+      const Map_default = {}, Mouse = {intersect:true};
+      const SoundManager = {stop(){}}, UIManager = {removeComponents(){}};
+      const Renderer = {stop(){},getContext:()=>({}),render};
+      const Cursor = {ACTION:{DEFAULT:0},setType(){}};
+      const EntityManager = {free(){}}, Damage = EntityManager, EffectManager = EntityManager;
+      const JoystickUI_default = {onRestore(){}}, Background = {remove: fn=>fn()};
+      const MapRenderer = ${renderer};
+      ${strip}
+      MapRenderer.currentMap = 'prontera.gat';
+      MapRenderer.onLoad = () => { throw enterError; };
+      MapRenderer.setMap('prontera.gat');
+    `);
+    expect(() => move(finish, enterError, render)).not.toThrow();
+    expect(finish).toHaveBeenCalledExactlyOnceWith(false, enterError, '显示地图');
+    expect(render).not.toHaveBeenCalled();
   });
 
   it('requires one actual permanent failure callback and diagnostic helper', () => {
