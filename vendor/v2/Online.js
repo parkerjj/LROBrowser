@@ -11929,13 +11929,17 @@ var init_MemoryManager = __esmMin(() => {
       }
       _cleaningInProgress = true;
       _cleanIndex = 0;
-      requestIdleCallback(function cleanChunk(deadline) {
+      const scheduleChunk = typeof requestIdleCallback === "function"
+        ? (callback) => requestIdleCallback(callback, { timeout: 500 })
+        : (callback) => setTimeout(callback, 0);
+      function cleanChunk(deadline) {
         let processed = 0;
         const maxProcess = Math.min(5, _filesToClean.length - _cleanIndex);
+        const fallbackEnd = deadline ? 0 : performance.now() + 4;
         while (
           _cleanIndex < _filesToClean.length &&
           processed < maxProcess &&
-          deadline.timeRemaining() > 0
+          (processed === 0 || (deadline ? deadline.timeRemaining() > 0 : performance.now() < fallbackEnd))
         ) {
           const filename = _filesToClean[_cleanIndex];
           const item = _memory[filename];
@@ -11947,7 +11951,7 @@ var init_MemoryManager = __esmMin(() => {
           _cleanIndex++;
           processed++;
         }
-        if (_cleanIndex < _filesToClean.length) requestIdleCallback(cleanChunk);
+        if (_cleanIndex < _filesToClean.length) scheduleChunk(cleanChunk);
         else {
           _cleaningInProgress = false;
           _lastCheckTick = now;
@@ -11961,7 +11965,8 @@ var init_MemoryManager = __esmMin(() => {
               { files },
             );
         }
-      });
+      }
+      scheduleChunk(cleanChunk);
     };
     /**
      * Force immediate cleanup of memory entries matching an optional regex.
@@ -85285,8 +85290,10 @@ var init_PostProcess = __esmMin(() => {
             gl.deleteFramebuffer(oldfbo.framebuffer);
         }
         fbo = gl.createFramebuffer();
-        gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
         texture = gl.createTexture();
+        rbo = gl.createRenderbuffer();
+        if (!fbo || !texture || !rbo) throw new Error("WebGL framebuffer allocation failed");
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texImage2D(
           gl.TEXTURE_2D,
@@ -85310,7 +85317,6 @@ var init_PostProcess = __esmMin(() => {
           texture,
           0,
         );
-        rbo = gl.createRenderbuffer();
         gl.bindRenderbuffer(gl.RENDERBUFFER, rbo);
         gl.renderbufferStorage(
           gl.RENDERBUFFER,
@@ -225645,16 +225651,7 @@ var init_Bloom = __esmMin(() => {
      * @param {WebGLFramebuffer} outputFbo - Destination (Screen or next effect)
      */
     static render(gl, inputTexture, outputFbo) {
-      if (!_buffer$13 || !_programs.prefilter || !Bloom.isActive()) return;
-      _internalFbo = PostProcess.createFbo(
-        gl,
-        gl.canvas.width,
-        gl.canvas.height,
-        _internalFbo,
-        GraphicsSettings.performanceMode
-          ? _downsampleFactorPerformance
-          : _downsampleFactor,
-      );
+      if (!_internalFbo) return;
       /**
        * Pass 1 Shader: Extract brightness (Threshold)
        * This runs on the small internal FBO.
@@ -225725,22 +225722,22 @@ var init_Bloom = __esmMin(() => {
       _buffer$13 = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, _buffer$13);
       gl.bufferData(gl.ARRAY_BUFFER, quadVertices, gl.STATIC_DRAW);
-      this.recreateFbo(gl, gl.canvas.width, gl.canvas.height);
     }
     /**
      * Recreates the Internal FBO when the window size changes
      */
     static recreateFbo(gl, width, height) {
-      if (_programs.prefilter)
-        _internalFbo = PostProcess.createFbo(
-          gl,
-          width,
-          height,
-          _internalFbo,
-          GraphicsSettings.performanceMode
-            ? _downsampleFactorPerformance
-            : _downsampleFactor,
-        );
+      if (!_buffer$13 || !_programs.prefilter || !_programs.composite) return false;
+      _internalFbo = PostProcess.createFbo(
+        gl,
+        width,
+        height,
+        _internalFbo,
+        GraphicsSettings.performanceMode
+          ? _downsampleFactorPerformance
+          : _downsampleFactor,
+      );
+      return _internalFbo !== null;
     }
     /** @returns {boolean} Whether the effect is active */
     static isActive() {

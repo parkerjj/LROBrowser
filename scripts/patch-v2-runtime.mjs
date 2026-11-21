@@ -140,32 +140,34 @@ export function patchRuntimeWebGLLifecycle(source) {
       _readFbo = null;
       _writeFbo = null;
     }`);
-  source = replaceStaticClassMethodBody(source, 'PostProcess', 'prepare', `{\n      _activeEffects = _effects.filter((e) => e.isActive());\n      if (_activeEffects.length > 0) this.validateBuffers(gl);\n      else this.releaseBuffers(gl);\n      _effects.forEach((module) => {\n        if (!_activeEffects.includes(module) && module.releaseFbo) module.releaseFbo(gl);\n      });\n      if (_activeEffects.length > 0)\n        PostProcess.beforeRenderPass(gl, _writeFbo);\n      else PostProcess.beforeRenderPass(gl, null);\n    }`);
+  source = replaceStaticClassMethodBody(source, 'PostProcess', 'prepare', `{
+      this.recreateFbo(gl, gl.canvas.width, gl.canvas.height);
+      this.beforeRenderPass(gl, _activeEffects.length > 0 ? _writeFbo : null);
+    }`);
+  source = replaceOnce(source, '    static validateBuffers(gl) {',
+    '    static validateBuffers(gl, width = gl.canvas.width, height = gl.canvas.height) {');
   source = replaceStaticClassMethodBody(source, 'PostProcess', 'validateBuffers', `{
-      if (_activeEffects.length === 0) {
-        this.releaseBuffers(gl);
-        return;
-      }
-      const { width, height } = gl.canvas;
+      const retry = this._bufferRetry;
+      if (retry?.width === width && retry.height === height && performance.now() < retry.at) return false;
       if (!_readFbo || _readFbo.width !== width || _readFbo.height !== height) {
         _readFbo = this.createFbo(gl, width, height, _readFbo);
+      }
+      if (_readFbo && (!_writeFbo || _writeFbo.width !== width || _writeFbo.height !== height)) {
         _writeFbo = this.createFbo(gl, width, height, _writeFbo);
       }
+      const ready = _readFbo && _writeFbo && _activeEffects.every((module) => module.recreateFbo?.(gl, width, height) !== false);
+      // Keep rendering the scene directly under GPU pressure, without reallocating every frame.
+      this._bufferRetry = ready ? null : { width, height, at: performance.now() + 1000 };
+      return Boolean(ready);
     }`);
   source = replaceStaticClassMethodBody(source, 'PostProcess', 'recreateFbo', `{
-      const activeEffects = _effects.filter((module) => module.isActive());
-      _activeEffects = activeEffects;
-      if (activeEffects.length === 0) {
-        this.releaseBuffers(gl);
-        _effects.forEach((module) => module.releaseFbo?.(gl));
-        return;
+      _activeEffects = _effects.filter((module) => module.isActive());
+      if (_activeEffects.length === 0) this._bufferRetry = null;
+      else if (!this.validateBuffers(gl, width, height)) _activeEffects = [];
+      if (_activeEffects.length === 0) this.releaseBuffers(gl);
+      for (const module of _effects) {
+        if (!_activeEffects.includes(module)) module.releaseFbo?.(gl);
       }
-      _readFbo = this.createFbo(gl, width, height, _readFbo);
-      _writeFbo = this.createFbo(gl, width, height, _writeFbo);
-      activeEffects.forEach((module) => {
-        if (module.recreateFbo) module.recreateFbo(gl, width, height);
-      });
-      _effects.filter((module) => !activeEffects.includes(module)).forEach((module) => module.releaseFbo?.(gl));
     }`);
   source = insertStaticClassMethod(source, 'Bloom', 'recreateFbo', `static releaseFbo(gl) {
       if (!_internalFbo) return;
@@ -174,7 +176,6 @@ export function patchRuntimeWebGLLifecycle(source) {
       if (gl.isFramebuffer(_internalFbo.framebuffer)) gl.deleteFramebuffer(_internalFbo.framebuffer);
       _internalFbo = null;
     }`);
-  source = replaceOnce(source, '      this.recreateFbo(gl, gl.canvas.width, gl.canvas.height);', '');
   source = replaceStaticClassMethodBody(source, 'Renderer', 'onContextLost', `{\n      event.preventDefault();\n      this.contextLost = true;\n      console.warn("[Renderer] WebGL Context Lost! Pausing rendering.");\n      MemoryManager.forceClean(null, /\\.(bmp|jpg|png|spr|pal|str)$/i);\n      this.rendering = false;\n      try {\n        clearInterval(this.updateId);\n        _cancelAnimationFrame(this.updateId);\n      } catch (e) {\n        console.error(e);\n      }\n      if (!this.errorOverlay) {\n        this.errorOverlay = document.createElement("div");\n        this.errorOverlay.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); color:white; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:10000; text-align:center;";\n        const title = document.createElement("h2");\n        title.textContent = "Graphics context lost";\n        title.style.cssText = "color:#ff6b6b; margin-bottom:10px;";\n        this.errorOverlay.appendChild(title);\n        const message = document.createElement("p");\n        message.dataset.lastroWebglStatus = "true";\n        message.textContent = "The browser lost connection to the GPU. Waiting for recovery...";\n        message.style.cssText = "font-size:0.9em; opacity:0.8;";\n        this.errorOverlay.appendChild(message);\n        const reloadButton = document.createElement("button");\n        reloadButton.type = "button";\n        reloadButton.textContent = "Reload game";\n        reloadButton.style.cssText = "margin-top:16px; padding:10px 18px; color:#111; background:#fff; border:0; cursor:pointer;";\n        reloadButton.addEventListener("click", () => window.location.reload());\n        this.errorOverlay.appendChild(reloadButton);\n        document.body.appendChild(this.errorOverlay);\n      } else {\n        this.errorOverlay.style.display = "flex";\n      }\n    }`);
   source = replaceStaticClassMethodBody(source, 'Renderer', 'onContextRestored', `{\n      console.info("[Renderer] WebGL Context Restored! Reloading to rebuild GPU resources...");\n      const status = this.errorOverlay?.querySelector("[data-lastro-webgl-status]");\n      let shouldReload = false;\n      try {\n        const recoveryKey = "lastro-webgl-context-recovery";\n        const lastReload = Number(window.sessionStorage.getItem(recoveryKey) || 0);\n        if (!lastReload || Date.now() - lastReload >= 30000) {\n          window.sessionStorage.setItem(recoveryKey, String(Date.now()));\n          shouldReload = true;\n        }\n      } catch {}\n      if (shouldReload) {\n        if (status) status.textContent = "Graphics restored. Reloading the game to rebuild GPU resources...";\n        window.location.reload();\n        return;\n      }\n      this.contextLost = true;\n      if (this.errorOverlay) this.errorOverlay.style.display = "flex";\n      if (status) status.textContent = "Graphics restored, but the game needs a reload to rebuild GPU resources.";\n      console.warn("[Renderer] Automatic WebGL recovery reload was recently attempted; use Reload game to retry.");\n    }`);
   const rendererInitAnchor = '    static init(param) {\n      if (!this.gl) {';

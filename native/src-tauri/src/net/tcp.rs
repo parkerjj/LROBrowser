@@ -65,15 +65,22 @@ pub(super) async fn run(
     stream: impl ByteStream,
     mut writes: Writes,
     on_data: impl Fn(Vec<u8>) -> Result<(), String>,
+    official_http_tls: bool,
 ) -> Result<(), String> {
     let (mut reader, mut writer) = tokio::io::split(stream);
     let read = async {
         let mut buffer = vec![0; 64 * 1024];
         loop {
-            let count = reader
-                .read(&mut buffer)
-                .await
-                .map_err(|error| error.to_string())?;
+            let count = match reader.read(&mut buffer).await {
+                Ok(count) => count,
+                // Official HTTPS may omit close_notify. Preserve the data
+                // already delivered over TLS. The HTTP reader requires a
+                // complete length- or chunk-framed response before accepting it.
+                Err(error) if official_http_tls && error.kind() == ErrorKind::UnexpectedEof => {
+                    return Ok(());
+                }
+                Err(error) => return Err(error.to_string()),
+            };
             if count == 0 {
                 return Ok(());
             }

@@ -125,6 +125,85 @@ describe('WebGL resource pressure and context recovery', () => {
     expect(gl.deleteTexture).toHaveBeenCalledExactlyOnceWith(expiredTexture);
   });
 
+  it('evicts expired textures in batches without requestIdleCallback', async () => {
+    const source = await runtimeSource();
+    const memory = ['src/Core/MemoryItem.js', 'src/Core/MemoryManager.js'].map(path => extractVendorRegion(path, source));
+    let now = 1;
+    const tasks: Array<() => void> = [];
+    const cache = runInNewContext(memory.join('\n') + '\ninit_MemoryManager(); MemoryManager;', {
+      __esmMin: (fn: () => void) => fn, Date: { now: () => now }, performance: { now: () => now },
+      setTimeout: (callback: () => void) => tasks.push(callback), console: { log() {} },
+    });
+    const gl = { isTexture: () => true, deleteTexture: vi.fn() };
+    for (let i = 0; i < 7; i++) cache.set(`${i}.spr`, { frames: [{ texture: { i } }] });
+
+    now = 31_001;
+    cache.clean(gl, now);
+    expect(gl.deleteTexture).not.toHaveBeenCalled();
+    now++;
+    cache.get('6.spr');
+    tasks.shift()!();
+    expect(gl.deleteTexture).toHaveBeenCalledTimes(5);
+    tasks.shift()!();
+    expect(gl.deleteTexture).toHaveBeenCalledTimes(6);
+    expect(cache.exist('6.spr')).toBe(true);
+
+    now = 62_003;
+    cache.clean(gl, now);
+    tasks.shift()!();
+    expect(cache.exist('6.spr')).toBe(false);
+  });
+
+  it.each(['first', 'second', 'effect'] as const)('renders to the screen and throttles retries if the %s framebuffer fails', async failure => {
+    const post = extractVendorRegion('src/Renderer/Effects/PostProcess.js', await runtimeSource());
+    let now = 0;
+    let unavailable = true;
+    const textures: object[] = [];
+    const allocate = vi.fn((_gl, width: number, height: number) => {
+      if (unavailable && allocate.mock.calls.length === (failure === 'first' ? 1 : failure === 'second' ? 2 : 0)) return null;
+      const buffer = { width, height, framebuffer: {}, texture: {}, rbo: {} };
+      textures.push(buffer.texture);
+      return buffer;
+    });
+    const effect = {
+      program() {}, isActive: () => true, init() {}, render: vi.fn(), clean() {},
+      recreateFbo: () => failure === 'effect' && unavailable ? false : true,
+    };
+    const gl = {
+      FRAMEBUFFER: 1, canvas: { width: 800, height: 600 }, bindFramebuffer: vi.fn(), viewport: vi.fn(), clear: vi.fn(),
+      isTexture: () => true, isRenderbuffer: () => true, isFramebuffer: () => true,
+      deleteTexture: vi.fn(), deleteRenderbuffer: vi.fn(), deleteFramebuffer: vi.fn(),
+    };
+    const postProcess = runInNewContext(`${post}
+      init_PostProcess();
+      PostProcess.createFbo = allocate;
+      PostProcess.register(effect, gl);
+      PostProcess;`, {
+      gl, allocate, effect, performance: { now: () => now }, init_Graphics() {}, __esmMin: (fn: () => void) => fn,
+    });
+
+    postProcess.recreateFbo(gl, gl.canvas.width, gl.canvas.height);
+    const initialAttempts = failure === 'first' ? 1 : 2;
+    expect(allocate).toHaveBeenCalledTimes(initialAttempts);
+    for (let i = 1; i <= 3; i++) {
+      now = i * 16;
+      postProcess.prepare(gl);
+      postProcess.render(gl);
+    }
+    expect(gl.bindFramebuffer).toHaveBeenLastCalledWith(gl.FRAMEBUFFER, null);
+    expect(effect.render).not.toHaveBeenCalled();
+    expect(allocate).toHaveBeenCalledTimes(initialAttempts);
+    expect(gl.deleteTexture.mock.calls.map(([texture]) => texture)).toEqual(textures);
+
+    unavailable = false;
+    now = 1001;
+    postProcess.prepare(gl);
+    expect(gl.bindFramebuffer).not.toHaveBeenLastCalledWith(gl.FRAMEBUFFER, null);
+    postProcess.render(gl);
+    expect(effect.render).toHaveBeenCalledExactlyOnceWith(gl, textures.at(-1), null);
+    expect(allocate).toHaveBeenCalledTimes(initialAttempts + 2);
+  });
+
   it('deletes all partially allocated buffers when a framebuffer is incomplete', async () => {
     const source = await runtimeSource();
     const factory = section(source, 'static createFramebuffer(gl, width, height, oldfbo)', '\n  };\n});');
@@ -133,7 +212,7 @@ describe('WebGL resource pressure and context recovery', () => {
     const renderbuffer = {};
     const gl = {
       FRAMEBUFFER_COMPLETE: 1,
-      createFramebuffer: () => framebuffer,
+      createFramebuffer: (): object | null => framebuffer,
       createTexture: () => texture,
       createRenderbuffer: () => renderbuffer,
       checkFramebufferStatus: () => 0,
@@ -157,6 +236,9 @@ describe('WebGL resource pressure and context recovery', () => {
     expect(gl.deleteFramebuffer).toHaveBeenCalledExactlyOnceWith(framebuffer);
     expect(gl.deleteTexture).toHaveBeenCalledExactlyOnceWith(texture);
     expect(gl.deleteRenderbuffer).toHaveBeenCalledExactlyOnceWith(renderbuffer);
+
+    const missingFramebuffer = { ...gl, createFramebuffer: () => null, checkFramebufferStatus: () => gl.FRAMEBUFFER_COMPLETE };
+    expect(createFramebuffer(missingFramebuffer, 32, 32, null)).toBeNull();
   });
 
   it('allocates post-process framebuffers only for active effects', async () => {
@@ -167,13 +249,10 @@ describe('WebGL resource pressure and context recovery', () => {
     const bloomInit = section(bloom, 'static init(gl)', 'static recreateFbo(gl, width, height)');
     const bloomRelease = section(bloom, 'static releaseFbo(gl)', 'static recreateFbo(gl, width, height)');
 
-    expect(prepare).toContain('if (_activeEffects.length > 0) this.validateBuffers(gl);');
-    expect(prepare).toContain('this.releaseBuffers(gl);');
+    expect(prepare).toContain('this.recreateFbo(gl, gl.canvas.width, gl.canvas.height);');
     expect(resize).toContain('_effects.filter((module) => module.isActive())');
-    expect(resize).toContain('if (activeEffects.length === 0)');
-    expect(resize).toContain('this.releaseBuffers(gl);');
-    expect(resize).toContain('activeEffects.forEach');
-    expect(section(bloom, 'static render(gl, inputTexture, outputFbo)', 'static init(gl)')).toContain('PostProcess.createFbo');
+    expect(resize).toContain('if (_activeEffects.length === 0) this.releaseBuffers(gl);');
+    expect(section(bloom, 'static recreateFbo(gl, width, height)', 'static isActive()')).toContain('PostProcess.createFbo');
     expect(bloomInit).not.toContain('this.recreateFbo(gl, gl.canvas.width, gl.canvas.height);');
     expect(bloomRelease).toContain('_internalFbo = null;');
   });

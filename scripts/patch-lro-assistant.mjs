@@ -18,6 +18,7 @@ const lroAssistantModules = {
   get(name) {
     const native = {
       'Core/Client': () => Client,
+      'Core/Configs': () => Configs,
       'Core/MemoryManager': () => MemoryManager,
       'Core/Preferences': () => Preferences,
       'DB/DBManager': () => DB,

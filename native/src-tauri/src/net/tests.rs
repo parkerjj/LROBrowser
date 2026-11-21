@@ -339,3 +339,36 @@ async fn live_relay_returns_101() {
     .unwrap();
     ws.close(None).await.unwrap();
 }
+
+#[tokio::test]
+async fn live_official_party_tls_delivers_http_response_before_eof() {
+    if std::env::var("LASTRO_PARTY_TLS_LIVE").as_deref() != Ok("1") {
+        return;
+    }
+    // Read-only probe without a session. The server returns an HTTP error,
+    // but the complete response must still reach JS without a TLS EOF error.
+    let registry = ConnectionRegistry::default();
+    let owner = "test";
+    let (id, mut events) = start(
+        &registry,
+        owner,
+        super::connect(super::NetKind::Tls, "game.lastro.cn".into(), 443),
+    );
+    assert_eq!(next(&mut events).await, Some(NetEvent::Open));
+    let request = b"POST /webserver/party/list HTTP/1.1\r\nHost: game.lastro.cn\r\n\
+        Content-Type: application/x-www-form-urlencoded\r\nContent-Length: 0\r\n\
+        Connection: close\r\n\r\n";
+    registry.send(owner, id, request.to_vec()).await.unwrap();
+    let mut response = Vec::new();
+    loop {
+        match next(&mut events).await.unwrap() {
+            NetEvent::Data(data) => response.extend(data),
+            NetEvent::Closed { error } => {
+                assert_eq!(error, None);
+                break;
+            }
+            event => panic!("Unexpected TLS event: {event:?}"),
+        }
+    }
+    assert!(response.starts_with(b"HTTP/1.1 400 "));
+}
