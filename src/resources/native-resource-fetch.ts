@@ -21,9 +21,25 @@ export function createNativeResourceFetch(base: URL | string, transport = global
     if (classifyResource(resource.replace(/%[0-9a-f]{2}/gi, '_')) !== 'remote-passive') {
       throw new TypeError('Only passive resources can use the native resource protocol');
     }
-    return transport(new URL(`${root}/${resource}`, base), {
-      signal: request?.signal, ...init, credentials: 'omit', redirect: 'error',
-    });
+    const url = new URL(`${root}/${resource}`, base);
+    const options: RequestInit = { signal: request?.signal, ...init, credentials: 'omit', redirect: 'error' };
+    const signal = options.signal;
+    if (!signal) return transport(url, options);
+    if (signal.aborted) throw signal.reason ?? new DOMException('Aborted', 'AbortError');
+
+    const id = Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('');
+    url.searchParams.set('request', id);
+    // Tauri buffers the upstream body before resolving fetch. Aborting fetch
+    // alone leaves the Rust task and its download slot active.
+    const cancel = () => {
+      void transport(new URL(`cancel/${id}`, base), { credentials: 'omit', redirect: 'error' }).catch(() => {});
+    };
+    signal.addEventListener('abort', cancel, { once: true });
+    try {
+      return await transport(url, options);
+    } finally {
+      signal.removeEventListener('abort', cancel);
+    }
   };
 }
 

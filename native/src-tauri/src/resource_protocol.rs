@@ -1,5 +1,10 @@
 use crate::policy::{CHROME_UA, OFFICIAL_ONLINE_PATH, resolve_lro_path};
-use std::{sync::LazyLock, time::Duration};
+use futures_util::future::{AbortHandle, AbortRegistration, Abortable};
+use std::{
+    collections::{HashMap, hash_map::Entry},
+    sync::{LazyLock, Mutex},
+    time::Duration,
+};
 use tauri::http::{HeaderValue, Method, Request, Response, StatusCode, header};
 use tokio::sync::Semaphore;
 
@@ -8,19 +13,104 @@ const OFFICIAL_REFERER: &str = "https://game.lastro.cn/";
 const MAX_RESOURCE_BYTES: usize = 256 * 1024 * 1024;
 // Match the limit of the frontend's official profile parser.
 const MAX_ONLINE_BYTES: usize = 4 * 1024 * 1024;
-static ACTIVE_DOWNLOADS: Semaphore = Semaphore::const_new(8);
+const MAX_OFFICIAL_DOWNLOADS: u32 = 8;
+static OFFICIAL_DOWNLOADS: Semaphore = Semaphore::const_new(MAX_OFFICIAL_DOWNLOADS as usize);
+type DownloadKey = (String, String);
+
+#[derive(Default)]
+struct DownloadRequests(Mutex<HashMap<DownloadKey, AbortHandle>>);
+
+impl DownloadRequests {
+    fn start(&self, key: DownloadKey) -> Option<AbortRegistration> {
+        let mut requests = self.0.lock().expect("resource requests mutex poisoned");
+        let Entry::Vacant(slot) = requests.entry(key) else {
+            return None;
+        };
+        let (abort, registration) = AbortHandle::new_pair();
+        slot.insert(abort);
+        Some(registration)
+    }
+
+    fn cancel(&self, key: &DownloadKey) {
+        let requests = self.0.lock().expect("resource requests mutex poisoned");
+        if let Some(abort) = requests.get(key) {
+            abort.abort();
+        }
+    }
+
+    fn finish(&self, key: &DownloadKey) {
+        self.0
+            .lock()
+            .expect("resource requests mutex poisoned")
+            .remove(key);
+    }
+}
+
+fn is_download_id(id: &str) -> bool {
+    id.len() == 32 && id.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+fn query_download_id(query: &str) -> Option<&str> {
+    query
+        .strip_prefix("request=")
+        .filter(|id| is_download_id(id))
+}
 
 pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
     static CLIENT: LazyLock<Result<reqwest::Client, reqwest::Error>> =
         LazyLock::new(|| resource_client(true));
+    static REQUESTS: LazyLock<DownloadRequests> = LazyLock::new(DownloadRequests::default);
 
-    builder.register_asynchronous_uri_scheme_protocol("lro", |_context, request, responder| {
+    builder.register_asynchronous_uri_scheme_protocol("lro", |context, request, responder| {
+        let mut download = None;
+        if request.method() == Method::GET && is_allowed_request(&request) {
+            let key = |id: &str| (context.webview_label().to_owned(), id.to_owned());
+            if let Some(id) = request.uri().path().strip_prefix("/cancel/") {
+                let result = if request.uri().query().is_none() && is_download_id(id) {
+                    REQUESTS.cancel(&key(id));
+                    response(
+                        StatusCode::NO_CONTENT,
+                        Vec::new(),
+                        HeaderValue::from_static("text/plain"),
+                    )
+                } else {
+                    error_response(StatusCode::FORBIDDEN, "Resource request forbidden")
+                };
+                responder.respond(result);
+                return;
+            }
+            if let Some(id) = request.uri().query().and_then(query_download_id) {
+                let key = key(id);
+                let Some(registration) = REQUESTS.start(key.clone()) else {
+                    responder.respond(error_response(
+                        StatusCode::CONFLICT,
+                        "Resource request already active",
+                    ));
+                    return;
+                };
+                download = Some((key, registration));
+            }
+        }
         tauri::async_runtime::spawn(async move {
-            let response = match &*CLIENT {
-                Ok(client) => handle_with_upstream(client, request, |url| url).await,
-                Err(_) => error_response(StatusCode::BAD_GATEWAY, "Resource client unavailable"),
+            let transfer = async {
+                match &*CLIENT {
+                    Ok(client) => handle_with_upstream(client, request, |url| url).await,
+                    Err(_) => {
+                        error_response(StatusCode::BAD_GATEWAY, "Resource client unavailable")
+                    }
+                }
             };
-            responder.respond(response);
+            let result = match download {
+                Some((key, registration)) => {
+                    let result = Abortable::new(transfer, registration).await;
+                    REQUESTS.finish(&key);
+                    result.unwrap_or_else(|_| {
+                        error_response(StatusCode::GONE, "Resource request cancelled")
+                    })
+                }
+                None => transfer.await,
+            };
+            responder.respond(result);
         });
     })
 }
@@ -46,7 +136,9 @@ fn is_allowed_request(request: &Request<Vec<u8>>) -> bool {
         || !uri
             .authority()
             .is_some_and(|authority| authority.as_str() == "localhost")
-        || uri.query().is_some()
+        || uri.query().is_some_and(|query| {
+            uri.path() == OFFICIAL_ONLINE_PATH || query_download_id(query).is_none()
+        })
     {
         return false;
     }
@@ -158,10 +250,18 @@ async fn handle_with_upstream(
     let Ok(upstream) = resolve_lro_path(path) else {
         return error_response(StatusCode::FORBIDDEN, "Resource path forbidden");
     };
-    let _download = ACTIVE_DOWNLOADS
-        .acquire()
-        .await
-        .expect("download semaphore stays open");
+    // Classify the validated upstream before mapping it to a test server.
+    // Downloads from the mirror can finish even if the official source is full.
+    let _download = if upstream.starts_with(OFFICIAL_REFERER) {
+        Some(
+            OFFICIAL_DOWNLOADS
+                .acquire()
+                .await
+                .expect("download semaphore stays open"),
+        )
+    } else {
+        None
+    };
     let is_script = path == OFFICIAL_ONLINE_PATH;
     let body_limit = if is_script {
         MAX_ONLINE_BYTES
@@ -253,6 +353,136 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn mirror_can_finish_while_official_download_slots_are_full() {
+        let slots = OFFICIAL_DOWNLOADS
+            .acquire_many(MAX_OFFICIAL_DOWNLOADS)
+            .await
+            .unwrap();
+        let reply = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok";
+        let (official_url, official_server) = serve_once(reply.to_vec()).await;
+        let (mirror_url, mirror_server) = serve_once(reply.to_vec()).await;
+        let client = resource_client(false).unwrap();
+        let mut official = std::pin::pin!(handle_with_upstream(
+            &client,
+            request(Method::GET, "/lastro/data/prontera.gnd"),
+            |_| official_url,
+        ));
+        assert!(futures_util::poll!(&mut official).is_pending());
+
+        let deadline = Duration::from_secs(2);
+        let mirror = tokio::time::timeout(
+            deadline,
+            handle_with_upstream(
+                &client,
+                request(Method::GET, "/rodata/data/prontera.gnd"),
+                |_| mirror_url,
+            ),
+        )
+        .await
+        .expect("the mirror must not wait for an official slot");
+        assert_eq!(mirror.body(), b"ok");
+        assert!(!official_server.is_finished());
+        drop(slots);
+
+        assert_eq!(
+            tokio::time::timeout(deadline, official)
+                .await
+                .unwrap()
+                .body(),
+            b"ok"
+        );
+        official_server.await.unwrap();
+        mirror_server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn cancelling_a_download_closes_its_upstream_only_for_its_window() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let upstream = format!("http://{}/fixture", listener.local_addr().unwrap());
+        let (started, waiting) = tokio::sync::oneshot::channel();
+        let server = tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let mut request = Vec::new();
+            while !request.ends_with(b"\r\n\r\n") {
+                let mut buffer = [0; 512];
+                let count = socket.read(&mut buffer).await.unwrap();
+                assert!(count > 0);
+                request.extend_from_slice(&buffer[..count]);
+            }
+            socket
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 6\r\n\r\na")
+                .await
+                .unwrap();
+            started.send(()).unwrap();
+            assert_eq!(socket.read(&mut [0]).await.unwrap(), 0);
+        });
+
+        let requests = DownloadRequests::default();
+        let id = "0123456789abcdef0123456789abcdef";
+        let key = ("main".to_owned(), id.to_owned());
+        let registration = requests.start(key.clone()).unwrap();
+        assert!(requests.start(key.clone()).is_none());
+        let mut download = tokio::spawn(async move {
+            let client = resource_client(false).unwrap();
+            let path = format!("/lastro/data/map.gat?request={id}");
+            let transfer = handle_with_upstream(&client, request(Method::GET, &path), |_| upstream);
+            Abortable::new(transfer, registration).await
+        });
+        let timeout = Duration::from_secs(3);
+        tokio::time::timeout(timeout, waiting)
+            .await
+            .unwrap()
+            .unwrap();
+        requests.cancel(&("other".to_owned(), id.to_owned()));
+        assert!(
+            tokio::time::timeout(Duration::from_millis(25), &mut download)
+                .await
+                .is_err()
+        );
+        requests.cancel(&key);
+        assert!(
+            tokio::time::timeout(timeout, download)
+                .await
+                .unwrap()
+                .unwrap()
+                .is_err()
+        );
+        tokio::time::timeout(timeout, server)
+            .await
+            .unwrap()
+            .unwrap();
+        requests.finish(&key);
+        assert!(requests.start(key).is_some());
+    }
+
+    #[tokio::test]
+    async fn live_both_resource_origins_deliver_bytes_through_rust_https() {
+        if std::env::var("LASTRO_RESOURCES_LIVE").as_deref() != Ok("1") {
+            return;
+        }
+        let client = resource_client(true).unwrap();
+        for source in ["lastro", "rodata"] {
+            let started = std::time::Instant::now();
+            let path = format!("/{source}/data/prontera.gnd");
+            let result =
+                handle_with_upstream(&client, request(Method::GET, &path), |url| url).await;
+            let elapsed = started.elapsed().as_secs_f64();
+            let bytes = result.body().len();
+            eprintln!(
+                "{source}: {}, {bytes} decoded bytes in {elapsed:.3} s ({:.0} B/s)",
+                result.status(),
+                bytes as f64 / elapsed
+            );
+            assert_eq!(result.status(), StatusCode::OK, "{source}");
+            assert!(
+                bytes > 1_000_000 && result.body().starts_with(b"GRGN"),
+                "{source}"
+            );
+            assert_ne!(result.headers()[header::CONTENT_TYPE], "text/html");
+        }
+    }
+
+    #[tokio::test]
     async fn forwards_error_status_and_binary_bytes_with_cors_and_corp() {
         let mut reply = b"HTTP/1.1 404 Not Found\r\nContent-Type: application/octet-stream\r\nContent-Length: 4\r\nConnection: close\r\n\r\n".to_vec();
         reply.extend_from_slice(&[0, 255, 42, 10]);
@@ -300,6 +530,13 @@ mod tests {
             ),
             (
                 request(Method::GET, "/lastro/data/file.txt?query"),
+                StatusCode::FORBIDDEN,
+            ),
+            (
+                request(
+                    Method::GET,
+                    "/official/ro/Online.js?request=0123456789abcdef0123456789abcdef",
+                ),
                 StatusCode::FORBIDDEN,
             ),
             (
