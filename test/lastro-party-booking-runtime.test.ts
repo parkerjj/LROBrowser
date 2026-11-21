@@ -9,12 +9,12 @@ const listing = {
 };
 
 describe('LastRO instance requests from the recruitment panel', () => {
-  function openPanel() {
+  function openPanel(details: unknown = { ...listing, AID: undefined, GID: undefined }) {
     const { window: page } = new JSDOM('', { url: 'https://fixture.example/' });
     page.ROConfig = { clientVer: 3 };
     const httpRequest = vi.fn(async (_clientVer: number, action: string) => ({
       Type: action === 'add' ? 1 : undefined,
-      data: action === 'list' ? [listing] : action === 'info' ? { ...listing, AID: undefined, GID: undefined } : null,
+      data: action === 'list' ? [listing] : action === 'info' ? details : null,
     }));
     page.LastROPartyHttpRequest = httpRequest;
     const sendPacket = vi.fn();
@@ -62,6 +62,17 @@ describe('LastRO instance requests from the recruitment panel', () => {
       join.click();
       expect(httpRequest).toHaveBeenCalledWith(5, 'info', expect.anything());
       expect(sendPacket).toHaveBeenCalledWith(expect.objectContaining({ AID: 23, CID: 456, instanceName: '无尽之塔' }));
+    } finally { page.close(); }
+  });
+
+  it.each([{}, { Type: 1 }])('rejects incomplete recruitment details %j', async details => {
+    const { page, httpRequest, sendPacket, shadow } = openPanel(details);
+    try {
+      await vi.waitFor(() => expect(httpRequest).toHaveBeenCalledWith(5, 'get', expect.anything()));
+      shadow.querySelector<HTMLButtonElement>('.card')!.click();
+      await vi.waitFor(() => expect(shadow.querySelector('footer .status')?.textContent).toBe('该募集已失效'));
+      expect(shadow.querySelector('.view-actions button')).toBeNull();
+      expect(sendPacket).not.toHaveBeenCalled();
     } finally { page.close(); }
   });
 

@@ -350,9 +350,14 @@ export function installLastroPartyBooking({ page, modules, subscribePackets, pro
     status('正在读取募集详情…');
     try {
       const response = await requestParty(page, getSession(), getClientVer(), 'info', { QueryAID: item.aid }, encode);
+      const detail = response.data;
+      const iid = Number(detail?.IID);
+      if (![0, 1, '0', '1'].includes(detail?.Type)
+        || (Number(detail.Type) === 1 && (!Number.isSafeInteger(iid) || iid <= 0))) {
+        throw new Error('该募集已失效');
+      }
       // The official client keeps the list's target IDs and uses info for display details.
-      selected = response.data && typeof response.data === 'object' && !Array.isArray(response.data)
-        ? parseEntry({ ...response.data, AID: item.aid, GID: item.cid }) : null;
+      selected = parseEntry({ ...detail, AID: item.aid, GID: item.cid });
       if (!selected) throw new Error('该募集已失效');
       showView('details');
       const data = selected;
