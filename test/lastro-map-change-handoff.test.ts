@@ -65,7 +65,7 @@ describe('map changes during asynchronous resource loading', () => {
   });
   it('does not display an obsolete completed map after a newer load begins', () => {
     const renderer = section(handoff, 'src/Renderer/MapRenderer.js');
-    expect(renderer).toContain('MapRenderer.onLoad();\n    if (MapRenderer.loading) return;\n    Sky_default.setUpCloudData();');
+    expect(renderer).toMatch(/^( +)MapRenderer\.onLoad\(\);\n\1if \(MapRenderer\.loading\) return;\n\1Sky_default\.setUpCloudData\(\);/m);
   });
 });
 

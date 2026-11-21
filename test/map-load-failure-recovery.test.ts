@@ -14,25 +14,26 @@ function visit(node: ts.Node) {
 }
 visit(file);
 
-function fixture() {
+function fixture({ initialize = () => {}, enterMap = () => {}, deferScene = false } = {}) {
   const state = { currentMap: 'prontera.gat', loading: true, fog: { exist: true } };
   const cancel = vi.fn(), close = vi.fn(), error = vi.fn(), popup = vi.fn(() => ({ ui: { css: vi.fn() } }));
   const mouse = { intersect: true };
   const bgm = vi.fn();
-  const finish = vi.fn();
-  const onMapComplete = new Function('DB', 'LastROTools', 'Network', 'console', 'UIManager', 'Mouse', 'BGM', `
-    const Renderer = {init:()=>{}, getContext:()=>({}), show:()=>{}, render:()=>{}};
-    const SpriteRenderer = {init:()=>{}}, Sky_default = {init:()=>{},setUpCloudData:()=>{}};
+  const finish = vi.fn(enterMap), stop = vi.fn(), removeScene = vi.fn();
+  let completeScene: (() => void) | undefined;
+  const background = { remove: (fn: () => void) => { if (deferScene) completeScene = fn; else fn(); } };
+  const onMapComplete = new Function('DB', 'LastROTools', 'Network', 'console', 'UIManager', 'Mouse', 'BGM', 'initialize', 'stop', 'removeScene', 'Background', `
+    const Renderer = {init:()=>{}, getContext:()=>({}), show:()=>{}, render:()=>{}, stop, remove: removeScene};
+    const SpriteRenderer = {init:initialize}, Sky_default = {init:()=>{},setUpCloudData:()=>{}};
     const Damage = {init:()=>{}}, EffectManager = {init:()=>{}};
     const ScreenEffectManager = {init:()=>{},startMapflagEffect:()=>{}};
     const registerPostProcessModules = ()=>{}, JoystickUI_default = {onRestore:()=>{}};
-    const Background = {remove: callback=>callback()};
     let MapRenderer;
     ${diagnostic}
     ${callback}
     return (state,success,error)=>{MapRenderer=state;return onMapComplete.call(state,success,error)};
-  `)({ getMap: () => null }, { _lastroPanels: { cancelRoute: cancel } }, { close }, { error }, { showErrorBox: popup }, mouse, { play: bgm });
-  return { state: Object.assign(state, { onLoad: finish, onRender: () => {} }), cancel, close, error, popup, mouse, bgm, finish, onMapComplete };
+  `)({ getMap: () => null }, { _lastroPanels: { cancelRoute: cancel } }, { close }, { error }, { showErrorBox: popup }, mouse, { play: bgm }, initialize, stop, removeScene, background);
+  return { state: Object.assign(state, { onLoad: finish, onRender: () => {} }), cancel, close, error, popup, mouse, bgm, finish, onMapComplete, stop, removeScene, showScene: () => completeScene?.() };
 }
 
 afterEach(() => {
@@ -80,6 +81,55 @@ describe('map load failure recovery', () => {
     expect(f.close).not.toHaveBeenCalled();
     expect(f.popup).not.toHaveBeenCalled();
     expect(f.mouse.intersect).toBe(true);
+  });
+
+  it('reports graphics initialization as a map failure even when all assets loaded', () => {
+    const f = fixture({ initialize: () => { throw new Error('shader link failed'); } });
+    expect(() => f.onMapComplete(f.state, true)).not.toThrow();
+    expect(f.state).toMatchObject({ loading: false, currentMap: '' });
+    expect(f.close).toHaveBeenCalledOnce();
+    expect(f.stop).toHaveBeenCalledOnce();
+    expect(f.popup).toHaveBeenCalledWith(expect.stringContaining('初始化地图渲染器'));
+    expect(f.finish).not.toHaveBeenCalled();
+  });
+
+  it('recovers when the deferred map display callback fails after the loading background', () => {
+    const f = fixture({ deferScene: true, enterMap: () => { throw new Error('scene activation failed'); } });
+    f.onMapComplete(f.state, true);
+    expect(() => f.showScene()).not.toThrow();
+    expect(f.state).toMatchObject({ loading: false, currentMap: '' });
+    expect(f.removeScene).toHaveBeenCalledOnce();
+    expect(f.popup).toHaveBeenCalledWith(expect.stringContaining('显示地图'));
+  });
+
+  it('keeps a ground upload error from being masked by a successful worker completion', () => {
+    const renderer = extractRuntimeNode(source, { region: 'src/Renderer/MapRenderer.js', kind: 'class', name: 'MapRenderer' });
+    const received = new Map<string, (...args: unknown[]) => void>();
+    const finish = vi.fn(), onModels = vi.fn();
+    const uploadError = new Error('ground shader unavailable');
+    const execute = new Function('Thread', 'onMapComplete', 'onModelsComplete', 'uploadError', `
+      const Map_default = {};
+      const Cursor = {ACTION:{DEFAULT:0},setType(){}};
+      const BGM = {stop(){}}, SoundManager = {stop(){}};
+      const Renderer = {stop(){},remove(){}}, UIManager = {removeComponents(){}};
+      const Background = {setLoading: callback => callback()};
+      const onProgressUpdate = () => {}, onWorldComplete = () => {};
+      const onAltitudeComplete = () => {}, onAnimatedModelComplete = () => {};
+      const onGroundComplete = () => { throw uploadError; };
+      const MapRenderer = ${renderer};
+      MapRenderer.free = () => {};
+      ${extractRuntimeNode(source, { region: 'src/Renderer/MapRenderer.js', kind: 'function', name: 'stripMapExtension' })}
+      MapRenderer.setMap('prontera.gat');
+    `);
+    execute({ hook: (type: string, callback: (...args: unknown[]) => void) => received.set(type, callback),
+      send: (type: string, _file: string, callback: (...args: unknown[]) => void) => received.set(type, callback),
+    }, finish, onModels, uploadError);
+
+    expect(() => received.get('MAP_GROUND')!({})).not.toThrow();
+    received.get('MAP_MODELS')!({});
+    received.get('LOAD_MAP')!(true, null);
+    expect(onModels).not.toHaveBeenCalled();
+    expect(finish).toHaveBeenCalledExactlyOnceWith(false, uploadError, '上传地形');
   });
 
   it('requires one actual permanent failure callback and diagnostic helper', () => {

@@ -84750,18 +84750,27 @@ var init_Texture = __esmMin(() => {
     }
     const img = new Image();
     img.decoding = "async";
-    img.src = data;
+    function finish(success, canvas) {
+      if (data.startsWith("blob:")) URL.revokeObjectURL(data);
+      oncomplete.apply(canvas, [success, ...args]);
+    }
+    img.onerror = () => finish(false, null);
     img.onload = function OnLoadClosure() {
-      if (data.match(/^blob:/)) URL.revokeObjectURL(data);
       const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d", { willReadFrequently: true });
-      canvas.width = this.width;
-      canvas.height = this.height;
-      ctx.drawImage(this, 0, 0, this.width, this.height);
-      Texture.removeMagenta(canvas);
-      args.unshift(true);
-      oncomplete.apply(canvas, args);
+      try {
+        canvas.width = this.width;
+        canvas.height = this.height;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        ctx.drawImage(this, 0, 0, this.width, this.height);
+        Texture.removeMagenta(canvas);
+      } catch (error) {
+        console.warn("[Texture] Unable to prepare image texture", error);
+        finish(false, null);
+        return;
+      }
+      finish(true, canvas);
     };
+    img.src = data;
   };
   Texture.processGifToSpriteSheet = function processGifToSpriteSheet(
     buffer,
@@ -85109,8 +85118,23 @@ var init_PostProcess = __esmMin(() => {
         );
         return;
       }
-      _effects.push(module);
-      module.init(gl);
+      try {
+        module.init(gl);
+        if (!module.program()) throw new Error("Post-processing resources unavailable");
+        _effects.push(module);
+      } catch (error) {
+        this.disableFailedEffect(gl, module, error);
+      }
+    }
+    static disableFailedEffect(gl, module, error) {
+      const index = _effects.indexOf(module);
+      if (index !== -1) _effects.splice(index, 1);
+      console.warn("[PostProcess] Skipping unavailable effect", module.name, error);
+      try {
+        module.clean(gl);
+      } catch (cleanupError) {
+        console.warn("[PostProcess] Effect cleanup failed", module.name, cleanupError);
+      }
     }
     /**
      * Prepare the pipeline for the scene rendering.
@@ -85135,7 +85159,14 @@ var init_PostProcess = __esmMin(() => {
         const effect = _activeEffects[i];
         const isLast = i === _activeEffects.length - 1;
         const targetFbo = isLast ? null : _writeFbo;
-        effect.render(gl, _readFbo.texture, targetFbo);
+        try {
+          effect.render(gl, _readFbo.texture, targetFbo);
+        } catch (error) {
+          this.disableFailedEffect(gl, effect, error);
+          _activeEffects = [];
+          this.afterRenderPass(gl);
+          return;
+        }
         if (!isLast) this.swapBuffers();
       }
     }
@@ -85150,7 +85181,7 @@ var init_PostProcess = __esmMin(() => {
         gl.viewport(0, 0, outputFbo.width, outputFbo.height);
       } else {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+        gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
       }
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     }
@@ -85175,7 +85206,7 @@ var init_PostProcess = __esmMin(() => {
      * Ensures Ping-Pong buffers are created and resized if necessary.
      */
     static validateBuffers(gl) {
-      const { width, height } = gl.canvas;
+      const { drawingBufferWidth: width, drawingBufferHeight: height } = gl;
       if (
         !_readFbo ||
         _readFbo.width !== width ||
@@ -85416,10 +85447,10 @@ var init_VerticalFlip = __esmMin(() => {
       PostProcess.afterRenderPass(gl);
     }
     /**
-     * @returns {WebGLProgram} Shader program
+     * @returns {WebGLProgram|null} Shader program when the pass has a vertex buffer
      */
     static program() {
-      return _program$27;
+      return _buffer$21 && _program$27;
     }
     /** Resets effect state */
     static clean(gl) {
@@ -167625,11 +167656,15 @@ function transition(callback) {
     onVisibility();
   }
   fadeTo(1, () => {
-    callback();
-    if (stopped) return;
-    fadeTo(0.01, () => {
-      if (_overlay.parentNode) _overlay.parentNode.removeChild(_overlay);
-    });
+    try {
+      callback();
+    } finally {
+      if (!stopped) {
+        fadeTo(0.01, () => {
+          if (_overlay.parentNode) _overlay.parentNode.removeChild(_overlay);
+        });
+      }
+    }
   });
 }
 var _overlay,
@@ -204207,7 +204242,7 @@ function ensureEffectRenderCallback() {
       return;
     if (!gl) return;
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+    gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
     if (EnchantEffectState.overlayActive) renderEffectOverlay(gl);
     if (EnchantEffectState.activeEffects.length) renderEnchantEffects(tick, gl);
     else stopEffectRenderIfIdle();
@@ -222229,7 +222264,7 @@ var init_Blind = __esmMin(() => {
       gl.uniform1f(_program$15.uniform.uFocusFalloff, focusFalloff);
       gl.uniform2f(
         _program$15.uniform.uAspectRatio,
-        gl.canvas.width / gl.canvas.height,
+        gl.drawingBufferWidth / gl.drawingBufferHeight,
         1,
       );
       gl.bindBuffer(gl.ARRAY_BUFFER, _buffer$14);
@@ -222268,7 +222303,7 @@ var init_Blind = __esmMin(() => {
       _active = bool;
     }
     static program() {
-      return _program$15;
+      return _buffer$14 && _program$15;
     }
     static clean(gl) {
       if (_buffer$14) gl.deleteBuffer(_buffer$14);
@@ -225743,9 +225778,9 @@ var init_Bloom = __esmMin(() => {
     static isActive() {
       return GraphicsSettings.bloom;
     }
-    /** @returns {WebGLProgram} The loaded shader program (returning one for validation check) */
+    /** @returns {WebGLProgram|null} Shader program when both passes are ready */
     static program() {
-      return _programs.prefilter;
+      return _buffer$13 && _programs.composite && _programs.prefilter;
     }
     /** Clears memory references */
     static clean(gl) {
@@ -225798,8 +225833,8 @@ var init_GaussianBlur = __esmMin(() => {
       const boxsampleFactor = GraphicsSettings.blurIntensity;
       gl.uniform2f(
         _program$14.uniform.uTexelSize,
-        (1 / gl.canvas.width) * boxsampleFactor,
-        (1 / gl.canvas.height) * boxsampleFactor,
+        (1 / gl.drawingBufferWidth) * boxsampleFactor,
+        (1 / gl.drawingBufferHeight) * boxsampleFactor,
       );
       gl.bindBuffer(gl.ARRAY_BUFFER, _buffer$12);
       const posLoc = _program$14.attribute.aPosition;
@@ -225834,7 +225869,7 @@ var init_GaussianBlur = __esmMin(() => {
       return GraphicsSettings.blur;
     }
     static program() {
-      return _program$14;
+      return _buffer$12 && _program$14;
     }
     static clean(gl) {
       if (_buffer$12) gl.deleteBuffer(_buffer$12);
@@ -225873,8 +225908,8 @@ var init_CAS = __esmMin(() => {
       );
       gl.uniform2f(
         _program$13.uniform.uTexelSize,
-        1 / gl.canvas.width,
-        1 / gl.canvas.height,
+        1 / gl.drawingBufferWidth,
+        1 / gl.drawingBufferHeight,
       );
       gl.bindBuffer(gl.ARRAY_BUFFER, _buffer$11);
       const posLoc = _program$13.attribute.aPosition;
@@ -225909,7 +225944,7 @@ var init_CAS = __esmMin(() => {
       return GraphicsSettings.casEnabled;
     }
     static program() {
-      return _program$13;
+      return _buffer$11 && _program$13;
     }
     static clean(gl) {
       if (_buffer$11) gl.deleteBuffer(_buffer$11);
@@ -225949,8 +225984,8 @@ var init_FXAA = __esmMin(() => {
       gl.uniform1f(_program$12.uniform.uEdgeThresholdMin, 0);
       gl.uniform2f(
         _program$12.uniform.uTexelSize,
-        1 / gl.canvas.width,
-        1 / gl.canvas.height,
+        1 / gl.drawingBufferWidth,
+        1 / gl.drawingBufferHeight,
       );
       gl.bindBuffer(gl.ARRAY_BUFFER, _buffer$10);
       const posLoc = _program$12.attribute.aPosition;
@@ -225985,7 +226020,7 @@ var init_FXAA = __esmMin(() => {
       return GraphicsSettings.fxaaEnabled;
     }
     static program() {
-      return _program$12;
+      return _buffer$10 && _program$12;
     }
     static clean(gl) {
       if (_buffer$10) gl.deleteBuffer(_buffer$10);
@@ -226052,7 +226087,7 @@ var init_Vibrance = __esmMin(() => {
       return GraphicsSettings.vibranceEnabled;
     }
     static program() {
-      return _program$11;
+      return _buffer$9 && _program$11;
     }
     static clean(gl) {
       if (_buffer$9) gl.deleteBuffer(_buffer$9);
@@ -226091,8 +226126,8 @@ var init_Cartoon = __esmMin(() => {
       );
       gl.uniform2f(
         _program$10.uniform.uTexelSize,
-        1 / gl.canvas.width,
-        1 / gl.canvas.height,
+        1 / gl.drawingBufferWidth,
+        1 / gl.drawingBufferHeight,
       );
       gl.bindBuffer(gl.ARRAY_BUFFER, _buffer$8);
       const posLoc = _program$10.attribute.aPosition;
@@ -226127,7 +226162,7 @@ var init_Cartoon = __esmMin(() => {
       return GraphicsSettings.cartoonEnabled;
     }
     static program() {
-      return _program$10;
+      return _buffer$8 && _program$10;
     }
     static clean(gl) {
       if (_buffer$8) gl.deleteBuffer(_buffer$8);
@@ -226289,48 +226324,67 @@ function describeLastroMapLoadFailure(mapname, error) {
     message: `地图加载失败：${map}。\n原因：${reason}${displayResource ? '\n文件：' + displayResource : ''}\n确认后返回登录，请重新尝试。`,
   };
 }
-function onMapComplete(success, error) {
-  const worldResource = this.currentMap.replace(/\.gat$/i, ".rsw");
-  const mapInfo = DB.getMap(worldResource);
+function onMapComplete(success, error, graphicsStage) {
   if (!success) {
     const lastroFailedMap = this.currentMap;
     this.loading = false;
     this.currentMap = "";
     Mouse.intersect = false;
+    if (graphicsStage) {
+      Renderer.stop();
+      Renderer.remove();
+    }
     if (typeof LastROTools !== "undefined") LastROTools?._lastroPanels?.cancelRoute();
     Network.close();
     console.error("[LastRO] Map load failed", lastroFailedMap, error);
     const lastroMapDiagnostic = describeLastroMapLoadFailure(lastroFailedMap, error);
+    if (graphicsStage) {
+      lastroMapDiagnostic.category = "graphics";
+      lastroMapDiagnostic.stage = graphicsStage;
+      lastroMapDiagnostic.reason = `${graphicsStage}失败`;
+      lastroMapDiagnostic.message = `地图加载失败：${lastroMapDiagnostic.map}。\n原因：${lastroMapDiagnostic.reason}\n确认后返回登录，请重新尝试。`;
+    }
     globalThis.LastROMapLoadFailure = lastroMapDiagnostic;
     try { globalThis.localStorage?.setItem("LastROMapLoadFailure", JSON.stringify(lastroMapDiagnostic)); } catch { /* Storage may be unavailable. */ }
     UIManager.showErrorBox(lastroMapDiagnostic.message).ui.css("zIndex", 1e3);
     return;
   }
-  BGM.play((mapInfo && mapInfo.mp3) || "01.mp3");
-  this.fog.exist = !!(mapInfo && mapInfo.fog);
-  if (this.fog.exist) {
-    this.fog.near = mapInfo.fog.near * 240;
-    this.fog.far = mapInfo.fog.far * 240;
-    this.fog.factor = mapInfo.fog.factor;
-    this.fog.color.set(mapInfo.fog.color);
+  const worldResource = this.currentMap.replace(/\.gat$/i, ".rsw");
+  try {
+    const mapInfo = DB.getMap(worldResource);
+    BGM.play((mapInfo && mapInfo.mp3) || "01.mp3");
+    this.fog.exist = !!(mapInfo && mapInfo.fog);
+    if (this.fog.exist) {
+      this.fog.near = mapInfo.fog.near * 240;
+      this.fog.far = mapInfo.fog.far * 240;
+      this.fog.factor = mapInfo.fog.factor;
+      this.fog.color.set(mapInfo.fog.color);
+    }
+    Renderer.init();
+    const gl = Renderer.getContext();
+    SpriteRenderer.init(gl);
+    Sky_default.init(gl, worldResource);
+    Damage.init(gl);
+    EffectManager.init(gl);
+    ScreenEffectManager.init(gl, worldResource);
+    registerPostProcessModules(gl);
+    JoystickUI_default.onRestore();
+  } catch (error) {
+    onMapComplete.call(this, false, error, "初始化地图渲染器");
+    return;
   }
-  Renderer.init();
-  const gl = Renderer.getContext();
-  SpriteRenderer.init(gl);
-  Sky_default.init(gl, worldResource);
-  Damage.init(gl);
-  EffectManager.init(gl);
-  ScreenEffectManager.init(gl, worldResource);
-  registerPostProcessModules(gl);
-  JoystickUI_default.onRestore();
   Background.remove(() => {
-    MapRenderer.loading = false;
-    MapRenderer.onLoad();
-    Sky_default.setUpCloudData();
-    ScreenEffectManager.startMapflagEffect(worldResource);
-    Renderer.show();
-    Renderer.render(MapRenderer.onRender);
-    Mouse.intersect = true;
+    try {
+      MapRenderer.loading = false;
+      MapRenderer.onLoad();
+      Sky_default.setUpCloudData();
+      ScreenEffectManager.startMapflagEffect(worldResource);
+      Renderer.show();
+      Renderer.render(MapRenderer.onRender);
+      Mouse.intersect = true;
+    } catch (error) {
+      onMapComplete.call(this, false, error, "显示地图");
+    }
   });
 }
 var mat4$11, _pos$6, MapRenderer;
@@ -226439,18 +226493,30 @@ var init_MapRenderer = __esmMin(() => {
         this.currentMap = mapname;
         const filename = mapname.replace(/\.gat$/i, ".rsw");
         Background.setLoading(function () {
+          let graphicsFailure;
+          const receive = (type, stage, handler) => Thread.hook(type, (data) => {
+            if (graphicsFailure) return;
+            try {
+              handler.call(MapRenderer, data);
+            } catch (error) {
+              graphicsFailure = { error, stage };
+            }
+          });
           Thread.hook("MAP_PROGRESS", onProgressUpdate.bind(MapRenderer));
-          Thread.hook("MAP_WORLD", onWorldComplete.bind(MapRenderer));
-          Thread.hook("MAP_GROUND", onGroundComplete.bind(MapRenderer));
-          Thread.hook("MAP_ALTITUDE", onAltitudeComplete.bind(MapRenderer));
-          Thread.hook("MAP_MODELS", onModelsComplete.bind(MapRenderer));
-          Thread.hook(
-            "MAP_ANIMATED_MODEL",
-            onAnimatedModelComplete.bind(MapRenderer),
-          );
+          receive("MAP_WORLD", "初始化地图光照", onWorldComplete);
+          receive("MAP_GROUND", "上传地形", onGroundComplete);
+          receive("MAP_ALTITUDE", "初始化地面高度", onAltitudeComplete);
+          receive("MAP_MODELS", "上传地图模型", onModelsComplete);
+          receive("MAP_ANIMATED_MODEL", "上传动画模型", onAnimatedModelComplete);
           MapRenderer.free();
           Renderer.remove();
-          Thread.send("LOAD_MAP", filename, onMapComplete.bind(MapRenderer));
+          Thread.send("LOAD_MAP", filename, (success, error) => {
+            if (graphicsFailure) {
+              onMapComplete.call(MapRenderer, false, graphicsFailure.error, graphicsFailure.stage);
+            } else {
+              onMapComplete.call(MapRenderer, success, error);
+            }
+          });
         });
         return;
       }
@@ -227334,15 +227400,29 @@ var init_Renderer = __esmMin(() => {
      */
     static resize() {
       if (this.contextLost || !this.gl) return;
+      const gl = this.gl;
       const dpr = window.devicePixelRatio || 1;
       const width = window.innerWidth || document.body.offsetWidth;
       const height = window.innerHeight || document.body.offsetHeight;
       if (!width || !height) return;
       Mouse.screen.width = this.width = width;
       Mouse.screen.height = this.height = height;
-      const quality = Configs.get("quality", 100) / 100;
+      const quality = Number(Configs.get("quality", 100)) / 100;
+      const viewportLimit = gl.getParameter(gl.MAX_VIEWPORT_DIMS);
+      if (!viewportLimit) return;
+      const bufferLimit = Math.min(
+        gl.getParameter(gl.MAX_TEXTURE_SIZE),
+        gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),
+      );
       // The browser scales the smaller 3D canvas to the same UI coordinates.
-      const scale = dpr * quality * (GraphicsSettings.performanceMode ? 0.75 : 1);
+      const qualityScale = Number.isFinite(quality) && quality > 0 ? quality : 1;
+      const requestedScale = dpr * qualityScale * (GraphicsSettings.performanceMode ? 0.75 : 1);
+      const scale = Math.min(
+        requestedScale,
+        viewportLimit[0] / width,
+        viewportLimit[1] / height,
+        bufferLimit / Math.max(width, height),
+      );
       const drawWidth = Math.max(1, Math.floor(width * scale));
       const drawHeight = Math.max(1, Math.floor(height * scale));
       if (this.canvas.width !== drawWidth) this.canvas.width = drawWidth;
@@ -227350,13 +227430,13 @@ var init_Renderer = __esmMin(() => {
       this.canvas.style.width = this.width + "px";
       this.canvas.style.height = this.height + "px";
       try {
-        this.gl.viewport(0, 0, drawWidth, drawHeight);
+        gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
       } catch (e) {
         console.error("Viewport resize failed", e);
       }
       mat4$9.perspective(this.vFov, width / height, 1, 1e3, Camera.projection);
       Background.resize(this.width, this.height);
-      PostProcess.recreateFbo(this.gl, drawWidth, drawHeight);
+      PostProcess.recreateFbo(gl, gl.drawingBufferWidth, gl.drawingBufferHeight);
       __vitePreload(
         () =>
           Promise.resolve()
@@ -227375,6 +227455,8 @@ var init_Renderer = __esmMin(() => {
       if (this.contextLost) return;
       const now = typeof time === "number" ? time : Date.now();
       if (!this._renderBound) this._renderBound = this._render.bind(this);
+      // A failing cursor or frame callback must not prevent the next frame.
+      this.updateId = _requestAnimationFrame(this._renderBound);
       if (
         typeof this._lastFrameTime === "undefined" ||
         this._lastFrameTime === 0
@@ -227400,10 +227482,7 @@ var init_Renderer = __esmMin(() => {
       if (frameLimit > 0) {
         const interval = 1e3 / frameLimit;
         const elapsed = now - this._lastFrameTime;
-        if (elapsed < interval) {
-          this.updateId = _requestAnimationFrame(this._renderBound);
-          return;
-        }
+        if (elapsed < interval) return;
         this._lastFrameTime = now - (elapsed % interval);
       } else this._lastFrameTime = now;
       const newTick = Date.now();
@@ -227425,7 +227504,6 @@ var init_Renderer = __esmMin(() => {
           }
         }
       Cursor.render(this.tick);
-      this.updateId = _requestAnimationFrame(this._renderBound);
     }
     /**
      * Start rendering
