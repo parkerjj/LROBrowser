@@ -680,8 +680,8 @@ define("Utils/html2canvas", [], function () {
         };
       }
       function q(a, b, c, d) {
-        var f = c.left,
-          e = c.top,
+        var e = c.left,
+          f = c.top,
           g = c.width;
         c = c.height;
         var l,
@@ -711,8 +711,8 @@ define("Utils/html2canvas", [], function () {
         })(a);
         for (a = 0; 4 > a; a += 1)
           if (((l = R[a]), (v = []), 0 < l.width)) {
-            n = f;
-            k = e;
+            n = e;
+            k = f;
             p = g;
             h = c - R[2].width;
             switch (a) {
@@ -725,7 +725,7 @@ define("Utils/html2canvas", [], function () {
                 v[m++] = ["line", n + R[3].width, k + h];
                 break;
               case 1:
-                n = f + g - R[1].width;
+                n = e + g - R[1].width;
                 p = R[1].width;
                 m = 0;
                 v[m++] = ["line", n, k + R[0].width];
@@ -808,20 +808,20 @@ define("Utils/html2canvas", [], function () {
         p(a, b, c);
         M.removeChild(d);
       }
-      function B(a, b, c, d, f, e, g, l) {
+      function B(a, b, c, d, e, f, g, l) {
         var n = 0,
           k = 0;
         0 < g - c && (n = g - c);
         0 < l - d && (k = l - d);
-        a.drawImage(b, n, k, f - n, e - k, c + n, d + k, f - n, e - k);
+        a.drawImage(b, n, k, e - n, f - k, c + n, d + k, e - n, f - k);
       }
-      function O(a, b, c, d, f, e, g) {
+      function O(a, b, c, d, e, f, g) {
         g = Math.min(b.height, g);
         var l, n;
         c.left -= Math.ceil(c.left / b.width) * b.width;
-        for (n = d + c.left; n < e + d;)
-          ((l = Math.floor(n + b.width) > e + d ? e + d - n : b.width),
-            B(a, b, n, f + c.top, l, g, d, f),
+        for (n = d + c.left; n < f + d;)
+          ((l = Math.floor(n + b.width) > f + d ? f + d - n : b.width),
+            B(a, b, n, e + c.top, l, g, d, e),
             (n = Math.floor(n + b.width)));
       }
       function C(a, b) {
