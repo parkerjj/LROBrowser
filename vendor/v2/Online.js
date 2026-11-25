@@ -61,6 +61,7 @@ import {
   createCardCollectionComponent,
   installLastROCardMenuButton,
 } from "./lastro-card-collection-ui.mjs?build=20260924-v2-card-page-copy-1";
+import { createLastroAuction } from "./lastro-auction-ui.mjs";
 import { parseItemMoveInfoColumns } from "./lastro-item-move-info.mjs?build=20260906-v2-item-move-info-1";
 import {
   isObserverMode,
@@ -296730,15 +296731,45 @@ var init_PCGoldTimer$2 = __esmMin(() => {
 });
 //#endregion
 //#region src/UI/Components/PCGoldTimer/PCGoldTimer.js
+function lastroGoldPointDialogActive() {
+  return (NpcBox_default.__active && NpcBox_default._host?.isConnected) || NpcMenu_default.__active;
+}
+function tryLastroGoldPointDialogue(state) {
+  if (!state?.pending?.accepted || !state.id) return;
+  state.pending = null;
+  if (isObserverMode(Configs) || lastroGoldPointDialogActive()) return;
+  const packet = new PACKET.CZ.CONTACTNPC();
+  packet.NAID = state.id;
+  packet.type = 1;
+  Network.sendPacket(packet);
+}
 function onClickPCGoldTimer() {
+  if (isObserverMode(Configs) || lastroGoldPointDialogActive()) return;
   const packet = new PACKET.CZ.DYNAMICNPC_CREATE_REQUEST();
   packet.name = "GOLDPCCAFE";
-  Network.sendPacket(packet);
+  if (!Configs.get("lastroProtocol", false)) return Network.sendPacket(packet);
+  const state = SessionStorage_default.lastroGoldPointNpc ??= { id: 0, pending: null };
+  if (state.pending) return;
+  const request = { accepted: false };
+  state.pending = request;
+  if (Network.sendPacket(packet) === false) {
+    state.pending = null;
+    return;
+  }
+  setTimeout(() => {
+    if (SessionStorage_default.lastroGoldPointNpc !== state || state.pending !== request) return;
+    state.pending = null;
+    ChatBox_default.addText("等待在线积分管理员响应超时，请重试。", ChatBox_default.TYPE.ERROR, ChatBox_default.FILTER.PUBLIC_LOG);
+  }, 8000);
 }
 var MAX_GOLDPC_VAR, _data, PCGoldTimer, PCGoldTimer_default;
 var init_PCGoldTimer$1 = __esmMin(() => {
   init_UIManager();
   init_GUIComponent();
+  init_Configs();
+  init_NpcBox();
+  init_NpcMenu();
+  init_ChatBox();
   init_PCGoldTimer$3();
   init_PCGoldTimer$2();
   init_PacketStructure();
@@ -301963,6 +301994,15 @@ function onCloseScript(pkt) {
  * @param {object} pkt - PACKET.ZC.DYNAMICNPC_CREATE_RESULT
  */
 function onDynamicNPCCreateRequest(pkt) {
+  const state = SessionStorage_default.lastroGoldPointNpc;
+  if (state?.pending) {
+    if (pkt.result === 0 || pkt.result === 3) {
+      state.pending.accepted = true;
+      tryLastroGoldPointDialogue(state);
+      return;
+    }
+    state.pending = null;
+  }
   switch (pkt.result) {
     case 0:
       break;
@@ -303116,6 +303156,16 @@ var init_AttackEffectTable = __esmMin(() => {
  */
 function onEntitySpam(pkt) {
   let entity = EntityManager.get(pkt.GID);
+  if (pkt.name === "GoldpointManager" &&
+      (pkt.objecttype === Entity.TYPE_NPC || pkt.objecttype === Entity.TYPE_NPC2) &&
+      Configs.get("lastroProtocol", false)) {
+    if (Number.isInteger(pkt.GID) && pkt.GID > 0 && pkt.GID <= 0xffffffff) {
+      const state = SessionStorage_default.lastroGoldPointNpc ??= { id: 0, pending: null };
+      state.id = pkt.GID;
+      tryLastroGoldPointDialogue(state);
+    }
+    return;
+  }
   if (entity) entity.set(pkt);
   else {
     entity = new Entity();
@@ -303276,6 +303326,8 @@ function onEntitySpam(pkt) {
  * @param {object} pkt - PACKET.ZC.NOTIFY_VANISH
  */
 function onEntityVanish(pkt) {
+  const goldPointNpc = SessionStorage_default.lastroGoldPointNpc;
+  if (goldPointNpc && goldPointNpc.id === pkt.GID) goldPointNpc.id = 0;
   const entity = EntityManager.get(pkt.GID);
   lastroCancelMovement(entity);
   if (entity) {
@@ -313315,6 +313367,35 @@ lastroBindNestedWindowState(this, _preferences$2, () => getCurrentPref());
 });
 //#endregion
 //#region src/Engine/MapEngine/Store.js
+var lastroAuction;
+function installLastroAuctionHooks() {
+  const enabled = () => Number(Configs.get("lastroNid", 0)) === 3 && !isObserverMode(Configs);
+  lastroAuction ??= UIManager.addComponent(createLastroAuction({
+    GUIComponent, UIManager, PACKET, Network, enabled,
+    getInventory: () => InventoryController.getUI(),
+    getPlayerName: () => SessionStorage_default.Entity?.display?.name,
+    getItemName: item => DB.getItemName(item).replace(/<\/?font\b[^>]*>/gi, ""),
+    loadItemIcon: (item, callback) => {
+      const info = DB.getItemInfo(item.ITID);
+      const resource = item.IsIdentified ? DB.getPreferredItemResourceName(info) : info.unidentifiedResourceName;
+      if (resource) Client.loadFile(DB.INTERFACE_PATH + "item/" + resource + ".bmp", callback);
+    },
+    showItemDetails: item => {
+      const details = { ...item, type: item.Type ?? item.type };
+      if (item.options) {
+        details.Options = Array.from({ length: 5 }, (_, slot) => ({
+          index: item.options["Index" + slot],
+          value: item.options["Value" + slot],
+          param: item.options["Param" + slot],
+        })).filter(option => option.index > 0);
+      }
+      ItemInfo_default.append();
+      ItemInfo_default.uid = item.ITID;
+      ItemInfo_default.setItem(details);
+    },
+  }));
+  lastroAuction.hookPackets();
+}
 /**
  * Received items list to buy from cash npc
  *
@@ -313826,6 +313907,7 @@ function onMarketShopResult(pkt) {
  * Initialize
  */
 function MainEngine$9() {
+  installLastroAuctionHooks();
   Network.hookPacket(PACKET.ZC.PC_CASH_POINT_ITEMLIST, onBuyCashList);
   Network.hookPacket(PACKET.ZC.PC_CASH_POINT_UPDATE, onBuyCashResult);
   Network.hookPacket(PACKET.ZC.PC_PURCHASE_ITEMLIST, onBuyList);
@@ -313874,6 +313956,7 @@ function MainEngine$9() {
   );
 }
 var init_Store = __esmMin(() => {
+  init_Configs();
   init_DBManager();
   init_SessionStorage();
   init_NetworkManager();
@@ -313886,6 +313969,10 @@ var init_Store = __esmMin(() => {
   init_VendingReport();
   init_VendingShop();
   init_ChatBox();
+  init_Client();
+  init_GUIComponent();
+  init_UIManager();
+  init_ItemInfo();
 });
 //#endregion
 //#region src/Engine/MapEngine/Trade.js
@@ -316132,6 +316219,7 @@ function resetEntityForMapEntry(entity, pkt, gid) {
  */
 function onMapChange(pkt) {
   document._lastroItemDrag?.cancel();
+  SessionStorage_default.lastroGoldPointNpc = null;
   lastroCloseVendingShopping();
   lastroCancelMovement(SessionStorage_default.Entity);
   MapControl._lastroMovementInput?.cancel();
@@ -316279,6 +316367,8 @@ function onMapChange(pkt) {
  * @param {object} pkt - PACKET.ZC.NPCACK_SERVERMOVE
  */
 function onServerChange(pkt) {
+  SessionStorage_default.lastroGoldPointNpc = null;
+  lastroAuction?.remove();
   MapEngine.init(pkt.addr.ip, pkt.addr.port, pkt.mapName);
 }
 /**
@@ -316286,6 +316376,7 @@ function onServerChange(pkt) {
  * Components that were never prepared have no root element to clean.
  */
 function cleanGameUI() {
+  SessionStorage_default.lastroGoldPointNpc = null;
   document._lastroItemDrag?.cancel();
   lastroCloseVendingShopping();
   lastroCancelMovement(SessionStorage_default.Entity);
