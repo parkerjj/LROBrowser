@@ -5,19 +5,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { extractRuntimeNode, extractVendorRegion, readVendorSource } from './helpers/vendor-runtime';
 
 const vendor = readVendorSource();
-type ItemDragInstaller = (options: {
-  document: Document;
-  mouse: { screen: { x: number; y: number }; state?: number; MOUSE_STATE?: { USESKILL: number } };
-  cursor: { x: number; y: number; freeze?: boolean; blockMagnetism?: boolean; ACTION?: { DEFAULT: number };
-    setType?: (type: number) => void; getActualType?: () => number };
-  isEnabled: () => boolean;
-}) => { cancel(): void; destroy(): void; active(): boolean };
+type ItemDrag = { cancel(): void; destroy(): void; active(): boolean };
 type StoreScrollInstaller = (component: { _host: HTMLElement; getRoot(): ShadowRoot | HTMLElement;
   _lastroStoreScroll?: { stop(): void; refresh(content: HTMLElement | null): void; reveal(content: HTMLElement | null, index: string | number): void } }) => {
   stop(): void; refresh(content: HTMLElement | null): void; reveal(content: HTMLElement | null, index: string | number): void;
 };
-const installLastroItemDrag = vm.runInNewContext('(' + extractRuntimeNode(vendor,
-  { kind: 'function', name: 'installLastroItemDrag' }) + ')') as ItemDragInstaller;
+const cursorInput = [
+  extractRuntimeNode(vendor, { kind: 'function', name: 'installLastroItemDrag' }),
+  extractRuntimeNode(vendor, { region: 'src/UI/CursorManager.js', kind: 'function', name: 'bindMouseEvents' }),
+  extractRuntimeNode(vendor, { region: 'src/UI/Components/GraphicsOption/GraphicsOption.js', kind: 'function', name: 'onToggleGameCursor' }),
+  'bindMouseEvents();',
+].join('\n');
 const installLastroStoreScroll = vm.runInNewContext('(' + extractRuntimeNode(vendor,
   { kind: 'function', name: 'installLastroStoreScroll' }) + ')') as StoreScrollInstaller;
 const live: Array<{ destroy(): void }> = [];
@@ -68,7 +66,13 @@ function fixture(sourceName = 'Inventory', targetName = 'Storage') {
   const source = sourceUi.root.querySelector<HTMLElement>('.item')!, icon = source.querySelector<HTMLElement>('.icon')!, target = targetUi.root.querySelector<HTMLElement>('.hit')!;
   Object.defineProperty(doc, 'elementFromPoint', { value: () => hit, configurable: true });
   const mouse = { screen: { x: 0, y: 0 } }, cursor = { x: 0, y: 0, freeze: false, blockMagnetism: false, ACTION: { DEFAULT: 0 }, setType: vi.fn() };
-  const bridge = installLastroItemDrag({ document: doc, mouse, cursor, isEnabled: () => true }); live.push(bridge);
+  const cursorContext = context(cursorInput, { Mouse: mouse, Cursor: cursor, GraphicsSettings: { cursor: true, save() {} } });
+  const bridge = (doc as Document & { _lastroItemDrag: ItemDrag })._lastroItemDrag;
+  live.push(bridge);
+  function setSystemCursor(checked: boolean) {
+    const toggle = cursorContext.onToggleGameCursor as (this: { checked: boolean }) => void;
+    toggle.call({ checked });
+  }
   const item = { index: 7, ITID: 501, count: 1, type: 4, IsIdentified: true, IsDamaged: false, location: 8 };
   function context(code: string, globals: Record<string, unknown> = {}) {
     const ctx = vm.createContext({ window: win, document: doc, Image: win.Image, console, setTimeout: win.setTimeout.bind(win), ...globals });
@@ -86,25 +90,39 @@ function fixture(sourceName = 'Inventory', targetName = 'Storage') {
     source.addEventListener('dragstart', event => fn(ctx, 'onItemDragStart').call(source, event));
     source.addEventListener('dragend', fn(ctx, 'onItemDragEnd')); return ctx;
   }
-  return { win, doc, item, sourceUi, targetUi, source, icon, target, bridge, cursor, context, mouseEvent, start, release, nativeInventory, setHit: (node: Element | null) => { hit = node; },
+  return { win, doc, item, sourceUi, targetUi, source, icon, target, bridge, cursor, context, mouseEvent, start, release, nativeInventory, setSystemCursor, setHit: (node: Element | null) => { hit = node; },
     tick() { time += 16; const callbacks = [...raf.values()]; raf.clear(); callbacks.forEach(callback => callback(time)); } };
 }
 
 describe('actual native handlers through the custom item drag bridge', () => {
-  it('preserves Inventory to Storage request arguments with a stopped-only dragover', () => {
+  const cursorModes = [{ mode: 'game', system: false }, { mode: 'system', system: true }];
+
+  it.each(cursorModes)('drags Inventory to Storage with the $mode cursor', ({ system }) => {
     const f = fixture(); f.nativeInventory(); const add = vi.fn();
     const ctx = f.context(functions('src/UI/Components/Storage/StorageCommon.js', ['onDrop']), { Component: { reqAddItem: add } });
     f.target.addEventListener('dragover', event => event.stopImmediatePropagation()); f.target.addEventListener('drop', fn(ctx, 'onDrop'));
-    f.start(); expect(f.bridge.active()).toBe(true); f.release(); expect(add).toHaveBeenCalledExactlyOnceWith(7, 1);
+    f.setSystemCursor(system);
+    f.start(); f.release(); expect(add).toHaveBeenCalledExactlyOnceWith(7, 1);
     expect(f.win._OBJ_DRAG_).toBeUndefined(); expect(f.source.draggable).toBe(true);
   });
-  it('preserves Storage to Inventory request arguments from the native storage source', () => {
+  it.each(cursorModes)('drags Storage to Inventory with the $mode cursor', ({ system }) => {
     const f = fixture('Storage', 'Inventory'), remove = vi.fn();
     const source = f.context(functions('src/UI/Components/Storage/StorageCommon.js', ['onItemDragStart', 'onItemDragEnd', 'getItemIndexById']), { _list: [f.item], asyncDragImage: true });
     f.source.addEventListener('dragstart', event => fn(source, 'onItemDragStart').call(null, event, f.source)); f.source.addEventListener('dragend', fn(source, 'onItemDragEnd'));
     const target = f.context(functions('src/UI/Components/Inventory/InventoryCommon.js', ['onDrop']), { StorageController: { reqRemoveItem: remove } });
     f.target.addEventListener('dragover', event => event.stopImmediatePropagation()); f.target.addEventListener('drop', fn(target, 'onDrop'));
+    f.setSystemCursor(system);
     f.start(); f.release(); expect(remove).toHaveBeenCalledExactlyOnceWith(7, 1);
+    expect(f.doc.querySelector<HTMLElement>('.cursor')?.style.display).toBe(system ? 'none' : 'block');
+  });
+  it('cancels an in-progress drag when the cursor mode changes', () => {
+    const f = fixture(); f.nativeInventory(); const drop = vi.fn();
+    f.target.addEventListener('dragover', event => event.preventDefault());
+    f.target.addEventListener('drop', drop);
+    f.start(); expect(f.bridge.active()).toBe(true);
+    f.setSystemCursor(true); f.release();
+    expect(drop).not.toHaveBeenCalled();
+    expect(f.win._OBJ_DRAG_).toBeUndefined(); expect(f.source.draggable).toBe(true);
   });
   it('uses native Equipment highlighting and equipping despite its non-cancelled dragover', () => {
     const f = fixture('Inventory', 'Equipment'); f.nativeInventory(); const equip = vi.fn();
