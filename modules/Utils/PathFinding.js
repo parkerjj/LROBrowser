@@ -119,6 +119,7 @@ define("Utils/PathFinding", [], function () {
       z = e.height;
       var F = e.cells,
         G = e.type;
+      if (null == G) return !1;
       if ((B = d(v, u, A, D, B, O, G.WALKABLE))) return B;
       m.set(h);
       g.set(r);
