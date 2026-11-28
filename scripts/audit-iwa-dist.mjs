@@ -12,6 +12,8 @@ import { packagedAssetPath, REQUIRED_HEADERS } from './iwa-security.mjs';
 const ALLOWED_ORIGINS = new Set(['https://game.lastro.cn', 'https://rodata.ltsd.ro']);
 const RELAY_ORIGINS = new Set(['wss://port.lastro.cn']);
 const NON_RESOURCE_ORIGINS = new Set(['http://www.w3.org']);
+const KE_CITY_SOURCE = 'data/static/cities.source.json';
+const EXECUTABLE_PATH = /\.(?:[cm]?js|lua|lub|wasm(?:\.enc)?)(?:\.gz)?$/i;
 const REMOTE_EXECUTABLE = /https?:\/\/[^\s"'`]+\.(?:js|mjs|cjs|wasm(?:\.enc)?|lua|lub)(?:[?#]|$)/i;
 const PROHIBITED_TEXT = [
   ['socket-proxy', /socketProxy/i],
@@ -75,7 +77,32 @@ function javascriptCommentRanges(source) {
   return [...ranges.values()].sort((left, right) => left.start - right.start);
 }
 
-function urlReferences(source, javascript = false, onMatch = () => {}) {
+function cityCitationOffsets(source) {
+  const file = ts.parseJsonText(KE_CITY_SOURCE, source);
+  const offsets = new Set();
+  if (file.parseDiagnostics.length) return offsets;
+  function propertyValue(object, name) {
+    if (!object || !ts.isObjectLiteralExpression(object)) return undefined;
+    return object.properties.find(property => ts.isPropertyAssignment(property)
+      && ts.isStringLiteral(property.name) && property.name.text === name)?.initializer;
+  }
+  const references = propertyValue(file.statements[0]?.expression, 'references');
+  if (!references || !ts.isArrayLiteralExpression(references)) return offsets;
+  for (const reference of references.elements) {
+    const value = propertyValue(reference, 'url');
+    if (!value || !ts.isStringLiteral(value)) continue;
+    const url = globalThis.URL.parse(value.text);
+    if (!url) continue;
+    if (url.protocol !== 'https:' || url.username || url.password
+      || EXECUTABLE_PATH.test(decodeURIComponent(url.pathname)) || REMOTE_EXECUTABLE.test(url.href)) {
+      throw new Error(`invalid KE city citation URL in ${KE_CITY_SOURCE}`);
+    }
+    offsets.add(value.getStart(file) + 1);
+  }
+  return offsets;
+}
+
+function urlReferences(source, javascript, include) {
   const ranges = javascript ? javascriptCommentRanges(source) : [];
   const urls = [];
   let rangeIndex = 0;
@@ -83,7 +110,10 @@ function urlReferences(source, javascript = false, onMatch = () => {}) {
     while (rangeIndex < ranges.length && ranges[rangeIndex].end <= match.index) rangeIndex++;
     const comment = ranges[rangeIndex];
     if (comment && comment.start <= match.index && match.index < comment.end) continue;
-    try { const url = new globalThis.URL(match[0]); urls.push(url); onMatch(url, match.index); } catch { /* ignored malformed fragments are handled by the source audit */ }
+    let url;
+    try { url = new globalThis.URL(match[0]); }
+    catch { continue; /* malformed fragments are handled by the source audit */ }
+    if (include(url, match.index)) urls.push(url);
   }
   return urls;
 }
@@ -122,6 +152,8 @@ export async function auditDist(distDirectory, reportPath = path.resolve('releas
     if (!relativeFiles.includes(relative)) return new globalThis.Response(null, { status: 404 });
     return new globalThis.Response(await readFile(path.join(dist, relative)));
   } } });
+  const citySource = kore?.manifest.files.some(file => file.path === KE_CITY_SOURCE && file.kind === 'data-json')
+    ? `core/ke/${kore.manifest.packageId}/${KE_CITY_SOURCE}` : null;
   if (kore?.manifest.schemaVersion === 3 && relativeFiles.some(file => file.startsWith('ke/map/') || /\.fld2(?:\.gz)?$/i.test(file))) throw new Error('embedded-map-package-carries-legacy-fieldpack');
   if (relativeFiles.some((file) => file.endsWith('.map'))) throw new Error('source maps are not allowed in the IWA bundle');
 
@@ -148,10 +180,15 @@ export async function auditDist(distDirectory, reportPath = path.resolve('releas
       if (navigationOnly && /\bfetch\s*\(|XMLHttpRequest|WebSocket|\.src\s*=|import\s*\(/.test(source)) {
         throw new Error('navigation helper must not load remote resources');
       }
+      // Only URL values in the verified city table's references array describe provenance.
+      const citations = relative === citySource ? cityCitationOffsets(source) : null;
       const urls = urlReferences(source, /\.(?:js|mjs|cjs)$/i.test(relative), (url, index) => {
-        if (!['http://www.apache.org', 'https://github.com'].includes(url.origin) || originSamples.has(url.origin)) return;
-        const from = Math.max(0, index - 80), to = Math.min(source.length, index + url.href.length + 80);
-        originSamples.set(url.origin, { file: relative, context: source.slice(from, to).replaceAll('\n', ' ') });
+        if (citations?.has(index)) return false;
+        if (['http://www.apache.org', 'https://github.com'].includes(url.origin) && !originSamples.has(url.origin)) {
+          const from = Math.max(0, index - 80), to = Math.min(source.length, index + url.href.length + 80);
+          originSamples.set(url.origin, { file: relative, context: source.slice(from, to).replaceAll('\n', ' ') });
+        }
+        return true;
       });
       referencedUrls.push(...urls);
       for (const url of urls) {
@@ -194,7 +231,7 @@ export async function auditDist(distDirectory, reportPath = path.resolve('releas
     if (actual.bytes !== expected.bytes || actual.sha256 !== expected.sha256) throw new Error('executable asset integrity mismatch: ' + file);
   }
   for (const file of relativeFiles) {
-    if (file.startsWith('core/') && /\.(?:[cm]?js|lua|lub|wasm|wasm\.enc)(?:\.gz)?$/i.test(file) && !packagedFiles.has(file)) throw new Error('unlisted executable asset: ' + file);
+    if (file.startsWith('core/') && EXECUTABLE_PATH.test(file) && !packagedFiles.has(file)) throw new Error('unlisted executable asset: ' + file);
     if (file.startsWith('runtime/') && !packagedFiles.has(file)) throw new Error('unlisted runtime asset: ' + file);
   }
 
