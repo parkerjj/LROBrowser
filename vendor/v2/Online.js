@@ -195509,6 +195509,7 @@ function onUpdateQualityDetails() {
  * Toggle game cursor
  */
 function onToggleGameCursor() {
+  document._lastroItemDrag?.cancel();
   GraphicsSettings.cursor = !this.checked;
   GraphicsSettings.save();
   if (!GraphicsSettings.cursor) document.body.classList.remove("custom-cursor");
@@ -282868,7 +282869,7 @@ var init_EntityManager = __esmMin(() => {
   Entity.Manager = EntityManager;
 });
 //#endregion
-function installLastroItemDrag({ document: doc, mouse, cursor, isEnabled }) {
+function installLastroItemDrag({ document: doc, mouse, cursor }) {
   if (doc._lastroItemDrag) return doc._lastroItemDrag;
   const win = doc.defaultView, emitted = new WeakSet(), listeners = [];
   let gesture, frame, lastOver = 0, suppressClickUntil = 0, consumeRelease = false;
@@ -282959,7 +282960,7 @@ function installLastroItemDrag({ document: doc, mouse, cursor, isEnabled }) {
     frame = undefined;
     if (!gesture?.started) return;
     // The payload was captured at dragstart; a redrawn source row must not end the drag.
-    if (doc.hidden || !isEnabled()) { cancel(); return; }
+    if (doc.hidden) { cancel(); return; }
     if (time - lastOver >= 50) { lastOver = time; hover(gesture); }
     if (gesture?.started) frame = win.requestAnimationFrame(pulse);
   }
@@ -283049,7 +283050,7 @@ function installLastroItemDrag({ document: doc, mouse, cursor, isEnabled }) {
     frame = win.requestAnimationFrame(pulse);
   }
   listen(win, 'mousedown', event => {
-    if (event.button !== 0 || !isEnabled() || doc.hidden) return;
+    if (event.button !== 0 || doc.hidden) return;
     cancel();
     consumeRelease = false;
     suppressClickUntil = 0;
@@ -283063,7 +283064,7 @@ function installLastroItemDrag({ document: doc, mouse, cursor, isEnabled }) {
   });
   listen(win, 'mousemove', event => {
     if (!gesture) return;
-    if (event.buttons !== 1 || !isEnabled()) { cancel(); return; }
+    if (event.buttons !== 1) { cancel(); return; }
     gesture.at = point(event);
     if (!gesture.started && Math.hypot(gesture.at.x - gesture.start.x, gesture.at.y - gesture.start.y) >= 5) begin(gesture);
     if (gesture?.started) {
@@ -283073,7 +283074,7 @@ function installLastroItemDrag({ document: doc, mouse, cursor, isEnabled }) {
     }
   });
   listen(win, 'dragstart', event => {
-    if (emitted.has(event) || !gesture || !isEnabled()) return;
+    if (emitted.has(event) || !gesture) return;
     event.preventDefault();
     event.stopImmediatePropagation();
     if (!gesture.started) { gesture.at = point(event); begin(gesture); }
@@ -283232,7 +283233,8 @@ function bindMouseEvents() {
     true,
   );
 
-  installLastroItemDrag({ document, mouse: Mouse, cursor: Cursor, isEnabled: () => GraphicsSettings.cursor });
+  // Both cursor modes use the same drag events for game items.
+  installLastroItemDrag({ document, mouse: Mouse, cursor: Cursor });
 }
 /**
  * Start pre-compiling animation to avoid building sprites

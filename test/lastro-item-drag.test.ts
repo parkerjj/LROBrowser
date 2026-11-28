@@ -8,7 +8,6 @@ type ItemDragInstaller = (options: {
   mouse: { screen: { x: number; y: number }; state?: number; MOUSE_STATE?: { USESKILL: number } };
   cursor: { x: number; y: number; freeze?: boolean; blockMagnetism?: boolean; ACTION?: { DEFAULT: number };
     setType?: (type: number) => void; getActualType?: () => number };
-  isEnabled: () => boolean;
 }) => { cancel(): void; destroy(): void; active(): boolean };
 
 const vendor = readVendorSource();
@@ -24,7 +23,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function fixture(options: { enabled?: boolean; accept?: boolean; type?: string; draggable?: string; plain?: string; dragImage?: boolean } = {}) {
+function fixture(options: { accept?: boolean; type?: string; draggable?: string; plain?: string; dragImage?: boolean } = {}) {
   const frame = document.createElement('iframe');
   document.body.append(frame); frames.push(frame);
   const win = frame.contentWindow as DragWindow, doc = win.document;
@@ -45,7 +44,7 @@ function fixture(options: { enabled?: boolean; accept?: boolean; type?: string; 
   };
   const events: Array<{ type: string; event: Event; data: string; target: EventTarget | null }> = [];
   const drops: unknown[] = [];
-  let enabled = options.enabled ?? true, hit: Element | null = sourceHost;
+  let hit: Element | null = sourceHost;
   Object.defineProperty(doc, 'elementFromPoint', { configurable: true, value: () => hit });
   Object.defineProperty(sourceRoot, 'elementFromPoint', { configurable: true, value: () => icon });
   Object.defineProperty(targetRoot, 'elementFromPoint', { configurable: true, value: () => slot });
@@ -68,7 +67,7 @@ function fixture(options: { enabled?: boolean; accept?: boolean; type?: string; 
       if (type === 'drop') { event.preventDefault(); drops.push(options.plain !== undefined ? transfer.getData('Text') : JSON.parse(transfer.getData('Text'))); }
     });
   }
-  const bridge = installLastroItemDrag({ document: doc, mouse, cursor, isEnabled: () => enabled });
+  const bridge = installLastroItemDrag({ document: doc, mouse, cursor });
   bridges.push(bridge);
   const dispatch = (element: EventTarget, type: string, x: number, y: number, button = 0, buttons = type === 'mouseup' ? 0 : 1) => {
     const event = new win.MouseEvent(type, { clientX: x, clientY: y, button, buttons, bubbles: true, composed: true, cancelable: true });
@@ -82,7 +81,7 @@ function fixture(options: { enabled?: boolean; accept?: boolean; type?: string; 
     doc.dispatchEvent(event); return event;
   };
   return { win, doc, source, sourceHost, sourceRoot, icon, target, targetHost, targetRoot, slot, mouse, cursor, events, drops, payload, bridge, dispatch, start, move, release, key,
-    setHit: (element: Element | null) => { hit = element; }, setEnabled: (value: boolean) => { enabled = value; } };
+    setHit: (element: Element | null) => { hit = element; } };
 }
 
 describe('item dragging without the browser drag cursor', () => {
@@ -302,12 +301,6 @@ describe('item dragging without the browser drag cursor', () => {
     expect(f.win._OBJ_DRAG_).toBeUndefined(); expect(f.source.getAttribute('draggable')).toBe('true');
   });
 
-  it('cancels an active custom drag if the game cursor mode is switched off', () => {
-    const f = fixture(); f.start(); f.move(); f.setEnabled(false); f.move(120, 130); f.release(120, 130);
-    expect(f.bridge.active()).toBe(false); expect(f.drops).toEqual([]);
-    expect(f.win._OBJ_DRAG_).toBeUndefined(); expect(f.source.getAttribute('draggable')).toBe('true');
-  });
-
   it('consumes the mouse release and click after Escape cancels a drag over the game canvas', () => {
     const f = fixture(), canvas = f.doc.createElement('canvas'), released = vi.fn(), clicked = vi.fn();
     f.doc.body.append(canvas); canvas.addEventListener('mouseup', released); canvas.addEventListener('click', clicked);
@@ -317,14 +310,6 @@ describe('item dragging without the browser drag cursor', () => {
     expect(released).not.toHaveBeenCalled(); expect(clicked).not.toHaveBeenCalled(); expect(f.drops).toEqual([]);
     f.dispatch(canvas, 'mousedown', 180, 200); f.dispatch(canvas, 'mouseup', 180, 200); f.dispatch(canvas, 'click', 180, 200);
     expect(released).toHaveBeenCalledOnce(); expect(clicked).toHaveBeenCalledOnce();
-  });
-
-  it('leaves normal browser dragging untouched when the custom game cursor is disabled', () => {
-    const f = fixture({ enabled: false }); f.start(); f.move(); f.release();
-    expect(f.events).toEqual([]); expect(f.source.getAttribute('draggable')).toBe('true');
-    const native = new f.win.Event('dragstart', { bubbles: true, composed: true, cancelable: true });
-    Object.defineProperty(native, 'dataTransfer', { value: { setDragImage: vi.fn(), setData: vi.fn(), getData: () => '' } });
-    expect(f.source.dispatchEvent(native)).toBe(true); expect(native.defaultPrevented).toBe(false);
   });
 
   it('keeps Intro file handling and unrelated browser drag sources outside game dragging', () => {
